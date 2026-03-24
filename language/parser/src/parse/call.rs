@@ -1,6 +1,8 @@
 //! Parse calls, static calls, dynamic calls, etc.
 
-use destack_ast::{Argument, Expression, Keyword, LocalNodeId, PostfixPosition, TokenType};
+use destack_ast::{
+    Argument, Expression, Keyword, LocalNodeId, NodeType, PostfixPosition, TokenType,
+};
 use destack_source::Span;
 
 use crate::{ParseResult, Parser};
@@ -43,17 +45,25 @@ impl Parser {
             return Ok(index_id);
         }
 
-        // expression
-        let index_options = if self.options.is_in_type() {
-            self.options.nested().in_type()
+        // missing index
+        let is_missing_index = Self::is_expression_slot_boundary_token(self.peek_token_type());
+        let index = if is_missing_index {
+            self.recover_missing_expression_here(NodeType::Expression)
         } else {
-            self.options.nested()
+            let index_options = if self.options.is_in_type() {
+                self.options.nested().in_type()
+            } else {
+                self.options.nested()
+            };
+            self.eat_expression(index_options)?
         };
-        let index = self.eat_expression(index_options)?;
 
         self.eat_newlines_maybe()?;
+
         // close bracket
-        self.eat_token(TokenType::CloseBracket)?;
+        if !is_missing_index {
+            self.eat_close_token_or_recover_missing(TokenType::CloseBracket, NodeType::Expression)?;
+        }
 
         // index
         let index_expression = if self.options.is_in_type() {
@@ -201,8 +211,10 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Argument, BinaryOperator, Expression, LocalNodeId, Path, PostfixPosition, ScalarLiteral,
+        Argument, BinaryOperator, Declaration, Expression, LocalNodeId, NodeType, Path,
+        PostfixPosition, ScalarLiteral, TypeBinaryOperator,
     };
+    use destack_source::LanguageType;
     use smallvec::smallvec;
 
     use crate::{Parser, TestParser, assert_expression_path, assert_node, assert_path};
@@ -279,6 +291,254 @@ mod tests {
             // 2
             assert_node!(parser.tree, dynamic_arguments[1], Argument::Positional { modifiers: _, value } => {
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_member_postfix_missing_name() {
+        // foo.
+        let mut test = TestParser::new("foo.");
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression(parser.options).unwrap();
+
+        // diagnostics
+        test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
+
+        // foo.
+        assert_node!(parser.tree, expression_id, Expression::Member { left, name: None, static_arguments: None } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "foo");
+        });
+    }
+
+    #[test]
+    fn test_parse_private_member_postfix_missing_name() {
+        // foo.#
+        let mut test = TestParser::new("foo.#");
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression(parser.options).unwrap();
+
+        // diagnostics
+        test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
+
+        // foo.#
+        assert_node!(parser.tree, expression_id, Expression::PrivateMember { left, name: None, static_arguments: None } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "foo");
+        });
+    }
+
+    #[test]
+    fn test_parse_optional_member_postfix_missing_name() {
+        // foo?.
+        let mut test = TestParser::new("foo?.");
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression(parser.options).unwrap();
+
+        // diagnostics
+        test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
+
+        // foo?.
+        assert_node!(parser.tree, expression_id, Expression::Member { left, name: None, static_arguments: None } => {
+            assert_node!(parser.tree, *left, Expression::Maybe { left, position } => {
+                assert_eq!(*position, PostfixPosition::Direct);
+                assert_expression_path!(parser, parser.tree.get(*left), "foo");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_parenthesized_member_postfix_missing_name_preserves_outer_close() {
+        // (foo.)
+        let mut test = TestParser::new("(foo.)");
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression(parser.options).unwrap();
+
+        // diagnostics
+        test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, ")")]);
+
+        // (foo.)
+        assert_node!(parser.tree, expression_id, Expression::Parenthesized { expression } => {
+            assert_node!(parser.tree, *expression, Expression::Member { left, name: None, static_arguments: None } => {
+                assert_expression_path!(parser, parser.tree.get(*left), "foo");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_call_postfix_missing_close_parenthesis() {
+        // foo(
+        let mut test = TestParser::new("foo(");
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression(parser.options).unwrap();
+
+        // diagnostics
+        test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
+
+        // foo(
+        assert_node!(parser.tree, expression_id, Expression::Call { position, left, static_arguments: None, dynamic_arguments } => {
+            assert_eq!(*position, PostfixPosition::Direct);
+            assert_expression_path!(parser, parser.tree.get(*left), "foo");
+            assert!(dynamic_arguments.is_empty());
+        });
+    }
+
+    #[test]
+    fn test_parse_call_postfix_missing_close_parenthesis_after_argument() {
+        // foo(1
+        let mut test = TestParser::new("foo(1");
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression(parser.options).unwrap();
+
+        // diagnostics
+        test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
+
+        // foo(1
+        assert_node!(parser.tree, expression_id, Expression::Call { position, left, static_arguments: None, dynamic_arguments } => {
+            assert_eq!(*position, PostfixPosition::Direct);
+            assert_expression_path!(parser, parser.tree.get(*left), "foo");
+            assert_eq!(dynamic_arguments.len(), 1);
+            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_indirect_call_postfix_missing_close_parenthesis_after_argument() {
+        // foo.(1
+        let mut test = TestParser::new("foo.(1");
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression(parser.options).unwrap();
+
+        // diagnostics
+        test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
+
+        // foo.(1
+        assert_node!(parser.tree, expression_id, Expression::Call { position, left, static_arguments: None, dynamic_arguments } => {
+            assert_eq!(*position, PostfixPosition::Indirect);
+            assert_expression_path!(parser, parser.tree.get(*left), "foo");
+            assert_eq!(dynamic_arguments.len(), 1);
+            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_optional_call_postfix_missing_close_parenthesis_after_argument() {
+        // foo?.(1
+        let mut test = TestParser::new("foo?.(1");
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression(parser.options).unwrap();
+
+        // diagnostics
+        test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
+
+        // foo?.(1
+        assert_node!(parser.tree, expression_id, Expression::Call { position, left, static_arguments: None, dynamic_arguments } => {
+            assert_eq!(*position, PostfixPosition::Indirect);
+            assert_node!(parser.tree, *left, Expression::Maybe { left, position } => {
+                assert_eq!(*position, PostfixPosition::Direct);
+                assert_expression_path!(parser, parser.tree.get(*left), "foo");
+            });
+            assert_eq!(dynamic_arguments.len(), 1);
+            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_index_postfix_missing_expression() {
+        // foo[
+        let mut test = TestParser::new("foo[");
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression(parser.options).unwrap();
+
+        // diagnostics
+        test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
+
+        // foo[
+        assert_node!(parser.tree, expression_id, Expression::Index { position, left, index: Some(index) } => {
+            assert_eq!(*position, PostfixPosition::Direct);
+            assert_expression_path!(parser, parser.tree.get(*left), "foo");
+            assert_node!(parser.tree, *index, Expression::Missing);
+        });
+    }
+
+    #[test]
+    fn test_parse_index_postfix_missing_close_bracket() {
+        // foo[1
+        let mut test = TestParser::new("foo[1");
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression(parser.options).unwrap();
+
+        // diagnostics
+        test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
+
+        // foo[1
+        assert_node!(parser.tree, expression_id, Expression::Index { position, left, index: Some(index) } => {
+            assert_eq!(*position, PostfixPosition::Direct);
+            assert_expression_path!(parser, parser.tree.get(*left), "foo");
+            assert_node!(parser.tree, *index, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+        });
+    }
+
+    #[test]
+    fn test_parse_indirect_index_postfix_missing_expression() {
+        // foo.[
+        let mut test = TestParser::new("foo.[");
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression(parser.options).unwrap();
+
+        // diagnostics
+        test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
+
+        // foo.[
+        assert_node!(parser.tree, expression_id, Expression::Index { position, left, index: Some(index) } => {
+            assert_eq!(*position, PostfixPosition::Indirect);
+            assert_expression_path!(parser, parser.tree.get(*left), "foo");
+            assert_node!(parser.tree, *index, Expression::Missing);
+        });
+    }
+
+    #[test]
+    fn test_parse_optional_index_postfix_missing_expression() {
+        // foo?.[
+        let mut test = TestParser::new("foo?.[");
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression(parser.options).unwrap();
+
+        // diagnostics
+        test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
+
+        // foo?.[
+        assert_node!(parser.tree, expression_id, Expression::Index { position, left, index: Some(index) } => {
+            assert_eq!(*position, PostfixPosition::Indirect);
+            assert_node!(parser.tree, *left, Expression::Maybe { left, position } => {
+                assert_eq!(*position, PostfixPosition::Direct);
+                assert_expression_path!(parser, parser.tree.get(*left), "foo");
+            });
+            assert_node!(parser.tree, *index, Expression::Missing);
+        });
+    }
+
+    #[test]
+    fn test_parse_parenthesized_index_postfix_missing_expression_preserves_outer_close() {
+        // (foo[)
+        let mut test = TestParser::new("(foo[)");
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression(parser.options).unwrap();
+
+        // diagnostics
+        test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, ")")]);
+
+        // (foo[)
+        assert_node!(parser.tree, expression_id, Expression::Parenthesized { expression } => {
+            assert_node!(parser.tree, *expression, Expression::Index { position, left, index: Some(index) } => {
+                assert_eq!(*position, PostfixPosition::Direct);
+                assert_expression_path!(parser, parser.tree.get(*left), "foo");
+                assert_node!(parser.tree, *index, Expression::Missing);
             });
         });
     }
@@ -364,13 +624,12 @@ mod tests {
 
     #[test]
     fn test_parse_new_type_arguments_before_if_keyword() {
-        let mut test = TestParser::new_with_options(
-            "new A<T> if (0);",
-            destack_source::LanguageType::TypeScript,
-        );
+        // new A<T> if (0);
+        let mut test = TestParser::new_with_options("new A<T> if (0);", LanguageType::TypeScript);
         let mut parser = test.prepare();
         let expression_id = parser.eat_expression(parser.options).unwrap();
 
+        // new A<T>
         assert_node!(parser.tree, expression_id, Expression::New { left, static_arguments: Some(static_arguments), dynamic_arguments } => {
             assert_expression_path!(parser, parser.tree.get(*left), "A");
             assert_eq!(static_arguments.len(), 1);
@@ -384,11 +643,12 @@ mod tests {
 
     #[test]
     fn test_parse_new_type_arguments_without_parenthesized_call() {
-        let mut test =
-            TestParser::new_with_options("new A<T>", destack_source::LanguageType::TypeScript);
+        // new A<T>
+        let mut test = TestParser::new_with_options("new A<T>", LanguageType::TypeScript);
         let mut parser = test.prepare();
         let expression_id = parser.eat_expression(parser.options).unwrap();
 
+        // new A<T>
         assert_node!(parser.tree, expression_id, Expression::New { left, static_arguments: Some(static_arguments), dynamic_arguments } => {
             assert_expression_path!(parser, parser.tree.get(*left), "A");
             assert_eq!(static_arguments.len(), 1);
@@ -402,11 +662,12 @@ mod tests {
 
     #[test]
     fn test_parse_new_type_arguments_without_parentheses_as_comparison() {
-        let mut test =
-            TestParser::new_with_options("new A < T", destack_source::LanguageType::TypeScript);
+        // new A < T
+        let mut test = TestParser::new_with_options("new A < T", LanguageType::TypeScript);
         let mut parser = test.prepare();
         let expression_id = parser.eat_expression(parser.options).unwrap();
 
+        // new A < T
         assert_node!(parser.tree, expression_id, Expression::Binary { left, operator, right } => {
             assert_eq!(*operator, BinaryOperator::LessThan);
             assert_node!(parser.tree, *left, Expression::New { left, static_arguments, dynamic_arguments } => {
@@ -420,11 +681,12 @@ mod tests {
 
     #[test]
     fn test_parse_new_multiple_comparisons_without_parenthesized_call() {
-        let mut test =
-            TestParser::new_with_options("new A < B > C", destack_source::LanguageType::TypeScript);
+        // new A < B > C
+        let mut test = TestParser::new_with_options("new A < B > C", LanguageType::TypeScript);
         let mut parser = test.prepare();
         let expression_id = parser.eat_expression(parser.options).unwrap();
 
+        // new A < B > C
         assert_node!(parser.tree, expression_id, Expression::Binary { left, operator, right } => {
             assert_eq!(*operator, BinaryOperator::GreaterThan);
             assert_expression_path!(parser, parser.tree.get(*right), "C");
@@ -441,14 +703,55 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_new_with_type_identifier_receiver_and_spread_argument() {
-        let mut test = TestParser::new_with_options(
-            "new type(...instances)",
-            destack_source::LanguageType::TypeScript,
-        );
+    fn test_parse_shift_left_comparison_not_type_arguments_like_babel() {
+        // f<< T > (()=>T) > T
+        let mut test =
+            TestParser::new_with_options("f<< T > (()=>T) > T", LanguageType::TypeScript);
         let mut parser = test.prepare();
         let expression_id = parser.eat_expression(parser.options).unwrap();
 
+        // diagnostics
+        test.assert_no_errors(&parser);
+
+        // f<< T > (()=>T) > T
+        assert_node!(parser.tree, expression_id, Expression::Binary { left, operator, right } => {
+            assert_eq!(*operator, BinaryOperator::GreaterThan);
+            assert_expression_path!(parser, parser.tree.get(*right), "T");
+
+            // f<< T > (()=>T)
+            assert_node!(parser.tree, *left, Expression::Binary { left, operator, right } => {
+                assert_eq!(*operator, BinaryOperator::GreaterThan);
+
+                // f<< T
+                assert_node!(parser.tree, *left, Expression::Binary { left, operator, right } => {
+                    assert_eq!(*operator, BinaryOperator::ShiftLeft);
+                    assert_expression_path!(parser, parser.tree.get(*left), "f");
+                    assert_expression_path!(parser, parser.tree.get(*right), "T");
+                });
+
+                // (()=>T)
+                assert_node!(parser.tree, *right, Expression::Parenthesized { expression } => {
+                    assert_node!(parser.tree, *expression, Expression::Declaration(declaration_id) => {
+                        assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body, .. } => {
+                            assert!(signature.dynamic_parameters.is_empty());
+                            assert!(signature.return_type.is_none());
+                            assert_expression_path!(parser, parser.tree.get(body.unwrap()), "T");
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_new_with_type_identifier_receiver_and_spread_argument() {
+        // new type(...instances)
+        let mut test =
+            TestParser::new_with_options("new type(...instances)", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression(parser.options).unwrap();
+
+        // new type(...instances)
         assert_node!(parser.tree, expression_id, Expression::New { left, static_arguments, dynamic_arguments } => {
             assert_expression_path!(parser, parser.tree.get(*left), "type");
             assert!(static_arguments.is_none());
@@ -465,7 +768,7 @@ mod tests {
     fn test_parse_new_parenthesized_cast_receiver_with_static_arguments() {
         let mut test = TestParser::new_with_options(
             "new (Promise as PromiseConstructor)<Foo>((resolve, reject) => {})",
-            destack_source::LanguageType::TypeScript,
+            LanguageType::TypeScript,
         );
         let mut parser = test.prepare();
         let expression_id = parser.eat_expression(parser.options).unwrap();
@@ -473,7 +776,7 @@ mod tests {
         assert_node!(parser.tree, expression_id, Expression::New { left, static_arguments: Some(static_arguments), dynamic_arguments } => {
             assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
                 assert_node!(parser.tree, *expression, Expression::TypeBinary { operator, .. } => {
-                    assert_eq!(*operator, destack_ast::TypeBinaryOperator::Cast);
+                    assert_eq!(*operator, TypeBinaryOperator::Cast);
                 });
             });
             assert_eq!(static_arguments.len(), 1);

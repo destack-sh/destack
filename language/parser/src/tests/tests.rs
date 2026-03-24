@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use destack_ast::{NodeType, TokenType};
 use destack_source::{File, FileId, FileType, LanguageType, Uri};
 
 use crate::Parser;
@@ -37,6 +38,52 @@ impl TestParser {
     /// Get a Parser for this test.
     pub(crate) fn prepare(&mut self) -> Parser {
         Parser::lex_file(self.file.clone(), self.language)
+    }
+
+    /// Assert the leaf parser errors by node type, expected token, and source text.
+    pub(crate) fn assert_error_leaves(
+        &self,
+        parser: &Parser,
+        expected_errors: &[(Option<NodeType>, Option<TokenType>, &str)],
+    ) {
+        let actual_errors: Vec<_> = parser
+            .errors
+            .iter()
+            .map(|error| {
+                let (span, node_type, token_type) = error.leaf_content();
+                (node_type, token_type, parser.get_span_str(span).to_owned())
+            })
+            .collect();
+
+        assert_eq!(
+            actual_errors.len(),
+            expected_errors.len(),
+            "actual parser errors: {actual_errors:#?}",
+        );
+
+        for (
+            (actual_node_type, actual_token, actual_text),
+            (expected_node_type, expected_token, expected_text),
+        ) in actual_errors.iter().zip(expected_errors.iter())
+        {
+            assert_eq!(
+                *actual_node_type, *expected_node_type,
+                "actual parser errors: {actual_errors:#?}"
+            );
+            assert_eq!(
+                *actual_token, *expected_token,
+                "actual parser errors: {actual_errors:#?}"
+            );
+            assert_eq!(
+                actual_text, expected_text,
+                "actual parser errors: {actual_errors:#?}"
+            );
+        }
+    }
+
+    /// Assert that the parser produced no diagnostics.
+    pub(crate) fn assert_no_errors(&self, parser: &Parser) {
+        assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
     }
 }
 
