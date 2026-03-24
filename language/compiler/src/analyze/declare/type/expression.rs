@@ -1138,12 +1138,18 @@ impl Compiler {
 
         let expression = ctx.tree.get(expression_id).clone();
         let ty = match expression {
+            Expression::Missing | Expression::Error => {
+                return Ok(Some(Type::Error));
+            }
             Expression::Member {
                 left,
                 name,
                 static_arguments,
             } => {
                 let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_REFERENCE);
+                let Some(name) = name else {
+                    return Ok(Some(Type::Error));
+                };
                 let member_key = StaticKey::Name(name);
                 let Some(selection) = self.resolve_type_member_symbol(
                     &mut ctx.reborrow(),

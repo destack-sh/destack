@@ -578,7 +578,13 @@ impl ModuleLowerer<'_> {
                 let left_id = self
                     .lower_expression(*left)
                     .expect_node::<Expression>(left.into_global_any(self.module.id), self)?;
-                let name = self.strings.intern_from(&self.ast.strings, *name);
+                let Some(name) = *name else {
+                    return Err(CodegenJsError::UnsupportedConstruct {
+                        node: expression_id.into_global_any(self.module.id),
+                        message: Some("missing member name".to_string()),
+                    });
+                };
+                let name = self.strings.intern_from(&self.ast.strings, name);
                 let static_arguments = static_arguments
                     .as_ref()
                     .map(|arguments| {
@@ -605,7 +611,13 @@ impl ModuleLowerer<'_> {
                 let left_id = self
                     .lower_expression(*left)
                     .expect_node::<Expression>(left.into_global_any(self.module.id), self)?;
-                let name = self.strings.intern_from(&self.ast.strings, *name);
+                let Some(name) = *name else {
+                    return Err(CodegenJsError::UnsupportedConstruct {
+                        node: expression_id.into_global_any(self.module.id),
+                        message: Some("missing private member name".to_string()),
+                    });
+                };
+                let name = self.strings.intern_from(&self.ast.strings, name);
                 let static_arguments = static_arguments
                     .as_ref()
                     .map(|arguments| {

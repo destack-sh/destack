@@ -257,7 +257,7 @@ impl Compiler {
             member_id,
             Expression::Member {
                 left: receiver,
-                name: member_name,
+                name: Some(member_name),
                 static_arguments: None,
             },
         );

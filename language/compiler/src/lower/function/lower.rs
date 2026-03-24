@@ -452,7 +452,15 @@ impl<'a> FunctionLowerer<'a> {
                         message: "static arguments on member access are not supported".to_string(),
                     })?;
                 }
-                self.lower_member_expression(expression_id, *left, *name)
+                let Some(name) = *name else {
+                    return Err(LowerError::UnsupportedConstruct {
+                        node: expression_id
+                            .into_global_any(self.env.module_id)
+                            .into_anchored(Some(self.env.profile)),
+                        message: "missing member name".to_string(),
+                    });
+                };
+                self.lower_member_expression(expression_id, *left, name)
             }
 
             Expression::Index { left, right } => {
@@ -810,7 +818,12 @@ impl<'a> FunctionLowerer<'a> {
                     .type_lowerer
                     .field_index_for_type(
                         binding.ty,
-                        *name,
+                        name.ok_or_else(|| LowerError::UnsupportedConstruct {
+                            node: expression_id
+                                .into_global_any(self.env.module_id)
+                                .into_anchored(Some(self.env.profile)),
+                            message: "missing member name".to_string(),
+                        })?,
                         self.env.strings,
                         self.state.builder.tree(),
                     )

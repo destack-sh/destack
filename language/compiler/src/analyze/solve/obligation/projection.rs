@@ -222,12 +222,15 @@ impl Compiler {
         }
 
         // select associated comptime members from projection syntax
+        let Some(name) = *name else {
+            return None;
+        };
         let selection = self
             .select_associated_projection_member_symbol(
                 &mut ctx.reborrow(),
                 expression_id,
                 left,
-                StaticKey::Name(*name),
+                StaticKey::Name(name),
                 Some(StaticMemberSymbolKind::AssociatedComptimeConst),
                 true,
                 true,

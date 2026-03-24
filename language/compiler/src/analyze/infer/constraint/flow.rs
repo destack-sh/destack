@@ -2390,7 +2390,8 @@ impl Compiler {
                 let left_id = self.unwrap_parenthesized_expression(*left, ctx.tree);
                 let symbol =
                     self.reference_symbol_for_expression(ctx.tree_symbol_view(), left_id)?;
-                Some((symbol, StaticKey::Name(*name)))
+                let name = (*name)?;
+                Some((symbol, StaticKey::Name(name)))
             }
             Expression::Index { left, right, .. } => {
                 let right_id = right.as_ref()?;

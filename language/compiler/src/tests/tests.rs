@@ -2242,10 +2242,11 @@ impl TestProgram {
         let first_argument_is_string_literal = call
             .arguments
             .and_then(|arguments| arguments.first().copied())
-            .map(|argument_id| match tree.get(argument_id) {
+            .and_then(|argument_id| match tree.get(argument_id) {
                 Argument::Positional { value, .. }
                 | Argument::Named { value, .. }
-                | Argument::Labeled { value, .. } => *value,
+                | Argument::Labeled { value, .. } => Some(*value),
+                Argument::Error { .. } => None,
                 Argument::Spread { .. } => {
                     panic!("unexpected spread decorator argument for {name}");
                 }

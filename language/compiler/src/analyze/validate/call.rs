@@ -100,9 +100,9 @@ impl Compiler {
                 let is_shape_mutation = matches!(
                     name,
                     name_id
-                        if *name_id == define_property_name
-                            || *name_id == define_properties_name
-                            || *name_id == set_prototype_of_name
+                        if *name_id == Some(define_property_name)
+                            || *name_id == Some(define_properties_name)
+                            || *name_id == Some(set_prototype_of_name)
                 );
                 let is_shape_owner = base_symbol
                     .is_some_and(|symbol| group_contains(object_group, symbol))

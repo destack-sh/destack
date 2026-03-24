@@ -692,7 +692,7 @@ impl Compiler {
                 )?;
                 Ok(resolved.map(|resolved| resolved.symbol))
             }
-            DependencyItem::Value { .. } => Ok(None),
+            DependencyItem::Value { .. } | DependencyItem::Error => Ok(None),
         }
     }
 

@@ -1,5 +1,5 @@
 use super::*;
-use crate::AnalyzeError;
+use crate::{AnalyzeError, TaskPhase};
 use destack_dir::{FloatType, SymbolSpace};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -138,6 +138,128 @@ fn assert_struct_field_type_matches_instance_field(
     );
 
     field_type_id
+}
+
+#[test]
+fn test_analyze_import_item_error_keeps_valid_sibling_binding() {
+    let test = TestProgram::memory_sequential();
+    test.add_module(
+        "dep.ts",
+        r#"
+export let bar = 1;
+"#,
+    );
+    let module_id = test.add_module(
+        "test.ts",
+        r#"
+import { foo as, bar } from "./dep";
+
+let x = bar;
+"#,
+    );
+
+    // run the pipeline and preserve later phases as no-op clean
+    test.analyze_module(module_id);
+    test.compile();
+    test.check_no_diagnostics_for_phases(&[TaskPhase::Resolve, TaskPhase::Analyze]);
+
+    // the valid sibling import still binds and infers through the malformed clause
+    let view = test.view(module_id);
+    let x_symbol = test
+        .resolve_to_symbol("test.ts", "x")
+        .expect("expected x symbol");
+    let x_type_id = view.expect_value_type_id(x_symbol);
+    assert_type!(
+        view.types(),
+        x_type_id,
+        Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::Number)
+        }
+    );
+}
+
+#[test]
+fn test_analyze_struct_member_error_keeps_valid_sibling_field() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+struct Box {
+    +
+    y: int32
+}
+
+let value = Box { y: 1 };
+value.y;
+"#,
+    );
+
+    // run the pipeline and preserve later phases as no-op clean
+    test.analyze_module(module_id);
+    test.compile();
+    test.check_no_diagnostics_for_phases(&[TaskPhase::Resolve, TaskPhase::Analyze]);
+
+    // the struct still keeps its error slot and valid sibling member
+    let view = test.view(module_id);
+    let box_name = test.program.strings.intern("Box");
+    let box_symbol = view.expect_declaration_symbol(box_name);
+    let box_instance_type_id = view.expect_instance_type_id(box_symbol);
+    let box_declaration_id = view
+        .tree()
+        .iter_node_ids_of_type::<Declaration>()
+        .into_iter()
+        .find(|declaration_id| {
+            view.tree()
+                .get(*declaration_id)
+                .descriptor()
+                .name
+                .map(|name| name.string())
+                == Some(box_name)
+        })
+        .expect("expected Box declaration");
+    let Declaration::Struct { members, .. } = view.tree().get(box_declaration_id) else {
+        panic!("expected struct declaration");
+    };
+    assert_eq!(members.len(), 2);
+    match view.tree().get(members[0]) {
+        Member::Error { .. } => {}
+        other => panic!("expected member error slot, got {other:?}"),
+    }
+    match view.tree().get(members[1]) {
+        Member::Field {
+            key: Some(DynamicKey::Name(name)),
+            ..
+        } => {
+            assert_string!(test.program, *name, "y");
+        }
+        other => panic!("expected field member, got {other:?}"),
+    }
+
+    // the valid sibling field still publishes both declaration and instance field types
+    let y_name = test.program.strings.intern("y");
+    let y_field_type_id = assert_struct_field_type_matches_instance_field(&test, &view, "Box", "y");
+    let y_instance_type_id = view.expect_object_field_type(box_instance_type_id, y_name);
+    assert_eq!(
+        view.types().get_type(y_field_type_id),
+        view.types().get_type(y_instance_type_id),
+    );
+    assert_type!(
+        view.types(),
+        y_field_type_id,
+        Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int32))
+        }
+    );
+
+    // the constructed instance member access also keeps the expected inferred type
+    let member_expression_id = view.root_expression_id(2);
+    assert_type!(
+        view.types(),
+        view.expect_inferred_type_id(member_expression_id),
+        Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int32))
+        }
+    );
 }
 
 /// Keep parallel analyze runs live and diagnostic clean for repeated module-graph work.

@@ -39,7 +39,7 @@ impl Compiler {
             };
             let member_expression = Expression::Member {
                 left: current_id,
-                name: segment,
+                name: Some(segment),
                 static_arguments: member_static_args,
             };
 

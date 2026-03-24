@@ -102,9 +102,10 @@ impl NodeVisitor for ExportDependencyCollector<'_> {
             name,
             static_arguments,
         } = expression
+            && let Some(name) = *name
         {
             let left_expression = tree.get(*left);
-            let member_key = StaticKey::Name(*name);
+            let member_key = StaticKey::Name(name);
 
             if static_arguments.is_none()
                 && let Some(target_symbol) = left_expression.target_symbol()
@@ -519,6 +520,9 @@ impl Compiler {
                             Some((*item_id).into_global_any(module_id)),
                         );
                     }
+                    continue;
+                }
+                DependencyItem::Error => {
                     continue;
                 }
             };
@@ -1058,6 +1062,9 @@ impl Compiler {
                     }
                     continue;
                 }
+                DependencyItem::Error => {
+                    continue;
+                }
             };
 
             // resolve the export key
@@ -1278,6 +1285,9 @@ impl Compiler {
                     DependencyKind::Value => SymbolSpaceOrder::ValueOnly,
                 },
                 DependencyItem::Value { .. } => SymbolSpaceOrder::ValueOnly,
+                DependencyItem::Error => {
+                    continue;
+                }
             };
 
             for space in spaces.spaces() {

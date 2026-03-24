@@ -765,7 +765,7 @@ impl Compiler {
                 let Expression::This = tree.get(*left) else {
                     return None;
                 };
-                Some(StaticKey::Name(*name))
+                Some(StaticKey::Name((*name)?))
             }
             Expression::Index {
                 left,

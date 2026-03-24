@@ -1192,7 +1192,7 @@ impl Compiler {
                     types,
                     space_order,
                 );
-                let name = self.program.strings.intern_from(&ast.strings, *name);
+                let name = name.map(|name| self.program.strings.intern_from(&ast.strings, name));
                 let static_argument_space_order = if module.language_type.is_destack() {
                     SymbolSpaceOrder::ValueThenType
                 } else {
@@ -1244,7 +1244,7 @@ impl Compiler {
                     types,
                     space_order,
                 );
-                let name = self.program.strings.intern_from(&ast.strings, *name);
+                let name = name.map(|name| self.program.strings.intern_from(&ast.strings, name));
                 let static_argument_space_order = if module.language_type.is_destack() {
                     SymbolSpaceOrder::ValueThenType
                 } else {

@@ -639,7 +639,7 @@ impl Compiler {
         let member_key = self.program.strings.intern(member);
         match tree.get(expression_id) {
             Expression::Member { left, name, .. } => {
-                *name == member_key && self.is_import_meta_chain(tree, *left)
+                *name == Some(member_key) && self.is_import_meta_chain(tree, *left)
             }
             _ => false,
         }

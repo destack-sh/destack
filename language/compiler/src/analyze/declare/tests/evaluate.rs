@@ -1,4 +1,5 @@
 use super::{ModuleId, TestProgram};
+use crate::TaskPhase;
 use crate::analyze::common::{AnalyzeIndex, SymbolTypeView, TypeContext};
 use crate::analyze::declare::{StaticConstantResolutionMode, TypeMemberResolution};
 use destack_dir::{
@@ -250,6 +251,43 @@ declare let value: A<number>;
 
     test.declare_module(module_id);
     test.check_has_diagnostic("EA121");
+}
+
+#[test]
+fn test_missing_type_alias_rhs_stays_import_only() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ts",
+        r#"
+type T =
+"#,
+    );
+
+    test.analyze_module(module_id);
+    test.compile();
+    test.check_no_diagnostics_for_phases(&[TaskPhase::Resolve, TaskPhase::Analyze]);
+}
+
+#[test]
+fn test_missing_type_member_name_stays_import_only() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ts",
+        r#"
+interface Foo {
+    value: string;
+}
+
+type T = Foo.
+"#,
+    );
+
+    test.analyze_module(module_id);
+    test.compile();
+    test.check_no_diagnostics_for_phases(&[TaskPhase::Resolve, TaskPhase::Analyze]);
+
+    let view = test.declare_view(module_id);
+    let _symbol = view.expect_namespace_symbol("T");
 }
 
 #[test]
@@ -806,7 +844,7 @@ declare const metricSegment: SegmentPlan<int32>.SegmentBytes;
             &mut type_context,
             log_member_expression_id,
             *left,
-            StaticKey::Name(*name),
+            StaticKey::Name(name.expect("expected member name")),
             true,
             true,
         )

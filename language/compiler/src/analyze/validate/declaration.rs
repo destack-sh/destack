@@ -598,7 +598,7 @@ impl Compiler {
             } => {
                 static_arguments.is_none()
                     && self.is_valid_import_alias_expression(tree, *left)
-                    && self.is_valid_import_alias_segment(*name)
+                    && name.is_some_and(|name| self.is_valid_import_alias_segment(name))
             }
             _ => false,
         }

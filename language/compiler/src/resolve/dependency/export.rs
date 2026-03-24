@@ -482,7 +482,7 @@ impl Compiler {
                 namespace_symbol,
                 is_module_name_shadowed,
             ) {
-                return Some(CommonjsAssignmentTarget::ModuleExportsProperty(*name));
+                return Some(CommonjsAssignmentTarget::ModuleExportsProperty((*name)?));
             }
 
             if self.expression_is_commonjs_exports_identifier(
@@ -492,7 +492,7 @@ impl Compiler {
                 namespace_symbol,
                 is_exports_name_shadowed,
             ) {
-                return Some(CommonjsAssignmentTarget::ExportsProperty(*name));
+                return Some(CommonjsAssignmentTarget::ExportsProperty((*name)?));
             }
         }
 
@@ -833,7 +833,7 @@ impl Compiler {
             static_arguments,
         } = tree.get(expression_id)
         {
-            if static_arguments.is_some() || *name != exports_name {
+            if static_arguments.is_some() || *name != Some(exports_name) {
                 return false;
             }
 

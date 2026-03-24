@@ -1,4 +1,6 @@
 use super::*;
+use crate::TaskPhase;
+use destack_dir::{Parameter, Property};
 
 /// Analyze let expression infer type.
 #[test]
@@ -82,6 +84,152 @@ fn test_analyze_let_expression_declare_type() {
 
     // instance_type[x] = undefined
     assert!(view.types().get_instance_type(x_symbol).is_none());
+}
+
+/// Analyze a lambda with a missing parameter type without escalating past import diagnostics.
+#[test]
+fn test_analyze_lambda_missing_parameter_type_stays_import_only() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ts",
+        r#"
+let f = (x:) => x;
+"#,
+    );
+
+    // run the pipeline and preserve later phases as no-op clean
+    test.analyze_module(module_id);
+    test.compile();
+    test.check_no_diagnostics_for_phases(&[TaskPhase::Resolve, TaskPhase::Analyze]);
+
+    // the lambda shape and parameter still survive in DIR
+    let view = test.view(module_id);
+    let expression_id = view.root_expression_id(0);
+    let Expression::Let { declarators, .. } = view.tree().get(expression_id) else {
+        panic!("expected let expression");
+    };
+    let declarator = view.tree().get(declarators[0]);
+    let value = declarator.value.expect("expected let value");
+    let Expression::Declaration { declaration } = view.tree().get(value) else {
+        panic!("expected lambda declaration");
+    };
+    let Declaration::Function { signature, .. } = view.tree().get(*declaration) else {
+        panic!("expected function declaration");
+    };
+    assert_eq!(signature.dynamic_parameters.len(), 1);
+    let parameter_id = signature.dynamic_parameters[0];
+    match view.tree().get(parameter_id) {
+        Parameter::Named { name, .. } => {
+            assert_string!(test.program, *name, "x");
+            assert!(
+                view.types()
+                    .get_declared_type_id(parameter_id.into_global_any(module_id))
+                    .is_some()
+            );
+        }
+        other => panic!("expected named parameter, got {other:?}"),
+    }
+}
+
+/// Analyze a call with one malformed argument slot without escalating past import diagnostics.
+#[test]
+fn test_analyze_call_argument_error_slot_stays_import_only() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ts",
+        r#"
+declare function foo(a: int32, b: int32, c: int32): void;
+
+foo(1, , 3);
+"#,
+    );
+
+    // run the pipeline and preserve later phases as no-op clean
+    test.analyze_module(module_id);
+    test.compile();
+    test.check_no_diagnostics_for_phases(&[TaskPhase::Resolve, TaskPhase::Analyze]);
+
+    // the call shape and its error slot still survive in DIR
+    let view = test.view(module_id);
+    let expression_id = view.root_expression_id(1);
+    let Expression::Call {
+        dynamic_arguments, ..
+    } = view.tree().get(expression_id)
+    else {
+        panic!("expected call expression");
+    };
+    assert_eq!(dynamic_arguments.len(), 3);
+    match view.tree().get(dynamic_arguments[1]) {
+        Argument::Error { .. } => {}
+        other => panic!("expected argument error slot, got {other:?}"),
+    }
+}
+
+/// Analyze an object literal with one malformed property slot without escalating past import diagnostics.
+#[test]
+fn test_analyze_object_property_error_slot_keeps_valid_sibling_field() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ts",
+        r#"
+let value = {
+    +
+    y: 1,
+};
+
+value.y;
+"#,
+    );
+
+    // run the pipeline and preserve later phases as no-op clean
+    test.analyze_module(module_id);
+    test.compile();
+    test.check_no_diagnostics_for_phases(&[TaskPhase::Resolve, TaskPhase::Analyze]);
+
+    // the object literal still keeps its error slot and valid sibling field
+    let view = test.view(module_id);
+    let value_name = test.program.strings.intern("value");
+    let value_initializer = view.expect_initializer(value_name);
+    let Expression::ObjectExpression { properties } = view.tree().get(value_initializer) else {
+        panic!("expected object expression");
+    };
+    assert_eq!(properties.len(), 2);
+    match view.tree().get(properties[0]) {
+        Property::Error { .. } => {}
+        other => panic!("expected property error slot, got {other:?}"),
+    }
+    match view.tree().get(properties[1]) {
+        Property::Field {
+            key: Some(DynamicKey::Name(name)),
+            ..
+        } => {
+            assert_string!(test.program, *name, "y");
+        }
+        other => panic!("expected field property, got {other:?}"),
+    }
+
+    // the valid sibling field still infers through the malformed property
+    let value_symbol = test
+        .resolve_to_symbol("test.ts", "value")
+        .expect("expected value symbol");
+    let value_type_id = view.expect_value_type_id(value_symbol);
+    let y_name = test.program.strings.intern("y");
+    let y_type_id = view.expect_object_field_type(value_type_id, y_name);
+    assert_type!(
+        view.types(),
+        y_type_id,
+        Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::Number)
+        }
+    );
+
+    // the member access also keeps the same surviving sibling field type
+    let member_expression_id = view.root_expression_id(1);
+    let member_type_id = view.expect_inferred_type_id(member_expression_id);
+    assert_eq!(
+        view.types().get_type(member_type_id),
+        view.types().get_type(y_type_id),
+    );
 }
 
 /// Analyze let expression infer tuple type with pattern.

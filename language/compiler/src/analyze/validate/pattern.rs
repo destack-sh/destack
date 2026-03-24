@@ -1710,8 +1710,9 @@ impl Compiler {
                 if left_symbol != enum_symbol {
                     return None;
                 }
+                let name = (*name)?;
                 let field_symbol =
-                    self.query_enum_field_symbol_for_name(ctx.type_view(), enum_symbol, *name)?;
+                    self.query_enum_field_symbol_for_name(ctx.type_view(), enum_symbol, name)?;
                 if enum_fields.contains(&field_symbol) {
                     Some(field_symbol)
                 } else {

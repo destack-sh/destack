@@ -67,16 +67,30 @@ impl Compiler {
         let item_id =
             tree.reserve_from_source(NodeType::DependencyItem, ast_item_id.id, scope, parent_id);
 
+        // malformed dependency items preserve their slot but do not bind symbols
+        if matches!(ast_item, ast::DependencyItem::Error) {
+            return tree.insert(item_id, DependencyItem::Error);
+        }
+
+        let ast::DependencyItem::Item {
+            mode: ast_mode,
+            kind: ast_kind,
+            name: ast_name,
+            alias: ast_alias,
+            value: ast_value,
+        } = ast_item
+        else {
+            unreachable!();
+        };
+
         let is_export = matches!(
             source,
             DependencySource::ExportStatement | DependencySource::ValueExpression
         );
-        let kind = self.bind_dependency_kind(ast_item.kind.unwrap_or(kind));
-        let mode = self.bind_dependency_mode(ast_item.mode);
-        let name = ast_item.name.map(|name| self.bind_name(ast, name));
-        let alias = ast_item
-            .alias
-            .map(|alias| self.program.strings.intern_from(&ast.strings, alias));
+        let kind = self.bind_dependency_kind(ast_kind.unwrap_or(kind));
+        let mode = self.bind_dependency_mode(*ast_mode);
+        let name = ast_name.map(|name| self.bind_name(ast, name));
+        let alias = ast_alias.map(|alias| self.program.strings.intern_from(&ast.strings, alias));
 
         // the symbol key is the alias if present, otherwise the name
         // (e.g., `import { foo as bar }` has key `bar`, `import * as baz` has key `baz`)
@@ -106,7 +120,7 @@ impl Compiler {
 
         let item_id = {
             // `export = expr`
-            if let Some(ast_value_id) = ast_item.value {
+            if let Some(ast_value_id) = ast_value {
                 let value_id = self.bind_expression(
                     module,
                     ast,
@@ -114,7 +128,7 @@ impl Compiler {
                     global_augmentation_scope,
                     module_bindings,
                     scope,
-                    ast_value_id,
+                    *ast_value_id,
                     Some(item_id),
                     tree,
                     symbols,

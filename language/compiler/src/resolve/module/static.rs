@@ -788,6 +788,14 @@ impl Compiler {
                 // resolve the left side value
                 let left_value =
                     self.evaluate_static_if_value(module_id, profile_id, tree, *left, import_meta)?;
+                let Some(name) = *name else {
+                    return Err(self.invalid_static_if(
+                        module_id,
+                        profile_id,
+                        expression_id.into_any(),
+                        "missing member name in static expression",
+                    ));
+                };
 
                 // apply member access
                 self.evaluate_member_access(
@@ -795,7 +803,7 @@ impl Compiler {
                     profile_id,
                     expression_id.into_any(),
                     left_value,
-                    *name,
+                    name,
                     import_meta,
                 )
             }

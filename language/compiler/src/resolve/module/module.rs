@@ -386,7 +386,7 @@ impl Compiler {
                         | DependencyItem::Remote { kind, .. }
                         | DependencyItem::UnresolvedLocal { kind, .. }
                         | DependencyItem::UnresolvedRemote { kind, .. } => Some(kind),
-                        DependencyItem::Value { .. } => None,
+                        DependencyItem::Value { .. } | DependencyItem::Error => None,
                     };
 
                     if dependency_kind == Some(DependencyKind::Type)

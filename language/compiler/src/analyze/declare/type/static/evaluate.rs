@@ -377,7 +377,13 @@ impl Compiler {
                 static_arguments: _,
             } => {
                 let node_id = expression_id.into_global_any(ctx.module.id);
-                let member_key = StaticKey::Name(*name);
+                let Some(name) = *name else {
+                    let error_type_id = ctx
+                        .types
+                        .insert_type_from_any(Type::Error, expression_id.into_any());
+                    return Ok(Some(StaticExpression::Type { ty: error_type_id }));
+                };
+                let member_key = StaticKey::Name(name);
 
                 // reject cross-module re-entry before projection lookup
                 // this keeps static evaluation fail-closed for module-level cycles
@@ -534,7 +540,7 @@ impl Compiler {
                     return Ok(None);
                 };
                 let Some(target_symbol) =
-                    self.enum_field_symbol_for_name(ctx.type_view(), enum_symbol, *name)?
+                    self.enum_field_symbol_for_name(ctx.type_view(), enum_symbol, name)?
                 else {
                     return Ok(None);
                 };

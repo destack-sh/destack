@@ -189,11 +189,12 @@ impl Compiler {
 
         // resolve namespace member receivers before parse target-symbol lookup
         if let Expression::Member { left, name, .. } = ctx.tree.get(receiver_id)
+            && let Some(name) = *name
             && let Some(symbol) = self.resolve_namespace_member_symbol(
                 ctx.tree_symbol_view(),
                 receiver_id,
                 *left,
-                StaticKey::Name(*name),
+                StaticKey::Name(name),
             )
         {
             return Some(self.canonical_symbol_id(

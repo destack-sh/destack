@@ -1513,6 +1513,19 @@ impl Compiler {
                 types,
             )
         };
+
+        // malformed argument slots poison the whole invocation
+        if self.dynamic_arguments_have_error_slots(ctx.tree, dynamic_arguments) {
+            self.infer_call_arguments_without_context(
+                &mut ctx.reborrow(),
+                dynamic_arguments,
+                state,
+            )?;
+
+            let type_id = self.synthesize_call_error_result_type(expression_id, &mut *ctx.types);
+            return Ok(finish_result(type_id, &mut *ctx.types));
+        }
+
         // ensure instance types for callable references
         self.ensure_reference_instance_types_for_type(
             &mut ctx.type_context_reborrow(),
@@ -2335,6 +2348,17 @@ impl Compiler {
         Ok(())
     }
 
+    /// Return true when one dynamic argument list contains malformed slots.
+    fn dynamic_arguments_have_error_slots(
+        &self,
+        tree: &NodeTree,
+        dynamic_arguments: &[LocalNodeId<Argument>],
+    ) -> bool {
+        dynamic_arguments
+            .iter()
+            .any(|argument_id| matches!(tree.get(*argument_id), Argument::Error { .. }))
+    }
+
     /// Synthesize the call-expression error recovery type for one expression.
     fn synthesize_call_error_result_type(
         &self,
@@ -2406,7 +2430,24 @@ impl Compiler {
                 expression_id,
                 unwrapped_left_id,
                 *receiver_id,
-                *name,
+                match *name {
+                    Some(name) => name,
+                    None => {
+                        return Ok(CallExpressionResolution {
+                            callee_symbol: None,
+                            call_receiver_ty_id: None,
+                            call_member_resolution: None,
+                            member_call_context: None,
+                            inherited_static_arguments: Vec::new(),
+                            inherited_substitutions: HashMap::new(),
+                            member_instance_arguments: None,
+                            prefilled_static_arguments: None,
+                            super_constructor_value_ty_id: None,
+                            has_static_argument_conflict: false,
+                            call_has_static_arguments,
+                        });
+                    }
+                },
                 member_static_arguments.clone(),
                 call_has_static_arguments,
                 state,
@@ -3140,6 +3181,17 @@ impl Compiler {
         // query and normalize the constructor target
         let target =
             self.infer_new_expression_target(&mut ctx.reborrow(), expression_id, left_id, state)?;
+
+        // malformed argument slots poison the whole construction
+        if self.dynamic_arguments_have_error_slots(ctx.tree, dynamic_arguments) {
+            self.infer_call_arguments_without_context(
+                &mut ctx.reborrow(),
+                dynamic_arguments,
+                state,
+            )?;
+
+            return Ok(self.synthesize_call_error_result_type(expression_id, &mut *ctx.types));
+        }
 
         // resolve construct signatures for the callee type
         let construct_signatures =

@@ -177,8 +177,9 @@ impl Compiler {
 
         // resolve Symbol.* member keys
         if let Expression::Member { left, name, .. } = expression {
+            let name = (*name)?;
             let well_known = self.get_well_known_symbols(profile)?;
-            let name = self.program.strings.get(*name);
+            let name = self.program.strings.get(name);
             let symbol_key = tree.get(*left).target_symbol().and_then(|base_symbol| {
                 well_known
                     .symbol_key_for_member(base_symbol, name.as_ref())
@@ -200,6 +201,7 @@ impl Compiler {
             let Expression::Member { left, name, .. } = tree.get(*left) else {
                 return None;
             };
+            let name = (*name)?;
             let well_known = self.get_well_known_symbols(profile)?;
             let symbol_symbol = well_known.get_symbol(WellKnownSymbol::Symbol)?;
             let base_symbol = tree.get(*left).target_symbol()?;
@@ -208,7 +210,7 @@ impl Compiler {
             {
                 return None;
             }
-            let member_name = self.program.strings.get(*name);
+            let member_name = self.program.strings.get(name);
             if member_name.as_ref() != "for" {
                 return None;
             }
