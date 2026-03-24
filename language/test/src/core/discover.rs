@@ -8,6 +8,20 @@ pub fn fixtures_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("fixtures")
 }
 
+/// Return the repository root directory.
+pub fn repo_root_dir() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(|path| path.parent())
+        .expect("language/test should live two levels below the repository root")
+        .to_path_buf()
+}
+
+/// Return the shared materialized test output root.
+pub fn test_output_dir() -> PathBuf {
+    repo_root_dir().join("target").join("destack-test")
+}
+
 /// Discover file cases in one directory.
 /// Each matching file becomes one case.
 /// Files prefixed with `_` are registered as skipped cases.
@@ -109,14 +123,24 @@ pub fn discover_directory_cases(directory: &Path, category: &str) -> io::Result<
 pub fn filter_cases(cases: Vec<Case>, filter: Option<&str>) -> Vec<Case> {
     // keep the full case list when no filter was provided
     match filter {
-        Some(f) => cases
-            .into_iter()
-            .filter(|case| {
-                case.name.contains(f)
-                    || case.full_name().contains(f)
-                    || case.path.to_string_lossy().contains(f)
-            })
-            .collect(),
+        Some(f) => {
+            let has_exact_match = cases.iter().any(|case| {
+                case.name == f || case.full_name() == f || case.path.to_string_lossy() == f
+            });
+
+            cases
+                .into_iter()
+                .filter(|case| {
+                    if has_exact_match {
+                        case.name == f || case.full_name() == f || case.path.to_string_lossy() == f
+                    } else {
+                        case.name.contains(f)
+                            || case.full_name().contains(f)
+                            || case.path.to_string_lossy().contains(f)
+                    }
+                })
+                .collect()
+        }
         None => cases,
     }
 }

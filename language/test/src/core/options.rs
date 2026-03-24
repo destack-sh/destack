@@ -44,6 +44,10 @@ pub struct RunOptions {
     #[arg(long)]
     pub update_known_failures: bool,
 
+    /// Update exact output snapshots in place.
+    #[arg(long)]
+    pub update_snapshots: bool,
+
     /// Run tests even when they are listed in known failure files.
     #[arg(long)]
     pub run_known_failures: bool,
@@ -70,6 +74,7 @@ impl Default for RunOptions {
             list: false,
             continue_after_timeout: false,
             update_known_failures: false,
+            update_snapshots: false,
             run_known_failures: false,
             run_ignored: false,
             run_skipped: false,

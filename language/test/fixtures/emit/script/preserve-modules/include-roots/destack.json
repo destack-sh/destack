@@ -1,0 +1,19 @@
+{
+  "name": "script-preserve-modules-include-roots",
+  "targets": {
+    "library": {
+      "emit": "js",
+      "include": ["src/**/*.js"],
+      "outDir": "dist/library",
+      "sourceMapMode": "external",
+      "bundle": {
+        "chunk": {
+          "preserveModules": true
+        },
+        "output": {
+          "manifest": true
+        }
+      }
+    }
+  }
+}

@@ -2,19 +2,18 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_artifact::ArtifactKey;
+use destack_artifact::{ArtifactKey, OutputContent, OutputFile};
 use destack_compiler::{Compiler, CompilerOptions};
-use destack_source::{File, FileSystem, FileType, PhysicalFileSystem, Uri};
-use destack_workspace::{Destack, Session, Target, TargetId};
+use destack_source::{FileSystem, PhysicalFileSystem};
+use destack_workspace::{Session, Target, TargetId};
 
 use crate::core::{
-    Case, CaseResult, RunContext, RunOptions, Runner, Suite, check_diagnostics,
-    discover_directory_cases, fixtures_dir,
+    Case, CaseResult, RunContext, RunOptions, Runner, Suite, fixtures_dir,
+    render_unexpected_diagnostics, test_output_dir,
 };
 
-use super::assert::compare_directory;
-use super::discover::{SOURCE_EXTENSIONS, discover_source_files};
-
+use super::assert::{compare_directory, compare_text_snapshot};
+use super::discover::{SOURCE_EXTENSIONS, discover_emit_cases, discover_source_files};
 #[derive(Debug, Clone, Copy, Default)]
 pub struct EmitSuite;
 
@@ -25,13 +24,88 @@ impl Suite for EmitSuite {
 
     fn discover(&self, _options: &RunOptions) -> Vec<Case> {
         let emit_directory = fixtures_dir().join("emit");
-        discover_directory_cases(&emit_directory, "destack_test::emit")
+        discover_emit_cases(&emit_directory, "destack_test::emit")
             .expect("failed to discover tests")
     }
 
-    fn run(&self, case: &Case, _context: &RunContext<'_>) -> CaseResult {
-        run_emit_case(case)
+    fn run(&self, case: &Case, context: &RunContext<'_>) -> CaseResult {
+        run_emit_case(case, context)
     }
+}
+
+/// Return one runner-owned actual output root for one emit case.
+fn emit_actual_root(test: &Case) -> PathBuf {
+    test_output_dir().join("emit").join(&test.name).join("dist")
+}
+
+/// Rewrite one logical output path into one runner-owned actual output path.
+fn rewrite_output_path_for_actual(
+    package_root: &Path,
+    path: &Path,
+    actual_root: &Path,
+) -> Result<PathBuf, String> {
+    let relative = path.strip_prefix(package_root).map_err(|_| {
+        format!(
+            "logical output path {} is not inside package root {}",
+            path.display(),
+            package_root.display()
+        )
+    })?;
+
+    let mut components = relative.components();
+    let first = components.next();
+    let rest = components.as_path();
+
+    if first.is_some_and(|component| component.as_os_str() == "dist") {
+        return Ok(actual_root.join(rest));
+    }
+
+    Ok(actual_root.join(relative))
+}
+
+/// Materialize one logical output file into one runner-owned actual output tree.
+fn write_actual_output_file(
+    package_root: &Path,
+    actual_root: &Path,
+    file: &OutputFile,
+) -> Result<(), String> {
+    let logical_path = file
+        .uri
+        .to_path_buf()
+        .ok_or_else(|| format!("output file URI is not a physical path: {}", file.uri))?;
+    let actual_path = rewrite_output_path_for_actual(package_root, &logical_path, actual_root)?;
+
+    // parent directory
+    if let Some(parent) = actual_path.parent() {
+        fs::create_dir_all(parent).map_err(|error| {
+            format!(
+                "failed to create actual output directory {}: {error}",
+                parent.display()
+            )
+        })?;
+    }
+
+    // file content
+    match &file.content {
+        OutputContent::Text { code, .. } | OutputContent::Json { content: code, .. } => {
+            fs::write(&actual_path, code).map_err(|error| {
+                format!(
+                    "failed to write actual output file {}: {error}",
+                    actual_path.display()
+                )
+            })?;
+        }
+        OutputContent::Binary { bytes, .. } => {
+            fs::write(&actual_path, bytes).map_err(|error| {
+                format!(
+                    "failed to write actual output file {}: {error}",
+                    actual_path.display()
+                )
+            })?;
+        }
+    }
+
+    Ok(())
 }
 
 /// Run all emit tests.
@@ -40,14 +114,23 @@ pub fn run_emit_tests(options: &RunOptions) -> std::process::ExitCode {
 }
 
 /// Run a single emit test.
-fn run_emit_case(test: &Case) -> CaseResult {
-    // parse destack.json to get targets
+fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
     let destack_config_path = test.path.join("destack.json");
-    let config = match load_destack_config(&destack_config_path) {
-        Ok(config) => config,
-        Err(e) => {
+    // set up session and program with physical filesystem
+    let fs: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem);
+    let session = Arc::new(Session::new(test.path.clone()).with_fs(fs));
+    let program = session.add_root(test.path.clone());
+    let actual_root = emit_actual_root(test);
+
+    // load the tracked package config through the real session path
+    let config = match session.load_destack_for_path(&destack_config_path) {
+        Some(config) => config,
+        None => {
             return CaseResult::Failed {
-                message: format!("failed to load destack.json: {e}"),
+                message: format!(
+                    "failed to load tracked destack.json: {}",
+                    destack_config_path.display()
+                ),
             };
         }
     };
@@ -65,17 +148,15 @@ fn run_emit_case(test: &Case) -> CaseResult {
         };
     }
 
-    // set up session and program with physical filesystem
-    let fs: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem);
-    let session = Arc::new(Session::new(test.path.clone()).with_fs(fs));
-    let program = session.add_root(test.path.clone());
-
     // set up compiler
     let compiler = Compiler::new(
         session.clone(),
         program.clone(),
         CompilerOptions {
+            // keep emit focused on product assembly, not ambient lib validation
             workers: 1,
+            inject_prelude: false,
+            load_libraries: false,
             ..Default::default()
         },
     );
@@ -123,26 +204,19 @@ fn run_emit_case(test: &Case) -> CaseResult {
         // set the config so root_dir is available for output path resolution
         package.config = Some(config.clone());
 
-        // add targets, rewriting out_dir to dist-actual/
-        for (name, mut target) in targets.clone() {
-            // rewrite dist/<target> to dist-actual/<target>
-            let out_dir_str = target.out_dir.to_string_lossy();
-            if out_dir_str.starts_with("dist/") {
-                let new_out_dir = out_dir_str.replacen("dist/", "dist-actual/", 1);
-                target.out_dir = PathBuf::from(new_out_dir);
-            }
+        // add targets directly: keep the logical output configuration intact
+        for (name, target) in targets.clone() {
             let target_id = TargetId::new(package_id, &name);
             package.targets.insert(target_id, target);
         }
     }
 
     // clean
-    let dist_actual = test.path.join("dist-actual");
-    if dist_actual.exists()
-        && let Err(e) = fs::remove_dir_all(&dist_actual)
+    if actual_root.exists()
+        && let Err(e) = fs::remove_dir_all(&actual_root)
     {
         return CaseResult::Failed {
-            message: format!("failed to clean dist-actual/: {e}"),
+            message: format!("failed to clean {}: {e}", actual_root.display()),
         };
     }
 
@@ -154,60 +228,68 @@ fn run_emit_case(test: &Case) -> CaseResult {
     compiler.compile();
 
     // check for errors
-    let result = check_diagnostics(test, &program.files, &program.diagnostics);
-    if result.is_failed() {
+    let diagnostics_snapshot = test.path.join("diagnostics.txt");
+    let unexpected_diagnostics =
+        render_unexpected_diagnostics(&program.files, &program.diagnostics, test.min_fail_severity);
+
+    // exact diagnostics fixtures
+    if diagnostics_snapshot.exists() || unexpected_diagnostics.is_some() {
+        let result = compare_text_snapshot(
+            &diagnostics_snapshot,
+            unexpected_diagnostics.as_deref(),
+            context.options.update_snapshots,
+            "diagnostics snapshot",
+        );
+
+        if result.is_passed() {
+            let _ = fs::remove_dir_all(&actual_root);
+        }
+
         return result;
     }
-    drop(compiler);
 
-    // emit
-    let compiler = Compiler::new(
-        session.clone(),
-        program.clone(),
-        CompilerOptions {
-            workers: 1,
-            ..Default::default()
-        },
-    );
+    // materialize package outputs into the runner-owned actual output tree
     for (target_name, _) in &targets {
         let target_id = TargetId::new(package_id, target_name);
-        if let Err(error) = compiler.emit_package(package_id, &target_id) {
-            return CaseResult::Failed {
-                message: format!("failed to emit package output for {target_name}: {error:?}"),
-            };
+        let output = compiler
+            .artifacts
+            .package_output(package_id, &target_id)
+            .ok_or_else(|| CaseResult::Failed {
+                message: format!("missing package output for target {target_name}"),
+            });
+        let output = match output {
+            Ok(output) => output,
+            Err(error) => return error,
+        };
+
+        for file in output.files() {
+            if let Err(error) = write_actual_output_file(&test.path, &actual_root, file) {
+                return CaseResult::Failed {
+                    message: format!(
+                        "failed to materialize package output for {target_name}: {error}"
+                    ),
+                };
+            }
         }
     }
-    drop(compiler);
 
-    // compare dist-actual/ against dist/
+    // compare the checked-in snapshots against the runner-owned actual output tree
     let dist_expected = test.path.join("dist");
-    compare_directory(&dist_expected, &dist_actual)
-}
-
-/// Load destack.json from a path.
-fn load_destack_config(path: &Path) -> Result<Destack, String> {
-    // read the file
-    let content = fs::read_to_string(path).map_err(|e| e.to_string())?;
-
-    // create a File object for Destack::parse (using JSONC to support comments)
-    let uri = Uri::from_path(path);
-    let file_id = destack_source::FileId::new(0); // temporary id
-    let name = path
-        .file_name()
-        .unwrap_or_default()
-        .to_string_lossy()
-        .to_string();
-    let file = Arc::new(
-        File::from_text_as_jsonc(
-            file_id,
-            name,
-            uri,
-            Some(path.to_path_buf()),
-            FileType::Json,
-            content,
-        )
-        .map_err(|e| e.to_string())?,
+    let result = compare_directory(
+        &dist_expected,
+        &actual_root,
+        context.options.update_snapshots,
     );
 
-    Destack::parse(&file).map_err(|e| e.to_string())
+    // keep failed outputs for inspection under target/, otherwise leave the tree clean
+    if let CaseResult::Failed { message } = result {
+        return CaseResult::Failed {
+            message: format!(
+                "{message}\nactual output preserved at: {}",
+                actual_root.display()
+            ),
+        };
+    }
+
+    CaseResult::Passed
 }

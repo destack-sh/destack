@@ -1,0 +1,19 @@
+{
+  "name": "script-single-file-reject-disallowed-package",
+  "targets": {
+    "bundle": {
+      "emit": "js",
+      "entry": ["src/react-bridge.ts"],
+      "outFile": "dist/bundle.js",
+      "sourceMapMode": "external",
+      "bundle": {
+        "dependency": {
+          "onlyBundle": ["lodash"]
+        },
+        "output": {
+          "manifest": true
+        }
+      }
+    }
+  }
+}
