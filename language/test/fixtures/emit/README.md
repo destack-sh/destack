@@ -20,14 +20,18 @@ When `diagnostics.txt` exists, the runner compares exact diagnostics instead of 
 The fixture taxonomy should scale as:
 - family: `script`, `html`, `wasm`, `native`
 - mode: `single-file`, `preserve-modules`, `chunked`, `executable`, `shared-library`
-- scenario: `static-import`, `external-package`, `entry-root`, `reject-dynamic-import`
+- scenario: `static-import`, `external-package`, `entry-root`, `dynamic-import`, `manual-chunk-name`, `reject-dynamic-import`
 
 Examples:
 - `script/single-file/static-import`
 - `script/single-file/external-package`
+- `script/preserve-modules/banner-footer`
 - `script/preserve-modules/include-roots`
-- `script/chunked/reject-unimplemented`
+- `script/chunked/dynamic-import`
+- `script/chunked/named-output-files`
+- `script/chunked/manual-chunk-name`
 - `html/document-entry`
+- `html/document-entry-public-path`
 
 Use compiler-local linker tests for planner and rewrite logic.
 Use emit fixtures for full target products, exact output trees, manifests, and maps.

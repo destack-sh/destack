@@ -1,0 +1,20 @@
+{
+  "name": "script-chunked-manual-chunk-name",
+  "targets": {
+    "bundle": {
+      "emit": "js",
+      "entry": ["src/application.ts", "src/dashboard.ts"],
+      "outDir": "dist/bundle",
+      "bundle": {
+        "mode": "chunked",
+        "manualChunks": {
+          "vendor": ["src/shared-value.ts"]
+        },
+        "output": {
+          "sourcemap": "external",
+          "manifest": true
+        }
+      }
+    }
+  }
+}

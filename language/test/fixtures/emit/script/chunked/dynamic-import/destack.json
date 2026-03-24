@@ -1,15 +1,14 @@
 {
-  "name": "script-chunked-reject-unimplemented",
+  "name": "script-chunked-dynamic-import",
   "targets": {
     "bundle": {
       "emit": "js",
       "entry": ["src/application.ts"],
       "outDir": "dist/bundle",
       "bundle": {
-        "chunk": {
-          "splitting": true
-        },
+        "mode": "chunked",
         "output": {
+          "sourcemap": "external",
           "manifest": true
         }
       }

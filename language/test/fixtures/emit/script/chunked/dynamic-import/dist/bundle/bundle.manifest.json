@@ -4,15 +4,16 @@
       "path": "application.js",
       "type": "chunk",
       "loader": "js",
-      "input": "src/application.js",
+      "name": "application",
+      "input": "src/application.ts",
       "isEntry": true,
       "isDynamicEntry": false,
-      "imports": [
+      "dynamicImports": [
         "./shared-value.js"
       ]
     },
     {
-      "path": "application.map",
+      "path": "application.js.map",
       "type": "asset",
       "loader": "map"
     },
@@ -20,12 +21,13 @@
       "path": "shared-value.js",
       "type": "chunk",
       "loader": "js",
-      "input": "src/shared-value.js",
-      "isEntry": true,
-      "isDynamicEntry": false
+      "name": "shared-value",
+      "input": "src/shared-value.ts",
+      "isEntry": false,
+      "isDynamicEntry": true
     },
     {
-      "path": "shared-value.map",
+      "path": "shared-value.js.map",
       "type": "asset",
       "loader": "map"
     }
