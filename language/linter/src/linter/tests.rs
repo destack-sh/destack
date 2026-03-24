@@ -304,6 +304,7 @@ impl TestProgram {
         let profile = self.profile_id;
         self.runner.lint_module(
             self.program.clone(),
+            self.compiler.artifacts.clone(),
             module,
             profile,
             &self.linter_options,
@@ -321,6 +322,7 @@ impl TestProgram {
         let profile = self.profile_id;
         self.runner.lint_module_profiled(
             self.program.clone(),
+            self.compiler.artifacts.clone(),
             module,
             profile,
             &self.linter_options,
@@ -403,26 +405,37 @@ impl TestProgram {
 
     /// Lint the full program with program-scope rules.
     pub(crate) fn lint_program_ast(&self) -> Vec<LintDiagnostic> {
-        self.runner
-            .lint_program_ast(self.program.clone(), &self.linter_options)
+        self.runner.lint_program_ast(
+            self.program.clone(),
+            self.compiler.artifacts.clone(),
+            &self.linter_options,
+        )
     }
 
     /// Lint the full program with AST program-scope rules and collect performance data.
     pub(crate) fn lint_program_ast_profiled(&self) -> LintRunReport {
-        self.runner
-            .lint_program_ast_profiled(self.program.clone(), &self.linter_options)
+        self.runner.lint_program_ast_profiled(
+            self.program.clone(),
+            self.compiler.artifacts.clone(),
+            &self.linter_options,
+        )
     }
 
     /// Lint the full program with DIR program-scope rules.
     pub(crate) fn lint_program_dir(&self) -> Vec<LintDiagnostic> {
-        self.runner
-            .lint_program_dir(self.program.clone(), self.profile_id, &self.linter_options)
+        self.runner.lint_program_dir(
+            self.program.clone(),
+            self.compiler.artifacts.clone(),
+            self.profile_id,
+            &self.linter_options,
+        )
     }
 
     /// Lint the full program with DIR program-scope rules and collect performance data.
     pub(crate) fn lint_program_dir_profiled(&self) -> LintRunReport {
         self.runner.lint_program_dir_profiled(
             self.program.clone(),
+            self.compiler.artifacts.clone(),
             self.profile_id,
             &self.linter_options,
         )
@@ -643,6 +656,20 @@ impl<'a> LintResult<'a> {
     #[track_caller]
     pub(crate) fn assert_unsafe_fixed(&self, expected: &str) -> &Self {
         let fixed = self.apply_fixes(Some(Fixability::Unsafe));
+        let fixed = fixed.trim();
+        let expected = self.format_source(expected);
+        let expected = expected.trim();
+        if fixed != expected {
+            print_diff(expected, fixed, &DiffOptions::new().with_whitespace());
+            panic!("fixed code mismatch");
+        }
+        self
+    }
+
+    /// Assert the suggested fixed code matches expected.
+    #[track_caller]
+    pub(crate) fn assert_suggested_fixed(&self, expected: &str) -> &Self {
+        let fixed = self.apply_fixes(Some(Fixability::Suggestion));
         let fixed = fixed.trim();
         let expected = self.format_source(expected);
         let expected = expected.trim();

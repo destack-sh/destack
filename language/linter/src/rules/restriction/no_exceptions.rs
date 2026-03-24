@@ -1,4 +1,4 @@
-use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
@@ -31,112 +31,72 @@ impl LintRule for NoExceptions {
 
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
-        let mut visitor = NoExceptionsVisitor::new(ctx, meta);
-        visitor.run();
+        for (expression_id, expression) in ctx.tree.iter_nodes_of_type::<dir::Expression>() {
+            let diagnostic = match expression {
+                dir::Expression::Throw { .. } => build_throw_diagnostic(ctx, meta, expression_id),
+                dir::Expression::Try { .. } => build_try_diagnostic(ctx, meta, expression_id),
+                _ => None,
+            };
+
+            if let Some(diagnostic) = diagnostic {
+                ctx.report(diagnostic);
+            }
+        }
     }
 }
 
-/// Visitor that flags throw and try/catch expressions.
-struct NoExceptionsVisitor<'a, 'b> {
-    /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
-    /// The lint metadata.
-    meta: &'a LintMeta,
-    /// The visitor options.
-    options: NodeVisitorOptions,
+/// Build one diagnostic for a throw expression.
+fn build_throw_diagnostic(
+    ctx: &LintModuleDirContext<'_>,
+    meta: &LintMeta,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> Option<LintDiagnostic> {
+    // honor per node severity
+    let severity = ctx.get_effective_severity(meta, expression_id);
+    if !severity.is_enabled() {
+        return None;
+    }
+
+    // return the diagnostic
+    Some(
+        LintDiagnostic::new(
+            NO_EXCEPTIONS.id,
+            NO_EXCEPTIONS.code,
+            NO_EXCEPTIONS.category,
+            severity,
+            "avoid throw statements",
+            ctx.module.file_id,
+            ctx.get_span(expression_id),
+        )
+        .with_label("use Result type instead of throwing"),
+    )
 }
 
-impl<'a, 'b> NoExceptionsVisitor<'a, 'b> {
-    /// Build a visitor for no-exceptions checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        Self {
-            ctx,
-            meta,
-            options: NodeVisitorOptions::default(),
-        }
+/// Build one diagnostic for a try expression.
+fn build_try_diagnostic(
+    ctx: &LintModuleDirContext<'_>,
+    meta: &LintMeta,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> Option<LintDiagnostic> {
+    // honor per node severity
+    let severity = ctx.get_effective_severity(meta, expression_id);
+    if !severity.is_enabled() {
+        return None;
     }
 
-    /// Walk the DIR tree roots.
-    fn run(&mut self) {
-        let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
-
-        for root_id in roots {
-            let expression = tree.get(root_id);
-            self.visit_expression(tree, root_id, expression);
-        }
-    }
-
-    /// Report a throw expression.
-    fn report_throw(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) {
-        // honor per node severity
-        let severity = self.ctx.get_effective_severity(self.meta, expression_id);
-        if !severity.is_enabled() {
-            return;
-        }
-
-        // report the diagnostic
-        let span = self.ctx.get_span(expression_id);
-        self.ctx.report(
-            LintDiagnostic::new(
-                NO_EXCEPTIONS.id,
-                NO_EXCEPTIONS.code,
-                NO_EXCEPTIONS.category,
-                severity,
-                "avoid throw statements",
-                self.ctx.module.file_id,
-                span,
-            )
-            .with_label("use Result type instead of throwing"),
-        );
-    }
-
-    /// Report a try/catch expression.
-    fn report_try(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) {
-        // honor per node severity
-        let severity = self.ctx.get_effective_severity(self.meta, expression_id);
-        if !severity.is_enabled() {
-            return;
-        }
-
-        // report the diagnostic
-        let span = self.ctx.get_span(expression_id);
-        self.ctx.report(
-            LintDiagnostic::new(
-                NO_EXCEPTIONS.id,
-                NO_EXCEPTIONS.code,
-                NO_EXCEPTIONS.category,
-                severity,
-                "avoid try/catch blocks",
-                self.ctx.module.file_id,
-                span,
-            )
-            .with_label("use Result type instead of catching exceptions"),
-        );
-    }
-}
-
-impl NodeVisitor for NoExceptionsVisitor<'_, '_> {
-    fn options(&self) -> &NodeVisitorOptions {
-        &self.options
-    }
-
-    fn visit_expression(
-        &mut self,
-        tree: &dir::NodeTree,
-        id: dir::LocalNodeId<dir::Expression>,
-        expression: &dir::Expression,
-    ) {
-        // check for exception-related expressions
-        match expression {
-            dir::Expression::Throw { .. } => self.report_throw(id),
-            dir::Expression::Try { .. } => self.report_try(id),
-            _ => {}
-        }
-
-        // walk expression children
-        walk_expression(self, tree, id, expression);
-    }
+    // return the diagnostic
+    Some(
+        LintDiagnostic::new(
+            NO_EXCEPTIONS.id,
+            NO_EXCEPTIONS.code,
+            NO_EXCEPTIONS.category,
+            severity,
+            "avoid try/catch blocks",
+            ctx.module.file_id,
+            ctx.get_span(expression_id),
+        )
+        .with_label("use Result type instead of catching exceptions"),
+    )
 }
 
 #[cfg(test)]
