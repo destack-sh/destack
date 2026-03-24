@@ -14,14 +14,14 @@ pub(crate) use crate::host::abi::core::{HostSessionHandle, HostStatus};
 pub(crate) use adapter::HostAdapter;
 pub use adapter::HostPollOutcome;
 pub(crate) use destack_artifact::Platform;
-#[cfg(test)]
+#[cfg(any(test, feature = "execution"))]
 pub(crate) use adapter::without_native_ingress;
 pub use event::{
-    HostBackgroundEvent, HostEvent, HostEventKind, HostIntentEvent, HostIntentPayload,
-    HostInterruptionEvent, HostLifecycleEvent, HostLifecycleSourceKind, HostLifecycleState,
-    HostLocationEvent, HostMemoryPressureEvent, HostMemoryPressureLevel, HostNotificationEvent,
-    HostPermissionEvent, HostPowerMode, HostPowerModeEvent, HostThermalEvent, HostThermalState,
-    HostWallClockEvent,
+    HostBackgroundEvent, HostDocumentEvent, HostEvent, HostEventKind, HostIntentEvent,
+    HostIntentPayload, HostInterruptionEvent, HostLifecycleEvent, HostLifecycleSourceKind,
+    HostLifecycleState, HostLocationEvent, HostMemoryPressureEvent, HostMemoryPressureLevel,
+    HostNotificationEvent, HostPermissionEvent, HostPowerMode, HostPowerModeEvent,
+    HostThermalEvent, HostThermalState, HostWallClockEvent,
 };
 pub(crate) use queue::HostQueue;
 pub(crate) use registry::{
@@ -29,7 +29,8 @@ pub(crate) use registry::{
 };
 pub use request::HostRequestId;
 pub(crate) use request::{
-    HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult, HostSessionContext,
+    HostRequest, HostRequestCompletion, HostRequestContext, HostRequestOutcome, HostRequestResult,
+    HostSessionContext,
 };
 pub use runtime::HostSession;
 pub use status::{

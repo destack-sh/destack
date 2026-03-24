@@ -2,7 +2,6 @@ pub(crate) mod background;
 pub(crate) mod calendar;
 pub(crate) mod contact;
 mod decode;
-pub(crate) mod document;
 pub(crate) mod intent;
 pub(crate) mod location;
 pub(crate) mod media;

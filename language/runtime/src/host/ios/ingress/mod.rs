@@ -1,5 +1,6 @@
 mod background;
 mod core;
+mod document;
 mod intent;
 pub(crate) mod lifecycle;
 mod location;
@@ -8,6 +9,7 @@ mod permission;
 mod system;
 
 pub(crate) use background::ios_notify_background_event;
+pub(crate) use document::ios_notify_document_result;
 pub(crate) use intent::{
     ios_notify_intent_custom_action, ios_notify_intent_open_file, ios_notify_intent_open_url,
     ios_notify_intent_share_files, ios_notify_intent_share_text,

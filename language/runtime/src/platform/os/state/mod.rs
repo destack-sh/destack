@@ -8,7 +8,6 @@ mod lifecycle;
 mod location;
 mod network;
 mod notification;
-mod permission;
 mod platform;
 
 pub(crate) use access::*;
@@ -21,5 +20,4 @@ pub(crate) use lifecycle::*;
 pub(crate) use location::*;
 pub(crate) use network::*;
 pub(crate) use notification::*;
-pub(crate) use permission::*;
 pub(crate) use platform::*;

@@ -1,4 +1,5 @@
 mod core;
+pub(crate) mod state;
 #[cfg(all(test, any(target_os = "macos", windows)))]
 mod tests;
 

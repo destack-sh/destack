@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use super::request::HostRequestId;
 use crate::platform::os::abi_generated::{
-    BackgroundEventValue, LocationSampleValue, NotificationEventValue,
+    BackgroundEventValue, DocumentDescriptorValue, LocationSampleValue, NotificationEventValue,
 };
 
 /// Host lifecycle state.
@@ -78,6 +78,8 @@ pub enum HostEventKind {
     Intent,
     /// Background task readiness or expiration events.
     Background,
+    /// Document picker completion events.
+    Document,
     /// Notification delivery or interaction events.
     Notification,
     /// Location watch sample events.
@@ -105,6 +107,8 @@ pub enum HostEvent {
     Intent(HostIntentEvent),
     /// Host background task readiness or expiration event.
     Background(Box<HostBackgroundEvent>),
+    /// Host document picker completion event.
+    Document(Box<HostDocumentEvent>),
     /// Host notification delivery or interaction event.
     Notification(Box<HostNotificationEvent>),
     /// Host location watch sample event.
@@ -130,6 +134,7 @@ impl HostEvent {
             HostEvent::Lifecycle(_) => HostEventKind::Lifecycle,
             HostEvent::Intent(_) => HostEventKind::Intent,
             HostEvent::Background(_) => HostEventKind::Background,
+            HostEvent::Document(_) => HostEventKind::Document,
             HostEvent::Notification(_) => HostEventKind::Notification,
             HostEvent::Location(_) => HostEventKind::Location,
             HostEvent::Permission(_) => HostEventKind::Permission,
@@ -177,6 +182,17 @@ pub struct HostBackgroundEvent {
 }
 
 impl Eq for HostBackgroundEvent {}
+
+/// Host document picker completion payload.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct HostDocumentEvent {
+    /// Stable request identifier for the interactive document flow.
+    pub request_id: HostRequestId,
+    /// Selected document descriptors returned by the host.
+    pub documents: Vec<DocumentDescriptorValue>,
+}
+
+impl Eq for HostDocumentEvent {}
 
 /// Host location watch sample payload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

@@ -63,11 +63,12 @@ pub(crate) use core::HostAdapter;
 pub use core::{
     HOST_STATUS_BUFFER_TOO_SMALL, HOST_STATUS_FAILED, HOST_STATUS_INVALID_ARGUMENT,
     HOST_STATUS_NOT_FOUND, HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK,
-    HOST_STATUS_PERMISSION_DENIED, HostBackgroundEvent, HostEvent, HostEventKind, HostIntentEvent,
-    HostIntentPayload, HostInterruptionEvent, HostLifecycleEvent, HostLifecycleSourceKind,
-    HostLifecycleState, HostLocationEvent, HostMemoryPressureEvent, HostMemoryPressureLevel,
-    HostNotificationEvent, HostPermissionEvent, HostPollOutcome, HostPowerMode, HostPowerModeEvent,
-    HostRequestId, HostSession, HostThermalEvent, HostThermalState, HostWallClockEvent,
+    HOST_STATUS_PERMISSION_DENIED, HostBackgroundEvent, HostDocumentEvent, HostEvent,
+    HostEventKind, HostIntentEvent, HostIntentPayload, HostInterruptionEvent, HostLifecycleEvent,
+    HostLifecycleSourceKind, HostLifecycleState, HostLocationEvent, HostMemoryPressureEvent,
+    HostMemoryPressureLevel, HostNotificationEvent, HostPermissionEvent, HostPollOutcome,
+    HostPowerMode, HostPowerModeEvent, HostRequestId, HostSession, HostThermalEvent,
+    HostThermalState, HostWallClockEvent,
 };
 pub use destack_artifact::Platform;
 #[cfg(windows)]
