@@ -1,16 +1,16 @@
 use std::collections::HashMap;
 use std::str::FromStr;
 
-use destack_ast::Keyword;
-use destack_dir as dir;
 use destack_source::{BatchEdit, Edit, FileEdit, FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
+use {destack_ast as ast, destack_dir as dir};
 
 use crate::common::{
-    ReferenceCollectionOptions, SymbolAtOffset, collect_symbol_references_in_context,
-    find_symbol_at_offset, get_canonical_symbol, get_symbol_definition_span,
-    get_symbol_local_definition_span, is_simple_identifier, member_key_name,
-    resolve_local_import_alias_name, resolve_symbol_name, sort_and_dedup_spans, token_at_offset,
+    ReferenceCollectionOptions, SymbolAtOffset, collect_default_import_alias_symbols_for_export,
+    collect_symbol_references_in_context, find_symbol_at_offset, get_canonical_symbol,
+    get_symbol_definition_span, get_symbol_local_definition_span, is_simple_identifier,
+    member_key_name, resolve_local_import_alias_name, resolve_symbol_name, sort_and_dedup_spans,
+    token_at_offset,
 };
 use destack_workspace::Session;
 
@@ -132,6 +132,14 @@ pub fn rename(
     let primary_spans =
         collect_symbol_rename_spans(session, canonical_id, &old_name, preserve_local_definition);
     extend_spans_by_file(&mut edits_by_file, primary_spans);
+
+    // include default import aliases that bind this export in other modules
+    let default_import_alias_symbols =
+        collect_default_import_alias_symbols_for_export(session, canonical_id);
+    for alias_symbol in default_import_alias_symbols {
+        let alias_spans = collect_symbol_rename_spans(session, alias_symbol, &old_name, true);
+        extend_spans_by_file(&mut edits_by_file, alias_spans);
+    }
 
     // include implementation member spans when renaming interface members
     if let Some(interface_member_target) = interface_member_target {
@@ -564,29 +572,29 @@ fn collect_interface_member_implementations(
 
 /// Check whether a keyword can participate in rename as a declaration modifier.
 fn is_modifier_keyword(token: &str) -> bool {
-    let Ok(keyword) = Keyword::from_str(token) else {
+    let Ok(keyword) = ast::Keyword::from_str(token) else {
         return false;
     };
 
     matches!(
         keyword,
-        Keyword::Export
-            | Keyword::Declare
-            | Keyword::Abstract
-            | Keyword::Async
-            | Keyword::Static
-            | Keyword::Public
-            | Keyword::Protected
-            | Keyword::Private
-            | Keyword::Readonly
-            | Keyword::Final
-            | Keyword::Accessor
-            | Keyword::Default
-            | Keyword::Override
+        ast::Keyword::Export
+            | ast::Keyword::Declare
+            | ast::Keyword::Abstract
+            | ast::Keyword::Async
+            | ast::Keyword::Static
+            | ast::Keyword::Public
+            | ast::Keyword::Protected
+            | ast::Keyword::Private
+            | ast::Keyword::Readonly
+            | ast::Keyword::Final
+            | ast::Keyword::Accessor
+            | ast::Keyword::Default
+            | ast::Keyword::Override
     )
 }
 
 /// Check whether a token is any language keyword.
 fn is_keyword(token: &str) -> bool {
-    Keyword::from_str(token).is_ok()
+    ast::Keyword::from_str(token).is_ok()
 }

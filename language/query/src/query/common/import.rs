@@ -30,12 +30,59 @@ pub struct ExistingImport {
     pub specifiers: Vec<String>,
 }
 
+/// The syntactic bounds of one import clause.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct ImportClauseBounds {
+    /// The clause opening brace.
+    pub open_brace: Span,
+    /// The explicit closing brace when it is present.
+    pub close_brace: Option<Span>,
+    /// The effective clause end boundary.
+    pub end_boundary: Span,
+}
+
+/// Return one dependency item's kind when the item is valid.
+fn dependency_item_kind(item: &DependencyItem) -> Option<DependencyKind> {
+    match item {
+        DependencyItem::Item { kind, .. } => *kind,
+        DependencyItem::Error => None,
+    }
+}
+
+/// Return one dependency item's mode when the item is valid.
+fn dependency_item_mode(item: &DependencyItem) -> Option<DependencyMode> {
+    match item {
+        DependencyItem::Item { mode, .. } => Some(*mode),
+        DependencyItem::Error => None,
+    }
+}
+
+/// Return one dependency item's string key when present.
+fn dependency_item_key(item: &DependencyItem) -> Option<StringId> {
+    match item {
+        DependencyItem::Item { alias, name, .. } => alias.or(name.map(|name| name.string())),
+        DependencyItem::Error => None,
+    }
+}
+
 /// Resolve the brace span for an import clause.
 pub(crate) fn import_clause_brace_span(
     ctx: &QueryContext<'_>,
     import_span: Span,
     target_span: Option<Span>,
 ) -> Option<(Span, Span)> {
+    let bounds = import_clause_bounds(ctx, import_span, target_span)?;
+    let close_brace = bounds.close_brace?;
+
+    Some((bounds.open_brace, close_brace))
+}
+
+/// Resolve the bounds for an import clause, even when the closing brace is missing.
+pub(crate) fn import_clause_bounds(
+    ctx: &QueryContext<'_>,
+    import_span: Span,
+    target_span: Option<Span>,
+) -> Option<ImportClauseBounds> {
     let source = ctx.source_context();
 
     // resolve the limit before the target string
@@ -76,13 +123,18 @@ pub(crate) fn import_clause_brace_span(
     }
 
     let open_brace = open_brace?;
-    let close_brace = close_brace?;
+    let end_boundary =
+        close_brace.unwrap_or_else(|| Span::new(open_brace.file, target_limit, target_limit));
 
-    if open_brace.start >= close_brace.start {
+    if open_brace.start >= end_boundary.start {
         return None;
     }
 
-    Some((open_brace, close_brace))
+    Some(ImportClauseBounds {
+        open_brace,
+        close_brace,
+        end_boundary,
+    })
 }
 
 /// The mode for a new import edit.
@@ -258,8 +310,8 @@ pub fn sort_dependency_items(
         let right_item = tree.get(*right_id);
 
         // type imports come before value imports
-        let left_is_type = left_item.kind == Some(DependencyKind::Type);
-        let right_is_type = right_item.kind == Some(DependencyKind::Type);
+        let left_is_type = dependency_item_kind(left_item) == Some(DependencyKind::Type);
+        let right_is_type = dependency_item_kind(right_item) == Some(DependencyKind::Type);
         match (left_is_type, right_is_type) {
             (true, false) => return Ordering::Less,
             (false, true) => return Ordering::Greater,
@@ -267,14 +319,10 @@ pub fn sort_dependency_items(
         }
 
         // alias key first when present, then fallback to item name
-        let left_key = left_item
-            .alias
-            .or(left_item.name.map(|name| name.string()))
+        let left_key = dependency_item_key(left_item)
             .map(|string_id| strings.get(string_id))
             .unwrap_or("");
-        let right_key = right_item
-            .alias
-            .or(right_item.name.map(|name| name.string()))
+        let right_key = dependency_item_key(right_item)
             .map(|string_id| strings.get(string_id))
             .unwrap_or("");
 
@@ -370,7 +418,7 @@ pub fn collect_existing_imports(session: &Session, file_id: FileId) -> Vec<Exist
             // check if it's a namespace import
             let is_namespace = items.iter().any(|item_id| {
                 let item = ctx.ast_context().tree().get(*item_id);
-                item.mode == DependencyMode::Namespace
+                dependency_item_mode(item) == Some(DependencyMode::Namespace)
             });
 
             // collect specifier names
@@ -378,12 +426,11 @@ pub fn collect_existing_imports(session: &Session, file_id: FileId) -> Vec<Exist
                 .iter()
                 .filter_map(|item_id| {
                     let item = ctx.ast_context().tree().get(*item_id);
-                    if item.mode == DependencyMode::Namespace {
+                    if dependency_item_mode(item) == Some(DependencyMode::Namespace) {
                         return None;
                     }
-                    // use alias if present, otherwise name
-                    item.alias
-                        .or(item.name.map(|name| name.string()))
+
+                    dependency_item_key(item)
                         .map(|id| ctx.ast_context().strings().get(id).to_string())
                 })
                 .collect();

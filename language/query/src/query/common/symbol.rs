@@ -1,7 +1,7 @@
 use destack_core::StringId;
 use destack_dir::{
     Declaration, DependencyItem, DependencyMode, DynamicKey, EnumField, Expression, GlobalSymbolId,
-    LocalNodeIdAny, Member, NodeType, Parameter, Pattern, PatternField, SymbolSpace,
+    LocalNodeIdAny, LocalSymbolId, Member, NodeType, Parameter, Pattern, PatternField, SymbolSpace,
 };
 use destack_source::{FileId, ModuleId, NodeSpanType, Span};
 use {destack_ast as ast, destack_dir as dir};
@@ -76,7 +76,8 @@ fn member_access_target_symbol_at_offset(
         && let Some(name_span) = get_member_access_name_span(ctx, expression_id)
         && offset < name_span.start
     {
-        return resolve_member_access_symbol(session, ctx, expression_id, *left, *name);
+        let name = (*name)?;
+        return resolve_member_access_symbol(session, ctx, expression_id, *left, name);
     }
 
     // otherwise lift the current expression into its enclosing member receiver slot
@@ -99,7 +100,8 @@ fn member_access_target_symbol_at_offset(
         return None;
     }
 
-    resolve_member_access_symbol(session, ctx, parent_expression_id, *left, *name)
+    let name = (*name)?;
+    resolve_member_access_symbol(session, ctx, parent_expression_id, *left, name)
 }
 
 /// Resolve the local binding symbol used by declaration style queries.
@@ -222,10 +224,13 @@ fn find_symbol_at_offset_impl(
         let Expression::Member { left, name, .. } = expr else {
             continue;
         };
+        let Some(name) = *name else {
+            continue;
+        };
 
         // resolve member symbols when the cursor is on the member name
         if let Some(result) =
-            member_symbol_at_offset(session, &ctx, expr_id, expr_id.into(), *left, *name, offset)
+            member_symbol_at_offset(session, &ctx, expr_id, expr_id.into(), *left, name, offset)
         {
             return Some(result);
         }
@@ -249,7 +254,10 @@ fn find_symbol_at_offset_impl(
 
                 // resolve member symbols when the cursor is on the member name
                 if let Expression::Member { left, name, .. } = expr {
-                    let member_name = session.strings.get(*name);
+                    let Some(name) = *name else {
+                        continue;
+                    };
+                    let member_name = session.strings.get(name);
                     let is_member_name_token = token_at_offset(session, ctx.file_id, offset)
                         .as_deref()
                         .is_some_and(|token| member_name == token);
@@ -264,7 +272,7 @@ fn find_symbol_at_offset_impl(
                         expr_id,
                         dir_node_id,
                         *left,
-                        *name,
+                        name,
                         offset,
                     );
                     if let Some(result) = result {
@@ -745,7 +753,8 @@ fn type_expression_symbol_at_offset(
         let expression = dir_tree.get::<Expression>(expression_id);
         let symbol_id = match expression {
             Expression::Member { left, name, .. } => {
-                resolve_member_access_symbol(session, ctx, expression_id, *left, *name)
+                let name = (*name)?;
+                resolve_member_access_symbol(session, ctx, expression_id, *left, name)
             }
             _ => resolve_expression_binding_symbol(ctx, expression_id)
                 .or_else(|| resolve_expression_symbol(ctx, expression_id)),
@@ -1332,7 +1341,40 @@ pub(crate) fn resolve_local_import_alias_name(
     // resolve the local import binding name
     let item_id: dir::LocalNodeId<DependencyItem> = declaration.local_id.try_into().ok()?;
     let dir_tree = ctx.tree();
-    let local_name_id = match dir_tree.get::<DependencyItem>(item_id) {
+    let local_name_id =
+        dependency_item_local_import_alias_name(dir_tree.get::<DependencyItem>(item_id))?;
+
+    Some(session.strings.get(local_name_id).to_string())
+}
+
+/// Resolve the local binding name for one default import symbol inside a query context.
+fn local_default_import_alias_name_in_context(
+    session: &Session,
+    ctx: &QueryContext<'_>,
+    local_symbol_id: LocalSymbolId,
+) -> Option<String> {
+    let declaration = {
+        let symbols = ctx.symbols();
+        let symbol = symbols.get_symbol(local_symbol_id);
+        symbol.primary_declaration?
+    };
+
+    if declaration.local_id.ty != NodeType::DependencyItem {
+        return None;
+    }
+
+    let item_id: dir::LocalNodeId<DependencyItem> = declaration.local_id.try_into().ok()?;
+    let local_name_id =
+        dependency_item_default_import_alias_name(ctx.tree().get::<DependencyItem>(item_id))?;
+
+    Some(session.strings.get(local_name_id).to_string())
+}
+
+/// Resolve the local binding name for one dependency import alias.
+fn dependency_item_local_import_alias_name(
+    item: &DependencyItem,
+) -> Option<destack_core::StringId> {
+    match item {
         // default imports: use the local binding name (for import foo from ...)
         DependencyItem::Remote {
             mode, name, alias, ..
@@ -1355,9 +1397,66 @@ pub(crate) fn resolve_local_import_alias_name(
             }
         }
         _ => None,
-    }?;
+    }
+}
 
-    Some(session.strings.get(local_name_id).to_string())
+/// Resolve the local binding name for one default dependency import alias.
+fn dependency_item_default_import_alias_name(
+    item: &DependencyItem,
+) -> Option<destack_core::StringId> {
+    match item {
+        DependencyItem::Remote { mode, name, .. }
+        | DependencyItem::UnresolvedRemote { mode, name, .. } => {
+            if *mode != DependencyMode::Default {
+                return None;
+            }
+
+            name.as_ref().map(|name| name.string())
+        }
+        _ => None,
+    }
+}
+
+/// Collect default import aliases whose imported default export resolves to one symbol.
+pub(crate) fn collect_default_import_alias_symbols_for_export(
+    session: &Session,
+    canonical_id: dir::GlobalSymbolId,
+) -> Vec<dir::GlobalSymbolId> {
+    let mut symbols = Vec::new();
+
+    for module in session.modules.iter() {
+        let module = module.as_ref();
+        if !module.is_user() {
+            continue;
+        }
+
+        let Some(ctx) = crate::query_context(session, module) else {
+            continue;
+        };
+
+        let symbols_in_module = ctx.symbols();
+        for symbol_index in 0..symbols_in_module.symbol_count() {
+            let local_symbol_id = LocalSymbolId::new(symbol_index as u32);
+            let symbol_id = dir::GlobalSymbolId::new(ctx.module_id, local_symbol_id);
+            if symbol_id == canonical_id {
+                continue;
+            }
+
+            let local_alias_name =
+                local_default_import_alias_name_in_context(session, &ctx, local_symbol_id);
+            if local_alias_name.is_none() {
+                continue;
+            }
+
+            if get_canonical_symbol(session, symbol_id) != canonical_id {
+                continue;
+            }
+
+            symbols.push(symbol_id);
+        }
+    }
+
+    symbols
 }
 
 /// Check whether a symbol is a local import alias for a canonical target.

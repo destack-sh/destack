@@ -154,9 +154,9 @@ export function alphaOnly(): void {}
 
 ## Damaged Source
 
-### Return no symbols for heavily malformed files
+### Keep recoverable symbols for heavily malformed files
 
-Workspace symbol search should fail gracefully when the file cannot be indexed.
+Workspace symbol search should still return declarations that remain recoverable.
 
 ```ds:damaged.ds
 export function stable(): void {}
@@ -164,5 +164,5 @@ export function broken( {}
 ```
 
 ```query workspace_symbols stable
-<none>
+stable(function) file=damaged.ds range=1:1-1:34
 ```

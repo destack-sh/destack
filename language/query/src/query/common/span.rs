@@ -1,5 +1,4 @@
 use std::collections::HashSet;
-use std::panic;
 use std::sync::Arc;
 
 use super::{AstContext, DirAnalyzedContext, QueryContext};
@@ -73,7 +72,22 @@ pub(crate) fn span_for_dir_node(
     Span::new(ast.file_id, ast_span.start, ast_span.end)
 }
 
-/// Resolve the main span for a DIR node when available
+/// Resolve the span for a DIR node when its source id is present in the AST source map.
+pub(crate) fn try_span_for_dir_node(
+    ctx: &QueryContext<'_>,
+    dir_tree: &dir::NodeTree,
+    node_id: LocalNodeIdAny,
+) -> Option<Span> {
+    let ast = ctx.ast_context();
+
+    // resolve the source span when the source id is still valid
+    let source_id = dir_tree.get_source(node_id.id);
+    let ast_span = ast.source_map().try_get(source_id)?;
+
+    Some(Span::new(ast.file_id, ast_span.start, ast_span.end))
+}
+
+/// Resolve the main span for a DIR node when available.
 pub(crate) fn main_span_for_dir_node(
     ctx: &QueryContext<'_>,
     dir_tree: &dir::NodeTree,
@@ -88,7 +102,7 @@ pub(crate) fn main_span_for_dir_node(
     Some(Span::new(ast.file_id, ast_span.start, ast_span.end))
 }
 
-/// Resolve the main or enclosing span for a DIR node
+/// Resolve the main or enclosing span for a DIR node.
 pub fn main_or_enclosing_span_for_dir_node(
     ctx: &QueryContext<'_>,
     dir_tree: &dir::NodeTree,
@@ -103,27 +117,7 @@ pub fn main_or_enclosing_span_for_dir_node(
     Span::new(ast.file_id, ast_span.start, ast_span.end)
 }
 
-/// Resolve the span for a DIR node and guard against panics
-pub(crate) fn span_for_dir_node_safe(
-    ctx: &QueryContext<'_>,
-    dir_tree: &dir::NodeTree,
-    node_id: u32,
-) -> Option<Span> {
-    let ast = ctx.ast_context();
-
-    // resolve the ast node id and guard source map access
-    let ast_node_id = dir_tree.get_source(node_id);
-    let full_span = panic::catch_unwind(panic::AssertUnwindSafe(|| {
-        ast.source_map().get(ast_node_id)
-    }));
-    let Ok(full_span) = full_span else {
-        return None;
-    };
-
-    Some(Span::new(ast.file_id, full_span.start, full_span.end))
-}
-
-/// Check whether a span fully contains another span
+/// Check whether a span fully contains another span.
 pub(crate) fn span_contains_span(parent: Span, child: Span) -> bool {
     parent.start <= child.start && parent.end >= child.end
 }
@@ -190,29 +184,22 @@ pub(crate) fn sorted_enclosing_spans(
     enclosing
 }
 
-/// Collect enclosing spans at the cursor and previous byte.
-pub(crate) fn enclosing_spans_with_previous(
-    ctx: &QueryContext<'_>,
-    offset: u32,
+/// Collect and sort enclosing spans for a set of probe offsets.
+pub(crate) fn enclosing_spans_at_offsets(
+    ast: AstContext<'_>,
+    offsets: impl IntoIterator<Item = u32>,
 ) -> Vec<EnclosingSpan> {
-    let ast = ctx.ast_context();
+    let mut enclosing = Vec::new();
+    let mut seen = HashSet::new();
 
-    // collect enclosing spans at the cursor position
-    let mut enclosing = ast.source_map().get_enclosing_spans(offset, offset);
-
-    // include enclosing spans at the previous byte for boundary cases
-    if offset > 0 {
-        let previous_offset = offset - 1;
-        let mut previous = ast
-            .source_map()
-            .get_enclosing_spans(previous_offset, previous_offset);
-        enclosing.append(&mut previous);
-    }
-
-    // deduplicate by span index when we have overlapping collections
-    if !enclosing.is_empty() {
-        let mut seen = HashSet::new();
-        enclosing.retain(|span| seen.insert(span.idx));
+    // gather the enclosing spans for each probe offset
+    for offset in offsets {
+        let spans = ast.source_map().get_enclosing_spans(offset, offset);
+        for span in spans {
+            if seen.insert(span.idx) {
+                enclosing.push(span);
+            }
+        }
     }
 
     // sort by span length so innermost spans come first
@@ -221,6 +208,18 @@ pub(crate) fn enclosing_spans_with_previous(
     enclosing
 }
 
+/// Collect enclosing spans at the cursor and previous byte.
+pub(crate) fn enclosing_spans_with_previous(
+    ctx: &QueryContext<'_>,
+    offset: u32,
+) -> Vec<EnclosingSpan> {
+    let mut offsets = vec![offset];
+    if offset > 0 {
+        offsets.push(offset - 1);
+    }
+
+    enclosing_spans_at_offsets(ctx.ast_context(), offsets)
+}
 /// Find the span for a string literal matching the provided text inside an enclosing span.
 pub(crate) fn string_literal_span_in_enclosing(
     file: &File,

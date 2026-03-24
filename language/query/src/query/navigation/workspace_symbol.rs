@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::common::{
     QueryContext, SymbolKind, container_name_for_node, declaration_display_name,
     declaration_symbol_kind, is_synthetic_function_keyword_field, member_key_name,
-    member_symbol_kind, score_completion, span_for_dir_node_safe,
+    member_symbol_kind, score_completion, try_span_for_dir_node,
 };
 use destack_workspace::{ModuleSource, Session};
 
@@ -82,7 +82,7 @@ pub fn workspace_symbols(
             let container = container_name_for_node(dir_tree, &session.strings, declaration_id.id);
 
             // resolve the declaration span
-            let Some(range) = span_for_dir_node_safe(&ctx, dir_tree, declaration_id.id) else {
+            let Some(range) = workspace_symbol_range(&ctx, dir_tree, declaration_id.id) else {
                 continue;
             };
 
@@ -206,7 +206,7 @@ fn member_to_workspace_symbol(
     let kind = member_symbol_kind(member)?;
 
     // resolve the member span
-    let range = span_for_dir_node_safe(ctx, dir_tree, member_id.id)?;
+    let range = workspace_symbol_range(ctx, dir_tree, member_id.id)?;
 
     // skip synthetic function keyword fields for methods
     if is_synthetic_function_keyword_field(member, &name, range) {
@@ -237,7 +237,7 @@ fn enum_field_to_workspace_symbol(
     let name = session.strings.get(field.name).to_string();
 
     // resolve the field span
-    let range = span_for_dir_node_safe(ctx, dir_tree, field_id.id)?;
+    let range = workspace_symbol_range(ctx, dir_tree, field_id.id)?;
 
     // return the enum field symbol
     Some(WorkspaceSymbol {
@@ -247,4 +247,14 @@ fn enum_field_to_workspace_symbol(
         range,
         container: Some(container_name.to_string()),
     })
+}
+
+/// Resolve one workspace symbol range without failing the whole query on bad source ids.
+fn workspace_symbol_range(
+    ctx: &QueryContext<'_>,
+    dir_tree: &dir::NodeTree,
+    node_id: u32,
+) -> Option<Span> {
+    let node_id = dir::LocalNodeIdAny::new(node_id, dir_tree.get_node_type(node_id));
+    try_span_for_dir_node(ctx, dir_tree, node_id)
 }

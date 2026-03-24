@@ -2,6 +2,8 @@ use destack_dir::{
     LocalScopeId, LocalScopeMark, LocalSymbolId, StaticKey, Symbol, SymbolSpace, SymbolTable,
 };
 
+use super::resolve::matches_symbol_space_filter;
+
 /// Information about a visible symbol.
 #[derive(Debug, Clone)]
 pub struct VisibleSymbol<'a> {
@@ -84,18 +86,7 @@ impl<'a> Iterator for VisibleSymbolIterator<'a> {
 
                 // filter by space if requested
                 if let Some(space) = self.space_filter {
-                    let matches = match space {
-                        SymbolSpace::Value => {
-                            symbol.space == SymbolSpace::Value
-                                || symbol.space == SymbolSpace::TypeValue
-                        }
-                        SymbolSpace::Type => {
-                            symbol.space == SymbolSpace::Type
-                                || symbol.space == SymbolSpace::TypeValue
-                        }
-                        SymbolSpace::TypeValue => symbol.space == SymbolSpace::TypeValue,
-                        SymbolSpace::Label => symbol.space == SymbolSpace::Label,
-                    };
+                    let matches = matches_symbol_space_filter(symbol.ty, symbol.space, Some(space));
                     if !matches {
                         continue;
                     }

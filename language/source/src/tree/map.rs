@@ -369,6 +369,12 @@ impl NodeSourceMap {
         self.enclosing_spans[node_id as usize]
     }
 
+    /// Get the span for a node by its id when it is present.
+    #[inline]
+    pub fn try_get(&self, node_id: u32) -> Option<Span> {
+        self.enclosing_spans.get(node_id as usize).copied()
+    }
+
     /// Get all enclosing spans containing the given range.
     ///
     /// Uses interval tree for O(log n + k) lookup where k is the number of enclosing spans.
