@@ -224,6 +224,7 @@ impl Compiler {
                     )?;
                 }
             }
+            ModuleTarget::External(_) => {}
             ModuleTarget::Binding(specifier) => {
                 // load binding exports for the target specifier
                 let binding_entries = module_bindings

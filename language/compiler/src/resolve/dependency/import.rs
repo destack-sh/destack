@@ -71,6 +71,10 @@ impl Compiler {
                 let symbol_id = declaration.descriptor().symbol;
                 Ok(symbol_id.into_global(binding_ref.module_id))
             }
+            ModuleTarget::External(specifier) => Err(ResolveError::UnresolvedModule {
+                node: node.into_anchored(Some(profile)),
+                target: specifier,
+            }),
         }
     }
 
@@ -167,6 +171,7 @@ impl Compiler {
 
                 Ok(resolved.map(|(symbol, _)| symbol))
             }
+            ModuleTarget::External(_) => Ok(None),
         }
     }
 
@@ -303,6 +308,12 @@ impl Compiler {
                     }
                 }
 
+                if let (Some(cache), Some(cache_key)) = (cache, cache_key) {
+                    cache.export_assignment_targets.insert(cache_key, None);
+                }
+                Ok(None)
+            }
+            ModuleTarget::External(_) => {
                 if let (Some(cache), Some(cache_key)) = (cache, cache_key) {
                     cache.export_assignment_targets.insert(cache_key, None);
                 }

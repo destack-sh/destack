@@ -286,6 +286,7 @@ impl Compiler {
                 }
                 Ok(exports)
             }
+            ModuleTarget::External(_) => Ok(Vec::new()),
             ModuleTarget::Binding(specifier) => {
                 // load bindings for the specifier
                 let bindings =

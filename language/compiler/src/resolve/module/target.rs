@@ -65,6 +65,15 @@ impl Compiler {
         module_id: ModuleId,
         profile_id: ProfileId,
     ) -> ResolveResult<Option<(TargetId, Target)>> {
+        self.target_policy_for_module_profile(module_id, profile_id)
+    }
+
+    /// Select the target policy for one module/profile pair.
+    pub(crate) fn target_policy_for_module_profile(
+        &self,
+        module_id: ModuleId,
+        profile_id: ProfileId,
+    ) -> ResolveResult<Option<(TargetId, Target)>> {
         let module = self.program.modules.get(module_id);
         let module = module.as_ref();
         let package_id = module.package_id;

@@ -1321,3 +1321,97 @@ export type RootValue = Value;
     test.resolve_module(main_module_id);
     test.compile_check_clean();
 }
+
+/// Resolve explicitly externalized bare package reexports as external link targets.
+#[test]
+fn test_resolve_externalized_bare_package_reexport_as_external_target() {
+    let test = TestProgram::memory_sequential();
+    let main_module_id = test.add_module(
+        "main.ts",
+        r#"
+export * from "react";
+"#,
+    );
+
+    test.configure_target(main_module_id, "js", |target| {
+        target.bundle.dependency.never_bundle = vec!["react".to_string()];
+    });
+
+    test.resolve_module(main_module_id);
+    test.compile_check_clean();
+
+    let dir = test.dir_resolved(main_module_id);
+    let imported = dir
+        .imported_modules
+        .values()
+        .next()
+        .unwrap_or_else(|| panic!("expected one imported module entry"));
+
+    assert_eq!(
+        imported.value,
+        Some(destack_dir::ModuleTarget::External(
+            test.program.strings.intern("react"),
+        ))
+    );
+}
+
+/// Prefer ambient module bindings over external package deferral.
+#[test]
+fn test_resolve_prefers_module_binding_before_external_package_target() {
+    let test = TestProgram::memory_sequential();
+    let declaration_module_id = test.add_module(
+        "react.d.ts",
+        r#"
+declare module "react" {
+    export const useValue: number;
+}
+"#,
+    );
+    let main_module_id = test.add_module(
+        "main.ts",
+        r#"
+import "./react.d.ts";
+import { useValue } from "react";
+
+useValue;
+"#,
+    );
+
+    test.configure_target(main_module_id, "js", |target| {
+        target.bundle.dependency.never_bundle = vec!["react".to_string()];
+    });
+
+    test.resolve_module(main_module_id);
+    test.compile_check_clean();
+
+    // imported module cache
+    let dir = test.dir_resolved(main_module_id);
+    let imported = dir
+        .imported_modules
+        .values()
+        .next()
+        .unwrap_or_else(|| panic!("expected one imported module entry"));
+
+    assert_eq!(
+        imported.value,
+        Some(destack_dir::ModuleTarget::Binding(
+            test.program.strings.intern("react"),
+        ))
+    );
+
+    // imported symbol
+    let profile = test.default_profile_id(main_module_id);
+    let dir = test.artifact_dir(main_module_id, profile);
+    let symbols = &dir.symbols;
+    let name_id = test.program.strings.intern("useValue");
+    let scope = symbols.get_scope_by_id(dir.namespace_scope);
+    let Some(symbol_id) = symbols.find_active_symbol(scope, StaticKey::Name(name_id)) else {
+        panic!("expected import binding for useValue");
+    };
+    let symbol = symbols.get_symbol(symbol_id);
+    let Some(target_symbol) = symbol.target_symbol else {
+        panic!("expected import target");
+    };
+
+    assert_eq!(target_symbol.module_id, declaration_module_id);
+}

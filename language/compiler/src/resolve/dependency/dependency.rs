@@ -65,7 +65,7 @@ impl Compiler {
         target: ModuleTarget,
     ) -> Option<ModuleId> {
         match target {
-            ModuleTarget::Binding(_) => Some(origin_module_id),
+            ModuleTarget::Binding(_) | ModuleTarget::External(_) => Some(origin_module_id),
             ModuleTarget::Module(_) => None,
         }
     }
@@ -200,6 +200,20 @@ impl Compiler {
                     target_module,
                     remote_target,
                 );
+
+                // external package targets carry link metadata but no local symbol surface
+                if matches!(remote_target, ModuleTarget::External(_)) {
+                    return Ok(Some(DependencyItem::UnresolvedRemote {
+                        source,
+                        name,
+                        mode,
+                        kind,
+                        alias,
+                        target,
+                        target_module: Some(target_module),
+                        symbol,
+                    }));
+                }
 
                 // resolve target symbol based on mode
                 let (target_symbol, resolved_kind) = match mode {
