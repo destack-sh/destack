@@ -64,6 +64,32 @@ impl Parser {
         statements.push(statement_id);
     }
 
+    /// Try to consume one stray closing delimiter in an implicit statement body.
+    fn try_consume_stray_close_delimiter_in_implicit_block_body(
+        &mut self,
+        format: BlockFormat,
+        statements: &mut Vec<LocalNodeId<Expression>>,
+    ) -> ParseResult<bool> {
+        if format != BlockFormat::Implicit {
+            return Ok(false);
+        }
+
+        let token = match self.peek() {
+            Ok(token) if Self::is_close_delimiter_token(token.token.ty) => *token,
+            _ => return Ok(false),
+        };
+
+        // stray closers should produce one error node and advance
+        let error = ParseError::unexpected_for(token.span, NodeType::Expression);
+        self.error(&error);
+        self.bump();
+
+        let error_id = self.tree.insert(Expression::Error, token.span);
+        statements.push(error_id);
+
+        Ok(true)
+    }
+
     /// Try to parse a labelled statement before generic statement keyword dispatch.
     fn try_parse_labelled_statement_expression(
         &mut self,
@@ -531,6 +557,13 @@ impl Parser {
                 continue;
             }
 
+            // stray close delimiters in implicit bodies should recover once and advance
+            if self
+                .try_consume_stray_close_delimiter_in_implicit_block_body(format, &mut statements)?
+            {
+                continue;
+            }
+
             // previous tail expressions are no longer block tails once a new item starts
             if let Some(pending_id) = pending_tail_expression.take() {
                 self.push_block_body_non_tail_expression(&mut statements, pending_id);
@@ -539,21 +572,7 @@ impl Parser {
             // parse and recover one statement item
             let start = self.mark_span();
             let (expression_id, is_statement) =
-                match self.eat_statement_expression_from_token_kind(token_type) {
-                    Ok(expression_id) => {
-                        self.finalize_statement_expression_with_flag(&start, expression_id)?
-                    }
-                    Err(err) => {
-                        let err = err.for_node_type(NodeType::Expression);
-                        let span = err.leaf_span();
-                        let start = ParserMark::from_span(span);
-                        self.try_recover(&start, TokenType::Newline, Some(err))?;
-                        let error_id = self
-                            .tree
-                            .insert(Expression::Error, self.get_span_from(&start));
-                        (error_id, true)
-                    }
-                };
+                self.eat_statement_expression_from_token_kind_with_recovery(&start, token_type)?;
 
             // keep at most one tail candidate, emit statements directly
             if is_statement {
@@ -599,17 +618,33 @@ impl Parser {
     fn try_eat_statement_expression_with_flag_in_statement_position(
         &mut self,
     ) -> ParseResult<(LocalNodeId<Expression>, bool)> {
-        let start = self.mark_span();
+        self.eat_newlines_maybe()?;
 
-        match self.eat_statement_expression() {
-            Ok(expression_id) => {
-                self.finalize_statement_expression_with_flag(&start, expression_id)
-            }
+        let start = self.mark_span();
+        let token_type = self.peek_token_type();
+
+        self.eat_statement_expression_from_token_kind_with_recovery(&start, token_type)
+    }
+
+    /// Eat one statement expression from one normalized token kind and recover local statement errors.
+    fn eat_statement_expression_from_token_kind_with_recovery(
+        &mut self,
+        start: &ParserMark,
+        token_type: TokenType,
+    ) -> ParseResult<(LocalNodeId<Expression>, bool)> {
+        let parsed_expression = self
+            .eat_statement_expression_from_token_kind(token_type)
+            .and_then(|expression_id| {
+                self.finalize_statement_expression_with_flag(start, expression_id)
+            });
+
+        match parsed_expression {
+            Ok(expression_id) => Ok(expression_id),
             Err(err) => {
                 let err = err.for_node_type(NodeType::Expression);
                 let span = err.leaf_span();
                 let start = ParserMark::from_span(span);
-                self.try_recover(&start, TokenType::Newline, Some(err))?;
+                self.try_recover_in_statement(&start, Some(err))?;
                 let error_id = self
                     .tree
                     .insert(Expression::Error, self.get_span_from(&start));
@@ -640,9 +675,18 @@ impl Parser {
         let separator_cursor = self.scanner_cursor_from(self.pos_index());
         let has_separator = separator_cursor.starts_after_statement_boundary();
 
-        // require statement separators after expressions to avoid token glue
+        // recover trailing statement junk after a committed expression
+        //
+        // this keeps the longest valid prefix as the statement shape instead of
+        // collapsing the whole statement to `Expression::Error`
         if !is_statement && !has_separator {
-            return Err(ParseError::unexpected(self.peek()?.span));
+            let error = ParseError::unexpected(self.peek()?.span);
+            let recovery_start = self.mark_span();
+            self.try_recover_in_statement(&recovery_start, Some(error))?;
+
+            let expression_id =
+                self.wrap_statement_expression(expression_id, self.get_span_from(start));
+            return Ok((expression_id, true));
         }
 
         Ok((expression_id, is_statement))

@@ -201,8 +201,9 @@ impl Parser {
         // optional `= <expr>` value
         let value = if self.peek_is(TokenType::Assign) {
             self.eat_token(TokenType::Assign)?;
-            let value = self.eat_expression_with_context_unchecked(
+            let value = self.eat_expression_or_recover_missing(
                 self.options.not_in_position().not_in_sequence_expression(),
+                NodeType::EnumField,
             )?;
             Some(value)
         } else {

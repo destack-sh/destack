@@ -1701,6 +1701,60 @@ async function* foo() => int32 {
         });
     }
 
+    /// Preserve the enclosing function when a call argument is missing before the block close.
+    #[test]
+    fn test_parse_function_body_preserves_declaration_for_missing_call_argument_before_block_close()
+    {
+        // source
+        let mut test = TestParser::new(
+            r#"
+function greet(name: string, suffix: string) {}
+
+function main() {
+    const userName = "Alice";
+    greet(userName,
+}
+"#,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert_eq!(parser.errors.len(), 2);
+        assert_eq!(expressions.len(), 2);
+
+        // function main() { ... }
+        assert_node!(parser.tree, expressions[1], Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { descriptor, body: Some(body), .. } => {
+                assert_string!(parser, descriptor.name.unwrap().string(), "main");
+
+                // { const userName = "Alice"; greet(userName, }
+                assert_node!(parser.tree, *body, Expression::Block(block_id) => {
+                    let block = parser.tree.get(*block_id);
+                    assert_eq!(block.expressions.len(), 2);
+
+                    // const userName = "Alice";
+                    assert_node!(parser.tree, block.expressions[0], Expression::Statement(statement_id) => {
+                        assert_node!(parser.tree, *statement_id, Expression::Let { declarators, .. } => {
+                            assert_eq!(declarators.len(), 1);
+                        });
+                    });
+
+                    // greet(userName,
+                    assert_node!(parser.tree, block.expressions[1], Expression::Call { left, dynamic_arguments, .. } => {
+                        assert_expression_path!(parser, parser.tree.get(*left), "greet");
+                        assert_eq!(dynamic_arguments.len(), 2);
+
+                        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+                            assert_expression_path!(parser, parser.tree.get(*value), "userName");
+                        });
+
+                        assert_node!(parser.tree, dynamic_arguments[1], Argument::Error);
+                    });
+                });
+            });
+        });
+    }
+
     /// Parse nested generator yield expressions.
     #[test]
     fn test_parse_function_generator_nested_yield_javascript() {
@@ -1801,18 +1855,40 @@ async function* foo() => int32 {
         });
     }
 
-    /// Reject delegated generator yield when a line terminator appears before `*`.
+    /// Recover delegated generator yield when a line terminator appears before `*`.
     #[test]
-    fn test_reject_function_generator_delegate_after_newline_javascript() {
+    fn test_recover_function_generator_delegate_after_newline_javascript() {
         // source: function *a(){yield
         // *a}
         let mut test =
             TestParser::new_with_options("function *a(){yield\n*a}", LanguageType::JavaScript);
         let mut parser = test.prepare();
-        let error = parser.eat_expression(parser.options).unwrap_err();
+        let expression_id = parser.eat_expression(parser.options).unwrap();
 
-        // *
-        assert_eq!(parser.get_span_str(error.leaf_span()), "*");
+        // function *a(){yield
+        // *a}
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body: Some(body), .. } => {
+                assert_eq!(signature.cardinality, FunctionCardinality::Generator);
+
+                // { yield \n *a }
+                assert_node!(parser.tree, *body, Expression::Block(block_id) => {
+                    let block = parser.tree.get(*block_id);
+                    assert_eq!(block.expressions.len(), 2);
+
+                    // yield
+                    assert_node!(parser.tree, block.expressions[0], Expression::Statement(statement_id) => {
+                        assert_node!(parser.tree, *statement_id, Expression::Yield { cardinality, value } => {
+                            assert_eq!(*cardinality, YieldCardinality::Scalar);
+                            assert!(value.is_none());
+                        });
+                    });
+
+                    // *a
+                    assert_node!(parser.tree, block.expressions[1], Expression::Error);
+                });
+            });
+        });
     }
 
     /// Parse generator yield in class heritage expression.
