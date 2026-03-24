@@ -550,6 +550,63 @@ use:comptime_scale_2
 
 ## Damaged Syntax
 
+### Find references for valid symbols after malformed function declarations
+
+Find references should still resolve later declarations after one malformed function head.
+
+```ds
+export function broken( {}
+
+export function stableLater(): void {}
+//              ^^^^^^^^^^^ def:stableLater
+
+stableLater();
+// ^^^^^^^^^^^ use:stableLater
+```
+
+```query find_references def:stableLater
+main.ds:3:17-3:28
+main.ds:5:1-5:12
+```
+
+### Find references for valid symbols after malformed call statements
+
+Find references should still resolve later declarations after one malformed call statement.
+
+```ds
+broken(,
+
+export function stableLater(): void {}
+//              ^^^^^^^^^^^ def:stableLater
+
+stableLater();
+// ^^^^^^^^^^^ use:stableLater
+```
+
+```query find_references def:stableLater
+main.ds:3:17-3:28
+main.ds:5:1-5:12
+```
+
+### Find references for valid symbols after bare new recovery statements
+
+Find references should still resolve later declarations after one bare `new` recovery statement.
+
+```ds
+new
+
+export function stableLater(): void {}
+//              ^^^^^^^^^^^ def:stableLater
+
+stableLater();
+// ^^^^^^^^^^^ use:stableLater
+```
+
+```query find_references def:stableLater
+main.ds:3:17-3:28
+main.ds:5:1-5:12
+```
+
 ### Return no references for malformed unresolved access
 
 Find references should fail gracefully when the cursor is on malformed unresolved syntax.

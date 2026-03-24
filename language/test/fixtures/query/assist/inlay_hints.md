@@ -105,6 +105,46 @@ main.ds:4:15 kind=parameter label=coats:
 main.ds:5:14 kind=parameter label=coats:
 ```
 
+### Keep inlay hints after malformed call statements
+
+Inlay hints should still resolve later valid calls after one malformed call statement.
+
+```ds
+broken(,
+
+function add(x: int32, y: int32): int32 {
+    return x + y;
+}
+
+const result = add(1, 2);
+```
+
+```query inlay_hints $0
+main.ds:7:13 kind=type label=: int32
+main.ds:7:20 kind=parameter label=x:
+main.ds:7:23 kind=parameter label=y:
+```
+
+### Keep inlay hints after bare new recovery statements
+
+Inlay hints should still resolve later valid calls after one bare `new` recovery statement.
+
+```ds
+new
+
+function add(x: int32, y: int32): int32 {
+    return x + y;
+}
+
+const result = add(1, 2);
+```
+
+```query inlay_hints $0
+main.ds:7:13 kind=type label=: int32
+main.ds:7:20 kind=parameter label=x:
+main.ds:7:23 kind=parameter label=y:
+```
+
 ### Skip hints that repeat argument names
 
 Parameter hints should not repeat obvious argument names.

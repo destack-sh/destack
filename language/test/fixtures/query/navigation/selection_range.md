@@ -114,3 +114,56 @@ main.ds:6:7-6:38
 main.ds:6:1-6:38
 main.ds:6:1-6:39
 ```
+
+## Damaged Syntax
+
+### Keep selection ranges working after malformed function declarations
+
+Selection ranges should still expand normally for later valid expressions in damaged files.
+
+```ds
+function broken(
+
+const value = $01;
+```
+
+```query selection_range $0
+main.ds:3:15-3:16
+main.ds:3:7-3:16
+main.ds:3:1-3:16
+main.ds:3:1-3:17
+```
+
+### Keep selection ranges working after bare new recovery statements
+
+Selection ranges should still expand normally for later valid expressions after one bare `new` recovery statement.
+
+```ds
+new
+
+const value = $01;
+```
+
+```query selection_range $0
+main.ds:3:15-3:16
+main.ds:3:7-3:16
+main.ds:3:1-3:16
+main.ds:3:1-3:17
+```
+
+### Keep selection ranges working after malformed call statements
+
+Selection ranges should still expand normally for later valid expressions after one malformed call statement.
+
+```ds
+broken(,
+
+const value = $01;
+```
+
+```query selection_range $0
+main.ds:3:15-3:16
+main.ds:3:7-3:16
+main.ds:3:1-3:16
+main.ds:3:1-3:17
+```

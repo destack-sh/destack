@@ -76,6 +76,36 @@ second();
 <same>
 ```
 
+### Keep code lenses after malformed call statements
+
+Code lenses should still resolve for later valid functions after one malformed call statement.
+
+```ds
+broken(,
+
+function greet(): void {}
+greet();
+```
+
+```query code_lens $0
+main.ds:3:10-3:15 kind=references title=1 reference
+```
+
+### Keep code lenses after bare new recovery statements
+
+Code lenses should still resolve for later valid functions after one bare `new` recovery statement.
+
+```ds
+new
+
+function greet(): void {}
+greet();
+```
+
+```query code_lens $0
+main.ds:3:10-3:15 kind=references title=1 reference
+```
+
 ## Empty Results
 
 ### Unused functions produce no lenses

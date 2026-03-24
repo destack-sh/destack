@@ -201,7 +201,7 @@ function main() {
 ```
 
 ```query completion $0
-<none>
+main: function
 ```
 
 ## Type Position
@@ -731,7 +731,28 @@ const cfg: Config = {
 
 ```query completion $0
 retries: field
-cfg: variable
+```
+
+### Complete in missing object literal value
+
+Object literal value completion should still work when the value expression is missing.
+
+```ds
+type Config = {
+    user: string,
+};
+
+function main() {
+    const userName = "Alice";
+    const cfg: Config = {
+        user: $0
+    };
+}
+```
+
+```query completion $0
+main: function
+userName: variable
 ```
 
 ## New Expressions
@@ -2229,6 +2250,117 @@ greet: function
 userName: variable
 ```
 
+## Damaged Source
+
+### Complete in missing initializer position
+
+Value completion should still work in a missing declarator initializer slot.
+
+```ds
+function main() {
+    const userName = "Alice";
+    const value = $0
+}
+```
+
+```query completion $0
+main: function
+userName: variable
+```
+
+### Exclude destructured bindings in missing initializer position
+
+Completion should exclude bindings that are still being introduced by one destructuring initializer.
+
+```ds
+function main() {
+    const sourceData = {
+        userName: "Alice",
+        profile: "admin",
+    };
+
+    const { userName, profile: profileAlias } = $0
+}
+```
+
+```query completion $0
+main: function
+sourceData: variable
+```
+
+### Complete after malformed call statements
+
+Value completion should still work for later call arguments after one malformed call statement.
+
+```ds
+broken(,
+
+function greet(name: string): void {}
+
+const userName = "Alice";
+greet($0)
+```
+
+```query completion $0
+greet: function
+userName: variable
+```
+
+### Complete after bare new recovery statements
+
+Value completion should still work for later call arguments after one bare `new` recovery statement.
+
+```ds
+function greet(name: string): void {}
+
+function main() {
+    new
+    const userName = "Alice";
+    greet($0)
+}
+```
+
+```query completion $0
+main: function
+greet: function
+userName: variable
+```
+
+### Complete in missing return position
+
+Value completion should still work in a missing return value slot.
+
+```ds
+function helper(): void {}
+
+function main() {
+    const userName = "Alice";
+    return $0
+}
+```
+
+```query completion $0
+main: function
+helper: function
+userName: variable
+```
+
+### Complete in missing yield position
+
+Value completion should still work in a missing yield value slot.
+
+```ds
+function* main() {
+    const userName = "Alice";
+    yield $0
+}
+```
+
+```query completion $0
+main: function
+userName: variable
+```
+
 ### Complete in unterminated function argument position
 
 In function call arguments, completion should still work when the closing `)` is missing.
@@ -2246,6 +2378,24 @@ function main() {
 main: function
 greet: function
 userName: variable
+```
+
+### Complete after malformed function declaration
+
+Completion should still see later declarations after a malformed function head.
+
+```ds
+export function broken( {}
+
+export function stableLater(): void {}
+
+function main() {
+    const result = stable$0
+}
+```
+
+```query completion $0
+stableLater: function
 ```
 
 ## Interface Members

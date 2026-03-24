@@ -569,6 +569,60 @@ range=main.ds:8:1-8:11 signature=function greetBlock(name: string): string docum
 
 ## Damaged Syntax
 
+### Keep hover working after malformed function declarations
+
+Hover should still resolve valid later declarations after one malformed function head.
+
+```ds
+export function broken( {}
+
+export function stableLater(): void {}
+//              ^^^^^^^^^^^ def:stableLater
+
+stableLater();
+// ^^^^^^^^^^^ use:stableLater
+```
+
+```query hover use:stableLater
+range=main.ds:5:1-5:12 signature=export function stableLater(): void documentation=<none>
+```
+
+### Keep hover working after malformed call statements
+
+Hover should still resolve valid later declarations after one malformed call statement.
+
+```ds
+broken(,
+
+export function stableLater(): void {}
+//              ^^^^^^^^^^^ def:stableLater
+
+stableLater();
+// ^^^^^^^^^^^ use:stableLater
+```
+
+```query hover use:stableLater
+range=main.ds:5:1-5:12 signature=export function stableLater(): void documentation=<none>
+```
+
+### Keep hover working after bare new recovery statements
+
+Hover should still resolve valid later declarations after one bare `new` recovery statement.
+
+```ds
+new
+
+export function stableLater(): void {}
+//              ^^^^^^^^^^^ def:stableLater
+
+stableLater();
+// ^^^^^^^^^^^ use:stableLater
+```
+
+```query hover use:stableLater
+range=main.ds:5:1-5:12 signature=export function stableLater(): void documentation=<none>
+```
+
 ### Return no hover for malformed unresolved member access
 
 Hover should return no symbol information when the cursor is on malformed unresolved syntax.

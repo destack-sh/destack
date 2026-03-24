@@ -312,6 +312,66 @@ def:ShadowConfig
 
 ## Damaged Syntax
 
+### Keep type definitions working after malformed function declarations
+
+Go to type definition should still work for later type uses after one malformed function head.
+
+```ds
+export function broken( {}
+
+type Config = {
+//   ^^^^^^ def:Config
+    enabled: boolean,
+};
+
+const current: Config = { enabled: true };
+//             ^^^^^^ use:Config
+```
+
+```query goto_type_definition use:Config
+def:Config
+```
+
+### Keep type definitions working after malformed call statements
+
+Go to type definition should still work for later type uses after one malformed call statement.
+
+```ds
+broken(,
+
+type Config = {
+//   ^^^^^^ def:Config
+    enabled: boolean,
+};
+
+const current: Config = { enabled: true };
+//             ^^^^^^ use:Config
+```
+
+```query goto_type_definition use:Config
+def:Config
+```
+
+### Keep type definitions working after bare new recovery statements
+
+Go to type definition should still work for later type uses after one bare `new` recovery statement.
+
+```ds
+new
+
+type Config = {
+//   ^^^^^^ def:Config
+    enabled: boolean,
+};
+
+const current: Config = { enabled: true };
+//             ^^^^^^ use:Config
+```
+
+```query goto_type_definition use:Config
+def:Config
+```
+
 ### Return no type definition for malformed unresolved member access
 
 Go to type definition should return no result when the cursor is on malformed unresolved syntax.

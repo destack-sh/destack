@@ -180,6 +180,81 @@ function main(): void {
 <none>
 ```
 
+## Damaged Syntax
+
+### Keep definitions working in damaged files
+
+Goto definition should still work for valid symbols in files with neighboring malformed syntax.
+
+```ds
+const value = 1;
+//    ^^^^^ def:value
+
+function main(): void {
+    value;
+//  ^^^^^ use:value
+    missingValue.
+}
+```
+
+```query goto_definition use:value
+def:value
+```
+
+### Keep definitions working after malformed function declarations
+
+Goto definition should still work for later declarations after one malformed function head.
+
+```ds
+export function broken( {}
+
+export function stableLater(): void {}
+//              ^^^^^^^^^^^ def:stableLater
+
+stableLater();
+// ^^^^^^^^^^^ use:stableLater
+```
+
+```query goto_definition use:stableLater
+def:stableLater
+```
+
+### Keep definitions working after malformed call statements
+
+Goto definition should still work for later declarations after one malformed call statement.
+
+```ds
+broken(,
+
+export function stableLater(): void {}
+//              ^^^^^^^^^^^ def:stableLater
+
+stableLater();
+// ^^^^^^^^^^^ use:stableLater
+```
+
+```query goto_definition use:stableLater
+def:stableLater
+```
+
+### Keep definitions working after bare new recovery statements
+
+Goto definition should still work for later declarations after one bare `new` recovery statement.
+
+```ds
+new
+
+export function stableLater(): void {}
+//              ^^^^^^^^^^^ def:stableLater
+
+stableLater();
+// ^^^^^^^^^^^ use:stableLater
+```
+
+```query goto_definition use:stableLater
+def:stableLater
+```
+
 ## Type And Value Imports
 
 ### Resolve type-only and value imports in one module
