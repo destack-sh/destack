@@ -347,9 +347,10 @@ undefined: type_parameter
 unique symbol: type_parameter
 ```
 
-### Exclude value symbols in type position
+### Exclude pure value symbols in type position
 
-Value symbols should not appear in type position completions.
+Pure value symbols should not appear in type position completions.
+Destack function declarations still participate in the type namespace.
 
 ```ds
 const value = 1;
@@ -360,6 +361,7 @@ function test() {
 ```
 
 ```query completion $0
+test: function
 any: type_parameter
 int: type_parameter
 int8: type_parameter
@@ -451,7 +453,7 @@ unique symbol: type_parameter
 
 ### Complete in generic type parameter
 
-In generic brackets, should show types.
+In generic brackets, should show type-space symbols.
 
 ```ds
 struct Container<T> {
@@ -471,6 +473,7 @@ function test() {
 ```
 
 ```query completion $0
+test: function
 Point: struct
 Container: struct
 any: type_parameter
@@ -555,6 +558,27 @@ export function user(): void {}
 
 ```ds:main.ds
 import { } from "./u$0"
+```
+
+```query completion $0
+user: module
+utils/: folder
+```
+
+### Complete relative entries in unterminated import path
+
+Relative import completion should still work when the closing quote is missing.
+
+```ds:utils/helpers.ds
+export function help(): void {}
+```
+
+```ds:user.ds
+export function user(): void {}
+```
+
+```ds:main.ds
+import { } from "./u$0
 ```
 
 ```query completion $0
@@ -1091,6 +1115,28 @@ Widget: struct
 makeWidget: function
 ```
 
+### Missing import clause close before from
+
+Named import completions should still work when the closing `}` is omitted before `from`.
+
+```ds:types.ds
+export struct Widget {
+    value: int32
+}
+
+export function makeWidget(): Widget {
+    return Widget { value: 1 };
+}
+```
+
+```ds:main.ds
+import { Widget, $0 from "./types.ds";
+```
+
+```query completion $0
+makeWidget: function
+```
+
 ## Member Access
 
 ### Complete struct name reference
@@ -1208,6 +1254,27 @@ struct Point2 {
 function main2() {
     const p: Point2 = Point2 { x: 1, y: 2 };
     p.$0
+}
+```
+
+```query completion $0
+x: field
+y: field
+```
+
+### Complete after optional chain dot
+
+When triggering completion immediately after `?.`, show all members for the receiver type.
+
+```ds
+struct Point3 {
+    x: int32
+    y: int32
+}
+
+function main3() {
+    const p: Point3 = Point3 { x: 1, y: 2 };
+    p?.$0
 }
 ```
 
@@ -2153,6 +2220,25 @@ function greet(name: string) {}
 function main() {
     const userName = "Alice";
     greet($0)
+}
+```
+
+```query completion $0
+main: function
+greet: function
+userName: variable
+```
+
+### Complete in unterminated function argument position
+
+In function call arguments, completion should still work when the closing `)` is missing.
+
+```ds
+function greet(name: string, suffix: string) {}
+
+function main() {
+    const userName = "Alice";
+    greet(userName, $0
 }
 ```
 

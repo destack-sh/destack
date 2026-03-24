@@ -45,7 +45,7 @@ pub(crate) fn matches_symbol_space_filter(
     match filter {
         SymbolSpace::Type => match symbol_space {
             SymbolSpace::Type => true,
-            SymbolSpace::TypeValue => is_type_symbol(symbol_type),
+            SymbolSpace::TypeValue => true,
             _ => is_type_symbol(symbol_type),
         },
         SymbolSpace::Value => {
@@ -53,6 +53,27 @@ pub(crate) fn matches_symbol_space_filter(
         }
         SymbolSpace::TypeValue => symbol_space == SymbolSpace::TypeValue,
         SymbolSpace::Label => symbol_space == SymbolSpace::Label,
+    }
+}
+
+/// Check whether a symbol matches an explicit import-clause space filter.
+pub(crate) fn matches_import_clause_space_filter(
+    symbol_type: SymbolType,
+    symbol_space: SymbolSpace,
+    filter: Option<SymbolSpace>,
+) -> bool {
+    let Some(filter) = filter else {
+        return true;
+    };
+
+    match filter {
+        // `import type` only exposes symbols that are intrinsically type-side.
+        //
+        // destack allows some `TypeValue` symbols, such as functions, in general
+        // type-space resolution. Import clauses are stricter: they should offer
+        // declarations that remain meaningful after type-only erasure.
+        SymbolSpace::Type => symbol_space == SymbolSpace::Type || is_type_symbol(symbol_type),
+        _ => matches_symbol_space_filter(symbol_type, symbol_space, Some(filter)),
     }
 }
 
@@ -701,8 +722,11 @@ pub(crate) fn resolve_nominal_symbol_from_type_expression(
             return resolve_nominal_symbol_from_type_expression(session, ctx, *left);
         }
         Expression::Member { left, name, .. } => {
+            let Some(name) = *name else {
+                return None;
+            };
             if let Some(symbol_id) =
-                resolve_member_access_symbol(session, ctx, expression_id, *left, *name)
+                resolve_member_access_symbol(session, ctx, expression_id, *left, name)
             {
                 return Some(symbol_id);
             }

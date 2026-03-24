@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use destack_ast::TokenType;
 use destack_dir as dir;
-use destack_source::{BatchEdit, Edit, FileEdit, FileId, Span, Uri};
+use destack_source::{BatchEdit, Edit, File, FileEdit, FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
 
 use crate::common::{
@@ -253,7 +253,10 @@ fn call_target_symbol(
 
     let expression = dir_tree.get::<dir::Expression>(current);
     if let dir::Expression::Member { left, name, .. } = expression {
-        return resolve_member_access_symbol(session, ctx, current, *left, *name)
+        let Some(name) = *name else {
+            return resolve_expression_symbol(ctx, current);
+        };
+        return resolve_member_access_symbol(session, ctx, current, *left, name)
             .or_else(|| resolve_expression_symbol(ctx, current));
     }
 
@@ -803,7 +806,7 @@ fn build_arguments_for_call(
 
 /// Extract the argument value text without labels.
 fn argument_value_text(
-    source_file: &destack_source::File,
+    source_file: &File,
     ctx: &QueryContext<'_>,
     dir_tree: &dir::NodeTree,
     argument: &dir::Argument,

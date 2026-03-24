@@ -4,9 +4,12 @@ use destack_source::{EnclosingSpan, FileId, ModuleId, NodeSpanType, Span};
 use {destack_ast as ast, destack_dir as dir};
 
 use crate::common::{
-    QueryContext, enclosing_spans_with_previous, extract_string_literal_prefix,
-    get_module_by_file_id, import_clause_brace_span, resolve_expression_symbol,
-    sorted_enclosing_spans, span_for_dir_node, visible_symbols,
+    QueryContext, block_statement_position, enclosing_missing_expression,
+    enclosing_spans_at_cursor_boundary, enclosing_spans_with_previous,
+    extract_string_literal_prefix, get_module_by_file_id, import_clause_bounds,
+    missing_declarator_value_at_cursor, offset_is_in_ast_type_side_span,
+    previous_significant_token, resolve_expression_symbol, sorted_enclosing_spans,
+    span_for_dir_node, token_span_at_cursor_offset, token_text, visible_symbols,
 };
 use destack_workspace::Session;
 
@@ -21,8 +24,6 @@ pub enum CompletionContext {
         receiver_symbol: Option<dir::GlobalSymbolId>,
         /// The resolved receiver type when available.
         receiver_type: Option<dir::LocalTypeId>,
-        /// The source-derived receiver type name when semantic type resolution is unavailable.
-        source_type_name: Option<String>,
     },
     /// Type position context such as annotations or type expressions.
     TypePosition {
@@ -93,6 +94,8 @@ pub enum CompletionContext {
         /// Optional namespace filter for the clause.
         space_filter: Option<dir::SymbolSpace>,
     },
+    /// Explicitly suppressed completion context.
+    Suppressed,
     /// Fallback context when no other context matches.
     Unknown,
 }
@@ -135,92 +138,6 @@ fn unknown_context() -> ContextResult {
     }
 }
 
-/// Find the previous non-trivia token before the offset.
-fn previous_significant_token(ctx: &QueryContext<'_>, offset: u32) -> Option<ast::TokenSpan> {
-    let ast = ctx.ast_context();
-
-    // track the last token ending before the offset
-    let mut candidate = None;
-
-    // scan tokens in order for the latest token ending before the offset
-    for token in ast.tokens() {
-        if token.span.file != ctx.file_id {
-            continue;
-        }
-
-        if is_trivia_token(token.token.ty) {
-            continue;
-        }
-
-        if token.span.end <= offset {
-            candidate = Some(*token);
-            continue;
-        }
-
-        if token.span.start > offset {
-            break;
-        }
-    }
-
-    candidate
-}
-
-/// Find the token that contains the offset (or ends at it).
-fn token_at_offset(ctx: &QueryContext<'_>, offset: u32) -> Option<ast::TokenSpan> {
-    let ast = ctx.ast_context();
-
-    // track the last token starting before the offset
-    let mut candidate = None;
-
-    // scan tokens until we pass the offset
-    for token in ast.tokens() {
-        if token.span.file != ctx.file_id {
-            continue;
-        }
-
-        if is_trivia_token(token.token.ty) {
-            continue;
-        }
-
-        if token.span.contains(offset) {
-            return Some(*token);
-        }
-
-        if token.span.start > offset {
-            break;
-        }
-
-        candidate = Some(*token);
-    }
-
-    // allow cursor at the end of a token span
-    let candidate = candidate?;
-    if candidate.span.end == offset {
-        return Some(candidate);
-    }
-
-    None
-}
-
-/// Read the token text from the source slice.
-fn token_text(source: &str, span: Span) -> Option<&str> {
-    source.get(span.start as usize..span.end as usize)
-}
-
-/// Check whether a token type is trivia.
-fn is_trivia_token(token: ast::TokenType) -> bool {
-    matches!(
-        token,
-        ast::TokenType::Whitespace
-            | ast::TokenType::Newline
-            | ast::TokenType::LineComment
-            | ast::TokenType::BlockComment
-            | ast::TokenType::DocLineComment
-            | ast::TokenType::DocBlockComment
-            | ast::TokenType::End
-    )
-}
-
 /// Check whether the cursor is after a specific keyword token.
 fn is_after_keyword(ctx: &QueryContext<'_>, source: &str, offset: u32, keyword: &str) -> bool {
     // resolve the previous token before the cursor
@@ -246,6 +163,41 @@ fn is_after_dot(ctx: &QueryContext<'_>, offset: u32) -> bool {
     token.token.ty == ast::TokenType::Dot
 }
 
+/// Resolve the member access dot before the given offset when present.
+fn member_access_dot_before_offset(ctx: &QueryContext<'_>, offset: u32) -> Option<ast::TokenSpan> {
+    let previous = previous_significant_token(ctx, offset)?;
+
+    if previous.token.ty == ast::TokenType::Dot {
+        return Some(previous);
+    }
+
+    if previous.token.ty != ast::TokenType::Identifier {
+        return None;
+    }
+
+    let dot = previous_significant_token(ctx, previous.span.start)?;
+    if dot.token.ty != ast::TokenType::Dot {
+        return None;
+    }
+
+    Some(dot)
+}
+
+/// Resolve the receiver token before one member access dot.
+fn receiver_token_before_member_access_dot(
+    ctx: &QueryContext<'_>,
+    dot: ast::TokenSpan,
+) -> Option<ast::TokenSpan> {
+    let mut receiver_token = previous_significant_token(ctx, dot.span.start)?;
+
+    // optional chaining inserts `?` before `.`
+    if receiver_token.token.ty == ast::TokenType::Maybe {
+        receiver_token = previous_significant_token(ctx, receiver_token.span.start)?;
+    }
+
+    Some(receiver_token)
+}
+
 /// Build a value position context from an optional scope.
 fn value_context_from_scope(scope: Option<ScopeAtOffset>) -> CompletionContext {
     // return the value position context
@@ -264,6 +216,118 @@ fn type_context_from_scope(scope: Option<ScopeAtOffset>) -> CompletionContext {
     }
 }
 
+/// Detect member access context near the cursor.
+fn detect_member_access_context(
+    session: &Session,
+    ctx: &QueryContext<'_>,
+    token: &Option<TokenAtCursor>,
+    offset: u32,
+) -> Option<CompletionContext> {
+    let cursor_position = offset.saturating_sub(1);
+
+    // detect member access inside an existing member name token
+    if let Some(context) = member_access_context_from_member_name(ctx, cursor_position) {
+        return Some(context);
+    }
+
+    // resolve member access context when immediately after dot
+    if is_after_dot(ctx, offset)
+        && let Some(dot) = member_access_dot_before_offset(ctx, offset)
+        && let Some(receiver_token) = receiver_token_before_member_access_dot(ctx, dot)
+    {
+        let receiver_position = receiver_token.span.end.saturating_sub(1);
+        let offset_context = member_access_context_at_offset(ctx, receiver_position);
+        let token_context = member_access_context_from_tokens(session, ctx, offset);
+        return merge_member_access_contexts(offset_context, token_context);
+    }
+
+    // resolve member access when the cursor is inside a member name
+    if let Some(token_at_cursor) = token.as_ref()
+        && let Some(dot) = member_access_dot_before_offset(ctx, token_at_cursor.start)
+        && let Some(receiver_token) = receiver_token_before_member_access_dot(ctx, dot)
+    {
+        let receiver_position = receiver_token.span.end.saturating_sub(1);
+        if let Some(context) = member_access_context_at_offset(ctx, receiver_position) {
+            return Some(context);
+        }
+    }
+
+    member_access_context_from_tokens(session, ctx, offset)
+}
+
+/// Detect member access from an existing member name token.
+fn member_access_context_from_member_name(
+    ctx: &QueryContext<'_>,
+    cursor_position: u32,
+) -> Option<CompletionContext> {
+    let token_at_cursor = token_span_at_cursor_offset(ctx, cursor_position)?;
+    if token_at_cursor.token.ty != ast::TokenType::Identifier {
+        return None;
+    }
+
+    let ast = ctx.ast_context();
+    let dir_tree = ctx.tree();
+
+    // resolve enclosing spans from innermost to outermost
+    let enclosing = sorted_enclosing_spans(ctx, cursor_position, cursor_position);
+
+    // scan enclosing spans for one member expression at the cursor
+    for enc in &enclosing {
+        let main_span = ast.tree().source_map.get_main(enc.idx);
+        let is_in_member_name = main_span
+            .map(|span| span.contains(cursor_position))
+            .unwrap_or(true);
+        if !is_in_member_name {
+            continue;
+        }
+
+        let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enc.idx) else {
+            continue;
+        };
+        if dir_node_id.ty != dir::NodeType::Expression {
+            continue;
+        }
+
+        let Ok(expr_id) = dir_node_id.try_into() else {
+            continue;
+        };
+        let expr = dir_tree.get::<dir::Expression>(expr_id);
+
+        // use the left operand when inside a member expression
+        let dir::Expression::Member { left, .. } = expr else {
+            continue;
+        };
+
+        let receiver_local: dir::LocalNodeIdAny = (*left).into();
+        let receiver_global = receiver_local.into_global(ctx.module_id);
+        let receiver_symbol = get_expression_symbol(dir_tree, *left);
+        let receiver_type = get_receiver_type(ctx, receiver_global, receiver_symbol);
+
+        return Some(CompletionContext::MemberAccess {
+            receiver_node: receiver_local,
+            receiver_symbol,
+            receiver_type,
+        });
+    }
+
+    None
+}
+
+/// Detect whether completion should stay suppressed at the cursor.
+fn is_suppressed_completion_position(
+    ctx: &QueryContext<'_>,
+    token: &Option<TokenAtCursor>,
+    offset: u32,
+) -> bool {
+    // only suppress naked missing-expression holes
+    if token.is_some() {
+        return false;
+    }
+
+    enclosing_missing_expression(ctx, offset).is_some()
+        || missing_declarator_value_at_cursor(ctx, offset)
+}
+
 /// Detect the completion context at a given offset.
 pub fn detect_completion_context(session: &Session, file_id: FileId, offset: u32) -> ContextResult {
     // resolve the module for this file
@@ -276,93 +340,15 @@ pub fn detect_completion_context(session: &Session, file_id: FileId, offset: u32
     let Some(ctx) = crate::query_context(session, module) else {
         return unknown_context();
     };
-    let ast = ctx.ast_context();
-
     // read the source text for this file
     let source_file = session.files.get(ctx.file_id);
     let source = source_file.text();
 
-    // resolve cursor positioning and token context
-    let cursor_position = offset.saturating_sub(1);
-
-    // resolve trigger state and token prefix
-    let after_dot = is_after_dot(&ctx, offset);
+    // resolve token prefix at the cursor
     let token = detect_partial_identifier(&ctx, source, offset);
 
-    // detect member access inside a member name span
-    {
-        // resolve enclosing spans from innermost to outermost
-        let enclosing = sorted_enclosing_spans(&ctx, cursor_position, cursor_position);
-
-        // scan enclosing spans for a member expression at the cursor
-        let dir_tree = ctx.tree();
-        for enc in &enclosing {
-            let main_span = ast.tree().source_map.get_main(enc.idx);
-            let is_in_member_name = main_span
-                .map(|span| span.contains(cursor_position))
-                .unwrap_or(true);
-
-            if !is_in_member_name {
-                continue;
-            }
-
-            let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enc.idx) else {
-                continue;
-            };
-
-            if dir_node_id.ty == dir::NodeType::Expression {
-                let Ok(expr_id) = dir_node_id.try_into() else {
-                    continue;
-                };
-                let expr = dir_tree.get::<dir::Expression>(expr_id);
-
-                // use the left operand when inside a member expression
-                if let dir::Expression::Member { left, .. } = expr {
-                    let receiver_local: dir::LocalNodeIdAny = (*left).into();
-                    let receiver_global = receiver_local.into_global(ctx.module_id);
-                    let receiver_symbol = get_expression_symbol(dir_tree, *left);
-
-                    // resolve the receiver type after the tree borrow ends
-                    let receiver_type = get_receiver_type(&ctx, receiver_global, receiver_symbol);
-
-                    return ContextResult {
-                        context: CompletionContext::MemberAccess {
-                            receiver_node: receiver_local,
-                            receiver_symbol,
-                            receiver_type,
-                            source_type_name: None,
-                        },
-                        token,
-                    };
-                }
-            }
-        }
-    }
-
-    // resolve member access context when immediately after dot
-    if after_dot {
-        // resolve position inside the receiver expression
-        let receiver_position = offset.saturating_sub(2);
-
-        let offset_context = member_access_context_at_offset(&ctx, receiver_position);
-        let token_context = member_access_context_from_tokens(session, &ctx, offset);
-        if let Some(context) = merge_member_access_contexts(offset_context, token_context) {
-            return ContextResult { context, token };
-        }
-    }
-
-    // resolve member access when the cursor is inside a member name
-    if let Some(token_at_cursor) = token.as_ref()
-        && let Some(prev) = previous_significant_token(&ctx, token_at_cursor.start)
-        && prev.token.ty == ast::TokenType::Dot
-    {
-        let receiver_position = prev.span.start.saturating_sub(1);
-        if let Some(context) = member_access_context_at_offset(&ctx, receiver_position) {
-            return ContextResult { context, token };
-        }
-    }
-
-    if let Some(context) = member_access_context_from_tokens(session, &ctx, offset) {
+    // member access stays first because it is the most specific value-position context
+    if let Some(context) = detect_member_access_context(session, &ctx, &token, offset) {
         return ContextResult { context, token };
     }
 
@@ -428,6 +414,14 @@ pub fn detect_completion_context(session: &Session, file_id: FileId, offset: u32
         };
     }
 
+    // keep naked missing expression holes suppressed until a richer context claims them
+    if is_suppressed_completion_position(&ctx, &token, offset) {
+        return ContextResult {
+            context: CompletionContext::Suppressed,
+            token,
+        };
+    }
+
     // default to value position
     let scope = find_scope_at_offset(&ctx, offset);
     ContextResult {
@@ -450,7 +444,6 @@ fn merge_member_access_contexts(
         receiver_node,
         receiver_symbol,
         receiver_type,
-        source_type_name,
     } = offset_context
     else {
         return Some(offset_context);
@@ -460,33 +453,29 @@ fn merge_member_access_contexts(
         receiver_node: token_receiver_node,
         receiver_symbol: token_receiver_symbol,
         receiver_type: token_receiver_type,
-        source_type_name: token_source_type_name,
     } = token_context
     else {
         return Some(CompletionContext::MemberAccess {
             receiver_node,
             receiver_symbol,
             receiver_type,
-            source_type_name,
         });
     };
 
-    // prefer token derived context only when the offset context lacks symbol and source hints
-    if receiver_symbol.is_none() && source_type_name.is_none() {
+    // prefer token derived context only when the offset context lacks a symbol
+    if receiver_symbol.is_none() {
         return Some(CompletionContext::MemberAccess {
             receiver_node: token_receiver_node,
             receiver_symbol: token_receiver_symbol,
             receiver_type: token_receiver_type,
-            source_type_name: token_source_type_name,
         });
     }
 
-    // merge source-derived type names when the offset context is otherwise usable
+    // keep the richer offset context when it already has semantic receiver info
     Some(CompletionContext::MemberAccess {
         receiver_node,
         receiver_symbol,
         receiver_type,
-        source_type_name: source_type_name.or(token_source_type_name),
     })
 }
 
@@ -635,7 +624,6 @@ fn member_access_context_at_offset(
                         receiver_node: receiver_local,
                         receiver_symbol,
                         receiver_type: None,
-                        source_type_name: None,
                     });
                 }
                 continue;
@@ -648,7 +636,6 @@ fn member_access_context_at_offset(
                 receiver_node: receiver_local,
                 receiver_symbol,
                 receiver_type,
-                source_type_name: None,
             });
         }
 
@@ -660,7 +647,6 @@ fn member_access_context_at_offset(
                     receiver_node: actual_node_id,
                     receiver_symbol,
                     receiver_type: None,
-                    source_type_name: None,
                 });
             }
             continue;
@@ -674,7 +660,6 @@ fn member_access_context_at_offset(
             receiver_node: actual_node_id,
             receiver_symbol,
             receiver_type,
-            source_type_name: None,
         });
     }
 
@@ -687,20 +672,8 @@ fn member_access_context_from_tokens(
     ctx: &QueryContext<'_>,
     offset: u32,
 ) -> Option<CompletionContext> {
-    // resolve the previous significant token
-    let previous = previous_significant_token(ctx, offset)?;
-
-    let receiver_token = if previous.token.ty == ast::TokenType::Dot {
-        previous_significant_token(ctx, previous.span.start)?
-    } else if previous.token.ty == ast::TokenType::Identifier {
-        let dot = previous_significant_token(ctx, previous.span.start)?;
-        if dot.token.ty != ast::TokenType::Dot {
-            return None;
-        }
-        previous_significant_token(ctx, dot.span.start)?
-    } else {
-        return None;
-    };
+    let dot = member_access_dot_before_offset(ctx, offset)?;
+    let receiver_token = receiver_token_before_member_access_dot(ctx, dot)?;
 
     if receiver_token.token.ty != ast::TokenType::Identifier {
         return None;
@@ -715,7 +688,6 @@ fn member_access_context_from_tokens(
     let mut receiver_node = None;
     let mut receiver_symbol = None;
     let mut partial_receiver_node = None;
-    let mut source_type_name = None;
 
     // resolve the receiver node from enclosing AST spans
     if receiver_node.is_none() {
@@ -792,13 +764,13 @@ fn member_access_context_from_tokens(
             );
         }
     }
-    // derive a nominal receiver type name from local source when symbols are unavailable
-    if source_type_name.is_none() {
-        source_type_name =
-            source_type_name_from_receiver_binding(session, ctx, receiver_name, receiver_offset);
-    }
-
-    let receiver_node = receiver_node?;
+    let receiver_node = receiver_node.or_else(|| {
+        if receiver_symbol.is_some() {
+            ctx.dir.roots.first().copied().map(Into::into)
+        } else {
+            None
+        }
+    })?;
 
     // resolve receiver type for member completions
     let receiver_global = receiver_node.into_global(ctx.module_id);
@@ -808,7 +780,6 @@ fn member_access_context_from_tokens(
         receiver_node,
         receiver_symbol,
         receiver_type,
-        source_type_name,
     })
 }
 
@@ -872,174 +843,6 @@ fn unwrap_statement_expression<'a>(
     (node_id, expr)
 }
 
-/// Resolve a source-derived nominal type name for a receiver binding at an offset.
-fn source_type_name_from_receiver_binding(
-    session: &Session,
-    ctx: &QueryContext<'_>,
-    receiver_name: &str,
-    receiver_offset: u32,
-) -> Option<String> {
-    let dir_tree = ctx.tree();
-    let mut best_match = None;
-
-    for (declarator_id, declarator) in dir_tree.iter_nodes_of_type::<dir::Declarator>() {
-        let Some(binding_name) = binding_name_for_pattern(dir_tree, session, declarator.pattern)
-        else {
-            continue;
-        };
-        if binding_name != receiver_name {
-            continue;
-        }
-
-        let declarator_span = span_for_dir_node(ctx, dir_tree, declarator_id.into());
-        if declarator_span.file != ctx.file_id || declarator_span.start > receiver_offset {
-            continue;
-        }
-
-        let type_name = declarator
-            .ty
-            .and_then(|ty| nominal_type_name_for_expression(dir_tree, session, ty))
-            .or_else(|| {
-                declarator
-                    .value
-                    .and_then(|value| nominal_type_name_for_expression(dir_tree, session, value))
-            });
-        let Some(type_name) = type_name else {
-            continue;
-        };
-
-        let sort_key = declarator_span.end;
-        let should_replace = best_match
-            .as_ref()
-            .map(|(best_end, _): &(u32, String)| sort_key >= *best_end)
-            .unwrap_or(true);
-        if should_replace {
-            best_match = Some((sort_key, type_name));
-        }
-    }
-
-    if let Some((_, type_name)) = best_match {
-        return Some(type_name);
-    }
-
-    source_type_name_from_receiver_ast(ctx, receiver_name, receiver_offset)
-}
-
-/// Resolve the binding name for a simple declarator pattern.
-fn binding_name_for_pattern(
-    dir_tree: &dir::NodeTree,
-    session: &Session,
-    pattern_id: dir::LocalNodeId<dir::Pattern>,
-) -> Option<String> {
-    let pattern = dir_tree.get::<dir::Pattern>(pattern_id);
-    match pattern {
-        dir::Pattern::Binding { name, .. } => Some(session.strings.get(*name).to_string()),
-        _ => None,
-    }
-}
-
-/// Resolve a nominal type name from a DIR expression.
-fn nominal_type_name_for_expression(
-    dir_tree: &dir::NodeTree,
-    session: &Session,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-) -> Option<String> {
-    let expression = dir_tree.get::<dir::Expression>(expression_id);
-    match expression {
-        dir::Expression::UnresolvedPath { path, .. }
-        | dir::Expression::LocalReference { path, .. }
-        | dir::Expression::ModuleReference { path, .. }
-        | dir::Expression::GlobalReference { path, .. } => path
-            .last_segment()
-            .map(|name_id| session.strings.get(name_id).to_string()),
-        dir::Expression::Instantiation { left, .. }
-        | dir::Expression::Call { left, .. }
-        | dir::Expression::New { left, .. } => {
-            nominal_type_name_for_expression(dir_tree, session, *left)
-        }
-        dir::Expression::TaggedScalarExpression { ty, .. }
-        | dir::Expression::TaggedTupleExpression { ty, .. }
-        | dir::Expression::TaggedObjectExpression { ty, .. } => {
-            nominal_type_name_for_expression(dir_tree, session, *ty)
-        }
-        _ => None,
-    }
-}
-
-/// Resolve a source-derived nominal type name from AST declarators near the cursor.
-fn source_type_name_from_receiver_ast(
-    ctx: &QueryContext<'_>,
-    receiver_name: &str,
-    receiver_offset: u32,
-) -> Option<String> {
-    let mut best_match = None;
-
-    for declarator_id in ctx.ast_context().tree().iter_nodes::<ast::Declarator>() {
-        let declarator = ctx.ast_context().tree().get(declarator_id);
-        let pattern = ctx.ast_context().tree().get(declarator.pattern);
-        let ast::Pattern::Binding { name, .. } = pattern else {
-            continue;
-        };
-
-        let binding_name = ctx.ast_context().strings().get(*name);
-        if binding_name != receiver_name {
-            continue;
-        }
-
-        let declarator_span = ctx.ast_context().tree().source_map.get(declarator_id.id);
-        if declarator_span.file != ctx.file_id || declarator_span.start > receiver_offset {
-            continue;
-        }
-
-        let type_name = declarator
-            .ty
-            .and_then(|ty| nominal_type_name_for_ast_expression(ctx, ty))
-            .or_else(|| {
-                declarator
-                    .value
-                    .and_then(|value| nominal_type_name_for_ast_expression(ctx, value))
-            });
-        let Some(type_name) = type_name else {
-            continue;
-        };
-
-        let sort_key = declarator_span.end;
-        let should_replace = best_match
-            .as_ref()
-            .map(|(best_end, _): &(u32, String)| sort_key >= *best_end)
-            .unwrap_or(true);
-        if should_replace {
-            best_match = Some((sort_key, type_name));
-        }
-    }
-
-    best_match.map(|(_, type_name)| type_name)
-}
-
-/// Resolve a nominal type name from an AST expression.
-fn nominal_type_name_for_ast_expression(
-    ctx: &QueryContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
-) -> Option<String> {
-    let expression = ctx.ast_context().tree().get(expression_id);
-    match expression {
-        ast::Expression::Path { path, .. } => path
-            .segments
-            .last()
-            .map(|name_id| ctx.ast_context().strings().get(*name_id).to_string()),
-        ast::Expression::Member { name, .. } => {
-            Some(ctx.ast_context().strings().get(*name).to_string())
-        }
-        ast::Expression::Instantiation { left, .. }
-        | ast::Expression::Call { left, .. }
-        | ast::Expression::New { left, .. } => nominal_type_name_for_ast_expression(ctx, *left),
-        ast::Expression::ObjectExpression { ty: Some(ty), .. } => {
-            nominal_type_name_for_ast_expression(ctx, *ty)
-        }
-        _ => None,
-    }
-}
-
 /// Detect partial identifier at cursor position.
 fn detect_partial_identifier(
     ctx: &QueryContext<'_>,
@@ -1047,7 +850,7 @@ fn detect_partial_identifier(
     offset: u32,
 ) -> Option<TokenAtCursor> {
     // find the token under the cursor or immediately before it
-    let token = match token_at_offset(ctx, offset) {
+    let token = match token_span_at_cursor_offset(ctx, offset) {
         Some(token) if token.token.ty == ast::TokenType::Identifier => token,
         _ => {
             let token = previous_significant_token(ctx, offset)?;
@@ -1080,23 +883,12 @@ fn detect_partial_identifier(
 
 /// Detect if the cursor is in a type position.
 fn detect_type_position(ctx: &QueryContext<'_>, source: &str, offset: u32) -> bool {
-    // resolve the previous offset for edge checks
-    let previous_offset = offset.saturating_sub(1);
-
     // resolve enclosing spans from innermost to outermost
     let enclosing = enclosing_spans_with_previous(ctx, offset);
 
     // check for type side spans that contain the cursor
-    for enc in &enclosing {
-        if let Some(span) = ctx
-            .ast
-            .tree
-            .source_map
-            .get_side(enc.idx, NodeSpanType::Type)
-            && (span.contains(offset) || span.contains(previous_offset))
-        {
-            return true;
-        }
+    if offset_is_in_ast_type_side_span(ctx, offset) {
+        return true;
     }
 
     // check enclosing expressions that are known type expressions
@@ -1188,7 +980,7 @@ fn detect_import_context(
     offset: u32,
 ) -> Option<CompletionContext> {
     // resolve enclosing spans from innermost to outermost
-    let enclosing = enclosing_spans_with_previous(ctx, offset);
+    let enclosing = enclosing_spans_at_cursor_boundary(ctx, offset);
 
     // scan enclosing expressions for import nodes under the cursor
     for enc in &enclosing {
@@ -1196,16 +988,22 @@ fn detect_import_context(
             continue;
         }
 
-        let expr_id = ast::LocalNodeId::<ast::Expression>::new(enc.idx);
-        let expr = ctx.ast_context().tree().get(expr_id);
+        let mut expr_id = ast::LocalNodeId::<ast::Expression>::new(enc.idx);
+        let mut expr = ctx.ast_context().tree().get(expr_id);
+
+        // unwrap transparent statement wrappers around recovered imports
+        if let ast::Expression::Statement(inner) = expr {
+            expr_id = *inner;
+            expr = ctx.ast_context().tree().get(expr_id);
+        }
 
         if !matches!(expr, ast::Expression::Import { .. }) {
             continue;
         }
 
         // resolve the import span and detect path completions inside the string
-        let import_span = ctx.ast_context().tree().source_map.get(enc.idx);
-        let main_span = ctx.ast_context().tree().source_map.get_main(enc.idx);
+        let import_span = ctx.ast_context().tree().source_map.get(expr_id.id);
+        let main_span = ctx.ast_context().tree().source_map.get_main(expr_id.id);
         if let Some(span) = main_span
             && span.contains(offset)
         {
@@ -1238,7 +1036,8 @@ fn detect_import_context(
             });
         }
     }
-    detect_import_context_from_tokens(session, ctx, source, offset)
+
+    None
 }
 
 /// Resolve a string literal span for an import path at the cursor.
@@ -1248,7 +1047,7 @@ fn import_path_span_from_tokens(
     offset: u32,
 ) -> Option<Span> {
     // find the token under the cursor
-    let token = token_at_offset(ctx, offset)?;
+    let token = token_span_at_cursor_offset(ctx, offset)?;
 
     // require the token to be inside the import statement span
     if token.span.start < import_span.start || token.span.end > import_span.end {
@@ -1265,186 +1064,6 @@ fn import_path_span_from_tokens(
     }
 
     Some(token.span)
-}
-
-/// Detect import context using tokens when AST spans are unavailable.
-fn detect_import_context_from_tokens(
-    session: &Session,
-    ctx: &QueryContext<'_>,
-    source: &str,
-    offset: u32,
-) -> Option<CompletionContext> {
-    // collect non-trivia tokens for this file
-    let tokens: Vec<ast::TokenSpan> = ctx
-        .ast
-        .tokens
-        .iter()
-        .filter(|token| token.span.file == ctx.file_id && !is_trivia_token(token.token.ty))
-        .copied()
-        .collect();
-
-    // require at least one token
-    if tokens.is_empty() {
-        return None;
-    }
-
-    // find the cursor token index
-    let mut cursor_index = None;
-    for (index, token) in tokens.iter().enumerate() {
-        if token.span.contains(offset) || token.span.end == offset {
-            cursor_index = Some(index);
-            break;
-        }
-
-        if token.span.start > offset {
-            cursor_index = index.checked_sub(1);
-            break;
-        }
-    }
-    let cursor_index = cursor_index?;
-
-    // compute statement bounds by semicolons
-    let mut statement_start = 0usize;
-    for (index, token) in tokens.iter().enumerate().take(cursor_index + 1).rev() {
-        if token.token.ty == ast::TokenType::Semicolon {
-            statement_start = index + 1;
-            break;
-        }
-    }
-
-    let mut statement_end = tokens.len();
-    for (index, token) in tokens.iter().enumerate().skip(cursor_index) {
-        if token.token.ty == ast::TokenType::Semicolon {
-            statement_end = index;
-            break;
-        }
-    }
-
-    // locate the import keyword inside the statement
-    let mut import_index = None;
-    for (index, token) in tokens
-        .iter()
-        .enumerate()
-        .take(statement_end)
-        .skip(statement_start)
-    {
-        if token_is_keyword(source, *token, "import") {
-            import_index = Some(index);
-            break;
-        }
-    }
-    let import_index = import_index?;
-
-    if import_index > cursor_index {
-        return None;
-    }
-
-    // locate the from keyword and target literal
-    let mut from_index = None;
-    let mut target_token = None;
-    for (index, token) in tokens
-        .iter()
-        .enumerate()
-        .take(statement_end)
-        .skip(import_index + 1)
-    {
-        if token_is_keyword(source, *token, "from") {
-            from_index = Some(index);
-            continue;
-        }
-
-        if from_index.is_some() && is_string_literal_token(*token) {
-            target_token = Some(*token);
-            break;
-        }
-    }
-
-    // resolve target module id when available
-    let target_module = target_token
-        .and_then(|token| string_literal_text(source, token.span))
-        .and_then(|text| resolve_import_target_module(session, ctx, &text));
-
-    // detect import path completions inside a string literal
-    if let Some(token) = token_at_offset(ctx, offset)
-        && is_string_literal_token(token)
-        && token.span.start >= tokens[import_index].span.start
-    {
-        let partial_path = extract_string_literal_prefix(source, token.span, offset);
-        return Some(CompletionContext::ImportPath { partial_path });
-    }
-
-    // find clause braces before the target literal
-    let mut open_brace = None;
-    let mut close_brace = None;
-    for (index, token) in tokens
-        .iter()
-        .enumerate()
-        .take(statement_end)
-        .skip(import_index + 1)
-    {
-        if let Some(from_index) = from_index
-            && index >= from_index
-        {
-            break;
-        }
-
-        match token.token.ty {
-            ast::TokenType::OpenBrace => open_brace = Some(token.span),
-            ast::TokenType::CloseBrace => close_brace = Some(token.span),
-            _ => {}
-        }
-    }
-
-    let open_brace = open_brace?;
-    let close_brace = close_brace?;
-
-    if offset < open_brace.end || offset > close_brace.start {
-        return None;
-    }
-
-    // detect type only statements and cursor segments
-    let is_type_only = tokens
-        .get(import_index + 1)
-        .is_some_and(|token| token_is_keyword(source, *token, "type"));
-    let cursor_is_type = previous_significant_token(ctx, offset)
-        .is_some_and(|token| token_is_keyword(source, token, "type"));
-
-    let space_filter = if is_type_only || cursor_is_type {
-        Some(dir::SymbolSpace::Type)
-    } else {
-        None
-    };
-
-    Some(CompletionContext::ImportClause {
-        target_module,
-        existing_names: Vec::new(),
-        space_filter,
-    })
-}
-
-/// Check whether a token is a string literal.
-fn is_string_literal_token(token: ast::TokenSpan) -> bool {
-    token.token.ty == ast::TokenType::Literal
-        && matches!(token.token.literal, Some(ast::LiteralType::String { .. }))
-}
-
-/// Check whether a token is a specific keyword.
-fn token_is_keyword(source: &str, token: ast::TokenSpan, keyword: &str) -> bool {
-    token.token.ty == ast::TokenType::Identifier && token_text(source, token.span) == Some(keyword)
-}
-
-/// Extract the unquoted string literal contents.
-fn string_literal_text(source: &str, span: Span) -> Option<String> {
-    let text = token_text(source, span)?;
-    let text = text
-        .strip_prefix('"')
-        .and_then(|text| text.strip_suffix('"'))
-        .or_else(|| {
-            text.strip_prefix('\'')
-                .and_then(|text| text.strip_suffix('\''))
-        })?;
-
-    Some(text.to_string())
 }
 
 /// Resolve a module id from a relative import target path.
@@ -1998,6 +1617,23 @@ fn detect_call_argument_context(ctx: &QueryContext<'_>, offset: u32) -> Option<C
         }
     }
 
+    // fall back when the cursor is directly after `(` or `,` inside a call
+    if let Some(separator) = previous_significant_token(ctx, offset)
+        && matches!(
+            separator.token.ty,
+            ast::TokenType::OpenParenthesis | ast::TokenType::Comma
+        )
+        && let Some(context) = call_argument_context_after_separator(
+            ctx,
+            dir_tree,
+            symbols,
+            offset,
+            separator.span.start,
+        )
+    {
+        return Some(context);
+    }
+
     None
 }
 
@@ -2066,12 +1702,263 @@ fn call_argument_context_for_span(
     })
 }
 
+/// Build a call argument context from a separator position inside a call.
+fn call_argument_context_after_separator(
+    ctx: &QueryContext<'_>,
+    dir_tree: &dir::NodeTree,
+    symbols: &dir::SymbolTable,
+    offset: u32,
+    separator_position: u32,
+) -> Option<CompletionContext> {
+    let lookup_position = separator_position.saturating_sub(1);
+    let enclosing = sorted_enclosing_spans(ctx, lookup_position, lookup_position);
+
+    for enc in &enclosing {
+        let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enc.idx) else {
+            continue;
+        };
+        if dir_node_id.ty != dir::NodeType::Expression {
+            continue;
+        }
+
+        let Ok(expr_id) = dir_node_id.try_into() else {
+            continue;
+        };
+
+        let expr: &dir::Expression = dir_tree.get(expr_id);
+        let left = match expr {
+            dir::Expression::Call { left, .. } | dir::Expression::New { left, .. } => left,
+            _ => continue,
+        };
+
+        let left_node_id: dir::LocalNodeIdAny = (*left).into();
+        let left_source_id = dir_tree.get_source(left_node_id.id);
+        let left_span = ctx.ast_context().tree().source_map.get(left_source_id);
+
+        if separator_position <= left_span.end {
+            continue;
+        }
+
+        let (scope_id, _) = dir_tree.get_scope::<dir::Expression>(expr_id);
+        let scope_mark = scope_mark_for_scope_at_offset(ctx, dir_tree, symbols, scope_id, offset);
+
+        return Some(CompletionContext::CallArgument {
+            scope_id: Some(scope_id),
+            scope_mark: Some(scope_mark),
+        });
+    }
+
+    // fall back to ast shape when partial DIR does not preserve the call
+    for enc in &enclosing {
+        if ctx.ast_context().tree().get_node_type(enc.idx) != ast::NodeType::Expression {
+            continue;
+        }
+
+        let expr_id = ast::LocalNodeId::<ast::Expression>::new(enc.idx);
+        let expr = ctx.ast_context().tree().get(expr_id);
+
+        let left = match expr {
+            ast::Expression::Call { left, .. } | ast::Expression::New { left, .. } => left,
+            _ => continue,
+        };
+
+        let left_span = ctx.ast_context().tree().source_map.get(left.id);
+        if separator_position <= left_span.end {
+            continue;
+        }
+
+        let scope = find_block_scope_at_offset(ctx, offset)
+            .or_else(|| find_block_scope_at_offset(ctx, lookup_position))
+            .or_else(|| find_scope_at_offset(ctx, lookup_position))
+            .or_else(|| find_scope_at_offset(ctx, separator_position))
+            .or_else(|| find_scope_at_offset(ctx, offset));
+        let scope_mark = scope.map(|scope| {
+            if scope.scope_mark == dir::LocalScopeMark(0) {
+                dir::LocalScopeMark::end()
+            } else {
+                scope.scope_mark
+            }
+        });
+        return Some(CompletionContext::CallArgument {
+            scope_id: scope.map(|scope| scope.scope_id),
+            scope_mark,
+        });
+    }
+
+    None
+}
+
+/// Find the nearest enclosing block or owned declaration scope at an offset.
+fn find_block_scope_at_offset(ctx: &QueryContext<'_>, offset: u32) -> Option<ScopeAtOffset> {
+    let enclosing = enclosing_spans_with_previous(ctx, offset);
+    let dir_tree = ctx.tree();
+    let symbols = ctx.symbols();
+
+    // prefer block scopes for statement and argument positions
+    for enc in &enclosing {
+        let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enc.idx) else {
+            continue;
+        };
+
+        if dir_node_id.ty != dir::NodeType::Block {
+            continue;
+        }
+
+        let Ok(block_id) = dir_node_id.try_into_typed() else {
+            continue;
+        };
+
+        let (scope_id, _) = dir_tree.get_scope::<dir::Block>(block_id);
+        let scope_mark = scope_mark_for_scope_at_offset(ctx, dir_tree, symbols, scope_id, offset);
+        return Some(ScopeAtOffset {
+            scope_id,
+            scope_mark,
+        });
+    }
+
+    // otherwise fall back to owned declaration scopes
+    for enc in &enclosing {
+        let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enc.idx) else {
+            continue;
+        };
+
+        if dir_node_id.ty != dir::NodeType::Declaration {
+            continue;
+        }
+
+        let Some(scope_id) = find_owned_scope_for_declaration(symbols, dir_node_id.id) else {
+            continue;
+        };
+
+        return Some(ScopeAtOffset {
+            scope_id,
+            scope_mark: dir::LocalScopeMark::end(),
+        });
+    }
+
+    // fall back to the smallest ast block that still contains the offset
+    let mut best_ast_block = None;
+    let mut best_ast_block_length = u32::MAX;
+
+    for block_id in ctx.ast_context().tree().iter_nodes::<ast::Block>() {
+        let span = ctx.ast_context().tree().source_map.get(block_id.id);
+        if span.file != ctx.file_id || !span.contains(offset) {
+            continue;
+        }
+
+        let length = span.end.saturating_sub(span.start);
+        if length >= best_ast_block_length {
+            continue;
+        }
+
+        best_ast_block_length = length;
+        best_ast_block = Some(block_id);
+    }
+
+    if let Some(block_id) = best_ast_block
+        && let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(block_id.id)
+        && dir_node_id.ty == dir::NodeType::Block
+        && let Ok(block_id) = dir_node_id.try_into_typed()
+    {
+        let (scope_id, _) = dir_tree.get_scope::<dir::Block>(block_id);
+        let scope_mark = scope_mark_for_scope_at_offset(ctx, dir_tree, symbols, scope_id, offset);
+        return Some(ScopeAtOffset {
+            scope_id,
+            scope_mark,
+        });
+    }
+
+    // fall back to ast parents for damaged span stacks
+    if let Some(start_id) = enclosing.first().map(|enc| enc.idx) {
+        for parent_id in ctx.ast_context().parents().walk_parents_by_id(start_id) {
+            let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(parent_id) else {
+                if ctx.ast_context().tree().get_node_type(parent_id) == ast::NodeType::Declaration {
+                    let Some(scope_id) =
+                        find_owned_scope_for_ast_declaration(symbols, dir_tree, parent_id)
+                    else {
+                        continue;
+                    };
+
+                    return Some(ScopeAtOffset {
+                        scope_id,
+                        scope_mark: dir::LocalScopeMark::end(),
+                    });
+                }
+
+                continue;
+            };
+
+            if dir_node_id.ty == dir::NodeType::Block {
+                let Ok(block_id) = dir_node_id.try_into_typed() else {
+                    continue;
+                };
+
+                let (scope_id, _) = dir_tree.get_scope::<dir::Block>(block_id);
+                let scope_mark =
+                    scope_mark_for_scope_at_offset(ctx, dir_tree, symbols, scope_id, offset);
+                return Some(ScopeAtOffset {
+                    scope_id,
+                    scope_mark,
+                });
+            }
+
+            if dir_node_id.ty != dir::NodeType::Declaration {
+                continue;
+            }
+
+            let Some(scope_id) = find_owned_scope_for_declaration(symbols, dir_node_id.id) else {
+                continue;
+            };
+
+            return Some(ScopeAtOffset {
+                scope_id,
+                scope_mark: dir::LocalScopeMark::end(),
+            });
+        }
+    }
+
+    // fall back to the smallest block span that still contains the offset
+    let mut best_block = None;
+    let mut best_length = u32::MAX;
+
+    for (block_id, _) in dir_tree.iter_nodes_of_type::<dir::Block>() {
+        let span = span_for_dir_node(ctx, dir_tree, block_id.into());
+        if span.file != ctx.file_id || !span.contains(offset) {
+            continue;
+        }
+
+        let length = span.end.saturating_sub(span.start);
+        if length >= best_length {
+            continue;
+        }
+
+        best_length = length;
+        best_block = Some(block_id);
+    }
+
+    if let Some(block_id) = best_block {
+        let (scope_id, _) = dir_tree.get_scope::<dir::Block>(block_id);
+        let scope_mark = scope_mark_for_scope_at_offset(ctx, dir_tree, symbols, scope_id, offset);
+        return Some(ScopeAtOffset {
+            scope_id,
+            scope_mark,
+        });
+    }
+
+    None
+}
+
 /// Detect whether the cursor is at a statement position.
 fn detect_statement_position(ctx: &QueryContext<'_>, offset: u32) -> Option<CompletionContext> {
     // treat the start of the file as a statement position
     if offset == 0 {
         let scope = find_scope_at_offset(ctx, offset);
         return Some(statement_context_from_scope(scope));
+    }
+
+    // missing declarator initializer holes are not statement gaps
+    if missing_declarator_value_at_cursor(ctx, offset) {
+        return None;
     }
 
     // check block based statement gaps first
@@ -2104,49 +1991,23 @@ fn statement_context_from_scope(scope: Option<ScopeAtOffset>) -> CompletionConte
 
 /// Resolve a statement position inside a block expression.
 fn statement_position_from_block(ctx: &QueryContext<'_>, offset: u32) -> Option<ScopeAtOffset> {
-    // resolve enclosing spans at the cursor
-    let enclosing = sorted_enclosing_spans(ctx, offset, offset);
+    // resolve enclosing spans at the cursor boundary
+    let mut enclosing = enclosing_spans_with_previous(ctx, offset);
+    enclosing.sort_by_key(|enc| enc.length);
 
     // bail out when there are no spans
     if enclosing.is_empty() {
         return None;
     }
 
-    // scan for the nearest block that does not contain an expression at the cursor
+    // scan for the nearest block that opens one statement position
     for enc in &enclosing {
-        if statement_gap_in_block(ctx, enc, offset) {
+        if block_statement_position(ctx, enc, offset).is_some() {
             return scope_from_block_span(ctx, enc, offset);
         }
     }
 
     None
-}
-
-/// Check whether the cursor is in a statement gap within a block.
-fn statement_gap_in_block(ctx: &QueryContext<'_>, enc: &EnclosingSpan, offset: u32) -> bool {
-    // only consider block nodes
-    if ctx.ast_context().tree().get_node_type(enc.idx) != ast::NodeType::Block {
-        return false;
-    }
-
-    // resolve the block node
-    let block_id = ast::LocalNodeId::<ast::Block>::new(enc.idx);
-    let block = ctx.ast_context().tree().get(block_id);
-
-    // treat empty blocks as statement positions
-    if block.expressions.is_empty() {
-        return true;
-    }
-
-    // check whether the cursor is inside any expression span
-    for expr_id in &block.expressions {
-        let span = ctx.ast_context().tree().source_map.get(expr_id.id);
-        if span.contains(offset) {
-            return false;
-        }
-    }
-
-    true
 }
 
 /// Resolve a scope for a block span.
@@ -2396,10 +2257,12 @@ fn import_clause_info(
     };
 
     // resolve the import clause braces before the target string
-    let (open_brace, close_brace) = import_clause_brace_span(ctx, import_span, target_span)?;
+    let bounds = import_clause_bounds(ctx, import_span, target_span)?;
+    let open_brace = bounds.open_brace;
+    let end_boundary = bounds.end_boundary;
 
     // detect cursor inside the clause braces
-    let cursor_in_clause = offset >= open_brace.end && offset <= close_brace.start;
+    let cursor_in_clause = offset >= open_brace.end && offset <= end_boundary.start;
 
     // collect existing names and detect item kind under the cursor
     let mut existing_names = Vec::new();
@@ -2409,12 +2272,19 @@ fn import_clause_info(
         let item = ctx.ast_context().tree().get(*item_id);
         let span = ctx.ast_context().tree().source_map.get(item_id.id);
 
+        let (item_kind, item_name, item_alias) = match item {
+            ast::DependencyItem::Item {
+                kind, name, alias, ..
+            } => (*kind, *name, *alias),
+            ast::DependencyItem::Error => continue,
+        };
+
         if span.contains(offset) {
-            in_item_kind = item.kind;
+            in_item_kind = item_kind;
             continue;
         }
 
-        if let Some(name_id) = item.name {
+        if let Some(name_id) = item_name {
             existing_names.push(
                 ctx.ast_context()
                     .strings()
@@ -2422,7 +2292,7 @@ fn import_clause_info(
                     .to_string(),
             );
         }
-        if let Some(alias_id) = item.alias {
+        if let Some(alias_id) = item_alias {
             existing_names.push(ctx.ast_context().strings().get(alias_id).to_string());
         }
     }
@@ -2435,7 +2305,7 @@ fn import_clause_info(
     let cursor_is_type = if cursor_in_clause {
         if let Some(token) = previous_significant_token(ctx, offset) {
             let token_in_clause =
-                token.span.start >= open_brace.start && token.span.end <= close_brace.end;
+                token.span.start >= open_brace.start && token.span.end <= end_boundary.end;
             token_in_clause
                 && token.token.ty == ast::TokenType::Identifier
                 && token_text(source, token.span) == Some("type")

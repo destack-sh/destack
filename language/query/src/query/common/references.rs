@@ -335,7 +335,6 @@ fn symbol_resolves_to_canonical(
 
     false
 }
-
 /// Resolve the best span for a reference expression.
 fn resolve_expression_reference_span(
     ctx: &QueryContext<'_>,
@@ -550,10 +549,13 @@ fn collect_member_reference_spans(
         let Expression::Member { left, name, .. } = expression else {
             continue;
         };
+        let Some(name) = *name else {
+            continue;
+        };
 
         // resolve the member symbol through normal resolution first
         if let Some(member_symbol) =
-            resolve_member_access_symbol(session, ctx, expression_id, *left, *name)
+            resolve_member_access_symbol(session, ctx, expression_id, *left, name)
         {
             if !symbol_resolves_to_canonical(session, member_symbol, canonical_id) {
                 continue;
@@ -593,7 +595,7 @@ fn collect_member_reference_spans(
         }
 
         // require the member name to match the requested target name
-        let member_name = session.strings.get(*name).to_string();
+        let member_name = session.strings.get(name).to_string();
         if member_name != target_name {
             continue;
         }
@@ -696,6 +698,7 @@ fn dependency_item_name_span(
             (name.map(|name| name.string()), *alias)
         }
         DependencyItem::Value { .. } => (None, None),
+        DependencyItem::Error => return None,
     };
 
     // resolve the ast node id for span lookup

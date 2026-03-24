@@ -1,6 +1,7 @@
 mod call;
 mod container;
 mod context;
+mod cursor;
 mod declaration;
 mod docs;
 mod extensions;
@@ -22,6 +23,7 @@ mod visible_symbols;
 pub(crate) use call::*;
 pub(crate) use container::*;
 pub use context::*;
+pub(crate) use cursor::*;
 pub(crate) use declaration::*;
 pub(crate) use docs::*;
 pub(crate) use extensions::*;
@@ -34,8 +36,8 @@ pub use parameters::*;
 pub(crate) use path::*;
 pub use references::*;
 pub(crate) use resolve::{
-    resolve_expression_symbol, resolve_module_id_for_import_target,
-    resolve_module_id_for_import_target_path,
+    matches_import_clause_space_filter, resolve_expression_symbol,
+    resolve_module_id_for_import_target, resolve_module_id_for_import_target_path,
 };
 pub use span::*;
 pub use symbol::*;
