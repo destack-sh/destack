@@ -37,6 +37,7 @@ impl LintRule for NoReExportAll {
 
             // check export expressions
             let Expression::Export {
+                kind,
                 target: Some(_target),
                 items,
                 ..
@@ -48,19 +49,13 @@ impl LintRule for NoReExportAll {
             // check if any item is a namespace re-export (export *)
             for item_id in items {
                 let item = ctx.tree.get(*item_id);
-                if matches!(
-                    item,
-                    ast::DependencyItem::Item {
-                        mode: DependencyMode::Namespace,
-                        alias: None,
-                        ..
-                    }
-                ) {
+                if dependency_item_is_value_namespace_re_export(*kind, item) {
                     let severity = ctx.get_effective_severity(meta, node_id);
                     if !severity.is_enabled() {
                         break;
                     }
-                    // this is `export * from "..."` (not `export * as foo from "..."`)
+
+                    // both `export * from` and `export * as foo from` re-export the full module surface
                     ctx.report(
                         LintDiagnostic::new(
                             NO_RE_EXPORT_ALL.id,
@@ -78,6 +73,27 @@ impl LintRule for NoReExportAll {
             }
         }
     }
+}
+
+/// Return true when one dependency item re-exports the full value namespace.
+fn dependency_item_is_value_namespace_re_export(
+    export_kind: ast::DependencyKind,
+    item: &ast::DependencyItem,
+) -> bool {
+    let ast::DependencyItem::Item {
+        mode,
+        kind,
+        alias: _,
+        ..
+    } = item
+    else {
+        return false;
+    };
+    if *mode != DependencyMode::Namespace {
+        return false;
+    }
+
+    (*kind).unwrap_or(export_kind) != ast::DependencyKind::Type
 }
 
 #[cfg(test)]
@@ -110,15 +126,15 @@ export * from "some/path"
     }
 
     #[test]
-    fn test_allows_export_star_as() {
+    fn test_detects_export_star_as() {
         let test = TestProgram::for_rule_without_prelude(NoReExportAll);
         let result = test.lint_ast(
-            "no_re_export_all/test_allows_export_star_as.ds",
+            "no_re_export_all/test_detects_export_star_as.ds",
             r#"
 export * as utils from "./utils"
 "#,
         );
-        test.result(result).assert_no_lint("no-re-export-all");
+        test.result(result).assert_lint("no-re-export-all");
     }
 
     #[test]
@@ -152,6 +168,30 @@ export default foo
             "no_re_export_all/test_allows_local_exports.ds",
             r#"
 export { foo, bar }
+"#,
+        );
+        test.result(result).assert_no_lint("no-re-export-all");
+    }
+
+    #[test]
+    fn test_allows_export_type_star() {
+        let test = TestProgram::for_rule_without_prelude(NoReExportAll);
+        let result = test.lint_ast(
+            "no_re_export_all/test_allows_export_type_star.ds",
+            r#"
+export type * from "./types"
+"#,
+        );
+        test.result(result).assert_no_lint("no-re-export-all");
+    }
+
+    #[test]
+    fn test_allows_export_type_star_as() {
+        let test = TestProgram::for_rule_without_prelude(NoReExportAll);
+        let result = test.lint_ast(
+            "no_re_export_all/test_allows_export_type_star_as.ds",
+            r#"
+export type * as utils from "./types"
 "#,
         );
         test.result(result).assert_no_lint("no-re-export-all");

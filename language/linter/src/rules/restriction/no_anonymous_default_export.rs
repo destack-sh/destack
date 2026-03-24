@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use destack_ast::{self as ast, Declaration, DependencyMode, Expression};
 use destack_workspace::LintSeverity;
 
@@ -154,8 +156,13 @@ fn anonymous_default_declaration_fix(
     // build replacement text with an inserted default name
     let declaration_span = ctx.tree.get_span(declaration_id);
     let declaration_text = ctx.get_span_text(declaration_span);
+    let replacement_name = fresh_export_name(ctx, "defaultExport");
     let insert_offset = kind.default_name_insert_offset(declaration_text)?;
-    let replacement = insert_text(declaration_text, insert_offset, " defaultExport ");
+    let replacement = insert_text(
+        declaration_text,
+        insert_offset,
+        &format!(" {replacement_name} "),
+    );
     let edits = ctx
         .edit_builder()
         .replace(declaration_span, replacement)
@@ -225,6 +232,76 @@ fn insert_text(text: &str, offset: usize, insertion: &str) -> String {
     rewritten.push_str(insertion);
     rewritten.push_str(&text[offset..]);
     rewritten
+}
+
+/// Return a fresh identifier name that does not collide with existing bound names.
+fn fresh_export_name(ctx: &LintAstContext<'_>, base_name: &str) -> String {
+    let occupied_names = collect_occupied_names(ctx);
+    let mut candidate = base_name.to_string();
+
+    while occupied_names.contains(candidate.as_str()) {
+        candidate.push('_');
+    }
+
+    candidate
+}
+
+/// Collect occupied binding names visible in the current module syntax.
+fn collect_occupied_names(ctx: &LintAstContext<'_>) -> HashSet<String> {
+    let mut names = HashSet::new();
+
+    for declaration_id in ctx.tree.iter_nodes::<ast::Declaration>() {
+        let descriptor = ctx.tree.get(declaration_id).descriptor();
+        if let Some(name) = descriptor.name {
+            names.insert(ctx.strings.get(name.string()).to_string());
+        }
+    }
+
+    for pattern_id in ctx.tree.iter_nodes::<ast::Pattern>() {
+        let ast::Pattern::Binding { name, .. } = ctx.tree.get(pattern_id) else {
+            continue;
+        };
+        names.insert(ctx.strings.get(*name).to_string());
+    }
+
+    for parameter_id in ctx.tree.iter_nodes::<ast::Parameter>() {
+        match ctx.tree.get(parameter_id) {
+            ast::Parameter::Named { name, .. } | ast::Parameter::VariadicNamed { name, .. } => {
+                names.insert(ctx.strings.get(*name).to_string());
+            }
+            ast::Parameter::Pattern { .. }
+            | ast::Parameter::VariadicPattern { .. }
+            | ast::Parameter::Error => {}
+        }
+    }
+
+    for pattern_field_id in ctx.tree.iter_nodes::<ast::PatternField>() {
+        match ctx.tree.get(pattern_field_id) {
+            ast::PatternField::Named { name, pattern, .. } => {
+                if pattern.is_none() {
+                    names.insert(ctx.strings.get(name.string()).to_string());
+                }
+            }
+            ast::PatternField::Alias { alias, .. } => {
+                names.insert(ctx.strings.get(*alias).to_string());
+            }
+            _ => {}
+        }
+    }
+
+    for item_id in ctx.tree.iter_nodes::<ast::DependencyItem>() {
+        let ast::DependencyItem::Item { name, alias, .. } = ctx.tree.get(item_id) else {
+            continue;
+        };
+        if let Some(name) = name {
+            names.insert(ctx.strings.get(name.string()).to_string());
+        }
+        if let Some(alias) = alias {
+            names.insert(ctx.strings.get(*alias).to_string());
+        }
+    }
+
+    names
 }
 
 #[cfg(test)]
@@ -297,6 +374,32 @@ export default 42
             "no_anonymous_default_export/test_detects_arrow_function.ts",
             r#"
 export default (x) => x * 2
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-anonymous-default-export");
+    }
+
+    #[test]
+    fn test_detects_array_literal() {
+        let test = TestProgram::for_rule_without_prelude(NoAnonymousDefaultExport);
+        let result = test.lint_ast(
+            "no_anonymous_default_export/test_detects_array_literal.ts",
+            r#"
+export default [1, 2, 3];
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-anonymous-default-export");
+    }
+
+    #[test]
+    fn test_detects_new_expression() {
+        let test = TestProgram::for_rule_without_prelude(NoAnonymousDefaultExport);
+        let result = test.lint_ast(
+            "no_anonymous_default_export/test_detects_new_expression.ts",
+            r#"
+export default new Value();
 "#,
         );
         test.result(result)
@@ -413,6 +516,54 @@ export default class {
                 r#"
 export default class defaultExport {
     foo() {}
+}
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_uses_fresh_name_when_default_export_is_taken() {
+        let test = TestProgram::for_rule_without_prelude(NoAnonymousDefaultExport);
+        let result = test.lint_ast(
+            "no_anonymous_default_export/test_fix_uses_fresh_name_when_default_export_is_taken.ts",
+            r#"
+const defaultExport = 1;
+export default function() {
+    return defaultExport;
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-anonymous-default-export")
+            .assert_unsafe_fixed(
+                r#"
+const defaultExport = 1;
+export default function defaultExport_() {
+    return defaultExport;
+}
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_uses_fresh_name_when_pattern_binding_is_taken() {
+        let test = TestProgram::for_rule_without_prelude(NoAnonymousDefaultExport);
+        let result = test.lint_ast(
+            "no_anonymous_default_export/test_fix_uses_fresh_name_when_pattern_binding_is_taken.ts",
+            r#"
+const [defaultExport] = values;
+export default function() {
+    return defaultExport;
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-anonymous-default-export")
+            .assert_unsafe_fixed(
+                r#"
+const [defaultExport] = values;
+export default function defaultExport_() {
+    return defaultExport;
 }
 "#,
             );

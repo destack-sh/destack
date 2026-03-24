@@ -61,7 +61,7 @@ impl LintRule for NoNonNullAssertion {
                 && let Some(bang_span) = expression_trailing_bang_span(ctx, node_id)
             {
                 let edits = ctx.edit_builder().delete(bang_span).into_edits();
-                let fix = LintFix::r#unsafe("Remove non-null assertion").with_edits(edits);
+                let fix = LintFix::suggestion("Remove non-null assertion").with_edits(edits);
                 diagnostic = diagnostic.with_fix(fix);
             }
 
@@ -128,7 +128,7 @@ let x = foo!
         );
         test.result(result)
             .assert_lint("no-non-null-assertion")
-            .assert_unsafe_fixed(
+            .assert_suggested_fixed(
                 r#"
 let x = foo;
 "#,
@@ -146,7 +146,7 @@ let x = foo!!.bar!
         );
         test.result(result)
             .assert_lint_count("no-non-null-assertion", 3)
-            .assert_unsafe_fixed(
+            .assert_suggested_fixed(
                 r#"
 let x = foo.bar;
 "#,
@@ -164,7 +164,7 @@ let value = getContainer()!.value!.toString()
         );
         test.result(result)
             .assert_lint_count("no-non-null-assertion", 2)
-            .assert_unsafe_fixed(
+            .assert_suggested_fixed(
                 r#"
 let value = getContainer().value.toString();
 "#,

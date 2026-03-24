@@ -39,6 +39,8 @@ impl LintRule for PreferPromiseRejectErrors {
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
         let reject_name = ctx.program.strings.intern("reject");
+        let ok_name = ctx.program.strings.intern("ok");
+        let err_name = ctx.program.strings.intern("err");
         let promise_symbol = ctx.well_known_symbol(WellKnownSymbol::Promise);
         let error_symbol = ctx.get_language_symbol(LanguageSymbol::Error);
         let result_symbol = ctx.get_language_symbol(LanguageSymbol::Result);
@@ -62,6 +64,9 @@ impl LintRule for PreferPromiseRejectErrors {
             }
             if !reject_payload_is_obviously_non_error(
                 ctx,
+                value_id_from_arguments(ctx.tree, dynamic_arguments),
+                ok_name,
+                err_name,
                 dynamic_arguments,
                 error_symbol,
                 result_symbol,
@@ -115,6 +120,9 @@ fn is_promise_receiver(
 /// Return true when the reject payload is clearly non-Error.
 fn reject_payload_is_obviously_non_error(
     ctx: &LintModuleDirContext<'_>,
+    value_id: Option<dir::LocalNodeId<dir::Expression>>,
+    ok_name: destack_core::StringId,
+    err_name: destack_core::StringId,
     dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
     error_symbol: Option<dir::GlobalSymbolId>,
     result_symbol: Option<dir::GlobalSymbolId>,
@@ -123,14 +131,17 @@ fn reject_payload_is_obviously_non_error(
         return true;
     }
 
-    let first_argument = ctx.tree.get(dynamic_arguments[0]);
-    let dir::Argument::Positional { value, .. } = first_argument else {
+    let Some(value_id) = value_id else {
         return false;
     };
-    let value_id = *value;
 
     // direct literal cases
     if expression_is_non_error_literal(ctx.tree, value_id) {
+        return true;
+    }
+
+    // explicit result constructors always produce non error payload values
+    if expression_is_result_constructor_call(ctx, value_id, result_symbol, ok_name, err_name) {
         return true;
     }
 
@@ -149,6 +160,53 @@ fn reject_payload_is_obviously_non_error(
         },
     )
     .unwrap_or(false)
+}
+
+/// Return the first positional argument expression id when available.
+fn value_id_from_arguments(
+    tree: &dir::NodeTree,
+    dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+) -> Option<dir::LocalNodeId<dir::Expression>> {
+    let first_argument = tree.get(*dynamic_arguments.first()?);
+    let dir::Argument::Positional { value, .. } = first_argument else {
+        return None;
+    };
+
+    Some(*value)
+}
+
+/// Return true when the expression is `Result.ok(...)` or `Result.err(...)`.
+fn expression_is_result_constructor_call(
+    ctx: &LintModuleDirContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+    result_symbol: Option<dir::GlobalSymbolId>,
+    ok_name: destack_core::StringId,
+    err_name: destack_core::StringId,
+) -> bool {
+    let Some(result_symbol) = result_symbol else {
+        return false;
+    };
+
+    let Some(method_call) = expression_method_call(ctx.tree, expression_id) else {
+        return false;
+    };
+    if method_call.method_name != ok_name && method_call.method_name != err_name {
+        return false;
+    }
+
+    let Some(receiver_symbol) = expression_target_symbol(ctx.tree, method_call.receiver_id) else {
+        return false;
+    };
+
+    symbol_matches_or_canonical(
+        &ctx.program,
+        &ctx.artifacts,
+        ctx.profile_id,
+        ctx.module_id(),
+        ctx.symbols,
+        receiver_symbol,
+        result_symbol,
+    )
 }
 
 /// Return true when one expression is a non-Error literal payload.

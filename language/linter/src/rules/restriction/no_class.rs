@@ -1,4 +1,5 @@
 use destack_ast::{self as ast, Declaration};
+use destack_source::FileType;
 use destack_workspace::LintSeverity;
 
 use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
@@ -8,7 +9,7 @@ declare_lint! {
     ///
     /// In Destack, structs are preferred over classes for data-oriented design.
     /// Classes encourage inheritance patterns that can lead to complex hierarchies.
-    /// Use structs with interface implementations instead.
+    /// In compatibility files, prefer interfaces, object types, or functions instead.
     #[lint(
         id = "no-class",
         code = "LR006",
@@ -23,6 +24,16 @@ declare_lint! {
     )]
     pub NoClass,
     "Disallow class declarations"
+}
+
+/// Return the primary diagnostic label for one file type.
+fn no_class_label(file_type: FileType) -> &'static str {
+    match file_type {
+        FileType::Destack | FileType::DestackDeclaration => {
+            "prefer structs or interface-based composition"
+        }
+        _ => "prefer interfaces, objects, or functions over classes",
+    }
 }
 
 impl LintRule for NoClass {
@@ -44,17 +55,18 @@ impl LintRule for NoClass {
                 continue;
             }
             let span = ctx.tree.get_span(node_id);
+            let file = ctx.program.files.get(ctx.module.file_id);
             ctx.report(
                 LintDiagnostic::new(
                     NO_CLASS.id,
                     NO_CLASS.code,
                     NO_CLASS.category,
                     severity,
-                    "class declaration is not allowed",
+                    "class declaration is not allowed in this codebase",
                     ctx.module.file_id,
                     span,
                 )
-                .with_label("use struct instead"),
+                .with_label(no_class_label(file.ty)),
             );
         }
     }
@@ -105,6 +117,35 @@ abstract class BaseClass {
 "#,
         );
         test.result(result).assert_lint("no-class");
+    }
+
+    #[test]
+    fn test_emits_typescript_compatible_guidance() {
+        let test = TestProgram::for_rule_without_prelude(NoClass);
+        let result = test.lint_ast(
+            "no_class/test_emits_typescript_compatible_guidance.ts",
+            r#"
+class MyClass {
+    foo() {}
+}
+"#,
+        );
+
+        let result = test.result(result);
+        let diagnostic = result
+            .diagnostics()
+            .iter()
+            .find(|diagnostic| diagnostic.rule_id == "no-class")
+            .unwrap_or_else(|| panic!("expected no-class diagnostic"));
+
+        assert_eq!(
+            diagnostic.message,
+            "class declaration is not allowed in this codebase"
+        );
+        assert_eq!(
+            diagnostic.label,
+            "prefer interfaces, objects, or functions over classes"
+        );
     }
 
     #[test]
@@ -175,5 +216,32 @@ declare class ExternalClass {
 "#,
         );
         test.result(result).assert_lint("no-class");
+    }
+
+    #[test]
+    fn test_includes_destack_declaration_file_when_enabled() {
+        let test = TestProgram::for_rule_without_prelude(NoClass).with_options(|options| {
+            options.include_declaration_files = true;
+        });
+        let result = test.lint_ast(
+            "no_class/test_includes_destack_declaration_file_when_enabled.d.ds",
+            r#"
+class ExternalClass {
+    foo(): void;
+}
+"#,
+        );
+
+        let result = test.result(result);
+        let diagnostic = result
+            .diagnostics()
+            .iter()
+            .find(|diagnostic| diagnostic.rule_id == "no-class")
+            .unwrap_or_else(|| panic!("expected no-class diagnostic"));
+
+        assert_eq!(
+            diagnostic.label,
+            "prefer structs or interface-based composition"
+        );
     }
 }
