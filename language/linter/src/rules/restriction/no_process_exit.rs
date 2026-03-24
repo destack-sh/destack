@@ -38,6 +38,11 @@ impl LintRule for NoProcessExit {
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
 
+        // cli entrypoints often exit deliberately
+        if ctx.file.has_hashbang() {
+            return;
+        }
+
         // walk the module for process exit calls
         let mut visitor = NoProcessExitVisitor::new(ctx, meta);
         visitor.run();
@@ -56,6 +61,8 @@ struct NoProcessExitVisitor<'a, 'b> {
     process_name: StringId,
     /// The exit member name.
     exit_name: StringId,
+    /// The process event registration method names.
+    event_handler_names: [StringId; 2],
     /// The global qualifier symbols.
     global_qualifiers: Vec<dir::GlobalSymbolId>,
     /// The visitor options.
@@ -68,6 +75,10 @@ impl<'a, 'b> NoProcessExitVisitor<'a, 'b> {
         let process_name = ctx.program.strings.intern("process");
         let process_symbol = ctx.declared_library_symbol(process_name);
         let exit_name = ctx.program.strings.intern("exit");
+        let event_handler_names = [
+            ctx.program.strings.intern("on"),
+            ctx.program.strings.intern("once"),
+        ];
         let global_qualifiers = ctx.global_qualifier_symbols();
 
         Self {
@@ -76,6 +87,7 @@ impl<'a, 'b> NoProcessExitVisitor<'a, 'b> {
             process_symbol,
             process_name,
             exit_name,
+            event_handler_names,
             global_qualifiers,
             options: NodeVisitorOptions::default(),
         }
@@ -112,6 +124,9 @@ impl<'a, 'b> NoProcessExitVisitor<'a, 'b> {
 
         // require process receiver
         if !self.is_process_expression(receiver_id) {
+            return;
+        }
+        if self.is_inside_process_event_handler_callback(expression_id) {
             return;
         }
 
@@ -154,6 +169,81 @@ impl<'a, 'b> NoProcessExitVisitor<'a, 'b> {
             self.process_name,
         )
     }
+
+    /// Return true when one call target is `process.on(...)` or `process.once(...)`.
+    fn is_process_event_handler_registration(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> bool {
+        let Some((receiver_id, property_name)) =
+            expression_static_property_access(self.ctx.tree, expression_id)
+        else {
+            return false;
+        };
+        if !self.event_handler_names.contains(&property_name) {
+            return false;
+        }
+
+        self.is_process_expression(receiver_id)
+    }
+
+    /// Return true when one process.exit call is inside a process event callback argument.
+    fn is_inside_process_event_handler_callback(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> bool {
+        let mut current_id = expression_id.id;
+
+        while let Some(parent_id) = self.ctx.tree.get_parent(current_id) {
+            current_id = parent_id.id;
+            if parent_id.ty != dir::NodeType::Argument {
+                continue;
+            }
+
+            let argument_id = parent_id.into_typed::<dir::Argument>();
+            if !argument_is_function_like(self.ctx.tree, argument_id) {
+                continue;
+            }
+
+            let Some(call_parent_id) = self.ctx.tree.get_parent(argument_id.id) else {
+                continue;
+            };
+            if call_parent_id.ty != dir::NodeType::Expression {
+                continue;
+            }
+
+            let call_id = call_parent_id.into_typed::<dir::Expression>();
+            let dir::Expression::Call { left, .. } = self.ctx.tree.get(call_id) else {
+                continue;
+            };
+            if self.is_process_event_handler_registration(*left) {
+                return true;
+            }
+        }
+
+        false
+    }
+}
+
+/// Return true when one argument value is a function-like expression.
+fn argument_is_function_like(
+    tree: &dir::NodeTree,
+    argument_id: dir::LocalNodeId<dir::Argument>,
+) -> bool {
+    let argument = tree.get(argument_id);
+    expression_is_function_like(tree, argument.value())
+}
+
+/// Return true when one expression is a function declaration expression.
+fn expression_is_function_like(
+    tree: &dir::NodeTree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> bool {
+    let dir::Expression::Declaration { declaration } = tree.get(expression_id) else {
+        return false;
+    };
+
+    matches!(tree.get(*declaration), dir::Declaration::Function { .. })
 }
 
 /// Build an unsafe fix by removing one standalone process exit statement.
@@ -253,6 +343,25 @@ globalThis.process["exit"](1);
             .assert_has_fix("no-process-exit");
     }
 
+    /// Allow local shadowing of process.
+    #[test]
+    fn test_allows_shadowed_local_process_exit_call() {
+        let test = TestProgram::for_rule_with_prelude(NoProcessExit);
+        let result = test.lint_dir(
+            "no_process_exit/test_allows_shadowed_local_process_exit_call.ds",
+            r#"
+const process = {
+    exit(code: int32): void {
+        log(code);
+    },
+};
+
+process.exit(1);
+"#,
+        );
+        test.result(result).assert_no_lint("no-process-exit");
+    }
+
     /// Allow other process calls.
     #[test]
     fn test_allows_other_process_call() {
@@ -264,6 +373,62 @@ process.cwd();
 "#,
         );
         test.result(result).assert_no_lint("no-process-exit");
+    }
+
+    /// Allow process exit in CLI entrypoints.
+    #[test]
+    fn test_allows_process_exit_in_hashbang_entrypoint() {
+        let test = TestProgram::for_rule_with_prelude(NoProcessExit);
+        let result = test.lint_dir(
+            "no_process_exit/test_allows_process_exit_in_hashbang_entrypoint.ds",
+            r#"#!/usr/bin/env node
+process.exit(1);
+"#,
+        );
+        test.result(result).assert_no_lint("no-process-exit");
+    }
+
+    /// Allow process exit inside process event handlers.
+    #[test]
+    fn test_allows_process_exit_in_process_on_handler() {
+        let test = TestProgram::for_rule_with_prelude(NoProcessExit);
+        let result = test.lint_dir(
+            "no_process_exit/test_allows_process_exit_in_process_on_handler.ds",
+            r#"
+process.on("SIGINT", (): void => {
+    process.exit(1);
+});
+"#,
+        );
+        test.result(result).assert_no_lint("no-process-exit");
+    }
+
+    /// Allow process exit inside process once handlers.
+    #[test]
+    fn test_allows_process_exit_in_process_once_handler() {
+        let test = TestProgram::for_rule_with_prelude(NoProcessExit);
+        let result = test.lint_dir(
+            "no_process_exit/test_allows_process_exit_in_process_once_handler.ds",
+            r#"
+process.once("SIGTERM", (): void => {
+    process.exit(1);
+});
+"#,
+        );
+        test.result(result).assert_no_lint("no-process-exit");
+    }
+
+    /// Keep reporting process exit outside the actual event callback body.
+    #[test]
+    fn test_flags_process_exit_in_process_on_non_callback_argument() {
+        let test = TestProgram::for_rule_with_prelude(NoProcessExit);
+        let result = test.lint_dir(
+            "no_process_exit/test_flags_process_exit_in_process_on_non_callback_argument.ds",
+            r#"
+process.on(process.exit(1), (): void => {});
+"#,
+        );
+        test.result(result).assert_lint("no-process-exit");
     }
 
     /// Unsafely remove standalone process.exit statements.
