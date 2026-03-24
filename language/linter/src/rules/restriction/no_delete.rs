@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{expand_span_to_statement_terminator, expression_statement_ancestor};
+use crate::rules::common::{expression_statement_ancestor, expression_unwrap_parenthesized_syntax};
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
 
 declare_lint! {
@@ -75,21 +75,39 @@ impl LintRule for NoDelete {
     }
 }
 
-/// Build an unsafe fix by removing one standalone delete statement.
+/// Build an unsafe fix by rewriting one standalone delete statement.
 fn no_delete_fix(
     ctx: &LintAstContext<'_>,
     delete_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<LintFix> {
     // require one standalone statement context around the delete expression
-    let statement_id = expression_statement_ancestor(ctx.tree, ctx.parents, delete_id)?;
+    expression_statement_ancestor(ctx.tree, ctx.parents, delete_id)?;
 
-    // remove the full statement span, including an optional trailing terminator
-    let file = ctx.program.files.get(ctx.module.file_id);
-    let source = file.text();
-    let statement_span = ctx.tree.get_span(statement_id);
-    let statement_span = expand_span_to_statement_terminator(source, statement_span);
-    let edits = ctx.edit_builder().delete(statement_span).into_edits();
-    Some(LintFix::r#unsafe("Remove delete statement").with_edits(edits))
+    // only rewrite assignable property targets
+    let ast::Expression::Delete { value } = ctx.tree.get(delete_id) else {
+        return None;
+    };
+    let target_id = expression_unwrap_parenthesized_syntax(ctx.tree, *value);
+    let target_expression = ctx.tree.get(target_id);
+    let target_is_assignable_property = match target_expression {
+        ast::Expression::Path { path, .. } => path.segments.len() > 1,
+        ast::Expression::Index { .. } => true,
+        _ => false,
+    };
+    if !target_is_assignable_property {
+        return None;
+    }
+
+    // replace the delete expression with an undefined assignment
+    let delete_span = ctx.tree.get_span(delete_id);
+    let target_span = ctx.tree.get_span(target_id);
+    let target_text = ctx.get_span_text(target_span);
+    let replacement = format!("{target_text} = undefined");
+    let edits = ctx
+        .edit_builder()
+        .replace(delete_span, replacement)
+        .into_edits();
+    Some(LintFix::r#unsafe("Replace delete with undefined assignment").with_edits(edits))
 }
 
 #[cfg(test)]
@@ -127,12 +145,12 @@ item.value = 2;
         test.result(result).assert_no_lint("no-delete");
     }
 
-    /// Unsafely remove standalone delete statements.
+    /// Unsafely rewrite standalone delete statements.
     #[test]
-    fn test_fix_removes_delete_statement() {
+    fn test_fix_rewrites_delete_statement() {
         let test = TestProgram::for_rule_without_prelude(NoDelete);
         let result = test.lint_ast(
-            "no_delete/test_fix_removes_delete_statement.ts",
+            "no_delete/test_fix_rewrites_delete_statement.ts",
             r#"
 let item = { value: 1 };
 delete item.value;
@@ -143,8 +161,25 @@ delete item.value;
             .assert_unsafe_fixed(
                 r#"
 let item = { value: 1 };
+item.value = undefined;
 "#,
             );
+    }
+
+    /// Do not auto-fix delete expressions for bare bindings.
+    #[test]
+    fn test_no_fix_for_delete_identifier_statement() {
+        let test = TestProgram::for_rule_without_prelude(NoDelete);
+        let result = test.lint_ast(
+            "no_delete/test_no_fix_for_delete_identifier_statement.ts",
+            r#"
+let item = { value: 1 };
+delete item;
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-delete")
+            .assert_has_no_fix("no-delete");
     }
 
     /// Do not auto-fix delete expressions when the value is used.
@@ -163,12 +198,12 @@ let removed = delete item.value;
             .assert_has_no_fix("no-delete");
     }
 
-    /// Mutation: remove indexed delete statements.
+    /// Mutation: rewrite indexed delete statements.
     #[test]
-    fn test_mutation_fix_removes_index_delete_statement() {
+    fn test_mutation_fix_rewrites_index_delete_statement() {
         let test = TestProgram::for_rule_without_prelude(NoDelete);
         let result = test.lint_ast(
-            "no_delete/test_mutation_fix_removes_index_delete_statement.ts",
+            "no_delete/test_mutation_fix_rewrites_index_delete_statement.ts",
             r#"
 let items = [1, 2, 3];
 delete items[1];
@@ -179,16 +214,17 @@ delete items[1];
             .assert_unsafe_fixed(
                 r#"
 let items = [1, 2, 3];
+items[1] = undefined;
 "#,
             );
     }
 
-    /// Unsafely remove parenthesized delete statements.
+    /// Unsafely rewrite parenthesized delete statements.
     #[test]
-    fn test_fix_removes_parenthesized_delete_statement() {
+    fn test_fix_rewrites_parenthesized_delete_statement() {
         let test = TestProgram::for_rule_without_prelude(NoDelete);
         let result = test.lint_ast(
-            "no_delete/test_fix_removes_parenthesized_delete_statement.ts",
+            "no_delete/test_fix_rewrites_parenthesized_delete_statement.ts",
             r#"
 let item = { value: 1 };
 (delete item.value);
@@ -199,6 +235,28 @@ let item = { value: 1 };
             .assert_unsafe_fixed(
                 r#"
 let item = { value: 1 };
+(item.value = undefined);
+"#,
+            );
+    }
+
+    /// Unsafely rewrite delete statements with parenthesized targets.
+    #[test]
+    fn test_fix_rewrites_delete_with_parenthesized_target() {
+        let test = TestProgram::for_rule_without_prelude(NoDelete);
+        let result = test.lint_ast(
+            "no_delete/test_fix_rewrites_delete_with_parenthesized_target.ts",
+            r#"
+let item = { value: 1 };
+delete (item.value);
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-delete")
+            .assert_unsafe_fixed(
+                r#"
+let item = { value: 1 };
+item.value = undefined;
 "#,
             );
     }

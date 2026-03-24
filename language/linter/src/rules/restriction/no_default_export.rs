@@ -33,29 +33,29 @@ impl LintRule for NoDefaultExport {
         let meta = self.meta();
         let default_name = ctx.program.strings.intern("default");
 
-        // check for DependencyItem nodes with Default mode
+        // check default export dependency items in export and re-export expressions
         for (node_id, item) in ctx.tree.iter_nodes_of_type::<dir::DependencyItem>() {
-            let is_default = dependency_item_is_default(item, default_name);
-
-            if is_default {
-                let severity = ctx.get_effective_severity(meta, node_id);
-                if !severity.is_enabled() {
-                    continue;
-                }
-                let span = ctx.get_span(node_id);
-                ctx.report(
-                    LintDiagnostic::new(
-                        NO_DEFAULT_EXPORT.id,
-                        NO_DEFAULT_EXPORT.code,
-                        NO_DEFAULT_EXPORT.category,
-                        severity,
-                        "default export",
-                        ctx.module.file_id,
-                        span,
-                    )
-                    .with_label("use named exports instead"),
-                );
+            if !dependency_item_exports_default(ctx, node_id, item, default_name) {
+                continue;
             }
+
+            let severity = ctx.get_effective_severity(meta, node_id);
+            if !severity.is_enabled() {
+                continue;
+            }
+            let span = ctx.get_span(node_id);
+            ctx.report(
+                LintDiagnostic::new(
+                    NO_DEFAULT_EXPORT.id,
+                    NO_DEFAULT_EXPORT.code,
+                    NO_DEFAULT_EXPORT.category,
+                    severity,
+                    "default export",
+                    ctx.module.file_id,
+                    span,
+                )
+                .with_label("use named exports instead"),
+            );
         }
 
         // check for declarations with export=Default (export default function/class)
@@ -91,41 +91,83 @@ impl LintRule for NoDefaultExport {
     }
 }
 
-/// Return true when a dependency item exports or aliases the `default` binding.
-fn dependency_item_is_default(item: &dir::DependencyItem, default_name: StringId) -> bool {
-    // check dependency modes that are explicitly default
-    if matches!(
-        item,
-        dir::DependencyItem::Local {
-            mode: dir::DependencyMode::Default,
-            ..
-        } | dir::DependencyItem::UnresolvedLocal {
-            mode: dir::DependencyMode::Default,
-            ..
-        } | dir::DependencyItem::Remote {
-            mode: dir::DependencyMode::Default,
-            ..
-        } | dir::DependencyItem::UnresolvedRemote {
-            mode: dir::DependencyMode::Default,
-            ..
-        } | dir::DependencyItem::Value {
-            mode: dir::DependencyMode::Default,
-            ..
-        }
-    ) {
-        return true;
+/// Return true when a dependency item belongs to an export expression and exports `default`.
+fn dependency_item_exports_default(
+    ctx: &LintModuleDirContext<'_>,
+    item_id: dir::LocalNodeId<dir::DependencyItem>,
+    item: &dir::DependencyItem,
+    default_name: StringId,
+) -> bool {
+    let Some(parent_id) = ctx.tree.get_parent(item_id.id) else {
+        return false;
+    };
+    let Ok(parent_id) = parent_id.try_into_typed::<dir::Expression>() else {
+        return false;
+    };
+
+    // only inspect export syntax, not imports
+    match ctx.tree.get(parent_id) {
+        dir::Expression::Export { .. }
+        | dir::Expression::ReExport { .. }
+        | dir::Expression::UnresolvedReExport { .. } => {}
+        _ => return false,
     }
 
-    // check local or remote alias forms like `export { foo as default }`
     match item {
-        dir::DependencyItem::Local { alias, name, .. }
-        | dir::DependencyItem::UnresolvedLocal { alias, name, .. }
-        | dir::DependencyItem::Remote { alias, name, .. }
-        | dir::DependencyItem::UnresolvedRemote { alias, name, .. } => {
-            alias.is_some_and(|alias| alias == default_name)
-                || name.is_some_and(|name| name.string() == default_name)
+        dir::DependencyItem::Value { mode, .. } => *mode == dir::DependencyMode::Default,
+        dir::DependencyItem::Local {
+            mode,
+            kind,
+            name,
+            alias,
+            ..
         }
-        dir::DependencyItem::Value { .. } | dir::DependencyItem::Error => false,
+        | dir::DependencyItem::UnresolvedLocal {
+            mode,
+            kind,
+            name,
+            alias,
+            ..
+        }
+        | dir::DependencyItem::Remote {
+            mode,
+            kind,
+            name,
+            alias,
+            ..
+        }
+        | dir::DependencyItem::UnresolvedRemote {
+            mode,
+            kind,
+            name,
+            alias,
+            ..
+        } => {
+            if *kind != dir::DependencyKind::Value {
+                return false;
+            }
+
+            dependency_item_export_name(*mode, *name, *alias, default_name) == Some(default_name)
+        }
+        dir::DependencyItem::Error => false,
+    }
+}
+
+/// Return the exported name for one dependency item.
+fn dependency_item_export_name(
+    mode: dir::DependencyMode,
+    name: Option<dir::Name>,
+    alias: Option<StringId>,
+    default_name: StringId,
+) -> Option<StringId> {
+    if alias.is_some() {
+        return alias;
+    }
+
+    match mode {
+        dir::DependencyMode::Item => name.map(|name| name.string()),
+        dir::DependencyMode::Default => name.map(|name| name.string()).or(Some(default_name)),
+        dir::DependencyMode::Namespace => None,
     }
 }
 
@@ -165,6 +207,17 @@ fn default_export_declaration_fix(
 mod tests {
     use super::*;
     use crate::linter::TestProgram;
+
+    /// Lint one target module in a small module graph and assert there are no compiler errors.
+    fn lint_module_with_modules(
+        modules: &[(&str, &str)],
+        target_path: &str,
+    ) -> (TestProgram, Vec<LintDiagnostic>) {
+        let test = TestProgram::for_rule_without_prelude(NoDefaultExport);
+        let diagnostics = test.lint_module_dir_with_modules(modules, target_path);
+        test.check_clean();
+        (test, diagnostics)
+    }
 
     #[test]
     fn test_detects_default_export_function() {
@@ -251,12 +304,110 @@ export async function foo() {
         let test = TestProgram::for_rule_without_prelude(NoDefaultExport);
         let result = test.lint_dir(
             "no_default_export/test_detects_default_export_alias_specifier.ds",
-            "const foo = 1;\nexport { foo as default };",
+            "const foo: int32 = 1;\nexport { foo as default };",
         );
         test.check_clean();
         test.result(result)
             .assert_lint("no-default-export")
             .assert_has_no_fix("no-default-export");
+    }
+
+    #[test]
+    fn test_detects_remote_default_re_export() {
+        let (test, result) = lint_module_with_modules(
+            &[
+                (
+                    "no_default_export/dep.ds",
+                    r#"
+export const value: int32 = 1;
+export default value;
+"#,
+                ),
+                (
+                    "no_default_export/test_detects_remote_default_re_export.ds",
+                    r#"
+export { default } from "./dep.ds";
+"#,
+                ),
+            ],
+            "no_default_export/test_detects_remote_default_re_export.ds",
+        );
+
+        test.result(result)
+            .assert_lint("no-default-export")
+            .assert_has_no_fix("no-default-export");
+    }
+
+    #[test]
+    fn test_detects_remote_default_alias_re_export() {
+        let (test, result) = lint_module_with_modules(
+            &[
+                (
+                    "no_default_export/dep.ds",
+                    r#"
+export const value: int32 = 1;
+"#,
+                ),
+                (
+                    "no_default_export/test_detects_remote_default_alias_re_export.ds",
+                    r#"
+export { value as default } from "./dep.ds";
+"#,
+                ),
+            ],
+            "no_default_export/test_detects_remote_default_alias_re_export.ds",
+        );
+
+        test.result(result)
+            .assert_lint("no-default-export")
+            .assert_has_no_fix("no-default-export");
+    }
+
+    #[test]
+    fn test_allows_named_alias_of_remote_default_re_export() {
+        let (test, result) = lint_module_with_modules(
+            &[
+                (
+                    "no_default_export/dep.ds",
+                    r#"
+export default 1;
+"#,
+                ),
+                (
+                    "no_default_export/test_allows_named_alias_of_remote_default_re_export.ds",
+                    r#"
+export { default as value } from "./dep.ds";
+"#,
+                ),
+            ],
+            "no_default_export/test_allows_named_alias_of_remote_default_re_export.ds",
+        );
+
+        test.result(result).assert_no_lint("no-default-export");
+    }
+
+    #[test]
+    fn test_allows_default_import() {
+        let (test, result) = lint_module_with_modules(
+            &[
+                (
+                    "no_default_export/dep.ds",
+                    r#"
+export default 1;
+"#,
+                ),
+                (
+                    "no_default_export/test_allows_default_import.ds",
+                    r#"
+import value from "./dep.ds";
+const local = value;
+"#,
+                ),
+            ],
+            "no_default_export/test_allows_default_import.ds",
+        );
+
+        test.result(result).assert_no_lint("no-default-export");
     }
 
     #[test]
@@ -270,5 +421,28 @@ export async function foo() {
         test.result(result)
             .assert_lint("no-default-export")
             .assert_has_no_fix("no-default-export");
+    }
+
+    #[test]
+    fn test_allows_named_remote_re_export() {
+        let (test, result) = lint_module_with_modules(
+            &[
+                (
+                    "no_default_export/dep.ds",
+                    r#"
+export const value: int32 = 1;
+"#,
+                ),
+                (
+                    "no_default_export/test_allows_named_remote_re_export.ds",
+                    r#"
+export { value } from "./dep.ds";
+"#,
+                ),
+            ],
+            "no_default_export/test_allows_named_remote_re_export.ds",
+        );
+
+        test.result(result).assert_no_lint("no-default-export");
     }
 }

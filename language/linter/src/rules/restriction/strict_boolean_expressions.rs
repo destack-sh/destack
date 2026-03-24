@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression, walk_match_case};
 use destack_workspace::LintSeverity;
 
@@ -45,7 +47,7 @@ struct StrictBooleanVisitor<'a, 'b> {
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The expressions already checked for boolean contexts.
-    visited: Vec<dir::LocalNodeId<dir::Expression>>,
+    visited: HashSet<u32>,
     /// The visitor options.
     options: NodeVisitorOptions,
 }
@@ -57,7 +59,7 @@ impl<'a, 'b> StrictBooleanVisitor<'a, 'b> {
         Self {
             ctx,
             meta,
-            visited: Vec::new(),
+            visited: HashSet::new(),
             options: NodeVisitorOptions::default(),
         }
     }
@@ -140,21 +142,15 @@ impl NodeVisitor for StrictBooleanVisitor<'_, '_> {
             dir::Expression::Binary {
                 operator: dir::BinaryOperator::And | dir::BinaryOperator::Or,
                 left,
-                right,
                 ..
             } => {
-                // enforce boolean operands for logical expressions
+                // value-producing logical expressions only use the left operand
+                // as a boolean gate unless the whole expression is itself in a
+                // boolean context handled by a parent visitor case
                 check_is_boolean(
                     self.ctx,
                     self.meta,
                     *left,
-                    "logical operand",
-                    &mut self.visited,
-                );
-                check_is_boolean(
-                    self.ctx,
-                    self.meta,
-                    *right,
                     "logical operand",
                     &mut self.visited,
                 );
@@ -162,21 +158,15 @@ impl NodeVisitor for StrictBooleanVisitor<'_, '_> {
             dir::Expression::AssignBinary {
                 operator: dir::AssignOperator::AndAssign | dir::AssignOperator::OrAssign,
                 left,
-                right,
+                ..
             } => {
-                // enforce boolean operands for logical assignments
+                // value-producing logical assignments only use the existing
+                // target value as a boolean gate
                 check_is_boolean(
                     self.ctx,
                     self.meta,
                     *left,
                     "logical assignment target",
-                    &mut self.visited,
-                );
-                check_is_boolean(
-                    self.ctx,
-                    self.meta,
-                    *right,
-                    "logical assignment value",
                     &mut self.visited,
                 );
             }
@@ -222,16 +212,12 @@ fn check_is_boolean(
     meta: &crate::LintMeta,
     expression_id: dir::LocalNodeId<dir::Expression>,
     context: &str,
-    visited: &mut Vec<dir::LocalNodeId<dir::Expression>>,
+    visited: &mut HashSet<u32>,
 ) {
     // avoid repeating work for shared expressions
-    if visited
-        .iter()
-        .any(|visited_id| visited_id.id == expression_id.id)
-    {
+    if !visited.insert(expression_id.id) {
         return;
     }
-    visited.push(expression_id);
 
     // expand boolean operators into their operands
     let expression = ctx.tree.get(expression_id);
@@ -390,7 +376,7 @@ let is_ok = is_ready && is_valid
             .assert_no_lint("strict-boolean-expressions");
     }
 
-    /// Flag non-boolean logical expressions even outside conditions.
+    /// Flag only the gating operand in value-producing logical expressions.
     #[test]
     fn test_flags_logical_expression_values() {
         let test = TestProgram::for_rule_with_prelude(StrictBooleanExpressions);
@@ -404,7 +390,7 @@ let fallback = count || name
         );
         test.check_clean();
         test.result(result)
-            .assert_lint_count("strict-boolean-expressions", 2);
+            .assert_lint_count("strict-boolean-expressions", 1);
     }
 
     /// Allow logical assignments when operands are boolean.
@@ -438,7 +424,7 @@ count ||= fallback
         );
         test.check_clean();
         test.result(result)
-            .assert_lint("strict-boolean-expressions");
+            .assert_lint_count("strict-boolean-expressions", 1);
     }
 
     /// Flag non boolean loop conditions.
@@ -470,6 +456,22 @@ match (value) {
     1 if value => "one"
     _ => "other"
 }
+"#,
+        );
+        test.check_clean();
+        test.result(result)
+            .assert_lint("strict-boolean-expressions");
+    }
+
+    /// Flag non boolean ternary conditions.
+    #[test]
+    fn test_flags_ternary_condition() {
+        let test = TestProgram::for_rule_with_prelude(StrictBooleanExpressions);
+        let result = test.lint_dir(
+            "strict_boolean_expressions/test_flags_ternary_condition.ds",
+            r#"
+let count = 1
+let value = if (count) { 1 } else { 2 }
 "#,
         );
         test.check_clean();
