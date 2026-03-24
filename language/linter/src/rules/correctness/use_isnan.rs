@@ -47,11 +47,26 @@ impl LintRule for UseIsnan {
                 continue;
             }
 
+            // check indexOf and lastIndexOf calls when enabled
+            if ctx.options.use_isnan_enforce_index_of
+                && let Expression::Call {
+                    left,
+                    dynamic_arguments,
+                    ..
+                } = expression
+            {
+                check_index_of_nan_call(ctx, meta, node_id, *left, dynamic_arguments);
+                continue;
+            }
+
             // check switch comparisons against NaN
             let Expression::Match { kind, value, cases } = expression else {
                 continue;
             };
             if *kind != ast::MatchKind::Switch {
+                continue;
+            }
+            if !ctx.options.use_isnan_enforce_switch_case {
                 continue;
             }
 
@@ -176,6 +191,61 @@ fn check_switch_nan_comparisons(
     }
 }
 
+/// Check `indexOf` and `lastIndexOf` calls for `NaN`.
+fn check_index_of_nan_call(
+    ctx: &mut LintAstContext<'_>,
+    meta: &LintMeta,
+    node_id: ast::LocalNodeId<ast::Expression>,
+    callee_id: ast::LocalNodeId<ast::Expression>,
+    arguments: &[ast::LocalNodeId<ast::Argument>],
+) {
+    let Some(first_argument_id) = arguments.first() else {
+        return;
+    };
+    let first_argument = ctx.tree.get(*first_argument_id);
+    let argument_value_id = match first_argument {
+        ast::Argument::Positional { value, .. } => *value,
+        _ => return,
+    };
+    if !is_nan_identifier(ctx, argument_value_id) {
+        return;
+    }
+
+    let Some(segments) = expression_path_segments(ctx.tree, callee_id) else {
+        return;
+    };
+    if segments.len() < 2 {
+        return;
+    }
+
+    let Some(method_name_id) = segments.last().copied() else {
+        return;
+    };
+    let method_name = ctx.strings.get(method_name_id);
+    if method_name.as_ref() != "indexOf" && method_name.as_ref() != "lastIndexOf" {
+        return;
+    }
+
+    let severity = ctx.get_effective_severity(meta, node_id);
+    if !severity.is_enabled() {
+        return;
+    }
+
+    let span = ctx.tree.get_span(node_id);
+    ctx.report(
+        LintDiagnostic::new(
+            USE_ISNAN.id,
+            USE_ISNAN.code,
+            USE_ISNAN.category,
+            severity,
+            format!("{} cannot find NaN", method_name.as_ref()),
+            ctx.module.file_id,
+            span,
+        )
+        .with_label("use a Number.isNaN-aware search instead"),
+    );
+}
+
 /// Check if an expression is the identifier `NaN` or `Number.NaN`
 fn is_nan_identifier(ctx: &LintAstContext<'_>, expr_id: ast::LocalNodeId<ast::Expression>) -> bool {
     let expression = ctx.tree.get(expr_id);
@@ -235,15 +305,12 @@ fn make_isnan_fix(
     let other_span = ctx.tree.get_span(other_id);
     let other_text = ctx.get_span_text(other_span);
 
-    // only fix equality operators - relational comparisons with NaN don't have a meaningful fix
+    // only strict equality operators are semantics preserving here
     let replacement = match operator {
-        BinaryOperator::Equal | BinaryOperator::EqualStrict => {
-            format!("Number.isNaN({other_text})")
-        }
-        BinaryOperator::NotEqual | BinaryOperator::NotEqualStrict => {
-            format!("!Number.isNaN({other_text})")
-        }
-        // relational operators - no fix (comparison is always false)
+        BinaryOperator::EqualStrict => format!("Number.isNaN({other_text})"),
+        BinaryOperator::NotEqualStrict => format!("!Number.isNaN({other_text})"),
+
+        // loose equality and relational operators: no fix
         _ => return None,
     };
 
@@ -286,6 +353,21 @@ if (x == NaN) {}
     }
 
     #[test]
+    fn test_does_not_fix_loose_equal() {
+        let test = TestProgram::for_rule_without_prelude(UseIsnan);
+        let result = test.lint_ast(
+            "use_isnan/test_does_not_fix_loose_equal.ds",
+            r#"
+let x = 1.0
+if (x == NaN) {}
+"#,
+        );
+        test.result(result)
+            .assert_lint("use-isnan")
+            .assert_has_no_fix("use-isnan");
+    }
+
+    #[test]
     fn test_detects_nan_not_equal() {
         let test = TestProgram::for_rule_without_prelude(UseIsnan);
         let result = test.lint_ast(
@@ -296,6 +378,21 @@ if (x !== NaN) {}
 "#,
         );
         test.result(result).assert_lint("use-isnan");
+    }
+
+    #[test]
+    fn test_does_not_fix_loose_not_equal() {
+        let test = TestProgram::for_rule_without_prelude(UseIsnan);
+        let result = test.lint_ast(
+            "use_isnan/test_does_not_fix_loose_not_equal.ds",
+            r#"
+let x = 1.0
+if (x != NaN) {}
+"#,
+        );
+        test.result(result)
+            .assert_lint("use-isnan")
+            .assert_has_no_fix("use-isnan");
     }
 
     #[test]
@@ -369,6 +466,23 @@ switch (x) {
     }
 
     #[test]
+    fn test_allows_nan_switch_when_disabled() {
+        let test = TestProgram::for_rule_without_prelude(UseIsnan).with_options(|options| {
+            options.use_isnan_enforce_switch_case = false;
+        });
+        let result = test.lint_ast(
+            "use_isnan/test_allows_nan_switch_when_disabled.ds",
+            r#"
+switch (NaN) {
+    case 1: break
+    default: break
+}
+"#,
+        );
+        test.result(result).assert_no_lint("use-isnan");
+    }
+
+    #[test]
     fn test_allows_normal_switch_cases() {
         let test = TestProgram::for_rule_without_prelude(UseIsnan);
         let result = test.lint_ast(
@@ -418,6 +532,67 @@ if (x === (NaN, 0)) {}
             r#"
 let x = 1.0
 if (x === 0.0) {}
+"#,
+        );
+        test.result(result).assert_no_lint("use-isnan");
+    }
+
+    #[test]
+    fn test_detects_index_of_nan_when_enabled() {
+        let test = TestProgram::for_rule_without_prelude(UseIsnan).with_options(|options| {
+            options.use_isnan_enforce_index_of = true;
+        });
+        let result = test.lint_ast(
+            "use_isnan/test_detects_index_of_nan_when_enabled.ds",
+            r#"
+let values = [1.0, 2.0];
+let index = values.indexOf(NaN);
+"#,
+        );
+        test.result(result).assert_lint("use-isnan");
+    }
+
+    #[test]
+    fn test_allows_index_of_nan_by_default() {
+        let test = TestProgram::for_rule_without_prelude(UseIsnan);
+        let result = test.lint_ast(
+            "use_isnan/test_allows_index_of_nan_by_default.ds",
+            r#"
+let values = [1.0, 2.0];
+let index = values.indexOf(NaN);
+"#,
+        );
+        test.result(result).assert_no_lint("use-isnan");
+    }
+
+    #[test]
+    fn test_detects_last_index_of_nan_when_enabled() {
+        let test = TestProgram::for_rule_without_prelude(UseIsnan).with_options(|options| {
+            options.use_isnan_enforce_index_of = true;
+        });
+        let result = test.lint_ast(
+            "use_isnan/test_detects_last_index_of_nan_when_enabled.ds",
+            r#"
+let values = [1.0, 2.0];
+let index = values.lastIndexOf(NaN);
+"#,
+        );
+        test.result(result).assert_lint("use-isnan");
+    }
+
+    #[test]
+    fn test_allows_bare_index_of_function_when_enabled() {
+        let test = TestProgram::for_rule_without_prelude(UseIsnan).with_options(|options| {
+            options.use_isnan_enforce_index_of = true;
+        });
+        let result = test.lint_ast(
+            "use_isnan/test_allows_bare_index_of_function_when_enabled.ds",
+            r#"
+function indexOf(value: number): number {
+    return 0;
+}
+
+let index = indexOf(NaN);
 "#,
         );
         test.result(result).assert_no_lint("use-isnan");

@@ -1072,4 +1072,88 @@ mod tests {
         let message = error.to_string();
         assert!(message.contains("linter.allowedRequireImportPatterns"));
     }
+
+    /// Reject invalid no-fallthrough comment patterns during config parse.
+    #[test]
+    fn test_rejects_invalid_no_fallthrough_comment_pattern() {
+        let file = File::from_text_as_json(
+            FileId::new(1),
+            "destack.json".to_string(),
+            Uri::from_string("file:///tmp/destack.json"),
+            Some(PathBuf::from("/tmp/destack.json")),
+            FileType::Json,
+            r#"
+{
+  "linter": {
+    "noFallthroughCommentPattern": "["
+  }
+}
+"#
+            .to_string(),
+        )
+        .unwrap_or_else(|error| panic!("expected valid json fixture: {error}"));
+        let file = Arc::new(file);
+
+        let error = Destack::parse(&file)
+            .err()
+            .unwrap_or_else(|| panic!("expected invalid regex parse error"));
+        let message = error.to_string();
+        assert!(message.contains("linter.noFallthroughCommentPattern"));
+    }
+
+    /// Apply correctness linter options from config.
+    #[test]
+    fn test_applies_correctness_linter_options() {
+        let file = File::from_text_as_json(
+            FileId::new(1),
+            "destack.json".to_string(),
+            Uri::from_string("file:///tmp/destack.json"),
+            Some(PathBuf::from("/tmp/destack.json")),
+            FileType::Json,
+            r#"
+{
+  "linter": {
+    "allowVoidDiscard": false,
+    "noPromiseExecutorReturnAllowVoid": true,
+    "checkMisusedPromisesInCallbacks": false,
+    "checkMisusedPromisesInConditionals": false,
+    "checkMisusedPromisesInSpreads": false,
+    "useIsnanEnforceSwitchCase": false,
+    "useIsnanEnforceIndexOf": true,
+    "noConfusingVoidExpressionIgnoreVoidReturningFunctions": true,
+    "noFallthroughAllowEmptyCase": true,
+    "noFallthroughCommentPattern": "no break",
+    "noFallthroughReportUnusedComment": true,
+    "ignoredUnusedParameterPrefixes": ["_", "ignored"]
+  }
+}
+"#
+            .to_string(),
+        )
+        .unwrap_or_else(|error| panic!("expected valid json fixture: {error}"));
+        let file = Arc::new(file);
+
+        let destack = Destack::parse(&file)
+            .unwrap_or_else(|error| panic!("expected valid config parse: {error}"));
+        let linter = &destack.options.linter;
+
+        assert!(!linter.allow_void_discard);
+        assert!(linter.no_promise_executor_return_allow_void);
+        assert!(!linter.check_misused_promises_in_callbacks);
+        assert!(!linter.check_misused_promises_in_conditionals);
+        assert!(!linter.check_misused_promises_in_spreads);
+        assert!(!linter.use_isnan_enforce_switch_case);
+        assert!(linter.use_isnan_enforce_index_of);
+        assert!(linter.no_confusing_void_expression_ignore_void_returning_functions);
+        assert!(linter.no_fallthrough_allow_empty_case);
+        assert_eq!(
+            linter.no_fallthrough_comment_pattern.as_deref(),
+            Some("no break")
+        );
+        assert!(linter.no_fallthrough_report_unused_comment);
+        assert_eq!(
+            linter.ignored_unused_parameter_prefixes,
+            vec!["_".to_string(), "ignored".to_string()]
+        );
+    }
 }

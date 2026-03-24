@@ -4,7 +4,8 @@ use destack_dir::{
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    expression_outer_transparent_ancestor, expression_parent_id, is_void_or_never_type,
+    expression_outer_transparent_ancestor, expression_parent_id, function_return_type,
+    is_void_or_never_type,
 };
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -53,6 +54,8 @@ struct NoConfusingVoidExpressionVisitor<'a, 'b> {
     meta: &'a LintMeta,
     /// Whether explicit `void` unary wrappers are ignored.
     ignore_void_operator: bool,
+    /// Whether returned void expressions are ignored in void-returning functions.
+    ignore_void_returning_functions: bool,
     /// The visitor options.
     options: NodeVisitorOptions,
 }
@@ -63,11 +66,15 @@ impl<'a, 'b> NoConfusingVoidExpressionVisitor<'a, 'b> {
         let ignore_void_operator = ctx
             .options
             .no_confusing_void_expression_ignore_void_operator;
+        let ignore_void_returning_functions = ctx
+            .options
+            .no_confusing_void_expression_ignore_void_returning_functions;
 
         Self {
             ctx,
             meta,
             ignore_void_operator,
+            ignore_void_returning_functions,
             options: NodeVisitorOptions::default(),
         }
     }
@@ -91,7 +98,16 @@ impl<'a, 'b> NoConfusingVoidExpressionVisitor<'a, 'b> {
         }
 
         // keep only value-position usage
-        if invalid_ancestor_expression_id(self.ctx.tree, expression_id).is_none() {
+        let Some(invalid_ancestor_expression_id) =
+            invalid_ancestor_expression_id(self.ctx.tree, expression_id)
+        else {
+            return;
+        };
+
+        // allow returned void expressions in void-returning functions when configured
+        if self.ignore_void_returning_functions
+            && is_void_returning_function_result_position(self.ctx, invalid_ancestor_expression_id)
+        {
             return;
         }
 
@@ -115,6 +131,61 @@ impl<'a, 'b> NoConfusingVoidExpressionVisitor<'a, 'b> {
             )
             .with_label("use `void` as a standalone statement or refactor this expression"),
         );
+    }
+}
+
+/// Return true when one void-like expression is the returned result of a void-returning function.
+fn is_void_returning_function_result_position(
+    ctx: &LintModuleDirContext<'_>,
+    invalid_ancestor_expression_id: dir::LocalNodeId<dir::Expression>,
+) -> bool {
+    let is_direct_return_expression = matches!(
+        ctx.tree.get(invalid_ancestor_expression_id),
+        dir::Expression::Return { value: Some(_) }
+    );
+    let mut current_child_id = invalid_ancestor_expression_id.into_any();
+
+    loop {
+        let Some(parent_node_id) = ctx.tree.get_parent(current_child_id.id) else {
+            return false;
+        };
+
+        // function boundary
+        if parent_node_id.ty == dir::NodeType::Declaration {
+            let parent_declaration_id = parent_node_id.into_typed::<dir::Declaration>();
+            let parent_declaration = ctx.tree.get(parent_declaration_id);
+            let dir::Declaration::Function {
+                descriptor, body, ..
+            } = parent_declaration
+            else {
+                return false;
+            };
+
+            let Some(body_expression_id) = body else {
+                return false;
+            };
+            if body_expression_id.id != current_child_id.id {
+                return false;
+            }
+
+            let function_symbol_id = descriptor.symbol.into_global(ctx.module_id());
+            let Some(function_type_id) = ctx.types.get_value_type_id(function_symbol_id) else {
+                return false;
+            };
+            let Some(return_type_id) = function_return_type(ctx.types, function_type_id) else {
+                return false;
+            };
+            if !is_void_or_never_type(ctx.types, return_type_id) {
+                return false;
+            }
+
+            let body_expression = ctx.tree.get(*body_expression_id);
+            return is_direct_return_expression
+                || invalid_ancestor_expression_id == *body_expression_id
+                    && !matches!(body_expression, dir::Expression::Block { .. });
+        }
+
+        current_child_id = parent_node_id;
     }
 }
 
@@ -404,6 +475,92 @@ const value = !void sideEffect();
         );
         test.result(result)
             .assert_no_lint("no-confusing-void-expression");
+    }
+
+    /// Allow returned void expressions in void-returning functions when configured.
+    #[test]
+    fn test_allows_void_return_in_void_returning_function_when_ignored() {
+        let test = TestProgram::for_rule_without_prelude(NoConfusingVoidExpression).with_options(
+            |options| {
+                options.no_confusing_void_expression_ignore_void_returning_functions = true;
+            },
+        );
+        let result = test.lint_dir(
+            "no_confusing_void_expression/test_allows_void_return_in_void_returning_function_when_ignored.ds",
+            r#"
+function sideEffect(): void {}
+
+function run(): void {
+    return sideEffect();
+}
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("no-confusing-void-expression");
+    }
+
+    /// Allow void-returning lambda shorthand bodies when configured.
+    #[test]
+    fn test_allows_void_lambda_body_when_ignored() {
+        let test = TestProgram::for_rule_without_prelude(NoConfusingVoidExpression).with_options(
+            |options| {
+                options.no_confusing_void_expression_ignore_void_returning_functions = true;
+            },
+        );
+        let result = test.lint_dir(
+            "no_confusing_void_expression/test_allows_void_lambda_body_when_ignored.ts",
+            r#"
+function sideEffect(): void {}
+
+const run = (): void => sideEffect();
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("no-confusing-void-expression");
+    }
+
+    /// Keep flagging returned void expressions in non-void functions.
+    #[test]
+    fn test_flags_void_return_in_non_void_function_when_ignored() {
+        let test = TestProgram::for_rule_without_prelude(NoConfusingVoidExpression).with_options(
+            |options| {
+                options.no_confusing_void_expression_ignore_void_returning_functions = true;
+            },
+        );
+        let result = test.lint_dir(
+            "no_confusing_void_expression/test_flags_void_return_in_non_void_function_when_ignored.ds",
+            r#"
+function sideEffect(): void {}
+
+function run(): unknown {
+    return sideEffect();
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-confusing-void-expression");
+    }
+
+    /// Keep flagging nested void expressions inside returned value expressions.
+    #[test]
+    fn test_flags_nested_void_return_expression_when_ignored() {
+        let test = TestProgram::for_rule_without_prelude(NoConfusingVoidExpression).with_options(
+            |options| {
+                options.no_confusing_void_expression_ignore_void_returning_functions = true;
+            },
+        );
+        let result = test.lint_dir(
+            "no_confusing_void_expression/test_flags_nested_void_return_expression_when_ignored.ds",
+            r#"
+function sideEffect(): void {}
+
+function run(value: boolean): void {
+    return sideEffect() || value;
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-confusing-void-expression");
     }
 
     /// Allow void in non-tail sequence positions.

@@ -351,12 +351,28 @@ pub struct LinterOptions {
     pub include_declaration_files: bool,
     /// Allow explicit `void` to intentionally discard Promise results.
     pub allow_void_discard: bool,
+    /// Allow explicit `void` returns in `no-promise-executor-return`.
+    pub no_promise_executor_return_allow_void: bool,
     /// Check callback positions in `no-misused-promises`.
     pub check_misused_promises_in_callbacks: bool,
     /// Check conditionals in `no-misused-promises`.
     pub check_misused_promises_in_conditionals: bool,
+    /// Check spread positions in `no-misused-promises`.
+    pub check_misused_promises_in_spreads: bool,
+    /// Check switch discriminants and cases in `use-isnan`.
+    pub use_isnan_enforce_switch_case: bool,
+    /// Check `indexOf` and `lastIndexOf` calls in `use-isnan`.
+    pub use_isnan_enforce_index_of: bool,
     /// Ignore explicit `void` wrappers in `no-confusing-void-expression`.
     pub no_confusing_void_expression_ignore_void_operator: bool,
+    /// Ignore returned void expressions inside void-returning functions.
+    pub no_confusing_void_expression_ignore_void_returning_functions: bool,
+    /// Allow empty switch cases in `no-fallthrough`.
+    pub no_fallthrough_allow_empty_case: bool,
+    /// Regex pattern for intentional `no-fallthrough` comments.
+    pub no_fallthrough_comment_pattern: Option<String>,
+    /// Report unused intentional `no-fallthrough` comments.
+    pub no_fallthrough_report_unused_comment: bool,
     /// Await policy for the `return-await` rule.
     pub return_await_mode: ReturnAwaitMode,
     /// Parameter name prefixes ignored by `no-unused-parameters`.
@@ -497,9 +513,17 @@ impl Default for LinterOptions {
             overrides: IndexMap::new(),
             include_declaration_files: false,
             allow_void_discard: true,
+            no_promise_executor_return_allow_void: false,
             check_misused_promises_in_callbacks: true,
             check_misused_promises_in_conditionals: true,
+            check_misused_promises_in_spreads: true,
+            use_isnan_enforce_switch_case: true,
+            use_isnan_enforce_index_of: false,
             no_confusing_void_expression_ignore_void_operator: false,
+            no_confusing_void_expression_ignore_void_returning_functions: false,
+            no_fallthrough_allow_empty_case: false,
+            no_fallthrough_comment_pattern: None,
+            no_fallthrough_report_unused_comment: false,
             return_await_mode: ReturnAwaitMode::default(),
             ignored_unused_parameter_prefixes: vec!["_".to_string()],
             // complexity
@@ -834,12 +858,36 @@ pub struct LinterJson {
     pub allow_single_extends_empty_interface: Option<bool>,
     /// Await policy for the `return-await` rule.
     pub return_await_mode: Option<ReturnAwaitModeJson>,
+    /// Parameter name prefixes ignored by `no-unused-parameters`.
+    pub ignored_unused_parameter_prefixes: Option<Vec<String>>,
     /// Allow named callbacks in `prefer-arrow-callback`.
     pub allow_named_functions_in_prefer_arrow_callback: Option<bool>,
     /// Allow unbound `this` in `prefer-arrow-callback`.
     pub allow_unbound_this_in_prefer_arrow_callback: Option<bool>,
     /// Ignore explicit `void` wrappers in `no-confusing-void-expression`.
     pub no_confusing_void_expression_ignore_void_operator: Option<bool>,
+    /// Ignore returned void expressions inside void-returning functions.
+    pub no_confusing_void_expression_ignore_void_returning_functions: Option<bool>,
+    /// Allow empty switch cases in `no-fallthrough`.
+    pub no_fallthrough_allow_empty_case: Option<bool>,
+    /// Regex pattern for intentional `no-fallthrough` comments.
+    pub no_fallthrough_comment_pattern: Option<String>,
+    /// Report unused intentional `no-fallthrough` comments.
+    pub no_fallthrough_report_unused_comment: Option<bool>,
+    /// Allow explicit `void` to intentionally discard Promise results.
+    pub allow_void_discard: Option<bool>,
+    /// Allow explicit `void` returns in `no-promise-executor-return`.
+    pub no_promise_executor_return_allow_void: Option<bool>,
+    /// Check callback positions in `no-misused-promises`.
+    pub check_misused_promises_in_callbacks: Option<bool>,
+    /// Check conditionals in `no-misused-promises`.
+    pub check_misused_promises_in_conditionals: Option<bool>,
+    /// Check spread positions in `no-misused-promises`.
+    pub check_misused_promises_in_spreads: Option<bool>,
+    /// Check switch discriminants and cases in `use-isnan`.
+    pub use_isnan_enforce_switch_case: Option<bool>,
+    /// Check `indexOf` and `lastIndexOf` calls in `use-isnan`.
+    pub use_isnan_enforce_index_of: Option<bool>,
     /// Prefer top-level `import type` in `consistent-type-imports`.
     pub consistent_type_imports_prefer_type_imports: Option<bool>,
     /// Prefer inline `type` specifiers in `consistent-type-imports`.
@@ -902,6 +950,12 @@ impl LinterJson {
             "linter.allowedRequireImportPatterns",
             self.allowed_require_import_patterns.as_deref(),
         )?;
+        validate_regex_patterns(
+            "linter.noFallthroughCommentPattern",
+            self.no_fallthrough_comment_pattern
+                .as_ref()
+                .map(std::slice::from_ref),
+        )?;
 
         Ok(())
     }
@@ -912,6 +966,34 @@ impl LinterJson {
             options.enabled = enabled;
         }
         self.rules.apply(options);
+
+        // correctness options
+        if let Some(allow_void_discard) = self.allow_void_discard {
+            options.allow_void_discard = allow_void_discard;
+        }
+        if let Some(no_promise_executor_return_allow_void) =
+            self.no_promise_executor_return_allow_void
+        {
+            options.no_promise_executor_return_allow_void = no_promise_executor_return_allow_void;
+        }
+        if let Some(check_misused_promises_in_callbacks) = self.check_misused_promises_in_callbacks
+        {
+            options.check_misused_promises_in_callbacks = check_misused_promises_in_callbacks;
+        }
+        if let Some(check_misused_promises_in_conditionals) =
+            self.check_misused_promises_in_conditionals
+        {
+            options.check_misused_promises_in_conditionals = check_misused_promises_in_conditionals;
+        }
+        if let Some(check_misused_promises_in_spreads) = self.check_misused_promises_in_spreads {
+            options.check_misused_promises_in_spreads = check_misused_promises_in_spreads;
+        }
+        if let Some(use_isnan_enforce_switch_case) = self.use_isnan_enforce_switch_case {
+            options.use_isnan_enforce_switch_case = use_isnan_enforce_switch_case;
+        }
+        if let Some(use_isnan_enforce_index_of) = self.use_isnan_enforce_index_of {
+            options.use_isnan_enforce_index_of = use_isnan_enforce_index_of;
+        }
 
         // complexity thresholds
         if let Some(max_booleans) = self.max_booleans {
@@ -1012,6 +1094,27 @@ impl LinterJson {
         {
             options.no_confusing_void_expression_ignore_void_operator =
                 no_confusing_void_expression_ignore_void_operator;
+        }
+        if let Some(no_confusing_void_expression_ignore_void_returning_functions) =
+            self.no_confusing_void_expression_ignore_void_returning_functions
+        {
+            options.no_confusing_void_expression_ignore_void_returning_functions =
+                no_confusing_void_expression_ignore_void_returning_functions;
+        }
+        if let Some(no_fallthrough_allow_empty_case) = self.no_fallthrough_allow_empty_case {
+            options.no_fallthrough_allow_empty_case = no_fallthrough_allow_empty_case;
+        }
+        if let Some(ref no_fallthrough_comment_pattern) = self.no_fallthrough_comment_pattern {
+            options.no_fallthrough_comment_pattern = Some(no_fallthrough_comment_pattern.clone());
+        }
+        if let Some(no_fallthrough_report_unused_comment) =
+            self.no_fallthrough_report_unused_comment
+        {
+            options.no_fallthrough_report_unused_comment = no_fallthrough_report_unused_comment;
+        }
+        if let Some(ref ignored_unused_parameter_prefixes) = self.ignored_unused_parameter_prefixes
+        {
+            options.ignored_unused_parameter_prefixes = ignored_unused_parameter_prefixes.clone();
         }
         if let Some(consistent_type_imports_prefer_type_imports) =
             self.consistent_type_imports_prefer_type_imports
@@ -1123,6 +1226,10 @@ impl LinterJson {
 static ALLOWED_REQUIRE_IMPORT_PATTERNS_CACHE: LazyLock<Mutex<HashMap<Vec<String>, Arc<[Regex]>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
+/// Cached compiled regex patterns for `noFallthroughCommentPattern`.
+static NO_FALLTHROUGH_COMMENT_PATTERN_CACHE: LazyLock<Mutex<HashMap<String, Arc<Regex>>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
 /// Validate one list of regex patterns.
 fn validate_regex_patterns(field_name: &str, patterns: Option<&[String]>) -> Result<(), String> {
     let Some(patterns) = patterns else {
@@ -1158,6 +1265,27 @@ pub fn compiled_allowed_require_import_patterns(patterns: &[String]) -> Arc<[Reg
     let compiled_patterns = Arc::<[Regex]>::from(compiled_patterns);
     cache.insert(patterns.to_vec(), compiled_patterns.clone());
     compiled_patterns
+}
+
+/// Return a compiled comment pattern for `no-fallthrough`.
+pub fn compiled_no_fallthrough_comment_pattern(pattern: Option<&str>) -> Option<Arc<Regex>> {
+    let pattern = pattern?;
+
+    let mut cache = NO_FALLTHROUGH_COMMENT_PATTERN_CACHE
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+
+    if let Some(compiled_pattern) = cache.get(pattern) {
+        return Some(compiled_pattern.clone());
+    }
+
+    // validated config invariant
+    let compiled_pattern = Arc::new(
+        Regex::new(pattern)
+            .expect("validated config invariant: no-fallthrough comment pattern compiles"),
+    );
+    cache.insert(pattern.to_string(), compiled_pattern.clone());
+    Some(compiled_pattern)
 }
 
 /// Module boundary options for linter configuration JSON.

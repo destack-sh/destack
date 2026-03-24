@@ -70,9 +70,7 @@ High-confidence issues that are almost always wrong.
 
 | Code | Rule | Source | Level | Status | Autofix Support | Fixability | Description |
 |------|------|--------|-------|--------|------------------|------------|-------------|
-| `LC045` | `await-holding-lock` | Clippy | DIR |  |  | None | Disallow holding a mutex lock across an await point |
 | `LC001` | `for-direction` | ESLint | AST | ✓ | Sometimes | Unsafe | Enforce for loop update clause moving in the correct direction |
-| `LC060` | `improper-ctypes` | Rust | DIR |  |  | None | Disallow FFI signatures with ABI-unsafe types |
 | `LC002` | `no-approx-constant` | Destack | AST | ✓ | Sometimes | Safe | Disallow approximate representations of mathematical constants |
 | `LC046` | `no-arguments-order-mismatch` | SonarQube | DIR | ✓ | No | None | Disallow arguments that appear swapped based on parameter names |
 | `LC003` | `no-array-constructor` | ESLint | DIR | ✓ | Sometimes | Safe | Disallow `new Array()` (confusing behavior) |
@@ -89,7 +87,7 @@ High-confidence issues that are almost always wrong.
 | `LC015` | `no-floating-point-equality` | Clippy | DIR | ✓ | No | None | Disallow direct `==` comparison of floats |
 | `LC014` | `no-fallthrough` | ESLint | AST | ✓ | Always | Suggestion | Disallow fallthrough of case statements |
 | `LC016` | `no-floating-promises` | TS-ESLint | DIR | ✓ | Sometimes | Suggestion | Require Promises to be awaited or returned |
-| `LC017` | `no-for-in-array` | TS-ESLint | DIR | ✓ | Sometimes | Unsafe | Disallow iterating over arrays with for-in |
+| `LC017` | `no-for-in-array` | TS-ESLint | DIR | ✓ | No | None | Disallow iterating over arrays with for-in |
 | `LC018` | `no-implicit-any` | TypeScript | DIR | ✓ | Always | Suggestion | Disallow implicit `any` types |
 | `LC019` | `no-infinite-recursion` | ErrorProne | DIR | ✓ | No | None | Disallow functions that unconditionally call themselves |
 | `LC020` | `no-invalid-regexp` | ESLint | AST | ✓ | No | None | Disallow invalid regular expression strings |
@@ -99,7 +97,7 @@ High-confidence issues that are almost always wrong.
 | `LC048` | `no-overlapping-match-arms` | Destack | DIR | ✓ | Always | Unsafe | Disallow match patterns that subsume later arms |
 | `LC024` | `no-promise-executor-return` | ESLint | DIR | ✓ | Sometimes | Safe | Disallow returning values from Promise executor |
 | `LC025` | `no-self-compare` | ESLint | DIR | ✓ | No | None | Disallow comparisons where both sides are exactly the same |
-| `LC026` | `no-sparse-arrays` | ESLint | AST | ✓ | Always | Safe | Disallow sparse arrays with holes |
+| `LC026` | `no-sparse-arrays` | ESLint | AST | ✓ | No | None | Disallow sparse arrays with holes |
 | `LC027` | `no-struct-identity-compare` | Destack | DIR | ✓ | No | None | Disallow identity comparison on value types |
 | `LC028` | `no-throw-in-result-function` | Destack | DIR | ✓ | No | None | Disallow `throw` in functions returning `Result` |
 | `LC031` | `no-unnecessary-type-arguments` | TS-ESLint | DIR | ✓ | Sometimes | Safe | Disallow type arguments that equal the default |
@@ -109,15 +107,15 @@ High-confidence issues that are almost always wrong.
 | `LC029` | `no-unknown-rule-decorator` | Destack | AST | ✓ | No | None | Disallow unknown rule decorators |
 | `LC030` | `no-unnecessary-condition` | TS-ESLint | DIR | ✓ | No | None | Disallow conditions that are always truthy, always falsy, or never nullish |
 | `LC035` | `no-unused-imports` | Destack | DIR | ✓ | Sometimes | Safe | Disallow unused import bindings |
-| `LC036` | `no-unused-parameters` | Destack | DIR | ✓ | Sometimes | Safe | Disallow unused function and method parameters |
+| `LC036` | `no-unused-parameters` | Destack | DIR | ✓ | Sometimes | Unsafe | Disallow unused function and method parameters |
 | `LC037` | `no-unused-private-class-members` | Destack | DIR | ✓ | Sometimes | Unsafe | Disallow unused private class members |
-| `LC038` | `no-useless-assignment` | ESLint | DIR | ✓ | Sometimes | Unsafe | Disallow assignments that are immediately overwritten |
-| `LC039` | `no-useless-increment` | SonarQube | DIR | ✓ | Always | Safe | Disallow incrementing a value that is never used afterward |
+| `LC038` | `no-useless-assignment` | ESLint | DIR | ✓ | No | None | Disallow assignments that are immediately overwritten |
+| `LC039` | `no-useless-increment` | SonarQube | DIR | ✓ | No | None | Disallow incrementing a value that is never used afterward |
 | `LC040` | `require-array-sort-compare` | TS-ESLint | DIR | ✓ | No | None | Require comparison function for `.sort()` |
 | `LC041` | `unbound-method` | TS-ESLint | DIR | ✓ | Sometimes | Unsafe | Disallow unbound methods as callbacks |
 | `LC042` | `unused-must-use` | Destack | DIR | ✓ | Always | Suggestion | Disallow ignoring return values of `@mustUse` functions |
 | `LC043` | `use-isnan` | ESLint | AST | ✓ | Sometimes | Safe | Require `Number.isNaN()` instead of comparisons with `NaN` |
-| `LC044` | `use-unknown-in-catch-callback-variable` | TS-ESLint | DIR | ✓ | Sometimes | Safe | Require `unknown` for catch callback variables instead of `any` |
+| `LC044` | `use-unknown-in-catch-callback-variable` | TS-ESLint | DIR | ✓ | Sometimes | Unsafe | Require `unknown` for catch callback variables instead of `any` |
 
 ## Suspicious (U)
 

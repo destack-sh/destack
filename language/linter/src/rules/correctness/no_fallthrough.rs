@@ -1,7 +1,9 @@
-use destack_ast as ast;
-use destack_workspace::LintSeverity;
+use regex::Regex;
 
-use crate::rules::common::is_fallthrough_comment;
+use destack_ast as ast;
+use destack_workspace::{LintSeverity, compiled_no_fallthrough_comment_pattern};
+
+use crate::rules::common::fallthrough_comment_matches;
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
 
 declare_lint! {
@@ -33,6 +35,11 @@ impl LintRule for NoFallthrough {
     /// Check module AST nodes for switch fallthrough cases.
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
+        let allow_empty_case = ctx.options.no_fallthrough_allow_empty_case;
+        let fallthrough_comment_pattern = compiled_no_fallthrough_comment_pattern(
+            ctx.options.no_fallthrough_comment_pattern.as_deref(),
+        );
+        let report_unused_comment = ctx.options.no_fallthrough_report_unused_comment;
 
         // inspect candidate expressions
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -62,8 +69,19 @@ impl LintRule for NoFallthrough {
                         if let Some(id) = body_expression_id {
                             (*id, true)
                         } else {
+                            let fallthrough_comment_span = fallthrough_comment_between_cases(
+                                ctx,
+                                *case_id,
+                                next_case_id,
+                                fallthrough_comment_pattern.as_deref(),
+                            );
+
+                            if allow_empty_case {
+                                continue;
+                            }
+
                             // allow explicit intentional fallthrough comments
-                            if has_fallthrough_comment_between_cases(ctx, *case_id, next_case_id) {
+                            if fallthrough_comment_span.is_some() {
                                 continue;
                             }
 
@@ -104,8 +122,15 @@ impl LintRule for NoFallthrough {
 
                 // enforce this lint guard
                 if !terminates {
+                    let fallthrough_comment_span = fallthrough_comment_between_cases(
+                        ctx,
+                        *case_id,
+                        next_case_id,
+                        fallthrough_comment_pattern.as_deref(),
+                    );
+
                     // allow explicit intentional fallthrough comments
-                    if has_fallthrough_comment_between_cases(ctx, *case_id, next_case_id) {
+                    if fallthrough_comment_span.is_some() {
                         continue;
                     }
 
@@ -133,38 +158,75 @@ impl LintRule for NoFallthrough {
                     }
 
                     ctx.report(diagnostic);
+                } else if report_unused_comment
+                    && let Some(comment_span) = fallthrough_comment_between_cases(
+                        ctx,
+                        *case_id,
+                        next_case_id,
+                        fallthrough_comment_pattern.as_deref(),
+                    )
+                {
+                    report_unused_fallthrough_comment(ctx, meta, *case_id, comment_span);
                 }
             }
         }
     }
 }
 
-/// Return true when comments between two switch cases declare intentional fallthrough.
-fn has_fallthrough_comment_between_cases(
+/// Return the intentional fallthrough comment span between two switch cases.
+fn fallthrough_comment_between_cases(
     ctx: &LintAstContext<'_>,
     current_case_id: ast::LocalNodeId<ast::MatchCase>,
     next_case_id: ast::LocalNodeId<ast::MatchCase>,
-) -> bool {
+    fallthrough_comment_pattern: Option<&Regex>,
+) -> Option<destack_source::Span> {
     let current_span = ctx.tree.get_span(current_case_id);
     let next_span = ctx.tree.get_span(next_case_id);
     if current_span.end > next_span.start {
-        return false;
+        return None;
     }
 
     // search all comments in the case gap for intent markers
-    ctx.tree.comment_trivia().iter().any(|comment_trivia| {
+    ctx.tree.comment_trivia().iter().find_map(|comment_trivia| {
         let comment_span = comment_trivia.span;
         if comment_span.file != ctx.module.file_id {
-            return false;
+            return None;
         }
         if comment_span.start < current_span.start || comment_span.end > next_span.start {
-            return false;
+            return None;
         }
 
         // resolve comment text
         let comment_text = ctx.get_span_text(comment_span);
-        is_fallthrough_comment(comment_text)
+        fallthrough_comment_matches(comment_text, fallthrough_comment_pattern)
+            .then_some(comment_span)
     })
+}
+
+/// Report one unused fallthrough comment.
+fn report_unused_fallthrough_comment(
+    ctx: &mut LintAstContext<'_>,
+    meta: &LintMeta,
+    case_id: ast::LocalNodeId<ast::MatchCase>,
+    comment_span: destack_source::Span,
+) {
+    let severity = ctx.get_effective_severity(meta, case_id);
+    if !severity.is_enabled() {
+        return;
+    }
+
+    ctx.report(
+        LintDiagnostic::new(
+            NO_FALLTHROUGH.id,
+            NO_FALLTHROUGH.code,
+            NO_FALLTHROUGH.category,
+            severity,
+            "unused fallthrough comment",
+            ctx.module.file_id,
+            comment_span,
+        )
+        .with_label("this case cannot fall through, so the comment is misleading"),
+    );
 }
 
 /// Build an unsafe fix by inserting `break;` at the end of a switch case.
@@ -479,6 +541,86 @@ switch (x) {
         log("one");
         /* fallthrough */
     }
+    case 2:
+        break;
+}
+"#,
+        );
+        test.result(result).assert_no_lint("no-fallthrough");
+    }
+
+    #[test]
+    fn test_allows_empty_case_when_configured() {
+        let test = TestProgram::for_rule_without_prelude(NoFallthrough).with_options(|options| {
+            options.no_fallthrough_allow_empty_case = true;
+        });
+        let result = test.lint_ast(
+            "no_fallthrough/test_allows_empty_case_when_configured.ds",
+            r#"
+let x = 1;
+switch (x) {
+    case 1:
+    case 2:
+        break;
+}
+"#,
+        );
+        test.result(result).assert_no_lint("no-fallthrough");
+    }
+
+    #[test]
+    fn test_allows_custom_fallthrough_comment_pattern() {
+        let test = TestProgram::for_rule_without_prelude(NoFallthrough).with_options(|options| {
+            options.no_fallthrough_comment_pattern = Some("no break".to_string());
+        });
+        let result = test.lint_ast(
+            "no_fallthrough/test_allows_custom_fallthrough_comment_pattern.ds",
+            r#"
+let x = 1;
+switch (x) {
+    case 1:
+        log("one");
+        // no break
+    case 2:
+        break;
+}
+"#,
+        );
+        test.result(result).assert_no_lint("no-fallthrough");
+    }
+
+    #[test]
+    fn test_reports_unused_fallthrough_comment_when_enabled() {
+        let test = TestProgram::for_rule_without_prelude(NoFallthrough).with_options(|options| {
+            options.no_fallthrough_report_unused_comment = true;
+        });
+        let result = test.lint_ast(
+            "no_fallthrough/test_reports_unused_fallthrough_comment_when_enabled.ds",
+            r#"
+let x = 1;
+switch (x) {
+    case 1:
+        break;
+        // fallthrough
+    case 2:
+        break;
+}
+"#,
+        );
+        test.result(result).assert_lint("no-fallthrough");
+    }
+
+    #[test]
+    fn test_ignores_unused_fallthrough_comment_by_default() {
+        let test = TestProgram::for_rule_without_prelude(NoFallthrough);
+        let result = test.lint_ast(
+            "no_fallthrough/test_ignores_unused_fallthrough_comment_by_default.ds",
+            r#"
+let x = 1;
+switch (x) {
+    case 1:
+        break;
+        // fallthrough
     case 2:
         break;
 }
