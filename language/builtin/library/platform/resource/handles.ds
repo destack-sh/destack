@@ -189,6 +189,9 @@ export newtype PermissionRequestHandle = ResourceId;
 /// Handle for one input device endpoint.
 export newtype InputDeviceHandle = ResourceId;
 
+/// Handle for one text input session.
+export newtype InputTextSessionHandle = ResourceId;
+
 /// Handle for one global input monitor stream.
 export newtype InputMonitorHandle = ResourceId;
 
