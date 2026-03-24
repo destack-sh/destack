@@ -108,14 +108,19 @@ fn default_target_outputs(
 }
 
 fn resolved_bundle_mode(
+    explicit_mode: Option<BundleMode>,
     discovery: TargetDiscovery,
     entry_count: usize,
     emit: EmitFormat,
     out_file: bool,
     bundle: &TargetBundle,
 ) -> BundleMode {
-    if emit == EmitFormat::Html || out_file || emit.is_single_file() {
+    if out_file || emit.is_single_file() {
         return BundleMode::SingleFile;
+    }
+
+    if let Some(explicit_mode) = explicit_mode {
+        return explicit_mode;
     }
 
     if bundle.preserve_modules {
@@ -137,6 +142,7 @@ fn resolved_bundle_mode(
 }
 
 fn is_assembled_target(
+    explicit_bundle_mode: Option<BundleMode>,
     discovery: TargetDiscovery,
     entry_count: usize,
     app: &TargetAppDeclaration,
@@ -144,7 +150,14 @@ fn is_assembled_target(
     bundle: &TargetBundle,
     out_file: bool,
 ) -> bool {
-    let bundle_mode = resolved_bundle_mode(discovery, entry_count, emit, out_file, bundle);
+    let bundle_mode = resolved_bundle_mode(
+        explicit_bundle_mode,
+        discovery,
+        entry_count,
+        emit,
+        out_file,
+        bundle,
+    );
 
     if out_file || emit.is_single_file() {
         return true;
@@ -533,6 +546,7 @@ impl Target {
     /// Return whether this target assembles one target level output shape.
     pub fn emits_assembled_output(&self) -> bool {
         is_assembled_target(
+            Some(self.bundle.mode),
             self.discovery,
             self.entry.len(),
             &self.app,
@@ -991,18 +1005,61 @@ impl Target {
     ) -> PathBuf {
         let out_dir = self.resolve_out_dir(package_dir);
 
-        // compute module's relative path within the package
-        let relative = module_path.strip_prefix(package_dir).unwrap_or(module_path);
-
-        // strip root_dir prefix if specified (e.g., "src/" → "")
-        let relative = if let Some(root_dir) = root_dir {
-            relative.strip_prefix(root_dir).unwrap_or(relative)
-        } else {
-            relative
-        };
+        // module path
+        let relative = self.relative_module_output_path(package_dir, root_dir, module_path);
 
         // change extension and join with output directory
         out_dir.join(relative.with_extension(extension))
+    }
+
+    /// Return the relative output path for one emitted module artifact.
+    fn relative_module_output_path(
+        &self,
+        package_dir: &Path,
+        root_dir: Option<&Path>,
+        module_path: &Path,
+    ) -> PathBuf {
+        let relative = module_path.strip_prefix(package_dir).unwrap_or(module_path);
+
+        // preserve modules root
+        if let Some(relative) = self.strip_preserve_modules_root(package_dir, module_path, relative)
+        {
+            return relative.to_path_buf();
+        }
+
+        // compiler root dir
+        if let Some(root_dir) = root_dir {
+            return relative
+                .strip_prefix(root_dir)
+                .unwrap_or(relative)
+                .to_path_buf();
+        }
+
+        relative.to_path_buf()
+    }
+
+    /// Strip the configured preserve-modules root from one module path when possible.
+    fn strip_preserve_modules_root<'a>(
+        &self,
+        package_dir: &Path,
+        module_path: &'a Path,
+        package_relative_path: &'a Path,
+    ) -> Option<&'a Path> {
+        let preserve_modules_root = self.bundle.preserve_modules_root.as_deref()?;
+
+        // package relative root
+        if let Ok(relative) = package_relative_path.strip_prefix(preserve_modules_root) {
+            return Some(relative);
+        }
+
+        // absolute root
+        if preserve_modules_root.is_absolute() {
+            return module_path.strip_prefix(preserve_modules_root).ok();
+        }
+
+        let absolute_root = package_dir.join(preserve_modules_root);
+
+        module_path.strip_prefix(&absolute_root).ok()
     }
 }
 
@@ -1142,6 +1199,98 @@ pub struct TargetOptions {
     pub check_failure: CheckFailurePolicy,
     /// Global allocator selection for native targets.
     pub allocator: Allocator,
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::{Path, PathBuf};
+
+    use super::{Target, TargetJson, TargetOptions};
+
+    /// Strip the configured preserve-modules root before mirroring one module path.
+    #[test]
+    fn test_resolves_out_file_with_preserve_modules_root() {
+        let mut target = Target::js("library");
+        target.bundle.preserve_modules = true;
+        target.bundle.preserve_modules_root = Some(PathBuf::from("src"));
+        target.out_dir = PathBuf::from("dist/library");
+
+        let output = target.resolve_out_file(
+            Path::new("/workspace/pkg"),
+            Some(Path::new("src")),
+            Path::new("/workspace/pkg/src/application.js"),
+            "js",
+        );
+
+        assert_eq!(
+            output,
+            Path::new("/workspace/pkg/dist/library/application.js")
+        );
+    }
+
+    /// Fall back to the compiler root dir when no preserve-modules root was configured.
+    #[test]
+    fn test_resolves_out_file_with_root_dir_fallback() {
+        let mut target = Target::js("library");
+        target.bundle.preserve_modules = true;
+        target.out_dir = PathBuf::from("dist/library");
+
+        let output = target.resolve_out_file(
+            Path::new("/workspace/pkg"),
+            Some(Path::new("src")),
+            Path::new("/workspace/pkg/src/application.js"),
+            "js",
+        );
+
+        assert_eq!(
+            output,
+            Path::new("/workspace/pkg/dist/library/application.js")
+        );
+    }
+
+    /// Keep the full package-relative path when neither root hint applies.
+    #[test]
+    fn test_resolves_out_file_without_any_root_hint() {
+        let mut target = Target::js("library");
+        target.bundle.preserve_modules = true;
+        target.out_dir = PathBuf::from("dist/library");
+
+        let output = target.resolve_out_file(
+            Path::new("/workspace/pkg"),
+            None,
+            Path::new("/workspace/pkg/src/application.js"),
+            "js",
+        );
+
+        assert_eq!(
+            output,
+            Path::new("/workspace/pkg/dist/library/src/application.js")
+        );
+    }
+
+    /// Preserve the configured preserve-modules root through target normalization.
+    #[test]
+    fn test_normalizes_preserve_modules_root_from_json() {
+        let json: TargetJson = serde_json::from_str(
+            r#"
+            {
+              "emit": "js",
+              "entry": ["src/application.js"],
+              "bundle": {
+                "preserveModules": true,
+                "preserveModulesRoot": "src"
+              }
+            }
+            "#,
+        )
+        .unwrap_or_else(|error| panic!("failed to parse target options json: {error}"));
+        let target = TargetOptions::from(&json).to_target("library");
+
+        assert_eq!(
+            target.bundle.preserve_modules_root,
+            Some(PathBuf::from("src"))
+        );
+    }
 }
 
 impl Default for TargetOptions {
@@ -1348,6 +1497,7 @@ impl TargetOptions {
             .unwrap_or_default();
         let source_map_mode = bundle.output.sourcemap;
         bundle.mode = resolved_bundle_mode(
+            json.bundle.as_ref().and_then(|bundle| bundle.mode),
             discovery,
             entry.len(),
             emit,
@@ -1356,6 +1506,7 @@ impl TargetOptions {
         );
         bundle.output.sourcemap = source_map_mode;
         let is_assembled = is_assembled_target(
+            json.bundle.as_ref().and_then(|bundle| bundle.mode),
             discovery,
             entry.len(),
             &app,
