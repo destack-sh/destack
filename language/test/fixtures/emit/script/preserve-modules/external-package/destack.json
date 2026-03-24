@@ -5,15 +5,13 @@
       "emit": "js",
       "include": ["src/**/*.ts"],
       "outDir": "dist/library",
-      "sourceMapMode": "external",
       "bundle": {
-        "chunk": {
-          "preserveModules": true
-        },
-        "dependency": {
+        "preserveModules": true,
+        "dependencies": {
           "neverBundle": ["react"]
         },
         "output": {
+          "sourcemap": "external",
           "manifest": true
         }
       }

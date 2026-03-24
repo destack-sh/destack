@@ -85,7 +85,7 @@ impl Compiler {
 
     /// Return whether one selected target explicitly externalizes a specifier.
     fn target_externalizes_dependency_specifier(&self, target: &Target, specifier: &str) -> bool {
-        let dependency = &target.bundle.dependency;
+        let dependency = &target.bundle.dependencies;
 
         dependency
             .external
@@ -98,7 +98,7 @@ impl Compiler {
     }
 
     /// Return one explicit external module target when target policy preserves the package.
-    fn externalized_package_import_target(
+    pub(crate) fn externalized_package_import_target(
         &self,
         module: &Module,
         profile: ProfileId,

@@ -50,11 +50,19 @@ impl<'a> OutputLayout<'a> {
 
     /// Resolve one manifest output path for this target.
     pub(crate) fn manifest_location(&self) -> OutputLocation {
-        OutputLocation::new(
-            self.target
-                .resolve_out_dir(self.package_dir)
-                .join(format!("{}.manifest.json", self.target.name)),
-        )
+        let manifest_directory = if let Some(out_file) = self.target.out_file.as_ref() {
+            let out_file = if out_file.is_absolute() {
+                out_file.clone()
+            } else {
+                self.package_dir.join(out_file)
+            };
+
+            out_file.parent().unwrap_or(self.package_dir).to_path_buf()
+        } else {
+            self.target.resolve_out_dir(self.package_dir)
+        };
+
+        OutputLocation::new(manifest_directory.join(format!("{}.manifest.json", self.target.name)))
     }
 
     /// Resolve one linked HTML document path for this target.
@@ -64,11 +72,16 @@ impl<'a> OutputLayout<'a> {
 
     /// Resolve one linked script entry path for this target.
     pub(crate) fn script_entry_location(&self) -> OutputLocation {
+        self.script_named_entry_location(&self.target.name)
+    }
+
+    /// Resolve one linked script entry chunk path for one chunk name.
+    pub(crate) fn script_named_entry_location(&self, chunk_name: &str) -> OutputLocation {
         if self.target.emit == destack_artifact::EmitFormat::Html {
             return OutputLocation::new(
                 self.document_location()
                     .path()
-                    .with_file_name(self.entry_file_name("js")),
+                    .with_file_name(self.entry_file_name(chunk_name, "js")),
             );
         }
 
@@ -76,7 +89,18 @@ impl<'a> OutputLayout<'a> {
             return OutputLocation::new(self.default_target_output_path("js"));
         }
 
-        OutputLocation::new(self.output_directory().join(self.entry_file_name("js")))
+        OutputLocation::new(
+            self.output_directory()
+                .join(self.entry_file_name(chunk_name, "js")),
+        )
+    }
+
+    /// Resolve one linked script shared chunk path for one chunk name.
+    pub(crate) fn script_chunk_location(&self, chunk_name: &str) -> OutputLocation {
+        OutputLocation::new(
+            self.output_directory()
+                .join(self.chunk_file_name(chunk_name, "js")),
+        )
     }
 
     /// Resolve one standalone source map path next to one output file.
@@ -147,10 +171,19 @@ impl<'a> OutputLayout<'a> {
     }
 
     /// Build one entry file name for this target.
-    fn entry_file_name(&self, extension: &str) -> String {
+    fn entry_file_name(&self, name: &str, extension: &str) -> String {
         self.render_output_file_name(
             self.target.bundle.output.entry_file_names.as_deref(),
-            &self.target.name,
+            name,
+            extension,
+        )
+    }
+
+    /// Build one shared chunk file name for this target.
+    fn chunk_file_name(&self, name: &str, extension: &str) -> String {
+        self.render_output_file_name(
+            self.target.bundle.output.chunk_file_names.as_deref(),
+            name,
             extension,
         )
     }
@@ -296,6 +329,20 @@ mod tests {
         assert_eq!(
             layout.script_entry_location().path(),
             Path::new("/workspace/pkg/dist/entries/app-bundle.js")
+        );
+    }
+
+    /// Render configured chunk file name templates for shared chunks.
+    #[test]
+    fn test_renders_chunk_file_name_template_for_script_chunk() {
+        let mut target = Target::js("app");
+        target.bundle.output.chunk_file_names = Some("chunks/[name]-shared.[ext]".to_string());
+
+        let layout = OutputLayout::new(Path::new("/workspace/pkg"), &target);
+
+        assert_eq!(
+            layout.script_chunk_location("shared-value").path(),
+            Path::new("/workspace/pkg/dist/chunks/shared-value-shared.js")
         );
     }
 }

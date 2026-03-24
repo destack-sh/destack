@@ -5,12 +5,10 @@
       "emit": "js",
       "include": ["src/**/*.js"],
       "outDir": "dist/library",
-      "sourceMapMode": "external",
       "bundle": {
-        "chunk": {
-          "preserveModules": true
-        },
+        "preserveModules": true,
         "output": {
+          "sourcemap": "external",
           "manifest": true
         }
       }

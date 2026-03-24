@@ -7,7 +7,7 @@ use destack_artifact::{
 use destack_source::{
     DiagnosticSeverity, DiffOptions, FileType, ModuleId, PackageId, Uri, print_diff,
 };
-use destack_workspace::{SourceMapMode, Target, TargetDiscovery, TargetId};
+use destack_workspace::{BundleMode, SourceMapMode, Target, TargetDiscovery, TargetId};
 use indexmap::IndexMap;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
@@ -49,24 +49,55 @@ pub(super) struct LinkedScriptTarget {
     pub entry: LinkedTextFile,
     /// The emitted manifest output.
     pub manifest: LinkedJsonFile<BuildManifest>,
-    /// The emitted source map output.
-    pub map: LinkedJsonFile<SourceMapArtifact>,
+    /// The emitted source map output when one exists.
+    pub map: Option<LinkedJsonFile<SourceMapArtifact>>,
 }
 
 impl TestProgram {
     /// Configure one single-file JavaScript target for linker tests.
     pub(super) fn configure_single_file_js_target(&self, module_id: ModuleId, name: &str) {
+        let entry_path = {
+            let module = self.program.modules.get(module_id);
+            self.normalize_uri_path(module.package_id, &module.uri)
+        };
+
         self.configure_target(module_id, name, |target| {
             // entry based linking
             target.discovery = TargetDiscovery::Entry;
-            target.entry = vec![PathBuf::from("main.ts")];
+            target.entry = vec![PathBuf::from(&entry_path)];
 
             // single-file bundle surface
             target.out_file = Some(PathBuf::from(format!("dist/{name}.js")));
 
             // manifest and external maps
             target.bundle.output.manifest = true;
-            target.source_map_mode = Some(SourceMapMode::External);
+            target.bundle.output.sourcemap = Some(SourceMapMode::External);
+        });
+    }
+
+    /// Configure one chunked JavaScript target for linker tests.
+    pub(super) fn configure_chunked_js_target(&self, module_ids: &[ModuleId], name: &str) {
+        let entry_paths = module_ids
+            .iter()
+            .map(|module_id| {
+                let module = self.program.modules.get(*module_id);
+                self.normalize_uri_path(module.package_id, &module.uri)
+            })
+            .map(PathBuf::from)
+            .collect::<Vec<_>>();
+
+        self.configure_target(module_ids[0], name, |target| {
+            // entry based linking
+            target.discovery = TargetDiscovery::Entry;
+            target.entry = entry_paths;
+
+            // chunked bundle surface
+            target.out_dir = PathBuf::from("dist");
+            target.bundle.mode = BundleMode::Chunked;
+
+            // manifest and external maps
+            target.bundle.output.manifest = true;
+            target.bundle.output.sourcemap = Some(SourceMapMode::External);
         });
     }
 
@@ -110,6 +141,29 @@ impl TestProgram {
         self.linked_script_target(package_id, &output)
     }
 
+    /// Build one chunked JavaScript target with extra configuration and return the linked output.
+    pub(super) fn link_chunked_js_target_with<F>(
+        &self,
+        module_ids: &[ModuleId],
+        name: &str,
+        configure: F,
+    ) -> PackageOutput
+    where
+        F: FnOnce(&mut Target),
+    {
+        let package_id = self.program.modules.get(module_ids[0]).package_id;
+        let target_id = TargetId::new(package_id, name);
+
+        self.configure_chunked_js_target(module_ids, name);
+        self.configure_target(module_ids[0], name, configure);
+        self.run(ArtifactKey::package_output(package_id, target_id));
+
+        // clean builds are easier to reason about in linker tests
+        self.check_no_diagnostic(DiagnosticSeverity::Error);
+
+        self.package_output(package_id, name)
+    }
+
     /// Assert one linked script target exactly.
     pub(super) fn assert_linked_script_target(
         &self,
@@ -120,7 +174,7 @@ impl TestProgram {
         self.assert_linked_script_output_groups(actual, &expected.output_groups);
         self.assert_linked_script_entry(actual, &expected.entry);
         self.assert_linked_script_manifest(actual, &expected.manifest);
-        self.assert_linked_script_map(actual, &expected.map);
+        self.assert_linked_script_map(actual, expected.map.as_ref());
     }
 
     /// Assert the assembly mode for one linked script target.
@@ -163,9 +217,20 @@ impl TestProgram {
     pub(super) fn assert_linked_script_map(
         &self,
         actual: &LinkedScriptTarget,
-        expected: &LinkedJsonFile<SourceMapArtifact>,
+        expected: Option<&LinkedJsonFile<SourceMapArtifact>>,
     ) {
-        self.assert_linked_json_file(&actual.map, expected, "linked source map output");
+        match (&actual.map, expected) {
+            (Some(actual), Some(expected)) => {
+                self.assert_linked_json_file(actual, expected, "linked source map output");
+            }
+            (None, None) => {}
+            (Some(actual), None) => {
+                panic!("unexpected linked source map output: {}", actual.path);
+            }
+            (None, Some(expected)) => {
+                panic!("missing linked source map output: {}", expected.path);
+            }
+        }
     }
 
     /// Normalize one linked script target into exact assertion data.
@@ -191,7 +256,7 @@ impl TestProgram {
             output_groups,
             entry: self.single_text_output(package_id, output, TargetOutputName::Entry),
             manifest: self.single_json_output(package_id, output, TargetOutputName::Manifest),
-            map: self.single_json_output(package_id, output, TargetOutputName::Maps),
+            map: self.optional_json_output(package_id, output, TargetOutputName::Maps),
         }
     }
 
@@ -214,8 +279,35 @@ impl TestProgram {
         }
     }
 
+    /// Return one normalized text output file addressed by package-relative path.
+    pub(super) fn linked_text_output_at_path(
+        &self,
+        package_id: PackageId,
+        output: &PackageOutput,
+        output_name: TargetOutputName,
+        expected_path: &str,
+    ) -> LinkedTextFile {
+        let files = output
+            .outputs
+            .get(&output_name)
+            .unwrap_or_else(|| panic!("missing output group '{}'", output_name.as_str()));
+        let file = files
+            .iter()
+            .find(|file| self.normalize_uri_path(package_id, &file.uri) == expected_path)
+            .unwrap_or_else(|| panic!("missing output file '{}'", expected_path));
+
+        match &file.content {
+            OutputContent::Text { code, file_type } => LinkedTextFile {
+                path: self.normalize_uri_path(package_id, &file.uri),
+                file_type: *file_type,
+                text: code.clone(),
+            },
+            _ => panic!("expected text output in '{}'", output_name.as_str()),
+        }
+    }
+
     /// Return one normalized JSON output file from the given group.
-    fn single_json_output<T>(
+    pub(super) fn single_json_output<T>(
         &self,
         package_id: PackageId,
         output: &PackageOutput,
@@ -243,6 +335,47 @@ impl TestProgram {
                 }),
             },
             _ => panic!("expected json output in '{}'", output_name.as_str()),
+        }
+    }
+
+    /// Return one normalized optional JSON output file from the given group.
+    fn optional_json_output<T>(
+        &self,
+        package_id: PackageId,
+        output: &PackageOutput,
+        output_name: TargetOutputName,
+    ) -> Option<LinkedJsonFile<T>>
+    where
+        T: DeserializeOwned,
+    {
+        let files = output.outputs.get(&output_name)?;
+        let [file] = files.as_slice() else {
+            panic!(
+                "expected exactly one file in optional output group '{}'",
+                output_name.as_str()
+            );
+        };
+
+        match &file.content {
+            OutputContent::Json {
+                content,
+                value: _,
+                file_type,
+            } => Some(LinkedJsonFile {
+                path: self.normalize_uri_path(package_id, &file.uri),
+                file_type: *file_type,
+                text: content.clone(),
+                value: serde_json::from_str(content).unwrap_or_else(|error| {
+                    panic!(
+                        "failed to decode '{}' json output: {error}",
+                        output_name.as_str()
+                    )
+                }),
+            }),
+            _ => panic!(
+                "expected json output in optional '{}'",
+                output_name.as_str()
+            ),
         }
     }
 
@@ -290,7 +423,7 @@ impl TestProgram {
     }
 
     /// Assert one exact linked text file.
-    fn assert_linked_text_file(
+    pub(super) fn assert_linked_text_file(
         &self,
         actual: &LinkedTextFile,
         expected: &LinkedTextFile,
@@ -309,7 +442,7 @@ impl TestProgram {
     }
 
     /// Assert one exact linked JSON file.
-    fn assert_linked_json_file<T>(
+    pub(super) fn assert_linked_json_file<T>(
         &self,
         actual: &LinkedJsonFile<T>,
         expected: &LinkedJsonFile<T>,

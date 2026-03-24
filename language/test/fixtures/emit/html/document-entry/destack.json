@@ -5,9 +5,9 @@
       "emit": "html",
       "entry": ["src/page.ds"],
       "outFile": "dist/index.html",
-      "sourceMapMode": "external",
       "bundle": {
         "output": {
+          "sourcemap": "external",
           "manifest": true
         }
       }

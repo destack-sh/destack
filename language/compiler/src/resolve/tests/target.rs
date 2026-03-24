@@ -1,6 +1,6 @@
 use crate::TestProgram;
-use destack_artifact::{EmitFormat, Runtime};
-use destack_dir::StaticKey;
+use destack_artifact::{DirPrepared, EmitFormat, ImportedModuleTable, Runtime};
+use destack_dir::{DependencyKind, DependencySource, StaticKey};
 use destack_source::DiagnosticSeverity;
 use std::time::Duration;
 
@@ -1334,8 +1334,39 @@ export * from "react";
     );
 
     test.configure_target(main_module_id, "js", |target| {
-        target.bundle.dependency.never_bundle = vec!["react".to_string()];
+        target.bundle.dependencies.never_bundle = vec!["react".to_string()];
     });
+
+    // direct import resolution should already preserve the external target
+    let profile_id = test.default_profile_id(main_module_id);
+    test.compiler
+        .run_to_completion(|compiler| compiler.require_dir_prepared(main_module_id, profile_id))
+        .unwrap();
+    let dir = test
+        .compiler
+        .require_artifact_dir_prepared(main_module_id, profile_id)
+        .unwrap();
+    let dir: &DirPrepared = dir.as_ref();
+    let module = test.program.modules.get(main_module_id);
+    let module = module.as_ref();
+    let anchor = dir.anchor_node.into_global(main_module_id);
+    let target = test.program.strings.intern("react");
+    let mut imported_modules = ImportedModuleTable::default();
+    let resolved_target = test
+        .compiler
+        .run_to_completion(|compiler| {
+            compiler.resolve_import(
+                &module,
+                &mut imported_modules,
+                profile_id,
+                anchor,
+                DependencySource::ExportStatement,
+                target,
+                DependencyKind::Value,
+            )
+        })
+        .unwrap();
+    assert_eq!(resolved_target, destack_dir::ModuleTarget::External(target));
 
     test.resolve_module(main_module_id);
     test.compile_check_clean();
@@ -1378,7 +1409,7 @@ useValue;
     );
 
     test.configure_target(main_module_id, "js", |target| {
-        target.bundle.dependency.never_bundle = vec!["react".to_string()];
+        target.bundle.dependencies.never_bundle = vec!["react".to_string()];
     });
 
     test.resolve_module(main_module_id);

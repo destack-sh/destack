@@ -1,10 +1,10 @@
 {
-  "name": "script-single-file-reject-dynamic-import",
+  "name": "script-chunked-shared-static-import",
   "targets": {
     "bundle": {
       "emit": "js",
-      "entry": ["src/application.js"],
-      "outFile": "dist/bundle.js",
+      "entry": ["src/application.ts", "src/dashboard.ts"],
+      "outDir": "dist/bundle",
       "bundle": {
         "output": {
           "sourcemap": "external",
