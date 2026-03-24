@@ -243,6 +243,43 @@ declare module "foo" {
     }
 
     #[test]
+    fn test_parse_declare_module_body_recovers_statement_like_object_properties() {
+        // declare module A { "name": ..., "typings": ..., "version": ... }
+        let mut test = TestParser::new_with_options(
+            r##"
+declare module A {
+    "name": "troublesome-lib",
+    "typings": "lib/index.d.ts",
+    "version": "0.0.1"
+}
+"##,
+            LanguageType::TypeScriptDeclaration,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        // declare module A { ... }
+        assert_eq!(expressions.len(), 1);
+        assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Namespace { expressions, .. } => {
+                assert_eq!(expressions.len(), 3);
+
+                // "name": "troublesome-lib",
+                let first_statement_id = parser.unwrap_statement_expression(expressions[0]);
+                assert_node!(parser.tree, first_statement_id, Expression::ScalarLiteral(_));
+
+                // "typings": "lib/index.d.ts",
+                let second_statement_id = parser.unwrap_statement_expression(expressions[1]);
+                assert_node!(parser.tree, second_statement_id, Expression::ScalarLiteral(_));
+
+                // "version": "0.0.1"
+                let third_statement_id = parser.unwrap_statement_expression(expressions[2]);
+                assert_node!(parser.tree, third_statement_id, Expression::ScalarLiteral(_));
+            });
+        });
+    }
+
+    #[test]
     fn test_parse_module_newline_as_identifiers() {
         let mut test = TestParser::new_with_options("module\nFoo\n{}", LanguageType::TypeScript);
         let mut parser = test.prepare();

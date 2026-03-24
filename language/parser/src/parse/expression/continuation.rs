@@ -4,7 +4,7 @@ use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
     Argument, AssignOperator, BinaryOperator, Declaration, Expression, FunctionKind, IfCondition,
-    IfKind, InfixOperator, LiteralType, LocalNodeId, PostfixPosition, TokenType,
+    IfKind, InfixOperator, LiteralType, LocalNodeId, NodeType, PostfixPosition, TokenType,
     TypeBinaryOperator, TypeUnaryOperator, UnaryOperator,
 };
 
@@ -367,6 +367,44 @@ impl Parser {
                             continue;
                         }
 
+                        // preserve a committed member access when the name slot is missing
+                        if Self::is_expression_slot_boundary_token(next_token_type_after_newlines) {
+                            self.bump(); // eat .
+                            self.eat_newlines_maybe()?;
+                            self.report_unexpected_for_here(NodeType::Expression);
+                            left_expression_id = self.insert_node(
+                                Expression::Member {
+                                    left: left_expression_id,
+                                    name: None,
+                                    static_arguments: None,
+                                },
+                                self.get_span_from(start),
+                            );
+                            continue;
+                        }
+
+                        // preserve a committed private member access when `#` has no identifier
+                        if next_token_type == TokenType::Hash {
+                            let private_name_index =
+                                self.first_non_newline_index_from(next_raw_index.saturating_add(1));
+                            let private_name_token_type = self.token_type_at(private_name_index);
+                            if Self::is_expression_slot_boundary_token(private_name_token_type) {
+                                self.bump(); // eat .
+                                self.bump(); // eat #
+                                self.eat_newlines_maybe()?;
+                                self.report_unexpected_for_here(NodeType::Expression);
+                                left_expression_id = self.insert_node(
+                                    Expression::PrivateMember {
+                                        left: left_expression_id,
+                                        name: None,
+                                        static_arguments: None,
+                                    },
+                                    self.get_span_from(start),
+                                );
+                                continue;
+                            }
+                        }
+
                         let Some((member_index, is_private_member)) = self.peek_dot_member_target(
                             cursor_index,
                             next_cursor,
@@ -392,7 +430,7 @@ impl Parser {
                             left_expression_id = self.insert_node(
                                 Expression::PrivateMember {
                                     left: left_expression_id,
-                                    name,
+                                    name: Some(name),
                                     static_arguments,
                                 },
                                 self.get_span_from(start),
@@ -413,7 +451,7 @@ impl Parser {
                         left_expression_id = self.insert_node(
                             Expression::Member {
                                 left: left_expression_id,
-                                name,
+                                name: Some(name),
                                 static_arguments,
                             },
                             self.get_span_from(start),
@@ -832,22 +870,28 @@ impl Parser {
                 }
 
                 // type binary operators parse the right side as a type expression
-                let right_expression_result =
-                    if matches!(right_operator, InfixOperator::TypeBinary(_)) {
-                        let right_ambient_context = self.options.with_type(true);
-                        self.with_options(
-                            self.options
-                                .with_ambient_context(right_ambient_context)
-                                .with_expression_context(right_context),
-                            |parser| parser.eat_expression_in_scope(),
-                        )
-                    } else {
-                        self.with_options(
-                            self.options.with_expression_context(right_context),
-                            |parser| parser.eat_expression_in_scope(),
-                        )
-                    };
-                let right_expression_id = right_expression_result?;
+                let right_expression_id = if matches!(right_operator, InfixOperator::TypeBinary(_))
+                    && self.is_type_expression_boundary()
+                {
+                    self.recover_missing_expression_here(NodeType::Expression)
+                } else {
+                    let right_expression_result =
+                        if matches!(right_operator, InfixOperator::TypeBinary(_)) {
+                            let right_ambient_context = self.options.with_type(true);
+                            self.with_options(
+                                self.options
+                                    .with_ambient_context(right_ambient_context)
+                                    .with_expression_context(right_context),
+                                |parser| parser.eat_expression_in_scope(),
+                            )
+                        } else {
+                            self.with_options(
+                                self.options.with_expression_context(right_context),
+                                |parser| parser.eat_expression_in_scope(),
+                            )
+                        };
+                    right_expression_result?
+                };
 
                 // combine into new left expression
                 let left_expression = self.make_infix_expression(

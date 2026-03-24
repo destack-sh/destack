@@ -18,6 +18,26 @@ type ParsedParameterPatternOrName = (
 );
 
 impl Parser {
+    /// Eat a committed static argument close token or recover one missing `>`.
+    fn eat_type_angle_close_or_recover_missing(&mut self, owner: NodeType) -> ParseResult<()> {
+        if matches!(
+            self.peek_token_type(),
+            TokenType::GreaterThan
+                | TokenType::GreaterThanOrEqual
+                | TokenType::ShiftRightAssign
+                | TokenType::UnsignedShiftRightAssign
+        ) {
+            self.eat_type_angle_close()?;
+            return Ok(());
+        }
+
+        let token_type = self.peek_token_type();
+        let is_recoverable_boundary = self.can_follow_type_arguments_at_index(self.pos_index())
+            || Self::is_close_delimiter_token(token_type);
+
+        self.recover_missing_token_here(TokenType::GreaterThan, owner, is_recoverable_boundary)
+    }
+
     /// Return parser contexts for pattern-shaped parameters.
     #[inline]
     fn parameter_pattern_contexts(&self) -> (ParserOptions, ParserOptions) {
@@ -583,9 +603,17 @@ impl Parser {
                 self.eat_newlines_maybe()?;
                 self.bump(); // eat colon or keyword
                 self.eat_newlines_maybe()?;
-                let ty = self
-                    .eat_parameter_type_expression()
-                    .for_node_type(NodeType::Parameter)?;
+                let ty = if self.peek_is(TokenType::Assign)
+                    || self.peek_is(TokenType::Comma)
+                    || self.peek_is(TokenType::CloseParenthesis)
+                    || self.peek_is(TokenType::GreaterThan)
+                    || self.peek_is(TokenType::End)
+                {
+                    self.recover_missing_expression_here(NodeType::Parameter)
+                } else {
+                    self.eat_parameter_type_expression()
+                        .for_node_type(NodeType::Parameter)?
+                };
                 (Some(ty), Some(self.get_span_from(&type_start)))
             } else {
                 (None, None)
@@ -603,9 +631,16 @@ impl Parser {
                 self.eat_newlines_maybe()?;
 
                 // value
-                let value = self
-                    .eat_parameter_default_expression()
-                    .for_node_type(NodeType::Parameter)?;
+                let value = if self.peek_is(TokenType::Comma)
+                    || self.peek_is(TokenType::CloseParenthesis)
+                    || self.peek_is(TokenType::GreaterThan)
+                    || self.peek_is(TokenType::End)
+                {
+                    self.recover_missing_expression_here(NodeType::Parameter)
+                } else {
+                    self.eat_parameter_default_expression()
+                        .for_node_type(NodeType::Parameter)?
+                };
 
                 // named with default
                 if let Some(name) = name {
@@ -755,18 +790,31 @@ impl Parser {
         let in_js = self.language.is_javascript();
         let mut has_variadic_parameter = false;
         self.eat_newlines_maybe()?;
-        while self.peek_is(TokenType::Identifier)
-            || (self.options.is_in_static() && self.is_keyword(Keyword::In))
-            // spread
-            || self.peek_is(TokenType::Spread)
-            // pattern
-            || self.peek_is(TokenType::OpenParenthesis)
-            || self.peek_is(TokenType::OpenBracket)
-            || self.peek_is(TokenType::OpenBrace)
-            // decorator
-            || (!self.options.is_in_type() && self.peek_is(TokenType::At))
-        {
-            let parameter = self.eat_parameter().for_node_type(NodeType::Parameter)?;
+        while self.has_more_tokens() {
+            if self.peek_is(TokenType::CloseParenthesis) || self.peek_is(TokenType::GreaterThan) {
+                break;
+            }
+
+            // one parameter slot
+            let parameter_start = self.mark_span();
+            let mut is_recovered_parameter = false;
+            let parameter = match self.eat_parameter().for_node_type(NodeType::Parameter) {
+                Ok(parameter) => parameter,
+                Err(error) => {
+                    is_recovered_parameter = true;
+                    self.try_recover_in_item_list(
+                        &parameter_start,
+                        if self.options.is_in_static() {
+                            TokenType::GreaterThan
+                        } else {
+                            TokenType::CloseParenthesis
+                        },
+                        Some(error),
+                    )?;
+
+                    self.insert_node(Parameter::Error, self.get_span_from(&parameter_start))
+                }
+            };
 
             // rest parameters must be terminal in js, ts compatibility fixtures may allow more
             if has_variadic_parameter && in_js {
@@ -788,9 +836,18 @@ impl Parser {
                 return Err(ParseError::unexpected(self.peek()?.span));
             }
 
-            if self.is_item_stop() {
+            if self.peek_is(TokenType::Comma) {
                 self.eat_item_stop_with_newlines()?;
-            } else {
+            }
+            // recovered slots may continue across newline separators only
+            else if !self.can_continue_after_recovered_item(
+                if self.options.is_in_static() {
+                    TokenType::GreaterThan
+                } else {
+                    TokenType::CloseParenthesis
+                },
+                is_recovered_parameter,
+            ) {
                 break;
             }
         }
@@ -858,7 +915,7 @@ impl Parser {
                 .with_expression_context(expression_context),
             |parser| parser.eat_parameters_body(),
         )?;
-        self.eat_type_angle_close()?;
+        self.eat_type_angle_close_or_recover_missing(NodeType::Expression)?;
         Ok(parameters)
     }
 
@@ -891,7 +948,10 @@ impl Parser {
                 .with_expression_context(expression_context),
             |parser| parser.eat_parameters_body(),
         )?;
-        self.eat_token(TokenType::CloseParenthesis)?;
+        self.eat_list_close_token_or_recover_missing(
+            TokenType::CloseParenthesis,
+            NodeType::Parameter,
+        )?;
         Ok(parameters)
     }
 
@@ -1465,26 +1525,39 @@ impl Parser {
                 break;
             }
 
-            // spread is not valid in top-level type argument lists
-            if self.peek_is(TokenType::Spread) {
-                return Err(ParseError::unexpected(self.peek()?.span));
-            }
+            // one argument slot
+            let argument_start = self.mark_span();
+            let mut is_recovered_argument = false;
+            let argument_id = match self.eat_positional_argument() {
+                Ok(argument_id) => {
+                    if self.peek_is(TokenType::Spread) || self.starts_labeled_tuple_head() {
+                        return Err(ParseError::unexpected(self.peek()?.span));
+                    }
+                    argument_id
+                }
+                Err(error) => {
+                    is_recovered_argument = true;
+                    self.try_recover_in_item_list(
+                        &argument_start,
+                        TokenType::GreaterThan,
+                        Some(error),
+                    )?;
 
-            // labeled tuple heads are only valid inside tuple literals
-            if self.starts_labeled_tuple_head() {
-                return Err(ParseError::unexpected(self.peek()?.span));
-            }
-
-            // parse one type argument
-            let argument_id = self.eat_positional_argument()?;
+                    self.insert_node(Argument::Error, self.get_span_from(&argument_start))
+                }
+            };
 
             arguments.push(argument_id);
             self.eat_newlines_maybe()?;
 
             // continue through separators
-            if Self::is_item_stop_token(self.peek_token_type()) {
+            if self.peek_is(TokenType::Comma) {
                 self.eat_item_stop_with_newlines()?;
-            } else {
+            }
+            // recovered slots may continue across newline separators only
+            else if !self
+                .can_continue_after_recovered_item(TokenType::GreaterThan, is_recovered_argument)
+            {
                 break;
             }
         }
@@ -1512,32 +1585,48 @@ impl Parser {
         }
         self.eat_newlines_maybe()?;
 
-        // empty static arguments are not allowed
-        if self.peek_is(TokenType::GreaterThan) {
-            return Err(ParseError::expected(
-                self.get_span_from(&start),
-                TokenType::Identifier,
-            ));
-        }
+        // empty static arguments only recover in committed type-like contexts
+        let allow_empty_static_arguments =
+            self.options.is_in_type() || self.options.is_in_decorator();
+        let static_arguments = if self.peek_is(TokenType::GreaterThan) {
+            if !allow_empty_static_arguments {
+                return Err(ParseError::expected(
+                    self.get_span_from(&start),
+                    TokenType::Identifier,
+                ));
+            }
 
+            let error = ParseError::expected(self.get_span_from(&start), TokenType::Identifier);
+            self.error(&error);
+
+            let argument_start = self.mark_span();
+            vec![self.insert_node(Argument::Error, self.get_span_from(&argument_start))]
+        }
         // regular static arguments (positional/spread only)
-        let (ambient_context, expression_context) = self.static_argument_contexts();
-        let static_arguments = self.with_options(
-            self.options
-                .with_ambient_context(ambient_context)
-                .with_expression_context(expression_context),
-            |parser| parser.eat_static_type_arguments_body(),
-        )?;
+        else {
+            let (ambient_context, expression_context) = self.static_argument_contexts();
+            self.with_options(
+                self.options
+                    .with_ambient_context(ambient_context)
+                    .with_expression_context(expression_context),
+                |parser| parser.eat_static_type_arguments_body(),
+            )?
+        };
 
         // ts expression contexts only close static args on a concrete `>` token
         // (this matches ts disambiguation for cases like `f<T>=x` and `x < y, x >>= y`.. sigh)
         let allow_glued_type_close = self.options.is_in_type()
             || self.options.is_in_decorator()
             || self.language.is_destack();
+        let allow_missing_type_close = self.options.is_in_type() || self.options.is_in_decorator();
 
         self.eat_newlines_maybe()?;
         if allow_glued_type_close {
-            self.eat_type_angle_close()?;
+            if allow_missing_type_close {
+                self.eat_type_angle_close_or_recover_missing(NodeType::Expression)?;
+            } else {
+                self.eat_type_angle_close()?;
+            }
         } else {
             self.eat_token(TokenType::GreaterThan)?;
         }
@@ -1577,7 +1666,10 @@ impl Parser {
         )?;
 
         self.eat_newlines_maybe()?;
-        self.eat_token(TokenType::CloseParenthesis)?;
+        self.eat_list_close_token_or_recover_missing(
+            TokenType::CloseParenthesis,
+            NodeType::Expression,
+        )?;
 
         Ok(dynamic_arguments)
     }
@@ -1602,14 +1694,27 @@ impl Parser {
                 break;
             }
 
-            let argument_id = self.eat_positional_argument()?;
+            // one argument slot
+            let argument_start = self.mark_span();
+            let mut is_recovered_argument = false;
+            let argument_id = match self.eat_positional_argument() {
+                Ok(argument_id) => argument_id,
+                Err(error) => {
+                    is_recovered_argument = true;
+                    self.try_recover_in_item_list(&argument_start, terminator, Some(error))?;
+
+                    self.insert_node(Argument::Error, self.get_span_from(&argument_start))
+                }
+            };
 
             self.eat_newlines_maybe()?;
             self.trim_argument_span_before_separator(argument_id, terminator);
             arguments.push(argument_id);
-            if Self::is_item_stop_token(self.peek_token_type()) {
+            if self.peek_is(TokenType::Comma) {
                 self.eat_item_stop_with_newlines()?;
-            } else {
+            }
+            // recovered slots may continue across newline separators only
+            else if !self.can_continue_after_recovered_item(terminator, is_recovered_argument) {
                 break;
             }
         }
@@ -1637,14 +1742,27 @@ impl Parser {
                 break;
             }
 
-            let argument_id = self.eat_tree_argument()?;
+            // one argument slot
+            let argument_start = self.mark_span();
+            let mut is_recovered_argument = false;
+            let argument_id = match self.eat_tree_argument() {
+                Ok(argument_id) => argument_id,
+                Err(error) => {
+                    is_recovered_argument = true;
+                    self.try_recover_in_item_list(&argument_start, terminator, Some(error))?;
+
+                    self.insert_node(Argument::Error, self.get_span_from(&argument_start))
+                }
+            };
 
             self.eat_newlines_maybe()?;
             self.trim_argument_span_before_separator(argument_id, terminator);
             arguments.push(argument_id);
-            if Self::is_item_stop_token(self.peek_token_type()) {
+            if self.peek_is(TokenType::Comma) {
                 self.eat_item_stop_with_newlines()?;
-            } else {
+            }
+            // recovered slots may continue across newline separators only
+            else if !self.can_continue_after_recovered_item(terminator, is_recovered_argument) {
                 break;
             }
         }
@@ -1713,8 +1831,8 @@ mod tests {
     use destack_ast::{
         Annotation, AnnotationPosition, Argument, Asynchrony, BinaryOperator, BindingKind,
         BindingOperator, Declaration, Decorator, Expression, FunctionMode, IfKind, IntType, Member,
-        Mutability, Name, Parameter, Pattern, PatternField, ScalarLiteral, Timing,
-        TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, Visibility,
+        Mutability, Name, NodeType, Parameter, Pattern, PatternField, ScalarLiteral, Timing,
+        TokenType, TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, Visibility,
     };
     use destack_source::LanguageType;
 
@@ -1777,6 +1895,23 @@ mod tests {
             assert_string!(parser, *name, "validate");
             assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Boolean));
             assert!(default.is_some());
+        });
+    }
+
+    #[test]
+    fn test_parse_parameter_missing_type_expression() {
+        // x:
+        let mut test = TestParser::new("x:");
+        let mut parser = test.prepare();
+        let parameter_id = parser.eat_parameter().unwrap();
+
+        // diagnostics
+        test.assert_error_leaves(&parser, &[(Some(NodeType::Parameter), None, "")]);
+
+        // x:
+        assert_node!(parser.tree, parameter_id, Parameter::Named { modifiers: _, name, ty: Some(ty), default: None } => {
+            assert_string!(parser, *name, "x");
+            assert_node!(parser.tree, *ty, Expression::Missing);
         });
     }
 
@@ -2137,6 +2272,70 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_static_parameters_missing_close_angle() {
+        // <T
+        let mut test = TestParser::new("<T");
+        let mut parser = test.prepare();
+        let parameters = parser.eat_static_parameters(true).unwrap();
+
+        // diagnostics
+        test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
+
+        // <T
+        assert_eq!(parameters.len(), 1);
+        assert_node!(parser.tree, parameters[0], Parameter::Named { modifiers: _, name, ty: None, default: None } => {
+            assert_string!(parser, *name, "T");
+        });
+    }
+
+    #[test]
+    fn test_parse_static_arguments_missing_close_angle_in_type_context() {
+        // <string, number
+        let mut test = TestParser::new("<string, number");
+        let mut parser = test.prepare();
+        parser.options.set_in_type(true);
+        let arguments = parser.eat_static_arguments().unwrap();
+
+        // diagnostics
+        test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
+
+        // <string, number
+        assert_eq!(arguments.len(), 2);
+        assert_node!(parser.tree, arguments[0], Argument::Positional { modifiers: _, value } => {
+            assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::String));
+        });
+        assert_node!(parser.tree, arguments[1], Argument::Positional { modifiers: _, value } => {
+            assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Number));
+        });
+    }
+
+    #[test]
+    fn test_parse_static_arguments_empty_in_type_context_recovers_error_slot() {
+        // <>
+        let mut test = TestParser::new("<>");
+        let mut parser = test.prepare();
+        parser.options.set_in_type(true);
+        let arguments = parser.eat_static_arguments().unwrap();
+
+        // diagnostics
+        test.assert_error_leaves(&parser, &[(None, Some(TokenType::Identifier), "<")]);
+
+        // <>
+        assert_eq!(arguments.len(), 1);
+        assert_node!(parser.tree, arguments[0], Argument::Error);
+    }
+
+    #[test]
+    fn test_reject_static_arguments_missing_close_angle_in_value_context() {
+        // <string, number
+        let mut test = TestParser::new_with_options("<string, number", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let result = parser.eat_static_arguments();
+
+        assert!(result.is_err());
+    }
+
+    #[test]
     fn test_parse_parameter_with_readonly_public_modifier_order_reports_error() {
         // readonly public x: number
         let mut test =
@@ -2144,10 +2343,10 @@ mod tests {
         let mut parser = test.prepare();
         let parameter_id = parser.eat_parameter().unwrap();
 
-        // parser reports one modifier ordering error
-        assert_eq!(parser.errors.len(), 1);
+        // diagnostics
+        test.assert_error_leaves(&parser, &[(None, None, "public")]);
 
-        // parameter shape remains recoverable for downstream parsing
+        // readonly public x: number
         assert_node!(parser.tree, parameter_id, Parameter::Named { modifiers: Some(modifiers), name, ty: Some(ty), default: None } => {
             assert_string!(parser, *name, "x");
             assert_eq!(modifiers.mutability, Some(Mutability::Immutable));
@@ -2166,11 +2365,11 @@ mod tests {
         let mut parser = test.prepare();
         let expressions = parser.parse();
 
-        // parser reports one modifier ordering error
-        assert_eq!(parser.errors.len(), 1);
-        assert_eq!(expressions.len(), 1);
+        // diagnostics
+        test.assert_error_leaves(&parser, &[(None, None, "public")]);
 
-        // constructor parameter remains available in the recovered class ast
+        // class D { constructor(readonly public x: number) {} }
+        assert_eq!(expressions.len(), 1);
         let expression_id = parser.unwrap_statement_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Class { members, .. } => {
@@ -2466,6 +2665,279 @@ class Test {
         let separator_offset = source.find(',').expect("expected comma separator") as u32;
         assert!(first_argument_span.end <= separator_offset);
         assert!(first_value_span.end <= separator_offset);
+    }
+
+    #[test]
+    fn test_parse_dynamic_parameters_recover_error_slot() {
+        // (x, =, y)
+        let mut test = TestParser::new("(x, =, y)");
+        let mut parser = test.prepare();
+        let parameters = parser.eat_dynamic_parameters().unwrap();
+
+        // diagnostics
+        test.assert_error_leaves(&parser, &[(Some(NodeType::Parameter), None, "=")]);
+
+        // (x, =, y)
+        assert_eq!(parameters.len(), 3);
+        assert_node!(parser.tree, parameters[0], Parameter::Named { modifiers: _, name, ty: None, default: None } => {
+            assert_string!(parser, *name, "x");
+        });
+        assert_node!(parser.tree, parameters[1], Parameter::Error);
+        assert_node!(parser.tree, parameters[2], Parameter::Named { modifiers: _, name, ty: None, default: None } => {
+            assert_string!(parser, *name, "y");
+        });
+    }
+
+    #[test]
+    fn test_parse_dynamic_arguments_recover_error_slot() {
+        // (1, , 3)
+        let mut test = TestParser::new("(1, , 3)");
+        let mut parser = test.prepare();
+        let arguments = parser.eat_dynamic_arguments().unwrap();
+
+        // diagnostics
+        test.assert_error_leaves(&parser, &[(None, None, ",")]);
+
+        // (1, , 3)
+        assert_eq!(arguments.len(), 3);
+        assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
+            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+        });
+        assert_node!(parser.tree, arguments[1], Argument::Error);
+        assert_node!(parser.tree, arguments[2], Argument::Positional { value, .. } => {
+            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(3)));
+        });
+    }
+
+    #[test]
+    fn test_parse_dynamic_arguments_recover_missing_close_before_next_statement() {
+        // (a,b var
+        let mut test = TestParser::new("(a,b var");
+        let mut parser = test.prepare();
+        let arguments = parser.eat_dynamic_arguments().unwrap();
+
+        // diagnostics
+        test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "var")]);
+
+        // (a,b var
+        assert_eq!(arguments.len(), 2);
+        assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
+            assert_expression_path!(parser, parser.tree.get(*value), "a");
+        });
+        assert_node!(parser.tree, arguments[1], Argument::Positional { value, .. } => {
+            assert_expression_path!(parser, parser.tree.get(*value), "b");
+        });
+
+        // the next statement starter stays for the caller
+        assert!(parser.peek_is(TokenType::Identifier));
+    }
+
+    #[test]
+    fn test_parse_dynamic_arguments_recover_trailing_spread_error_slot() {
+        // (a, ...)
+        let mut test = TestParser::new("(a, ...)");
+        let mut parser = test.prepare();
+        let arguments = parser.eat_dynamic_arguments().unwrap();
+
+        // diagnostics
+        test.assert_error_leaves(&parser, &[(None, None, ")")]);
+
+        // (a, ...)
+        assert_eq!(arguments.len(), 2);
+        assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
+            assert_expression_path!(parser, parser.tree.get(*value), "a");
+        });
+        assert_node!(parser.tree, arguments[1], Argument::Error);
+    }
+
+    #[test]
+    fn test_parse_dynamic_arguments_recover_missing_close_before_semicolon() {
+        // (a,b;
+        let mut test = TestParser::new("(a,b;");
+        let mut parser = test.prepare();
+        let arguments = parser.eat_dynamic_arguments().unwrap();
+
+        // diagnostics
+        test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, ";")]);
+
+        // (a,b;
+        assert_eq!(arguments.len(), 2);
+        assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
+            assert_expression_path!(parser, parser.tree.get(*value), "a");
+        });
+        assert_node!(parser.tree, arguments[1], Argument::Positional { value, .. } => {
+            assert_expression_path!(parser, parser.tree.get(*value), "b");
+        });
+
+        // the semicolon stays for the caller
+        assert!(parser.peek_is(TokenType::Semicolon));
+    }
+
+    #[test]
+    fn test_parse_dynamic_arguments_recover_leading_empty_slots() {
+        // (,,b)
+        let mut test = TestParser::new("(,,b)");
+        let mut parser = test.prepare();
+        let arguments = parser.eat_dynamic_arguments().unwrap();
+
+        // diagnostics
+        test.assert_error_leaves(&parser, &[(None, None, ","), (None, None, ",")]);
+
+        // (,,b)
+        assert_eq!(arguments.len(), 3);
+        assert_node!(parser.tree, arguments[0], Argument::Error);
+        assert_node!(parser.tree, arguments[1], Argument::Error);
+        assert_node!(parser.tree, arguments[2], Argument::Positional { value, .. } => {
+            assert_expression_path!(parser, parser.tree.get(*value), "b");
+        });
+    }
+
+    #[test]
+    fn test_parse_malformed_call_statement_missing_close_keeps_call_shape() {
+        let mut test = TestParser::new_with_options("foo(a,b;", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        // diagnostics
+        test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, ";")]);
+
+        // foo(a,b;
+        assert_eq!(expressions.len(), 1);
+        let call_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, call_id, Expression::Call { dynamic_arguments, .. } => {
+            assert_eq!(dynamic_arguments.len(), 2);
+        });
+    }
+
+    #[test]
+    fn test_parse_malformed_call_statement_before_var_keeps_call_shape() {
+        let mut test = TestParser::new_with_options("foo(a,b var;", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        // diagnostics
+        test.assert_error_leaves(
+            &parser,
+            &[
+                (Some(NodeType::Expression), None, "var"),
+                (None, None, "var"),
+            ],
+        );
+
+        // foo(a,b var;
+        assert_eq!(expressions.len(), 1);
+        let call_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, call_id, Expression::Call { dynamic_arguments, .. } => {
+            assert_eq!(dynamic_arguments.len(), 2);
+        });
+    }
+
+    #[test]
+    fn test_parse_malformed_call_statement_with_leading_empty_slots_keeps_call_shape() {
+        let mut test = TestParser::new_with_options("foo (,,b);", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        // diagnostics
+        test.assert_error_leaves(&parser, &[(None, None, ","), (None, None, ",")]);
+
+        // foo (,,b);
+        assert_eq!(expressions.len(), 1);
+        let call_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, call_id, Expression::Call { dynamic_arguments, .. } => {
+            assert_eq!(dynamic_arguments.len(), 3);
+            assert_node!(parser.tree, dynamic_arguments[0], Argument::Error);
+            assert_node!(parser.tree, dynamic_arguments[1], Argument::Error);
+        });
+    }
+
+    #[test]
+    fn test_parse_malformed_call_statement_with_trailing_spread_keeps_call_shape() {
+        let mut test = TestParser::new_with_options("foo (a, ...);", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        // diagnostics
+        test.assert_error_leaves(&parser, &[(None, None, ")")]);
+
+        // foo (a, ...);
+        assert_eq!(expressions.len(), 1);
+        let call_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, call_id, Expression::Call { dynamic_arguments, .. } => {
+            assert_eq!(dynamic_arguments.len(), 2);
+            assert_node!(parser.tree, dynamic_arguments[1], Argument::Error);
+        });
+    }
+
+    #[test]
+    fn test_parse_malformed_call_before_empty_slots_call_preserves_following_statement_shape() {
+        let source = r#"
+foo(a,b var;
+foo (,,b);
+"#;
+        let mut test = TestParser::new_with_options(source, LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        // diagnostics
+        test.assert_error_leaves(
+            &parser,
+            &[
+                (Some(NodeType::Expression), None, "var"),
+                (None, None, "var"),
+                (None, None, ","),
+                (None, None, ","),
+            ],
+        );
+
+        // foo(a,b var;
+        // foo (,,b);
+        assert_eq!(expressions.len(), 2);
+
+        let first_call_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, first_call_id, Expression::Call { dynamic_arguments, .. } => {
+            assert_eq!(dynamic_arguments.len(), 2);
+        });
+
+        let second_call_id = parser.unwrap_statement_expression(expressions[1]);
+        assert_node!(parser.tree, second_call_id, Expression::Call { dynamic_arguments, .. } => {
+            assert_eq!(dynamic_arguments.len(), 3);
+        });
+    }
+
+    #[test]
+    fn test_parse_malformed_call_before_trailing_spread_call_preserves_following_statement_shape() {
+        let source = r#"
+foo(a,b var;
+foo (a, ...);
+"#;
+        let mut test = TestParser::new_with_options(source, LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        // diagnostics
+        test.assert_error_leaves(
+            &parser,
+            &[
+                (Some(NodeType::Expression), None, "var"),
+                (None, None, "var"),
+                (None, None, ")"),
+            ],
+        );
+
+        // foo(a,b var;
+        // foo (a, ...);
+        assert_eq!(expressions.len(), 2);
+
+        let first_call_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, first_call_id, Expression::Call { dynamic_arguments, .. } => {
+            assert_eq!(dynamic_arguments.len(), 2);
+        });
+
+        let second_call_id = parser.unwrap_statement_expression(expressions[1]);
+        assert_node!(parser.tree, second_call_id, Expression::Call { dynamic_arguments, .. } => {
+            assert_eq!(dynamic_arguments.len(), 2);
+        });
     }
 
     #[test]

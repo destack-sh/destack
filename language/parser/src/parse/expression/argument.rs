@@ -1,11 +1,37 @@
 use crate::parse::parser::NonNewlineTokenCursor;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
-use destack_ast::{
-    Argument, Expression, Keyword, LocalNodeId, TokenType, TypeBinaryOperator, TypeUnaryOperator,
+use ast::{
+    Argument, Declaration, Expression, FunctionKind, Keyword, LocalNodeId, TokenType,
+    TypeBinaryOperator, TypeUnaryOperator,
 };
+use destack_ast as ast;
 
 impl Parser {
+    /// Return true when parsed shift-left static arguments are valid in value position.
+    fn parsed_shift_left_static_arguments_are_valid_in_expression(
+        &self,
+        static_arguments: &[LocalNodeId<Argument>],
+    ) -> bool {
+        let Some(first_argument) = static_arguments.first() else {
+            return false;
+        };
+
+        let Argument::Positional { value, .. } = self.tree.get(*first_argument) else {
+            return false;
+        };
+
+        let Expression::Declaration(declaration_id) = self.tree.get(*value) else {
+            return false;
+        };
+
+        let Declaration::Function { signature, .. } = self.tree.get(*declaration_id) else {
+            return false;
+        };
+
+        signature.kind == FunctionKind::Lambda && signature.generics.is_some()
+    }
+
     /// Return true when a static argument follow cursor can continue an expression.
     fn can_follow_type_arguments_with_cursor(
         &mut self,
@@ -34,7 +60,7 @@ impl Parser {
     }
 
     /// Check whether a static argument list can be followed by a specific token.
-    pub(super) fn can_follow_type_arguments_at_index(&mut self, index: usize) -> bool {
+    pub(crate) fn can_follow_type_arguments_at_index(&mut self, index: usize) -> bool {
         let token_type = self.token_type_at(index);
 
         // allow end and static closers
@@ -70,10 +96,7 @@ impl Parser {
         ) {
             return true;
         }
-        if matches!(
-            token_type,
-            TokenType::CloseParenthesis | TokenType::CloseBracket | TokenType::CloseBrace
-        ) {
+        if Self::is_close_delimiter_token(token_type) {
             return true;
         }
         if matches!(
@@ -131,18 +154,18 @@ impl Parser {
 
         // static argument start
         let start_cursor = allow_newline_prefix.then(|| self.scanner_cursor_from(self.pos_index()));
-        let has_static_argument_start =
-            if self.peek_is(TokenType::LessThan) || self.peek_is(TokenType::ShiftLeft) {
-                true
-            } else if let Some(cursor) = start_cursor {
-                cursor.has_line_break_before
-                    && matches!(
-                        cursor.token_type,
-                        TokenType::LessThan | TokenType::ShiftLeft
-                    )
-            } else {
-                false
-            };
+        let has_static_argument_start = if self.peek_is(TokenType::LessThan) {
+            true
+        } else if self.peek_is(TokenType::ShiftLeft) {
+            true
+        } else if let Some(cursor) = start_cursor {
+            cursor.has_line_break_before
+                && self.with_pos(cursor.index, |parser| {
+                    parser.peek_is(TokenType::LessThan) || parser.peek_is(TokenType::ShiftLeft)
+                })
+        } else {
+            false
+        };
         if !has_static_argument_start {
             return None;
         }
@@ -157,6 +180,9 @@ impl Parser {
         {
             self.advance_to(cursor.index);
         }
+
+        // shift-left starts need an extra value-position admissibility check
+        let used_shift_left_start = self.peek_is(TokenType::ShiftLeft);
 
         match self.eat_static_arguments() {
             Ok(static_arguments) => {
@@ -173,6 +199,16 @@ impl Parser {
                 // in type or decorator context, type arguments are always valid
                 if self.options.is_in_type() || self.options.is_in_decorator() {
                     return Some(static_arguments);
+                }
+
+                // value expressions only accept `<<...>` when the parsed payload is a generic arrow
+                if used_shift_left_start
+                    && !self.parsed_shift_left_static_arguments_are_valid_in_expression(
+                        &static_arguments,
+                    )
+                {
+                    self.restore(speculative_start, speculative_start_idx);
+                    return None;
                 }
 
                 // validate that a follow token makes sense for a type argument list

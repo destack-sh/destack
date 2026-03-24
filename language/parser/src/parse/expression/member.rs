@@ -1,6 +1,8 @@
 use crate::{ParseError, ParseResult, Parser};
 
-use destack_ast::{Expression, Keyword, LiteralType, LocalNodeId, NumberBase, TokenType};
+use destack_ast::{
+    Expression, Keyword, LiteralType, LocalNodeId, NumberBase, ScalarLiteral, TokenType,
+};
 use destack_core::StringId;
 
 impl Parser {
@@ -14,7 +16,7 @@ impl Parser {
         // only integer scalar literals can use decimal separators for member access
         if !matches!(
             self.tree.get(left_expression_id),
-            Expression::ScalarLiteral(destack_ast::ScalarLiteral::Integer(_))
+            Expression::ScalarLiteral(ScalarLiteral::Integer(_))
         ) {
             return false;
         }
@@ -119,7 +121,7 @@ impl Parser {
                 | TokenType::ShiftLeft
                 | TokenType::TemplateStringStart
                 | TokenType::TemplateString
-        )
+        ) || Self::is_expression_slot_boundary_token(next_target_type)
     }
 
     /// Check whether `asserts` starts a type predicate.

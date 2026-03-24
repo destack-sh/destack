@@ -6,7 +6,8 @@ use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
     BinaryOperator, Block, BlockContext, BlockFormat, Declaration, DeclarationDescriptor,
-    Expression, Keyword, LocalNodeId, NodeType, TokenType, TypeUnaryOperator, UnaryOperator,
+    DependencyItem, Expression, Keyword, LocalNodeId, NodeType, TokenType, TypeUnaryOperator,
+    UnaryOperator,
 };
 
 use super::super::annotation::PendingDecorators;
@@ -880,10 +881,11 @@ impl Parser {
                                 right_expression_context =
                                     right_expression_context.in_type_conditional_right();
                             }
-                            let right = self.eat_expression(
+                            let right = self.eat_type_expression_or_recover_missing(
                                 self.options
                                     .with_ambient_context(right_ambient_context)
                                     .with_expression_context(right_expression_context),
+                                NodeType::Expression,
                             )?;
                             let expression = Expression::TypeUnary { operator, right };
                             let expression_id =
@@ -1056,10 +1058,11 @@ impl Parser {
                         if self.options.is_in_type_conditional_right() {
                             right_options = right_options.in_type_conditional_right();
                         }
-                        let right = self.eat_expression(
+                        let right = self.eat_type_expression_or_recover_missing(
                             self.options
                                 .with_type(true)
                                 .with_expression_context(right_options),
+                            NodeType::Expression,
                         )?;
                         let expression = Expression::TypeUnary { operator, right };
                         let expression_id =
@@ -1295,14 +1298,18 @@ impl Parser {
                     let mut exported_declaration_expression = None;
                     for item_id in items {
                         let item = self.tree.get(*item_id);
-                        let Some(value_expression_id) = item.value else {
+                        let DependencyItem::Item {
+                            value: Some(value_expression_id),
+                            ..
+                        } = item
+                        else {
                             continue;
                         };
                         if matches!(
-                            self.tree.get(value_expression_id),
+                            self.tree.get(*value_expression_id),
                             Expression::Declaration(_)
                         ) {
-                            exported_declaration_expression = Some(value_expression_id);
+                            exported_declaration_expression = Some(*value_expression_id);
                             break;
                         }
                     }
