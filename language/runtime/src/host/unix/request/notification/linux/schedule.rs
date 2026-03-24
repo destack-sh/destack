@@ -373,7 +373,6 @@ mod tests {
                 },
             ),
             action_id: None,
-            data_json: None,
         })
         .expect("timer spec should render");
 
@@ -411,7 +410,6 @@ mod tests {
                 },
             ),
             action_id: None,
-            data_json: None,
         })
         .expect("named calendar timezones should render");
 
@@ -442,7 +440,6 @@ mod tests {
                 },
             ),
             action_id: None,
-            data_json: None,
         })
         .expect("timer spec should render");
 

@@ -320,7 +320,6 @@ pub(super) fn notification_post_request() -> NotificationRequestValue {
             },
         ),
         action_id: None,
-        data_json: None,
     }
 }
 
@@ -344,6 +343,5 @@ pub(super) fn notification_schedule_request() -> NotificationRequestValue {
             },
         ),
         action_id: None,
-        data_json: None,
     }
 }

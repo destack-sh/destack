@@ -1,4 +1,4 @@
-#[cfg(test)]
+#[cfg(any(test, feature = "execution"))]
 use std::sync::Arc;
 
 use crate::diagnostic::RuntimeResult;
@@ -21,7 +21,7 @@ pub struct HostPollOutcome {
 
 /// Shared process-global host adapter contract for one host integration family.
 ///
-/// This is the runtime-facing attachment boundary above host modules and transport glue.
+/// This is the runtime-facing host boundary above request transport and platform glue.
 pub(crate) trait HostAdapter: std::fmt::Debug + Send + Sync {
     /// Return the host platform for this adapter.
     fn platform(&self) -> Platform;
@@ -67,14 +67,14 @@ pub(crate) trait HostAdapter: std::fmt::Debug + Send + Sync {
 }
 
 /// Adapter wrapper that suppresses ambient native ingress.
-#[cfg(test)]
+#[cfg(any(test, feature = "execution"))]
 #[derive(Debug)]
 struct NativeIngressDisabledHostAdapter {
     /// Wrapped host adapter.
     adapter: Arc<dyn HostAdapter>,
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "execution"))]
 impl HostAdapter for NativeIngressDisabledHostAdapter {
     fn platform(&self) -> Platform {
         self.adapter.platform()
@@ -96,6 +96,11 @@ impl HostAdapter for NativeIngressDisabledHostAdapter {
         Ok(())
     }
 
+    /// Service runtime-owned host ingress through the wrapped adapter.
+    fn process_runtime_ingress(&self, context: &HostSessionContext) -> RuntimeResult<()> {
+        self.adapter.process_runtime_ingress(context)
+    }
+
     fn submit_request(
         &self,
         context: &HostRequestContext,
@@ -106,7 +111,7 @@ impl HostAdapter for NativeIngressDisabledHostAdapter {
 }
 
 /// Wrap one host adapter so ambient native ingress is suppressed.
-#[cfg(test)]
+#[cfg(any(test, feature = "execution"))]
 pub(crate) fn without_native_ingress(adapter: Arc<dyn HostAdapter>) -> Arc<dyn HostAdapter> {
     Arc::new(NativeIngressDisabledHostAdapter { adapter })
 }

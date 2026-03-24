@@ -139,6 +139,82 @@ pub(crate) fn notification_runtime_service() -> Arc<DesktopNotificationRuntimeSe
     }
 }
 
+/// Return one live notification request for one runtime notification identifier.
+pub(crate) fn notification_request(
+    host_session_id: HostSessionId,
+    id: &str,
+) -> Option<NotificationRequestValue> {
+    let service = notification_runtime_service();
+    let registry = service.registry.lock();
+    let runtime_state = registry.runtimes.get(&host_session_id)?;
+
+    // posted first
+    if let Some(request) = runtime_state.posted.get(id) {
+        return Some(request.clone());
+    }
+
+    // scheduled fallback
+    runtime_state
+        .pending
+        .get(id)
+        .map(|descriptor| descriptor.request.clone())
+}
+
+/// Return one live pending notification descriptor for one runtime notification identifier.
+#[cfg(windows)]
+pub(crate) fn pending_notification(
+    host_session_id: HostSessionId,
+    id: &str,
+) -> Option<NotificationScheduledDescriptorValue> {
+    let service = notification_runtime_service();
+    let registry = service.registry.lock();
+    let runtime_state = registry.runtimes.get(&host_session_id)?;
+
+    runtime_state.pending.get(id).cloned()
+}
+
+/// Return every live pending notification descriptor for one runtime.
+pub(crate) fn pending_notifications(
+    host_session_id: HostSessionId,
+) -> Vec<NotificationScheduledDescriptorValue> {
+    let service = notification_runtime_service();
+    let registry = service.registry.lock();
+    let Some(runtime_state) = registry.runtimes.get(&host_session_id) else {
+        return Vec::new();
+    };
+
+    runtime_state.pending.values().cloned().collect()
+}
+
+/// Upsert one live pending notification descriptor for one runtime.
+pub(crate) fn upsert_pending_notification(
+    host_session_id: HostSessionId,
+    platform: Platform,
+    descriptor: NotificationScheduledDescriptorValue,
+) {
+    let service = notification_runtime_service();
+    let mut registry = service.registry.lock();
+    let runtime_state = registry
+        .runtimes
+        .entry(host_session_id)
+        .or_insert_with(|| DesktopNotificationRuntimeState::new(platform));
+
+    runtime_state
+        .pending
+        .insert(descriptor.id.clone(), descriptor);
+}
+
+/// Remove one live notification request from posted and pending runtime state.
+pub(crate) fn remove_notification_request(host_session_id: HostSessionId, id: &str) {
+    let service = notification_runtime_service();
+    let mut registry = service.registry.lock();
+
+    if let Some(runtime_state) = registry.runtimes.get_mut(&host_session_id) {
+        runtime_state.posted.remove(id);
+        runtime_state.pending.remove(id);
+    }
+}
+
 /// Return the current wall-clock time in Unix nanoseconds.
 #[cfg(test)]
 pub(crate) fn wall_clock_now_ns() -> RuntimeResult<u64> {

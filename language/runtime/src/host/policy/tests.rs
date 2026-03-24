@@ -1,12 +1,13 @@
 use super::{HostRequestRequirement, request_requirements};
 use crate::host::core::HostRequest;
+use crate::platform::os::abi_generated::DocumentPickOptionsValue;
 use destack_artifact::Platform;
 
 /// Resolve no declaration requirements for document picker requests.
 #[test]
 fn test_request_requirements_leave_document_pick_declaration_free() {
     let request = HostRequest::OsDocumentPick {
-        options: crate::platform::os::abi_generated::DocumentPickOptionsValue {
+        options: DocumentPickOptionsValue {
             mime_types: Vec::new(),
             extensions: Vec::new(),
             multiple: false,

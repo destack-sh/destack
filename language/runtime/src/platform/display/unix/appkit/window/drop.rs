@@ -183,17 +183,17 @@ fn ensure_drag_session(
     let proposed_operation = Some(allowed_operation);
 
     // update the active session in place when one already exists
-    if let Some(session) = drop_session.session {
-        if replace_drag_session(
+    if let Some(session) = drop_session.session
+        && replace_drag_session(
             runtime_state.resource_table(),
             session,
             allowed_operations,
             proposed_operation,
             position,
             items.clone(),
-        ) {
-            return session;
-        }
+        )
+    {
+        return session;
     }
 
     // otherwise open a new external drag session for this window

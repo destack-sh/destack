@@ -8,17 +8,18 @@ use crate::platform::core::{
 };
 use crate::platform::fs::OsPathVm;
 use crate::platform::input::{
-    ClipboardItem, ClipboardItemDescriptorVm, InputClipboardCommandEventVm, InputCompositionEvent,
-    InputCompositionEventPayloadVm, InputCompositionEventVm, InputDeviceCapabilities,
-    InputDeviceCapabilitiesVm, InputDeviceDescriptor, InputDeviceDescriptorVm,
-    InputEditIntentEventVm, InputEvent, InputEventMetadata, InputEventMetadataVm, InputEventVm,
-    InputGamepadState, InputGamepadStateVm, InputHapticEffectParametersVm, InputHapticEffectType,
-    InputHapticsResult, InputKeyboardLayoutInfoVm, InputKeyboardState, InputKeyboardStateVm,
-    InputMonitorEvent, InputMonitorEventVm, InputPointerGrabMode, InputPointerStateVm,
-    InputRawHidReport, InputRawHidReportVm, InputReadMode, InputSensorConfigVm,
-    InputSensorDescriptorVm, InputSensorEffectiveConfigVm, InputSensorKind, InputSensorSampleVm,
-    InputTextInputAreaVm, InputTextInputType, InputTouchState, InputTouchStateVm,
-    InputWindowTargetVm, clipboard, host as host_input,
+    ClipboardItem, ClipboardItemDescriptorVm, ClipboardItemVm, InputClipboardCommandEventVm,
+    InputCompositionEvent, InputCompositionEventPayloadVm, InputCompositionEventVm,
+    InputDeviceCapabilities, InputDeviceCapabilitiesVm, InputDeviceDescriptor,
+    InputDeviceDescriptorVm, InputEditIntentEventVm, InputEvent, InputEventMetadata,
+    InputEventMetadataVm, InputEventVm, InputGamepadState, InputGamepadStateVm,
+    InputHapticEffectParametersVm, InputHapticEffectType, InputHapticsResult,
+    InputKeyboardLayoutInfoVm, InputKeyboardState, InputKeyboardStateVm, InputMonitorEvent,
+    InputMonitorEventVm, InputPointerGrabMode, InputPointerStateVm, InputRawHidReport,
+    InputRawHidReportVm, InputReadMode, InputSensorConfigVm, InputSensorDescriptorVm,
+    InputSensorEffectiveConfigVm, InputSensorKind, InputSensorSampleVm, InputTextInputAreaVm,
+    InputTextInputType, InputTouchState, InputTouchStateVm, InputWindowTargetVm, clipboard,
+    host as host_input,
 };
 use crate::platform::{NativeAbiCodec, VmArray, VmSlice, resource};
 use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
@@ -1544,7 +1545,7 @@ pub(crate) fn destack_input_clipboard_read_item_bytes(
         )
     })?;
 
-    VmSlice::from_bytes(context, &unsafe { value.as_slice()? })
+    VmSlice::from_bytes(context, unsafe { value.as_slice()? })
 }
 
 /// Read one clipboard item as one path.
@@ -1622,7 +1623,7 @@ pub(crate) fn destack_input_clipboard_write_text(
 pub(crate) fn destack_input_clipboard_write_items(
     binding: &BindingCallContext,
     context: &mut destack_vm::ExternalCallContext<'_>,
-    items: VmSlice<crate::platform::input::ClipboardItemVm>,
+    items: VmSlice<ClipboardItemVm>,
 ) -> RuntimeResult<()> {
     let items: NativeSlice<ClipboardItem> = native_value_from_vm(binding, context, items)?;
 

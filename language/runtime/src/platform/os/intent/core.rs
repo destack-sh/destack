@@ -94,7 +94,7 @@ pub(crate) fn can_open_url(binding: &BindingCallContext, url: &str) -> RuntimeRe
         .submit_operation(host_intent::can_open_url(url.to_string()))
 }
 
-/// Open one URL target through the host shell or host bridge.
+/// Open one URL target through the host platform or host bridge.
 pub(crate) fn open_url(binding: &BindingCallContext, url: &str) -> RuntimeResult<()> {
     let _ = validate_url(url, INTENT_OPEN_URL_OPERATION)?;
 
@@ -103,7 +103,7 @@ pub(crate) fn open_url(binding: &BindingCallContext, url: &str) -> RuntimeResult
         .submit_operation(host_intent::open_url(url.to_string()))
 }
 
-/// Open one host path target through the host shell or host bridge.
+/// Open one host path target through the host platform or host bridge.
 pub(crate) fn open_path(binding: &BindingCallContext, path: fs::OsPath) -> RuntimeResult<()> {
     binding
         .host()

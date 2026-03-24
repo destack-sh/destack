@@ -1,8 +1,6 @@
 use crate::diagnostic::{RuntimeResult, RuntimeStatus};
-use crate::host::core::callback::decode_callback_host_json;
 use crate::host::core::error::invalid_argument_value;
-use crate::platform::os::{BackgroundEventValue, NotificationEventValue};
-use crate::runtime::{NativeSlice, NativeStringRef, NativeStringSlice};
+use crate::runtime::{NativeStringRef, NativeStringSlice};
 
 /// Decode one optional callback string argument.
 pub(super) fn decode_optional_string(
@@ -41,28 +39,6 @@ pub(super) fn decode_string_slice(
     }
 
     Ok(decoded_values)
-}
-
-/// Decode one Android notification event payload.
-pub(super) fn decode_notification_event_payload(
-    payload: NativeSlice<u8>,
-    operation: &'static str,
-) -> RuntimeResult<NotificationEventValue> {
-    let payload = unsafe { payload.as_slice() }
-        .map_err(|_| invalid_argument_value("payload", "invalid payload slice"))?;
-
-    decode_callback_host_json(payload, operation, "notification event")
-}
-
-/// Decode one Android background event payload.
-pub(super) fn decode_background_event_payload(
-    payload: NativeSlice<u8>,
-    operation: &'static str,
-) -> RuntimeResult<BackgroundEventValue> {
-    let payload = unsafe { payload.as_slice() }
-        .map_err(|_| invalid_argument_value("payload", "invalid payload slice"))?;
-
-    decode_callback_host_json(payload, operation, "background event")
 }
 
 /// Convert one ingress callback result into a host status.

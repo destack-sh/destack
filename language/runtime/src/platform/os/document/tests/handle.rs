@@ -1,5 +1,7 @@
+use crate::platform::core::file_uri_from_path;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::DocumentAccess;
+use crate::tests::platform::error_code_from_runtime_error;
 
 use super::common::{decode_document_bytes, string_harness_value, with_document_harness};
 
@@ -16,10 +18,7 @@ fn test_document_open_reads_and_closes_local_file_uris() {
     std::fs::write(&path, b"fixture bytes").expect("temporary document file should write");
 
     with_document_harness(|mut context| {
-        let uri = string_harness_value(
-            &mut context,
-            &crate::platform::core::file_uri_from_path(&path),
-        );
+        let uri = string_harness_value(&mut context, &file_uri_from_path(&path));
         let handle = context.destack_os_document_open(uri, DocumentAccess::Read)?;
         let bytes = context.destack_os_document_read(handle, 64, 0)?;
         let bytes = decode_document_bytes(&mut context, bytes)?;
@@ -35,7 +34,7 @@ fn test_document_open_reads_and_closes_local_file_uris() {
             Err(error) => error,
         };
         assert_eq!(
-            crate::tests::platform::error_code_from_runtime_error(&error),
+            error_code_from_runtime_error(&error),
             Some(PlatformErrorCode::InvalidArgumentValue),
         );
 

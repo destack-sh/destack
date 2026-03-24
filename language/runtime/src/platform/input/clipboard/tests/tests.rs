@@ -5,9 +5,9 @@ use crate::platform::core::{NativeAbiCodec, VmAbiCodec};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::tests::{HarnessValue, InputHarnessContext as HarnessContext};
 use crate::platform::input::{
-    ClipboardItem, ClipboardItemDescriptor, ClipboardItemDescriptorValue,
-    ClipboardItemDescriptorVm, ClipboardItemRepresentation, ClipboardItemRepresentationKind,
-    ClipboardItemRepresentationValue, ClipboardItemVm, ClipboardPresentationStyle,
+    ClipboardItem, ClipboardItemDescriptor, ClipboardItemDescriptorVm, ClipboardItemRepresentation,
+    ClipboardItemRepresentationKind, ClipboardItemRepresentationValue, ClipboardItemValue,
+    ClipboardItemVm, ClipboardPresentationStyle,
 };
 use crate::platform::{NativeSlice, NativeStringRef, VmSlice};
 use crate::tests::platform::error_code_from_runtime_error;

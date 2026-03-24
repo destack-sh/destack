@@ -15,11 +15,10 @@ use crate::host::android::tests::{
 };
 use crate::host::core::registry::HostSessionRegistry;
 use crate::host::{
-    HOST_STATUS_BUFFER_TOO_SMALL, HOST_STATUS_INVALID_ARGUMENT, HOST_STATUS_NOT_FOUND,
-    HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK,
+    HOST_STATUS_INVALID_ARGUMENT, HOST_STATUS_NOT_FOUND, HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK,
 };
 use crate::platform::os::MediaAssetKind;
-use crate::platform::os::abi_generated::MediaAssetDescriptorValue;
+use crate::platform::os::abi_generated::{MediaAssetDescriptorValue, MediaPageValue};
 use crate::runtime::{NativeSlice, NativeStringRef, NativeStringSlice};
 
 unsafe extern "C" fn test_media_list_callback(
@@ -279,7 +278,7 @@ fn test_host_media_asset_descriptor() -> HostMediaAssetDescriptor {
     }
 }
 
-fn decode_media_page(value: HostMediaPage) -> crate::platform::os::abi_generated::MediaPageValue {
+fn decode_media_page(value: HostMediaPage) -> MediaPageValue {
     value.decode("mediaList").unwrap()
 }
 

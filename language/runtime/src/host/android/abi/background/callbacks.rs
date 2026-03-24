@@ -1,32 +1,41 @@
 use crate::host::android::abi::bindings::invoke_android_binding_callback;
-use crate::runtime::NativeSlice;
+use crate::platform::NativeArray;
+use crate::platform::os::abi_generated::{
+    BackgroundStatus, BackgroundTaskDescriptor, BackgroundTaskOptions, BackgroundTaskResult,
+};
+use crate::runtime::NativeStringRef;
 
 /// Host callback for reading Android background scheduler status.
 pub(crate) type AndroidHostBackgroundStatusCallback =
-    unsafe extern "C" fn(runtime_id: u64, status: *mut i32) -> u32;
+    unsafe extern "C" fn(runtime_id: u64, status: *mut BackgroundStatus) -> u32;
 
 /// Host callback for listing Android background task registrations.
-pub(crate) type AndroidHostBackgroundListCallback =
-    unsafe extern "C" fn(runtime_id: u64, output: NativeSlice<u8>, output_written: *mut u32) -> u32;
+pub(crate) type AndroidHostBackgroundListCallback = unsafe extern "C" fn(
+    runtime_id: u64,
+    output_descriptors: *mut NativeArray<BackgroundTaskDescriptor>,
+) -> u32;
 
 /// Host callback for registering one Android background task.
 pub(crate) type AndroidHostBackgroundRegisterCallback =
-    unsafe extern "C" fn(runtime_id: u64, payload: NativeSlice<u8>) -> u32;
+    unsafe extern "C" fn(runtime_id: u64, options: BackgroundTaskOptions) -> u32;
 
 /// Host callback for unregistering one Android background task.
 pub(crate) type AndroidHostBackgroundUnregisterCallback =
-    unsafe extern "C" fn(runtime_id: u64, identifier: NativeSlice<u8>) -> u32;
+    unsafe extern "C" fn(runtime_id: u64, identifier: NativeStringRef) -> u32;
 
 /// Host callback for triggering one Android background task in tests.
 pub(crate) type AndroidHostBackgroundTriggerTestCallback = unsafe extern "C" fn(
     runtime_id: u64,
-    identifier: NativeSlice<u8>,
+    identifier: NativeStringRef,
     is_triggered: *mut bool,
 ) -> u32;
 
 /// Host callback for completing one Android background task execution.
-pub(crate) type AndroidHostBackgroundCompleteCallback =
-    unsafe extern "C" fn(runtime_id: u64, execution_id: NativeSlice<u8>, result: i32) -> u32;
+pub(crate) type AndroidHostBackgroundCompleteCallback = unsafe extern "C" fn(
+    runtime_id: u64,
+    execution_id: NativeStringRef,
+    result: BackgroundTaskResult,
+) -> u32;
 
 /// Callback table for Android host background request interop.
 #[derive(Clone, Copy, Debug, Default)]

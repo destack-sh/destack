@@ -201,27 +201,6 @@ pub(super) fn windows_notification_actions_xml(
     })
 }
 
-/// Decode one request payload from one scheduled Windows toast document.
-pub(super) fn windows_request_from_document(
-    document: &windows::Data::Xml::Dom::XmlDocument,
-) -> RuntimeResult<NotificationRequestValue> {
-    use windows::core::HSTRING;
-
-    let root = document
-        .DocumentElement()
-        .map_err(windows_notification_error)?;
-    let launch = root
-        .GetAttribute(&HSTRING::from("launch"))
-        .map_err(windows_notification_error)?;
-    let launch = launch.to_string_lossy();
-
-    if let Ok(payload) = serde_json::from_str::<WindowsNotificationActivationPayload>(&launch) {
-        return Ok(payload.request);
-    }
-
-    serde_json::from_str(&launch).map_err(windows_notification_payload_error)
-}
-
 /// Convert one notification trigger into one Windows delivery timestamp.
 pub(super) fn windows_scheduled_delivery_time(
     trigger: &NotificationTriggerValue,
@@ -229,19 +208,6 @@ pub(super) fn windows_scheduled_delivery_time(
     let unix_ns = trigger_delivery_unix_ns(trigger)?;
 
     Ok(unix_ns_to_windows_datetime(unix_ns))
-}
-
-/// Convert one Windows delivery timestamp into one Unix nanosecond timestamp.
-pub(super) fn windows_datetime_to_unix_ns(datetime: windows::Foundation::DateTime) -> u64 {
-    let ticks = datetime
-        .UniversalTime
-        .saturating_sub(WINDOWS_EPOCH_OFFSET_TICKS);
-
-    if ticks <= 0 {
-        return 0;
-    }
-
-    (ticks as u64).saturating_mul(NANOSECONDS_PER_TICK)
 }
 
 /// Convert one Unix nanosecond timestamp into one Windows delivery timestamp.
@@ -328,12 +294,6 @@ pub(super) fn windows_notification_activation_from_arguments(
     default_notification_id: Option<&str>,
     default_request: Option<&NotificationRequestValue>,
 ) -> RuntimeResult<WindowsNotificationActivationPayload> {
-    if let Ok(payload) = serde_json::from_str::<WindowsNotificationActivationPayload>(arguments) {
-        return Ok(payload);
-    }
-
-    let default_host_runtime_id = default_host_runtime_id.map(|runtime_id| runtime_id.0);
-
     if arguments.is_empty() {
         let default_request = default_request.ok_or_else(|| {
             windows_notification_payload_error(
@@ -354,36 +314,12 @@ pub(super) fn windows_notification_activation_from_arguments(
         return Ok(WindowsNotificationActivationPayload {
             source_host_runtime_id: default_host_runtime_id,
             notification_id: default_notification_id.to_string(),
-            request: default_request.clone(),
             action_id: default_request.action_id.clone(),
             input_id: None,
         });
     }
 
-    if let Ok(request_payload) = serde_json::from_str::<NotificationRequestValue>(arguments) {
-        let default_host_runtime_id = default_host_runtime_id.ok_or_else(|| {
-            windows_notification_payload_error(
-                "Windows legacy activation payload was missing one runtime identifier",
-            )
-        })?;
-        let default_notification_id = default_notification_id.ok_or_else(|| {
-            windows_notification_payload_error(
-                "Windows legacy activation payload was missing one notification identifier",
-            )
-        })?;
-
-        return Ok(WindowsNotificationActivationPayload {
-            source_host_runtime_id: default_host_runtime_id,
-            notification_id: default_notification_id.to_string(),
-            request: request_payload.clone(),
-            action_id: request_payload.action_id,
-            input_id: None,
-        });
-    }
-
-    Err(windows_notification_payload_error(
-        "Windows activation arguments had one unknown payload format",
-    ))
+    decode_windows_notification_activation_token(arguments)
 }
 
 /// Read one text-input response payload from one Windows activation callback.
@@ -419,19 +355,157 @@ pub(super) fn windows_notification_response_text(
 pub(super) fn windows_notification_activation_payload(
     host_session_id: HostSessionId,
     id: &str,
-    request: &NotificationRequestValue,
+    _request: &NotificationRequestValue,
     action_id: Option<&str>,
     input_id: Option<&str>,
 ) -> RuntimeResult<String> {
-    let payload = WindowsNotificationActivationPayload {
-        source_host_runtime_id: host_session_id.0,
-        notification_id: id.to_string(),
-        request: request.clone(),
-        action_id: action_id.map(str::to_string),
-        input_id: input_id.map(str::to_string),
+    let mut payload = format!(
+        "destack.notification.windows.v1\nsession={}\nid={}",
+        host_session_id.0,
+        encode_windows_notification_token_string(id),
+    );
+
+    if let Some(action_id) = action_id {
+        payload.push_str("\naction=");
+        payload.push_str(&encode_windows_notification_token_string(action_id));
+    }
+
+    if let Some(input_id) = input_id {
+        payload.push_str("\ninput=");
+        payload.push_str(&encode_windows_notification_token_string(input_id));
+    }
+
+    Ok(payload)
+}
+
+/// Decode one Windows activation token from one toast argument string.
+fn decode_windows_notification_activation_token(
+    payload: &str,
+) -> RuntimeResult<WindowsNotificationActivationPayload> {
+    let mut lines = payload.lines();
+    let Some(kind) = lines.next() else {
+        return Err(windows_notification_payload_error(
+            "Windows activation arguments were empty",
+        ));
     };
 
-    serde_json::to_string(&payload).map_err(windows_notification_payload_error)
+    if kind != "destack.notification.windows.v1" {
+        return Err(windows_notification_payload_error(
+            "Windows activation arguments had one unknown payload kind",
+        ));
+    }
+
+    let mut source_host_runtime_id = None;
+    let mut notification_id = None;
+    let mut action_id = None;
+    let mut input_id = None;
+
+    for line in lines {
+        let Some((key, value)) = line.split_once('=') else {
+            return Err(windows_notification_payload_error(
+                "Windows activation arguments had one invalid field",
+            ));
+        };
+
+        match key {
+            "session" => {
+                let value = value
+                    .parse::<u64>()
+                    .map_err(windows_notification_payload_error)?;
+                source_host_runtime_id = Some(value);
+            }
+            "id" => {
+                notification_id = Some(decode_windows_notification_token_string(value)?);
+            }
+            "action" => {
+                action_id = Some(decode_windows_notification_token_string(value)?);
+            }
+            "input" => {
+                input_id = Some(decode_windows_notification_token_string(value)?);
+            }
+            _ => {
+                return Err(windows_notification_payload_error(
+                    "Windows activation arguments had one unknown field",
+                ));
+            }
+        }
+    }
+
+    let source_host_runtime_id = source_host_runtime_id.ok_or_else(|| {
+        windows_notification_payload_error(
+            "Windows activation arguments were missing one runtime identifier",
+        )
+    })?;
+    let notification_id = notification_id.ok_or_else(|| {
+        windows_notification_payload_error(
+            "Windows activation arguments were missing one notification identifier",
+        )
+    })?;
+
+    Ok(WindowsNotificationActivationPayload {
+        source_host_runtime_id,
+        notification_id,
+        action_id,
+        input_id,
+    })
+}
+
+/// Encode one Windows activation token string as lowercase hex.
+fn encode_windows_notification_token_string(value: &str) -> String {
+    let mut encoded = String::with_capacity(value.len() * 2);
+
+    for byte in value.as_bytes() {
+        let high = byte >> 4;
+        let low = byte & 0x0f;
+
+        encoded.push(hex_digit(high));
+        encoded.push(hex_digit(low));
+    }
+
+    encoded
+}
+
+/// Decode one Windows activation token string from lowercase hex.
+fn decode_windows_notification_token_string(value: &str) -> RuntimeResult<String> {
+    if value.len() % 2 != 0 {
+        return Err(windows_notification_payload_error(
+            "Windows activation token had one invalid hex length",
+        ));
+    }
+
+    let bytes = value.as_bytes();
+    let mut decoded = Vec::with_capacity(bytes.len() / 2);
+    let mut index = 0;
+
+    while index < bytes.len() {
+        let high = decode_hex_digit(bytes[index])?;
+        let low = decode_hex_digit(bytes[index + 1])?;
+        decoded.push((high << 4) | low);
+        index += 2;
+    }
+
+    String::from_utf8(decoded).map_err(windows_notification_payload_error)
+}
+
+/// Encode one hex nibble as one lowercase hex digit.
+fn hex_digit(value: u8) -> char {
+    match value {
+        0..=9 => (b'0' + value) as char,
+        10..=15 => (b'a' + (value - 10)) as char,
+        _ => unreachable!("invalid hex nibble"),
+    }
+}
+
+/// Decode one lowercase hex digit into one nibble.
+fn decode_hex_digit(value: u8) -> RuntimeResult<u8> {
+    match value {
+        b'0'..=b'9' => Ok(value - b'0'),
+        b'a'..=b'f' => Ok(value - b'a' + 10),
+        b'A'..=b'F' => Ok(value - b'A' + 10),
+        _ => Err(windows_notification_payload_error(
+            "Windows activation token had one invalid hex digit",
+        )),
+    }
 }
 
 /// Read one text-input response from the COM activation callback input list.
@@ -641,7 +715,6 @@ mod tests {
                 },
             ),
             action_id: None,
-            data_json: None,
         }
     }
 }

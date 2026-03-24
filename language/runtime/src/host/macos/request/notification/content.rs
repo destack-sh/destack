@@ -1,16 +1,14 @@
 use crate::diagnostic::RuntimeResult;
 use crate::host::core::HostSessionId;
 use crate::platform::os::NotificationActionStyle;
-use crate::platform::os::abi_generated::{
-    NotificationActionValue, NotificationRequestValue, NotificationScheduledDescriptorValue,
-};
+use crate::platform::os::abi_generated::{NotificationActionValue, NotificationRequestValue};
 
-use super::core::{MacosNotificationPayload, macos_notification_payload_error};
+use super::core::{decode_notification_host_session_id, encode_notification_host_session_id};
 
 /// Build one mutable content payload for one notification request.
 pub(super) fn build_notification_content(
     request: &NotificationRequestValue,
-    payload: MacosNotificationPayload,
+    host_session_id: HostSessionId,
 ) -> RuntimeResult<objc2::rc::Retained<objc2_user_notifications::UNMutableNotificationContent>> {
     use objc2_foundation::{NSNumber, NSString};
     use objc2_user_notifications::{UNMutableNotificationContent, UNNotificationSound};
@@ -52,44 +50,24 @@ pub(super) fn build_notification_content(
     }
 
     // payload
-    let payload = serde_json::to_string(&payload).map_err(macos_notification_payload_error)?;
+    let payload = encode_notification_host_session_id(host_session_id.0);
     let payload = NSString::from_str(&payload);
     content.setTargetContentIdentifier(Some(&payload));
 
     Ok(content)
 }
 
-/// Decode one pending descriptor from one native request.
-pub(super) fn pending_descriptor_from_native_request(
+/// Decode one preserved macOS host session id from one native request.
+pub(super) fn notification_host_session_id_from_native_request(
     request: &objc2_user_notifications::UNNotificationRequest,
-    host_session_id: HostSessionId,
-) -> RuntimeResult<Option<NotificationScheduledDescriptorValue>> {
-    let id = request.identifier().to_string();
-    let payload = notification_payload_from_native_request(request)?;
-
-    if payload.host_session_id != host_session_id.0 {
-        return Ok(None);
-    }
-
-    Ok(Some(NotificationScheduledDescriptorValue {
-        id,
-        request: payload.request,
-        scheduled_unix_ns: payload.scheduled_unix_ns,
-    }))
-}
-
-/// Decode one preserved macOS notification payload from one native request.
-pub(super) fn notification_payload_from_native_request(
-    request: &objc2_user_notifications::UNNotificationRequest,
-) -> RuntimeResult<MacosNotificationPayload> {
+) -> RuntimeResult<u64> {
     let content = request.content();
     let payload = content
         .targetContentIdentifier()
         .map(|value| value.to_string())
         .unwrap_or_default();
 
-    serde_json::from_str::<MacosNotificationPayload>(&payload)
-        .map_err(macos_notification_payload_error)
+    decode_notification_host_session_id(&payload)
 }
 
 /// Return native macOS action options for one runtime notification action.

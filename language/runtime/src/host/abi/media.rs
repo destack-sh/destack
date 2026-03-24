@@ -63,7 +63,7 @@ impl From<HostMediaAssetKind> for MediaAssetKind {
 }
 
 /// One owned media-query payload.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub(crate) struct HostMediaQueryPayload {
     /// The owned cursor backing storage.
     cursor: String,

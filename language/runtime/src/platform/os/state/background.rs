@@ -142,6 +142,9 @@ pub(crate) fn background_event_read(
     handle: resource::BackgroundEventHandle,
     timeout_ns: u64,
 ) -> RuntimeResult<BackgroundEventValue> {
+    // service ready ingress before waiting on the stream
+    binding.service_runtime_ingress()?;
+
     let stream = resolve_background_stream(binding, handle)?;
     let now = monotonic_now_ns();
     let deadline_ns = now.saturating_add(timeout_ns);

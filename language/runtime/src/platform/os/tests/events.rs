@@ -1,3 +1,5 @@
+#![cfg_attr(feature = "execution", allow(dead_code))]
+
 use crate::diagnostic::RuntimeResult;
 use crate::host::core::HostSessionRegistry;
 use crate::host::{

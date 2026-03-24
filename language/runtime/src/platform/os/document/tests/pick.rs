@@ -1,5 +1,6 @@
 use std::sync::Mutex;
 
+use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::fs::abi_generated::{OsPathBytesValue, OsPathValue, PathBytesValue};
 #[cfg(windows)]
 use crate::platform::fs::abi_generated::{OsPathUtf16Value, PathUtf16Value};
@@ -94,10 +95,7 @@ fn test_document_pick_requires_test_hook() {
         let error_code = error_code_from_result(result)
             .expect("missing picker hook should decode one platform error");
 
-        assert_eq!(
-            error_code,
-            crate::platform::diagnostic::PlatformErrorCode::Generic
-        );
+        assert_eq!(error_code, PlatformErrorCode::Generic);
 
         Ok(())
     });

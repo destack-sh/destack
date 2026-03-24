@@ -3,7 +3,7 @@ use crate::platform::os::abi_generated::{
     BackgroundEventOpenOptionsValue, BackgroundEventValue, BackgroundStatusValue,
     BackgroundTaskDescriptorValue, BackgroundTaskOptionsValue, BackgroundTaskResultValue,
 };
-use crate::platform::os::state;
+use crate::platform::os::{BackgroundEventVm, BackgroundTaskDescriptorVm, state};
 use crate::platform::{VmAbiCodec, VmArray, resource};
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
@@ -84,15 +84,13 @@ pub(crate) fn event_try_read(
 pub(crate) fn list_vm(
     context: &mut vm::ExternalCallContext<'_>,
     descriptors: &[BackgroundTaskDescriptorValue],
-) -> RuntimeResult<VmArray<crate::platform::os::BackgroundTaskDescriptorVm>> {
+) -> RuntimeResult<VmArray<BackgroundTaskDescriptorVm>> {
     let mut encoded_descriptors = Vec::with_capacity(descriptors.len());
 
     // encode one descriptor per registered background task
     for descriptor in descriptors {
-        let encoded_descriptor = crate::platform::os::BackgroundTaskDescriptorVm::from_value(
-            context,
-            descriptor.clone(),
-        )?;
+        let encoded_descriptor =
+            BackgroundTaskDescriptorVm::from_value(context, descriptor.clone())?;
         encoded_descriptors.push(encoded_descriptor);
     }
 
@@ -103,6 +101,6 @@ pub(crate) fn list_vm(
 pub(crate) fn event_vm(
     context: &mut vm::ExternalCallContext<'_>,
     event: BackgroundEventValue,
-) -> RuntimeResult<crate::platform::os::BackgroundEventVm> {
-    crate::platform::os::BackgroundEventVm::from_value(context, event)
+) -> RuntimeResult<BackgroundEventVm> {
+    BackgroundEventVm::from_value(context, event)
 }
