@@ -467,6 +467,34 @@ let str = String(value);
         test.result(result).assert_no_lint("no-base-to-string");
     }
 
+    /// Allow Error stringification.
+    #[test]
+    fn test_allows_error_to_string() {
+        let test = TestProgram::for_rule_with_prelude(NoBaseToString);
+        let result = test.lint_dir(
+            "no_base_to_string/test_allows_error_to_string.ds",
+            r#"
+let error = new Error("failed");
+let text = error.toString();
+"#,
+        );
+        test.result(result).assert_no_lint("no-base-to-string");
+    }
+
+    /// Allow String conversion for Error values.
+    #[test]
+    fn test_allows_string_call_on_error() {
+        let test = TestProgram::for_rule_with_prelude(NoBaseToString);
+        let result = test.lint_dir(
+            "no_base_to_string/test_allows_string_call_on_error.ds",
+            r#"
+let error = new Error("failed");
+let text = String(error);
+"#,
+        );
+        test.result(result).assert_no_lint("no-base-to-string");
+    }
+
     /// Flag template interpolation for plain object values.
     #[test]
     fn test_flags_template_interpolation_object() {
