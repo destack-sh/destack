@@ -1310,9 +1310,37 @@ impl<'call> OsHarnessContext<'call> {
         }
     }
 
-    /// Pick documents from host picker UI.
+    /// Close one document-picker transaction.
     ///
-    /// Open host picker UI and return selected document descriptors.
+    /// Close one document-picker transaction handle and release host routing state.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host picker callback unregistration and runtime resource cleanup.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.document.pick`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_document_pick_close(
+        &mut self,
+        handle: resource::DocumentPickHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                os_vm::destack_os_document_pick_close(self.call_context, context, handle)
+            }
+            None => unsafe { os_native::destack_os_document_pick_close(self.call_context, handle) },
+        }
+    }
+
+    /// Open one document-picker transaction.
+    ///
+    /// Start one host document-picker interaction and return one transaction handle.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -1326,25 +1354,115 @@ impl<'call> OsHarnessContext<'call> {
     ///
     /// # Replay
     /// External, nonrecordable.
-    pub(crate) fn destack_os_document_pick(
+    pub(crate) fn destack_os_document_pick_open(
         &mut self,
         options: HarnessValue<DocumentPickOptions, DocumentPickOptionsVm>,
+    ) -> RuntimeResult<resource::DocumentPickHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let options = options.into_vm("options")?;
+                let out =
+                    os_vm::destack_os_document_pick_open(self.call_context, context, options)?;
+                Ok(out)
+            }
+            None => {
+                let options = options.into_native("options")?;
+                let mut out = std::mem::MaybeUninit::<resource::DocumentPickHandle>::uninit();
+                unsafe {
+                    os_native::destack_os_document_pick_open(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        options,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Wait for one document-picker result.
+    ///
+    /// Wait for the completion of one earlier document-picker transaction.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host picker completion queues and runtime transaction state.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.document.pick`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_document_pick_read(
+        &mut self,
+        handle: resource::DocumentPickHandle,
+        timeoutns: u64,
     ) -> RuntimeResult<HarnessValue<NativeArray<DocumentDescriptor>, VmArray<DocumentDescriptorVm>>>
     {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let options = options.into_vm("options")?;
-                let out = os_vm::destack_os_document_pick(self.call_context, context, options)?;
+                let out = os_vm::destack_os_document_pick_read(
+                    self.call_context,
+                    context,
+                    handle,
+                    timeoutns,
+                )?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
-                let options = options.into_native("options")?;
                 let mut out = std::mem::MaybeUninit::<NativeArray<DocumentDescriptor>>::uninit();
                 unsafe {
-                    os_native::destack_os_document_pick(
+                    os_native::destack_os_document_pick_read(
                         self.call_context,
                         out.as_mut_ptr(),
-                        options,
+                        handle,
+                        timeoutns,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Poll one document-picker result without blocking.
+    ///
+    /// Poll the completion of one earlier document-picker transaction without waiting.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses nonblocking host picker completion queue reads.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.document.pick`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_document_pick_try_read(
+        &mut self,
+        handle: resource::DocumentPickHandle,
+    ) -> RuntimeResult<HarnessValue<NativeArray<DocumentDescriptor>, VmArray<DocumentDescriptorVm>>>
+    {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out =
+                    os_vm::destack_os_document_pick_try_read(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeArray<DocumentDescriptor>>::uninit();
+                unsafe {
+                    os_native::destack_os_document_pick_try_read(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
                     )?;
                 }
                 let out = unsafe { out.assume_init() };
@@ -1790,7 +1908,7 @@ impl<'call> OsHarnessContext<'call> {
 
     /// Request host to open one file path target.
     ///
-    /// Ask the host platform or app framework to open one file path with default routing.
+    /// Ask host shell or app framework to open one file path with default routing.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -1822,7 +1940,7 @@ impl<'call> OsHarnessContext<'call> {
 
     /// Request host to open one URL target.
     ///
-    /// Ask the host platform or app framework to open one URL with default routing.
+    /// Ask host shell or app framework to open one URL with default routing.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -3277,9 +3395,44 @@ impl<'call> OsHarnessContext<'call> {
         }
     }
 
-    /// Request host notification permission.
+    /// Close one notification-permission request transaction.
     ///
-    /// Request notification permission through host authorization flow and return resulting permission state.
+    /// Close one notification-permission request transaction handle and release host routing state.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host notification callback unregistration and runtime resource cleanup.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.notification.permission`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_notification_request_permission_close(
+        &mut self,
+        handle: resource::NotificationPermissionRequestHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => os_vm::destack_os_notification_request_permission_close(
+                self.call_context,
+                context,
+                handle,
+            ),
+            None => unsafe {
+                os_native::destack_os_notification_request_permission_close(
+                    self.call_context,
+                    handle,
+                )
+            },
+        }
+    }
+
+    /// Open one notification-permission request transaction.
+    ///
+    /// Start one host notification authorization request and return one transaction handle.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -3293,21 +3446,116 @@ impl<'call> OsHarnessContext<'call> {
     ///
     /// # Replay
     /// External, nonrecordable.
-    pub(crate) fn destack_os_notification_request_permission(
+    pub(crate) fn destack_os_notification_request_permission_open(
         &mut self,
+    ) -> RuntimeResult<resource::NotificationPermissionRequestHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = os_vm::destack_os_notification_request_permission_open(
+                    self.call_context,
+                    context,
+                )?;
+                Ok(out)
+            }
+            None => {
+                let mut out =
+                    std::mem::MaybeUninit::<resource::NotificationPermissionRequestHandle>::uninit(
+                    );
+                unsafe {
+                    os_native::destack_os_notification_request_permission_open(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Wait for one notification-permission result.
+    ///
+    /// Wait for the completion of one earlier notification-permission transaction.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host notification permission completion queues and runtime transaction state.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.notification.permission`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_notification_request_permission_read(
+        &mut self,
+        handle: resource::NotificationPermissionRequestHandle,
+        timeoutns: u64,
     ) -> RuntimeResult<NotificationPermissionState> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out =
-                    os_vm::destack_os_notification_request_permission(self.call_context, context)?;
+                let out = os_vm::destack_os_notification_request_permission_read(
+                    self.call_context,
+                    context,
+                    handle,
+                    timeoutns,
+                )?;
                 Ok(out)
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<NotificationPermissionState>::uninit();
                 unsafe {
-                    os_native::destack_os_notification_request_permission(
+                    os_native::destack_os_notification_request_permission_read(
                         self.call_context,
                         out.as_mut_ptr(),
+                        handle,
+                        timeoutns,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Poll one notification-permission result without blocking.
+    ///
+    /// Poll the completion of one earlier notification-permission transaction without waiting.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses nonblocking host notification permission completion queue reads.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.notification.permission`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_notification_request_permission_try_read(
+        &mut self,
+        handle: resource::NotificationPermissionRequestHandle,
+    ) -> RuntimeResult<NotificationPermissionState> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = os_vm::destack_os_notification_request_permission_try_read(
+                    self.call_context,
+                    context,
+                    handle,
+                )?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NotificationPermissionState>::uninit();
+                unsafe {
+                    os_native::destack_os_notification_request_permission_try_read(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
                     )?;
                 }
                 let out = unsafe { out.assume_init() };
@@ -3382,9 +3630,39 @@ impl<'call> OsHarnessContext<'call> {
         }
     }
 
-    /// Request one permission.
+    /// Close one permission-request transaction.
     ///
-    /// Request host authorization for one permission selector.
+    /// Close one permission-request transaction handle and release host routing state.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host permission callback unregistration and runtime resource cleanup.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.permission.request`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_permission_request_close(
+        &mut self,
+        handle: resource::PermissionRequestHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                os_vm::destack_os_permission_request_close(self.call_context, context, handle)
+            }
+            None => unsafe {
+                os_native::destack_os_permission_request_close(self.call_context, handle)
+            },
+        }
+    }
+
+    /// Open one multi-permission request transaction.
+    ///
+    /// Start one host authorization request for one permission selector list and return one transaction handle.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -3398,20 +3676,69 @@ impl<'call> OsHarnessContext<'call> {
     ///
     /// # Replay
     /// External, nonrecordable.
-    pub(crate) fn destack_os_permission_request(
+    pub(crate) fn destack_os_permission_request_many_open(
         &mut self,
-        permission: Permission,
-    ) -> RuntimeResult<PermissionState> {
+        permissions: HarnessValue<NativeArray<Permission>, VmArray<Permission>>,
+    ) -> RuntimeResult<resource::PermissionRequestHandle> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out =
-                    os_vm::destack_os_permission_request(self.call_context, context, permission)?;
+                let permissions = permissions.into_vm("permissions")?;
+                let out = os_vm::destack_os_permission_request_many_open(
+                    self.call_context,
+                    context,
+                    permissions,
+                )?;
                 Ok(out)
             }
             None => {
-                let mut out = std::mem::MaybeUninit::<PermissionState>::uninit();
+                let permissions = permissions.into_native("permissions")?;
+                let mut out = std::mem::MaybeUninit::<resource::PermissionRequestHandle>::uninit();
                 unsafe {
-                    os_native::destack_os_permission_request(
+                    os_native::destack_os_permission_request_many_open(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        permissions,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Open one permission-request transaction.
+    ///
+    /// Start one host authorization request for one permission selector and return one transaction handle.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host permission-request dialogs and policy APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.permission.request`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_permission_request_open(
+        &mut self,
+        permission: Permission,
+    ) -> RuntimeResult<resource::PermissionRequestHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = os_vm::destack_os_permission_request_open(
+                    self.call_context,
+                    context,
+                    permission,
+                )?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<resource::PermissionRequestHandle>::uninit();
+                unsafe {
+                    os_native::destack_os_permission_request_open(
                         self.call_context,
                         out.as_mut_ptr(),
                         permission,
@@ -3423,44 +3750,89 @@ impl<'call> OsHarnessContext<'call> {
         }
     }
 
-    /// Request multiple permissions.
+    /// Wait for one permission-request result.
     ///
-    /// Request host authorization for one selector list and return resulting states.
+    /// Wait for the completion of one earlier permission-request transaction.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses batched host permission request APIs where available.
+    /// Uses host permission completion queues and runtime transaction state.
     ///
     /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, ioInvalidData, notSupported.
     ///
     /// # Security
     /// Requires `os.permission.request`.
     ///
     /// # Replay
     /// External, nonrecordable.
-    pub(crate) fn destack_os_permission_request_many(
+    pub(crate) fn destack_os_permission_request_read(
         &mut self,
-        permissions: HarnessValue<NativeArray<Permission>, VmArray<Permission>>,
+        handle: resource::PermissionRequestHandle,
+        timeoutns: u64,
     ) -> RuntimeResult<HarnessValue<NativeArray<PermissionEntry>, VmArray<PermissionEntryVm>>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let permissions = permissions.into_vm("permissions")?;
-                let out = os_vm::destack_os_permission_request_many(
+                let out = os_vm::destack_os_permission_request_read(
                     self.call_context,
                     context,
-                    permissions,
+                    handle,
+                    timeoutns,
                 )?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
-                let permissions = permissions.into_native("permissions")?;
                 let mut out = std::mem::MaybeUninit::<NativeArray<PermissionEntry>>::uninit();
                 unsafe {
-                    os_native::destack_os_permission_request_many(
+                    os_native::destack_os_permission_request_read(
                         self.call_context,
                         out.as_mut_ptr(),
-                        permissions,
+                        handle,
+                        timeoutns,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Poll one permission-request result without blocking.
+    ///
+    /// Poll the completion of one earlier permission-request transaction without waiting.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses nonblocking host permission completion queue reads.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.permission.request`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_permission_request_try_read(
+        &mut self,
+        handle: resource::PermissionRequestHandle,
+    ) -> RuntimeResult<HarnessValue<NativeArray<PermissionEntry>, VmArray<PermissionEntryVm>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = os_vm::destack_os_permission_request_try_read(
+                    self.call_context,
+                    context,
+                    handle,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeArray<PermissionEntry>>::uninit();
+                unsafe {
+                    os_native::destack_os_permission_request_try_read(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
                     )?;
                 }
                 let out = unsafe { out.assume_init() };

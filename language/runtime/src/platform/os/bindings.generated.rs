@@ -2285,9 +2285,32 @@ fn encode_destack_os_document_open_result(
         .and_then(|value| value)
 }
 
-/// Decode arguments for destack.os.document.pick.
+/// Decode arguments for destack.os.document.pickClose.
 #[inline]
-fn decode_destack_os_document_pick_args(
+fn decode_destack_os_document_pick_close_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::DocumentPickHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "DocumentPickHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "DocumentPickHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::DocumentPickHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.os.document.pickClose.
+#[inline]
+fn encode_destack_os_document_pick_close_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.os.document.pickOpen.
+#[inline]
+fn decode_destack_os_document_pick_open_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(DocumentPickOptionsVm,)> {
@@ -2334,9 +2357,61 @@ fn decode_destack_os_document_pick_args(
     Ok((options,))
 }
 
-/// Encode the result for destack.os.document.pick.
+/// Encode the result for destack.os.document.pickOpen.
 #[inline]
-fn encode_destack_os_document_pick_result(
+fn encode_destack_os_document_pick_open_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<resource::DocumentPickHandle>,
+) -> RuntimeResult<vm::Value> {
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
+}
+
+/// Decode arguments for destack.os.document.pickRead.
+#[inline]
+fn decode_destack_os_document_pick_read_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::DocumentPickHandle, u64)> {
+    let handle_value = arg_value(args, 0, "handle", "DocumentPickHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "DocumentPickHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::DocumentPickHandle(handle_inner);
+    let timeoutns_value = arg_value(args, 1, "timeoutns", "uint64")?;
+    let timeoutns = decode_uint64(timeoutns_value, "timeoutns", "uint64")?;
+    Ok((handle, timeoutns))
+}
+
+/// Encode the result for destack.os.document.pickRead.
+#[inline]
+fn encode_destack_os_document_pick_read_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmArray<DocumentDescriptorVm>>,
+) -> RuntimeResult<vm::Value> {
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
+}
+
+/// Decode arguments for destack.os.document.pickTryRead.
+#[inline]
+fn decode_destack_os_document_pick_try_read_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::DocumentPickHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "DocumentPickHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "DocumentPickHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::DocumentPickHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.os.document.pickTryRead.
+#[inline]
+fn encode_destack_os_document_pick_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<DocumentDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
@@ -5557,9 +5632,93 @@ fn encode_destack_os_notification_post_result(
         .and_then(|value| value)
 }
 
-/// Encode the result for destack.os.notification.requestPermission.
+/// Decode arguments for destack.os.notification.requestPermissionClose.
 #[inline]
-fn encode_destack_os_notification_request_permission_result(
+fn decode_destack_os_notification_request_permission_close_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::NotificationPermissionRequestHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "NotificationPermissionRequestHandle")?;
+    let handle_inner_inner = decode_uint64(
+        handle_value,
+        "handle_inner_inner",
+        "NotificationPermissionRequestHandle",
+    )?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::NotificationPermissionRequestHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.os.notification.requestPermissionClose.
+#[inline]
+fn encode_destack_os_notification_request_permission_close_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Encode the result for destack.os.notification.requestPermissionOpen.
+#[inline]
+fn encode_destack_os_notification_request_permission_open_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<resource::NotificationPermissionRequestHandle>,
+) -> RuntimeResult<vm::Value> {
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
+}
+
+/// Decode arguments for destack.os.notification.requestPermissionRead.
+#[inline]
+fn decode_destack_os_notification_request_permission_read_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::NotificationPermissionRequestHandle, u64)> {
+    let handle_value = arg_value(args, 0, "handle", "NotificationPermissionRequestHandle")?;
+    let handle_inner_inner = decode_uint64(
+        handle_value,
+        "handle_inner_inner",
+        "NotificationPermissionRequestHandle",
+    )?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::NotificationPermissionRequestHandle(handle_inner);
+    let timeoutns_value = arg_value(args, 1, "timeoutns", "uint64")?;
+    let timeoutns = decode_uint64(timeoutns_value, "timeoutns", "uint64")?;
+    Ok((handle, timeoutns))
+}
+
+/// Encode the result for destack.os.notification.requestPermissionRead.
+#[inline]
+fn encode_destack_os_notification_request_permission_read_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<NotificationPermissionState>,
+) -> RuntimeResult<vm::Value> {
+    result
+        .map(|value| Ok(vm::Value::int(value as i32 as i64, 32)))
+        .and_then(|value| value)
+}
+
+/// Decode arguments for destack.os.notification.requestPermissionTryRead.
+#[inline]
+fn decode_destack_os_notification_request_permission_try_read_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::NotificationPermissionRequestHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "NotificationPermissionRequestHandle")?;
+    let handle_inner_inner = decode_uint64(
+        handle_value,
+        "handle_inner_inner",
+        "NotificationPermissionRequestHandle",
+    )?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::NotificationPermissionRequestHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.os.notification.requestPermissionTryRead.
+#[inline]
+fn encode_destack_os_notification_request_permission_try_read_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<NotificationPermissionState>,
 ) -> RuntimeResult<vm::Value> {
@@ -5697,9 +5856,58 @@ fn encode_destack_os_permission_open_settings_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.os.permission.request.
+/// Decode arguments for destack.os.permission.requestClose.
 #[inline]
-fn decode_destack_os_permission_request_args(
+fn decode_destack_os_permission_request_close_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::PermissionRequestHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "PermissionRequestHandle")?;
+    let handle_inner_inner = decode_uint64(
+        handle_value,
+        "handle_inner_inner",
+        "PermissionRequestHandle",
+    )?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::PermissionRequestHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.os.permission.requestClose.
+#[inline]
+fn encode_destack_os_permission_request_close_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.os.permission.requestManyOpen.
+#[inline]
+fn decode_destack_os_permission_request_many_open_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(VmArray<Permission>,)> {
+    let permissions_value = arg_value(args, 0, "permissions", "Permission[]")?;
+    let permissions =
+        decode_array::<Permission>(context, permissions_value, "permissions", "Permission[]")?;
+    Ok((permissions,))
+}
+
+/// Encode the result for destack.os.permission.requestManyOpen.
+#[inline]
+fn encode_destack_os_permission_request_many_open_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<resource::PermissionRequestHandle>,
+) -> RuntimeResult<vm::Value> {
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
+}
+
+/// Decode arguments for destack.os.permission.requestOpen.
+#[inline]
+fn decode_destack_os_permission_request_open_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(Permission,)> {
@@ -5731,32 +5939,67 @@ fn decode_destack_os_permission_request_args(
     Ok((permission,))
 }
 
-/// Encode the result for destack.os.permission.request.
+/// Encode the result for destack.os.permission.requestOpen.
 #[inline]
-fn encode_destack_os_permission_request_result(
+fn encode_destack_os_permission_request_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<PermissionState>,
+    result: RuntimeResult<resource::PermissionRequestHandle>,
 ) -> RuntimeResult<vm::Value> {
     result
-        .map(|value| Ok(vm::Value::int(value as i32 as i64, 32)))
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
         .and_then(|value| value)
 }
 
-/// Decode arguments for destack.os.permission.requestMany.
+/// Decode arguments for destack.os.permission.requestRead.
 #[inline]
-fn decode_destack_os_permission_request_many_args(
-    context: &mut vm::ExternalCallContext<'_>,
+fn decode_destack_os_permission_request_read_args(
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(VmArray<Permission>,)> {
-    let permissions_value = arg_value(args, 0, "permissions", "Permission[]")?;
-    let permissions =
-        decode_array::<Permission>(context, permissions_value, "permissions", "Permission[]")?;
-    Ok((permissions,))
+) -> RuntimeResult<(resource::PermissionRequestHandle, u64)> {
+    let handle_value = arg_value(args, 0, "handle", "PermissionRequestHandle")?;
+    let handle_inner_inner = decode_uint64(
+        handle_value,
+        "handle_inner_inner",
+        "PermissionRequestHandle",
+    )?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::PermissionRequestHandle(handle_inner);
+    let timeoutns_value = arg_value(args, 1, "timeoutns", "uint64")?;
+    let timeoutns = decode_uint64(timeoutns_value, "timeoutns", "uint64")?;
+    Ok((handle, timeoutns))
 }
 
-/// Encode the result for destack.os.permission.requestMany.
+/// Encode the result for destack.os.permission.requestRead.
 #[inline]
-fn encode_destack_os_permission_request_many_result(
+fn encode_destack_os_permission_request_read_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmArray<PermissionEntryVm>>,
+) -> RuntimeResult<vm::Value> {
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
+}
+
+/// Decode arguments for destack.os.permission.requestTryRead.
+#[inline]
+fn decode_destack_os_permission_request_try_read_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::PermissionRequestHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "PermissionRequestHandle")?;
+    let handle_inner_inner = decode_uint64(
+        handle_value,
+        "handle_inner_inner",
+        "PermissionRequestHandle",
+    )?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::PermissionRequestHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.os.permission.requestTryRead.
+#[inline]
+fn encode_destack_os_permission_request_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<PermissionEntryVm>>,
 ) -> RuntimeResult<vm::Value> {
@@ -6728,15 +6971,57 @@ pub(crate) const OS_DOCUMENT_OPEN: BindingDescriptor = BindingDescriptor::extern
     .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptor for destack.os.document.pick.
-pub(crate) const OS_DOCUMENT_PICK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.os.document.pick",
-    "export function documentPick(options: DocumentPickOptions): Result<DocumentDescriptor[], PlatformError>",
+/// Binding descriptor for destack.os.document.pickClose.
+pub(crate) const OS_DOCUMENT_PICK_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.document.pickClose",
+    "export function documentPickClose(handle: DocumentPickHandle): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.document.pick"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("os")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.document.pickOpen.
+pub(crate) const OS_DOCUMENT_PICK_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.document.pickOpen",
+    "export function documentPickOpen(options: DocumentPickOptions): Result<DocumentPickHandle, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::BindingCall,
+    &["os.document.pick"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("os")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.document.pickRead.
+pub(crate) const OS_DOCUMENT_PICK_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.document.pickRead",
+    "export function documentPickRead(handle: DocumentPickHandle, timeoutNs: uint64): Result<DocumentDescriptor[], PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::BindingCall,
+    &["os.document.pick"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("os")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.document.pickTryRead.
+pub(crate) const OS_DOCUMENT_PICK_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.document.pickTryRead",
+    "export function documentPickTryRead(handle: DocumentPickHandle): Result<DocumentDescriptor[], PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::BindingCall,
+    &["os.document.pick"],
+    BindingScope::Host,
+    BindingBlocking::Never,
     BindingAffinity::Any,
 )
     .with_namespace("os")
@@ -7819,15 +8104,57 @@ pub(crate) const OS_NOTIFICATION_POST: BindingDescriptor = BindingDescriptor::ex
     .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptor for destack.os.notification.requestPermission.
-pub(crate) const OS_NOTIFICATION_REQUEST_PERMISSION: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.os.notification.requestPermission",
-    "export function notificationRequestPermission(): Result<NotificationPermissionState, PlatformError>",
+/// Binding descriptor for destack.os.notification.requestPermissionClose.
+pub(crate) const OS_NOTIFICATION_REQUEST_PERMISSION_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.notification.requestPermissionClose",
+    "export function notificationRequestPermissionClose(handle: NotificationPermissionRequestHandle): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.notification.permission"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("os")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.notification.requestPermissionOpen.
+pub(crate) const OS_NOTIFICATION_REQUEST_PERMISSION_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.notification.requestPermissionOpen",
+    "export function notificationRequestPermissionOpen(): Result<NotificationPermissionRequestHandle, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::BindingCall,
+    &["os.notification.permission"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("os")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.notification.requestPermissionRead.
+pub(crate) const OS_NOTIFICATION_REQUEST_PERMISSION_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.notification.requestPermissionRead",
+    "export function notificationRequestPermissionRead(handle: NotificationPermissionRequestHandle, timeoutNs: uint64): Result<NotificationPermissionState, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::BindingCall,
+    &["os.notification.permission"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("os")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.notification.requestPermissionTryRead.
+pub(crate) const OS_NOTIFICATION_REQUEST_PERMISSION_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.notification.requestPermissionTryRead",
+    "export function notificationRequestPermissionTryRead(handle: NotificationPermissionRequestHandle): Result<NotificationPermissionState, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::BindingCall,
+    &["os.notification.permission"],
+    BindingScope::Host,
+    BindingBlocking::Never,
     BindingAffinity::Any,
 )
     .with_namespace("os")
@@ -7875,10 +8202,10 @@ pub(crate) const OS_PERMISSION_OPEN_SETTINGS: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptor for destack.os.permission.request.
-pub(crate) const OS_PERMISSION_REQUEST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.os.permission.request",
-    "export function permissionRequest(permission: Permission): Result<PermissionState, PlatformError>",
+/// Binding descriptor for destack.os.permission.requestClose.
+pub(crate) const OS_PERMISSION_REQUEST_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.permission.requestClose",
+    "export function permissionRequestClose(handle: PermissionRequestHandle): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.permission.request"],
@@ -7889,15 +8216,57 @@ pub(crate) const OS_PERMISSION_REQUEST: BindingDescriptor = BindingDescriptor::e
     .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptor for destack.os.permission.requestMany.
-pub(crate) const OS_PERMISSION_REQUEST_MANY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.os.permission.requestMany",
-    "export function permissionRequestMany(permissions: Permission[]): Result<PermissionEntry[], PlatformError>",
+/// Binding descriptor for destack.os.permission.requestManyOpen.
+pub(crate) const OS_PERMISSION_REQUEST_MANY_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.permission.requestManyOpen",
+    "export function permissionRequestManyOpen(permissions: Permission[]): Result<PermissionRequestHandle, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.permission.request"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("os")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.permission.requestOpen.
+pub(crate) const OS_PERMISSION_REQUEST_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.permission.requestOpen",
+    "export function permissionRequestOpen(permission: Permission): Result<PermissionRequestHandle, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::BindingCall,
+    &["os.permission.request"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("os")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.permission.requestRead.
+pub(crate) const OS_PERMISSION_REQUEST_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.permission.requestRead",
+    "export function permissionRequestRead(handle: PermissionRequestHandle, timeoutNs: uint64): Result<PermissionEntry[], PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::BindingCall,
+    &["os.permission.request"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("os")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.permission.requestTryRead.
+pub(crate) const OS_PERMISSION_REQUEST_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.permission.requestTryRead",
+    "export function permissionRequestTryRead(handle: PermissionRequestHandle): Result<PermissionEntry[], PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::BindingCall,
+    &["os.permission.request"],
+    BindingScope::Host,
+    BindingBlocking::Never,
     BindingAffinity::Any,
 )
     .with_namespace("os")
@@ -8142,9 +8511,24 @@ pub(crate) const OS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_os_document_open as *const (),
         ),
         NativeBinding::new(
-            OS_DOCUMENT_PICK,
-            "destack.os.document.pick",
-            destack_os_document_pick as *const (),
+            OS_DOCUMENT_PICK_CLOSE,
+            "destack.os.document.pickClose",
+            destack_os_document_pick_close as *const (),
+        ),
+        NativeBinding::new(
+            OS_DOCUMENT_PICK_OPEN,
+            "destack.os.document.pickOpen",
+            destack_os_document_pick_open as *const (),
+        ),
+        NativeBinding::new(
+            OS_DOCUMENT_PICK_READ,
+            "destack.os.document.pickRead",
+            destack_os_document_pick_read as *const (),
+        ),
+        NativeBinding::new(
+            OS_DOCUMENT_PICK_TRY_READ,
+            "destack.os.document.pickTryRead",
+            destack_os_document_pick_try_read as *const (),
         ),
         NativeBinding::new(
             OS_DOCUMENT_READ,
@@ -8402,9 +8786,24 @@ pub(crate) const OS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_os_notification_post as *const (),
         ),
         NativeBinding::new(
-            OS_NOTIFICATION_REQUEST_PERMISSION,
-            "destack.os.notification.requestPermission",
-            destack_os_notification_request_permission as *const (),
+            OS_NOTIFICATION_REQUEST_PERMISSION_CLOSE,
+            "destack.os.notification.requestPermissionClose",
+            destack_os_notification_request_permission_close as *const (),
+        ),
+        NativeBinding::new(
+            OS_NOTIFICATION_REQUEST_PERMISSION_OPEN,
+            "destack.os.notification.requestPermissionOpen",
+            destack_os_notification_request_permission_open as *const (),
+        ),
+        NativeBinding::new(
+            OS_NOTIFICATION_REQUEST_PERMISSION_READ,
+            "destack.os.notification.requestPermissionRead",
+            destack_os_notification_request_permission_read as *const (),
+        ),
+        NativeBinding::new(
+            OS_NOTIFICATION_REQUEST_PERMISSION_TRY_READ,
+            "destack.os.notification.requestPermissionTryRead",
+            destack_os_notification_request_permission_try_read as *const (),
         ),
         NativeBinding::new(
             OS_NOTIFICATION_SCHEDULE,
@@ -8417,14 +8816,29 @@ pub(crate) const OS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_os_permission_open_settings as *const (),
         ),
         NativeBinding::new(
-            OS_PERMISSION_REQUEST,
-            "destack.os.permission.request",
-            destack_os_permission_request as *const (),
+            OS_PERMISSION_REQUEST_CLOSE,
+            "destack.os.permission.requestClose",
+            destack_os_permission_request_close as *const (),
         ),
         NativeBinding::new(
-            OS_PERMISSION_REQUEST_MANY,
-            "destack.os.permission.requestMany",
-            destack_os_permission_request_many as *const (),
+            OS_PERMISSION_REQUEST_MANY_OPEN,
+            "destack.os.permission.requestManyOpen",
+            destack_os_permission_request_many_open as *const (),
+        ),
+        NativeBinding::new(
+            OS_PERMISSION_REQUEST_OPEN,
+            "destack.os.permission.requestOpen",
+            destack_os_permission_request_open as *const (),
+        ),
+        NativeBinding::new(
+            OS_PERMISSION_REQUEST_READ,
+            "destack.os.permission.requestRead",
+            destack_os_permission_request_read as *const (),
+        ),
+        NativeBinding::new(
+            OS_PERMISSION_REQUEST_TRY_READ,
+            "destack.os.permission.requestTryRead",
+            destack_os_permission_request_try_read as *const (),
         ),
         NativeBinding::new(
             OS_PERMISSION_STATE,
@@ -13947,9 +14361,31 @@ pub(crate) unsafe extern "C" fn destack_os_document_open(
     })
 }
 
-#[unsafe(export_name = "destack.os.document.pick")]
-pub(crate) unsafe extern "C" fn destack_os_document_pick(
-    out: *mut NativeArray<DocumentDescriptor>,
+#[unsafe(export_name = "destack.os.document.pickClose")]
+pub(crate) unsafe extern "C" fn destack_os_document_pick_close(
+    handle: resource::DocumentPickHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &handle;
+
+        {
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_DOCUMENT_PICK_CLOSE)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_document_pick_close(context, handle)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_document_pick_close(context, handle)
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.document.pickOpen")]
+pub(crate) unsafe extern "C" fn destack_os_document_pick_open(
+    out: *mut resource::DocumentPickHandle,
     options: DocumentPickOptions,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -13960,13 +14396,70 @@ pub(crate) unsafe extern "C" fn destack_os_document_pick(
 
         {
             let (world, _binding_hook_guard) =
-                context.on_before_binding_resolve_world(OS_DOCUMENT_PICK)?;
+                context.on_before_binding_resolve_world(OS_DOCUMENT_PICK_OPEN)?;
             match world {
                 RuntimeWorld::Host => unsafe {
-                    platform_native::destack_os_document_pick(context, out, options)
+                    platform_native::destack_os_document_pick_open(context, out, options)
                 },
                 RuntimeWorld::Simulation => unsafe {
-                    platform_simulation_native::destack_os_document_pick(context, out, options)
+                    platform_simulation_native::destack_os_document_pick_open(context, out, options)
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.document.pickRead")]
+pub(crate) unsafe extern "C" fn destack_os_document_pick_read(
+    out: *mut NativeArray<DocumentDescriptor>,
+    handle: resource::DocumentPickHandle,
+    timeoutns: u64,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &timeoutns);
+
+        {
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_DOCUMENT_PICK_READ)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_document_pick_read(context, out, handle, timeoutns)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_document_pick_read(
+                        context, out, handle, timeoutns,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.document.pickTryRead")]
+pub(crate) unsafe extern "C" fn destack_os_document_pick_try_read(
+    out: *mut NativeArray<DocumentDescriptor>,
+    handle: resource::DocumentPickHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        {
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_DOCUMENT_PICK_TRY_READ)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_document_pick_try_read(context, out, handle)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_document_pick_try_read(
+                        context, out, handle,
+                    )
                 },
             }
         }
@@ -14981,9 +15474,35 @@ pub(crate) unsafe extern "C" fn destack_os_notification_post(
     })
 }
 
-#[unsafe(export_name = "destack.os.notification.requestPermission")]
-pub(crate) unsafe extern "C" fn destack_os_notification_request_permission(
-    out: *mut NotificationPermissionState,
+#[unsafe(export_name = "destack.os.notification.requestPermissionClose")]
+pub(crate) unsafe extern "C" fn destack_os_notification_request_permission_close(
+    handle: resource::NotificationPermissionRequestHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &handle;
+
+        {
+            let (world, _binding_hook_guard) = context
+                .on_before_binding_resolve_world(OS_NOTIFICATION_REQUEST_PERMISSION_CLOSE)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_notification_request_permission_close(
+                        context, handle,
+                    )
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_notification_request_permission_close(
+                        context, handle,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.notification.requestPermissionOpen")]
+pub(crate) unsafe extern "C" fn destack_os_notification_request_permission_open(
+    out: *mut resource::NotificationPermissionRequestHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
@@ -14993,14 +15512,75 @@ pub(crate) unsafe extern "C" fn destack_os_notification_request_permission(
 
         {
             let (world, _binding_hook_guard) =
-                context.on_before_binding_resolve_world(OS_NOTIFICATION_REQUEST_PERMISSION)?;
+                context.on_before_binding_resolve_world(OS_NOTIFICATION_REQUEST_PERMISSION_OPEN)?;
             match world {
                 RuntimeWorld::Host => unsafe {
-                    platform_native::destack_os_notification_request_permission(context, out)
+                    platform_native::destack_os_notification_request_permission_open(context, out)
                 },
                 RuntimeWorld::Simulation => unsafe {
-                    platform_simulation_native::destack_os_notification_request_permission(
+                    platform_simulation_native::destack_os_notification_request_permission_open(
                         context, out,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.notification.requestPermissionRead")]
+pub(crate) unsafe extern "C" fn destack_os_notification_request_permission_read(
+    out: *mut NotificationPermissionState,
+    handle: resource::NotificationPermissionRequestHandle,
+    timeoutns: u64,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &timeoutns);
+
+        {
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_NOTIFICATION_REQUEST_PERMISSION_READ)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_notification_request_permission_read(
+                        context, out, handle, timeoutns,
+                    )
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_notification_request_permission_read(
+                        context, out, handle, timeoutns,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.notification.requestPermissionTryRead")]
+pub(crate) unsafe extern "C" fn destack_os_notification_request_permission_try_read(
+    out: *mut NotificationPermissionState,
+    handle: resource::NotificationPermissionRequestHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        {
+            let (world, _binding_hook_guard) = context
+                .on_before_binding_resolve_world(OS_NOTIFICATION_REQUEST_PERMISSION_TRY_READ)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_notification_request_permission_try_read(
+                        context, out, handle,
+                    )
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_notification_request_permission_try_read(
+                        context, out, handle,
                     )
                 },
             }
@@ -15052,37 +15632,31 @@ pub(crate) unsafe extern "C" fn destack_os_permission_open_settings() -> Runtime
     })
 }
 
-#[unsafe(export_name = "destack.os.permission.request")]
-pub(crate) unsafe extern "C" fn destack_os_permission_request(
-    out: *mut PermissionState,
-    permission: Permission,
+#[unsafe(export_name = "destack.os.permission.requestClose")]
+pub(crate) unsafe extern "C" fn destack_os_permission_request_close(
+    handle: resource::PermissionRequestHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
-        if out.is_null() {
-            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-        }
-        let _ = (&out, &permission);
+        let _ = &handle;
 
         {
             let (world, _binding_hook_guard) =
-                context.on_before_binding_resolve_world(OS_PERMISSION_REQUEST)?;
+                context.on_before_binding_resolve_world(OS_PERMISSION_REQUEST_CLOSE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
-                    platform_native::destack_os_permission_request(context, out, permission)
+                    platform_native::destack_os_permission_request_close(context, handle)
                 },
                 RuntimeWorld::Simulation => unsafe {
-                    platform_simulation_native::destack_os_permission_request(
-                        context, out, permission,
-                    )
+                    platform_simulation_native::destack_os_permission_request_close(context, handle)
                 },
             }
         }
     })
 }
 
-#[unsafe(export_name = "destack.os.permission.requestMany")]
-pub(crate) unsafe extern "C" fn destack_os_permission_request_many(
-    out: *mut NativeArray<PermissionEntry>,
+#[unsafe(export_name = "destack.os.permission.requestManyOpen")]
+pub(crate) unsafe extern "C" fn destack_os_permission_request_many_open(
+    out: *mut resource::PermissionRequestHandle,
     permissions: NativeArray<Permission>,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -15093,16 +15667,107 @@ pub(crate) unsafe extern "C" fn destack_os_permission_request_many(
 
         {
             let (world, _binding_hook_guard) =
-                context.on_before_binding_resolve_world(OS_PERMISSION_REQUEST_MANY)?;
+                context.on_before_binding_resolve_world(OS_PERMISSION_REQUEST_MANY_OPEN)?;
             match world {
                 RuntimeWorld::Host => unsafe {
-                    platform_native::destack_os_permission_request_many(context, out, permissions)
-                },
-                RuntimeWorld::Simulation => unsafe {
-                    platform_simulation_native::destack_os_permission_request_many(
+                    platform_native::destack_os_permission_request_many_open(
                         context,
                         out,
                         permissions,
+                    )
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_permission_request_many_open(
+                        context,
+                        out,
+                        permissions,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.permission.requestOpen")]
+pub(crate) unsafe extern "C" fn destack_os_permission_request_open(
+    out: *mut resource::PermissionRequestHandle,
+    permission: Permission,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &permission);
+
+        {
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_PERMISSION_REQUEST_OPEN)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_permission_request_open(context, out, permission)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_permission_request_open(
+                        context, out, permission,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.permission.requestRead")]
+pub(crate) unsafe extern "C" fn destack_os_permission_request_read(
+    out: *mut NativeArray<PermissionEntry>,
+    handle: resource::PermissionRequestHandle,
+    timeoutns: u64,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &timeoutns);
+
+        {
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_PERMISSION_REQUEST_READ)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_permission_request_read(
+                        context, out, handle, timeoutns,
+                    )
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_permission_request_read(
+                        context, out, handle, timeoutns,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.permission.requestTryRead")]
+pub(crate) unsafe extern "C" fn destack_os_permission_request_try_read(
+    out: *mut NativeArray<PermissionEntry>,
+    handle: resource::PermissionRequestHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        {
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_PERMISSION_REQUEST_TRY_READ)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_permission_request_try_read(context, out, handle)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_permission_request_try_read(
+                        context, out, handle,
                     )
                 },
             }
@@ -21540,30 +22205,129 @@ pub(crate) fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &
         });
     }
     {
-        binding!(registry, isolate, OS_DOCUMENT_PICK, move |context, args| {
-            with_binding_call_context(|binding| {
-                // decode args
-                let (options,) = decode_destack_os_document_pick_args(context, args)?;
+        binding!(
+            registry,
+            isolate,
+            OS_DOCUMENT_PICK_CLOSE,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (handle,) = decode_destack_os_document_pick_close_args(context, args)?;
 
-                // execute binding
-                let result = {
-                    let (world, _binding_hook_guard) =
-                        binding.on_before_binding_resolve_world(OS_DOCUMENT_PICK)?;
-                    match world {
-                        RuntimeWorld::Host => {
-                            platform_vm::destack_os_document_pick(binding, context, options)
+                    // execute binding
+                    let result = {
+                        let (world, _binding_hook_guard) =
+                            binding.on_before_binding_resolve_world(OS_DOCUMENT_PICK_CLOSE)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_os_document_pick_close(
+                                binding, context, handle,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_document_pick_close(
+                                    binding, context, handle,
+                                )
+                            }
                         }
-                        RuntimeWorld::Simulation => {
-                            platform_simulation_vm::destack_os_document_pick(
+                    };
+                    encode_destack_os_document_pick_close_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_DOCUMENT_PICK_OPEN,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (options,) = decode_destack_os_document_pick_open_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let (world, _binding_hook_guard) =
+                            binding.on_before_binding_resolve_world(OS_DOCUMENT_PICK_OPEN)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_os_document_pick_open(
                                 binding, context, options,
-                            )
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_document_pick_open(
+                                    binding, context, options,
+                                )
+                            }
                         }
-                    }
-                };
-                encode_destack_os_document_pick_result(context, result)
-            })
-            .map_err(Into::into)
-        });
+                    };
+                    encode_destack_os_document_pick_open_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_DOCUMENT_PICK_READ,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (handle, timeoutns) =
+                        decode_destack_os_document_pick_read_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let (world, _binding_hook_guard) =
+                            binding.on_before_binding_resolve_world(OS_DOCUMENT_PICK_READ)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_os_document_pick_read(
+                                binding, context, handle, timeoutns,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_document_pick_read(
+                                    binding, context, handle, timeoutns,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_document_pick_read_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_DOCUMENT_PICK_TRY_READ,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (handle,) = decode_destack_os_document_pick_try_read_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let (world, _binding_hook_guard) =
+                            binding.on_before_binding_resolve_world(OS_DOCUMENT_PICK_TRY_READ)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_os_document_pick_try_read(
+                                binding, context, handle,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_document_pick_try_read(
+                                    binding, context, handle,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_document_pick_try_read_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
     }
     {
         binding!(registry, isolate, OS_DOCUMENT_READ, move |context, args| {
@@ -22722,29 +23486,92 @@ pub(crate) fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &
         binding!(
             registry,
             isolate,
-            OS_NOTIFICATION_REQUEST_PERMISSION,
-            move |context, _args| {
+            OS_NOTIFICATION_REQUEST_PERMISSION_CLOSE,
+            move |context, args| {
                 with_binding_call_context(|binding| {
-                    // execute binding
-                    let result = {
-                        let (world, _binding_hook_guard) = binding
-                            .on_before_binding_resolve_world(OS_NOTIFICATION_REQUEST_PERMISSION)?;
+                // decode args
+                let (handle,) = decode_destack_os_notification_request_permission_close_args(context, args)?;
+
+                // execute binding
+                let result = {
+                        let (world, _binding_hook_guard) = binding.on_before_binding_resolve_world(OS_NOTIFICATION_REQUEST_PERMISSION_CLOSE)?;
                         match world {
-                            RuntimeWorld::Host => {
-                                platform_vm::destack_os_notification_request_permission(
-                                    binding, context,
-                                )
-                            }
-                            RuntimeWorld::Simulation => {
-                                platform_simulation_vm::destack_os_notification_request_permission(
-                                    binding, context,
-                                )
-                            }
+                            RuntimeWorld::Host => platform_vm::destack_os_notification_request_permission_close(binding, context, handle),
+                            RuntimeWorld::Simulation => platform_simulation_vm::destack_os_notification_request_permission_close(binding, context, handle),
                         }
                     };
-                    encode_destack_os_notification_request_permission_result(context, result)
-                })
-                .map_err(Into::into)
+                encode_destack_os_notification_request_permission_close_result(context, result)
+            })
+            .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_NOTIFICATION_REQUEST_PERMISSION_OPEN,
+            move |context, _args| {
+                with_binding_call_context(|binding| {
+                // execute binding
+                let result = {
+                        let (world, _binding_hook_guard) = binding.on_before_binding_resolve_world(OS_NOTIFICATION_REQUEST_PERMISSION_OPEN)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_os_notification_request_permission_open(binding, context),
+                            RuntimeWorld::Simulation => platform_simulation_vm::destack_os_notification_request_permission_open(binding, context),
+                        }
+                    };
+                encode_destack_os_notification_request_permission_open_result(context, result)
+            })
+            .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_NOTIFICATION_REQUEST_PERMISSION_READ,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                // decode args
+                let (handle, timeoutns) = decode_destack_os_notification_request_permission_read_args(context, args)?;
+
+                // execute binding
+                let result = {
+                        let (world, _binding_hook_guard) = binding.on_before_binding_resolve_world(OS_NOTIFICATION_REQUEST_PERMISSION_READ)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_os_notification_request_permission_read(binding, context, handle, timeoutns),
+                            RuntimeWorld::Simulation => platform_simulation_vm::destack_os_notification_request_permission_read(binding, context, handle, timeoutns),
+                        }
+                    };
+                encode_destack_os_notification_request_permission_read_result(context, result)
+            })
+            .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_NOTIFICATION_REQUEST_PERMISSION_TRY_READ,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                // decode args
+                let (handle,) = decode_destack_os_notification_request_permission_try_read_args(context, args)?;
+
+                // execute binding
+                let result = {
+                        let (world, _binding_hook_guard) = binding.on_before_binding_resolve_world(OS_NOTIFICATION_REQUEST_PERMISSION_TRY_READ)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_os_notification_request_permission_try_read(binding, context, handle),
+                            RuntimeWorld::Simulation => platform_simulation_vm::destack_os_notification_request_permission_try_read(binding, context, handle),
+                        }
+                    };
+                encode_destack_os_notification_request_permission_try_read_result(context, result)
+            })
+            .map_err(Into::into)
             }
         );
     }
@@ -22811,28 +23638,28 @@ pub(crate) fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &
         binding!(
             registry,
             isolate,
-            OS_PERMISSION_REQUEST,
+            OS_PERMISSION_REQUEST_CLOSE,
             move |context, args| {
                 with_binding_call_context(|binding| {
                     // decode args
-                    let (permission,) = decode_destack_os_permission_request_args(context, args)?;
+                    let (handle,) = decode_destack_os_permission_request_close_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            binding.on_before_binding_resolve_world(OS_PERMISSION_REQUEST)?;
+                            binding.on_before_binding_resolve_world(OS_PERMISSION_REQUEST_CLOSE)?;
                         match world {
-                            RuntimeWorld::Host => platform_vm::destack_os_permission_request(
-                                binding, context, permission,
+                            RuntimeWorld::Host => platform_vm::destack_os_permission_request_close(
+                                binding, context, handle,
                             ),
                             RuntimeWorld::Simulation => {
-                                platform_simulation_vm::destack_os_permission_request(
-                                    binding, context, permission,
+                                platform_simulation_vm::destack_os_permission_request_close(
+                                    binding, context, handle,
                                 )
                             }
                         }
                     };
-                    encode_destack_os_permission_request_result(context, result)
+                    encode_destack_os_permission_request_close_result(context, result)
                 })
                 .map_err(Into::into)
             }
@@ -22842,25 +23669,27 @@ pub(crate) fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &
         binding!(
             registry,
             isolate,
-            OS_PERMISSION_REQUEST_MANY,
+            OS_PERMISSION_REQUEST_MANY_OPEN,
             move |context, args| {
                 with_binding_call_context(|binding| {
                     // decode args
                     let (permissions,) =
-                        decode_destack_os_permission_request_many_args(context, args)?;
+                        decode_destack_os_permission_request_many_open_args(context, args)?;
 
                     // execute binding
                     let result = {
-                        let (world, _binding_hook_guard) =
-                            binding.on_before_binding_resolve_world(OS_PERMISSION_REQUEST_MANY)?;
+                        let (world, _binding_hook_guard) = binding
+                            .on_before_binding_resolve_world(OS_PERMISSION_REQUEST_MANY_OPEN)?;
                         match world {
-                            RuntimeWorld::Host => platform_vm::destack_os_permission_request_many(
-                                binding,
-                                context,
-                                permissions,
-                            ),
+                            RuntimeWorld::Host => {
+                                platform_vm::destack_os_permission_request_many_open(
+                                    binding,
+                                    context,
+                                    permissions,
+                                )
+                            }
                             RuntimeWorld::Simulation => {
-                                platform_simulation_vm::destack_os_permission_request_many(
+                                platform_simulation_vm::destack_os_permission_request_many_open(
                                     binding,
                                     context,
                                     permissions,
@@ -22868,7 +23697,105 @@ pub(crate) fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &
                             }
                         }
                     };
-                    encode_destack_os_permission_request_many_result(context, result)
+                    encode_destack_os_permission_request_many_open_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_PERMISSION_REQUEST_OPEN,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (permission,) =
+                        decode_destack_os_permission_request_open_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let (world, _binding_hook_guard) =
+                            binding.on_before_binding_resolve_world(OS_PERMISSION_REQUEST_OPEN)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_os_permission_request_open(
+                                binding, context, permission,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_permission_request_open(
+                                    binding, context, permission,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_permission_request_open_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_PERMISSION_REQUEST_READ,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (handle, timeoutns) =
+                        decode_destack_os_permission_request_read_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let (world, _binding_hook_guard) =
+                            binding.on_before_binding_resolve_world(OS_PERMISSION_REQUEST_READ)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_os_permission_request_read(
+                                binding, context, handle, timeoutns,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_permission_request_read(
+                                    binding, context, handle, timeoutns,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_permission_request_read_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_PERMISSION_REQUEST_TRY_READ,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (handle,) =
+                        decode_destack_os_permission_request_try_read_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let (world, _binding_hook_guard) = binding
+                            .on_before_binding_resolve_world(OS_PERMISSION_REQUEST_TRY_READ)?;
+                        match world {
+                            RuntimeWorld::Host => {
+                                platform_vm::destack_os_permission_request_try_read(
+                                    binding, context, handle,
+                                )
+                            }
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_permission_request_try_read(
+                                    binding, context, handle,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_permission_request_try_read_result(context, result)
                 })
                 .map_err(Into::into)
             }

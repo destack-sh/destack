@@ -44,11 +44,13 @@ use crate::platform::input::{
     InputSensorEventPayload, InputSensorEventPayloadVm, InputSensorEventVm, InputSensorKind,
     InputSensorSample, InputSensorSampleVm, InputTextEvent, InputTextEventPayload,
     InputTextEventPayloadVm, InputTextEventVm, InputTextInputArea, InputTextInputAreaVm,
-    InputTextInputType, InputTextRange, InputTextRangeVm, InputTouchContactPhase,
-    InputTouchContactState, InputTouchContactStateVm, InputTouchEvent, InputTouchEventPayload,
-    InputTouchEventPayloadVm, InputTouchEventVm, InputTouchState, InputTouchStateVm,
-    InputWheelDeltaMode, InputWindowTarget, InputWindowTargetVm, native as input_native,
-    vm as input_vm,
+    InputTextInputType, InputTextRange, InputTextRangeVm, InputTextSessionConfig,
+    InputTextSessionConfigVm, InputTextSessionEvent, InputTextSessionEventVm,
+    InputTextSessionState, InputTextSessionStateEvent, InputTextSessionStateEventVm,
+    InputTextSessionStateVm, InputTouchContactPhase, InputTouchContactState,
+    InputTouchContactStateVm, InputTouchEvent, InputTouchEventPayload, InputTouchEventPayloadVm,
+    InputTouchEventVm, InputTouchState, InputTouchStateVm, InputWheelDeltaMode, InputWindowTarget,
+    InputWindowTargetVm, native as input_native, vm as input_vm,
 };
 use crate::platform::{
     NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
@@ -2110,10 +2112,39 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
+    /// Close one text input session.
+    ///
+    /// Close one active text input session and detach any host IME or editing services.
+    /// Pending composition updates are finalized or canceled according to backend policy.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Returns operation-level `notSupported` where text input sessions are unavailable.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.text`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_text_close(
+        &mut self,
+        session: resource::InputTextSessionHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                input_vm::destack_input_text_close(self.call_context, context, session)
+            }
+            None => unsafe { input_native::destack_input_text_close(self.call_context, session) },
+        }
+    }
+
     /// Get text input area.
     ///
     /// Return the currently configured text input area and cursor position hint.
-    /// Resolve state for one opened input device and one optional window target.
+    /// Resolve state for one active text input session.
     ///
     /// # Platform
     /// Unix and Windows, with operation-level `notSupported` where one window scope is unavailable.
@@ -2130,29 +2161,21 @@ impl<'call> InputHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_input_text_get_area(
         &mut self,
-        handle: resource::InputDeviceHandle,
-        target: HarnessValue<InputWindowTarget, InputWindowTargetVm>,
+        session: resource::InputTextSessionHandle,
     ) -> RuntimeResult<HarnessValue<InputTextInputArea, InputTextInputAreaVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let target = target.into_vm("target")?;
-                let out = input_vm::destack_input_text_get_area(
-                    self.call_context,
-                    context,
-                    handle,
-                    target,
-                )?;
+                let out =
+                    input_vm::destack_input_text_get_area(self.call_context, context, session)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
-                let target = target.into_native("target")?;
                 let mut out = std::mem::MaybeUninit::<InputTextInputArea>::uninit();
                 unsafe {
                     input_native::destack_input_text_get_area(
                         self.call_context,
                         out.as_mut_ptr(),
-                        handle,
-                        target,
+                        session,
                     )?;
                 }
                 let out = unsafe { out.assume_init() };
@@ -2161,172 +2184,89 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Query text input active state.
+    /// Open one text input session.
     ///
-    /// Return whether text input is currently active for one opened input device.
+    /// Open one focused text input session for the active renderer editor and initial text state.
+    /// The host uses this session to attach platform IME or editing services for the selected target scope.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend-specific text session status checks.
+    /// Returns operation-level `notSupported` where text input sessions or one window scope are unavailable.
+    /// Unix terminal and Windows console backends currently support only the default focus scope.
     ///
     /// # Errors
-    /// Returns invalidArgument, ioNotFound, notSupported.
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
     ///
     /// # Security
     /// Requires `input.text`.
     ///
     /// # Replay
     /// External, recordable.
-    pub(crate) fn destack_input_text_is_active(
+    pub(crate) fn destack_input_text_open(
         &mut self,
-        handle: resource::InputDeviceHandle,
-    ) -> RuntimeResult<bool> {
+        config: HarnessValue<InputTextSessionConfig, InputTextSessionConfigVm>,
+        state: HarnessValue<InputTextSessionState, InputTextSessionStateVm>,
+    ) -> RuntimeResult<resource::InputTextSessionHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let config = config.into_vm("config")?;
+                let state = state.into_vm("state")?;
+                let out =
+                    input_vm::destack_input_text_open(self.call_context, context, config, state)?;
+                Ok(out)
+            }
+            None => {
+                let config = config.into_native("config")?;
+                let state = state.into_native("state")?;
+                let mut out = std::mem::MaybeUninit::<resource::InputTextSessionHandle>::uninit();
+                unsafe {
+                    input_native::destack_input_text_open(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        config,
+                        state,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Read one text-session event.
+    ///
+    /// Read one pending text-session event for one active text input session.
+    /// Session events include host state changes, composition events, edit intents, and clipboard commands.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` where text-session events are unavailable.
+    /// Uses backend-specific IME, editing, and clipboard event queues.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.text`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_text_read_event(
+        &mut self,
+        session: resource::InputTextSessionHandle,
+    ) -> RuntimeResult<HarnessValue<InputTextSessionEvent, InputTextSessionEventVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let out =
-                    input_vm::destack_input_text_is_active(self.call_context, context, handle)?;
-                Ok(out)
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<bool>::uninit();
-                unsafe {
-                    input_native::destack_input_text_is_active(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                    )?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(out)
-            }
-        }
-    }
-
-    /// Read one clipboard command event.
-    ///
-    /// Read one pending clipboard or selection command for one opened text-capable input device.
-    /// This lane aligns with web `copy`, `cut`, `paste`, and selection command semantics.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where clipboard command events are unavailable.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.text`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_input_text_read_clipboard_command(
-        &mut self,
-        handle: resource::InputDeviceHandle,
-    ) -> RuntimeResult<HarnessValue<InputClipboardCommandEvent, InputClipboardCommandEventVm>> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out = input_vm::destack_input_text_read_clipboard_command(
-                    self.call_context,
-                    context,
-                    handle,
-                )?;
+                    input_vm::destack_input_text_read_event(self.call_context, context, session)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
-                let mut out = std::mem::MaybeUninit::<InputClipboardCommandEvent>::uninit();
+                let mut out = std::mem::MaybeUninit::<InputTextSessionEvent>::uninit();
                 unsafe {
-                    input_native::destack_input_text_read_clipboard_command(
+                    input_native::destack_input_text_read_event(
                         self.call_context,
                         out.as_mut_ptr(),
-                        handle,
-                    )?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(HarnessValue::Native(out))
-            }
-        }
-    }
-
-    /// Read one composition event.
-    ///
-    /// Read one pending composition lifecycle event for one opened input device.
-    /// Composition events represent begin, update, commit, end, and cancel transitions.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where composition events are unavailable.
-    /// Uses backend-specific IME composition queues.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.text`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_input_text_read_composition(
-        &mut self,
-        handle: resource::InputDeviceHandle,
-    ) -> RuntimeResult<HarnessValue<InputCompositionEvent, InputCompositionEventVm>> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out = input_vm::destack_input_text_read_composition(
-                    self.call_context,
-                    context,
-                    handle,
-                )?;
-                Ok(HarnessValue::Vm(out))
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<InputCompositionEvent>::uninit();
-                unsafe {
-                    input_native::destack_input_text_read_composition(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                    )?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(HarnessValue::Native(out))
-            }
-        }
-    }
-
-    /// Read one edit intent event.
-    ///
-    /// Read one pending edit intent for one opened text-capable input device.
-    /// Edit intents align with web `beforeinput` semantics for text insertion, deletion, formatting, paste, and drop operations.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where edit intents are unavailable.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.text`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_input_text_read_edit_intent(
-        &mut self,
-        handle: resource::InputDeviceHandle,
-    ) -> RuntimeResult<HarnessValue<InputEditIntentEvent, InputEditIntentEventVm>> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out = input_vm::destack_input_text_read_edit_intent(
-                    self.call_context,
-                    context,
-                    handle,
-                )?;
-                Ok(HarnessValue::Vm(out))
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<InputEditIntentEvent>::uninit();
-                unsafe {
-                    input_native::destack_input_text_read_edit_intent(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
+                        session,
                     )?;
                 }
                 let out = unsafe { out.assume_init() };
@@ -2337,7 +2277,7 @@ impl<'call> InputHarnessContext<'call> {
 
     /// Set text input area.
     ///
-    /// Set one text input area and cursor position hint for one opened input device and one optional window target.
+    /// Set one text input area and cursor position hint for one active text input session.
     /// Area hints are used by host IME placement when supported for the selected target scope.
     ///
     /// # Platform
@@ -2355,115 +2295,63 @@ impl<'call> InputHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_input_text_set_area(
         &mut self,
-        handle: resource::InputDeviceHandle,
-        target: HarnessValue<InputWindowTarget, InputWindowTargetVm>,
+        session: resource::InputTextSessionHandle,
         area: HarnessValue<InputTextInputArea, InputTextInputAreaVm>,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let target = target.into_vm("target")?;
                 let area = area.into_vm("area")?;
-                input_vm::destack_input_text_set_area(
-                    self.call_context,
-                    context,
-                    handle,
-                    target,
-                    area,
-                )
+                input_vm::destack_input_text_set_area(self.call_context, context, session, area)
             }
             None => unsafe {
-                let target = target.into_native("target")?;
                 let area = area.into_native("area")?;
-                input_native::destack_input_text_set_area(self.call_context, handle, target, area)
+                input_native::destack_input_text_set_area(self.call_context, session, area)
             },
         }
     }
 
-    /// Start text input.
+    /// Set text input state.
     ///
-    /// Enable text input and composition dispatch for one opened input device and one optional window target.
-    /// Text conversion behavior follows host IME and keyboard policy for the selected target scope.
+    /// Update one active text input session with renderer-owned text, selection, and composition state.
+    /// Hosts use this state to synchronize platform IME or editing services with the focused editor.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Returns operation-level `notSupported` where text input sessions or one window scope are unavailable.
-    /// Uses backend-specific text input activation primitives.
-    /// Unix terminal and Windows console backends currently support only the default focus scope.
+    /// Returns operation-level `notSupported` where text input sessions are unavailable.
     ///
     /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+    /// Returns invalidArgument, ioNotFound, notSupported.
     ///
     /// # Security
     /// Requires `input.text`.
     ///
     /// # Replay
     /// External, recordable.
-    pub(crate) fn destack_input_text_start(
+    pub(crate) fn destack_input_text_set_state(
         &mut self,
-        handle: resource::InputDeviceHandle,
-        target: HarnessValue<InputWindowTarget, InputWindowTargetVm>,
-        inputtype: InputTextInputType,
+        session: resource::InputTextSessionHandle,
+        state: HarnessValue<InputTextSessionState, InputTextSessionStateVm>,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let target = target.into_vm("target")?;
-                input_vm::destack_input_text_start(
-                    self.call_context,
-                    context,
-                    handle,
-                    target,
-                    inputtype,
-                )
+                let state = state.into_vm("state")?;
+                input_vm::destack_input_text_set_state(self.call_context, context, session, state)
             }
             None => unsafe {
-                let target = target.into_native("target")?;
-                input_native::destack_input_text_start(self.call_context, handle, target, inputtype)
+                let state = state.into_native("state")?;
+                input_native::destack_input_text_set_state(self.call_context, session, state)
             },
         }
     }
 
-    /// Stop text input.
+    /// Poll one text-session event without blocking.
     ///
-    /// Disable text input and composition dispatch for one opened input device and one optional window target.
-    /// Pending composition updates are finalized or canceled according to backend policy for the selected target scope.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where one window scope is unavailable.
-    /// Uses backend-specific text input deactivation primitives.
-    /// Unix terminal and Windows console backends currently support only the default focus scope.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.text`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_input_text_stop(
-        &mut self,
-        handle: resource::InputDeviceHandle,
-        target: HarnessValue<InputWindowTarget, InputWindowTargetVm>,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let target = target.into_vm("target")?;
-                input_vm::destack_input_text_stop(self.call_context, context, handle, target)
-            }
-            None => unsafe {
-                let target = target.into_native("target")?;
-                input_native::destack_input_text_stop(self.call_context, handle, target)
-            },
-        }
-    }
-
-    /// Poll one clipboard command event without blocking.
-    ///
-    /// Poll one pending clipboard command event and return immediately when no event is queued.
+    /// Poll one pending text-session event and return immediately when no event is queued.
     /// Empty queue state is reported through ioWouldBlock.
     ///
     /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where clipboard command events are unavailable.
+    /// Unix and Windows, with operation-level `notSupported` where text-session events are unavailable.
+    /// Uses backend-specific nonblocking IME, editing, and clipboard queue reads.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -2473,115 +2361,26 @@ impl<'call> InputHarnessContext<'call> {
     ///
     /// # Replay
     /// External, recordable.
-    pub(crate) fn destack_input_text_try_read_clipboard_command(
+    pub(crate) fn destack_input_text_try_read_event(
         &mut self,
-        handle: resource::InputDeviceHandle,
-    ) -> RuntimeResult<HarnessValue<InputClipboardCommandEvent, InputClipboardCommandEventVm>> {
+        session: resource::InputTextSessionHandle,
+    ) -> RuntimeResult<HarnessValue<InputTextSessionEvent, InputTextSessionEventVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = input_vm::destack_input_text_try_read_clipboard_command(
+                let out = input_vm::destack_input_text_try_read_event(
                     self.call_context,
                     context,
-                    handle,
+                    session,
                 )?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
-                let mut out = std::mem::MaybeUninit::<InputClipboardCommandEvent>::uninit();
+                let mut out = std::mem::MaybeUninit::<InputTextSessionEvent>::uninit();
                 unsafe {
-                    input_native::destack_input_text_try_read_clipboard_command(
+                    input_native::destack_input_text_try_read_event(
                         self.call_context,
                         out.as_mut_ptr(),
-                        handle,
-                    )?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(HarnessValue::Native(out))
-            }
-        }
-    }
-
-    /// Poll one composition event without blocking.
-    ///
-    /// Poll one pending composition lifecycle event and return immediately when no event is queued.
-    /// Empty queue state is reported through ioWouldBlock.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where composition events are unavailable.
-    /// Uses backend-specific nonblocking IME composition queue reads.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.text`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_input_text_try_read_composition(
-        &mut self,
-        handle: resource::InputDeviceHandle,
-    ) -> RuntimeResult<HarnessValue<InputCompositionEvent, InputCompositionEventVm>> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out = input_vm::destack_input_text_try_read_composition(
-                    self.call_context,
-                    context,
-                    handle,
-                )?;
-                Ok(HarnessValue::Vm(out))
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<InputCompositionEvent>::uninit();
-                unsafe {
-                    input_native::destack_input_text_try_read_composition(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                    )?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(HarnessValue::Native(out))
-            }
-        }
-    }
-
-    /// Poll one edit intent event without blocking.
-    ///
-    /// Poll one pending edit intent event and return immediately when no event is queued.
-    /// Empty queue state is reported through ioWouldBlock.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where edit intents are unavailable.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.text`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_input_text_try_read_edit_intent(
-        &mut self,
-        handle: resource::InputDeviceHandle,
-    ) -> RuntimeResult<HarnessValue<InputEditIntentEvent, InputEditIntentEventVm>> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out = input_vm::destack_input_text_try_read_edit_intent(
-                    self.call_context,
-                    context,
-                    handle,
-                )?;
-                Ok(HarnessValue::Vm(out))
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<InputEditIntentEvent>::uninit();
-                unsafe {
-                    input_native::destack_input_text_try_read_edit_intent(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
+                        session,
                     )?;
                 }
                 let out = unsafe { out.assume_init() };
