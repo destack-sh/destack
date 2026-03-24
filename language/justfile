@@ -101,9 +101,17 @@ check-runtime-android-rust:
 check-runtime-android:
     bash ../dev/toolchain/check-runtime-android.sh
 
+# check android host formatting and lint lanes
+check-runtime-android-host-style:
+    bash ../dev/toolchain/check-runtime-android-host-style.sh
+
 # check the android host shell project
 check-runtime-android-host:
     bash ../dev/toolchain/check-runtime-android-host.sh
+
+# format the android host shell project
+format-runtime-android-host:
+    bash ../dev/toolchain/format-runtime-android-host.sh
 
 # ensure android host dependencies needed by sdkmanager setup
 install-runtime-android-host-deps:
@@ -152,9 +160,22 @@ check-runtime-macos:
     just check-runtime-macos-rust
     just check-runtime-apple-host
 
+# check shared apple host formatting and lint lanes
+check-runtime-apple-host-style:
+    bash ../dev/toolchain/check-runtime-apple-host-style.sh
+
 # check the shared apple host package tests
 check-runtime-apple-host:
     bash ../dev/toolchain/check-runtime-apple-host.sh
+
+# format the shared apple host package
+format-runtime-apple-host:
+    bash ../dev/toolchain/format-runtime-apple-host.sh
+
+# format the mobile runtime host shells
+format-runtime-hosts:
+    just format-runtime-android-host
+    just format-runtime-apple-host
 
 # check runtime on windows host
 check-runtime-windows-msvc:
