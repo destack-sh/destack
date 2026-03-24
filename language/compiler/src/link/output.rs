@@ -6,7 +6,7 @@ use destack_artifact::{
     EmitFormat, OutputContent, OutputFile, PackageAssembly, PackageOutput, TargetOutputName,
 };
 use destack_source::{FileType, ModuleId, PackageId, Uri};
-use destack_workspace::{Target, TargetId};
+use destack_workspace::{BundleMode, Target, TargetId};
 use indexmap::IndexMap;
 
 use super::assembly::{BinaryTargetAssembly, ScriptTargetAssembly, TargetAssembly};
@@ -47,19 +47,11 @@ impl Compiler {
 
     /// Return the package assembly mode for one target.
     pub(crate) fn package_assembly(&self, target: &Target) -> PackageAssembly {
-        if target.bundle.chunk.preserve_modules {
-            return PackageAssembly::PreserveModules;
+        match target.bundle.mode {
+            BundleMode::PreserveModules => PackageAssembly::PreserveModules,
+            BundleMode::SingleFile => PackageAssembly::SingleFile,
+            BundleMode::Chunked => PackageAssembly::Chunked,
         }
-
-        if !target.emits_assembled_output() {
-            return PackageAssembly::PreserveModules;
-        }
-
-        if target.is_single_file() {
-            return PackageAssembly::SingleFile;
-        }
-
-        PackageAssembly::Chunked
     }
 
     /// Return the primary output group for one target.
@@ -130,8 +122,11 @@ impl Compiler {
         target: &Target,
         assembly: ScriptTargetAssembly,
     ) -> LinkResult<PackageOutput> {
+        // emitted files
         let mut output =
             self.package_output_from_entries(target, assembly.assembly, assembly.output_files);
+
+        // optional manifest
         self.append_target_manifest_output(
             package_dir,
             root_dir,
@@ -155,9 +150,14 @@ impl Compiler {
         target: &Target,
         assembly: BinaryTargetAssembly,
     ) -> LinkResult<PackageOutput> {
+        // emitted files
         let mut output =
             self.package_output_from_entries(target, assembly.assembly, assembly.output_files);
+
+        // later: binary manifest metadata
         let _ = assembly.binary_link_plan;
+
+        // optional manifest
         self.append_target_manifest_output(
             package_dir,
             root_dir,
@@ -212,10 +212,12 @@ impl Compiler {
         output: &mut PackageOutput,
         script_link_plan: Option<&ScriptLinkPlan>,
     ) -> LinkResult<()> {
+        // opt out
         if !target.bundle.output.manifest {
             return Ok(());
         }
 
+        // manifest payload
         let manifest = self.build_target_manifest(
             package_dir,
             root_dir,
@@ -228,6 +230,7 @@ impl Compiler {
         let manifest_content = serde_json::to_string_pretty(&manifest)
             .unwrap_or_else(|_| serde_json::to_string(&manifest).unwrap_or_default());
 
+        // emitted sidecar
         let output_layout = OutputLayout::new(package_dir, target);
         let manifest_path = output_layout.manifest_location();
 

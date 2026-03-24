@@ -107,18 +107,46 @@ fn default_target_outputs(
     outputs
 }
 
+fn resolved_bundle_mode(
+    discovery: TargetDiscovery,
+    entry_count: usize,
+    emit: EmitFormat,
+    out_file: bool,
+    bundle: &TargetBundle,
+) -> BundleMode {
+    if emit == EmitFormat::Html || out_file || emit.is_single_file() {
+        return BundleMode::SingleFile;
+    }
+
+    if bundle.preserve_modules {
+        return BundleMode::PreserveModules;
+    }
+
+    if !bundle.manual_chunks.is_empty() {
+        return BundleMode::Chunked;
+    }
+
+    if discovery == TargetDiscovery::Entry && entry_count > 1 {
+        return BundleMode::Chunked;
+    }
+
+    match discovery {
+        TargetDiscovery::Entry => BundleMode::SingleFile,
+        TargetDiscovery::Include => BundleMode::PreserveModules,
+    }
+}
+
 fn is_assembled_target(
     discovery: TargetDiscovery,
+    entry_count: usize,
     app: &TargetAppDeclaration,
     emit: EmitFormat,
     bundle: &TargetBundle,
     out_file: bool,
 ) -> bool {
-    if out_file || emit.is_single_file() {
-        return true;
-    }
+    let bundle_mode = resolved_bundle_mode(discovery, entry_count, emit, out_file, bundle);
 
-    if discovery == TargetDiscovery::Entry {
+    if out_file || emit.is_single_file() {
         return true;
     }
 
@@ -126,7 +154,7 @@ fn is_assembled_target(
         return true;
     }
 
-    bundle.is_assembled()
+    bundle_mode.uses_entry_output_layout()
 }
 
 /// A build target configuration.
@@ -476,10 +504,10 @@ impl Target {
     /// Derive the output mode from the target configuration.
     pub fn output_mode(&self) -> OutputMode {
         if self.out_file.is_some() || self.emit.is_single_file() {
-            OutputMode::File
-        } else {
-            OutputMode::Directory
+            return OutputMode::File;
         }
+
+        OutputMode::Directory
     }
 
     /// Whether this target produces single-file output.
@@ -506,6 +534,7 @@ impl Target {
     pub fn emits_assembled_output(&self) -> bool {
         is_assembled_target(
             self.discovery,
+            self.entry.len(),
             &self.app,
             self.emit,
             &self.bundle,
@@ -525,23 +554,28 @@ impl Target {
 
     /// Return whether this target emits any source map data.
     pub fn emits_source_maps(&self) -> bool {
-        self.source_map_mode.is_some()
+        self.source_map_mode().is_some()
     }
 
     /// Return whether this target emits standalone source map outputs.
     pub fn emits_source_map_output(&self) -> bool {
-        self.source_map_mode
+        self.source_map_mode()
             .is_some_and(SourceMapMode::emits_output)
     }
 
     /// Return whether this target inlines source maps into text outputs.
     pub fn uses_inline_source_maps(&self) -> bool {
-        self.source_map_mode.is_some_and(SourceMapMode::is_inline)
+        self.source_map_mode().is_some_and(SourceMapMode::is_inline)
     }
 
     /// Return whether this target publishes one binary payload.
     pub fn publishes_binary_output(&self) -> bool {
         self.outputs.contains_kind(TargetOutputKind::Binary)
+    }
+
+    /// Return the normalized source map mode for this target.
+    pub fn source_map_mode(&self) -> Option<SourceMapMode> {
+        self.bundle.output.sourcemap.or(self.source_map_mode)
     }
 
     /// Resolve a target triple string from the target configuration.
@@ -1302,7 +1336,7 @@ impl TargetOptions {
         let emit = json.emit.map(EmitFormat::from).unwrap_or_default();
 
         // resolve one assembled output decision before deriving output groups
-        let bundle = json
+        let mut bundle = json
             .bundle
             .as_ref()
             .map(TargetBundle::from)
@@ -1312,11 +1346,23 @@ impl TargetOptions {
             .as_ref()
             .map(TargetNative::from)
             .unwrap_or_default();
-        let source_map_mode = json
-            .source_map_mode
-            .or_else(|| json.source_map.then_some(SourceMapMode::External));
-        let is_assembled =
-            is_assembled_target(discovery, &app, emit, &bundle, json.out_file.is_some());
+        let source_map_mode = bundle.output.sourcemap;
+        bundle.mode = resolved_bundle_mode(
+            discovery,
+            entry.len(),
+            emit,
+            json.out_file.is_some(),
+            &bundle,
+        );
+        bundle.output.sourcemap = source_map_mode;
+        let is_assembled = is_assembled_target(
+            discovery,
+            entry.len(),
+            &app,
+            emit,
+            &bundle,
+            json.out_file.is_some(),
+        );
 
         // derive the formal target outputs from the target shape
         let outputs = default_target_outputs(
@@ -1528,11 +1574,6 @@ pub struct TargetJson {
     /// Emit declaration files (e.g., `.d.ts` alongside `.js` output).
     #[serde(default)]
     pub declaration: bool,
-    /// Emit external source maps.
-    #[serde(default)]
-    pub source_map: bool,
-    /// Source map emission mode.
-    pub source_map_mode: Option<SourceMapMode>,
     /// Extra sidecar artifacts to emit.
     pub artifacts: Option<Vec<EmitArtifactJson>>,
 

@@ -5,12 +5,12 @@
       "emit": "js",
       "entry": ["src/react-bridge.ts"],
       "outFile": "dist/bundle.js",
-      "sourceMapMode": "external",
       "bundle": {
-        "dependency": {
+        "dependencies": {
           "onlyBundle": ["lodash"]
         },
         "output": {
+          "sourcemap": "external",
           "manifest": true
         }
       }

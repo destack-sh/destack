@@ -5,9 +5,9 @@
       "emit": "js",
       "entry": ["src/application.js"],
       "outFile": "dist/bundle.js",
-      "sourceMapMode": "external",
       "bundle": {
         "output": {
+          "sourcemap": "external",
           "manifest": true
         }
       }

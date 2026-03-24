@@ -4582,22 +4582,6 @@
           "type": "boolean",
           "default": false
         },
-        "sourceMap": {
-          "description": "Emit external source maps.",
-          "type": "boolean",
-          "default": false
-        },
-        "sourceMapMode": {
-          "description": "Source map emission mode.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/SourceMapMode"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
         "artifacts": {
           "description": "Extra sidecar artifacts to emit.",
           "type": [
@@ -5400,26 +5384,6 @@
         }
       ]
     },
-    "SourceMapMode": {
-      "description": "Source map emission mode for one target.",
-      "oneOf": [
-        {
-          "description": "Emit external source map files and reference them from outputs.",
-          "type": "string",
-          "const": "external"
-        },
-        {
-          "description": "Inline source maps into the emitted output text.",
-          "type": "string",
-          "const": "inline"
-        },
-        {
-          "description": "Emit external source map files without referencing them from outputs.",
-          "type": "string",
-          "const": "hidden"
-        }
-      ]
-    },
     "EmitArtifactJson": {
       "description": "Extra artifacts to emit for JSON deserialization.",
       "oneOf": [
@@ -5454,146 +5418,13 @@
       "description": "Target scoped bundling options in `destack.json`.",
       "type": "object",
       "properties": {
-        "format": {
-          "description": "Bundle format for assembled JavaScript outputs.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/BundleFormat"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "chunk": {
-          "description": "Chunk planning options.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/TargetBundleChunkJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "dependency": {
-          "description": "Dependency and resolution options.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/TargetBundleDependencyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "asset": {
-          "description": "Asset handling options.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/TargetBundleAssetJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "treeShake": {
-          "description": "Tree shaking options.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/TargetBundleTreeShakeJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "output": {
-          "description": "Output shaping options.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/TargetBundleOutputJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "define": {
-          "description": "Compile time define replacements.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
-        "globals": {
-          "description": "Global names for externals in IIFE and UMD formats.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
-        "minify": {
-          "description": "Minification options.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/TargetBundleMinifyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        }
-      }
-    },
-    "BundleFormat": {
-      "description": "Bundler format for assembled JavaScript outputs.",
-      "oneOf": [
-        {
-          "description": "Emit ECMAScript modules.",
-          "type": "string",
-          "const": "esm"
-        },
-        {
-          "description": "Emit CommonJS modules.",
-          "type": "string",
-          "const": "cjs"
-        },
-        {
-          "description": "Emit one self executing bundle.",
-          "type": "string",
-          "const": "iife"
-        },
-        {
-          "description": "Emit one UMD bundle.",
-          "type": "string",
-          "const": "umd"
-        }
-      ]
-    },
-    "TargetBundleChunkJson": {
-      "description": "Bundler chunk planning options in `destack.json`.",
-      "type": "object",
-      "properties": {
-        "splitting": {
-          "description": "Whether to split output into multiple chunks.",
+        "preserveModules": {
+          "description": "Whether to preserve one emitted module file per reachable module.",
           "type": "boolean",
           "default": false
         },
         "inlineDynamicImports": {
-          "description": "Whether to inline dynamic imports into one bundle.",
-          "type": "boolean",
-          "default": false
-        },
-        "preserveModules": {
-          "description": "Whether to preserve module boundaries in emitted output.",
+          "description": "Whether to inline dynamic imports into the current output.",
           "type": "boolean",
           "default": false
         },
@@ -5617,11 +5448,70 @@
             }
           }
         },
-        "strategy": {
-          "description": "Chunk planning strategy for automatic chunking.",
+        "onlyExplicitManualChunks": {
+          "description": "Whether to only honor explicit manual chunk declarations.",
+          "type": "boolean",
+          "default": false
+        },
+        "dependencies": {
+          "description": "Dependency and resolution options.",
           "anyOf": [
             {
-              "$ref": "#/$defs/BundleChunkStrategy"
+              "$ref": "#/$defs/TargetBundleDepsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "assets": {
+          "description": "Asset handling options.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TargetBundleAssetsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "treeshake": {
+          "description": "Tree shaking options.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TargetBundleTreeshakeJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "output": {
+          "description": "Output options for assembled bundle files.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TargetBundleOutputJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "define": {
+          "description": "Compile time define replacements.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "minify": {
+          "description": "Minification options.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TargetBundleMinifyJson"
             },
             {
               "type": "null"
@@ -5630,35 +5520,26 @@
         }
       }
     },
-    "BundleChunkStrategy": {
-      "description": "Chunk planning strategy for one assembled script target.",
-      "oneOf": [
-        {
-          "description": "Use the default graph driven chunk planner.",
-          "type": "string",
-          "const": "auto"
-        },
-        {
-          "description": "Prefer coarse entry rooted chunks.",
-          "type": "string",
-          "const": "entry"
-        },
-        {
-          "description": "Prefer one shared vendor chunk for external packages.",
-          "type": "string",
-          "const": "vendor"
-        },
-        {
-          "description": "Only use manual chunk declarations.",
-          "type": "string",
-          "const": "manual"
-        }
-      ]
-    },
-    "TargetBundleDependencyJson": {
+    "TargetBundleDepsJson": {
       "description": "Bundler dependency and resolution options in `destack.json`.",
       "type": "object",
       "properties": {
+        "packages": {
+          "description": "Package policy for node_modules style imports.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BundlePackageMode"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "skipNodeModulesBundle": {
+          "description": "Whether to skip resolving and bundling node_modules entries entirely.",
+          "type": "boolean",
+          "default": false
+        },
         "external": {
           "description": "Module specifiers to leave external.",
           "type": [
@@ -5731,7 +5612,27 @@
         }
       }
     },
-    "TargetBundleAssetJson": {
+    "BundlePackageMode": {
+      "description": "Package handling policy for node_modules style imports.",
+      "oneOf": [
+        {
+          "description": "Use the tool default package policy.",
+          "type": "string",
+          "const": "auto"
+        },
+        {
+          "description": "Prefer bundling package dependencies.",
+          "type": "string",
+          "const": "bundle"
+        },
+        {
+          "description": "Prefer leaving package dependencies external.",
+          "type": "string",
+          "const": "external"
+        }
+      ]
+    },
+    "TargetBundleAssetsJson": {
       "description": "Bundler asset handling options in `destack.json`.",
       "type": "object",
       "properties": {
@@ -5777,7 +5678,20 @@
         }
       ]
     },
-    "TargetBundleTreeShakeJson": {
+    "TargetBundleTreeshakeJson": {
+      "description": "Bundler tree shaking options in `destack.json`.",
+      "anyOf": [
+        {
+          "description": "Enable or disable tree shaking with one boolean.",
+          "type": "boolean"
+        },
+        {
+          "description": "Configure tree shaking with one explicit options object.",
+          "$ref": "#/$defs/TargetBundleTreeshakeOptionsJson"
+        }
+      ]
+    },
+    "TargetBundleTreeshakeOptionsJson": {
       "description": "Bundler tree shaking options in `destack.json`.",
       "type": "object",
       "properties": {
@@ -5831,9 +5745,27 @@
       ]
     },
     "TargetBundleOutputJson": {
-      "description": "Bundler output shaping options in `destack.json`.",
+      "description": "Bundler output options in `destack.json`.",
       "type": "object",
       "properties": {
+        "format": {
+          "description": "Bundle format for assembled JavaScript outputs.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BundleFormat"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "name": {
+          "description": "Global name for IIFE and UMD bundles.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "entryFileNames": {
           "description": "Output naming template for entry chunks.",
           "type": [
@@ -5891,8 +5823,137 @@
             "string",
             "null"
           ]
+        },
+        "exports": {
+          "description": "Export mode for the assembled output.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BundleExportsMode"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "interop": {
+          "description": "Interop mode for external modules.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BundleInteropMode"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "generatedCode": {
+          "description": "Generated code controls for final output rendering.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TargetBundleGeneratedCodeJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "freeze": {
+          "description": "Whether to freeze namespace imports and export objects.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "esModule": {
+          "description": "Whether to emit `__esModule` markers for CommonJS output.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TargetBundleEsModuleJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "dynamicImportInCjs": {
+          "description": "Whether to rewrite dynamic imports for CommonJS output.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "externalLiveBindings": {
+          "description": "Whether to preserve external live bindings in output wrappers.",
+          "type": "boolean",
+          "default": false
+        },
+        "hoistTransitiveImports": {
+          "description": "Whether to hoist transitive imports on entry facades.",
+          "type": "boolean",
+          "default": false
+        },
+        "minifyInternalExports": {
+          "description": "Whether to minify internal export names.",
+          "type": "boolean",
+          "default": false
+        },
+        "sourcemap": {
+          "description": "Source map emission policy.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TargetBundleSourceMapJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sourcemapExcludeSources": {
+          "description": "Whether to omit source contents from source maps.",
+          "type": "boolean",
+          "default": false
+        },
+        "sourcemapDebugIds": {
+          "description": "Whether to include debug ids in source maps.",
+          "type": "boolean",
+          "default": false
+        },
+        "globals": {
+          "description": "Global names for externals in IIFE and UMD formats.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       }
+    },
+    "BundleFormat": {
+      "description": "Bundler format for assembled JavaScript outputs.",
+      "oneOf": [
+        {
+          "description": "Emit ECMAScript modules.",
+          "type": "string",
+          "const": "esm"
+        },
+        {
+          "description": "Emit CommonJS modules.",
+          "type": "string",
+          "const": "cjs"
+        },
+        {
+          "description": "Emit one self executing bundle.",
+          "type": "string",
+          "const": "iife"
+        },
+        {
+          "description": "Emit one UMD bundle.",
+          "type": "string",
+          "const": "umd"
+        }
+      ]
     },
     "BundleLegalComment": {
       "description": "Legal comment handling for assembled outputs.",
@@ -5914,7 +5975,221 @@
         }
       ]
     },
+    "BundleExportsMode": {
+      "description": "Export mode for one assembled bundle.",
+      "oneOf": [
+        {
+          "description": "Infer the best export mode from the bundle shape.",
+          "type": "string",
+          "const": "auto"
+        },
+        {
+          "description": "Prefer a default export wrapper.",
+          "type": "string",
+          "const": "default"
+        },
+        {
+          "description": "Prefer named export bindings.",
+          "type": "string",
+          "const": "named"
+        },
+        {
+          "description": "Omit export bindings entirely.",
+          "type": "string",
+          "const": "none"
+        }
+      ]
+    },
+    "BundleInteropMode": {
+      "description": "Interop mode for external modules.",
+      "oneOf": [
+        {
+          "description": "Use compatibility interop.",
+          "type": "string",
+          "const": "compat"
+        },
+        {
+          "description": "Infer interop from the dependency shape.",
+          "type": "string",
+          "const": "auto"
+        },
+        {
+          "description": "Treat externals as ES modules.",
+          "type": "string",
+          "const": "esModule"
+        },
+        {
+          "description": "Prefer default interop helpers.",
+          "type": "string",
+          "const": "default"
+        },
+        {
+          "description": "Only allow default interop.",
+          "type": "string",
+          "const": "defaultOnly"
+        }
+      ]
+    },
+    "TargetBundleGeneratedCodeJson": {
+      "description": "Generated code controls in `destack.json`.",
+      "anyOf": [
+        {
+          "description": "Select one named generated code preset.",
+          "$ref": "#/$defs/BundleGeneratedCodePreset"
+        },
+        {
+          "description": "Configure generated code with one explicit options object.",
+          "$ref": "#/$defs/BundleGeneratedCodeOptionsJson"
+        }
+      ]
+    },
+    "BundleGeneratedCodePreset": {
+      "description": "Generated code preset for one output.",
+      "oneOf": [
+        {
+          "description": "Favor ES5 compatible output forms.",
+          "type": "string",
+          "const": "es5"
+        },
+        {
+          "description": "Favor ES2015 compatible output forms.",
+          "type": "string",
+          "const": "es2015"
+        }
+      ]
+    },
+    "BundleGeneratedCodeOptionsJson": {
+      "description": "Generated code options in `destack.json`.",
+      "type": "object",
+      "properties": {
+        "preset": {
+          "description": "Base preset for generated code features.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BundleGeneratedCodePreset"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "arrowFunctions": {
+          "description": "Whether to emit arrow functions where possible.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "constBindings": {
+          "description": "Whether to emit `const` bindings where possible.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "objectShorthand": {
+          "description": "Whether to emit object shorthand properties.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "reservedNamesAsProps": {
+          "description": "Whether to preserve reserved names as properties.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "symbols": {
+          "description": "Whether to emit symbol based helpers.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      }
+    },
+    "TargetBundleEsModuleJson": {
+      "description": "`esModule` output mode in `destack.json`.",
+      "anyOf": [
+        {
+          "description": "Enable or disable `__esModule` emission with one boolean.",
+          "type": "boolean"
+        },
+        {
+          "description": "Select one explicit `esModule` policy.",
+          "$ref": "#/$defs/BundleEsModuleMode"
+        }
+      ]
+    },
+    "BundleEsModuleMode": {
+      "description": "`esModule` output mode for CommonJS style bundles.",
+      "oneOf": [
+        {
+          "description": "Always emit `__esModule`.",
+          "type": "string",
+          "const": "always"
+        },
+        {
+          "description": "Never emit `__esModule`.",
+          "type": "string",
+          "const": "never"
+        },
+        {
+          "description": "Emit `__esModule` only for default property cases.",
+          "type": "string",
+          "const": "if-default-prop"
+        }
+      ]
+    },
+    "TargetBundleSourceMapJson": {
+      "description": "Bundler source map policy in `destack.json`.",
+      "anyOf": [
+        {
+          "description": "Enable or disable external source maps with one boolean.",
+          "type": "boolean"
+        },
+        {
+          "description": "Select one explicit source map mode.",
+          "$ref": "#/$defs/SourceMapMode"
+        }
+      ]
+    },
+    "SourceMapMode": {
+      "description": "Source map emission mode for one target.",
+      "oneOf": [
+        {
+          "description": "Emit external source map files and reference them from outputs.",
+          "type": "string",
+          "const": "external"
+        },
+        {
+          "description": "Inline source maps into the emitted output text.",
+          "type": "string",
+          "const": "inline"
+        },
+        {
+          "description": "Emit external source map files without referencing them from outputs.",
+          "type": "string",
+          "const": "hidden"
+        }
+      ]
+    },
     "TargetBundleMinifyJson": {
+      "description": "Bundler minification options in `destack.json`.",
+      "anyOf": [
+        {
+          "description": "Enable or disable full minification with one boolean.",
+          "type": "boolean"
+        },
+        {
+          "description": "Configure minification with one explicit options object.",
+          "$ref": "#/$defs/TargetBundleMinifyOptionsJson"
+        }
+      ]
+    },
+    "TargetBundleMinifyOptionsJson": {
       "description": "Bundler minification options in `destack.json`.",
       "type": "object",
       "properties": {
@@ -7547,7 +7822,7 @@
       ]
     },
     "TargetOutputName": {
-      "description": "Builtin target output surface name.",
+      "description": "Builtin target output name.",
       "oneOf": [
         {
           "description": "Per-module library output.",
@@ -7590,12 +7865,12 @@
           "const": "binary"
         },
         {
-          "description": "Debug symbol or debug sidecar output.",
+          "description": "Debug symbol output.",
           "type": "string",
           "const": "debug"
         },
         {
-          "description": "Additional metadata sidecar output.",
+          "description": "Additional metadata output.",
           "type": "string",
           "const": "metadata"
         }

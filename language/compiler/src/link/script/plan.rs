@@ -57,7 +57,7 @@ impl Compiler {
         target: &Target,
         dependency_target: &ScriptDependencyTarget,
     ) -> LinkResult<bool> {
-        let dependency = &target.bundle.dependency;
+        let dependency = &target.bundle.dependencies;
         let specifier = dependency_target.specifier();
         let has_resolved_module = dependency_target.module().is_some();
 
@@ -100,7 +100,7 @@ impl Compiler {
                 package: package_id,
                 target: target_id.clone(),
                 message: format!(
-                    "bundle.dependency.onlyBundle does not allow bundled dependency '{specifier}'"
+                    "bundle.dependencies.onlyBundle does not allow bundled dependency '{specifier}'"
                 ),
             });
         }
