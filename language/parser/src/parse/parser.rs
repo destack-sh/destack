@@ -1,8 +1,8 @@
 use crate::{TokenStream, TokenStreamMark, is_semantic};
 use core::fmt;
 use destack_ast::{
-    BlockFormat, Expression, Keyword, LocalNodeId, NodeTree, NodeTreeMark, StringId, Token,
-    TokenSpan, TokenType,
+    BlockFormat, Expression, Keyword, LocalNodeId, Node, NodeTree, NodeTreeImpl, NodeTreeMark,
+    NodeType, StringId, Token, TokenSpan, TokenType,
 };
 use destack_core::LocalStringPool;
 use destack_source::{
@@ -1935,8 +1935,8 @@ impl Parser {
     #[inline]
     pub(crate) fn insert_node<T>(&mut self, node: T, span: Span) -> LocalNodeId<T>
     where
-        T: destack_ast::Node,
-        NodeTree: destack_ast::NodeTreeImpl<T>,
+        T: Node,
+        NodeTree: NodeTreeImpl<T>,
     {
         let _timing = self.timing_scope(crate::parse::timing::tags::PARSE_ALLOC_NODE);
         self.tree.insert_during_parse(node, span)
@@ -2516,6 +2516,99 @@ impl Parser {
         Err(error)
     }
 
+    /// Recover within one list item until a separator or terminator boundary.
+    pub fn try_recover_in_item_list(
+        &mut self,
+        start: &ParserMark,
+        terminator: TokenType,
+        error: Option<ParseError>,
+    ) -> ParseResult<()> {
+        while let Ok(token) = self.peek() {
+            let token_type = token.token.ty;
+
+            // recover from here and keep the separator or terminator for the caller
+            if token_type == terminator
+                || Self::is_item_stop_token(token_type)
+                || Self::is_close_delimiter_token(token_type)
+            {
+                let error = ParseError::from_source_maybe(self.get_span_from(start), error);
+                self.error(&error);
+                return Ok(());
+            }
+
+            self.bump();
+        }
+
+        let error = ParseError::from_source_maybe(self.get_span_from(start), error);
+        self.error(&error);
+        Err(error)
+    }
+
+    /// Recover within one statement until a statement boundary.
+    pub fn try_recover_in_statement(
+        &mut self,
+        start: &ParserMark,
+        error: Option<ParseError>,
+    ) -> ParseResult<()> {
+        while let Ok(token) = self.peek() {
+            let token_type = token.token.ty;
+
+            // recover from here and keep the boundary token for the caller
+            if Self::is_statement_stop_token(token_type) || token_type == TokenType::CloseBrace {
+                let error = ParseError::from_source_maybe(self.get_span_from(start), error);
+                self.error(&error);
+                return Ok(());
+            }
+
+            self.bump();
+        }
+
+        // eof is also a valid statement boundary
+        let error = ParseError::from_source_maybe(self.get_span_from(start), error);
+        self.error(&error);
+        Ok(())
+    }
+
+    /// Return true when a recovered list item may continue parsing another item.
+    pub(crate) fn can_continue_after_recovered_item(
+        &mut self,
+        terminator: TokenType,
+        is_recovered_item: bool,
+    ) -> bool {
+        if !is_recovered_item {
+            return false;
+        }
+
+        let token_type = self.peek_token_type();
+        token_type != terminator
+            && !Self::is_close_delimiter_token(token_type)
+            && token_type != TokenType::End
+    }
+
+    /// Recover within a property or member body until a boundary token.
+    pub fn try_recover_in_body(
+        &mut self,
+        start: &ParserMark,
+        error: Option<ParseError>,
+    ) -> ParseResult<()> {
+        while let Ok(token) = self.peek() {
+            let token_type = token.token.ty;
+
+            // recover from here and keep the boundary token for the caller
+            if token_type == TokenType::CloseBrace || Self::is_any_stop_token(token_type) {
+                let error = ParseError::from_source_maybe(self.get_span_from(start), error);
+                self.error(&error);
+                return Ok(());
+            }
+
+            self.bump();
+        }
+
+        let error = ParseError::from_source_maybe(self.get_span_from(start), error);
+        self.error(&error);
+        Err(error)
+    }
+
     /// Eat the expected token.
     /// If we don't get the token, it's an error, but:
     ///  1) If we do hit the expected token later, we recover from there.
@@ -2549,6 +2642,129 @@ impl Parser {
         let error = ParseError::unexpected(self.get_span_from(&start));
         self.error(&error);
         Err(error)
+    }
+
+    /// Insert one missing expression node at the current cursor position.
+    pub(crate) fn insert_missing_expression_here(&mut self) -> LocalNodeId<Expression> {
+        let anchor_span = self.anchor_span_here();
+        let missing_span = Span::new(anchor_span.file, anchor_span.start, anchor_span.start);
+
+        self.insert_node(Expression::Missing, missing_span)
+    }
+
+    /// Return the best local anchor span at the current cursor position.
+    pub(crate) fn anchor_span_here(&mut self) -> Span {
+        if let Ok(token) = self.peek() {
+            token.span
+        } else {
+            self.eof_span()
+        }
+    }
+
+    /// Report one unexpected node slot at the current cursor position.
+    pub(crate) fn report_unexpected_for_here(&mut self, owner: NodeType) {
+        let error = ParseError::unexpected_for(self.anchor_span_here(), owner);
+
+        self.error(&error);
+    }
+
+    /// Recover one committed missing token at the current cursor position.
+    pub(crate) fn recover_missing_token_here(
+        &mut self,
+        expected: TokenType,
+        owner: NodeType,
+        is_recoverable_boundary: bool,
+    ) -> ParseResult<()> {
+        if !is_recoverable_boundary {
+            return Err(ParseError::expected(self.anchor_span_here(), expected));
+        }
+
+        self.report_unexpected_for_here(owner);
+        Ok(())
+    }
+
+    /// Report one committed missing expression slot and insert the missing node.
+    pub(crate) fn recover_missing_expression_here(
+        &mut self,
+        owner: NodeType,
+    ) -> LocalNodeId<Expression> {
+        self.report_unexpected_for_here(owner);
+        self.insert_missing_expression_here()
+    }
+
+    /// Eat one committed type expression or recover one missing child at a type boundary.
+    pub(crate) fn eat_type_expression_or_recover_missing(
+        &mut self,
+        options: ParserOptions,
+        owner: NodeType,
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        if self.is_type_expression_boundary() {
+            return Ok(self.recover_missing_expression_here(owner));
+        }
+
+        self.eat_expression(options)
+    }
+
+    /// Eat one committed expression or recover one missing child at an expression boundary.
+    pub(crate) fn eat_expression_or_recover_missing(
+        &mut self,
+        options: ParserOptions,
+        owner: NodeType,
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        if Self::is_expression_slot_boundary_token(self.peek_token_type()) {
+            return Ok(self.recover_missing_expression_here(owner));
+        }
+
+        self.eat_expression(options)
+    }
+
+    /// Eat one close token or recover one committed missing close delimiter.
+    pub(crate) fn eat_close_token_or_recover_missing(
+        &mut self,
+        expected: TokenType,
+        owner: NodeType,
+    ) -> ParseResult<()> {
+        if self.peek_is(expected) {
+            self.bump();
+            return Ok(());
+        }
+
+        let token_type = self.peek_token_type();
+        let is_recoverable_boundary = Self::is_close_delimiter_boundary_token(token_type);
+
+        self.recover_missing_token_here(expected, owner, is_recoverable_boundary)
+    }
+
+    /// Eat one committed list close token or recover one missing delimiter in place.
+    pub(crate) fn eat_list_close_token_or_recover_missing(
+        &mut self,
+        expected: TokenType,
+        owner: NodeType,
+    ) -> ParseResult<()> {
+        if self.peek_is(expected) {
+            self.bump();
+            return Ok(());
+        }
+
+        self.report_unexpected_for_here(owner);
+        Ok(())
+    }
+
+    /// Eat one committed type close token or recover one missing delimiter at a type boundary.
+    pub(crate) fn eat_type_token_or_recover_missing(
+        &mut self,
+        expected: TokenType,
+        owner: NodeType,
+    ) -> ParseResult<()> {
+        if self.peek_is(expected) {
+            self.bump();
+            return Ok(());
+        }
+
+        let token_type = self.peek_token_type();
+        let is_recoverable_boundary = Self::is_type_container_boundary_token(token_type);
+
+        self.recover_missing_token_here(expected, owner, is_recoverable_boundary)
     }
 
     /// Get the node starting at a token.
