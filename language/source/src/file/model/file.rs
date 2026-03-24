@@ -399,6 +399,15 @@ impl File {
         }
     }
 
+    /// Return whether the file starts with a hashbang line.
+    #[inline]
+    pub fn has_hashbang(&self) -> bool {
+        self.text()
+            .strip_prefix('\u{feff}')
+            .unwrap_or(self.text())
+            .starts_with("#!")
+    }
+
     /// Get the string slice for a given span.
     #[inline]
     pub fn get_span_str(&self, span: Span) -> Option<&str> {
