@@ -1,17 +1,24 @@
 use super::callbacks::call_ios_calendar_callback;
-use crate::runtime::NativeSlice;
+use crate::host::abi::calendar::{
+    HostCalendarDescriptorArray, HostCalendarEvent, HostCalendarEventArray, HostCalendarEventDraft,
+    HostCalendarEventId, HostCalendarEventQuery,
+};
+use crate::host::core::HOST_STATUS_INVALID_ARGUMENT;
 
 /// List iOS calendars through the host.
 #[unsafe(no_mangle)]
 pub(crate) unsafe extern "C" fn destack_host_ios_calendar_list(
     runtime_id: u64,
-    output: NativeSlice<u8>,
-    output_written: *mut u32,
+    output_calendars: *mut HostCalendarDescriptorArray,
 ) -> u32 {
+    if output_calendars.is_null() {
+        return HOST_STATUS_INVALID_ARGUMENT;
+    }
+
     call_ios_calendar_callback(
         runtime_id,
         |callbacks| callbacks.list,
-        |callback| unsafe { callback(runtime_id, output, output_written) },
+        |callback| unsafe { callback(runtime_id, output_calendars) },
     )
 }
 
@@ -19,14 +26,17 @@ pub(crate) unsafe extern "C" fn destack_host_ios_calendar_list(
 #[unsafe(no_mangle)]
 pub(crate) unsafe extern "C" fn destack_host_ios_calendar_event_list(
     runtime_id: u64,
-    payload: NativeSlice<u8>,
-    output: NativeSlice<u8>,
-    output_written: *mut u32,
+    query: HostCalendarEventQuery,
+    output_events: *mut HostCalendarEventArray,
 ) -> u32 {
+    if output_events.is_null() {
+        return HOST_STATUS_INVALID_ARGUMENT;
+    }
+
     call_ios_calendar_callback(
         runtime_id,
         |callbacks| callbacks.event_list,
-        |callback| unsafe { callback(runtime_id, payload, output, output_written) },
+        |callback| unsafe { callback(runtime_id, query, output_events) },
     )
 }
 
@@ -34,14 +44,17 @@ pub(crate) unsafe extern "C" fn destack_host_ios_calendar_event_list(
 #[unsafe(no_mangle)]
 pub(crate) unsafe extern "C" fn destack_host_ios_calendar_event_read(
     runtime_id: u64,
-    id: NativeSlice<u8>,
-    output: NativeSlice<u8>,
-    output_written: *mut u32,
+    id: HostCalendarEventId,
+    output_event: *mut HostCalendarEvent,
 ) -> u32 {
+    if output_event.is_null() {
+        return HOST_STATUS_INVALID_ARGUMENT;
+    }
+
     call_ios_calendar_callback(
         runtime_id,
         |callbacks| callbacks.event_read,
-        |callback| unsafe { callback(runtime_id, id, output, output_written) },
+        |callback| unsafe { callback(runtime_id, id, output_event) },
     )
 }
 
@@ -49,14 +62,17 @@ pub(crate) unsafe extern "C" fn destack_host_ios_calendar_event_read(
 #[unsafe(no_mangle)]
 pub(crate) unsafe extern "C" fn destack_host_ios_calendar_event_create(
     runtime_id: u64,
-    payload: NativeSlice<u8>,
-    output_id: NativeSlice<u8>,
-    output_written: *mut u32,
+    event: HostCalendarEventDraft,
+    output_id: *mut HostCalendarEventId,
 ) -> u32 {
+    if output_id.is_null() {
+        return HOST_STATUS_INVALID_ARGUMENT;
+    }
+
     call_ios_calendar_callback(
         runtime_id,
         |callbacks| callbacks.event_create,
-        |callback| unsafe { callback(runtime_id, payload, output_id, output_written) },
+        |callback| unsafe { callback(runtime_id, event, output_id) },
     )
 }
 
@@ -64,13 +80,13 @@ pub(crate) unsafe extern "C" fn destack_host_ios_calendar_event_create(
 #[unsafe(no_mangle)]
 pub(crate) unsafe extern "C" fn destack_host_ios_calendar_event_update(
     runtime_id: u64,
-    id: NativeSlice<u8>,
-    payload: NativeSlice<u8>,
+    id: HostCalendarEventId,
+    event: HostCalendarEventDraft,
 ) -> u32 {
     call_ios_calendar_callback(
         runtime_id,
         |callbacks| callbacks.event_update,
-        |callback| unsafe { callback(runtime_id, id, payload) },
+        |callback| unsafe { callback(runtime_id, id, event) },
     )
 }
 
@@ -78,7 +94,7 @@ pub(crate) unsafe extern "C" fn destack_host_ios_calendar_event_update(
 #[unsafe(no_mangle)]
 pub(crate) unsafe extern "C" fn destack_host_ios_calendar_event_delete(
     runtime_id: u64,
-    id: NativeSlice<u8>,
+    id: HostCalendarEventId,
 ) -> u32 {
     call_ios_calendar_callback(
         runtime_id,

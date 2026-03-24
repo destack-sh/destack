@@ -1,3 +1,7 @@
+use std::mem::MaybeUninit;
+
+use crate::host::abi::contact::HostContactQuery;
+use crate::host::abi::core::{HostOptionalStringRef, HostOptionalU32};
 use crate::host::android::abi::bindings::AndroidHostBindings;
 use crate::host::android::abi::contact::callbacks::AndroidHostContactCallbacks;
 use crate::host::android::abi::contact::ffi::{
@@ -10,89 +14,96 @@ use crate::host::android::tests::{
 };
 use crate::host::core::registry::HostSessionRegistry;
 use crate::host::{
-    HOST_STATUS_BUFFER_TOO_SMALL, HOST_STATUS_NOT_FOUND, HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK,
+    HOST_STATUS_INVALID_ARGUMENT, HOST_STATUS_NOT_FOUND, HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK,
 };
 use crate::platform::os::abi_generated::{
-    ContactAddressValue, ContactDraftValue, ContactEmailValue, ContactNameValue,
-    ContactOrganizationValue, ContactPageValue, ContactPhoneValue, ContactQueryValue, ContactValue,
+    Contact, ContactDraft, ContactDraftValue, ContactName, ContactNameValue, ContactOrganization,
+    ContactOrganizationValue, ContactPage, ContactPageValue, ContactQueryValue, ContactValue,
 };
-use crate::runtime::NativeSlice;
+use crate::platform::{NativeAbiCodec, NativeArray};
+use crate::runtime::NativeStringRef;
 
 unsafe extern "C" fn test_contact_list_callback(
     _runtime_id: u64,
-    payload: NativeSlice<u8>,
-    output: NativeSlice<u8>,
-    output_written: *mut u32,
+    query: HostContactQuery,
+    output_page: *mut ContactPage,
 ) -> u32 {
-    let payload = unsafe { payload.as_slice() }.unwrap();
-    let query = serde_json::from_slice::<ContactQueryValue>(payload).unwrap();
-
+    let query = unsafe { query.into_value() }.unwrap();
     assert_eq!(query, test_contact_query());
 
-    write_json_output(output, output_written, &test_contact_page())
+    unsafe {
+        *output_page = test_host_contact_page();
+    }
+
+    HOST_STATUS_OK
 }
 
 unsafe extern "C" fn test_contact_search_callback(
     _runtime_id: u64,
-    query_text: NativeSlice<u8>,
-    payload: NativeSlice<u8>,
-    output: NativeSlice<u8>,
-    output_written: *mut u32,
+    query_text: NativeStringRef,
+    query: HostContactQuery,
+    output_page: *mut ContactPage,
 ) -> u32 {
-    let query_text = unsafe { query_text.as_slice() }.unwrap();
-    let payload = unsafe { payload.as_slice() }.unwrap();
-    let query = serde_json::from_slice::<ContactQueryValue>(payload).unwrap();
+    let query_text = unsafe { query_text.as_str() }.unwrap();
+    let query = unsafe { query.into_value() }.unwrap();
 
-    assert_eq!(std::str::from_utf8(query_text).unwrap(), "Ada");
+    assert_eq!(query_text, "Ada");
     assert_eq!(query, test_contact_query());
 
-    write_json_output(output, output_written, &test_contact_page())
+    unsafe {
+        *output_page = test_host_contact_page();
+    }
+
+    HOST_STATUS_OK
 }
 
 unsafe extern "C" fn test_contact_read_callback(
     _runtime_id: u64,
-    id: NativeSlice<u8>,
-    output: NativeSlice<u8>,
-    output_written: *mut u32,
+    id: NativeStringRef,
+    output_contact: *mut Contact,
 ) -> u32 {
-    let id = unsafe { id.as_slice() }.unwrap();
-    assert_eq!(std::str::from_utf8(id).unwrap(), "contact-1");
+    let id = unsafe { id.as_str() }.unwrap();
+    assert_eq!(id, "contact-1");
 
-    write_json_output(output, output_written, &test_contact())
+    unsafe {
+        *output_contact = test_host_contact();
+    }
+
+    HOST_STATUS_OK
 }
 
 unsafe extern "C" fn test_contact_create_callback(
     _runtime_id: u64,
-    payload: NativeSlice<u8>,
-    output_id: NativeSlice<u8>,
-    output_written: *mut u32,
+    draft: ContactDraft,
+    output_id: *mut NativeStringRef,
 ) -> u32 {
-    let payload = unsafe { payload.as_slice() }.unwrap();
-    let draft = serde_json::from_slice::<ContactDraftValue>(payload).unwrap();
-
+    let draft = unsafe { draft.into_value() }.unwrap();
     assert_eq!(draft, test_contact_draft());
 
-    write_string_output(output_id, output_written, "contact-1")
+    unsafe {
+        *output_id = NativeStringRef::from("contact-1");
+    }
+
+    HOST_STATUS_OK
 }
 
 unsafe extern "C" fn test_contact_update_callback(
     _runtime_id: u64,
-    id: NativeSlice<u8>,
-    payload: NativeSlice<u8>,
+    id: NativeStringRef,
+    draft: ContactDraft,
 ) -> u32 {
-    let id = unsafe { id.as_slice() }.unwrap();
-    let payload = unsafe { payload.as_slice() }.unwrap();
-    let draft = serde_json::from_slice::<ContactDraftValue>(payload).unwrap();
+    let id = unsafe { id.as_str() }.unwrap();
+    let draft = unsafe { draft.into_value() }.unwrap();
 
-    assert_eq!(std::str::from_utf8(id).unwrap(), "contact-1");
+    assert_eq!(id, "contact-1");
     assert_eq!(draft, test_contact_draft());
 
     HOST_STATUS_OK
 }
 
-unsafe extern "C" fn test_contact_delete_callback(_runtime_id: u64, id: NativeSlice<u8>) -> u32 {
-    let id = unsafe { id.as_slice() }.unwrap();
-    assert_eq!(std::str::from_utf8(id).unwrap(), "contact-1");
+unsafe extern "C" fn test_contact_delete_callback(_runtime_id: u64, id: NativeStringRef) -> u32 {
+    let id = unsafe { id.as_str() }.unwrap();
+    assert_eq!(id, "contact-1");
 
     HOST_STATUS_OK
 }
@@ -101,18 +112,10 @@ unsafe extern "C" fn test_contact_delete_callback(_runtime_id: u64, id: NativeSl
 fn test_contact_callbacks_report_missing_runtime_registration() {
     let _lock = callback_test_lock().lock().unwrap();
     let runtime_id = HostSessionRegistry::allocate_session_id().0;
-    let query = serde_json::to_vec(&test_contact_query()).unwrap();
-    let status = unsafe {
-        destack_host_android_contact_list(
-            runtime_id,
-            NativeSlice {
-                data: query.as_ptr() as *mut u8,
-                len: query.len() as u32,
-            },
-            empty_output(),
-            std::ptr::null_mut(),
-        )
-    };
+    let query = test_host_contact_query();
+    let mut output_page = MaybeUninit::<ContactPage>::uninit();
+    let status =
+        unsafe { destack_host_android_contact_list(runtime_id, query, output_page.as_mut_ptr()) };
 
     assert_eq!(status, HOST_STATUS_NOT_FOUND);
 }
@@ -124,18 +127,10 @@ fn test_contact_callbacks_report_unsupported_without_registered_handler() {
     let status = register_android_bindings(runtime_id, AndroidHostBindings::default());
     assert_eq!(status, HOST_STATUS_OK);
 
-    let query = serde_json::to_vec(&test_contact_query()).unwrap();
-    let status = unsafe {
-        destack_host_android_contact_list(
-            runtime_id,
-            NativeSlice {
-                data: query.as_ptr() as *mut u8,
-                len: query.len() as u32,
-            },
-            empty_output(),
-            std::ptr::null_mut(),
-        )
-    };
+    let query = test_host_contact_query();
+    let mut output_page = MaybeUninit::<ContactPage>::uninit();
+    let status =
+        unsafe { destack_host_android_contact_list(runtime_id, query, output_page.as_mut_ptr()) };
     assert_eq!(status, HOST_STATUS_NOT_SUPPORTED);
 }
 
@@ -160,174 +155,170 @@ fn test_contact_callbacks_route_registered_handlers() {
     assert_eq!(status, HOST_STATUS_OK);
 
     // list and search
-    let query = serde_json::to_vec(&test_contact_query()).unwrap();
-    let mut list_output = vec![0_u8; 2048];
-    let mut list_written = 0_u32;
-    let list_status = unsafe {
-        destack_host_android_contact_list(
-            runtime_id,
-            NativeSlice {
-                data: query.as_ptr() as *mut u8,
-                len: query.len() as u32,
-            },
-            NativeSlice {
-                data: list_output.as_mut_ptr(),
-                len: list_output.len() as u32,
-            },
-            &mut list_written,
-        )
-    };
+    let query = test_host_contact_query();
+    let mut list_output = MaybeUninit::<ContactPage>::uninit();
+    let list_status =
+        unsafe { destack_host_android_contact_list(runtime_id, query, list_output.as_mut_ptr()) };
     assert_eq!(list_status, HOST_STATUS_OK);
-    let page =
-        serde_json::from_slice::<ContactPageValue>(&list_output[..list_written as usize]).unwrap();
+    let page = unsafe { list_output.assume_init().into_value() }.unwrap();
     assert_eq!(page, test_contact_page());
 
-    let search_text = b"Ada";
-    let mut search_output = vec![0_u8; 2048];
-    let mut search_written = 0_u32;
+    let mut search_output = MaybeUninit::<ContactPage>::uninit();
     let search_status = unsafe {
         destack_host_android_contact_search(
             runtime_id,
-            NativeSlice {
-                data: search_text.as_ptr() as *mut u8,
-                len: search_text.len() as u32,
-            },
-            NativeSlice {
-                data: query.as_ptr() as *mut u8,
-                len: query.len() as u32,
-            },
-            NativeSlice {
-                data: search_output.as_mut_ptr(),
-                len: search_output.len() as u32,
-            },
-            &mut search_written,
+            NativeStringRef::from("Ada"),
+            test_host_contact_query(),
+            search_output.as_mut_ptr(),
         )
     };
     assert_eq!(search_status, HOST_STATUS_OK);
-    let search_page =
-        serde_json::from_slice::<ContactPageValue>(&search_output[..search_written as usize])
-            .unwrap();
+    let search_page = unsafe { search_output.assume_init().into_value() }.unwrap();
     assert_eq!(search_page, test_contact_page());
 
     // read one contact
-    let contact_id = b"contact-1";
-    let mut read_output = vec![0_u8; 2048];
-    let mut read_written = 0_u32;
+    let mut read_output = MaybeUninit::<Contact>::uninit();
     let read_status = unsafe {
         destack_host_android_contact_read(
             runtime_id,
-            NativeSlice {
-                data: contact_id.as_ptr() as *mut u8,
-                len: contact_id.len() as u32,
-            },
-            NativeSlice {
-                data: read_output.as_mut_ptr(),
-                len: read_output.len() as u32,
-            },
-            &mut read_written,
+            NativeStringRef::from("contact-1"),
+            read_output.as_mut_ptr(),
         )
     };
     assert_eq!(read_status, HOST_STATUS_OK);
-    let contact =
-        serde_json::from_slice::<ContactValue>(&read_output[..read_written as usize]).unwrap();
+    let contact = unsafe { read_output.assume_init().into_value() }.unwrap();
     assert_eq!(contact, test_contact());
 
     // create one contact
-    let draft = serde_json::to_vec(&test_contact_draft()).unwrap();
-    let mut create_output = vec![0_u8; 128];
-    let mut create_written = 0_u32;
+    let mut create_output = MaybeUninit::<NativeStringRef>::uninit();
     let create_status = unsafe {
         destack_host_android_contact_create(
             runtime_id,
-            NativeSlice {
-                data: draft.as_ptr() as *mut u8,
-                len: draft.len() as u32,
-            },
-            NativeSlice {
-                data: create_output.as_mut_ptr(),
-                len: create_output.len() as u32,
-            },
-            &mut create_written,
+            test_host_contact_draft(),
+            create_output.as_mut_ptr(),
         )
     };
     assert_eq!(create_status, HOST_STATUS_OK);
-    assert_eq!(
-        std::str::from_utf8(&create_output[..create_written as usize]).unwrap(),
-        "contact-1"
-    );
+    let create_output = unsafe { create_output.assume_init() };
+    assert_eq!(unsafe { create_output.as_str() }.unwrap(), "contact-1");
 
     // update and delete
     let update_status = unsafe {
         destack_host_android_contact_update(
             runtime_id,
-            NativeSlice {
-                data: contact_id.as_ptr() as *mut u8,
-                len: contact_id.len() as u32,
-            },
-            NativeSlice {
-                data: draft.as_ptr() as *mut u8,
-                len: draft.len() as u32,
-            },
+            NativeStringRef::from("contact-1"),
+            test_host_contact_draft(),
         )
     };
     assert_eq!(update_status, HOST_STATUS_OK);
 
     let delete_status = unsafe {
-        destack_host_android_contact_delete(
-            runtime_id,
-            NativeSlice {
-                data: contact_id.as_ptr() as *mut u8,
-                len: contact_id.len() as u32,
-            },
-        )
+        destack_host_android_contact_delete(runtime_id, NativeStringRef::from("contact-1"))
     };
     assert_eq!(delete_status, HOST_STATUS_OK);
 }
 
-fn empty_output() -> NativeSlice<u8> {
-    NativeSlice {
+#[test]
+fn test_contact_callbacks_require_output_pointers() {
+    let _lock = callback_test_lock().lock().unwrap();
+    let (_queue, _registration, runtime_id) = register_android_runtime();
+    let status = register_android_bindings(
+        runtime_id,
+        AndroidHostBindings {
+            contact: AndroidHostContactCallbacks {
+                list: Some(test_contact_list_callback),
+                read: Some(test_contact_read_callback),
+                create: Some(test_contact_create_callback),
+                ..AndroidHostContactCallbacks::default()
+            },
+            ..AndroidHostBindings::default()
+        },
+    );
+    assert_eq!(status, HOST_STATUS_OK);
+
+    let list_status = unsafe {
+        destack_host_android_contact_list(
+            runtime_id,
+            test_host_contact_query(),
+            std::ptr::null_mut(),
+        )
+    };
+    assert_eq!(list_status, HOST_STATUS_INVALID_ARGUMENT);
+
+    let read_status = unsafe {
+        destack_host_android_contact_read(
+            runtime_id,
+            NativeStringRef::from("contact-1"),
+            std::ptr::null_mut(),
+        )
+    };
+    assert_eq!(read_status, HOST_STATUS_INVALID_ARGUMENT);
+
+    let create_status = unsafe {
+        destack_host_android_contact_create(
+            runtime_id,
+            test_host_contact_draft(),
+            std::ptr::null_mut(),
+        )
+    };
+    assert_eq!(create_status, HOST_STATUS_INVALID_ARGUMENT);
+}
+
+fn empty_array<T>() -> NativeArray<T> {
+    NativeArray {
         data: std::ptr::null_mut(),
         len: 0,
+        capacity: 0,
     }
 }
 
-fn write_json_output<T: serde::Serialize>(
-    output: NativeSlice<u8>,
-    output_written: *mut u32,
-    value: &T,
-) -> u32 {
-    let bytes = serde_json::to_vec(value).unwrap();
-    write_bytes_output(output, output_written, &bytes)
-}
+fn leak_array<T>(values: Vec<T>) -> NativeArray<T> {
+    let values = values.into_boxed_slice();
+    let len = values.len() as u32;
+    let data = Box::leak(values).as_mut_ptr();
 
-fn write_string_output(output: NativeSlice<u8>, output_written: *mut u32, value: &str) -> u32 {
-    write_bytes_output(output, output_written, value.as_bytes())
-}
-
-fn write_bytes_output(output: NativeSlice<u8>, output_written: *mut u32, bytes: &[u8]) -> u32 {
-    let output_written = unsafe { &mut *output_written };
-
-    if output.len < bytes.len() as u32 {
-        *output_written = bytes.len() as u32;
-        return HOST_STATUS_BUFFER_TOO_SMALL;
+    NativeArray {
+        data,
+        len,
+        capacity: len,
     }
+}
 
-    let output = unsafe { output.as_mut_slice() }.unwrap();
-    output[..bytes.len()].copy_from_slice(bytes);
-    *output_written = bytes.len() as u32;
-
-    HOST_STATUS_OK
+fn test_host_contact_query() -> HostContactQuery {
+    HostContactQuery {
+        cursor: HostOptionalStringRef {
+            has_value: true,
+            value: NativeStringRef::from("cursor-1"),
+        },
+        limit: HostOptionalU32 {
+            has_value: true,
+            value: 10,
+        },
+        include_phones: true,
+        include_emails: true,
+        include_addresses: false,
+        include_organization: true,
+        include_notes: false,
+    }
 }
 
 fn test_contact_query() -> ContactQueryValue {
     ContactQueryValue {
-        cursor: None,
+        cursor: Some("cursor-1".to_string()),
         limit: Some(10),
         include_phones: true,
         include_emails: true,
         include_addresses: false,
         include_organization: true,
         include_notes: false,
+    }
+}
+
+fn test_host_contact_page() -> ContactPage {
+    ContactPage {
+        contacts: leak_array(vec![test_host_contact()]),
+        next_cursor: NativeStringRef::from("next"),
+        has_more: true,
     }
 }
 
@@ -339,80 +330,100 @@ fn test_contact_page() -> ContactPageValue {
     }
 }
 
+fn test_host_contact() -> Contact {
+    Contact {
+        id: NativeStringRef::from("contact-1"),
+        name: ContactName {
+            given_name: NativeStringRef::from("Ada"),
+            middle_name: NativeStringRef::from(""),
+            family_name: NativeStringRef::from("Lovelace"),
+            prefix: NativeStringRef::from(""),
+            suffix: NativeStringRef::from(""),
+            nickname: NativeStringRef::from(""),
+            phonetic_given_name: NativeStringRef::from(""),
+            phonetic_family_name: NativeStringRef::from(""),
+        },
+        phones: empty_array(),
+        emails: empty_array(),
+        addresses: empty_array(),
+        organization: ContactOrganization {
+            company: NativeStringRef::from("Analytical Engine"),
+            department: NativeStringRef::from(""),
+            title: NativeStringRef::from("Programmer"),
+        },
+        note: NativeStringRef::from(""),
+    }
+}
+
 fn test_contact() -> ContactValue {
     ContactValue {
         id: "contact-1".to_string(),
-        name: test_contact_name(),
-        phones: vec![ContactPhoneValue {
-            label: "mobile".to_string(),
-            number: "+41790000000".to_string(),
-            normalized_number: "+41790000000".to_string(),
-            primary: true,
-        }],
-        emails: vec![ContactEmailValue {
-            label: "work".to_string(),
-            address: "ada@example.com".to_string(),
-            primary: true,
-        }],
-        addresses: vec![ContactAddressValue {
-            label: "home".to_string(),
-            street: "Main Street 1".to_string(),
-            city: "Zurich".to_string(),
-            region: "ZH".to_string(),
-            postal_code: "8000".to_string(),
-            country: "Switzerland".to_string(),
-            country_code: "CH".to_string(),
-        }],
-        organization: ContactOrganizationValue {
-            company: "Destack".to_string(),
-            department: "Runtime".to_string(),
-            title: "Engineer".to_string(),
+        name: ContactNameValue {
+            given_name: "Ada".to_string(),
+            middle_name: "".to_string(),
+            family_name: "Lovelace".to_string(),
+            prefix: "".to_string(),
+            suffix: "".to_string(),
+            nickname: "".to_string(),
+            phonetic_given_name: "".to_string(),
+            phonetic_family_name: "".to_string(),
         },
-        note: "friend".to_string(),
+        phones: vec![],
+        emails: vec![],
+        addresses: vec![],
+        organization: ContactOrganizationValue {
+            company: "Analytical Engine".to_string(),
+            department: "".to_string(),
+            title: "Programmer".to_string(),
+        },
+        note: "".to_string(),
+    }
+}
+
+fn test_host_contact_draft() -> ContactDraft {
+    ContactDraft {
+        name: ContactName {
+            given_name: NativeStringRef::from("Ada"),
+            middle_name: NativeStringRef::from(""),
+            family_name: NativeStringRef::from("Lovelace"),
+            prefix: NativeStringRef::from(""),
+            suffix: NativeStringRef::from(""),
+            nickname: NativeStringRef::from(""),
+            phonetic_given_name: NativeStringRef::from(""),
+            phonetic_family_name: NativeStringRef::from(""),
+        },
+        phones: empty_array(),
+        emails: empty_array(),
+        addresses: empty_array(),
+        organization: ContactOrganization {
+            company: NativeStringRef::from("Analytical Engine"),
+            department: NativeStringRef::from(""),
+            title: NativeStringRef::from("Programmer"),
+        },
+        note: NativeStringRef::from(""),
     }
 }
 
 fn test_contact_draft() -> ContactDraftValue {
     ContactDraftValue {
-        name: test_contact_name(),
-        phones: vec![ContactPhoneValue {
-            label: "mobile".to_string(),
-            number: "+41790000000".to_string(),
-            normalized_number: "+41790000000".to_string(),
-            primary: true,
-        }],
-        emails: vec![ContactEmailValue {
-            label: "work".to_string(),
-            address: "ada@example.com".to_string(),
-            primary: true,
-        }],
-        addresses: vec![ContactAddressValue {
-            label: "home".to_string(),
-            street: "Main Street 1".to_string(),
-            city: "Zurich".to_string(),
-            region: "ZH".to_string(),
-            postal_code: "8000".to_string(),
-            country: "Switzerland".to_string(),
-            country_code: "CH".to_string(),
-        }],
-        organization: ContactOrganizationValue {
-            company: "Destack".to_string(),
-            department: "Runtime".to_string(),
-            title: "Engineer".to_string(),
+        name: ContactNameValue {
+            given_name: "Ada".to_string(),
+            middle_name: "".to_string(),
+            family_name: "Lovelace".to_string(),
+            prefix: "".to_string(),
+            suffix: "".to_string(),
+            nickname: "".to_string(),
+            phonetic_given_name: "".to_string(),
+            phonetic_family_name: "".to_string(),
         },
-        note: "friend".to_string(),
-    }
-}
-
-fn test_contact_name() -> ContactNameValue {
-    ContactNameValue {
-        given_name: "Ada".to_string(),
-        middle_name: String::new(),
-        family_name: "Lovelace".to_string(),
-        prefix: String::new(),
-        suffix: String::new(),
-        nickname: "Ada".to_string(),
-        phonetic_given_name: String::new(),
-        phonetic_family_name: String::new(),
+        phones: vec![],
+        emails: vec![],
+        addresses: vec![],
+        organization: ContactOrganizationValue {
+            company: "Analytical Engine".to_string(),
+            department: "".to_string(),
+            title: "Programmer".to_string(),
+        },
+        note: "".to_string(),
     }
 }

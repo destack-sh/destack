@@ -1,46 +1,41 @@
+use crate::host::abi::contact::HostContactQuery;
 use crate::host::ios::abi::bindings::invoke_ios_binding_callback;
-use crate::runtime::NativeSlice;
+use crate::platform::os::abi_generated::{Contact, ContactDraft, ContactPage};
+use crate::runtime::NativeStringRef;
 
 /// Host callback for listing iOS contacts.
 pub(crate) type IosHostContactListCallback = unsafe extern "C" fn(
     runtime_id: u64,
-    payload: NativeSlice<u8>,
-    output: NativeSlice<u8>,
-    output_written: *mut u32,
+    query: HostContactQuery,
+    output_page: *mut ContactPage,
 ) -> u32;
 
 /// Host callback for searching iOS contacts.
 pub(crate) type IosHostContactSearchCallback = unsafe extern "C" fn(
     runtime_id: u64,
-    query_text: NativeSlice<u8>,
-    payload: NativeSlice<u8>,
-    output: NativeSlice<u8>,
-    output_written: *mut u32,
+    query_text: NativeStringRef,
+    query: HostContactQuery,
+    output_page: *mut ContactPage,
 ) -> u32;
 
 /// Host callback for reading one iOS contact.
-pub(crate) type IosHostContactReadCallback = unsafe extern "C" fn(
-    runtime_id: u64,
-    id: NativeSlice<u8>,
-    output: NativeSlice<u8>,
-    output_written: *mut u32,
-) -> u32;
+pub(crate) type IosHostContactReadCallback =
+    unsafe extern "C" fn(runtime_id: u64, id: NativeStringRef, output_contact: *mut Contact) -> u32;
 
 /// Host callback for creating one iOS contact.
 pub(crate) type IosHostContactCreateCallback = unsafe extern "C" fn(
     runtime_id: u64,
-    payload: NativeSlice<u8>,
-    output_id: NativeSlice<u8>,
-    output_written: *mut u32,
+    draft: ContactDraft,
+    output_id: *mut NativeStringRef,
 ) -> u32;
 
 /// Host callback for updating one iOS contact.
 pub(crate) type IosHostContactUpdateCallback =
-    unsafe extern "C" fn(runtime_id: u64, id: NativeSlice<u8>, payload: NativeSlice<u8>) -> u32;
+    unsafe extern "C" fn(runtime_id: u64, id: NativeStringRef, draft: ContactDraft) -> u32;
 
 /// Host callback for deleting one iOS contact.
 pub(crate) type IosHostContactDeleteCallback =
-    unsafe extern "C" fn(runtime_id: u64, id: NativeSlice<u8>) -> u32;
+    unsafe extern "C" fn(runtime_id: u64, id: NativeStringRef) -> u32;
 
 /// Callback table for iOS host contact request interop.
 #[derive(Clone, Copy, Debug, Default)]
