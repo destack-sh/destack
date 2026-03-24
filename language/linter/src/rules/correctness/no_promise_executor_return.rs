@@ -2,7 +2,9 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol,
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
-use crate::rules::common::{callable_return_usage, expression_target_symbol};
+use crate::rules::common::{
+    callable_return_usage, expression_target_symbol, expression_unwrap_transparent,
+};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -46,6 +48,8 @@ struct PromiseExecutorReturnVisitor<'a, 'b> {
     meta: &'a LintMeta,
     /// The well known Promise symbol for this module.
     promise_symbol: dir::GlobalSymbolId,
+    /// Allow explicit `void` returns from Promise executors.
+    allow_void: bool,
     /// The visitor options.
     options: NodeVisitorOptions,
 }
@@ -54,10 +58,12 @@ impl<'a, 'b> PromiseExecutorReturnVisitor<'a, 'b> {
     /// Build a visitor for Promise executor return checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let promise_symbol = ctx.well_known_symbol(WellKnownSymbol::Promise);
+        let allow_void = ctx.options.no_promise_executor_return_allow_void;
         Self {
             ctx,
             meta,
             promise_symbol,
+            allow_void,
             options: NodeVisitorOptions::default(),
         }
     }
@@ -99,7 +105,7 @@ impl<'a, 'b> PromiseExecutorReturnVisitor<'a, 'b> {
         let Some(declaration_id) = executor_declaration(self.ctx, value_id) else {
             return;
         };
-        let analysis = analyze_executor_returns(self.ctx.tree, declaration_id);
+        let analysis = analyze_executor_returns(self.ctx.tree, declaration_id, self.allow_void);
         if !analysis.returns_value() {
             return;
         }
@@ -148,7 +154,7 @@ impl NodeVisitor for PromiseExecutorReturnVisitor<'_, '_> {
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
-        // check Promise constructors only: Promise() call form is out of scope
+        // check Promise constructors only
         if let dir::Expression::New {
             left,
             dynamic_arguments,
@@ -197,6 +203,7 @@ fn executor_declaration(
 fn analyze_executor_returns(
     tree: &dir::NodeTree,
     declaration_id: dir::LocalNodeId<dir::Declaration>,
+    allow_void: bool,
 ) -> crate::rules::common::CallableReturnUsage {
     // extract the function body
     let declaration = tree.get(declaration_id);
@@ -207,7 +214,47 @@ fn analyze_executor_returns(
         return crate::rules::common::CallableReturnUsage::default();
     };
 
-    callable_return_usage(tree, signature, *body)
+    let mut usage = callable_return_usage(tree, signature, *body);
+
+    // allow concise `() => void expr` bodies when configured
+    if usage.has_expression_body_return_value
+        && allow_void
+        && body.is_some_and(|body_id| expression_is_void_operator(tree, body_id))
+    {
+        usage.has_expression_body_return_value = false;
+    }
+
+    // allow `return void expr` when configured
+    if allow_void {
+        usage.return_value_nodes.retain(|return_id| {
+            let dir::Expression::Return {
+                value: Some(value_id),
+            } = tree.get(*return_id)
+            else {
+                return false;
+            };
+
+            !expression_is_void_operator(tree, *value_id)
+        });
+        usage.has_return_value = !usage.return_value_nodes.is_empty();
+    }
+
+    usage
+}
+
+/// Return true when one expression is a `void` unary expression.
+fn expression_is_void_operator(
+    tree: &dir::NodeTree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> bool {
+    let expression_id = expression_unwrap_transparent(tree, expression_id);
+    matches!(
+        tree.get(expression_id),
+        dir::Expression::Unary {
+            operator: dir::UnaryOperator::Void,
+            ..
+        }
+    )
 }
 
 /// Build an unsafe fix for explicit Promise executor return values.
@@ -233,7 +280,7 @@ fn promise_executor_return_fix(
             return None;
         }
 
-        let replacement = format!("{{ ({value_text}); return; }}");
+        let replacement = format!("{{ {value_text}; return; }}");
         let return_span = ctx.get_span(*return_id);
         builder = builder.replace(return_span, replacement);
         replaced_count += 1;
@@ -313,7 +360,7 @@ let task = new Promise((resolve, reject) => {
                 r#"
 let task = new Promise((resolve, reject) => {
     {
-        (computeValue());
+        computeValue();
         return;
     }
 });
@@ -343,13 +390,13 @@ let task = new Promise((resolve, reject) => {
 let task = new Promise((resolve, reject) => {
     if (flag) {
         {
-            (computeA());
+            computeA();
             return;
         }
     }
 
     {
-        (computeB());
+        computeB();
         return;
     }
 });
@@ -437,5 +484,76 @@ let task = Promise((resolve, reject) => {
         );
         test.result(result)
             .assert_no_lint("no-promise-executor-return");
+    }
+
+    #[test]
+    fn test_flags_void_return_by_default() {
+        let test = TestProgram::for_rule_with_prelude(NoPromiseExecutorReturn);
+        let result = test.lint_dir(
+            "no_promise_executor_return/test_flags_void_return_by_default.ds",
+            r#"
+let task = new Promise((resolve, reject) => {
+    return void resolve(1);
+});
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-promise-executor-return");
+    }
+
+    #[test]
+    fn test_allows_void_return_when_configured() {
+        let test =
+            TestProgram::for_rule_with_prelude(NoPromiseExecutorReturn).with_options(|options| {
+                options.no_promise_executor_return_allow_void = true;
+            });
+        let result = test.lint_dir(
+            "no_promise_executor_return/test_allows_void_return_when_configured.ds",
+            r#"
+let task = new Promise((resolve, reject) => {
+    return void resolve(1);
+});
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("no-promise-executor-return");
+    }
+
+    #[test]
+    fn test_allows_void_expression_body_when_configured() {
+        let test =
+            TestProgram::for_rule_with_prelude(NoPromiseExecutorReturn).with_options(|options| {
+                options.no_promise_executor_return_allow_void = true;
+            });
+        let result = test.lint_dir(
+            "no_promise_executor_return/test_allows_void_expression_body_when_configured.ds",
+            r#"
+let task = new Promise((resolve, reject) => void resolve(1));
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("no-promise-executor-return");
+    }
+
+    #[test]
+    fn test_flags_mixed_void_and_value_returns_when_configured() {
+        let test =
+            TestProgram::for_rule_with_prelude(NoPromiseExecutorReturn).with_options(|options| {
+                options.no_promise_executor_return_allow_void = true;
+            });
+        let result = test.lint_dir(
+            "no_promise_executor_return/test_flags_mixed_void_and_value_returns_when_configured.ds",
+            r#"
+let task = new Promise((resolve, reject) => {
+    if (flag) {
+        return void resolve(1);
+    }
+
+    return computeValue();
+});
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-promise-executor-return");
     }
 }

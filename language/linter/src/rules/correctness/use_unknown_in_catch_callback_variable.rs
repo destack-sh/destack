@@ -148,7 +148,7 @@ impl LintRule for UseUnknownInCatchCallbackVariable {
     }
 }
 
-/// Build a safe fix for one explicit `any` catch callback parameter.
+/// Build an unsafe fix for one explicit `any` catch callback parameter.
 fn catch_callback_unknown_fix(
     ctx: &LintModuleDirContext<'_>,
     parameter_id: dir::LocalNodeId<dir::Parameter>,
@@ -163,7 +163,7 @@ fn catch_callback_unknown_fix(
         .edit_builder()
         .replace(type_span, "unknown")
         .into_edits();
-    Some(LintFix::safe("Replace `any` with `unknown`").with_edits(edits))
+    Some(LintFix::r#unsafe("Replace `any` with `unknown`").with_edits(edits))
 }
 
 /// Collect callback candidates from one rejection callback argument expression.
@@ -747,7 +747,7 @@ Promise.reject("failed").catch(notAHandler as any);
             .assert_no_lint("use-unknown-in-catch-callback-variable");
     }
 
-    /// Safely rewrite inline catch callback `any` annotation.
+    /// Unsafely rewrite inline catch callback `any` annotation.
     #[test]
     fn test_fix_inline_catch_callback_parameter_any() {
         let test = TestProgram::for_rule_with_prelude(UseUnknownInCatchCallbackVariable);
@@ -761,7 +761,7 @@ Promise.reject("failed").catch((error: any) => {
         );
         test.result(result)
             .assert_lint("use-unknown-in-catch-callback-variable")
-            .assert_safe_fixed(
+            .assert_unsafe_fixed(
                 r#"
 Promise.reject("failed").catch((error: unknown) => {
     return error;
@@ -770,7 +770,7 @@ Promise.reject("failed").catch((error: unknown) => {
             );
     }
 
-    /// Safely rewrite inline then rejection callback any annotation.
+    /// Unsafely rewrite inline then rejection callback any annotation.
     #[test]
     fn test_fix_inline_then_rejection_callback_parameter_any() {
         let test = TestProgram::for_rule_with_prelude(UseUnknownInCatchCallbackVariable);
@@ -784,7 +784,7 @@ Promise.resolve(1).then((value: int32) => value, (error: any) => {
         );
         test.result(result)
             .assert_lint("use-unknown-in-catch-callback-variable")
-            .assert_safe_fixed(
+            .assert_unsafe_fixed(
                 r#"
 Promise.resolve(1).then((value: int32) => value, (error: unknown) => {
     return error;
@@ -793,7 +793,7 @@ Promise.resolve(1).then((value: int32) => value, (error: unknown) => {
             );
     }
 
-    /// Safely rewrite named catch callback parameter annotations.
+    /// Unsafely rewrite named catch callback parameter annotations.
     #[test]
     fn test_fix_named_catch_callback_parameter_any() {
         let test = TestProgram::for_rule_with_prelude(UseUnknownInCatchCallbackVariable);
@@ -809,7 +809,7 @@ Promise.reject("failed").catch(onError);
         );
         test.result(result)
             .assert_lint("use-unknown-in-catch-callback-variable")
-            .assert_safe_fixed(
+            .assert_unsafe_fixed(
                 r#"
 function onError(error: unknown) {
     return error;
@@ -859,7 +859,7 @@ Promise.reject("failed").catch(function onError(error: any) {
         );
         test.result(result)
             .assert_lint("use-unknown-in-catch-callback-variable")
-            .assert_safe_fixed(
+            .assert_unsafe_fixed(
                 r#"
 Promise.reject("failed").catch(function onError(error: unknown) {
     return error;
@@ -882,7 +882,7 @@ Promise.reject("failed").catch((error: any, context: unknown) => {
         );
         test.result(result)
             .assert_lint("use-unknown-in-catch-callback-variable")
-            .assert_safe_fixed(
+            .assert_unsafe_fixed(
                 r#"
 Promise.reject("failed").catch((error: unknown, context: unknown) => {
     return [error, context];

@@ -20,7 +20,7 @@ declare_lint! {
         level = Dir,
         requires_all = [],
         requires_any = [],
-        fixable = Always,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -129,6 +129,14 @@ fn no_implicit_any_parameter_fix(
     ctx: &LintModuleDirContext<'_>,
     parameter_id: dir::LocalNodeId<dir::Parameter>,
 ) -> Option<LintFix> {
+    let parameter = ctx.tree.get(parameter_id);
+    if matches!(
+        parameter,
+        dir::Parameter::VariadicNamed { .. } | dir::Parameter::VariadicPattern { .. }
+    ) {
+        return None;
+    }
+
     let parameter_span = ctx.get_span(parameter_id);
     let edits = ctx
         .edit_builder()
@@ -386,6 +394,23 @@ function identity(value: unknown) {
 }
 "#,
             );
+    }
+
+    /// Flag untyped variadic parameters without offering a broken scalar fix.
+    #[test]
+    fn test_flags_variadic_parameter_without_fix() {
+        let test = TestProgram::for_rule_without_prelude(NoImplicitAny);
+        let result = test.lint_dir(
+            "no_implicit_any/test_flags_variadic_parameter_without_fix.ts",
+            r#"
+function collect(...values) {
+    return values;
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-implicit-any")
+            .assert_has_no_fix("no-implicit-any");
     }
 
     /// Mutation: annotate destructured parameters when implicitly any typed.

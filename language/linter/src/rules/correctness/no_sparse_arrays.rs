@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::argument_value_expression_id;
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintMeta, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow sparse arrays and tuples.
@@ -16,7 +16,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = Always,
+        fixable = No,
         recommended = Always,
         stability = Stable
     )]
@@ -57,7 +57,7 @@ impl LintRule for NoSparseArrays {
                         continue;
                     }
                     let span = ctx.tree.get_span(*element_id);
-                    let mut diagnostic = LintDiagnostic::new(
+                    let diagnostic = LintDiagnostic::new(
                         NO_SPARSE_ARRAYS.id,
                         NO_SPARSE_ARRAYS.code,
                         NO_SPARSE_ARRAYS.category,
@@ -68,34 +68,11 @@ impl LintRule for NoSparseArrays {
                     )
                     .with_label("use explicit `undefined` instead of a hole");
 
-                    // compute fixes only when requested by the runner
-                    if ctx.compute_fixes
-                        && let Some(fix) = no_sparse_arrays_fix(ctx, value_id)
-                    {
-                        diagnostic = diagnostic.with_fix(fix);
-                    }
-
                     ctx.report(diagnostic);
                 }
             }
         }
     }
-}
-
-/// Build a safe fix by replacing a sparse hole with `undefined`.
-fn no_sparse_arrays_fix(
-    ctx: &LintAstContext<'_>,
-    stub_expression_id: ast::LocalNodeId<ast::Expression>,
-) -> Option<LintFix> {
-    let stub_span = ctx.tree.get_span(stub_expression_id);
-    let insert_position = stub_span.start.min(stub_span.end);
-
-    // build fix edits
-    let edits = ctx
-        .edit_builder()
-        .insert(insert_position, "undefined")
-        .into_edits();
-    Some(LintFix::safe("Replace sparse hole with undefined").with_edits(edits))
 }
 
 #[cfg(test)]
@@ -142,7 +119,7 @@ mod tests {
         );
         test.result(result)
             .assert_lint("no-sparse-arrays")
-            .assert_has_fix("no-sparse-arrays");
+            .assert_has_no_fix("no-sparse-arrays");
     }
 
     #[test]
@@ -154,7 +131,7 @@ mod tests {
         );
         test.result(result)
             .assert_lint("no-sparse-arrays")
-            .assert_has_fix("no-sparse-arrays");
+            .assert_has_no_fix("no-sparse-arrays");
     }
 
     #[test]
@@ -168,39 +145,39 @@ mod tests {
     }
 
     #[test]
-    fn test_fix_rewrites_sparse_array_middle_hole() {
+    fn test_flags_sparse_array_middle_hole_without_fix() {
         let test = TestProgram::for_rule_without_prelude(NoSparseArrays);
         let result = test.lint_ast(
-            "no_sparse_arrays/test_fix_rewrites_sparse_array_middle_hole.ts",
+            "no_sparse_arrays/test_flags_sparse_array_middle_hole_without_fix.ts",
             "const arr = [1, , 3];",
         );
         test.result(result)
             .assert_lint("no-sparse-arrays")
-            .assert_safe_fixed("const arr = [1, undefined, 3];");
+            .assert_has_no_fix("no-sparse-arrays");
     }
 
     #[test]
-    fn test_fix_rewrites_sparse_array_leading_hole() {
+    fn test_flags_sparse_array_leading_hole_without_fix() {
         let test = TestProgram::for_rule_without_prelude(NoSparseArrays);
         let result = test.lint_ast(
-            "no_sparse_arrays/test_fix_rewrites_sparse_array_leading_hole.ts",
+            "no_sparse_arrays/test_flags_sparse_array_leading_hole_without_fix.ts",
             "const arr = [, 1];",
         );
         test.result(result)
             .assert_lint("no-sparse-arrays")
-            .assert_safe_fixed("const arr = [undefined, 1];");
+            .assert_has_no_fix("no-sparse-arrays");
     }
 
     #[test]
-    fn test_mutation_fix_rewrites_sparse_array_with_multiple_holes() {
+    fn test_flags_sparse_array_with_multiple_holes_without_fix() {
         let test = TestProgram::for_rule_without_prelude(NoSparseArrays);
         let result = test.lint_ast(
-            "no_sparse_arrays/test_mutation_fix_rewrites_sparse_array_with_multiple_holes.ts",
+            "no_sparse_arrays/test_flags_sparse_array_with_multiple_holes_without_fix.ts",
             "const arr = [1, , , 4];",
         );
         test.result(result)
             .assert_lint_count("no-sparse-arrays", 2)
-            .assert_safe_fixed("const arr = [1, undefined, undefined, 4];");
+            .assert_has_no_fix("no-sparse-arrays");
     }
 
     #[test]
@@ -252,6 +229,6 @@ mod tests {
         );
         test.result(result)
             .assert_lint("no-sparse-arrays")
-            .assert_safe_fixed("const arr = [...values, undefined, 2];");
+            .assert_has_no_fix("no-sparse-arrays");
     }
 }
