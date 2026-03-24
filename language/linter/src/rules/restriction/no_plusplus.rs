@@ -47,6 +47,11 @@ impl LintRule for NoPlusplus {
             ) {
                 continue;
             }
+            if ctx.options.allow_plusplus_for_loop_afterthoughts
+                && expression_is_for_loop_afterthought(ctx, node_id)
+            {
+                continue;
+            }
 
             // resolve effective lint severity
             let severity = ctx.get_effective_severity(meta, node_id);
@@ -197,6 +202,54 @@ mod tests {
         let test = TestProgram::for_rule_without_prelude(NoPlusplus);
         let result = test.lint_ast("no_plusplus/test_allows_plus_equals.ts", "x += 1;");
         test.result(result).assert_no_lint("no-plusplus");
+    }
+
+    #[test]
+    fn test_allows_for_loop_afterthought_when_enabled() {
+        let test = TestProgram::for_rule_without_prelude(NoPlusplus).with_options(|options| {
+            options.allow_plusplus_for_loop_afterthoughts = true;
+        });
+        let result = test.lint_ast(
+            "no_plusplus/test_allows_for_loop_afterthought_when_enabled.ts",
+            r#"
+for (let i = 0; i < 3; i++) {
+    run(i);
+}
+"#,
+        );
+        test.result(result).assert_no_lint("no-plusplus");
+    }
+
+    #[test]
+    fn test_allows_sequence_for_loop_afterthought_when_enabled() {
+        let test = TestProgram::for_rule_without_prelude(NoPlusplus).with_options(|options| {
+            options.allow_plusplus_for_loop_afterthoughts = true;
+        });
+        let result = test.lint_ast(
+            "no_plusplus/test_allows_sequence_for_loop_afterthought_when_enabled.ts",
+            r#"
+for (let i = 0; i < 3; log(i), i++) {
+    run(i);
+}
+"#,
+        );
+        test.result(result).assert_no_lint("no-plusplus");
+    }
+
+    #[test]
+    fn test_still_detects_loop_body_increment_when_afterthoughts_enabled() {
+        let test = TestProgram::for_rule_without_prelude(NoPlusplus).with_options(|options| {
+            options.allow_plusplus_for_loop_afterthoughts = true;
+        });
+        let result = test.lint_ast(
+            "no_plusplus/test_still_detects_loop_body_increment_when_afterthoughts_enabled.ts",
+            r#"
+for (let i = 0; i < 3; i++) {
+    total++;
+}
+"#,
+        );
+        test.result(result).assert_lint("no-plusplus");
     }
 
     #[test]

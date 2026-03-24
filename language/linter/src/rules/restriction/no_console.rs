@@ -3,7 +3,10 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression}
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLibSymbol;
-use crate::rules::common::{expression_is_global_qualified_member, expression_target_symbol};
+use crate::rules::common::{
+    expression_is_global_qualified_member, expression_static_property_name,
+    expression_target_symbol,
+};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -51,6 +54,8 @@ struct NoConsoleVisitor<'a, 'b> {
     console_name: StringId,
     /// The global qualifier symbols.
     global_qualifiers: Vec<dir::GlobalSymbolId>,
+    /// Allowed console member names.
+    allowed_methods: Vec<StringId>,
     /// Stack of member left expressions to avoid double reporting.
     member_left_stack: Vec<dir::LocalNodeId<dir::Expression>>,
     /// The visitor options.
@@ -63,6 +68,12 @@ impl<'a, 'b> NoConsoleVisitor<'a, 'b> {
         let console_name = ctx.program.strings.intern("console");
         let console_symbol = ctx.declared_library_symbol(console_name);
         let global_qualifiers = ctx.global_qualifier_symbols();
+        let allowed_methods = ctx
+            .options
+            .allowed_console_methods
+            .iter()
+            .map(|name| ctx.program.strings.intern(name))
+            .collect();
 
         Self {
             ctx,
@@ -70,6 +81,7 @@ impl<'a, 'b> NoConsoleVisitor<'a, 'b> {
             console_symbol,
             console_name,
             global_qualifiers,
+            allowed_methods,
             member_left_stack: Vec::new(),
             options: NodeVisitorOptions::default(),
         }
@@ -133,6 +145,16 @@ impl<'a, 'b> NoConsoleVisitor<'a, 'b> {
             &self.global_qualifiers,
             self.console_name,
         )
+    }
+
+    /// Return whether the console property access is allowed by configuration.
+    fn is_allowed_console_member(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
+        let Some(property_name) = expression_static_property_name(self.ctx.tree, expression_id)
+        else {
+            return false;
+        };
+
+        self.allowed_methods.contains(&property_name)
     }
 
     /// Return true when the expression is the left side of a member access.
@@ -204,7 +226,7 @@ impl NodeVisitor for NoConsoleVisitor<'_, '_> {
     ) {
         // check console member usage
         if let dir::Expression::Member { left, .. } = expression {
-            if self.is_console_reference(*left) {
+            if self.is_console_reference(*left) && !self.is_allowed_console_member(id) {
                 self.report_console(id);
             }
 
@@ -217,7 +239,7 @@ impl NodeVisitor for NoConsoleVisitor<'_, '_> {
 
         // check computed console member usage
         if let dir::Expression::Index { left, .. } = expression {
-            if self.is_console_reference(*left) {
+            if self.is_console_reference(*left) && !self.is_allowed_console_member(id) {
                 self.report_console(id);
             }
 
@@ -374,5 +396,68 @@ globalThis["console"]["warn"]("warning");
         test.result(result)
             .assert_lint("no-console")
             .assert_has_fix("no-console");
+    }
+
+    /// Allow configured console methods.
+    #[test]
+    fn test_allows_configured_console_method() {
+        let test = TestProgram::for_rule_with_prelude(NoConsole).with_options(|options| {
+            options.allowed_console_methods.push("error".to_string());
+        });
+        let result = test.lint_dir(
+            "no_console/test_allows_configured_console_method.ds",
+            r#"
+console.error("oops");
+"#,
+        );
+
+        test.result(result).assert_no_lint("no-console");
+    }
+
+    /// Allow configured computed console methods.
+    #[test]
+    fn test_allows_configured_computed_console_method() {
+        let test = TestProgram::for_rule_with_prelude(NoConsole).with_options(|options| {
+            options.allowed_console_methods.push("warn".to_string());
+        });
+        let result = test.lint_dir(
+            "no_console/test_allows_configured_computed_console_method.ds",
+            r#"
+console["warn"]("warning");
+"#,
+        );
+
+        test.result(result).assert_no_lint("no-console");
+    }
+
+    /// Keep reporting disallowed methods when other methods are allowed.
+    #[test]
+    fn test_still_flags_disallowed_console_method() {
+        let test = TestProgram::for_rule_with_prelude(NoConsole).with_options(|options| {
+            options.allowed_console_methods.push("warn".to_string());
+        });
+        let result = test.lint_dir(
+            "no_console/test_still_flags_disallowed_console_method.ds",
+            r#"
+console.log("debug");
+"#,
+        );
+
+        test.result(result).assert_lint("no-console");
+    }
+
+    /// Allow shadowed local console bindings.
+    #[test]
+    fn test_allows_shadowed_console_binding() {
+        let test = TestProgram::for_rule_with_prelude(NoConsole);
+        let result = test.lint_dir(
+            "no_console/test_allows_shadowed_console_binding.ds",
+            r#"
+let console = logger;
+console.log("debug");
+"#,
+        );
+
+        test.result(result).assert_no_lint("no-console");
     }
 }

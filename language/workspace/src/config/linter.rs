@@ -1,4 +1,8 @@
+use std::collections::HashMap;
+use std::sync::{Arc, LazyLock, Mutex};
+
 use indexmap::IndexMap;
+use regex::Regex;
 use serde::Deserialize;
 
 use crate::{DiagnosticPolicy, DiagnosticPolicyJson};
@@ -204,6 +208,74 @@ pub enum ReturnAwaitMode {
     Never,
 }
 
+/// Warning comment term matching location for `no-warning-comments`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum WarningCommentLocation {
+    /// Match terms only at the logical start of the comment.
+    #[default]
+    Start,
+    /// Match terms anywhere in the comment body.
+    Anywhere,
+}
+
+/// Bitwise operators configurable for the `no-bitwise` rule.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum BitwiseOperator {
+    /// `&`
+    And,
+    /// `^`
+    Xor,
+    /// `|`
+    Or,
+    /// `~`
+    Not,
+    /// `<<`
+    ShiftLeft,
+    /// `<<|`
+    SaturatingShiftLeft,
+    /// `>>`
+    ShiftRight,
+    /// `>>>`
+    UnsignedShiftRight,
+    /// `&=`
+    AndAssign,
+    /// `^=`
+    XorAssign,
+    /// `|=`
+    OrAssign,
+    /// `<<=`
+    ShiftLeftAssign,
+    /// `<<|=`
+    SaturatingShiftLeftAssign,
+    /// `>>=`
+    ShiftRightAssign,
+    /// `>>>=`
+    UnsignedShiftRightAssign,
+}
+
+impl BitwiseOperator {
+    /// Return the operator text used in diagnostics and configuration.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::And => "&",
+            Self::Xor => "^",
+            Self::Or => "|",
+            Self::Not => "~",
+            Self::ShiftLeft => "<<",
+            Self::SaturatingShiftLeft => "<<|",
+            Self::ShiftRight => ">>",
+            Self::UnsignedShiftRight => ">>>",
+            Self::AndAssign => "&=",
+            Self::XorAssign => "^=",
+            Self::OrAssign => "|=",
+            Self::ShiftLeftAssign => "<<=",
+            Self::SaturatingShiftLeftAssign => "<<|=",
+            Self::ShiftRightAssign => ">>=",
+            Self::UnsignedShiftRightAssign => ">>>=",
+        }
+    }
+}
+
 /// Module boundary lint options for module boundary aware rules.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LintModuleBoundariesOptions {
@@ -376,8 +448,36 @@ pub struct LinterOptions {
     pub ignore_ternary_tests_in_prefer_nullish_coalescing: bool,
 
     // restriction options
+    /// Bitwise operators allowed by `no-bitwise`.
+    pub allowed_bitwise_operators: Vec<BitwiseOperator>,
+    /// Allow `x | 0` int32 cast hints in `no-bitwise`.
+    pub allow_bitwise_int32_hint: bool,
+    /// Console methods allowed by `no-console`.
+    pub allowed_console_methods: Vec<String>,
+    /// Ignore explicit `any` in variadic parameter types for `no-explicit-any`.
+    pub ignore_explicit_any_in_rest_args: bool,
+    /// Allow labels on loop statements in `no-labels`.
+    pub allow_loop_labels: bool,
+    /// Allow labels on switch statements in `no-labels`.
+    pub allow_switch_labels: bool,
     /// Magic numbers to allow.
     pub allowed_magic_numbers: Vec<f64>,
+    /// Check strict `=== null` and `!== null` comparisons in `no-null`.
+    pub check_strict_null_equality: bool,
+    /// Allow `declare namespace` and `declare module foo {}` in `no-namespace`.
+    pub allow_namespace_declarations: bool,
+    /// Allow namespace declarations in definition files for `no-namespace`.
+    pub allow_namespace_definition_files: bool,
+    /// Allow `++` and `--` in for-loop afterthoughts for `no-plusplus`.
+    pub allow_plusplus_for_loop_afterthoughts: bool,
+    /// Allow static require target patterns for `no-require-imports`.
+    pub allowed_require_import_patterns: Vec<String>,
+    /// Allow `import foo = require("foo")` for `no-require-imports`.
+    pub allow_require_import_aliases: bool,
+    /// Where `no-warning-comments` should match terms.
+    pub warning_comment_location: WarningCommentLocation,
+    /// Decoration characters to ignore at the start of `no-warning-comments`.
+    pub warning_comment_decoration: Vec<String>,
     /// Globals to restrict.
     pub restricted_globals: Vec<String>,
     /// Import paths to restrict.
@@ -454,7 +554,21 @@ impl Default for LinterOptions {
             ignore_mixed_logical_expressions_in_prefer_nullish_coalescing: false,
             ignore_ternary_tests_in_prefer_nullish_coalescing: false,
             // restriction
+            allowed_bitwise_operators: Vec::new(),
+            allow_bitwise_int32_hint: false,
+            allowed_console_methods: Vec::new(),
+            ignore_explicit_any_in_rest_args: false,
+            allow_loop_labels: false,
+            allow_switch_labels: false,
             allowed_magic_numbers: vec![-1.0, 0.0, 1.0, 2.0],
+            check_strict_null_equality: true,
+            allow_namespace_declarations: false,
+            allow_namespace_definition_files: true,
+            allow_plusplus_for_loop_afterthoughts: false,
+            allowed_require_import_patterns: Vec::new(),
+            allow_require_import_aliases: false,
+            warning_comment_location: WarningCommentLocation::Start,
+            warning_comment_decoration: Vec::new(),
             restricted_globals: Vec::new(),
             restricted_imports: Vec::new(),
             warning_comment_terms: vec![
@@ -740,8 +854,36 @@ pub struct LinterJson {
     pub ignore_ternary_tests_in_prefer_nullish_coalescing: Option<bool>,
 
     // restriction options
+    /// Bitwise operators allowed by `no-bitwise`.
+    pub allowed_bitwise_operators: Option<Vec<BitwiseOperatorJson>>,
+    /// Allow `x | 0` int32 cast hints in `no-bitwise`.
+    pub allow_bitwise_int32_hint: Option<bool>,
+    /// Console methods allowed by `no-console`.
+    pub allowed_console_methods: Option<Vec<String>>,
+    /// Ignore explicit `any` in variadic parameter types for `no-explicit-any`.
+    pub ignore_explicit_any_in_rest_args: Option<bool>,
+    /// Allow labels on loop statements in `no-labels`.
+    pub allow_loop_labels: Option<bool>,
+    /// Allow labels on switch statements in `no-labels`.
+    pub allow_switch_labels: Option<bool>,
     /// Magic numbers to allow.
     pub allowed_magic_numbers: Option<Vec<f64>>,
+    /// Check strict `=== null` and `!== null` comparisons in `no-null`.
+    pub check_strict_null_equality: Option<bool>,
+    /// Allow `declare namespace` and `declare module foo {}` in `no-namespace`.
+    pub allow_namespace_declarations: Option<bool>,
+    /// Allow namespace declarations in definition files for `no-namespace`.
+    pub allow_namespace_definition_files: Option<bool>,
+    /// Allow `++` and `--` in for-loop afterthoughts for `no-plusplus`.
+    pub allow_plusplus_for_loop_afterthoughts: Option<bool>,
+    /// Allow static require target patterns for `no-require-imports`.
+    pub allowed_require_import_patterns: Option<Vec<String>>,
+    /// Allow `import foo = require("foo")` for `no-require-imports`.
+    pub allow_require_import_aliases: Option<bool>,
+    /// Where `no-warning-comments` should match terms.
+    pub warning_comment_location: Option<WarningCommentLocationJson>,
+    /// Decoration characters to ignore at the start of `no-warning-comments`.
+    pub warning_comment_decoration: Option<Vec<String>>,
     /// Globals to restrict.
     pub restricted_globals: Option<Vec<String>>,
     /// Import paths to restrict.
@@ -754,6 +896,16 @@ pub struct LinterJson {
 }
 
 impl LinterJson {
+    /// Validate configuration values that need semantic checking.
+    pub fn validate(&self) -> Result<(), String> {
+        validate_regex_patterns(
+            "linter.allowedRequireImportPatterns",
+            self.allowed_require_import_patterns.as_deref(),
+        )?;
+
+        Ok(())
+    }
+
     /// Apply linter options to a LinterOptions struct.
     pub fn apply(&self, options: &mut LinterOptions) {
         if let Some(enabled) = self.enabled {
@@ -899,8 +1051,56 @@ impl LinterJson {
         }
 
         // restriction options
+        if let Some(ref allowed_bitwise_operators) = self.allowed_bitwise_operators {
+            options.allowed_bitwise_operators = allowed_bitwise_operators
+                .iter()
+                .copied()
+                .map(Into::into)
+                .collect();
+        }
+        if let Some(allow_bitwise_int32_hint) = self.allow_bitwise_int32_hint {
+            options.allow_bitwise_int32_hint = allow_bitwise_int32_hint;
+        }
+        if let Some(ref allowed_console_methods) = self.allowed_console_methods {
+            options.allowed_console_methods = allowed_console_methods.clone();
+        }
+        if let Some(ignore_explicit_any_in_rest_args) = self.ignore_explicit_any_in_rest_args {
+            options.ignore_explicit_any_in_rest_args = ignore_explicit_any_in_rest_args;
+        }
+        if let Some(allow_loop_labels) = self.allow_loop_labels {
+            options.allow_loop_labels = allow_loop_labels;
+        }
+        if let Some(allow_switch_labels) = self.allow_switch_labels {
+            options.allow_switch_labels = allow_switch_labels;
+        }
         if let Some(ref allowed_magic_numbers) = self.allowed_magic_numbers {
             options.allowed_magic_numbers = allowed_magic_numbers.clone();
+        }
+        if let Some(check_strict_null_equality) = self.check_strict_null_equality {
+            options.check_strict_null_equality = check_strict_null_equality;
+        }
+        if let Some(allow_namespace_declarations) = self.allow_namespace_declarations {
+            options.allow_namespace_declarations = allow_namespace_declarations;
+        }
+        if let Some(allow_namespace_definition_files) = self.allow_namespace_definition_files {
+            options.allow_namespace_definition_files = allow_namespace_definition_files;
+        }
+        if let Some(allow_plusplus_for_loop_afterthoughts) =
+            self.allow_plusplus_for_loop_afterthoughts
+        {
+            options.allow_plusplus_for_loop_afterthoughts = allow_plusplus_for_loop_afterthoughts;
+        }
+        if let Some(ref allowed_require_import_patterns) = self.allowed_require_import_patterns {
+            options.allowed_require_import_patterns = allowed_require_import_patterns.clone();
+        }
+        if let Some(allow_require_import_aliases) = self.allow_require_import_aliases {
+            options.allow_require_import_aliases = allow_require_import_aliases;
+        }
+        if let Some(warning_comment_location) = self.warning_comment_location {
+            options.warning_comment_location = warning_comment_location.into();
+        }
+        if let Some(ref warning_comment_decoration) = self.warning_comment_decoration {
+            options.warning_comment_decoration = warning_comment_decoration.clone();
         }
         if let Some(ref restricted_globals) = self.restricted_globals {
             options.restricted_globals = restricted_globals.clone();
@@ -917,6 +1117,47 @@ impl LinterJson {
             module_boundaries.apply(&mut options.module_boundaries);
         }
     }
+}
+
+/// Cached compiled regex sets for `allowedRequireImportPatterns`.
+static ALLOWED_REQUIRE_IMPORT_PATTERNS_CACHE: LazyLock<Mutex<HashMap<Vec<String>, Arc<[Regex]>>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+/// Validate one list of regex patterns.
+fn validate_regex_patterns(field_name: &str, patterns: Option<&[String]>) -> Result<(), String> {
+    let Some(patterns) = patterns else {
+        return Ok(());
+    };
+
+    for pattern in patterns {
+        Regex::new(pattern)
+            .map_err(|error| format!("invalid regex in {field_name}: `{pattern}`: {error}"))?;
+    }
+
+    Ok(())
+}
+
+/// Return compiled allow patterns for `no-require-imports`.
+pub fn compiled_allowed_require_import_patterns(patterns: &[String]) -> Arc<[Regex]> {
+    let mut cache = ALLOWED_REQUIRE_IMPORT_PATTERNS_CACHE
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+
+    if let Some(compiled_patterns) = cache.get(patterns) {
+        return compiled_patterns.clone();
+    }
+
+    // validated config invariant
+    let compiled_patterns = patterns
+        .iter()
+        .map(|pattern| {
+            Regex::new(pattern)
+                .expect("validated config invariant: no-require-imports allow patterns compile")
+        })
+        .collect::<Vec<_>>();
+    let compiled_patterns = Arc::<[Regex]>::from(compiled_patterns);
+    cache.insert(patterns.to_vec(), compiled_patterns.clone());
+    compiled_patterns
 }
 
 /// Module boundary options for linter configuration JSON.
@@ -1224,6 +1465,103 @@ impl From<ReturnAwaitModeJson> for ReturnAwaitMode {
             }
             ReturnAwaitModeJson::Always => ReturnAwaitMode::Always,
             ReturnAwaitModeJson::Never => ReturnAwaitMode::Never,
+        }
+    }
+}
+
+/// Warning comment matching locations accepted in linter JSON.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum WarningCommentLocationJson {
+    /// Match terms only at the logical start of the comment.
+    Start,
+    /// Match terms anywhere in the comment body.
+    Anywhere,
+}
+
+impl From<WarningCommentLocationJson> for WarningCommentLocation {
+    fn from(value: WarningCommentLocationJson) -> Self {
+        match value {
+            WarningCommentLocationJson::Start => WarningCommentLocation::Start,
+            WarningCommentLocationJson::Anywhere => WarningCommentLocation::Anywhere,
+        }
+    }
+}
+
+/// Bitwise operators accepted in linter JSON for the `no-bitwise` rule.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+pub enum BitwiseOperatorJson {
+    /// `&`
+    #[serde(rename = "&")]
+    And,
+    /// `^`
+    #[serde(rename = "^")]
+    Xor,
+    /// `|`
+    #[serde(rename = "|")]
+    Or,
+    /// `~`
+    #[serde(rename = "~")]
+    Not,
+    /// `<<`
+    #[serde(rename = "<<")]
+    ShiftLeft,
+    /// `<<|`
+    #[serde(rename = "<<|")]
+    SaturatingShiftLeft,
+    /// `>>`
+    #[serde(rename = ">>")]
+    ShiftRight,
+    /// `>>>`
+    #[serde(rename = ">>>")]
+    UnsignedShiftRight,
+    /// `&=`
+    #[serde(rename = "&=")]
+    AndAssign,
+    /// `^=`
+    #[serde(rename = "^=")]
+    XorAssign,
+    /// `|=`
+    #[serde(rename = "|=")]
+    OrAssign,
+    /// `<<=`
+    #[serde(rename = "<<=")]
+    ShiftLeftAssign,
+    /// `<<|=`
+    #[serde(rename = "<<|=")]
+    SaturatingShiftLeftAssign,
+    /// `>>=`
+    #[serde(rename = ">>=")]
+    ShiftRightAssign,
+    /// `>>>=`
+    #[serde(rename = ">>>=")]
+    UnsignedShiftRightAssign,
+}
+
+impl From<BitwiseOperatorJson> for BitwiseOperator {
+    fn from(value: BitwiseOperatorJson) -> Self {
+        match value {
+            BitwiseOperatorJson::And => BitwiseOperator::And,
+            BitwiseOperatorJson::Xor => BitwiseOperator::Xor,
+            BitwiseOperatorJson::Or => BitwiseOperator::Or,
+            BitwiseOperatorJson::Not => BitwiseOperator::Not,
+            BitwiseOperatorJson::ShiftLeft => BitwiseOperator::ShiftLeft,
+            BitwiseOperatorJson::SaturatingShiftLeft => BitwiseOperator::SaturatingShiftLeft,
+            BitwiseOperatorJson::ShiftRight => BitwiseOperator::ShiftRight,
+            BitwiseOperatorJson::UnsignedShiftRight => BitwiseOperator::UnsignedShiftRight,
+            BitwiseOperatorJson::AndAssign => BitwiseOperator::AndAssign,
+            BitwiseOperatorJson::XorAssign => BitwiseOperator::XorAssign,
+            BitwiseOperatorJson::OrAssign => BitwiseOperator::OrAssign,
+            BitwiseOperatorJson::ShiftLeftAssign => BitwiseOperator::ShiftLeftAssign,
+            BitwiseOperatorJson::SaturatingShiftLeftAssign => {
+                BitwiseOperator::SaturatingShiftLeftAssign
+            }
+            BitwiseOperatorJson::ShiftRightAssign => BitwiseOperator::ShiftRightAssign,
+            BitwiseOperatorJson::UnsignedShiftRightAssign => {
+                BitwiseOperator::UnsignedShiftRightAssign
+            }
         }
     }
 }

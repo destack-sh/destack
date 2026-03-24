@@ -79,6 +79,13 @@ fn is_allowed_null_usage(
     ctx: &LintAstContext<'_>,
     null_expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
+    // allow strict comparisons when configured
+    if !ctx.options.check_strict_null_equality
+        && null_is_in_strict_equality_comparison(ctx, null_expression_id)
+    {
+        return true;
+    }
+
     // resolve one call argument usage for this null literal
     let Some((callee_expression_id, argument_index)) =
         find_call_argument_usage(ctx, null_expression_id)
@@ -98,6 +105,46 @@ fn is_allowed_null_usage(
 
     // allow node.insertBefore(child, null)
     argument_index == 1 && expression_is_insert_before(ctx, callee_expression_id)
+}
+
+/// Return true when one null literal participates in a strict equality comparison.
+fn null_is_in_strict_equality_comparison(
+    ctx: &LintAstContext<'_>,
+    null_expression_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    let mut current_expression_id = null_expression_id;
+
+    loop {
+        let Some(parent_id) = ctx.parents.get(current_expression_id) else {
+            return false;
+        };
+        if ctx.tree.get_node_type(parent_id) != ast::NodeType::Expression {
+            return false;
+        }
+
+        let parent_expression_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
+        let parent_expression = ctx.tree.get(parent_expression_id);
+        match parent_expression {
+            ast::Expression::Parenthesized { expression }
+                if *expression == current_expression_id =>
+            {
+                current_expression_id = parent_expression_id;
+            }
+            ast::Expression::Binary {
+                left,
+                operator,
+                right,
+            } if (*left == current_expression_id || *right == current_expression_id)
+                && matches!(
+                    operator,
+                    ast::BinaryOperator::EqualStrict | ast::BinaryOperator::NotEqualStrict
+                ) =>
+            {
+                return true;
+            }
+            _ => return false,
+        }
+    }
 }
 
 /// Return one call callee and argument index for one null argument usage.
@@ -267,6 +314,30 @@ mod tests {
         let result = test.lint_ast(
             "no_null/test_detects_null_comparison.ts",
             "if (x === null) {}",
+        );
+        test.result(result).assert_lint("no-null");
+    }
+
+    #[test]
+    fn test_allows_strict_null_comparison_when_disabled() {
+        let test = TestProgram::for_rule_without_prelude(NoNull).with_options(|options| {
+            options.check_strict_null_equality = false;
+        });
+        let result = test.lint_ast(
+            "no_null/test_allows_strict_null_comparison_when_disabled.ts",
+            "if (value === null) {}",
+        );
+        test.result(result).assert_no_lint("no-null");
+    }
+
+    #[test]
+    fn test_still_detects_loose_null_comparison_when_strict_equality_disabled() {
+        let test = TestProgram::for_rule_without_prelude(NoNull).with_options(|options| {
+            options.check_strict_null_equality = false;
+        });
+        let result = test.lint_ast(
+            "no_null/test_still_detects_loose_null_comparison_when_strict_equality_disabled.ts",
+            "if (value == null) {}",
         );
         test.result(result).assert_lint("no-null");
     }
