@@ -58,7 +58,6 @@ pub(crate) fn register_ios_bindings(
 }
 
 /// Remove one runtime-scoped iOS bindings payload.
-#[cfg(any(test, target_os = "ios"))]
 pub(crate) fn unregister_ios_bindings(runtime_id: HostSessionId) {
     let mut registry = ios_bindings_registry().write();
     registry.bindings_by_session_handle.remove(&runtime_id.0);

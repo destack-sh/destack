@@ -2,7 +2,7 @@
 pub(crate) mod abi;
 #[cfg(target_os = "android")]
 mod adapter;
-#[cfg(target_os = "android")]
+#[cfg(any(test, target_os = "android"))]
 mod capability;
 #[cfg(any(test, target_os = "android"))]
 pub(crate) mod ingress;
