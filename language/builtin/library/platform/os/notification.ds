@@ -135,8 +135,6 @@ export struct NotificationRequest {
     trigger: NotificationTrigger;
     /// Optional host action identifier payload.
     actionId?: string;
-    /// Optional JSON payload string.
-    dataJson?: string;
 }
 
 /// Scheduled notification descriptor.
