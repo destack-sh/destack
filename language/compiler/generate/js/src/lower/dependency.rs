@@ -1,6 +1,6 @@
 use crate::{
-    CodegenJsResult, CodegenJsResultExt, DependencyItem, DependencyKind, DependencyMode,
-    Expression, LocalNodeId, ModuleLowerer,
+    CodegenJsError, CodegenJsResult, CodegenJsResultExt, DependencyItem, DependencyKind,
+    DependencyMode, Expression, LocalNodeId, ModuleLowerer,
 };
 use destack_dir as dir;
 
@@ -32,6 +32,12 @@ impl ModuleLowerer<'_> {
         for item_id in item_ids {
             let item = self.dir_tree.get(*item_id);
             let lowered_item = match item {
+                dir::DependencyItem::Error => {
+                    return Err(CodegenJsError::UnsupportedConstruct {
+                        node: item_id.into_global_any(self.module.id),
+                        message: Some("dependency error slots are not lowered to js".to_string()),
+                    });
+                }
                 dir::DependencyItem::UnresolvedRemote {
                     mode,
                     source: _,

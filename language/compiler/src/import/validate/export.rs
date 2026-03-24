@@ -450,6 +450,7 @@ impl Compiler {
                 // fallback to the source item name
                 name.map(|name| name.string())
             }
+            DependencyItem::Error => None,
         }
     }
 

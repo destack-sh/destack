@@ -192,7 +192,12 @@ impl FunctionLowerer<'_> {
                     .type_lowerer
                     .field_index_for_type(
                         aggregate_type,
-                        *name,
+                        name.ok_or_else(|| LowerError::UnsupportedConstruct {
+                            node: expression_id
+                                .into_global_any(self.env.module_id)
+                                .into_anchored(Some(self.env.profile)),
+                            message: "missing member name".to_string(),
+                        })?,
                         self.env.strings,
                         self.state.builder.tree(),
                     )

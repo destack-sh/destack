@@ -1188,12 +1188,13 @@ impl Compiler {
 
         if let Expression::Member { left, name, .. } = ctx.tree.get(expression_id)
             && matches!(ctx.tree.get(*left), Expression::This)
+            && let Some(name) = *name
             && let Some((owner_symbol, _)) = self.owner_symbol_for_this_expression(ctx, *left)
             && let Some(member_symbol) = self.query_static_member_symbol(
                 ctx.module,
                 ctx.profile,
                 owner_symbol,
-                StaticKey::Name(*name),
+                StaticKey::Name(name),
                 ctx.tree,
                 ctx.symbols,
             )

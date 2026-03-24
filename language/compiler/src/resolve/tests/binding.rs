@@ -972,7 +972,7 @@ let b = obj.y;
         let declarator = tree.get(declarators[0]);
         let Some(value) = declarator.value else { panic!("expected binding value") };
         assert_node!(tree, value, Expression::Member { name, .. } => {
-            assert_string!(test.program, *name, "x");
+            assert_string!(test.program, name.expect("expected member name"), "x");
         });
     });
     // let b = obj.y
@@ -980,7 +980,7 @@ let b = obj.y;
         let declarator = tree.get(declarators[0]);
         let Some(value) = declarator.value else { panic!("expected binding value") };
         assert_node!(tree, value, Expression::Member { name, .. } => {
-            assert_string!(test.program, *name, "y");
+            assert_string!(test.program, name.expect("expected member name"), "y");
         });
     });
 }
@@ -1497,9 +1497,9 @@ let a = obj.inner.value;
         let declarator = tree.get(declarators[0]);
         let Some(value) = declarator.value else { panic!("expected binding value") };
         assert_node!(tree, value, Expression::Member { left, name, .. } => {
-            assert_string!(test.program, *name, "value");
+            assert_string!(test.program, name.expect("expected member name"), "value");
             assert_node!(tree, *left, Expression::Member { name: inner_name, .. } => {
-                assert_string!(test.program, *inner_name, "inner");
+                assert_string!(test.program, inner_name.expect("expected member name"), "inner");
             });
         });
     });

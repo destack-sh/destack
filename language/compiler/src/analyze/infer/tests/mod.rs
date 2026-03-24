@@ -12,5 +12,6 @@ mod literal;
 mod member;
 mod module;
 mod operator;
+mod recovery;
 
 use harness::*;

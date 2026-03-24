@@ -353,12 +353,15 @@ impl Compiler {
         let Expression::Member { left, name, .. } = ctx.tree.get(expression_id) else {
             return Ok(None);
         };
+        let Some(name) = *name else {
+            return Ok(None);
+        };
 
         self.select_associated_projection_member_symbol(
             &mut ctx.reborrow(),
             expression_id,
             *left,
-            StaticKey::Name(*name),
+            StaticKey::Name(name),
             Some(StaticMemberSymbolKind::AssociatedComptimeConst),
             true,
             true,

@@ -2410,20 +2410,32 @@ impl Compiler {
                 left,
                 name,
                 static_arguments,
-            } => self.infer_member_expression(
-                &mut ctx.reborrow(),
-                expression_id,
-                *left,
-                *name,
-                static_arguments.as_deref(),
-                state,
-            ),
+            } => {
+                let Some(name) = *name else {
+                    return Ok(ctx
+                        .types
+                        .insert_type_from_any(Type::Error, expression_id.into_any()));
+                };
+                self.infer_member_expression(
+                    &mut ctx.reborrow(),
+                    expression_id,
+                    *left,
+                    name,
+                    static_arguments.as_deref(),
+                    state,
+                )
+            }
             Expression::PrivateMember {
                 left,
                 name,
                 static_arguments,
             } => {
-                let private_name = self.private_key_string_id(*name);
+                let Some(name) = *name else {
+                    return Ok(ctx
+                        .types
+                        .insert_type_from_any(Type::Error, expression_id.into_any()));
+                };
+                let private_name = self.private_key_string_id(name);
                 self.infer_member_expression(
                     &mut ctx.reborrow(),
                     expression_id,
@@ -4456,7 +4468,7 @@ impl Compiler {
                     | DependencyItem::Remote { kind, .. }
                     | DependencyItem::UnresolvedLocal { kind, .. }
                     | DependencyItem::UnresolvedRemote { kind, .. } => Some(*kind),
-                    DependencyItem::Value { .. } => None,
+                    DependencyItem::Value { .. } | DependencyItem::Error => None,
                 };
 
                 // reject type-only dependencies used in value positions

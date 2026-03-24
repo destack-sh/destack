@@ -508,7 +508,7 @@ impl Compiler {
 
                 dir::Expression::Member { left, name, static_arguments } => {
                     let left = self.unbind_expression(module, *left, tree, symbols, ast_tree, ast_strings, context);
-                    let name = ast_strings.intern_from(&self.program.strings, *name);
+                    let name = name.map(|name| ast_strings.intern_from(&self.program.strings, name));
                     let static_arguments = static_arguments.as_ref().map(|args| {
                         args.iter().map(|arg| {
                             self.unbind_argument(module, *arg, tree, symbols, ast_tree, ast_strings, context)
@@ -518,7 +518,7 @@ impl Compiler {
                 }
                 dir::Expression::PrivateMember { left, name, static_arguments } => {
                     let left = self.unbind_expression(module, *left, tree, symbols, ast_tree, ast_strings, context);
-                    let name = ast_strings.intern_from(&self.program.strings, *name);
+                    let name = name.map(|name| ast_strings.intern_from(&self.program.strings, name));
                     let static_arguments = static_arguments.as_ref().map(|args| {
                         args.iter().map(|arg| {
                             self.unbind_argument(module, *arg, tree, symbols, ast_tree, ast_strings, context)

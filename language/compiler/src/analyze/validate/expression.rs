@@ -1060,7 +1060,7 @@ impl Compiler {
         };
 
         let target_name = self.program.strings.intern("target");
-        if *name != target_name {
+        if *name != Some(target_name) {
             return false;
         }
 
@@ -2565,6 +2565,7 @@ impl Compiler {
                 | DependencyItem::Local { mode, .. }
                 | DependencyItem::Remote { mode, .. }
                 | DependencyItem::Value { mode, .. } => *mode,
+                DependencyItem::Error => continue,
             };
 
             if mode == DependencyMode::Default {

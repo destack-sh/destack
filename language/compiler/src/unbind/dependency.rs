@@ -49,6 +49,7 @@ impl Compiler {
         let item = tree.get(item_id);
         let span = self.unbind_span(module, item_id.into());
         let ast_item = match item {
+            dir::DependencyItem::Error => ast::DependencyItem::Error,
             dir::DependencyItem::Value { mode, value } => {
                 let mode = self.unbind_dependency_mode(context, *mode);
                 let value = self.unbind_expression(
@@ -60,7 +61,7 @@ impl Compiler {
                     ast_strings,
                     context,
                 );
-                ast::DependencyItem {
+                ast::DependencyItem::Item {
                     kind: None,
                     mode,
                     name: None,
@@ -79,7 +80,7 @@ impl Compiler {
                 let kind = Some(self.unbind_dependency_kind(context, *kind));
                 let name = name.map(|name| self.unbind_name(ast_strings, name));
                 let alias = alias.map(|a| ast_strings.intern_from(&self.program.strings, a));
-                ast::DependencyItem {
+                ast::DependencyItem::Item {
                     kind,
                     mode,
                     name,
@@ -105,7 +106,7 @@ impl Compiler {
                 let kind = Some(self.unbind_dependency_kind(context, *kind));
                 let name = name.map(|name| self.unbind_name(ast_strings, name));
                 let alias = alias.map(|a| ast_strings.intern_from(&self.program.strings, a));
-                ast::DependencyItem {
+                ast::DependencyItem::Item {
                     kind,
                     mode,
                     name,
@@ -124,7 +125,7 @@ impl Compiler {
                 let kind = Some(self.unbind_dependency_kind(context, *kind));
                 let name = name.map(|name| self.unbind_name(ast_strings, name));
                 let alias = alias.map(|a| ast_strings.intern_from(&self.program.strings, a));
-                ast::DependencyItem {
+                ast::DependencyItem::Item {
                     kind,
                     mode,
                     name,

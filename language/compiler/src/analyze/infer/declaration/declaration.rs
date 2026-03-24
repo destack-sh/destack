@@ -3599,6 +3599,9 @@ impl Compiler {
                     }
                 }
             }
+            DependencyItem::Error => {
+                // malformed dependency items do not infer local declaration facts
+            }
         }
         Ok(())
     }

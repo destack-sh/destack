@@ -274,13 +274,15 @@ impl Compiler {
             }
 
             // reject writes to readonly members when the key is known
-            if static_arguments.is_none() {
+            if static_arguments.is_none()
+                && let Some(name) = *name
+            {
                 let member_key = self.static_key_from_dynamic_key(
                     ctx.profile,
                     ctx.tree,
                     ctx.symbols,
                     ctx.types,
-                    DynamicKey::Name(*name),
+                    DynamicKey::Name(name),
                 );
                 if let Some(member_key) = member_key {
                     let is_field_readonly = self

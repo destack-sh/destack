@@ -317,8 +317,11 @@ impl FunctionLowerer<'_> {
         }
 
         // resolve discriminant metadata for the member access
+        let Some(name) = *name else {
+            return Ok(None);
+        };
         let Some((_receiver_type_id, layout, field)) =
-            self.union_discriminant_field_for_member(*receiver_id, *name)
+            self.union_discriminant_field_for_member(*receiver_id, name)
         else {
             return Ok(None);
         };

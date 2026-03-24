@@ -1417,7 +1417,7 @@ impl Compiler {
             member_id,
             Expression::Member {
                 left: value,
-                name,
+                name: Some(name),
                 static_arguments: None,
             },
         );

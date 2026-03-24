@@ -336,7 +336,10 @@ impl<'a> TestModuleView<'a> {
         expression_id: LocalNodeId<Expression>,
     ) -> (LocalNodeId<Expression>, StringId) {
         match self.tree.get(expression_id) {
-            Expression::Member { left, name, .. } => (*left, *name),
+            Expression::Member { left, name, .. } => {
+                let name = (*name).expect("expected member name");
+                (*left, name)
+            }
             other => panic!("expected member expression, got {other:?}"),
         }
     }

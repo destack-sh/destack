@@ -2912,8 +2912,12 @@ impl Compiler {
                 .map_err(AnalyzeError::from)?;
         }
 
+        let Some(name) = *name else {
+            return Ok(None);
+        };
+
         if self
-            .enum_field_symbol_for_name(ctx.type_view(), enum_symbol, *name)?
+            .enum_field_symbol_for_name(ctx.type_view(), enum_symbol, name)?
             .is_some()
         {
             Ok(Some(enum_symbol))
