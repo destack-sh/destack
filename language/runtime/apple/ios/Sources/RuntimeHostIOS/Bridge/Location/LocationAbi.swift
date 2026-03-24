@@ -19,10 +19,10 @@ typealias LocationWatchCloseCallback =
 
 /// The low-level location ingress ABI for one iOS runtime bridge.
 protocol LocationAbi: Sendable {
-    /// Deliver one location sample into one runtime session.
-    func notifyLocationSample(
-        sessionHandle: HostSessionHandle,
-        watchID: String,
-        sample: RuntimeHostLocationSample
-    ) -> RuntimeAbiStatus
+  /// Deliver one location sample into one runtime session.
+  func notifyLocationSample(
+    sessionHandle: HostSessionHandle,
+    watchID: String,
+    sample: RuntimeHostLocationSample
+  ) -> RuntimeAbiStatus
 }

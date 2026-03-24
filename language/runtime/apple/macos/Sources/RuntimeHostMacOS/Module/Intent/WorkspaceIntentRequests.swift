@@ -2,7 +2,7 @@ import Foundation
 import RuntimeHostAppleCore
 
 #if canImport(AppKit)
-import AppKit
+  import AppKit
 #endif
 
 /// The macOS intent request surface backed by the shared application host.
