@@ -1,0 +1,16 @@
+{
+  "name": "script-single-file-reject-dynamic-import",
+  "targets": {
+    "bundle": {
+      "emit": "js",
+      "entry": ["src/application.js"],
+      "outFile": "dist/bundle.js",
+      "sourceMapMode": "external",
+      "bundle": {
+        "output": {
+          "manifest": true
+        }
+      }
+    }
+  }
+}

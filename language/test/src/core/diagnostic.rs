@@ -104,16 +104,30 @@ pub fn check_diagnostics(
     files: &FileRegistry,
     diagnostics: &DiagnosticCollector,
 ) -> CaseResult {
+    let Some(message) = render_unexpected_diagnostics(files, diagnostics, case.min_fail_severity)
+    else {
+        return CaseResult::Passed;
+    };
+
+    CaseResult::Failed { message }
+}
+
+/// Render all unexpected diagnostics at or above one minimum severity.
+pub fn render_unexpected_diagnostics(
+    files: &FileRegistry,
+    diagnostics: &DiagnosticCollector,
+    min_fail_severity: DiagnosticSeverity,
+) -> Option<String> {
     let all = diagnostics.collect().iter();
 
     // filter to unexpected diagnostics (at or above min_fail_severity)
     let unexpected_diagnostics: Vec<_> = all
         .into_iter()
-        .filter(|d| severity_at_or_above(d.severity, case.min_fail_severity))
+        .filter(|d| severity_at_or_above(d.severity, min_fail_severity))
         .collect();
 
     if unexpected_diagnostics.is_empty() {
-        return CaseResult::Passed;
+        return None;
     }
 
     // format unexpected diagnostics for deterministic output ordering
@@ -152,13 +166,11 @@ pub fn check_diagnostics(
     let options = PrintOptions::new().with_colorizer(source_colorizer());
     let rendered = format_diagnostics(files, &unexpected_collection, options);
 
-    CaseResult::Failed {
-        message: format!(
-            "{}\n\n{}",
-            parts.join(", "),
-            rendered.trim_end_matches('\n')
-        ),
-    }
+    Some(format!(
+        "{}\n\n{}",
+        parts.join(", "),
+        rendered.trim_end_matches('\n')
+    ))
 }
 
 /// Check if `actual` severity is at or above `threshold`.

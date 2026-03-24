@@ -1,0 +1,19 @@
+{
+  "name": "script-preserve-modules-entry-root",
+  "targets": {
+    "library": {
+      "emit": "js",
+      "entry": ["src/application.js"],
+      "outDir": "dist/library",
+      "sourceMapMode": "external",
+      "bundle": {
+        "chunk": {
+          "preserveModules": true
+        },
+        "output": {
+          "manifest": true
+        }
+      }
+    }
+  }
+}

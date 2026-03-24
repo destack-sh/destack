@@ -1,0 +1,18 @@
+{
+  "files": [
+    {
+      "path": "bundle.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "bundle",
+      "input": "src/application.js",
+      "isEntry": true,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "bundle.js.map",
+      "type": "asset",
+      "loader": "map"
+    }
+  ]
+}

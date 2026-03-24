@@ -1,0 +1,16 @@
+{
+  "name": "html-document-entry",
+  "targets": {
+    "site": {
+      "emit": "html",
+      "entry": ["src/page.ds"],
+      "outFile": "dist/index.html",
+      "sourceMapMode": "external",
+      "bundle": {
+        "output": {
+          "manifest": true
+        }
+      }
+    }
+  }
+}

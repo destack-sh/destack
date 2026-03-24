@@ -1,0 +1,19 @@
+{
+  "name": "script-single-file-external-package",
+  "targets": {
+    "bundle": {
+      "emit": "js",
+      "entry": ["src/react-bridge.ts"],
+      "outFile": "dist/bundle.js",
+      "sourceMapMode": "external",
+      "bundle": {
+        "dependency": {
+          "neverBundle": ["react"]
+        },
+        "output": {
+          "manifest": true
+        }
+      }
+    }
+  }
+}

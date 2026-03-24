@@ -1,0 +1,20 @@
+{
+  "files": [
+    {
+      "path": "src/react-bridge.js",
+      "type": "chunk",
+      "loader": "js",
+      "input": "src/react-bridge.ts",
+      "isEntry": true,
+      "isDynamicEntry": false,
+      "imports": [
+        "react"
+      ]
+    },
+    {
+      "path": "src/react-bridge.map",
+      "type": "asset",
+      "loader": "map"
+    }
+  ]
+}
