@@ -4,6 +4,15 @@ use crate::{EXPRESSION_START_TOKEN_TYPES, ParseError, ParseResult, Parser};
 use destack_ast::{Keyword, LiteralType, TokenSpan, TokenType, UnaryOperator};
 
 impl Parser {
+    /// Return true when a token type closes one grouping delimiter.
+    #[inline]
+    pub(crate) const fn is_close_delimiter_token(token_type: TokenType) -> bool {
+        matches!(
+            token_type,
+            TokenType::CloseParenthesis | TokenType::CloseBracket | TokenType::CloseBrace
+        )
+    }
+
     /// Return true when a token type is a statement stop.
     #[inline]
     pub(crate) const fn is_statement_stop_token(token_type: TokenType) -> bool {
@@ -29,6 +38,55 @@ impl Parser {
             token_type,
             TokenType::Comma | TokenType::Semicolon | TokenType::Newline | TokenType::End
         )
+    }
+
+    /// Return true when a committed expression child slot can recover a missing node here.
+    #[inline]
+    pub(crate) const fn is_expression_slot_boundary_token(token_type: TokenType) -> bool {
+        Self::is_close_delimiter_token(token_type)
+            || matches!(
+                token_type,
+                TokenType::Comma | TokenType::Semicolon | TokenType::End
+            )
+    }
+
+    /// Return true when a committed close delimiter can recover a missing token here.
+    #[inline]
+    pub(crate) const fn is_close_delimiter_boundary_token(token_type: TokenType) -> bool {
+        Self::is_close_delimiter_token(token_type) || Self::is_any_stop_token(token_type)
+    }
+
+    /// Return true when a committed type expression can recover a missing child here.
+    #[inline]
+    pub(crate) const fn is_type_expression_boundary_token(token_type: TokenType) -> bool {
+        matches!(
+            token_type,
+            TokenType::Comma
+                | TokenType::Semicolon
+                | TokenType::Colon
+                | TokenType::Assign
+                | TokenType::Arrow
+                | TokenType::ArrowWide
+                | TokenType::GreaterThan
+                | TokenType::Maybe
+                | TokenType::End
+        ) || Self::is_close_delimiter_token(token_type)
+    }
+
+    /// Return true when a committed type container can recover a missing close token here.
+    #[inline]
+    pub(crate) const fn is_type_container_boundary_token(token_type: TokenType) -> bool {
+        Self::is_type_expression_boundary_token(token_type)
+            || matches!(
+                token_type,
+                TokenType::OpenParenthesis | TokenType::OpenBracket | TokenType::Dot
+            )
+    }
+
+    /// Return true when a committed type expression can recover a missing child here.
+    #[inline]
+    pub(crate) fn is_type_expression_boundary(&mut self) -> bool {
+        Self::is_type_expression_boundary_token(self.peek_token_type())
     }
 
     /// Return true when expression scanning should treat tree literals as active syntax.
