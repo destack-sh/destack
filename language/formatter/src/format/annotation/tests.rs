@@ -5,10 +5,11 @@ use crate::{
     assert_format, assert_format_output_eq, assert_format_program_idempotent_with_file_type,
     assert_format_program_roundtrip_with_file_type, statement_list,
 };
-use destack_ast::{
+use ast::{
     AnnotationPosition, Declaration, DeclarationDescriptor, Expression, LocalNodeId,
     NodeParentIndex, NodeType, TokenType,
 };
+use destack_ast as ast;
 use destack_fir::format as fir_format;
 use destack_parser::Parser;
 use destack_source::{File, FileId, FileType, LanguageType, Uri};
@@ -565,10 +566,9 @@ fn test_annotation_trailing_array_comma_line_comment_attaches_to_element_owner()
         3, // trailing-array-marker
     ];
 }";
-    let (formatter, _) = TestFormatter::parse(source, |p| {
-        p.eat_block(destack_ast::BlockContext::Expression)
-    })
-    .expect("parse trailing array comma comment source");
+    let (formatter, _) =
+        TestFormatter::parse(source, |p| p.eat_block(ast::BlockContext::Expression))
+            .expect("parse trailing array comma comment source");
     let ctx = context_from_formatter(&formatter);
 
     let annotation_id = find_annotation_by_marker(&ctx, "trailing-array-marker")
@@ -596,10 +596,9 @@ fn test_annotation_array_element_own_line_comment_attaches_to_following_element(
         [2],
     ];
 }";
-    let (formatter, _) = TestFormatter::parse(source, |p| {
-        p.eat_block(destack_ast::BlockContext::Expression)
-    })
-    .expect("parse own-line array element comment source");
+    let (formatter, _) =
+        TestFormatter::parse(source, |p| p.eat_block(ast::BlockContext::Expression))
+            .expect("parse own-line array element comment source");
     let ctx = context_from_formatter(&formatter);
 
     for marker in [
@@ -736,10 +735,9 @@ fn test_annotation_mixed_array_element_own_line_comments_attach_as_line_prefix()
         ],
     ];
 }";
-    let (formatter, _) = TestFormatter::parse(source, |p| {
-        p.eat_block(destack_ast::BlockContext::Expression)
-    })
-    .expect("parse mixed array element own-line comments source");
+    let (formatter, _) =
+        TestFormatter::parse(source, |p| p.eat_block(ast::BlockContext::Expression))
+            .expect("parse mixed array element own-line comments source");
     let ctx = context_from_formatter(&formatter);
 
     for marker in [
@@ -831,10 +829,9 @@ fn test_annotation_declarator_assignment_line_comment_attaches_to_rhs_value() {
         key: 1,
     };
 }";
-    let (formatter, _) = TestFormatter::parse(source, |p| {
-        p.eat_block(destack_ast::BlockContext::Expression)
-    })
-    .expect("parse declarator assignment seam comment source");
+    let (formatter, _) =
+        TestFormatter::parse(source, |p| p.eat_block(ast::BlockContext::Expression))
+            .expect("parse declarator assignment seam comment source");
     let ctx = context_from_formatter(&formatter);
 
     let annotation_id = find_annotation_by_marker(&ctx, "declarator-rhs-marker")
@@ -856,10 +853,9 @@ fn test_annotation_declarator_assignment_array_line_comment_attaches_to_rhs_valu
         // declarator-array-rhs-marker
         [\"val\"];
 }";
-    let (formatter, _) = TestFormatter::parse(source, |p| {
-        p.eat_block(destack_ast::BlockContext::Expression)
-    })
-    .expect("parse declarator assignment array seam comment source");
+    let (formatter, _) =
+        TestFormatter::parse(source, |p| p.eat_block(ast::BlockContext::Expression))
+            .expect("parse declarator assignment array seam comment source");
     let ctx = context_from_formatter(&formatter);
 
     let annotation_id = find_annotation_by_marker(&ctx, "declarator-array-rhs-marker")
@@ -1044,7 +1040,7 @@ fn test_annotation_call_inline_separator_comment_attaches_to_argument_owner() {
     );
 }";
     let (formatter, _) = TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| {
-        p.eat_block(destack_ast::BlockContext::Expression)
+        p.eat_block(ast::BlockContext::Expression)
     })
     .expect("parse call inline separator marker source");
     let ctx = context_from_formatter(&formatter);
@@ -1070,7 +1066,7 @@ fn test_annotation_call_conditional_separator_comment_matches_separator_fixture(
     );
 }";
     let (formatter, _) = TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| {
-        p.eat_block(destack_ast::BlockContext::Expression)
+        p.eat_block(ast::BlockContext::Expression)
     })
     .expect("parse conditional separator marker source");
     let ctx = context_from_formatter(&formatter);
@@ -1097,7 +1093,7 @@ fn test_annotation_call_conditional_separator_comment_with_inline_block_matches_
     );
 }";
     let (formatter, _) = TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| {
-        p.eat_block(destack_ast::BlockContext::Expression)
+        p.eat_block(ast::BlockContext::Expression)
     })
     .expect("parse conditional separator marker with inline block source");
     let ctx = context_from_formatter(&formatter);
@@ -1136,7 +1132,7 @@ export {
 
     assert_eq!(owner_node_type, NodeType::DependencyItem);
     assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
-    assert_eq!(next_token_type, Some(destack_ast::TokenType::Comma));
+    assert_eq!(next_token_type, Some(ast::TokenType::Comma));
 }
 
 /// Import item comments after separators should stay attached to dependency item seams.
@@ -1162,8 +1158,8 @@ fn test_annotation_import_item_separator_line_comment_attaches_to_dependency_ite
 
     assert_eq!(owner_node_type, NodeType::DependencyItem);
     assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
-    assert_eq!(previous_token_type, Some(destack_ast::TokenType::Comma));
-    assert_eq!(next_token_type, Some(destack_ast::TokenType::Identifier));
+    assert_eq!(previous_token_type, Some(ast::TokenType::Comma));
+    assert_eq!(next_token_type, Some(ast::TokenType::Identifier));
 }
 
 /// Import alias comments before separator commas should stay on dependency-item boundaries.
@@ -1188,7 +1184,7 @@ fn test_annotation_import_alias_comment_before_separator_comma_attaches_to_depen
 
     assert_eq!(owner_node_type, NodeType::DependencyItem);
     assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
-    assert_eq!(next_token_type, Some(destack_ast::TokenType::Comma));
+    assert_eq!(next_token_type, Some(ast::TokenType::Comma));
 }
 
 /// Import block comments before separator commas should stay on dependency-item boundaries.
@@ -1213,7 +1209,7 @@ fn test_annotation_import_block_comment_before_separator_comma_attaches_to_depen
 
     assert_eq!(owner_node_type, NodeType::DependencyItem);
     assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
-    assert_eq!(next_token_type, Some(destack_ast::TokenType::Comma));
+    assert_eq!(next_token_type, Some(ast::TokenType::Comma));
 }
 
 /// Own-line block comments before `)` in parameter lists should stay on parameter boundaries.
@@ -1321,10 +1317,7 @@ export {
 
     assert_eq!(owner_node_type, NodeType::DependencyItem);
     assert_eq!(position, AnnotationPosition::LinePrefix);
-    assert_eq!(
-        previous_token_type,
-        Some(destack_ast::TokenType::Identifier)
-    );
+    assert_eq!(previous_token_type, Some(ast::TokenType::Identifier));
 }
 
 /// Heritage-head comments after declaration type parameters should stay on declaration heads.
@@ -1409,10 +1402,9 @@ fn test_annotation_call_callee_line_comment_stays_on_call_expression() {
     call // call-line-marker
     ();
 }";
-    let (formatter, _) = TestFormatter::parse(source, |p| {
-        p.eat_block(destack_ast::BlockContext::Expression)
-    })
-    .expect("parse call callee line comment source");
+    let (formatter, _) =
+        TestFormatter::parse(source, |p| p.eat_block(ast::BlockContext::Expression))
+            .expect("parse call callee line comment source");
     let ctx = context_from_formatter(&formatter);
 
     let annotation_id =
@@ -1953,10 +1945,9 @@ fn test_annotation_single_call_argument_trailing_line_comment_attachment() {
         // trailing-argument-marker
     );
 }";
-    let (formatter, _) = TestFormatter::parse(source, |p| {
-        p.eat_block(destack_ast::BlockContext::Expression)
-    })
-    .expect("parse trailing call argument marker source");
+    let (formatter, _) =
+        TestFormatter::parse(source, |p| p.eat_block(ast::BlockContext::Expression))
+            .expect("parse trailing call argument marker source");
     let ctx = context_from_formatter(&formatter);
 
     let annotation_id = find_annotation_by_marker(&ctx, "trailing-argument-marker")
@@ -1983,10 +1974,9 @@ fn test_annotation_call_trailing_separator_comment_attaches_to_argument_owner() 
         // trailing-separator-marker
     );
 }";
-    let (formatter, _) = TestFormatter::parse(source, |p| {
-        p.eat_block(destack_ast::BlockContext::Expression)
-    })
-    .expect("parse call trailing separator marker source");
+    let (formatter, _) =
+        TestFormatter::parse(source, |p| p.eat_block(ast::BlockContext::Expression))
+            .expect("parse call trailing separator marker source");
     let ctx = context_from_formatter(&formatter);
 
     let annotation_id = find_annotation_by_marker(&ctx, "trailing-separator-marker")
@@ -2013,10 +2003,9 @@ fn test_annotation_call_trailing_separator_comment_multi_argument_attaches_to_ar
         // trailing-separator-multi-marker
     );
 }";
-    let (formatter, _) = TestFormatter::parse(source, |p| {
-        p.eat_block(destack_ast::BlockContext::Expression)
-    })
-    .expect("parse call trailing separator marker source");
+    let (formatter, _) =
+        TestFormatter::parse(source, |p| p.eat_block(ast::BlockContext::Expression))
+            .expect("parse call trailing separator marker source");
     let ctx = context_from_formatter(&formatter);
 
     let annotation_id = find_annotation_by_marker(&ctx, "trailing-separator-multi-marker")
@@ -2038,10 +2027,9 @@ fn test_annotation_call_callee_block_comment_stays_on_call_expression() {
     call/* optional-marker */?.();
 }";
     let expected = "{\n    call /* call-marker */();\n    call /* optional-marker */?.();\n}";
-    let (formatter, block_id) = TestFormatter::parse(source, |p| {
-        p.eat_block(destack_ast::BlockContext::Expression)
-    })
-    .expect("parse call callee block comment source");
+    let (formatter, block_id) =
+        TestFormatter::parse(source, |p| p.eat_block(ast::BlockContext::Expression))
+            .expect("parse call callee block comment source");
     let ctx = context_from_formatter(&formatter);
 
     let first_annotation_id =
@@ -2073,7 +2061,7 @@ fn test_type_binary_block_comment_between_operator_and_right_type_renders() {
     let expected = "{\n    const value = left as /* between */ Foo;\n}";
     let (formatter, block_id) =
         TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| {
-            p.eat_block(destack_ast::BlockContext::Expression)
+            p.eat_block(ast::BlockContext::Expression)
         })
         .expect("parse type-binary block seam source");
     let ctx = context_from_formatter(&formatter);
@@ -2092,7 +2080,7 @@ fn test_annotation_type_union_assignment_head_block_comment_is_block_prefix() {
     let source =
         "{\n    const value =\n        /* union-head-marker */\n        input as Left | Right;\n}";
     let (formatter, _) = TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| {
-        p.eat_block(destack_ast::BlockContext::Expression)
+        p.eat_block(ast::BlockContext::Expression)
     })
     .expect("parse union-head assignment comment source");
     let ctx = context_from_formatter(&formatter);
@@ -2193,7 +2181,7 @@ type C2 = | (
         let next_token = ctx.annotation_next_non_whitespace_token_type(annotation_id);
         assert_eq!(owner_node_type, NodeType::Expression, "marker={marker}");
         assert_eq!(position, expected_position, "marker={marker}");
-        assert_eq!(next_token, Some(destack_ast::TokenType::ElementwiseOr));
+        assert_eq!(next_token, Some(ast::TokenType::ElementwiseOr));
     }
 }
 
@@ -2220,7 +2208,7 @@ type C2 = | (
     let position = ctx.annotation(annotation_id).position();
     let next_token = ctx.annotation_next_non_whitespace_token_type(annotation_id);
     assert_eq!(position, AnnotationPosition::LinePrefix);
-    assert_eq!(next_token, Some(destack_ast::TokenType::ElementwiseOr));
+    assert_eq!(next_token, Some(ast::TokenType::ElementwiseOr));
 }
 
 /// Type-binary block seam comments on expression statements must not be dropped.
@@ -2230,7 +2218,7 @@ fn test_type_binary_block_comment_between_operator_and_right_type_expression_sta
     let expected = "{\n    1 as /* between */ Foo;\n    1 satisfies /* sat-between */ Foo;\n}";
     let (formatter, block_id) =
         TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| {
-            p.eat_block(destack_ast::BlockContext::Expression)
+            p.eat_block(ast::BlockContext::Expression)
         })
         .expect("parse type-binary block seam statement source");
     let ctx = context_from_formatter(&formatter);
@@ -2256,7 +2244,7 @@ fn test_type_binary_block_comment_between_operator_and_right_type_expression_sta
 fn test_annotation_type_binary_own_line_comment_after_as_attaches_to_rhs() {
     let source = "{\n    value = a as\n        // own-line-as-marker\n        Foo | Bar;\n}";
     let (formatter, _) = TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| {
-        p.eat_block(destack_ast::BlockContext::Expression)
+        p.eat_block(ast::BlockContext::Expression)
     })
     .expect("parse own-line as comment source");
     let ctx = context_from_formatter(&formatter);
@@ -2276,7 +2264,7 @@ fn test_annotation_type_binary_own_line_comment_after_as_attaches_to_rhs() {
 fn test_annotation_type_binary_own_line_comment_after_as_with_union_attaches_to_rhs() {
     let source = "{\n    functionArg = a as\n        // own-line-as-union-marker\n        TSESTree.ArrowFunctionExpression | TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression | undefined;\n}";
     let (formatter, _) = TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| {
-        p.eat_block(destack_ast::BlockContext::Expression)
+        p.eat_block(ast::BlockContext::Expression)
     })
     .expect("parse own-line as union comment source");
     let ctx = context_from_formatter(&formatter);
@@ -2296,14 +2284,14 @@ fn test_annotation_type_binary_own_line_comment_after_as_with_union_reparse_keep
     let source = "{\n    functionArg = a as\n        // own-line-as-union-reparse-marker\n        TSESTree.ArrowFunctionExpression | TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression | undefined;\n}";
     let (formatter, block_id) =
         TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| {
-            p.eat_block(destack_ast::BlockContext::Expression)
+            p.eat_block(ast::BlockContext::Expression)
         })
         .expect("parse own-line as union reparse source");
     let formatted = formatter.format(&block_id, typescript_format_options());
 
     let (reparsed_formatter, _) =
         TestFormatter::parse_with_file_type(&formatted, FileType::TypeScript, |p| {
-            p.eat_block(destack_ast::BlockContext::Expression)
+            p.eat_block(ast::BlockContext::Expression)
         })
         .expect("reparse own-line as union reparse formatted source");
     let reparsed_ctx = context_from_formatter(&reparsed_formatter);
@@ -2444,7 +2432,7 @@ fn test_annotation_closure_cast_neighboring_block_comment_order() {
 fn test_type_mapped_remap_line_comment_attachment() {
     let source = "{\n    type Paths<T> = {\n      [K in keyof T as // remap-note\n        `get${Capitalize<K & string>}`]: () => T[K]\n    }\n}";
     let (formatter, _) = TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| {
-        p.eat_block(destack_ast::BlockContext::Expression)
+        p.eat_block(ast::BlockContext::Expression)
     })
     .expect("parse mapped remap comment source");
     let ctx = context_from_formatter(&formatter);
@@ -2470,7 +2458,7 @@ fn test_prefix_cast_comment_keeps_space_before_parenthesized_value() {
     let expected = "{\n    target(/** @type {{id: string}} */ (entry), second);\n}";
     let (formatter, block_id) =
         TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| {
-            p.eat_block(destack_ast::BlockContext::Expression)
+            p.eat_block(ast::BlockContext::Expression)
         })
         .expect("parse parenthesized cast argument source");
     let ctx = context_from_formatter(&formatter);
@@ -2690,10 +2678,9 @@ fn test_annotation_render_info_condition_comment_precedes_separator() {
     let source = "{
     if (true /* separator-marker */ ) {}
 }";
-    let (formatter, _) = TestFormatter::parse(source, |p| {
-        p.eat_block(destack_ast::BlockContext::Expression)
-    })
-    .expect("parse separator marker source");
+    let (formatter, _) =
+        TestFormatter::parse(source, |p| p.eat_block(ast::BlockContext::Expression))
+            .expect("parse separator marker source");
     let ctx = context_from_formatter(&formatter);
     let annotation_id = find_annotation_by_marker(&ctx, "separator-marker")
         .expect("expected marker-tagged separator annotation");
@@ -2773,7 +2760,7 @@ fn test_format_block_comment_retain_newlines() {
     assert_format!(
         source,
         source,
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(ast::BlockContext::Expression),
         DestackFormatOptions::default()
     );
 }
@@ -2793,7 +2780,7 @@ fn test_format_decorators_on_struct() {
     assert_format!(
         source,
         source,
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(ast::BlockContext::Expression),
         DestackFormatOptions::default()
     );
 }
@@ -2831,10 +2818,9 @@ fn test_annotation_decorator_between_comments_attach_to_declaration_prefix() {
     // comment after foo
     struct Entity {}
 }"#;
-    let (formatter, _) = TestFormatter::parse(source, |p| {
-        p.eat_block(destack_ast::BlockContext::Expression)
-    })
-    .expect("parse decorator comment ownership source");
+    let (formatter, _) =
+        TestFormatter::parse(source, |p| p.eat_block(ast::BlockContext::Expression))
+            .expect("parse decorator comment ownership source");
     let ctx = context_from_formatter(&formatter);
 
     let comment_after_entity_id = find_annotation_by_marker(&ctx, "comment after entity")
@@ -2876,7 +2862,7 @@ fn test_format_decorator_parentheses_are_stable() {
     assert_format!(
         source,
         source,
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(ast::BlockContext::Expression),
         DestackFormatOptions::default()
     );
 }
@@ -2887,7 +2873,7 @@ fn test_format_decorator_type_annotation_stays_inline_after_colon() {
     assert_format!(
         "{\n    const buffer: @addrspace(\"shared\") &Buffer = value;\n}",
         "{\n    const buffer: @addrspace(\"shared\") &Buffer = value;\n}",
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(ast::BlockContext::Expression),
         DestackFormatOptions::default()
     );
 }
@@ -2901,7 +2887,7 @@ fn test_format_function_return_type_decorator_annotation_stays_inline_after_colo
     assert_format!(
         source,
         expected,
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(ast::BlockContext::Expression),
         DestackFormatOptions::default()
     );
 }
@@ -2916,7 +2902,7 @@ fn test_annotation_decorator_call_object_member_trailing_comment_attachment() {
     class AppMyComponent {}
 }";
     let (formatter, _) = TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| {
-        p.eat_block(destack_ast::BlockContext::Expression)
+        p.eat_block(ast::BlockContext::Expression)
     })
     .expect("parse decorator call trailing comment source");
     let ctx = context_from_formatter(&formatter);
@@ -2945,7 +2931,7 @@ fn test_format_multiple_comments_around_expression() {
     assert_format!(
         source,
         source,
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(ast::BlockContext::Expression),
         DestackFormatOptions::default()
     );
 }
@@ -2976,7 +2962,7 @@ fn test_format_multiple_comments_around_expression_in_successive_blocks() {
     assert_format!(
         source,
         source,
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(ast::BlockContext::Expression),
         DestackFormatOptions::default()
     );
 }
@@ -3008,7 +2994,7 @@ fn test_format_multi_line_block_doc_comment_stays_block() {
      * over multiple lines */
     const X = 1;
 }",
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(ast::BlockContext::Expression),
         DestackFormatOptions::default()
     );
 }
@@ -3026,7 +3012,7 @@ fn test_format_multi_line_block_comment_stays_block() {
     /* some comment
      * over multiple lines yo */
 }",
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(ast::BlockContext::Expression),
         DestackFormatOptions::default()
     );
 }
@@ -3045,7 +3031,7 @@ fn test_format_excessive_whitespace_in_line_comment() {
     assert_format!(
         source,
         source,
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(ast::BlockContext::Expression),
         DestackFormatOptions::default()
     );
 }
@@ -3307,7 +3293,7 @@ fn test_format_trailing_comment_array() {
         3, // last element
     ];
 }",
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(ast::BlockContext::Expression),
         DestackFormatOptions::default()
     );
 }
@@ -3683,7 +3669,7 @@ fn test_format_inline_block_comment_before_arrow_body_call_is_idempotent() {
 }";
     let (first_formatter, first_block_id) =
         TestFormatter::parse_with_file_type(source, destack_source::FileType::JavaScript, |p| {
-            p.eat_block(destack_ast::BlockContext::Expression)
+            p.eat_block(ast::BlockContext::Expression)
         })
         .expect("parse first arrow comment statement");
     let first = first_formatter.format(&first_block_id, DestackFormatOptions::default());
@@ -3691,7 +3677,7 @@ fn test_format_inline_block_comment_before_arrow_body_call_is_idempotent() {
     let (second_formatter, second_block_id) = TestFormatter::parse_with_file_type(
         first.as_str(),
         destack_source::FileType::JavaScript,
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(ast::BlockContext::Expression),
     )
     .expect("parse second arrow comment statement");
     let second = second_formatter.format(&second_block_id, DestackFormatOptions::default());
@@ -3918,10 +3904,9 @@ fn test_annotation_zero_argument_parenthesized_callee_comment_stays_on_parenthes
     let source = "{
     (() => {}) /* zero-arg-callee-marker */();
 }";
-    let (formatter, _) = TestFormatter::parse(source, |p| {
-        p.eat_block(destack_ast::BlockContext::Expression)
-    })
-    .expect("parse zero-argument parenthesized callee seam source");
+    let (formatter, _) =
+        TestFormatter::parse(source, |p| p.eat_block(ast::BlockContext::Expression))
+            .expect("parse zero-argument parenthesized callee seam source");
     let ctx = context_from_formatter(&formatter);
 
     let annotation_id = find_annotation_by_marker(&ctx, "zero-arg-callee-marker")
@@ -3965,7 +3950,7 @@ fn test_format_member_chain_inline_block_comments_stay_on_chain_seams() {
         .filter((x) => x.length > 3)
         .sort((a, b) => a.length - b.length);
 }",
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(ast::BlockContext::Expression),
         DestackFormatOptions::default()
     );
 }
@@ -3984,7 +3969,7 @@ fn test_format_class_head_block_comment_stays_before_open_brace() {
         // body
     }
 }",
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(ast::BlockContext::Expression),
         DestackFormatOptions::default()
     );
 }
@@ -4037,7 +4022,7 @@ fn test_format_decorator_with_leading_line_comment_stays_grouped() {
         @memoize onContextMenu() {}
     }
 }",
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(ast::BlockContext::Expression),
         DestackFormatOptions::default()
     );
 }
@@ -4051,10 +4036,9 @@ fn test_decorator_annotation_span_stops_before_inline_member_head() {
         @memoize onContextMenu() {}
     }
 }";
-    let (formatter, _) = TestFormatter::parse(source, |p| {
-        p.eat_block(destack_ast::BlockContext::Expression)
-    })
-    .expect("parse inline member decorator source");
+    let (formatter, _) =
+        TestFormatter::parse(source, |p| p.eat_block(ast::BlockContext::Expression))
+            .expect("parse inline member decorator source");
     let ctx = context_from_formatter(&formatter);
 
     let (annotation_id, owner_node) = ctx
@@ -4175,7 +4159,7 @@ fn test_format_yield_chain_boundary_comment_keeps_call_chain_shape() {
             .run();
     }
 }",
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(ast::BlockContext::Expression),
         DestackFormatOptions::default()
     );
 }
@@ -4192,7 +4176,7 @@ fn test_format_own_line_comment_before_block_closer_stays_trailing() {
     compute();
     // marker-own-line-before-closer
 }"#,
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(ast::BlockContext::Expression),
         DestackFormatOptions::default()
     );
 }
@@ -4207,7 +4191,7 @@ fn test_format_terminal_end_of_line_comment_stays_trailing() {
         r#"{
     const value = 1; // marker-terminal-end-of-line
 }"#,
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(ast::BlockContext::Expression),
         DestackFormatOptions::default()
     );
 }
@@ -5378,16 +5362,18 @@ fn test_annotation_arrow_iife_trailing_comma_comments_keep_owner_order() {
     assert!(elements.len() >= 2);
 
     let first_item_span_start = match formatter.tree.get(elements[0]) {
-        destack_ast::Argument::Named { value, .. }
-        | destack_ast::Argument::Labeled { value, .. }
-        | destack_ast::Argument::Positional { value, .. }
-        | destack_ast::Argument::Spread { value, .. } => formatter.tree.get_span(*value).start,
+        ast::Argument::Named { value, .. }
+        | ast::Argument::Labeled { value, .. }
+        | ast::Argument::Positional { value, .. }
+        | ast::Argument::Spread { value, .. } => formatter.tree.get_span(*value).start,
+        ast::Argument::Error => panic!("expected valid first array element"),
     };
     let second_item_span_start = match formatter.tree.get(elements[1]) {
-        destack_ast::Argument::Named { value, .. }
-        | destack_ast::Argument::Labeled { value, .. }
-        | destack_ast::Argument::Positional { value, .. }
-        | destack_ast::Argument::Spread { value, .. } => formatter.tree.get_span(*value).start,
+        ast::Argument::Named { value, .. }
+        | ast::Argument::Labeled { value, .. }
+        | ast::Argument::Positional { value, .. }
+        | ast::Argument::Spread { value, .. } => formatter.tree.get_span(*value).start,
+        ast::Argument::Error => panic!("expected valid second array element"),
     };
 
     let ctx = context_from_formatter(&formatter);
@@ -5455,10 +5441,11 @@ fn test_annotation_call_argument_head_own_line_comment_stays_on_first_argument()
     assert!(!dynamic_arguments.is_empty());
 
     let first_argument_span_start = match formatter.tree.get(dynamic_arguments[0]) {
-        destack_ast::Argument::Named { value, .. }
-        | destack_ast::Argument::Labeled { value, .. }
-        | destack_ast::Argument::Positional { value, .. }
-        | destack_ast::Argument::Spread { value, .. } => formatter.tree.get_span(*value).start,
+        ast::Argument::Named { value, .. }
+        | ast::Argument::Labeled { value, .. }
+        | ast::Argument::Positional { value, .. }
+        | ast::Argument::Spread { value, .. } => formatter.tree.get_span(*value).start,
+        ast::Argument::Error => panic!("expected valid first call argument"),
     };
 
     let ctx = context_from_formatter(&formatter);

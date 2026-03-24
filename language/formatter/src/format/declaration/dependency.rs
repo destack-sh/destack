@@ -41,39 +41,50 @@ impl<'ast> FormatNode<'ast, DependencyItem> for DependencyItem {
         node_id: LocalNodeId<DependencyItem>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        let DependencyItem::Item {
+            mode,
+            kind,
+            name,
+            alias,
+            value: _,
+        } = self
+        else {
+            return Ok(());
+        };
+
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
         // type
-        if self.kind == Some(DependencyKind::Type) {
+        if *kind == Some(DependencyKind::Type) {
             write!(f, [Keyword::Type, space()])?;
         }
 
-        let is_default_binding = self.mode == DependencyMode::Default
-            || (self.mode == DependencyMode::Item && self.name.is_none());
+        let is_default_binding =
+            *mode == DependencyMode::Default || (*mode == DependencyMode::Item && name.is_none());
 
         // default
         if is_default_binding {
             write!(f, [Keyword::Default])?;
             // alias
-            if let Some(alias) = self.alias {
+            if let Some(alias) = alias {
                 write!(f, [space(), Keyword::As, space(), alias])?;
             }
         }
         // namespace
-        else if self.mode == DependencyMode::Namespace {
+        else if *mode == DependencyMode::Namespace {
             write!(f, [token("*")])?;
-            if let Some(alias) = self.alias {
+            if let Some(alias) = alias {
                 write!(f, [space(), Keyword::As, space(), alias])?;
             }
         }
         // item
         else {
             // name
-            if let Some(name) = self.name {
-                format_dependency_item_name(f, name)?;
+            if let Some(name) = name {
+                format_dependency_item_name(f, *name)?;
             }
             // alias
-            if let Some(alias) = self.alias {
+            if let Some(alias) = alias {
                 write!(f, [space(), Keyword::As, space(), alias])?;
             }
         }

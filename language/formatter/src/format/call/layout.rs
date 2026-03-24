@@ -14,8 +14,8 @@ use crate::format::expression::{
     Argument, Declaration, DestackFormatContext, Expression, FunctionKind, LocalNodeId, NodeType,
     ScalarLiteral, TrailingComma, argument_is_array_literal, argument_is_block_callback,
     argument_is_function_expression, argument_is_lambda_expression, argument_is_object_literal,
-    argument_is_template_literal, argument_value_id, is_block_lambda_argument, is_complex_argument,
-    is_expression_chain, is_trivial_argument, transparent_inner_expression,
+    argument_is_template_literal, argument_value_id_if_present, is_block_lambda_argument,
+    is_complex_argument, is_expression_chain, is_trivial_argument, transparent_inner_expression,
 };
 use crate::format::tree::has_multiline_jsx_argument;
 use destack_ast::TypeBinaryOperator;
@@ -269,7 +269,10 @@ pub(crate) fn scan_call_argument_layout_cache(
             has_spread_argument = true;
         }
 
-        let value_id = argument_value_id(ctx.tree, argument_id);
+        let Some(value_id) = argument_value_id_if_present(ctx.tree, argument_id) else {
+            all_plain_call_arguments = false;
+            continue;
+        };
         let value_id = transparent_inner_expression(ctx, value_id);
         let value = ctx.tree.get(value_id);
 
@@ -451,7 +454,10 @@ pub(crate) fn trailing_collection_argument_has_comment_signal(
         return true;
     }
 
-    let last_argument_value_id = argument_value_id(ctx.tree, last_argument_id);
+    let Some(last_argument_value_id) = argument_value_id_if_present(ctx.tree, last_argument_id)
+    else {
+        return false;
+    };
     ctx.has_non_blank_annotation(last_argument_value_id)
 }
 
@@ -460,7 +466,9 @@ pub(crate) fn argument_is_reference_like(
     ctx: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    let value_id = argument_value_id(ctx.tree, argument_id);
+    let Some(value_id) = argument_value_id_if_present(ctx.tree, argument_id) else {
+        return false;
+    };
     let value_id = transparent_inner_expression(ctx, value_id);
 
     matches!(
@@ -715,7 +723,9 @@ pub(crate) fn single_argument_requires_expanded_list(
 
     // require a chain shaped argument value
     let argument_id = dynamic_arguments[0];
-    let raw_value_id = argument_value_id(ctx.tree, argument_id);
+    let Some(raw_value_id) = argument_value_id_if_present(ctx.tree, argument_id) else {
+        return false;
+    };
     let value_id = transparent_inner_expression(ctx, raw_value_id);
     if !expression_is_chain_layout_candidate(ctx, value_id) {
         return false;
@@ -971,7 +981,9 @@ fn try_single_argument_inline_layout(
         && !has_boundary_comments
         && !layout_cache.has_any_argument_annotation
     {
-        let value_id = argument_value_id(ctx.tree, argument_id);
+        let Some(value_id) = argument_value_id_if_present(ctx.tree, argument_id) else {
+            return None;
+        };
         let has_value_annotation = ctx.has_non_blank_annotation(value_id);
         let has_callback_blocking_comment_annotation =
             argument_has_callback_blocking_comment_annotation(ctx, argument_id);
@@ -1315,7 +1327,9 @@ fn argument_is_string_like(
     ctx: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    let value_id = argument_value_id(ctx.tree, argument_id);
+    let Some(value_id) = argument_value_id_if_present(ctx.tree, argument_id) else {
+        return false;
+    };
     let value_id = transparent_inner_expression(ctx, value_id);
 
     matches!(
@@ -1329,7 +1343,9 @@ fn argument_is_identifier_reference(
     ctx: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    let value_id = argument_value_id(ctx.tree, argument_id);
+    let Some(value_id) = argument_value_id_if_present(ctx.tree, argument_id) else {
+        return false;
+    };
     let value_id = transparent_inner_expression(ctx, value_id);
 
     matches!(
@@ -1350,7 +1366,9 @@ fn argument_is_zero_parameter_block_lambda(
         return false;
     }
 
-    let value_id = argument_value_id(ctx.tree, argument_id);
+    let Some(value_id) = argument_value_id_if_present(ctx.tree, argument_id) else {
+        return false;
+    };
     let value_id = transparent_inner_expression(ctx, value_id);
     let Expression::Declaration(declaration_id) = ctx.tree.get(value_id) else {
         return false;
@@ -1376,7 +1394,10 @@ fn call_callee_has_test_like_member_name(
         current_id = transparent_inner_expression(ctx, current_id);
         match ctx.tree.get(current_id) {
             Expression::Member { name, .. } | Expression::PrivateMember { name, .. } => {
-                let name = ctx.strings.get(*name);
+                let Some(name) = *name else {
+                    return false;
+                };
+                let name = ctx.strings.get(name);
                 return matches!(
                     name,
                     "test"

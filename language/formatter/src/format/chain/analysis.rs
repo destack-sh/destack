@@ -13,20 +13,16 @@ use destack_ast::{Comment, CommentStyle};
 const HUG_STATIC_ARGUMENT_MAX_COUNT: usize = 3;
 
 /// Get the value expression of any argument variant.
-pub(crate) fn argument_value_id(
+pub(crate) fn argument_value_id_if_present(
     tree: &NodeTree,
     argument_id: LocalNodeId<Argument>,
-) -> LocalNodeId<Expression> {
+) -> Option<LocalNodeId<Expression>> {
     match tree.get(argument_id) {
         Argument::Named { value, .. }
         | Argument::Labeled { value, .. }
         | Argument::Positional { value, .. }
-        | Argument::Spread { value, .. } => *value,
-        Argument::Error => {
-            unreachable!(
-                "formatter does not yet derive one value expression for argument error slots"
-            )
-        }
+        | Argument::Spread { value, .. } => Some(*value),
+        Argument::Error => None,
     }
 }
 
@@ -73,7 +69,9 @@ pub(crate) fn argument_forces_multiline(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    let value_id = argument_value_id(context.tree, argument_id);
+    let Some(value_id) = argument_value_id_if_present(context.tree, argument_id) else {
+        return false;
+    };
     let value_id = transparent_inner_expression(context, value_id);
 
     match context.tree.get(value_id) {
@@ -95,7 +93,9 @@ pub(crate) fn is_block_lambda_argument(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    let value_id = argument_value_id(context.tree, argument_id);
+    let Some(value_id) = argument_value_id_if_present(context.tree, argument_id) else {
+        return false;
+    };
     let value_id = transparent_inner_expression(context, value_id);
 
     let Expression::Declaration(declaration_id) = context.tree.get(value_id) else {
@@ -756,7 +756,9 @@ pub(crate) fn should_expand_static_argument_list(
     }
 
     // keep single direct object-like type arguments hugged as `<{ ... }>`
-    let value_id = argument_value_id(context.tree, static_arguments[0]);
+    let Some(value_id) = argument_value_id_if_present(context.tree, static_arguments[0]) else {
+        return true;
+    };
     let value_id = transparent_inner_expression(context, value_id);
     if matches!(
         context.tree.get(value_id),
@@ -768,7 +770,11 @@ pub(crate) fn should_expand_static_argument_list(
     // expand list-level wrappers only when nested type arguments are structurally multiline
     expression_static_arguments(context.tree.get(value_id)).is_some_and(|nested_arguments| {
         nested_arguments.iter().copied().any(|nested_argument_id| {
-            let nested_value_id = argument_value_id(context.tree, nested_argument_id);
+            let Some(nested_value_id) =
+                argument_value_id_if_present(context.tree, nested_argument_id)
+            else {
+                return true;
+            };
             let nested_value_id = transparent_inner_expression(context, nested_value_id);
             match context.tree.get(nested_value_id) {
                 Expression::ObjectExpression { properties, .. } => properties.len() > 1,
@@ -803,7 +809,9 @@ fn static_argument_is_hug_safe(
         return false;
     }
 
-    let argument_value_id = argument_value_id(context.tree, argument_id);
+    let Some(argument_value_id) = argument_value_id_if_present(context.tree, argument_id) else {
+        return false;
+    };
     let argument_value_id = transparent_inner_expression(context, argument_value_id);
     if context.node_has_newline(argument_value_id) {
         return false;

@@ -23,7 +23,7 @@ use crate::format::expression::{
     Annotation, AnnotationPosition, Argument, Declaration, DestackFormatContext, DestackFormatter,
     Expression, FormatResult, FunctionKind, GroupId, HugOptions, LocalNodeId, NodeType, Span,
     TokenType, TrailingComma, TypeBinaryOperator, argument_is_function_expression,
-    argument_is_lambda_expression, argument_value_id, block_indent, empty_line,
+    argument_is_lambda_expression, argument_value_id_if_present, block_indent, empty_line,
     format_block_of_properties, format_expression, format_hugged, format_static_argument_list,
     format_with, group, hard_line_break, if_group_breaks, is_trivial_expression, line_postfix,
     list_like, soft_block_indent, soft_line_break_or_space, space, token,
@@ -225,18 +225,21 @@ pub(crate) fn format_single_call_argument_with_group<'ast>(
         && !single_argument_force_expand
         && layout_cache.all_single_line_and_unannotated
         && {
-            let value_id = argument_value_id(f.context().tree, argument_id);
-            let value_id = transparent_inner_expression(f.context(), value_id);
-            let value = f.context().tree.get(value_id);
-            let value_is_short_empty_call = matches!(
-                value,
-                Expression::Call {
-                    static_arguments: None,
-                    dynamic_arguments,
-                    ..
-                } if dynamic_arguments.is_empty()
-            ) && !f.context().has_annotation(value_id);
-            is_trivial_expression(f.context().tree, value) || value_is_short_empty_call
+            if let Some(value_id) = argument_value_id_if_present(f.context().tree, argument_id) {
+                let value_id = transparent_inner_expression(f.context(), value_id);
+                let value = f.context().tree.get(value_id);
+                let value_is_short_empty_call = matches!(
+                    value,
+                    Expression::Call {
+                        static_arguments: None,
+                        dynamic_arguments,
+                        ..
+                    } if dynamic_arguments.is_empty()
+                ) && !f.context().has_annotation(value_id);
+                is_trivial_expression(f.context().tree, value) || value_is_short_empty_call
+            } else {
+                false
+            }
         };
     if use_single_simple_short_circuit {
         f.context()
@@ -920,7 +923,7 @@ fn compute_separator_line_comment_source(
         return Some(comment_source);
     }
 
-    let value_id = argument_value_id(ctx.tree, argument_id);
+    let value_id = argument_value_id_if_present(ctx.tree, argument_id)?;
     let value_span = ctx.span(value_id);
     if ctx.has_postfix_annotation(value_id) || ctx.has_boundary_comment_annotation(value_id) {
         let value_annotation_source = ctx
@@ -1030,7 +1033,7 @@ fn compute_separator_line_comment_source(
         return Some(comment_source);
     }
 
-    let following_value_id = argument_value_id(ctx.tree, following_argument_id);
+    let following_value_id = argument_value_id_if_present(ctx.tree, following_argument_id)?;
     let following_value_span = ctx.span(following_value_id);
     if !ctx.has_prefix_annotation(following_value_id) {
         return None;
@@ -3030,9 +3033,11 @@ this.props.dao)"#;
             &concat_arguments,
         );
         let first_has_blank_prefix = first_ctx.has_blank_prefix_annotation(concat_arguments[0]);
-        let first_argument_value_id = super::argument_value_id(first_ctx.tree, concat_arguments[0]);
-        let first_has_value_blank_prefix =
-            first_ctx.has_blank_prefix_annotation(first_argument_value_id);
+        let first_argument_value_id =
+            super::argument_value_id_if_present(first_ctx.tree, concat_arguments[0]);
+        let first_has_value_blank_prefix = first_argument_value_id
+            .map(|argument_id| first_ctx.has_blank_prefix_annotation(argument_id))
+            .unwrap_or(false);
 
         let first_output = first_formatter.format(
             &root_call_id,
@@ -3054,9 +3059,10 @@ this.props.dao)"#;
         let second_has_blank_prefix =
             second_ctx.has_blank_prefix_annotation(second_concat_arguments[0]);
         let second_argument_value_id =
-            super::argument_value_id(second_ctx.tree, second_concat_arguments[0]);
-        let second_has_value_blank_prefix =
-            second_ctx.has_blank_prefix_annotation(second_argument_value_id);
+            super::argument_value_id_if_present(second_ctx.tree, second_concat_arguments[0]);
+        let second_has_value_blank_prefix = second_argument_value_id
+            .map(|argument_id| second_ctx.has_blank_prefix_annotation(argument_id))
+            .unwrap_or(false);
 
         assert_eq!(
             first_force_expand, second_force_expand,

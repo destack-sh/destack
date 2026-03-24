@@ -1,6 +1,6 @@
 use ast::{
-    AnnotationPosition, Argument, CommentDirective, DependencyMode, Expression, Keyword,
-    LocalNodeId, NodeParentIndex, NodeTree, NodeType, TokenSpan, TokenType,
+    AnnotationPosition, Argument, CommentDirective, DependencyItem, DependencyMode, Expression,
+    Keyword, LocalNodeId, NodeParentIndex, NodeTree, NodeType, TokenSpan, TokenType,
 };
 use destack_ast as ast;
 use destack_source::{File, Span};
@@ -718,7 +718,10 @@ fn delimiter_interior_container_owner(
     }
 
     let argument_id = LocalNodeId::<Argument>::new(container_owner);
-    let value_expression_id = argument_value_expression_id(tree, argument_id);
+    let Some(value_expression_id) = argument_value_expression_id_if_present(tree, argument_id)
+    else {
+        return container_owner;
+    };
     if expression_matches_delimiter_pair(tree, value_expression_id, open_delimiter, close_delimiter)
     {
         return value_expression_id.id;
@@ -901,20 +904,16 @@ fn normalize_trailing_object_member_comment_attachment(
 
 /// Return one argument value expression id.
 #[inline]
-fn argument_value_expression_id(
+fn argument_value_expression_id_if_present(
     tree: &NodeTree,
     argument_id: LocalNodeId<Argument>,
-) -> LocalNodeId<Expression> {
+) -> Option<LocalNodeId<Expression>> {
     match tree.get(argument_id) {
         Argument::Named { value, .. }
         | Argument::Labeled { value, .. }
         | Argument::Positional { value, .. }
-        | Argument::Spread { value, .. } => *value,
-        Argument::Error => {
-            unreachable!(
-                "formatter does not yet derive one value expression for argument error slots"
-            )
-        }
+        | Argument::Spread { value, .. } => Some(*value),
+        Argument::Error => None,
     }
 }
 
@@ -934,7 +933,7 @@ fn normalize_empty_object_argument_own_line_comment_attachment(
     }
 
     let argument_id = LocalNodeId::<Argument>::new(owner_id);
-    let value_id = argument_value_expression_id(tree, argument_id);
+    let value_id = argument_value_expression_id_if_present(tree, argument_id)?;
     if !matches!(
         tree.get(value_id),
         Expression::ObjectExpression { properties, .. } if properties.is_empty()
@@ -962,7 +961,7 @@ fn normalize_inline_object_argument_prefix_comment_attachment(
     }
 
     let argument_id = LocalNodeId::<Argument>::new(owner_id);
-    let value_id = argument_value_expression_id(tree, argument_id);
+    let value_id = argument_value_expression_id_if_present(tree, argument_id)?;
     if !matches!(tree.get(value_id), Expression::ObjectExpression { .. }) {
         return None;
     }
@@ -1433,10 +1432,14 @@ fn export_expression_has_default_item_value(
 
     items.iter().any(|item_id| {
         let item = tree.get(*item_id);
-        item.mode == DependencyMode::Default
-            && item
-                .value
-                .is_some_and(|value_id| value_id.id == declaration_expression_node_id)
+        matches!(
+            item,
+            DependencyItem::Item {
+                mode: DependencyMode::Default,
+                value: Some(value_id),
+                ..
+            } if value_id.id == declaration_expression_node_id
+        )
     })
 }
 

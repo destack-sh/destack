@@ -1,8 +1,8 @@
 use crate::format::expression::{
     Annotation, AnnotationPosition, Argument, Declaration, DestackFormatContext, Expression,
     FunctionKind, LocalNodeId, NodeType, Span, TokenType, argument_is_array_literal,
-    argument_is_block_callback, argument_is_object_literal, argument_value_id, is_trivial_argument,
-    is_trivial_expression, transparent_inner_expression,
+    argument_is_block_callback, argument_is_object_literal, argument_value_id_if_present,
+    is_trivial_argument, is_trivial_expression, transparent_inner_expression,
 };
 use destack_ast::{Keyword, Node, NodeTree, NodeTreeImpl, TemplateLiteral, TokenSpan};
 
@@ -49,7 +49,9 @@ pub(crate) fn argument_is_simple_with_options(
         return false;
     }
 
-    let value_id = argument_value_id(context.tree, argument_id);
+    let Some(value_id) = argument_value_id_if_present(context.tree, argument_id) else {
+        return false;
+    };
     if options.reject_lambda_values && expression_is_lambda_declaration(context, value_id) {
         return false;
     }
@@ -135,7 +137,9 @@ pub(crate) fn argument_is_interpolated_template_literal(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    let value_id = argument_value_id(context.tree, argument_id);
+    let Some(value_id) = argument_value_id_if_present(context.tree, argument_id) else {
+        return false;
+    };
     let value_id = transparent_inner_expression(context, value_id);
 
     matches!(
@@ -353,8 +357,14 @@ fn right_argument_leading_render_start(
     let mut leading_start = context.span(right_argument_id).start;
     collect_prefix_annotation_leading_start(context, right_argument_id, &mut leading_start);
 
-    let right_argument_value_id = argument_value_id(context.tree, right_argument_id);
-    collect_prefix_annotation_leading_start(context, right_argument_value_id, &mut leading_start);
+    let right_argument_value_id = argument_value_id_if_present(context.tree, right_argument_id);
+    if let Some(right_argument_value_id) = right_argument_value_id {
+        collect_prefix_annotation_leading_start(
+            context,
+            right_argument_value_id,
+            &mut leading_start,
+        );
+    }
 
     leading_start
 }
@@ -452,7 +462,9 @@ pub(crate) fn argument_is_inline_closure_cast_object(
     }
 
     let argument_span = context.span(argument_id);
-    let value_id = argument_value_id(context.tree, argument_id);
+    let Some(value_id) = argument_value_id_if_present(context.tree, argument_id) else {
+        return false;
+    };
     let value_id = transparent_inner_expression(context, value_id);
     if !matches!(
         context.tree.get(value_id),

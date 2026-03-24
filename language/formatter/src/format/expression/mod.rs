@@ -38,7 +38,7 @@ pub(crate) use crate::format::call::{
     write_separator_line_comment_after_comma,
 };
 pub(crate) use crate::format::chain::{
-    argument_value_id, chain_nodes, has_comment_between_expressions,
+    argument_value_id_if_present, chain_nodes, has_comment_between_expressions,
     has_line_comment_between_expressions, is_block_lambda_argument, is_chain_root,
     is_expression_chain, is_lambda_expression, lambda_expression_should_break,
     member_has_intervening_comment, should_force_multiline_mapped_type,

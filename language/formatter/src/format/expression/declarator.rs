@@ -3,7 +3,7 @@ use crate::format::analysis::previous_non_whitespace_token_before_annotation;
 use crate::format::expression::{
     Annotation, AnnotationPosition, Argument, Declaration, Declarator, DestackFormatContext,
     DestackFormatter, Expression, FormatResult, LocalNodeId, NodeTree, Pattern, PatternField,
-    ScalarLiteral, Span, TokenType, TypeBinaryOperator, argument_value_id, dedent,
+    ScalarLiteral, Span, TokenType, TypeBinaryOperator, argument_value_id_if_present, dedent,
     expression_has_static_type_arguments, fits_expanded, flattened_binary_operand_count,
     format_call_expression, format_instantiation_expression, format_with, group, hard_line_break,
     has_line_comment_between_expressions, indent, is_chain_root, is_expression_breakable,
@@ -432,7 +432,9 @@ fn static_argument_list_has_block_expressions(
     static_arguments: &[LocalNodeId<Argument>],
 ) -> bool {
     static_arguments.iter().copied().any(|argument_id| {
-        let value_id = argument_value_id(context.tree, argument_id);
+        let Some(value_id) = argument_value_id_if_present(context.tree, argument_id) else {
+            return false;
+        };
         let value_id = transparent_inner_expression(context, value_id);
 
         matches!(

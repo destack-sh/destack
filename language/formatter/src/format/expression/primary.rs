@@ -7,7 +7,7 @@ use crate::format::expression::{
     Argument, BinaryOperator, DestackFormatContext, DestackFormatter, Expression, FormatResult,
     HugOptions, Keyword, LocalNodeId, NodeType, ParenthesizedDropMode, SeparatorLineCommentSource,
     TokenType, TypeModifier, TypePredicateSubject,
-    argument_can_render_without_separator_line_comment, argument_value_id,
+    argument_can_render_without_separator_line_comment, argument_value_id_if_present,
     array_elements_are_fill_candidates, array_has_only_boundary_comments, block_indent,
     format_boundary_comment_array, format_expression, format_fill_array, format_hugged,
     format_scalar_literal, format_static_argument_list, format_struct_literal,
@@ -527,14 +527,18 @@ pub(crate) fn format_primary_expression<'ast>(
             {
                 let is_single_simple = static_arguments.len() == 1 && {
                     let argument_id = static_arguments[0];
-                    let argument_value_id = argument_value_id(tree, argument_id);
-                    let argument_value_id =
-                        transparent_inner_expression(f.context(), argument_value_id);
-                    let is_index_like = matches!(
-                        tree.get(argument_value_id),
-                        Expression::Index { .. } | Expression::TypeIndex { .. }
-                    );
-                    !is_index_like && is_simple_static_argument(f.context(), argument_id)
+                    if let Some(argument_value_id) = argument_value_id_if_present(tree, argument_id)
+                    {
+                        let argument_value_id =
+                            transparent_inner_expression(f.context(), argument_value_id);
+                        let is_index_like = matches!(
+                            tree.get(argument_value_id),
+                            Expression::Index { .. } | Expression::TypeIndex { .. }
+                        );
+                        !is_index_like && is_simple_static_argument(f.context(), argument_id)
+                    } else {
+                        false
+                    }
                 };
                 if is_single_simple {
                     write!(f, [token("<"), static_arguments[0], token(">"),])?;
