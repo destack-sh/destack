@@ -1,5 +1,6 @@
 mod background;
 mod core;
+mod document;
 mod intent;
 pub(crate) mod lifecycle;
 mod location;
@@ -10,6 +11,7 @@ mod permission;
 mod system;
 
 pub(crate) use background::android_notify_background_event;
+pub(crate) use document::android_notify_document_result;
 pub(crate) use intent::{
     android_notify_intent_custom_action, android_notify_intent_open_file,
     android_notify_intent_open_url, android_notify_intent_share_files,

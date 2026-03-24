@@ -1,20 +1,21 @@
 use std::sync::Arc;
 
-use crate::host::core::{HostQueue, HostSessionRegistry};
+use crate::host::core::{HostQueue, HostRequestId, HostSessionRegistry};
 use crate::host::ios::ingress::lifecycle::host_lifecycle_state_for_application_lifecycle;
 use crate::host::ios::ingress::{
-    IosApplicationLifecycle, ios_notify_background_event, ios_notify_intent_open_url,
-    ios_notify_location_sample, ios_notify_notification_event, ios_notify_permission_result,
+    IosApplicationLifecycle, ios_notify_background_event, ios_notify_document_result,
+    ios_notify_intent_open_url, ios_notify_location_sample, ios_notify_notification_event,
+    ios_notify_permission_result,
 };
 use crate::host::{
-    HostBackgroundEvent, HostEvent, HostIntentEvent, HostIntentPayload, HostLifecycleState,
-    HostLocationEvent, HostNotificationEvent, HostPermissionEvent, Platform,
+    HostBackgroundEvent, HostDocumentEvent, HostEvent, HostIntentEvent, HostIntentPayload,
+    HostLifecycleState, HostLocationEvent, HostNotificationEvent, HostPermissionEvent, Platform,
 };
 use crate::platform::os::{
     BackgroundEventMetadataValue, BackgroundEventValue, BackgroundTaskReadyEventValue,
-    LocationSampleValue, NotificationDeliveredEventValue, NotificationEventMetadataValue,
-    NotificationEventValue, NotificationImmediateTriggerValue, NotificationPriority,
-    NotificationRequestValue, NotificationTriggerValue,
+    DocumentDescriptorValue, LocationSampleValue, NotificationDeliveredEventValue,
+    NotificationEventMetadataValue, NotificationEventValue, NotificationImmediateTriggerValue,
+    NotificationPriority, NotificationRequestValue, NotificationTriggerValue,
 };
 
 #[test]
@@ -68,7 +69,7 @@ fn test_notify_permission_result_enqueues_permission_event_for_runtime_bridge() 
     assert_eq!(
         events.as_slice(),
         [HostEvent::Permission(HostPermissionEvent {
-            request_id: Some(crate::host::core::HostRequestId(7)),
+            request_id: Some(HostRequestId(7)),
             permission: "camera".to_string(),
             granted: true,
         })],
@@ -143,6 +144,27 @@ fn test_notify_background_event_enqueues_background_event_for_runtime_bridge() {
 }
 
 #[test]
+fn test_notify_document_result_enqueues_document_event_for_runtime_bridge() {
+    let runtime_id = HostSessionRegistry::allocate_session_id();
+    let queue = Arc::new(HostQueue::new(runtime_id));
+    let registration =
+        HostSessionRegistry::register_queue(Platform::IOS, runtime_id, Arc::clone(&queue), None);
+    let runtime_id = registration.host_session_id();
+    let documents = vec![test_document_descriptor()];
+
+    ios_notify_document_result(runtime_id.0, 7, documents.clone()).unwrap();
+
+    let events = queue.poll_events(Some(0)).unwrap();
+    assert_eq!(
+        events.as_slice(),
+        [HostEvent::Document(Box::new(HostDocumentEvent {
+            request_id: HostRequestId(7),
+            documents,
+        }))],
+    );
+}
+
+#[test]
 fn test_notify_location_sample_enqueues_location_event_for_runtime_bridge() {
     let runtime_id = HostSessionRegistry::allocate_session_id();
     let queue = Arc::new(HostQueue::new(runtime_id));
@@ -188,7 +210,6 @@ fn test_notification_event() -> NotificationEventValue {
                     },
                 ),
                 action_id: None,
-                data_json: None,
             },
         },
     })
@@ -219,5 +240,18 @@ fn test_location_sample() -> LocationSampleValue {
         speed_meters_per_second: 0.0,
         heading_degrees: 0.0,
         timestamp_unix_ns: 42,
+    }
+}
+
+/// Build one representative document descriptor payload.
+fn test_document_descriptor() -> DocumentDescriptorValue {
+    DocumentDescriptorValue {
+        uri: "file:///tmp/fixture.txt".to_string(),
+        local_path: None,
+        name: "fixture.txt".to_string(),
+        size_bytes: Some(12),
+        mime_type: Some("text/plain".to_string()),
+        is_directory: false,
+        modified_unix_ns: Some(42),
     }
 }

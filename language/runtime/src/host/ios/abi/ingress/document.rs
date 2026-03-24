@@ -1,0 +1,20 @@
+use crate::diagnostic::RuntimeStatus;
+use crate::host::ios::ingress::ios_notify_document_result;
+use crate::platform::os::abi_generated::DocumentDescriptorValue;
+use crate::runtime::NativeSlice;
+
+use super::core::runtime_status;
+
+#[unsafe(no_mangle)]
+pub(crate) unsafe extern "C" fn destack_host_ios_notify_document_result(
+    runtime_id: u64,
+    request_id: u64,
+    documents: NativeSlice<DocumentDescriptorValue>,
+) -> RuntimeStatus {
+    let result = unsafe { documents.as_slice() }
+        .map(|documents| documents.to_vec())
+        .map_err(Into::into)
+        .and_then(|documents| ios_notify_document_result(runtime_id, request_id, documents));
+
+    runtime_status(result)
+}

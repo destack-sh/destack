@@ -1,8 +1,8 @@
 use destack_vm as vm;
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::operation::document as host_document;
 use crate::platform::os::abi_generated::{DocumentDescriptorValue, DocumentPickOptionsValue};
+use crate::platform::os::document::state;
 use crate::platform::os::{DocumentDescriptor, DocumentDescriptorVm};
 use crate::platform::{NativeAbiCodec, VmAbiCodec, VmArray};
 use crate::runtime::BindingCallContext;
@@ -44,7 +44,5 @@ fn pick_values(
     binding: &BindingCallContext,
     options: DocumentPickOptionsValue,
 ) -> RuntimeResult<Vec<DocumentDescriptorValue>> {
-    binding
-        .host()
-        .submit_operation(host_document::pick(options))
+    state::pick_values(binding, options)
 }

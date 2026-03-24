@@ -1,4 +1,6 @@
 use super::*;
+use crate::platform::os::document::state::DocumentTransactionState;
+use crate::platform::os::permission::state::PermissionTransactionState;
 
 /// Runtime-owned `platform.os` module state.
 #[derive(Clone)]
@@ -10,7 +12,7 @@ pub(crate) struct PlatformOsState {
     /// Last host lifecycle state observed for this runtime.
     pub(super) host_lifecycle_state: Arc<RwLock<HostLifecycleState>>,
     /// Last observed permission states for this runtime.
-    pub(super) permission_states: Arc<RwLock<HashMap<Permission, PermissionState>>>,
+    pub(crate) permission_states: Arc<RwLock<HashMap<Permission, PermissionState>>>,
     /// Last observed location sample for this runtime.
     pub(super) last_location_sample: Arc<RwLock<Option<LocationSampleValue>>>,
     /// Successful host queue bootstrap marker.
@@ -29,6 +31,12 @@ pub(crate) struct PlatformOsState {
     pub(super) background_events: Arc<Mutex<HashMap<u64, Arc<BackgroundEventStream>>>>,
     /// Runtime-owned notification streams.
     pub(super) notification_events: Arc<Mutex<HashMap<u64, Arc<NotificationEventStream>>>>,
+    /// Pending document pick transactions keyed by host request id.
+    pub(crate) document_transactions:
+        Arc<Mutex<HashMap<HostRequestId, Arc<DocumentTransactionState>>>>,
+    /// Pending permission request transactions keyed by host request id.
+    pub(crate) permission_transactions:
+        Arc<Mutex<HashMap<HostRequestId, Arc<PermissionTransactionState>>>>,
     /// Runtime-owned network watches.
     pub(super) network_watches: Arc<Mutex<HashMap<u64, Arc<NetworkWatchStream>>>>,
     /// Active network poll callback handle when one is registered.
@@ -53,6 +61,8 @@ impl Default for PlatformOsState {
             intent_events: Arc::new(Mutex::new(HashMap::new())),
             background_events: Arc::new(Mutex::new(HashMap::new())),
             notification_events: Arc::new(Mutex::new(HashMap::new())),
+            document_transactions: Arc::new(Mutex::new(HashMap::new())),
+            permission_transactions: Arc::new(Mutex::new(HashMap::new())),
             network_watches: Arc::new(Mutex::new(HashMap::new())),
             network_watch_callback: Arc::new(Mutex::new(None)),
             location_watches: Arc::new(Mutex::new(HashMap::new())),
@@ -293,9 +303,8 @@ impl PlatformOsState {
             HostEvent::Background(event) => self.observe_background_event(event),
             HostEvent::Notification(event) => self.observe_notification_event(event),
             HostEvent::Location(event) => self.observe_location_event(event),
-            HostEvent::Permission(event) => {
-                self.observe_permission(event.permission.as_str(), event.granted)
-            }
+            HostEvent::Document(event) => self.observe_document_event(event),
+            HostEvent::Permission(event) => self.observe_permission_event(event),
             HostEvent::MemoryPressure(event) => self.observe_memory_pressure(event.level),
             HostEvent::PowerMode(event) => self.observe_power_mode(event.mode),
             _ => {}

@@ -2,23 +2,6 @@ use super::access::os_state;
 use super::handle::resolve_notification_stream;
 use super::*;
 
-/// Read the runtime-owned notification permission state.
-pub(crate) fn notification_permission_state(
-    binding: &BindingCallContext,
-) -> RuntimeResult<NotificationPermissionState> {
-    let permission_state = super::permission::permission_state(binding, Permission::Notifications)?;
-
-    let notification_state = match permission_state {
-        PermissionState::Granted => NotificationPermissionState::Granted,
-        PermissionState::Denied | PermissionState::Restricted => {
-            NotificationPermissionState::Denied
-        }
-        PermissionState::Prompt | PermissionState::Limited => NotificationPermissionState::Prompt,
-    };
-
-    Ok(notification_state)
-}
-
 /// Request host notification permission.
 pub(crate) fn notification_request_permission(
     binding: &BindingCallContext,
@@ -115,6 +98,9 @@ pub(crate) fn notification_event_read(
     handle: resource::NotificationEventHandle,
     timeout_ns: u64,
 ) -> RuntimeResult<NotificationEventValue> {
+    // service ready ingress before waiting on the stream
+    binding.service_runtime_ingress()?;
+
     let stream = resolve_notification_stream(binding, handle)?;
     let now = monotonic_now_ns();
     let deadline_ns = now.saturating_add(timeout_ns);

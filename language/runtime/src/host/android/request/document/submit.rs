@@ -1,14 +1,26 @@
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome};
+use crate::host::abi::document::HostDocumentRequestPayload;
+use crate::host::android::abi::document::ffi::destack_host_android_document_pick;
+use crate::host::core::callback::decode_callback_host_status;
+use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult};
 
 /// Return one Android document request outcome when supported.
 pub(crate) fn submit_document_request(
-    _context: &HostRequestContext,
+    context: &HostRequestContext,
     request: &HostRequest,
 ) -> RuntimeResult<Option<HostRequestOutcome>> {
     match request {
-        // FUGU #Architecture: document pick is one interactive host transaction and must move to one async transaction path
-        HostRequest::OsDocumentPick { .. } => Ok(None),
+        HostRequest::OsDocumentPick { options } => {
+            let payload = HostDocumentRequestPayload::new(context.request_id.0, options);
+            let status = unsafe {
+                destack_host_android_document_pick(context.host_session_id.0, payload.abi())
+            };
+            decode_callback_host_status(status, request.operation_name())?;
+
+            Ok(Some(HostRequestOutcome::event_completing(
+                HostRequestResult::DocumentDescriptors(Vec::new()),
+            )))
+        }
         _ => Ok(None),
     }
 }

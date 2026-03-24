@@ -9,11 +9,11 @@ pub(crate) use crate::diagnostic::{RuntimeError, RuntimeResult};
 pub(crate) use crate::host::core::{HostEventObserver, HostQueue, HostSessionRegistry};
 pub(crate) use crate::host::operation::{
     background as host_background, location as host_location, notification as host_notification,
-    permission as host_permission,
 };
 pub(crate) use crate::host::{
     HostBackgroundEvent, HostEvent, HostIntentEvent, HostIntentPayload, HostLifecycleState,
     HostLocationEvent, HostMemoryPressureLevel, HostNotificationEvent, HostPowerMode,
+    HostRequestId,
 };
 pub(crate) use crate::platform::core::{
     invalid_argument, io_would_block, monotonic_now_ns, not_supported,
@@ -32,7 +32,7 @@ pub(crate) use crate::platform::os::{
     LifecycleLowMemoryPayload, LifecycleLowPowerModeChangedEventValue, LifecycleLowPowerPayload,
     LifecyclePauseEventValue, LifecycleResumeEventValue, LifecycleState,
     LifecycleTerminateEventValue, NetworkEvent, NetworkState, NotificationPermissionState,
-    Permission, PermissionEntry, PermissionState,
+    Permission, PermissionState,
 };
 pub(crate) use crate::platform::resource::{self, ResourceEntry, ResourceKind};
 pub(crate) use crate::platform::{PlatformError, fs};
@@ -46,7 +46,7 @@ pub(crate) use parking_lot::{Mutex, RwLock};
 pub(crate) const OS_READ_WAIT_SLICE_NS: u64 = 10_000_000;
 
 /// Build one invalid-data runtime error.
-pub(super) fn invalid_data(
+pub(crate) fn invalid_data(
     operation: &'static str,
     detail: impl Into<String>,
 ) -> Box<RuntimeError> {
@@ -67,7 +67,7 @@ pub(crate) fn intent_path_from_utf8(binding: &BindingCallContext, value: String)
 }
 
 /// Normalize one host permission token into the public permission selector.
-pub(super) fn parse_host_permission_name(permission: &str) -> Option<Permission> {
+pub(crate) fn parse_host_permission_name(permission: &str) -> Option<Permission> {
     let canonical = permission
         .chars()
         .filter(|character| character.is_ascii_alphanumeric())

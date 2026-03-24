@@ -16,7 +16,7 @@ use crate::host::core::registry::{
 use crate::host::core::request::{
     HostRequest, HostRequestContext, HostRequestId, HostRequestOutcome, HostSessionContext,
 };
-#[cfg(test)]
+#[cfg(any(test, feature = "execution"))]
 use crate::host::core::without_native_ingress;
 use crate::host::operation::HostOperation;
 use crate::host::policy::require_declared_request;
@@ -24,7 +24,7 @@ use crate::runtime::capability::{PlatformCapability, PlatformCapabilityId, Platf
 use crate::runtime::poller::PollerWakeHandle;
 use crate::runtime::world::RuntimeId;
 
-/// Runtime-scoped attachment between one runtime session, one host adapter, and its host modules.
+/// Runtime-scoped session boundary between one runtime, one host adapter, and one host ingress queue.
 pub struct HostSession {
     /// Active host adapter for this runtime session.
     adapter: Arc<dyn HostAdapter>,
@@ -152,7 +152,7 @@ impl HostSession {
     }
 
     /// Create one host session from runtime options without native ambient ingress.
-    #[cfg(test)]
+    #[cfg(any(test, feature = "execution"))]
     pub(crate) fn from_runtime_options_without_native_ingress(
         options: &RuntimeOptions,
         runtime_id: RuntimeId,
@@ -213,9 +213,9 @@ impl HostSession {
         require_declared_request(self.platform(), &self.app_declaration, &request)?;
 
         // request context
-        let request_context = self.host_request_context();
+        let request_id = self.allocate_host_request_id();
 
-        self.adapter.submit_request(&request_context, request)
+        self.submit_request_with_id(request_id, request)
     }
 
     /// Submit one typed host operation through the active session.
@@ -265,12 +265,12 @@ impl HostSession {
         }
     }
 
-    /// Build one host request context for this session.
-    fn host_request_context(&self) -> HostRequestContext {
+    /// Build one host request context for one explicit request id.
+    fn host_request_context_with_id(&self, request_id: HostRequestId) -> HostRequestContext {
         let session_context = self.host_session_context();
 
         HostRequestContext {
-            request_id: self.allocate_request_id(),
+            request_id,
             host_session_id: session_context.host_session_id,
             platform: session_context.platform,
             os_options: session_context.os_options,
@@ -279,8 +279,23 @@ impl HostSession {
         }
     }
 
+    /// Submit one normalized runtime-owned host request with one explicit request id.
+    pub(crate) fn submit_request_with_id(
+        &self,
+        request_id: HostRequestId,
+        request: HostRequest,
+    ) -> RuntimeResult<HostRequestOutcome> {
+        // request declaration
+        require_declared_request(self.platform(), &self.app_declaration, &request)?;
+
+        // request context
+        let request_context = self.host_request_context_with_id(request_id);
+
+        self.adapter.submit_request(&request_context, request)
+    }
+
     /// Allocate one fresh request id for this host session.
-    fn allocate_request_id(&self) -> HostRequestId {
+    pub(crate) fn allocate_host_request_id(&self) -> HostRequestId {
         let request_id = self.next_host_request_id.fetch_add(1, Ordering::Relaxed);
 
         HostRequestId(request_id)
