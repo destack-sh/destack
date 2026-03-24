@@ -1503,6 +1503,61 @@ impl VmAbiCodec for DocumentHandle {
     }
 }
 
+/// ABI newtype for DocumentPickHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct DocumentPickHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type DocumentPickHandleVm = DocumentPickHandle;
+
+impl VmValueCodec for DocumentPickHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+impl VmCollectionElement for DocumentPickHandle {}
+
+/// Value type for DocumentPickHandle.
+pub type DocumentPickHandleValue = DocumentPickHandle;
+
+impl NativeAbiCodec for DocumentPickHandle {
+    type Value = DocumentPickHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for DocumentPickHandle {
+    type Value = DocumentPickHandleValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
 /// ABI newtype for FileHandle.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -2988,6 +3043,61 @@ impl VmAbiCodec for InputMonitorHandle {
     }
 }
 
+/// ABI newtype for InputTextSessionHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct InputTextSessionHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type InputTextSessionHandleVm = InputTextSessionHandle;
+
+impl VmValueCodec for InputTextSessionHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+impl VmCollectionElement for InputTextSessionHandle {}
+
+/// Value type for InputTextSessionHandle.
+pub type InputTextSessionHandleValue = InputTextSessionHandle;
+
+impl NativeAbiCodec for InputTextSessionHandle {
+    type Value = InputTextSessionHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for InputTextSessionHandle {
+    type Value = InputTextSessionHandleValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
 /// ABI newtype for InspectorHandle.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -3632,6 +3742,116 @@ impl NativeAbiCodec for NotificationEventHandle {
 
 impl VmAbiCodec for NotificationEventHandle {
     type Value = NotificationEventHandleValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for NotificationPermissionRequestHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct NotificationPermissionRequestHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type NotificationPermissionRequestHandleVm = NotificationPermissionRequestHandle;
+
+impl VmValueCodec for NotificationPermissionRequestHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+impl VmCollectionElement for NotificationPermissionRequestHandle {}
+
+/// Value type for NotificationPermissionRequestHandle.
+pub type NotificationPermissionRequestHandleValue = NotificationPermissionRequestHandle;
+
+impl NativeAbiCodec for NotificationPermissionRequestHandle {
+    type Value = NotificationPermissionRequestHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for NotificationPermissionRequestHandle {
+    type Value = NotificationPermissionRequestHandleValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for PermissionRequestHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct PermissionRequestHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type PermissionRequestHandleVm = PermissionRequestHandle;
+
+impl VmValueCodec for PermissionRequestHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+impl VmCollectionElement for PermissionRequestHandle {}
+
+/// Value type for PermissionRequestHandle.
+pub type PermissionRequestHandleValue = PermissionRequestHandle;
+
+impl NativeAbiCodec for PermissionRequestHandle {
+    type Value = PermissionRequestHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for PermissionRequestHandle {
+    type Value = PermissionRequestHandleValue;
 
     fn into_value(
         self,

@@ -3145,6 +3145,270 @@ impl VmAbiCodec for InputMonitorEventAbi<VmAbi> {
     }
 }
 
+/// ABI tagged union for InputTextSessionEvent.
+pub enum InputTextSessionEventAbi<A: BindingAbi> {
+    /// InputClipboardCommandEvent variant.
+    InputClipboardCommandEvent(platform_input::InputClipboardCommandEventAbi<A>),
+    /// InputCompositionEvent variant.
+    InputCompositionEvent(platform_input::InputCompositionEventAbi<A>),
+    /// InputEditIntentEvent variant.
+    InputEditIntentEvent(platform_input::InputEditIntentEventAbi<A>),
+    /// InputTextSessionStateEvent variant.
+    InputTextSessionStateEvent(platform_input::InputTextSessionStateEventAbi<A>),
+}
+
+pub type InputTextSessionEvent = InputTextSessionEventAbi<NativeAbi>;
+pub type InputTextSessionEventVm = InputTextSessionEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for InputTextSessionEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_tuple("InputTextSessionEventAbi").finish()
+    }
+}
+
+impl Copy for InputTextSessionEventAbi<NativeAbi> {}
+impl Clone for InputTextSessionEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for InputTextSessionEventAbi<VmAbi> {}
+impl Clone for InputTextSessionEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for InputTextSessionEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "InputTextSessionEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let decoded = match tag {
+            4057164605u32 => Self::InputClipboardCommandEvent(
+                <InputClipboardCommandEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            3333766718u32 => Self::InputCompositionEvent(
+                <InputCompositionEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            1399939898u32 => Self::InputEditIntentEvent(
+                <InputEditIntentEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            1300893244u32 => Self::InputTextSessionStateEvent(
+                <InputTextSessionStateEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown InputTextSessionEvent tag",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = match self {
+            Self::InputClipboardCommandEvent(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(4057164605u32, context)?;
+                let payload_value =
+                    <InputClipboardCommandEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::InputCompositionEvent(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(3333766718u32, context)?;
+                let payload_value =
+                    <InputCompositionEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::InputEditIntentEvent(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1399939898u32, context)?;
+                let payload_value =
+                    <InputEditIntentEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::InputTextSessionStateEvent(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1300893244u32, context)?;
+                let payload_value =
+                    <InputTextSessionStateEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+        };
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+impl VmCollectionElement for InputTextSessionEventAbi<VmAbi> {}
+
+/// Value type for InputTextSessionEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum InputTextSessionEventValue {
+    /// InputClipboardCommandEvent variant.
+    InputClipboardCommandEvent(InputClipboardCommandEventValue),
+    /// InputCompositionEvent variant.
+    InputCompositionEvent(InputCompositionEventValue),
+    /// InputEditIntentEvent variant.
+    InputEditIntentEvent(InputEditIntentEventValue),
+    /// InputTextSessionStateEvent variant.
+    InputTextSessionStateEvent(InputTextSessionStateEventValue),
+}
+
+impl NativeAbiCodec for InputTextSessionEventAbi<NativeAbi> {
+    type Value = InputTextSessionEventValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        let owned = match self {
+            Self::InputClipboardCommandEvent(value) => {
+                InputTextSessionEventValue::InputClipboardCommandEvent(unsafe {
+                    <InputClipboardCommandEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::InputCompositionEvent(value) => {
+                InputTextSessionEventValue::InputCompositionEvent(unsafe {
+                    <InputCompositionEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::InputEditIntentEvent(value) => {
+                InputTextSessionEventValue::InputEditIntentEvent(unsafe {
+                    <InputEditIntentEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::InputTextSessionStateEvent(value) => {
+                InputTextSessionEventValue::InputTextSessionStateEvent(unsafe {
+                    <InputTextSessionStateEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+        };
+        Ok(owned)
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        match value {
+            InputTextSessionEventValue::InputClipboardCommandEvent(value) => {
+                Self::InputClipboardCommandEvent(
+                    <InputClipboardCommandEvent as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
+            InputTextSessionEventValue::InputCompositionEvent(value) => {
+                Self::InputCompositionEvent(<InputCompositionEvent as NativeAbiCodec>::from_value(
+                    binding, value,
+                ))
+            }
+            InputTextSessionEventValue::InputEditIntentEvent(value) => Self::InputEditIntentEvent(
+                <InputEditIntentEvent as NativeAbiCodec>::from_value(binding, value),
+            ),
+            InputTextSessionEventValue::InputTextSessionStateEvent(value) => {
+                Self::InputTextSessionStateEvent(
+                    <InputTextSessionStateEvent as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
+        }
+    }
+}
+
+impl VmAbiCodec for InputTextSessionEventAbi<VmAbi> {
+    type Value = InputTextSessionEventValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        let owned = match self {
+            Self::InputClipboardCommandEvent(value) => {
+                InputTextSessionEventValue::InputClipboardCommandEvent(
+                    <InputClipboardCommandEventVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
+            Self::InputCompositionEvent(value) => {
+                InputTextSessionEventValue::InputCompositionEvent(
+                    <InputCompositionEventVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
+            Self::InputEditIntentEvent(value) => InputTextSessionEventValue::InputEditIntentEvent(
+                <InputEditIntentEventVm as VmAbiCodec>::into_value(value, context)?,
+            ),
+            Self::InputTextSessionStateEvent(value) => {
+                InputTextSessionEventValue::InputTextSessionStateEvent(
+                    <InputTextSessionStateEventVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
+        };
+        Ok(owned)
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        match value {
+            InputTextSessionEventValue::InputClipboardCommandEvent(value) => {
+                Ok(Self::InputClipboardCommandEvent(
+                    <InputClipboardCommandEventVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            InputTextSessionEventValue::InputCompositionEvent(value) => {
+                Ok(Self::InputCompositionEvent(
+                    <InputCompositionEventVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            InputTextSessionEventValue::InputEditIntentEvent(value) => {
+                Ok(Self::InputEditIntentEvent(
+                    <InputEditIntentEventVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            InputTextSessionEventValue::InputTextSessionStateEvent(value) => {
+                Ok(Self::InputTextSessionStateEvent(
+                    <InputTextSessionStateEventVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+        }
+    }
+}
+
 /// ABI tagged union for OsPath.
 pub enum OsPathAbi<A: BindingAbi> {
     /// OsPathBytes variant.
@@ -13402,6 +13666,420 @@ impl VmAbiCodec for InputTextRange {
 
 impl VmCollectionElement for InputTextRange {}
 
+/// ABI struct for InputTextSessionConfig.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct InputTextSessionConfig {
+    /// Window target when one explicit host window scope is required.
+    pub target: InputWindowTarget,
+    /// Text input type hint.
+    pub input_type: InputTextInputType,
+    /// Whether the session is multiline.
+    pub is_multiline: bool,
+    /// Whether the session is secure or password-like.
+    pub is_secure: bool,
+}
+
+pub type InputTextSessionConfigVm = InputTextSessionConfig;
+
+impl VmAggregateCodec for InputTextSessionConfig {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "InputTextSessionConfig",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let field_target =
+            <InputWindowTargetVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_input_type =
+            <InputTextInputType as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_is_multiline =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_is_secure = <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        Ok(Self {
+            target: field_target,
+            input_type: field_input_type,
+            is_multiline: field_is_multiline,
+            is_secure: field_is_secure,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <InputWindowTargetVm as VmAggregateCodec>::encode_with_context(self.target, context)?,
+            <InputTextInputType as VmAggregateCodec>::encode_with_context(
+                self.input_type,
+                context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(self.is_multiline, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.is_secure, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for InputTextSessionConfig.
+pub type InputTextSessionConfigValue = InputTextSessionConfig;
+
+impl NativeAbiCodec for InputTextSessionConfig {
+    type Value = InputTextSessionConfigValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for InputTextSessionConfig {
+    type Value = InputTextSessionConfigValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+impl VmCollectionElement for InputTextSessionConfig {}
+
+/// ABI struct for InputTextSessionState.
+#[repr(C)]
+pub struct InputTextSessionStateAbi<A: BindingAbi> {
+    /// Full text state.
+    pub text: A::String,
+    /// Current selection range in UTF-16 code units.
+    pub selection: InputTextRange,
+    /// Current composing range in UTF-16 code units when one composition is active.
+    pub composing: Option<InputTextRange>,
+}
+
+pub type InputTextSessionState = InputTextSessionStateAbi<NativeAbi>;
+pub type InputTextSessionStateVm = InputTextSessionStateAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for InputTextSessionStateAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("InputTextSessionStateAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for InputTextSessionStateAbi<NativeAbi> {}
+impl Clone for InputTextSessionStateAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for InputTextSessionStateAbi<VmAbi> {}
+impl Clone for InputTextSessionStateAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for InputTextSessionStateAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "InputTextSessionState",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_text =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_selection =
+            <InputTextRangeVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_composing =
+            <Option<InputTextRangeVm> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            text: field_text,
+            selection: field_selection,
+            composing: field_composing,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.text, context)?,
+            <InputTextRangeVm as VmAggregateCodec>::encode_with_context(self.selection, context)?,
+            <Option<InputTextRangeVm> as VmAggregateCodec>::encode_with_context(
+                self.composing,
+                context,
+            )?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+impl VmCollectionElement for InputTextSessionStateAbi<VmAbi> {}
+
+/// Value type for InputTextSessionState.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InputTextSessionStateValue {
+    /// Full text state.
+    pub text: String,
+    /// Current selection range in UTF-16 code units.
+    pub selection: InputTextRange,
+    /// Current composing range in UTF-16 code units when one composition is active.
+    pub composing: Option<InputTextRange>,
+}
+
+impl NativeAbiCodec for InputTextSessionStateAbi<NativeAbi> {
+    type Value = InputTextSessionStateValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(InputTextSessionStateValue {
+            text: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.text)? },
+            selection: unsafe { <InputTextRange as NativeAbiCodec>::into_value(self.selection)? },
+            composing: unsafe {
+                <Option<InputTextRange> as NativeAbiCodec>::into_value(self.composing)?
+            },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            text: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.text),
+            selection: <InputTextRange as NativeAbiCodec>::from_value(binding, value.selection),
+            composing: <Option<InputTextRange> as NativeAbiCodec>::from_value(
+                binding,
+                value.composing,
+            ),
+        }
+    }
+}
+
+impl VmAbiCodec for InputTextSessionStateAbi<VmAbi> {
+    type Value = InputTextSessionStateValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(InputTextSessionStateValue {
+            text: <vm::StringHandle as VmAbiCodec>::into_value(self.text, context)?,
+            selection: <InputTextRangeVm as VmAbiCodec>::into_value(self.selection, context)?,
+            composing: <Option<InputTextRangeVm> as VmAbiCodec>::into_value(
+                self.composing,
+                context,
+            )?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            text: <vm::StringHandle as VmAbiCodec>::from_value(context, value.text)?,
+            selection: <InputTextRangeVm as VmAbiCodec>::from_value(context, value.selection)?,
+            composing: <Option<InputTextRangeVm> as VmAbiCodec>::from_value(
+                context,
+                value.composing,
+            )?,
+        })
+    }
+}
+
+/// ABI struct for InputTextSessionStateEvent.
+#[repr(C)]
+pub struct InputTextSessionStateEventAbi<A: BindingAbi> {
+    /// Discriminator for this text event variant.
+    pub kind: A::String,
+    /// Shared event metadata.
+    pub metadata: platform_input::InputEventMetadataAbi<A>,
+    /// The current host text state.
+    pub state: platform_input::InputTextSessionStateAbi<A>,
+}
+
+pub type InputTextSessionStateEvent = InputTextSessionStateEventAbi<NativeAbi>;
+pub type InputTextSessionStateEventVm = InputTextSessionStateEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for InputTextSessionStateEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("InputTextSessionStateEventAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for InputTextSessionStateEventAbi<NativeAbi> {}
+impl Clone for InputTextSessionStateEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for InputTextSessionStateEventAbi<VmAbi> {}
+impl Clone for InputTextSessionStateEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for InputTextSessionStateEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "InputTextSessionStateEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <InputEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_state =
+            <InputTextSessionStateVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            kind: field_kind,
+            metadata: field_metadata,
+            state: field_state,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <InputEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <InputTextSessionStateVm as VmAggregateCodec>::encode_with_context(
+                self.state, context,
+            )?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+impl VmCollectionElement for InputTextSessionStateEventAbi<VmAbi> {}
+
+/// Value type for InputTextSessionStateEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InputTextSessionStateEventValue {
+    /// Discriminator for this text event variant.
+    pub kind: String,
+    /// Shared event metadata.
+    pub metadata: InputEventMetadataValue,
+    /// The current host text state.
+    pub state: InputTextSessionStateValue,
+}
+
+impl NativeAbiCodec for InputTextSessionStateEventAbi<NativeAbi> {
+    type Value = InputTextSessionStateEventValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(InputTextSessionStateEventValue {
+            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
+            metadata: unsafe { <InputEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
+            state: unsafe { <InputTextSessionState as NativeAbiCodec>::into_value(self.state)? },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
+            metadata: <InputEventMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
+            state: <InputTextSessionState as NativeAbiCodec>::from_value(binding, value.state),
+        }
+    }
+}
+
+impl VmAbiCodec for InputTextSessionStateEventAbi<VmAbi> {
+    type Value = InputTextSessionStateEventValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(InputTextSessionStateEventValue {
+            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
+            metadata: <InputEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
+            state: <InputTextSessionStateVm as VmAbiCodec>::into_value(self.state, context)?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+            metadata: <InputEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
+            state: <InputTextSessionStateVm as VmAbiCodec>::from_value(context, value.state)?,
+        })
+    }
+}
+
 /// ABI struct for InputTouchContactState.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -14963,6 +15641,28 @@ pub struct InputtexteventpayloadReplayRecord {
     pub is_composing: bool,
 }
 
+/// Replay struct for InputTextSessionState.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InputtextsessionstateReplayRecord {
+    /// Full text state.
+    pub text: String,
+    /// Current selection range in UTF-16 code units.
+    pub selection: InputTextRange,
+    /// Current composing range in UTF-16 code units when one composition is active.
+    pub composing: Option<InputTextRange>,
+}
+
+/// Replay struct for InputTextSessionStateEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InputtextsessionstateeventReplayRecord {
+    /// Discriminator for this text event variant.
+    pub kind: String,
+    /// Shared event metadata.
+    pub metadata: InputeventmetadataReplayRecord,
+    /// The current host text state.
+    pub state: InputtextsessionstateReplayRecord,
+}
+
 /// Replay struct for InputTouchEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InputtoucheventReplayRecord {
@@ -15039,6 +15739,19 @@ pub enum InputmonitoreventReplayRecord {
     InputMonitorConnectEvent(InputmonitorconnecteventReplayRecord),
     /// InputMonitorDisconnectEvent variant.
     InputMonitorDisconnectEvent(InputmonitordisconnecteventReplayRecord),
+}
+
+/// Replay enum for InputTextSessionEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum InputtextsessioneventReplayRecord {
+    /// InputClipboardCommandEvent variant.
+    InputClipboardCommandEvent(InputclipboardcommandeventReplayRecord),
+    /// InputCompositionEvent variant.
+    InputCompositionEvent(InputcompositioneventReplayRecord),
+    /// InputEditIntentEvent variant.
+    InputEditIntentEvent(InputeditintenteventReplayRecord),
+    /// InputTextSessionStateEvent variant.
+    InputTextSessionStateEvent(InputtextsessionstateeventReplayRecord),
 }
 
 /// Replay enum for OsPath.

@@ -59,14 +59,18 @@ use crate::platform::input::{
     InputSensorKind, InputSensorSample, InputSensorSampleVm, InputTextEvent, InputTextEventPayload,
     InputTextEventPayloadValue, InputTextEventPayloadVm, InputTextEventValue, InputTextEventVm,
     InputTextInputArea, InputTextInputAreaVm, InputTextInputType, InputTextRange, InputTextRangeVm,
-    InputTouchContactPhase, InputTouchContactState, InputTouchContactStateVm, InputTouchEvent,
-    InputTouchEventPayload, InputTouchEventPayloadVm, InputTouchEventValue, InputTouchEventVm,
-    InputTouchState, InputTouchStateValue, InputTouchStateVm, InputWheelDeltaMode,
-    InputWindowTarget, InputWindowTargetVm, InputclipboardcommandeventReplayRecord,
-    InputcompositioneventReplayRecord, InputcompositioneventpayloadReplayRecord,
-    InputdevicecapabilitiesReplayRecord, InputdevicedescriptorReplayRecord,
-    InputdeviceeventReplayRecord, InputeditintenteventReplayRecord, InputeventReplayRecord,
-    InputeventmetadataReplayRecord, InputgamepadeventReplayRecord, InputgamepadstateReplayRecord,
+    InputTextSessionConfig, InputTextSessionConfigVm, InputTextSessionEvent,
+    InputTextSessionEventValue, InputTextSessionEventVm, InputTextSessionState,
+    InputTextSessionStateEvent, InputTextSessionStateEventValue, InputTextSessionStateEventVm,
+    InputTextSessionStateValue, InputTextSessionStateVm, InputTouchContactPhase,
+    InputTouchContactState, InputTouchContactStateVm, InputTouchEvent, InputTouchEventPayload,
+    InputTouchEventPayloadVm, InputTouchEventValue, InputTouchEventVm, InputTouchState,
+    InputTouchStateValue, InputTouchStateVm, InputWheelDeltaMode, InputWindowTarget,
+    InputWindowTargetVm, InputclipboardcommandeventReplayRecord, InputcompositioneventReplayRecord,
+    InputcompositioneventpayloadReplayRecord, InputdevicecapabilitiesReplayRecord,
+    InputdevicedescriptorReplayRecord, InputdeviceeventReplayRecord,
+    InputeditintenteventReplayRecord, InputeventReplayRecord, InputeventmetadataReplayRecord,
+    InputgamepadeventReplayRecord, InputgamepadstateReplayRecord,
     InputkeyboardlayoutinfoReplayRecord, InputkeyboardstateReplayRecord, InputkeyeventReplayRecord,
     InputkeyeventpayloadReplayRecord, InputmonitorchangeeventReplayRecord,
     InputmonitorconnecteventReplayRecord, InputmonitordisconnecteventReplayRecord,
@@ -74,7 +78,9 @@ use crate::platform::input::{
     InputpointerbuttoneventReplayRecord, InputpointermotioneventReplayRecord,
     InputpointermotioneventpayloadReplayRecord, InputpointerstateReplayRecord,
     InputrawhidreportReplayRecord, InputscrolleventReplayRecord, InputsensoreventReplayRecord,
-    InputtexteventReplayRecord, InputtexteventpayloadReplayRecord, InputtoucheventReplayRecord,
+    InputtexteventReplayRecord, InputtexteventpayloadReplayRecord,
+    InputtextsessioneventReplayRecord, InputtextsessionstateReplayRecord,
+    InputtextsessionstateeventReplayRecord, InputtoucheventReplayRecord,
     InputtouchstateReplayRecord,
 };
 use crate::platform::{
@@ -3893,50 +3899,47 @@ fn encode_destack_input_sensor_try_read_result(
         .and_then(|value| value)
 }
 
+/// Decode arguments for destack.input.text.close.
+#[inline]
+fn decode_destack_input_text_close_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::InputTextSessionHandle,)> {
+    let session_value = arg_value(args, 0, "session", "InputTextSessionHandle")?;
+    let session_inner_inner = decode_uint64(
+        session_value,
+        "session_inner_inner",
+        "InputTextSessionHandle",
+    )?;
+    let session_inner = resource::ResourceId(session_inner_inner);
+    let session = resource::InputTextSessionHandle(session_inner);
+    Ok((session,))
+}
+
+/// Encode the result for destack.input.text.close.
+#[inline]
+fn encode_destack_input_text_close_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
 /// Decode arguments for destack.input.text.getArea.
 #[inline]
 fn decode_destack_input_text_get_area_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(resource::InputDeviceHandle, InputWindowTargetVm)> {
-    let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
-    let handle_inner_inner =
-        decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
-    let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::InputDeviceHandle(handle_inner);
-    let target_value = arg_value(args, 1, "target", "InputWindowTarget")?;
-    let target = {
-        if target_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "target",
-                "InputWindowTarget",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(target_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 1 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "target",
-                "expected 1 fields",
-            ))
-            .boxed());
-        }
-        let target_window = if slots[0].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let target_window_inner_inner_inner =
-                decode_uint64(slots[0], "target_window_inner_inner_inner", "window")?;
-            let target_window_inner_inner = resource::ResourceId(target_window_inner_inner_inner);
-            let target_window_inner = resource::WindowHandle(target_window_inner_inner);
-            Some(target_window_inner)
-        };
-        InputWindowTargetVm {
-            window: target_window,
-        }
-    };
-    Ok((handle, target))
+) -> RuntimeResult<(resource::InputTextSessionHandle,)> {
+    let session_value = arg_value(args, 0, "session", "InputTextSessionHandle")?;
+    let session_inner_inner = decode_uint64(
+        session_value,
+        "session_inner_inner",
+        "InputTextSessionHandle",
+    )?;
+    let session_inner = resource::ResourceId(session_inner_inner);
+    let session = resource::InputTextSessionHandle(session_inner);
+    Ok((session,))
 }
 
 /// Encode the result for destack.input.text.getArea.
@@ -3959,224 +3962,421 @@ fn encode_destack_input_text_get_area_result(
         .and_then(|value| value)
 }
 
-/// Decode arguments for destack.input.text.isActive.
+/// Decode arguments for destack.input.text.open.
 #[inline]
-fn decode_destack_input_text_is_active_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+fn decode_destack_input_text_open_args(
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(resource::InputDeviceHandle,)> {
-    let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
-    let handle_inner_inner =
-        decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
-    let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::InputDeviceHandle(handle_inner);
-    Ok((handle,))
+) -> RuntimeResult<(InputTextSessionConfigVm, InputTextSessionStateVm)> {
+    let config_value = arg_value(args, 0, "config", "InputTextSessionConfig")?;
+    let config = {
+        if config_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "config",
+                "InputTextSessionConfig",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(config_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "config",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let config_target = {
+            if slots[0].tag() != vm::ValueTag::Aggregate {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                    "config_target",
+                    "target",
+                ))
+                .boxed());
+            }
+            let slots = context
+                .aggregate_slots(slots[0])
+                .map_err(|error| RuntimeError::from(error).boxed())?;
+            if slots.len() != 1 {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "config_target",
+                    "expected 1 fields",
+                ))
+                .boxed());
+            }
+            let config_target_window = if slots[0].tag() == vm::ValueTag::Void {
+                None
+            } else {
+                let config_target_window_inner_inner_inner =
+                    decode_uint64(slots[0], "config_target_window_inner_inner_inner", "window")?;
+                let config_target_window_inner_inner =
+                    resource::ResourceId(config_target_window_inner_inner_inner);
+                let config_target_window_inner =
+                    resource::WindowHandle(config_target_window_inner_inner);
+                Some(config_target_window_inner)
+            };
+            InputWindowTargetVm {
+                window: config_target_window,
+            }
+        };
+        let config_input_type_raw = decode_int32(slots[1], "config_input_type_raw", "inputType")?;
+        let config_input_type = match config_input_type_raw {
+            0i32 => InputTextInputType::Text,
+            1i32 => InputTextInputType::Number,
+            2i32 => InputTextInputType::Email,
+            3i32 => InputTextInputType::Url,
+            4i32 => InputTextInputType::Password,
+            5i32 => InputTextInputType::Phone,
+            6i32 => InputTextInputType::Search,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "config_input_type",
+                    "unknown InputTextInputType value",
+                ))
+                .boxed());
+            }
+        };
+        let config_is_multiline = decode_bool(slots[2], "config_is_multiline", "isMultiline")?;
+        let config_is_secure = decode_bool(slots[3], "config_is_secure", "isSecure")?;
+        InputTextSessionConfigVm {
+            target: config_target,
+            input_type: config_input_type,
+            is_multiline: config_is_multiline,
+            is_secure: config_is_secure,
+        }
+    };
+    let state_value = arg_value(args, 1, "state", "InputTextSessionState")?;
+    let state = {
+        if state_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "state",
+                "InputTextSessionState",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(state_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "state",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let state_text = decode_string(slots[0], "state_text", "text")?;
+        let state_selection = {
+            if slots[1].tag() != vm::ValueTag::Aggregate {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                    "state_selection",
+                    "selection",
+                ))
+                .boxed());
+            }
+            let slots = context
+                .aggregate_slots(slots[1])
+                .map_err(|error| RuntimeError::from(error).boxed())?;
+            if slots.len() != 2 {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "state_selection",
+                    "expected 2 fields",
+                ))
+                .boxed());
+            }
+            let state_selection_start_offset =
+                decode_uint32(slots[0], "state_selection_start_offset", "startOffset")?;
+            let state_selection_end_offset =
+                decode_uint32(slots[1], "state_selection_end_offset", "endOffset")?;
+            InputTextRangeVm {
+                start_offset: state_selection_start_offset,
+                end_offset: state_selection_end_offset,
+            }
+        };
+        let state_composing = if slots[2].tag() == vm::ValueTag::Void {
+            None
+        } else {
+            let state_composing_inner = {
+                if slots[2].tag() != vm::ValueTag::Aggregate {
+                    return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                        "state_composing_inner",
+                        "composing",
+                    ))
+                    .boxed());
+                }
+                let slots = context
+                    .aggregate_slots(slots[2])
+                    .map_err(|error| RuntimeError::from(error).boxed())?;
+                if slots.len() != 2 {
+                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                        "state_composing_inner",
+                        "expected 2 fields",
+                    ))
+                    .boxed());
+                }
+                let state_composing_inner_start_offset = decode_uint32(
+                    slots[0],
+                    "state_composing_inner_start_offset",
+                    "startOffset",
+                )?;
+                let state_composing_inner_end_offset =
+                    decode_uint32(slots[1], "state_composing_inner_end_offset", "endOffset")?;
+                InputTextRangeVm {
+                    start_offset: state_composing_inner_start_offset,
+                    end_offset: state_composing_inner_end_offset,
+                }
+            };
+            Some(state_composing_inner)
+        };
+        InputTextSessionStateVm {
+            text: state_text,
+            selection: state_selection,
+            composing: state_composing,
+        }
+    };
+    Ok((config, state))
 }
 
-/// Encode the result for destack.input.text.isActive.
+/// Encode the result for destack.input.text.open.
 #[inline]
-fn encode_destack_input_text_is_active_result(
+fn encode_destack_input_text_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<bool>,
+    result: RuntimeResult<resource::InputTextSessionHandle>,
 ) -> RuntimeResult<vm::Value> {
     result
-        .map(|value| Ok(vm::Value::bool(value)))
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
         .and_then(|value| value)
 }
 
-/// Decode arguments for destack.input.text.readClipboardCommand.
+/// Decode arguments for destack.input.text.readEvent.
 #[inline]
-fn decode_destack_input_text_read_clipboard_command_args(
+fn decode_destack_input_text_read_event_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(resource::InputDeviceHandle,)> {
-    let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
-    let handle_inner_inner =
-        decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
-    let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::InputDeviceHandle(handle_inner);
-    Ok((handle,))
+) -> RuntimeResult<(resource::InputTextSessionHandle,)> {
+    let session_value = arg_value(args, 0, "session", "InputTextSessionHandle")?;
+    let session_inner_inner = decode_uint64(
+        session_value,
+        "session_inner_inner",
+        "InputTextSessionHandle",
+    )?;
+    let session_inner = resource::ResourceId(session_inner_inner);
+    let session = resource::InputTextSessionHandle(session_inner);
+    Ok((session,))
 }
 
-/// Encode the result for destack.input.text.readClipboardCommand.
+/// Encode the result for destack.input.text.readEvent.
 #[inline]
-fn encode_destack_input_text_read_clipboard_command_result(
+fn encode_destack_input_text_read_event_result(
     context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<InputClipboardCommandEventVm>,
+    result: RuntimeResult<InputTextSessionEventVm>,
 ) -> RuntimeResult<vm::Value> {
     result
-        .map(|value| {
-            let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-            let field_1: RuntimeResult<vm::Value> = {
-                let field_0: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                let field_1: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.metadata.sequence, 64));
-                let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.device_id.value());
-                let field_3: RuntimeResult<vm::Value> = match value.metadata.target_window {
-                    Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                    None => Ok(vm::Value::VOID),
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                    .map_err(Box::<RuntimeError>::from)
-            };
-            let field_2: RuntimeResult<vm::Value> =
-                Ok(vm::Value::int(value.command as i32 as i64, 32));
-            let field_3: RuntimeResult<vm::Value> = match value.clipboard_items {
-                Some(value) => value.to_value(context),
-                None => Ok(vm::Value::VOID),
-            };
-            let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_composing));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                .map_err(Box::<RuntimeError>::from)
-        })
-        .and_then(|value| value)
-}
-
-/// Decode arguments for destack.input.text.readComposition.
-#[inline]
-fn decode_destack_input_text_read_composition_args(
-    _context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(resource::InputDeviceHandle,)> {
-    let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
-    let handle_inner_inner =
-        decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
-    let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::InputDeviceHandle(handle_inner);
-    Ok((handle,))
-}
-
-/// Encode the result for destack.input.text.readComposition.
-#[inline]
-fn encode_destack_input_text_read_composition_result(
-    context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<InputCompositionEventVm>,
-) -> RuntimeResult<vm::Value> {
-    result
-        .map(|value| {
-            let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-            let field_1: RuntimeResult<vm::Value> = {
-                let field_0: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                let field_1: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.metadata.sequence, 64));
-                let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.device_id.value());
-                let field_3: RuntimeResult<vm::Value> = match value.metadata.target_window {
-                    Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                    None => Ok(vm::Value::VOID),
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                    .map_err(Box::<RuntimeError>::from)
-            };
-            let field_2: RuntimeResult<vm::Value> = {
-                let field_0: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::int(value.payload.action as i32 as i64, 32));
-                let field_1: RuntimeResult<vm::Value> = Ok(value.payload.text.value());
-                let field_2: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::int(value.payload.selection_start as i64, 32));
-                let field_3: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::int(value.payload.selection_end as i64, 32));
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                    .map_err(Box::<RuntimeError>::from)
-            };
-            context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                .map_err(Box::<RuntimeError>::from)
-        })
-        .and_then(|value| value)
-}
-
-/// Decode arguments for destack.input.text.readEditIntent.
-#[inline]
-fn decode_destack_input_text_read_edit_intent_args(
-    _context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(resource::InputDeviceHandle,)> {
-    let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
-    let handle_inner_inner =
-        decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
-    let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::InputDeviceHandle(handle_inner);
-    Ok((handle,))
-}
-
-/// Encode the result for destack.input.text.readEditIntent.
-#[inline]
-fn encode_destack_input_text_read_edit_intent_result(
-    context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<InputEditIntentEventVm>,
-) -> RuntimeResult<vm::Value> {
-    result
-        .map(|value| {
-            let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-            let field_1: RuntimeResult<vm::Value> = {
-                let field_0: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                let field_1: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.metadata.sequence, 64));
-                let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.device_id.value());
-                let field_3: RuntimeResult<vm::Value> = match value.metadata.target_window {
-                    Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                    None => Ok(vm::Value::VOID),
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                    .map_err(Box::<RuntimeError>::from)
-            };
-            let field_2: RuntimeResult<vm::Value> =
-                Ok(vm::Value::int(value.input_type as i32 as i64, 32));
-            let field_3: RuntimeResult<vm::Value> = match value.data {
-                Some(value) => Ok(value.value()),
-                None => Ok(vm::Value::VOID),
-            };
-            let field_4: RuntimeResult<vm::Value> = value.target_ranges.to_value(context);
-            let field_5: RuntimeResult<vm::Value> = match value.clipboard_items {
-                Some(value) => value.to_value(context),
-                None => Ok(vm::Value::VOID),
-            };
-            let field_6: RuntimeResult<vm::Value> = match value.drag {
-                Some(value) => {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.session.0.0, 64));
-                    let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_external));
+        .map(|value| match value {
+            InputTextSessionEventVm::InputClipboardCommandEvent(value) => {
+                let tag_value = vm::Value::uint(4057164605u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.device_id.value());
+                        let field_3: RuntimeResult<vm::Value> = match value.metadata.target_window {
+                            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.allowed_operations.0 as u64, 32));
-                    let field_3: RuntimeResult<vm::Value> = match value.proposed_operation {
-                        Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                        Ok(vm::Value::int(value.command as i32 as i64, 32));
+                    let field_3: RuntimeResult<vm::Value> = match value.clipboard_items {
+                        Some(value) => value.to_value(context),
                         None => Ok(vm::Value::VOID),
                     };
-                    let field_4: RuntimeResult<vm::Value> = match value.position {
+                    let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_composing));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            InputTextSessionEventVm::InputCompositionEvent(value) => {
+                let tag_value = vm::Value::uint(3333766718u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.device_id.value());
+                        let field_3: RuntimeResult<vm::Value> = match value.metadata.target_window {
+                            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.action as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> = Ok(value.payload.text.value());
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.selection_start as i64, 32));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.selection_end as i64, 32));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            InputTextSessionEventVm::InputEditIntentEvent(value) => {
+                let tag_value = vm::Value::uint(1399939898u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.device_id.value());
+                        let field_3: RuntimeResult<vm::Value> = match value.metadata.target_window {
+                            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::int(value.input_type as i32 as i64, 32));
+                    let field_3: RuntimeResult<vm::Value> = match value.data {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
+                    };
+                    let field_4: RuntimeResult<vm::Value> = value.target_ranges.to_value(context);
+                    let field_5: RuntimeResult<vm::Value> = match value.clipboard_items {
+                        Some(value) => value.to_value(context),
+                        None => Ok(vm::Value::VOID),
+                    };
+                    let field_6: RuntimeResult<vm::Value> = match value.drag {
                         Some(value) => {
                             let field_0: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.x as i64, 32));
+                                Ok(vm::Value::uint(value.session.0.0, 64));
                             let field_1: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.y as i64, 32));
+                                Ok(vm::Value::bool(value.is_external));
+                            let field_2: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::uint(value.allowed_operations.0 as u64, 32));
+                            let field_3: RuntimeResult<vm::Value> = match value.proposed_operation {
+                                Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                            let field_4: RuntimeResult<vm::Value> = match value.position {
+                                Some(value) => {
+                                    let field_0: RuntimeResult<vm::Value> =
+                                        Ok(vm::Value::int(value.x as i64, 32));
+                                    let field_1: RuntimeResult<vm::Value> =
+                                        Ok(vm::Value::int(value.y as i64, 32));
+                                    context
+                                        .allocate_aggregate(vec![field_0?, field_1?])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }
+                                None => Ok(vm::Value::VOID),
+                            };
+                            let field_5: RuntimeResult<vm::Value> = value.items.to_value(context);
                             context
-                                .allocate_aggregate(vec![field_0?, field_1?])
+                                .allocate_aggregate(vec![
+                                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                ])
                                 .map_err(Box::<RuntimeError>::from)
                         }
                         None => Ok(vm::Value::VOID),
                     };
-                    let field_5: RuntimeResult<vm::Value> = value.items.to_value(context);
+                    let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_composing));
                     context
                         .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
+                            field_7?,
                         ])
                         .map_err(Box::<RuntimeError>::from)
-                }
-                None => Ok(vm::Value::VOID),
-            };
-            let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_composing));
-            context
-                .allocate_aggregate(vec![
-                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                ])
-                .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            InputTextSessionEventVm::InputTextSessionStateEvent(value) => {
+                let tag_value = vm::Value::uint(1300893244u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.device_id.value());
+                        let field_3: RuntimeResult<vm::Value> = match value.metadata.target_window {
+                            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = Ok(value.state.text.value());
+                        let field_1: RuntimeResult<vm::Value> = {
+                            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.state.selection.start_offset as u64,
+                                32,
+                            ));
+                            let field_1: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::uint(value.state.selection.end_offset as u64, 32));
+                            context
+                                .allocate_aggregate(vec![field_0?, field_1?])
+                                .map_err(Box::<RuntimeError>::from)
+                        };
+                        let field_2: RuntimeResult<vm::Value> = match value.state.composing {
+                            Some(value) => {
+                                let field_0: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.start_offset as u64, 32));
+                                let field_1: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.end_offset as u64, 32));
+                                context
+                                    .allocate_aggregate(vec![field_0?, field_1?])
+                                    .map_err(Box::<RuntimeError>::from)
+                            }
+                            None => Ok(vm::Value::VOID),
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
         })
         .and_then(|value| value)
 }
@@ -4186,49 +4386,16 @@ fn encode_destack_input_text_read_edit_intent_result(
 fn decode_destack_input_text_set_area_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(
-    resource::InputDeviceHandle,
-    InputWindowTargetVm,
-    InputTextInputAreaVm,
-)> {
-    let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
-    let handle_inner_inner =
-        decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
-    let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::InputDeviceHandle(handle_inner);
-    let target_value = arg_value(args, 1, "target", "InputWindowTarget")?;
-    let target = {
-        if target_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "target",
-                "InputWindowTarget",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(target_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 1 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "target",
-                "expected 1 fields",
-            ))
-            .boxed());
-        }
-        let target_window = if slots[0].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let target_window_inner_inner_inner =
-                decode_uint64(slots[0], "target_window_inner_inner_inner", "window")?;
-            let target_window_inner_inner = resource::ResourceId(target_window_inner_inner_inner);
-            let target_window_inner = resource::WindowHandle(target_window_inner_inner);
-            Some(target_window_inner)
-        };
-        InputWindowTargetVm {
-            window: target_window,
-        }
-    };
-    let area_value = arg_value(args, 2, "area", "InputTextInputArea")?;
+) -> RuntimeResult<(resource::InputTextSessionHandle, InputTextInputAreaVm)> {
+    let session_value = arg_value(args, 0, "session", "InputTextSessionHandle")?;
+    let session_inner_inner = decode_uint64(
+        session_value,
+        "session_inner_inner",
+        "InputTextSessionHandle",
+    )?;
+    let session_inner = resource::ResourceId(session_inner_inner);
+    let session = resource::InputTextSessionHandle(session_inner);
+    let area_value = arg_value(args, 1, "area", "InputTextInputArea")?;
     let area = {
         if area_value.tag() != vm::ValueTag::Aggregate {
             return Err(RuntimeError::from(PlatformError::invalid_argument_type(
@@ -4260,7 +4427,7 @@ fn decode_destack_input_text_set_area_args(
             cursor: area_cursor,
         }
     };
-    Ok((handle, target, area))
+    Ok((session, area))
 }
 
 /// Encode the result for destack.input.text.setArea.
@@ -4272,331 +4439,349 @@ fn encode_destack_input_text_set_area_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.input.text.start.
+/// Decode arguments for destack.input.text.setState.
 #[inline]
-fn decode_destack_input_text_start_args(
+fn decode_destack_input_text_set_state_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(
-    resource::InputDeviceHandle,
-    InputWindowTargetVm,
-    InputTextInputType,
-)> {
-    let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
-    let handle_inner_inner =
-        decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
-    let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::InputDeviceHandle(handle_inner);
-    let target_value = arg_value(args, 1, "target", "InputWindowTarget")?;
-    let target = {
-        if target_value.tag() != vm::ValueTag::Aggregate {
+) -> RuntimeResult<(resource::InputTextSessionHandle, InputTextSessionStateVm)> {
+    let session_value = arg_value(args, 0, "session", "InputTextSessionHandle")?;
+    let session_inner_inner = decode_uint64(
+        session_value,
+        "session_inner_inner",
+        "InputTextSessionHandle",
+    )?;
+    let session_inner = resource::ResourceId(session_inner_inner);
+    let session = resource::InputTextSessionHandle(session_inner);
+    let state_value = arg_value(args, 1, "state", "InputTextSessionState")?;
+    let state = {
+        if state_value.tag() != vm::ValueTag::Aggregate {
             return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "target",
-                "InputWindowTarget",
+                "state",
+                "InputTextSessionState",
             ))
             .boxed());
         }
         let slots = context
-            .aggregate_slots(target_value)
+            .aggregate_slots(state_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 1 {
+        if slots.len() != 3 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "target",
-                "expected 1 fields",
+                "state",
+                "expected 3 fields",
             ))
             .boxed());
         }
-        let target_window = if slots[0].tag() == vm::ValueTag::Void {
+        let state_text = decode_string(slots[0], "state_text", "text")?;
+        let state_selection = {
+            if slots[1].tag() != vm::ValueTag::Aggregate {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                    "state_selection",
+                    "selection",
+                ))
+                .boxed());
+            }
+            let slots = context
+                .aggregate_slots(slots[1])
+                .map_err(|error| RuntimeError::from(error).boxed())?;
+            if slots.len() != 2 {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "state_selection",
+                    "expected 2 fields",
+                ))
+                .boxed());
+            }
+            let state_selection_start_offset =
+                decode_uint32(slots[0], "state_selection_start_offset", "startOffset")?;
+            let state_selection_end_offset =
+                decode_uint32(slots[1], "state_selection_end_offset", "endOffset")?;
+            InputTextRangeVm {
+                start_offset: state_selection_start_offset,
+                end_offset: state_selection_end_offset,
+            }
+        };
+        let state_composing = if slots[2].tag() == vm::ValueTag::Void {
             None
         } else {
-            let target_window_inner_inner_inner =
-                decode_uint64(slots[0], "target_window_inner_inner_inner", "window")?;
-            let target_window_inner_inner = resource::ResourceId(target_window_inner_inner_inner);
-            let target_window_inner = resource::WindowHandle(target_window_inner_inner);
-            Some(target_window_inner)
+            let state_composing_inner = {
+                if slots[2].tag() != vm::ValueTag::Aggregate {
+                    return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                        "state_composing_inner",
+                        "composing",
+                    ))
+                    .boxed());
+                }
+                let slots = context
+                    .aggregate_slots(slots[2])
+                    .map_err(|error| RuntimeError::from(error).boxed())?;
+                if slots.len() != 2 {
+                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                        "state_composing_inner",
+                        "expected 2 fields",
+                    ))
+                    .boxed());
+                }
+                let state_composing_inner_start_offset = decode_uint32(
+                    slots[0],
+                    "state_composing_inner_start_offset",
+                    "startOffset",
+                )?;
+                let state_composing_inner_end_offset =
+                    decode_uint32(slots[1], "state_composing_inner_end_offset", "endOffset")?;
+                InputTextRangeVm {
+                    start_offset: state_composing_inner_start_offset,
+                    end_offset: state_composing_inner_end_offset,
+                }
+            };
+            Some(state_composing_inner)
         };
-        InputWindowTargetVm {
-            window: target_window,
+        InputTextSessionStateVm {
+            text: state_text,
+            selection: state_selection,
+            composing: state_composing,
         }
     };
-    let inputtype_value = arg_value(args, 2, "inputtype", "InputTextInputType")?;
-    let inputtype_raw = decode_int32(inputtype_value, "inputtype_raw", "InputTextInputType")?;
-    let inputtype = match inputtype_raw {
-        0i32 => InputTextInputType::Text,
-        1i32 => InputTextInputType::Number,
-        2i32 => InputTextInputType::Email,
-        3i32 => InputTextInputType::Url,
-        4i32 => InputTextInputType::Password,
-        5i32 => InputTextInputType::Phone,
-        6i32 => InputTextInputType::Search,
-        _ => {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "inputtype",
-                "unknown InputTextInputType value",
-            ))
-            .boxed());
-        }
-    };
-    Ok((handle, target, inputtype))
+    Ok((session, state))
 }
 
-/// Encode the result for destack.input.text.start.
+/// Encode the result for destack.input.text.setState.
 #[inline]
-fn encode_destack_input_text_start_result(
+fn encode_destack_input_text_set_state_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.input.text.stop.
+/// Decode arguments for destack.input.text.tryReadEvent.
 #[inline]
-fn decode_destack_input_text_stop_args(
-    context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(resource::InputDeviceHandle, InputWindowTargetVm)> {
-    let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
-    let handle_inner_inner =
-        decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
-    let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::InputDeviceHandle(handle_inner);
-    let target_value = arg_value(args, 1, "target", "InputWindowTarget")?;
-    let target = {
-        if target_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "target",
-                "InputWindowTarget",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(target_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 1 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "target",
-                "expected 1 fields",
-            ))
-            .boxed());
-        }
-        let target_window = if slots[0].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let target_window_inner_inner_inner =
-                decode_uint64(slots[0], "target_window_inner_inner_inner", "window")?;
-            let target_window_inner_inner = resource::ResourceId(target_window_inner_inner_inner);
-            let target_window_inner = resource::WindowHandle(target_window_inner_inner);
-            Some(target_window_inner)
-        };
-        InputWindowTargetVm {
-            window: target_window,
-        }
-    };
-    Ok((handle, target))
-}
-
-/// Encode the result for destack.input.text.stop.
-#[inline]
-fn encode_destack_input_text_stop_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<()>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|_| vm::Value::VOID)
-}
-
-/// Decode arguments for destack.input.text.tryReadClipboardCommand.
-#[inline]
-fn decode_destack_input_text_try_read_clipboard_command_args(
+fn decode_destack_input_text_try_read_event_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(resource::InputDeviceHandle,)> {
-    let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
-    let handle_inner_inner =
-        decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
-    let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::InputDeviceHandle(handle_inner);
-    Ok((handle,))
+) -> RuntimeResult<(resource::InputTextSessionHandle,)> {
+    let session_value = arg_value(args, 0, "session", "InputTextSessionHandle")?;
+    let session_inner_inner = decode_uint64(
+        session_value,
+        "session_inner_inner",
+        "InputTextSessionHandle",
+    )?;
+    let session_inner = resource::ResourceId(session_inner_inner);
+    let session = resource::InputTextSessionHandle(session_inner);
+    Ok((session,))
 }
 
-/// Encode the result for destack.input.text.tryReadClipboardCommand.
+/// Encode the result for destack.input.text.tryReadEvent.
 #[inline]
-fn encode_destack_input_text_try_read_clipboard_command_result(
+fn encode_destack_input_text_try_read_event_result(
     context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<InputClipboardCommandEventVm>,
+    result: RuntimeResult<InputTextSessionEventVm>,
 ) -> RuntimeResult<vm::Value> {
     result
-        .map(|value| {
-            let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-            let field_1: RuntimeResult<vm::Value> = {
-                let field_0: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                let field_1: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.metadata.sequence, 64));
-                let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.device_id.value());
-                let field_3: RuntimeResult<vm::Value> = match value.metadata.target_window {
-                    Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                    None => Ok(vm::Value::VOID),
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                    .map_err(Box::<RuntimeError>::from)
-            };
-            let field_2: RuntimeResult<vm::Value> =
-                Ok(vm::Value::int(value.command as i32 as i64, 32));
-            let field_3: RuntimeResult<vm::Value> = match value.clipboard_items {
-                Some(value) => value.to_value(context),
-                None => Ok(vm::Value::VOID),
-            };
-            let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_composing));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                .map_err(Box::<RuntimeError>::from)
-        })
-        .and_then(|value| value)
-}
-
-/// Decode arguments for destack.input.text.tryReadComposition.
-#[inline]
-fn decode_destack_input_text_try_read_composition_args(
-    _context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(resource::InputDeviceHandle,)> {
-    let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
-    let handle_inner_inner =
-        decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
-    let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::InputDeviceHandle(handle_inner);
-    Ok((handle,))
-}
-
-/// Encode the result for destack.input.text.tryReadComposition.
-#[inline]
-fn encode_destack_input_text_try_read_composition_result(
-    context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<InputCompositionEventVm>,
-) -> RuntimeResult<vm::Value> {
-    result
-        .map(|value| {
-            let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-            let field_1: RuntimeResult<vm::Value> = {
-                let field_0: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                let field_1: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.metadata.sequence, 64));
-                let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.device_id.value());
-                let field_3: RuntimeResult<vm::Value> = match value.metadata.target_window {
-                    Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                    None => Ok(vm::Value::VOID),
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                    .map_err(Box::<RuntimeError>::from)
-            };
-            let field_2: RuntimeResult<vm::Value> = {
-                let field_0: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::int(value.payload.action as i32 as i64, 32));
-                let field_1: RuntimeResult<vm::Value> = Ok(value.payload.text.value());
-                let field_2: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::int(value.payload.selection_start as i64, 32));
-                let field_3: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::int(value.payload.selection_end as i64, 32));
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                    .map_err(Box::<RuntimeError>::from)
-            };
-            context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                .map_err(Box::<RuntimeError>::from)
-        })
-        .and_then(|value| value)
-}
-
-/// Decode arguments for destack.input.text.tryReadEditIntent.
-#[inline]
-fn decode_destack_input_text_try_read_edit_intent_args(
-    _context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(resource::InputDeviceHandle,)> {
-    let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
-    let handle_inner_inner =
-        decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
-    let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::InputDeviceHandle(handle_inner);
-    Ok((handle,))
-}
-
-/// Encode the result for destack.input.text.tryReadEditIntent.
-#[inline]
-fn encode_destack_input_text_try_read_edit_intent_result(
-    context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<InputEditIntentEventVm>,
-) -> RuntimeResult<vm::Value> {
-    result
-        .map(|value| {
-            let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-            let field_1: RuntimeResult<vm::Value> = {
-                let field_0: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                let field_1: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.metadata.sequence, 64));
-                let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.device_id.value());
-                let field_3: RuntimeResult<vm::Value> = match value.metadata.target_window {
-                    Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                    None => Ok(vm::Value::VOID),
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                    .map_err(Box::<RuntimeError>::from)
-            };
-            let field_2: RuntimeResult<vm::Value> =
-                Ok(vm::Value::int(value.input_type as i32 as i64, 32));
-            let field_3: RuntimeResult<vm::Value> = match value.data {
-                Some(value) => Ok(value.value()),
-                None => Ok(vm::Value::VOID),
-            };
-            let field_4: RuntimeResult<vm::Value> = value.target_ranges.to_value(context);
-            let field_5: RuntimeResult<vm::Value> = match value.clipboard_items {
-                Some(value) => value.to_value(context),
-                None => Ok(vm::Value::VOID),
-            };
-            let field_6: RuntimeResult<vm::Value> = match value.drag {
-                Some(value) => {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.session.0.0, 64));
-                    let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_external));
+        .map(|value| match value {
+            InputTextSessionEventVm::InputClipboardCommandEvent(value) => {
+                let tag_value = vm::Value::uint(4057164605u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.device_id.value());
+                        let field_3: RuntimeResult<vm::Value> = match value.metadata.target_window {
+                            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.allowed_operations.0 as u64, 32));
-                    let field_3: RuntimeResult<vm::Value> = match value.proposed_operation {
-                        Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                        Ok(vm::Value::int(value.command as i32 as i64, 32));
+                    let field_3: RuntimeResult<vm::Value> = match value.clipboard_items {
+                        Some(value) => value.to_value(context),
                         None => Ok(vm::Value::VOID),
                     };
-                    let field_4: RuntimeResult<vm::Value> = match value.position {
+                    let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_composing));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            InputTextSessionEventVm::InputCompositionEvent(value) => {
+                let tag_value = vm::Value::uint(3333766718u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.device_id.value());
+                        let field_3: RuntimeResult<vm::Value> = match value.metadata.target_window {
+                            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.action as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> = Ok(value.payload.text.value());
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.selection_start as i64, 32));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.selection_end as i64, 32));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            InputTextSessionEventVm::InputEditIntentEvent(value) => {
+                let tag_value = vm::Value::uint(1399939898u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.device_id.value());
+                        let field_3: RuntimeResult<vm::Value> = match value.metadata.target_window {
+                            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::int(value.input_type as i32 as i64, 32));
+                    let field_3: RuntimeResult<vm::Value> = match value.data {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
+                    };
+                    let field_4: RuntimeResult<vm::Value> = value.target_ranges.to_value(context);
+                    let field_5: RuntimeResult<vm::Value> = match value.clipboard_items {
+                        Some(value) => value.to_value(context),
+                        None => Ok(vm::Value::VOID),
+                    };
+                    let field_6: RuntimeResult<vm::Value> = match value.drag {
                         Some(value) => {
                             let field_0: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.x as i64, 32));
+                                Ok(vm::Value::uint(value.session.0.0, 64));
                             let field_1: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.y as i64, 32));
+                                Ok(vm::Value::bool(value.is_external));
+                            let field_2: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::uint(value.allowed_operations.0 as u64, 32));
+                            let field_3: RuntimeResult<vm::Value> = match value.proposed_operation {
+                                Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                            let field_4: RuntimeResult<vm::Value> = match value.position {
+                                Some(value) => {
+                                    let field_0: RuntimeResult<vm::Value> =
+                                        Ok(vm::Value::int(value.x as i64, 32));
+                                    let field_1: RuntimeResult<vm::Value> =
+                                        Ok(vm::Value::int(value.y as i64, 32));
+                                    context
+                                        .allocate_aggregate(vec![field_0?, field_1?])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }
+                                None => Ok(vm::Value::VOID),
+                            };
+                            let field_5: RuntimeResult<vm::Value> = value.items.to_value(context);
                             context
-                                .allocate_aggregate(vec![field_0?, field_1?])
+                                .allocate_aggregate(vec![
+                                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                ])
                                 .map_err(Box::<RuntimeError>::from)
                         }
                         None => Ok(vm::Value::VOID),
                     };
-                    let field_5: RuntimeResult<vm::Value> = value.items.to_value(context);
+                    let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_composing));
                     context
                         .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
+                            field_7?,
                         ])
                         .map_err(Box::<RuntimeError>::from)
-                }
-                None => Ok(vm::Value::VOID),
-            };
-            let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_composing));
-            context
-                .allocate_aggregate(vec![
-                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                ])
-                .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            InputTextSessionEventVm::InputTextSessionStateEvent(value) => {
+                let tag_value = vm::Value::uint(1300893244u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.device_id.value());
+                        let field_3: RuntimeResult<vm::Value> = match value.metadata.target_window {
+                            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = Ok(value.state.text.value());
+                        let field_1: RuntimeResult<vm::Value> = {
+                            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.state.selection.start_offset as u64,
+                                32,
+                            ));
+                            let field_1: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::uint(value.state.selection.end_offset as u64, 32));
+                            context
+                                .allocate_aggregate(vec![field_0?, field_1?])
+                                .map_err(Box::<RuntimeError>::from)
+                        };
+                        let field_2: RuntimeResult<vm::Value> = match value.state.composing {
+                            Some(value) => {
+                                let field_0: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.start_offset as u64, 32));
+                                let field_1: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.end_offset as u64, 32));
+                                context
+                                    .allocate_aggregate(vec![field_0?, field_1?])
+                                    .map_err(Box::<RuntimeError>::from)
+                            }
+                            None => Ok(vm::Value::VOID),
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
         })
         .and_then(|value| value)
 }
@@ -4949,6 +5134,13 @@ struct InputSensorTryReadReplayRecord {
     pub result: Result<InputSensorSample, TraceError>,
 }
 
+/// Replay payload for destack.input.text.close.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct InputTextCloseReplayRecord {
+    /// Replay result payload.
+    pub result: Result<(), TraceError>,
+}
+
 /// Replay payload for destack.input.text.getArea.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputTextGetAreaReplayRecord {
@@ -4956,32 +5148,18 @@ struct InputTextGetAreaReplayRecord {
     pub result: Result<InputTextInputArea, TraceError>,
 }
 
-/// Replay payload for destack.input.text.isActive.
+/// Replay payload for destack.input.text.open.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct InputTextIsActiveReplayRecord {
+struct InputTextOpenReplayRecord {
     /// Replay result payload.
-    pub result: Result<bool, TraceError>,
+    pub result: Result<resource::InputTextSessionHandle, TraceError>,
 }
 
-/// Replay payload for destack.input.text.readClipboardCommand.
+/// Replay payload for destack.input.text.readEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct InputTextReadClipboardCommandReplayRecord {
+struct InputTextReadEventReplayRecord {
     /// Replay result payload.
-    pub result: Result<InputclipboardcommandeventReplayRecord, TraceError>,
-}
-
-/// Replay payload for destack.input.text.readComposition.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct InputTextReadCompositionReplayRecord {
-    /// Replay result payload.
-    pub result: Result<InputcompositioneventReplayRecord, TraceError>,
-}
-
-/// Replay payload for destack.input.text.readEditIntent.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct InputTextReadEditIntentReplayRecord {
-    /// Replay result payload.
-    pub result: Result<InputeditintenteventReplayRecord, TraceError>,
+    pub result: Result<InputtextsessioneventReplayRecord, TraceError>,
 }
 
 /// Replay payload for destack.input.text.setArea.
@@ -4991,39 +5169,18 @@ struct InputTextSetAreaReplayRecord {
     pub result: Result<(), TraceError>,
 }
 
-/// Replay payload for destack.input.text.start.
+/// Replay payload for destack.input.text.setState.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct InputTextStartReplayRecord {
+struct InputTextSetStateReplayRecord {
     /// Replay result payload.
     pub result: Result<(), TraceError>,
 }
 
-/// Replay payload for destack.input.text.stop.
+/// Replay payload for destack.input.text.tryReadEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct InputTextStopReplayRecord {
+struct InputTextTryReadEventReplayRecord {
     /// Replay result payload.
-    pub result: Result<(), TraceError>,
-}
-
-/// Replay payload for destack.input.text.tryReadClipboardCommand.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct InputTextTryReadClipboardCommandReplayRecord {
-    /// Replay result payload.
-    pub result: Result<InputclipboardcommandeventReplayRecord, TraceError>,
-}
-
-/// Replay payload for destack.input.text.tryReadComposition.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct InputTextTryReadCompositionReplayRecord {
-    /// Replay result payload.
-    pub result: Result<InputcompositioneventReplayRecord, TraceError>,
-}
-
-/// Replay payload for destack.input.text.tryReadEditIntent.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct InputTextTryReadEditIntentReplayRecord {
-    /// Replay result payload.
-    pub result: Result<InputeditintenteventReplayRecord, TraceError>,
+    pub result: Result<InputtextsessioneventReplayRecord, TraceError>,
 }
 
 /// Replay payload for destack.input.touch.state.
@@ -5887,30 +6044,16 @@ pub(crate) const INPUT_SENSOR_TRY_READ: BindingDescriptor = BindingDescriptor::e
     .with_namespace("input")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptor for destack.input.text.getArea.
-pub(crate) const INPUT_TEXT_GET_AREA: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.input.text.getArea",
-    "export function textGetArea(handle: InputDeviceHandle, target: InputWindowTarget): Result<InputTextInputArea, PlatformError>",
-    BindingReplayPolicy::Recordable,
-    BindingReplayKind::BindingCall,
-    &["input.text"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
-)
-    .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
-/// Binding descriptor for destack.input.text.isActive.
-pub(crate) const INPUT_TEXT_IS_ACTIVE: BindingDescriptor =
+/// Binding descriptor for destack.input.text.close.
+pub(crate) const INPUT_TEXT_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.input.text.isActive",
-        "export function textIsActive(handle: InputDeviceHandle): Result<boolean, PlatformError>",
+        "destack.input.text.close",
+        "export function textClose(session: InputTextSessionHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["input.text"],
         BindingScope::Host,
-        BindingBlocking::Never,
+        BindingBlocking::Sometimes,
         BindingAffinity::Any,
     )
     .with_namespace("input")
@@ -5929,10 +6072,24 @@ pub(crate) const INPUT_TEXT_IS_ACTIVE: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptor for destack.input.text.readClipboardCommand.
-pub(crate) const INPUT_TEXT_READ_CLIPBOARD_COMMAND: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.input.text.readClipboardCommand",
-    "export function textReadClipboardCommand(handle: InputDeviceHandle): Result<InputClipboardCommandEvent, PlatformError>",
+/// Binding descriptor for destack.input.text.getArea.
+pub(crate) const INPUT_TEXT_GET_AREA: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.input.text.getArea",
+    "export function textGetArea(session: InputTextSessionHandle): Result<InputTextInputArea, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["input.text"],
+    BindingScope::Host,
+    BindingBlocking::Never,
+    BindingAffinity::Any,
+)
+    .with_namespace("input")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.input.text.open.
+pub(crate) const INPUT_TEXT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.input.text.open",
+    "export function textOpen(config: InputTextSessionConfig, state: InputTextSessionState): Result<InputTextSessionHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["input.text"],
@@ -5943,24 +6100,10 @@ pub(crate) const INPUT_TEXT_READ_CLIPBOARD_COMMAND: BindingDescriptor = BindingD
     .with_namespace("input")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptor for destack.input.text.readComposition.
-pub(crate) const INPUT_TEXT_READ_COMPOSITION: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.input.text.readComposition",
-    "export function textReadComposition(handle: InputDeviceHandle): Result<InputCompositionEvent, PlatformError>",
-    BindingReplayPolicy::Recordable,
-    BindingReplayKind::BindingCall,
-    &["input.text"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
-)
-    .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
-/// Binding descriptor for destack.input.text.readEditIntent.
-pub(crate) const INPUT_TEXT_READ_EDIT_INTENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.input.text.readEditIntent",
-    "export function textReadEditIntent(handle: InputDeviceHandle): Result<InputEditIntentEvent, PlatformError>",
+/// Binding descriptor for destack.input.text.readEvent.
+pub(crate) const INPUT_TEXT_READ_EVENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.input.text.readEvent",
+    "export function textReadEvent(session: InputTextSessionHandle): Result<InputTextSessionEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["input.text"],
@@ -5974,7 +6117,7 @@ pub(crate) const INPUT_TEXT_READ_EDIT_INTENT: BindingDescriptor = BindingDescrip
 /// Binding descriptor for destack.input.text.setArea.
 pub(crate) const INPUT_TEXT_SET_AREA: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.text.setArea",
-    "export function textSetArea(handle: InputDeviceHandle, target: InputWindowTarget, area: InputTextInputArea): Result<void, PlatformError>",
+    "export function textSetArea(session: InputTextSessionHandle, area: InputTextInputArea): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["input.text"],
@@ -5985,38 +6128,10 @@ pub(crate) const INPUT_TEXT_SET_AREA: BindingDescriptor = BindingDescriptor::ext
     .with_namespace("input")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptor for destack.input.text.start.
-pub(crate) const INPUT_TEXT_START: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.input.text.start",
-    "export function textStart(handle: InputDeviceHandle, target: InputWindowTarget, inputType: InputTextInputType): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
-    BindingReplayKind::BindingCall,
-    &["input.text"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
-)
-    .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
-/// Binding descriptor for destack.input.text.stop.
-pub(crate) const INPUT_TEXT_STOP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.input.text.stop",
-    "export function textStop(handle: InputDeviceHandle, target: InputWindowTarget): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
-    BindingReplayKind::BindingCall,
-    &["input.text"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
-)
-    .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
-/// Binding descriptor for destack.input.text.tryReadClipboardCommand.
-pub(crate) const INPUT_TEXT_TRY_READ_CLIPBOARD_COMMAND: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.input.text.tryReadClipboardCommand",
-    "export function textTryReadClipboardCommand(handle: InputDeviceHandle): Result<InputClipboardCommandEvent, PlatformError>",
+/// Binding descriptor for destack.input.text.setState.
+pub(crate) const INPUT_TEXT_SET_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.input.text.setState",
+    "export function textSetState(session: InputTextSessionHandle, state: InputTextSessionState): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["input.text"],
@@ -6027,24 +6142,10 @@ pub(crate) const INPUT_TEXT_TRY_READ_CLIPBOARD_COMMAND: BindingDescriptor = Bind
     .with_namespace("input")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptor for destack.input.text.tryReadComposition.
-pub(crate) const INPUT_TEXT_TRY_READ_COMPOSITION: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.input.text.tryReadComposition",
-    "export function textTryReadComposition(handle: InputDeviceHandle): Result<InputCompositionEvent, PlatformError>",
-    BindingReplayPolicy::Recordable,
-    BindingReplayKind::BindingCall,
-    &["input.text"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
-)
-    .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
-/// Binding descriptor for destack.input.text.tryReadEditIntent.
-pub(crate) const INPUT_TEXT_TRY_READ_EDIT_INTENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.input.text.tryReadEditIntent",
-    "export function textTryReadEditIntent(handle: InputDeviceHandle): Result<InputEditIntentEvent, PlatformError>",
+/// Binding descriptor for destack.input.text.tryReadEvent.
+pub(crate) const INPUT_TEXT_TRY_READ_EVENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.input.text.tryReadEvent",
+    "export function textTryReadEvent(session: InputTextSessionHandle): Result<InputTextSessionEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["input.text"],
@@ -6314,29 +6415,24 @@ pub(crate) const INPUT_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_input_sensor_try_read as *const (),
         ),
         NativeBinding::new(
+            INPUT_TEXT_CLOSE,
+            "destack.input.text.close",
+            destack_input_text_close as *const (),
+        ),
+        NativeBinding::new(
             INPUT_TEXT_GET_AREA,
             "destack.input.text.getArea",
             destack_input_text_get_area as *const (),
         ),
         NativeBinding::new(
-            INPUT_TEXT_IS_ACTIVE,
-            "destack.input.text.isActive",
-            destack_input_text_is_active as *const (),
+            INPUT_TEXT_OPEN,
+            "destack.input.text.open",
+            destack_input_text_open as *const (),
         ),
         NativeBinding::new(
-            INPUT_TEXT_READ_CLIPBOARD_COMMAND,
-            "destack.input.text.readClipboardCommand",
-            destack_input_text_read_clipboard_command as *const (),
-        ),
-        NativeBinding::new(
-            INPUT_TEXT_READ_COMPOSITION,
-            "destack.input.text.readComposition",
-            destack_input_text_read_composition as *const (),
-        ),
-        NativeBinding::new(
-            INPUT_TEXT_READ_EDIT_INTENT,
-            "destack.input.text.readEditIntent",
-            destack_input_text_read_edit_intent as *const (),
+            INPUT_TEXT_READ_EVENT,
+            "destack.input.text.readEvent",
+            destack_input_text_read_event as *const (),
         ),
         NativeBinding::new(
             INPUT_TEXT_SET_AREA,
@@ -6344,29 +6440,14 @@ pub(crate) const INPUT_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_input_text_set_area as *const (),
         ),
         NativeBinding::new(
-            INPUT_TEXT_START,
-            "destack.input.text.start",
-            destack_input_text_start as *const (),
+            INPUT_TEXT_SET_STATE,
+            "destack.input.text.setState",
+            destack_input_text_set_state as *const (),
         ),
         NativeBinding::new(
-            INPUT_TEXT_STOP,
-            "destack.input.text.stop",
-            destack_input_text_stop as *const (),
-        ),
-        NativeBinding::new(
-            INPUT_TEXT_TRY_READ_CLIPBOARD_COMMAND,
-            "destack.input.text.tryReadClipboardCommand",
-            destack_input_text_try_read_clipboard_command as *const (),
-        ),
-        NativeBinding::new(
-            INPUT_TEXT_TRY_READ_COMPOSITION,
-            "destack.input.text.tryReadComposition",
-            destack_input_text_try_read_composition as *const (),
-        ),
-        NativeBinding::new(
-            INPUT_TEXT_TRY_READ_EDIT_INTENT,
-            "destack.input.text.tryReadEditIntent",
-            destack_input_text_try_read_edit_intent as *const (),
+            INPUT_TEXT_TRY_READ_EVENT,
+            "destack.input.text.tryReadEvent",
+            destack_input_text_try_read_event as *const (),
         ),
         NativeBinding::new(
             INPUT_TOUCH_STATE,
@@ -15849,26 +15930,71 @@ fn destack_input_sensor_try_read_replay(
 }
 
 #[inline]
+fn destack_input_text_close_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    session: resource::InputTextSessionHandle,
+) -> RuntimeResult<()> {
+    let _ = &session;
+
+    binding.trace().run_binding_without_context(
+        INPUT_TEXT_CLOSE,
+        binding.replay_payload_for(INPUT_TEXT_CLOSE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_input_text_close(binding, session)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_input_text_close(binding, session)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = InputTextCloseReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    InputTextCloseReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
 fn destack_input_text_get_area_replay(
     binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut InputTextInputArea,
-    handle: resource::InputDeviceHandle,
-    target: InputWindowTarget,
+    session: resource::InputTextSessionHandle,
 ) -> RuntimeResult<()> {
-    let _ = (&handle, &target);
+    let _ = &session;
 
     binding.trace().run_binding_without_context(
         INPUT_TEXT_GET_AREA,
         binding.replay_payload_for(INPUT_TEXT_GET_AREA)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_text_get_area(binding, out, handle, target)
+                platform_native::destack_input_text_get_area(binding, out, session)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_input_text_get_area(
-                    binding, out, handle, target,
-                )
+                platform_simulation_native::destack_input_text_get_area(binding, out, session)
             },
         },
         |result| {
@@ -15928,30 +16054,31 @@ fn destack_input_text_get_area_replay(
 }
 
 #[inline]
-fn destack_input_text_is_active_replay(
+fn destack_input_text_open_replay(
     binding: &BindingCallContext,
     world: RuntimeWorld,
-    out: *mut bool,
-    handle: resource::InputDeviceHandle,
+    out: *mut resource::InputTextSessionHandle,
+    config: InputTextSessionConfig,
+    state: InputTextSessionState,
 ) -> RuntimeResult<()> {
-    let _ = &handle;
+    let _ = (&config, &state);
 
     binding.trace().run_binding_without_context(
-        INPUT_TEXT_IS_ACTIVE,
-        binding.replay_payload_for(INPUT_TEXT_IS_ACTIVE)?,
+        INPUT_TEXT_OPEN,
+        binding.replay_payload_for(INPUT_TEXT_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_text_is_active(binding, out, handle)
+                platform_native::destack_input_text_open(binding, out, config, state)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_input_text_is_active(binding, out, handle)
+                platform_simulation_native::destack_input_text_open(binding, out, config, state)
             },
         },
         |result| {
             if let Ok(()) = result {
-                let result_value: bool = unsafe { out.read() };
+                let result_value: resource::InputTextSessionHandle = unsafe { out.read() };
                 let result_recorded = result_value;
-                let payload = InputTextIsActiveReplayRecord {
+                let payload = InputTextOpenReplayRecord {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -15960,7 +16087,7 @@ fn destack_input_text_is_active_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(TraceError::from(error.as_ref()));
-                    InputTextIsActiveReplayRecord { result }
+                    InputTextOpenReplayRecord { result }
                 };
                 return Ok(Some(payload));
             }
@@ -15981,90 +16108,327 @@ fn destack_input_text_is_active_replay(
 }
 
 #[inline]
-fn destack_input_text_read_clipboard_command_replay(
+fn destack_input_text_read_event_replay(
     binding: &BindingCallContext,
     world: RuntimeWorld,
-    out: *mut InputClipboardCommandEvent,
-    handle: resource::InputDeviceHandle,
+    out: *mut InputTextSessionEvent,
+    session: resource::InputTextSessionHandle,
 ) -> RuntimeResult<()> {
-    let _ = &handle;
+    let _ = &session;
 
     binding.trace().run_binding_without_context(
-        INPUT_TEXT_READ_CLIPBOARD_COMMAND,
-        binding.replay_payload_for(INPUT_TEXT_READ_CLIPBOARD_COMMAND)?,
+        INPUT_TEXT_READ_EVENT,
+        binding.replay_payload_for(INPUT_TEXT_READ_EVENT)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_input_text_read_clipboard_command(binding, out, handle) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_input_text_read_clipboard_command(binding, out, handle) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_input_text_read_event(binding, out, session) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_input_text_read_event(binding, out, session) },
         },
         |result| {
             if let Ok(()) = result {
-                let result_value: InputClipboardCommandEvent = unsafe { out.read() };
-                let result_recorded_kind = unsafe { result_value.kind.as_str()? }.to_string();
-                let result_recorded_metadata_timestamp_ns = result_value.metadata.timestamp_ns;
-                let result_recorded_metadata_sequence = result_value.metadata.sequence;
-                let result_recorded_metadata_device_id = unsafe { result_value.metadata.device_id.as_str()? }.to_string();
-                let result_recorded_metadata_target_window = if let Some(value) = result_value.metadata.target_window {
-                    let result_recorded_metadata_target_window_inner = value;
-                    Some(result_recorded_metadata_target_window_inner)
-                } else {
-                    None
-                };
-                let result_recorded_metadata = InputeventmetadataReplayRecord {
-                    timestamp_ns: result_recorded_metadata_timestamp_ns,
-                    sequence: result_recorded_metadata_sequence,
-                    device_id: result_recorded_metadata_device_id,
-                    target_window: result_recorded_metadata_target_window,
-                };
-                let result_recorded_command = result_value.command;
-                let result_recorded_clipboard_items = if let Some(value) = result_value.clipboard_items {
-                    let mut result_recorded_clipboard_items_inner = Vec::new();
-                    for result_recorded_clipboard_items_inner_item in unsafe { value.as_slice()? }.iter().cloned() {
-                        let result_recorded_clipboard_items_inner_item_recorded_presentation_style = result_recorded_clipboard_items_inner_item.presentation_style;
-                        let mut result_recorded_clipboard_items_inner_item_recorded_representations = Vec::new();
-                        for result_recorded_clipboard_items_inner_item_recorded_representations_item in unsafe { result_recorded_clipboard_items_inner_item.representations.as_slice()? }.iter().cloned() {
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type = unsafe { result_recorded_clipboard_items_inner_item_recorded_representations_item.mime_type.as_str()? }.to_string();
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_kind = result_recorded_clipboard_items_inner_item_recorded_representations_item.kind;
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_name = if let Some(value) = result_recorded_clipboard_items_inner_item_recorded_representations_item.name {
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner)
-                            } else {
-                                None
-                            };
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_is_directory = result_recorded_clipboard_items_inner_item_recorded_representations_item.is_directory;
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length = if let Some(value) = result_recorded_clipboard_items_inner_item_recorded_representations_item.byte_length {
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length_inner = value;
-                                Some(result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length_inner)
-                            } else {
-                                None
-                            };
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded = ClipboarditemrepresentationdescriptorReplayRecord {
-                                mime_type: result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type,
-                                kind: result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_kind,
-                                name: result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_name,
-                                is_directory: result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_is_directory,
-                                byte_length: result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length,
-                            };
-                            result_recorded_clipboard_items_inner_item_recorded_representations.push(result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded);
-                        }
-                        let result_recorded_clipboard_items_inner_item_recorded = ClipboarditemdescriptorReplayRecord {
-                            presentation_style: result_recorded_clipboard_items_inner_item_recorded_presentation_style,
-                            representations: result_recorded_clipboard_items_inner_item_recorded_representations,
+                let result_value: InputTextSessionEvent = unsafe { out.read() };
+                let result_recorded = match result_value {
+                    InputTextSessionEvent::InputClipboardCommandEvent(value) => {
+                        let result_recorded_input_clipboard_command_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_input_clipboard_command_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_clipboard_command_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_clipboard_command_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                        let result_recorded_input_clipboard_command_event_metadata_target_window = if let Some(value) = value.metadata.target_window {
+                            let result_recorded_input_clipboard_command_event_metadata_target_window_inner = value;
+                            Some(result_recorded_input_clipboard_command_event_metadata_target_window_inner)
+                        } else {
+                            None
                         };
-                        result_recorded_clipboard_items_inner.push(result_recorded_clipboard_items_inner_item_recorded);
+                        let result_recorded_input_clipboard_command_event_metadata = InputeventmetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_clipboard_command_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_clipboard_command_event_metadata_sequence,
+                            device_id: result_recorded_input_clipboard_command_event_metadata_device_id,
+                            target_window: result_recorded_input_clipboard_command_event_metadata_target_window,
+                        };
+                        let result_recorded_input_clipboard_command_event_command = value.command;
+                        let result_recorded_input_clipboard_command_event_clipboard_items = if let Some(value) = value.clipboard_items {
+                            let mut result_recorded_input_clipboard_command_event_clipboard_items_inner = Vec::new();
+                            for result_recorded_input_clipboard_command_event_clipboard_items_inner_item in unsafe { value.as_slice()? }.iter().cloned() {
+                                let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_presentation_style = result_recorded_input_clipboard_command_event_clipboard_items_inner_item.presentation_style;
+                                let mut result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations = Vec::new();
+                                for result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item in unsafe { result_recorded_input_clipboard_command_event_clipboard_items_inner_item.representations.as_slice()? }.iter().cloned() {
+                                    let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type = unsafe { result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item.mime_type.as_str()? }.to_string();
+                                    let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_kind = result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item.kind;
+                                    let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_name = if let Some(value) = result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item.name {
+                                        let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner = unsafe { value.as_str()? }.to_string();
+                                        Some(result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_is_directory = result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item.is_directory;
+                                    let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length = if let Some(value) = result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item.byte_length {
+                                        let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length_inner = value;
+                                        Some(result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded = ClipboarditemrepresentationdescriptorReplayRecord {
+                                        mime_type: result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type,
+                                        kind: result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_kind,
+                                        name: result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_name,
+                                        is_directory: result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_is_directory,
+                                        byte_length: result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length,
+                                    };
+                                    result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations.push(result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded);
+                                }
+                                let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded = ClipboarditemdescriptorReplayRecord {
+                                    presentation_style: result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_presentation_style,
+                                    representations: result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations,
+                                };
+                                result_recorded_input_clipboard_command_event_clipboard_items_inner.push(result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded);
+                            }
+                            Some(result_recorded_input_clipboard_command_event_clipboard_items_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_input_clipboard_command_event_is_composing = value.is_composing;
+                        let result_recorded_input_clipboard_command_event = InputclipboardcommandeventReplayRecord {
+                            kind: result_recorded_input_clipboard_command_event_kind,
+                            metadata: result_recorded_input_clipboard_command_event_metadata,
+                            command: result_recorded_input_clipboard_command_event_command,
+                            clipboard_items: result_recorded_input_clipboard_command_event_clipboard_items,
+                            is_composing: result_recorded_input_clipboard_command_event_is_composing,
+                        };
+                        InputtextsessioneventReplayRecord::InputClipboardCommandEvent(result_recorded_input_clipboard_command_event)
                     }
-                    Some(result_recorded_clipboard_items_inner)
-                } else {
-                    None
+                    InputTextSessionEvent::InputCompositionEvent(value) => {
+                        let result_recorded_input_composition_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_input_composition_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_composition_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_composition_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                        let result_recorded_input_composition_event_metadata_target_window = if let Some(value) = value.metadata.target_window {
+                            let result_recorded_input_composition_event_metadata_target_window_inner = value;
+                            Some(result_recorded_input_composition_event_metadata_target_window_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_input_composition_event_metadata = InputeventmetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_composition_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_composition_event_metadata_sequence,
+                            device_id: result_recorded_input_composition_event_metadata_device_id,
+                            target_window: result_recorded_input_composition_event_metadata_target_window,
+                        };
+                        let result_recorded_input_composition_event_payload_action = value.payload.action;
+                        let result_recorded_input_composition_event_payload_text = unsafe { value.payload.text.as_str()? }.to_string();
+                        let result_recorded_input_composition_event_payload_selection_start = value.payload.selection_start;
+                        let result_recorded_input_composition_event_payload_selection_end = value.payload.selection_end;
+                        let result_recorded_input_composition_event_payload = InputcompositioneventpayloadReplayRecord {
+                            action: result_recorded_input_composition_event_payload_action,
+                            text: result_recorded_input_composition_event_payload_text,
+                            selection_start: result_recorded_input_composition_event_payload_selection_start,
+                            selection_end: result_recorded_input_composition_event_payload_selection_end,
+                        };
+                        let result_recorded_input_composition_event = InputcompositioneventReplayRecord {
+                            kind: result_recorded_input_composition_event_kind,
+                            metadata: result_recorded_input_composition_event_metadata,
+                            payload: result_recorded_input_composition_event_payload,
+                        };
+                        InputtextsessioneventReplayRecord::InputCompositionEvent(result_recorded_input_composition_event)
+                    }
+                    InputTextSessionEvent::InputEditIntentEvent(value) => {
+                        let result_recorded_input_edit_intent_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_input_edit_intent_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_edit_intent_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_edit_intent_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                        let result_recorded_input_edit_intent_event_metadata_target_window = if let Some(value) = value.metadata.target_window {
+                            let result_recorded_input_edit_intent_event_metadata_target_window_inner = value;
+                            Some(result_recorded_input_edit_intent_event_metadata_target_window_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_input_edit_intent_event_metadata = InputeventmetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_edit_intent_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_edit_intent_event_metadata_sequence,
+                            device_id: result_recorded_input_edit_intent_event_metadata_device_id,
+                            target_window: result_recorded_input_edit_intent_event_metadata_target_window,
+                        };
+                        let result_recorded_input_edit_intent_event_input_type = value.input_type;
+                        let result_recorded_input_edit_intent_event_data = if let Some(value) = value.data {
+                            let result_recorded_input_edit_intent_event_data_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_input_edit_intent_event_data_inner)
+                        } else {
+                            None
+                        };
+                        let mut result_recorded_input_edit_intent_event_target_ranges = Vec::new();
+                        for result_recorded_input_edit_intent_event_target_ranges_item in unsafe { value.target_ranges.as_slice()? }.iter().cloned() {
+                            let result_recorded_input_edit_intent_event_target_ranges_item_recorded_start_offset = result_recorded_input_edit_intent_event_target_ranges_item.start_offset;
+                            let result_recorded_input_edit_intent_event_target_ranges_item_recorded_end_offset = result_recorded_input_edit_intent_event_target_ranges_item.end_offset;
+                            let result_recorded_input_edit_intent_event_target_ranges_item_recorded = InputTextRange {
+                                start_offset: result_recorded_input_edit_intent_event_target_ranges_item_recorded_start_offset,
+                                end_offset: result_recorded_input_edit_intent_event_target_ranges_item_recorded_end_offset,
+                            };
+                            result_recorded_input_edit_intent_event_target_ranges.push(result_recorded_input_edit_intent_event_target_ranges_item_recorded);
+                        }
+                        let result_recorded_input_edit_intent_event_clipboard_items = if let Some(value) = value.clipboard_items {
+                            let mut result_recorded_input_edit_intent_event_clipboard_items_inner = Vec::new();
+                            for result_recorded_input_edit_intent_event_clipboard_items_inner_item in unsafe { value.as_slice()? }.iter().cloned() {
+                                let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_presentation_style = result_recorded_input_edit_intent_event_clipboard_items_inner_item.presentation_style;
+                                let mut result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations = Vec::new();
+                                for result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item in unsafe { result_recorded_input_edit_intent_event_clipboard_items_inner_item.representations.as_slice()? }.iter().cloned() {
+                                    let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type = unsafe { result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item.mime_type.as_str()? }.to_string();
+                                    let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_kind = result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item.kind;
+                                    let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_name = if let Some(value) = result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item.name {
+                                        let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner = unsafe { value.as_str()? }.to_string();
+                                        Some(result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_is_directory = result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item.is_directory;
+                                    let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length = if let Some(value) = result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item.byte_length {
+                                        let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length_inner = value;
+                                        Some(result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded = ClipboarditemrepresentationdescriptorReplayRecord {
+                                        mime_type: result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type,
+                                        kind: result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_kind,
+                                        name: result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_name,
+                                        is_directory: result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_is_directory,
+                                        byte_length: result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length,
+                                    };
+                                    result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations.push(result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded);
+                                }
+                                let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded = ClipboarditemdescriptorReplayRecord {
+                                    presentation_style: result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_presentation_style,
+                                    representations: result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations,
+                                };
+                                result_recorded_input_edit_intent_event_clipboard_items_inner.push(result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded);
+                            }
+                            Some(result_recorded_input_edit_intent_event_clipboard_items_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_input_edit_intent_event_drag = if let Some(value) = value.drag {
+                            let result_recorded_input_edit_intent_event_drag_inner_session = value.session;
+                            let result_recorded_input_edit_intent_event_drag_inner_is_external = value.is_external;
+                            let result_recorded_input_edit_intent_event_drag_inner_allowed_operations = value.allowed_operations;
+                            let result_recorded_input_edit_intent_event_drag_inner_proposed_operation = if let Some(value) = value.proposed_operation {
+                                let result_recorded_input_edit_intent_event_drag_inner_proposed_operation_inner = value;
+                                Some(result_recorded_input_edit_intent_event_drag_inner_proposed_operation_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_input_edit_intent_event_drag_inner_position = if let Some(value) = value.position {
+                                let result_recorded_input_edit_intent_event_drag_inner_position_inner_x = value.x;
+                                let result_recorded_input_edit_intent_event_drag_inner_position_inner_y = value.y;
+                                let result_recorded_input_edit_intent_event_drag_inner_position_inner = display::DisplayDragPosition {
+                                    x: result_recorded_input_edit_intent_event_drag_inner_position_inner_x,
+                                    y: result_recorded_input_edit_intent_event_drag_inner_position_inner_y,
+                                };
+                                Some(result_recorded_input_edit_intent_event_drag_inner_position_inner)
+                            } else {
+                                None
+                            };
+                            let mut result_recorded_input_edit_intent_event_drag_inner_items = Vec::new();
+                            for result_recorded_input_edit_intent_event_drag_inner_items_item in unsafe { value.items.as_slice()? }.iter().cloned() {
+                                let result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_kind = result_recorded_input_edit_intent_event_drag_inner_items_item.kind;
+                                let result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_item_type = if let Some(value) = result_recorded_input_edit_intent_event_drag_inner_items_item.item_type {
+                                    let result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_item_type_inner = unsafe { value.as_str()? }.to_string();
+                                    Some(result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_item_type_inner)
+                                } else {
+                                    None
+                                };
+                                let result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_name = if let Some(value) = result_recorded_input_edit_intent_event_drag_inner_items_item.name {
+                                    let result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_name_inner = unsafe { value.as_str()? }.to_string();
+                                    Some(result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_name_inner)
+                                } else {
+                                    None
+                                };
+                                let result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_is_directory = result_recorded_input_edit_intent_event_drag_inner_items_item.is_directory;
+                                let result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_byte_length = if let Some(value) = result_recorded_input_edit_intent_event_drag_inner_items_item.byte_length {
+                                    let result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_byte_length_inner = value;
+                                    Some(result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_byte_length_inner)
+                                } else {
+                                    None
+                                };
+                                let result_recorded_input_edit_intent_event_drag_inner_items_item_recorded = display::DisplaydragitemdescriptorReplayRecord {
+                                    kind: result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_kind,
+                                    item_type: result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_item_type,
+                                    name: result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_name,
+                                    is_directory: result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_is_directory,
+                                    byte_length: result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_byte_length,
+                                };
+                                result_recorded_input_edit_intent_event_drag_inner_items.push(result_recorded_input_edit_intent_event_drag_inner_items_item_recorded);
+                            }
+                            let result_recorded_input_edit_intent_event_drag_inner = display::DisplaydragtransferReplayRecord {
+                                session: result_recorded_input_edit_intent_event_drag_inner_session,
+                                is_external: result_recorded_input_edit_intent_event_drag_inner_is_external,
+                                allowed_operations: result_recorded_input_edit_intent_event_drag_inner_allowed_operations,
+                                proposed_operation: result_recorded_input_edit_intent_event_drag_inner_proposed_operation,
+                                position: result_recorded_input_edit_intent_event_drag_inner_position,
+                                items: result_recorded_input_edit_intent_event_drag_inner_items,
+                            };
+                            Some(result_recorded_input_edit_intent_event_drag_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_input_edit_intent_event_is_composing = value.is_composing;
+                        let result_recorded_input_edit_intent_event = InputeditintenteventReplayRecord {
+                            kind: result_recorded_input_edit_intent_event_kind,
+                            metadata: result_recorded_input_edit_intent_event_metadata,
+                            input_type: result_recorded_input_edit_intent_event_input_type,
+                            data: result_recorded_input_edit_intent_event_data,
+                            target_ranges: result_recorded_input_edit_intent_event_target_ranges,
+                            clipboard_items: result_recorded_input_edit_intent_event_clipboard_items,
+                            drag: result_recorded_input_edit_intent_event_drag,
+                            is_composing: result_recorded_input_edit_intent_event_is_composing,
+                        };
+                        InputtextsessioneventReplayRecord::InputEditIntentEvent(result_recorded_input_edit_intent_event)
+                    }
+                    InputTextSessionEvent::InputTextSessionStateEvent(value) => {
+                        let result_recorded_input_text_session_state_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_input_text_session_state_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_text_session_state_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_text_session_state_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                        let result_recorded_input_text_session_state_event_metadata_target_window = if let Some(value) = value.metadata.target_window {
+                            let result_recorded_input_text_session_state_event_metadata_target_window_inner = value;
+                            Some(result_recorded_input_text_session_state_event_metadata_target_window_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_input_text_session_state_event_metadata = InputeventmetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_text_session_state_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_text_session_state_event_metadata_sequence,
+                            device_id: result_recorded_input_text_session_state_event_metadata_device_id,
+                            target_window: result_recorded_input_text_session_state_event_metadata_target_window,
+                        };
+                        let result_recorded_input_text_session_state_event_state_text = unsafe { value.state.text.as_str()? }.to_string();
+                        let result_recorded_input_text_session_state_event_state_selection_start_offset = value.state.selection.start_offset;
+                        let result_recorded_input_text_session_state_event_state_selection_end_offset = value.state.selection.end_offset;
+                        let result_recorded_input_text_session_state_event_state_selection = InputTextRange {
+                            start_offset: result_recorded_input_text_session_state_event_state_selection_start_offset,
+                            end_offset: result_recorded_input_text_session_state_event_state_selection_end_offset,
+                        };
+                        let result_recorded_input_text_session_state_event_state_composing = if let Some(value) = value.state.composing {
+                            let result_recorded_input_text_session_state_event_state_composing_inner_start_offset = value.start_offset;
+                            let result_recorded_input_text_session_state_event_state_composing_inner_end_offset = value.end_offset;
+                            let result_recorded_input_text_session_state_event_state_composing_inner = InputTextRange {
+                                start_offset: result_recorded_input_text_session_state_event_state_composing_inner_start_offset,
+                                end_offset: result_recorded_input_text_session_state_event_state_composing_inner_end_offset,
+                            };
+                            Some(result_recorded_input_text_session_state_event_state_composing_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_input_text_session_state_event_state = InputtextsessionstateReplayRecord {
+                            text: result_recorded_input_text_session_state_event_state_text,
+                            selection: result_recorded_input_text_session_state_event_state_selection,
+                            composing: result_recorded_input_text_session_state_event_state_composing,
+                        };
+                        let result_recorded_input_text_session_state_event = InputtextsessionstateeventReplayRecord {
+                            kind: result_recorded_input_text_session_state_event_kind,
+                            metadata: result_recorded_input_text_session_state_event_metadata,
+                            state: result_recorded_input_text_session_state_event_state,
+                        };
+                        InputtextsessioneventReplayRecord::InputTextSessionStateEvent(result_recorded_input_text_session_state_event)
+                    }
                 };
-                let result_recorded_is_composing = result_value.is_composing;
-                let result_recorded = InputclipboardcommandeventReplayRecord {
-                    kind: result_recorded_kind,
-                    metadata: result_recorded_metadata,
-                    command: result_recorded_command,
-                    clipboard_items: result_recorded_clipboard_items,
-                    is_composing: result_recorded_is_composing,
-                };
-                let payload = InputTextReadClipboardCommandReplayRecord {
+                let payload = InputTextReadEventReplayRecord {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -16073,7 +16437,7 @@ fn destack_input_text_read_clipboard_command_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(TraceError::from(error.as_ref()));
-                    InputTextReadClipboardCommandReplayRecord {
+                    InputTextReadEventReplayRecord {
                         result,
                     }
                 };
@@ -16086,544 +16450,313 @@ fn destack_input_text_read_clipboard_command_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native_kind = binding.store_string(value.kind.as_str());
-                    let value_native_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                    let value_native_metadata_sequence = value.metadata.sequence;
-                    let value_native_metadata_device_id = binding.store_string(value.metadata.device_id.as_str());
-                    let value_native_metadata_target_window = if let Some(value) = value.metadata.target_window {
-                        let value_native_metadata_target_window_inner = value;
-                        Some(value_native_metadata_target_window_inner)
-                    } else {
-                        None
-                    };
-                    let value_native_metadata = InputEventMetadata {
-                        timestamp_ns: value_native_metadata_timestamp_ns,
-                        sequence: value_native_metadata_sequence,
-                        device_id: value_native_metadata_device_id,
-                        target_window: value_native_metadata_target_window,
-                    };
-                    let value_native_command = value.command;
-                    let value_native_clipboard_items = if let Some(value) = value.clipboard_items {
-                        let mut value_native_clipboard_items_inner_values = Vec::new();
-                        for value_native_clipboard_items_inner_item in value.iter().cloned() {
-                            let value_native_clipboard_items_inner_decoded_presentation_style = value_native_clipboard_items_inner_item.presentation_style;
-                            let mut value_native_clipboard_items_inner_decoded_representations_values = Vec::new();
-                            for value_native_clipboard_items_inner_decoded_representations_item in value_native_clipboard_items_inner_item.representations.iter().cloned() {
-                                let value_native_clipboard_items_inner_decoded_representations_decoded_mime_type = binding.store_string(value_native_clipboard_items_inner_decoded_representations_item.mime_type.as_str());
-                                let value_native_clipboard_items_inner_decoded_representations_decoded_kind = value_native_clipboard_items_inner_decoded_representations_item.kind;
-                                let value_native_clipboard_items_inner_decoded_representations_decoded_name = if let Some(value) = value_native_clipboard_items_inner_decoded_representations_item.name {
-                                    let value_native_clipboard_items_inner_decoded_representations_decoded_name_inner = binding.store_string(value.as_str());
-                                    Some(value_native_clipboard_items_inner_decoded_representations_decoded_name_inner)
-                                } else {
-                                    None
+                    let value_native = match value {
+                        InputtextsessioneventReplayRecord::InputClipboardCommandEvent(value) => {
+                            let value_native_input_clipboard_command_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_input_clipboard_command_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_input_clipboard_command_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_input_clipboard_command_event_metadata_device_id = binding.store_string(value.metadata.device_id.as_str());
+                            let value_native_input_clipboard_command_event_metadata_target_window = if let Some(value) = value.metadata.target_window {
+                                let value_native_input_clipboard_command_event_metadata_target_window_inner = value;
+                                Some(value_native_input_clipboard_command_event_metadata_target_window_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_input_clipboard_command_event_metadata = InputEventMetadata {
+                                timestamp_ns: value_native_input_clipboard_command_event_metadata_timestamp_ns,
+                                sequence: value_native_input_clipboard_command_event_metadata_sequence,
+                                device_id: value_native_input_clipboard_command_event_metadata_device_id,
+                                target_window: value_native_input_clipboard_command_event_metadata_target_window,
+                            };
+                            let value_native_input_clipboard_command_event_command = value.command;
+                            let value_native_input_clipboard_command_event_clipboard_items = if let Some(value) = value.clipboard_items {
+                                let mut value_native_input_clipboard_command_event_clipboard_items_inner_values = Vec::new();
+                                for value_native_input_clipboard_command_event_clipboard_items_inner_item in value.iter().cloned() {
+                                    let value_native_input_clipboard_command_event_clipboard_items_inner_decoded_presentation_style = value_native_input_clipboard_command_event_clipboard_items_inner_item.presentation_style;
+                                    let mut value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_values = Vec::new();
+                                    for value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_item in value_native_input_clipboard_command_event_clipboard_items_inner_item.representations.iter().cloned() {
+                                        let value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_decoded_mime_type = binding.store_string(value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_item.mime_type.as_str());
+                                        let value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_decoded_kind = value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_item.kind;
+                                        let value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_decoded_name = if let Some(value) = value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_item.name {
+                                            let value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_decoded_name_inner = binding.store_string(value.as_str());
+                                            Some(value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_decoded_name_inner)
+                                        } else {
+                                            None
+                                        };
+                                        let value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_decoded_is_directory = value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_item.is_directory;
+                                        let value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_decoded_byte_length = if let Some(value) = value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_item.byte_length {
+                                            let value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_decoded_byte_length_inner = value;
+                                            Some(value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_decoded_byte_length_inner)
+                                        } else {
+                                            None
+                                        };
+                                        let value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_decoded = ClipboardItemRepresentationDescriptor {
+                                            mime_type: value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_decoded_mime_type,
+                                            kind: value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_decoded_kind,
+                                            name: value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_decoded_name,
+                                            is_directory: value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_decoded_is_directory,
+                                            byte_length: value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_decoded_byte_length,
+                                        };
+                                        value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_values.push(value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_decoded);
+                                    }
+                                    let value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations = binding.store_slice(value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_values);
+                                    let value_native_input_clipboard_command_event_clipboard_items_inner_decoded = ClipboardItemDescriptor {
+                                        presentation_style: value_native_input_clipboard_command_event_clipboard_items_inner_decoded_presentation_style,
+                                        representations: value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations,
+                                    };
+                                    value_native_input_clipboard_command_event_clipboard_items_inner_values.push(value_native_input_clipboard_command_event_clipboard_items_inner_decoded);
+                                }
+                                let value_native_input_clipboard_command_event_clipboard_items_inner = binding.store_slice(value_native_input_clipboard_command_event_clipboard_items_inner_values);
+                                Some(value_native_input_clipboard_command_event_clipboard_items_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_input_clipboard_command_event_is_composing = value.is_composing;
+                            let value_native_input_clipboard_command_event = InputClipboardCommandEvent {
+                                kind: value_native_input_clipboard_command_event_kind,
+                                metadata: value_native_input_clipboard_command_event_metadata,
+                                command: value_native_input_clipboard_command_event_command,
+                                clipboard_items: value_native_input_clipboard_command_event_clipboard_items,
+                                is_composing: value_native_input_clipboard_command_event_is_composing,
+                            };
+                            InputTextSessionEvent::InputClipboardCommandEvent(value_native_input_clipboard_command_event)
+                        }
+                        InputtextsessioneventReplayRecord::InputCompositionEvent(value) => {
+                            let value_native_input_composition_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_input_composition_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_input_composition_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_input_composition_event_metadata_device_id = binding.store_string(value.metadata.device_id.as_str());
+                            let value_native_input_composition_event_metadata_target_window = if let Some(value) = value.metadata.target_window {
+                                let value_native_input_composition_event_metadata_target_window_inner = value;
+                                Some(value_native_input_composition_event_metadata_target_window_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_input_composition_event_metadata = InputEventMetadata {
+                                timestamp_ns: value_native_input_composition_event_metadata_timestamp_ns,
+                                sequence: value_native_input_composition_event_metadata_sequence,
+                                device_id: value_native_input_composition_event_metadata_device_id,
+                                target_window: value_native_input_composition_event_metadata_target_window,
+                            };
+                            let value_native_input_composition_event_payload_action = value.payload.action;
+                            let value_native_input_composition_event_payload_text = binding.store_string(value.payload.text.as_str());
+                            let value_native_input_composition_event_payload_selection_start = value.payload.selection_start;
+                            let value_native_input_composition_event_payload_selection_end = value.payload.selection_end;
+                            let value_native_input_composition_event_payload = InputCompositionEventPayload {
+                                action: value_native_input_composition_event_payload_action,
+                                text: value_native_input_composition_event_payload_text,
+                                selection_start: value_native_input_composition_event_payload_selection_start,
+                                selection_end: value_native_input_composition_event_payload_selection_end,
+                            };
+                            let value_native_input_composition_event = InputCompositionEvent {
+                                kind: value_native_input_composition_event_kind,
+                                metadata: value_native_input_composition_event_metadata,
+                                payload: value_native_input_composition_event_payload,
+                            };
+                            InputTextSessionEvent::InputCompositionEvent(value_native_input_composition_event)
+                        }
+                        InputtextsessioneventReplayRecord::InputEditIntentEvent(value) => {
+                            let value_native_input_edit_intent_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_input_edit_intent_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_input_edit_intent_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_input_edit_intent_event_metadata_device_id = binding.store_string(value.metadata.device_id.as_str());
+                            let value_native_input_edit_intent_event_metadata_target_window = if let Some(value) = value.metadata.target_window {
+                                let value_native_input_edit_intent_event_metadata_target_window_inner = value;
+                                Some(value_native_input_edit_intent_event_metadata_target_window_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_input_edit_intent_event_metadata = InputEventMetadata {
+                                timestamp_ns: value_native_input_edit_intent_event_metadata_timestamp_ns,
+                                sequence: value_native_input_edit_intent_event_metadata_sequence,
+                                device_id: value_native_input_edit_intent_event_metadata_device_id,
+                                target_window: value_native_input_edit_intent_event_metadata_target_window,
+                            };
+                            let value_native_input_edit_intent_event_input_type = value.input_type;
+                            let value_native_input_edit_intent_event_data = if let Some(value) = value.data {
+                                let value_native_input_edit_intent_event_data_inner = binding.store_string(value.as_str());
+                                Some(value_native_input_edit_intent_event_data_inner)
+                            } else {
+                                None
+                            };
+                            let mut value_native_input_edit_intent_event_target_ranges_values = Vec::new();
+                            for value_native_input_edit_intent_event_target_ranges_item in value.target_ranges.iter().cloned() {
+                                let value_native_input_edit_intent_event_target_ranges_decoded_start_offset = value_native_input_edit_intent_event_target_ranges_item.start_offset;
+                                let value_native_input_edit_intent_event_target_ranges_decoded_end_offset = value_native_input_edit_intent_event_target_ranges_item.end_offset;
+                                let value_native_input_edit_intent_event_target_ranges_decoded = InputTextRange {
+                                    start_offset: value_native_input_edit_intent_event_target_ranges_decoded_start_offset,
+                                    end_offset: value_native_input_edit_intent_event_target_ranges_decoded_end_offset,
                                 };
-                                let value_native_clipboard_items_inner_decoded_representations_decoded_is_directory = value_native_clipboard_items_inner_decoded_representations_item.is_directory;
-                                let value_native_clipboard_items_inner_decoded_representations_decoded_byte_length = if let Some(value) = value_native_clipboard_items_inner_decoded_representations_item.byte_length {
-                                    let value_native_clipboard_items_inner_decoded_representations_decoded_byte_length_inner = value;
-                                    Some(value_native_clipboard_items_inner_decoded_representations_decoded_byte_length_inner)
-                                } else {
-                                    None
-                                };
-                                let value_native_clipboard_items_inner_decoded_representations_decoded = ClipboardItemRepresentationDescriptor {
-                                    mime_type: value_native_clipboard_items_inner_decoded_representations_decoded_mime_type,
-                                    kind: value_native_clipboard_items_inner_decoded_representations_decoded_kind,
-                                    name: value_native_clipboard_items_inner_decoded_representations_decoded_name,
-                                    is_directory: value_native_clipboard_items_inner_decoded_representations_decoded_is_directory,
-                                    byte_length: value_native_clipboard_items_inner_decoded_representations_decoded_byte_length,
-                                };
-                                value_native_clipboard_items_inner_decoded_representations_values.push(value_native_clipboard_items_inner_decoded_representations_decoded);
+                                value_native_input_edit_intent_event_target_ranges_values.push(value_native_input_edit_intent_event_target_ranges_decoded);
                             }
-                            let value_native_clipboard_items_inner_decoded_representations = binding.store_slice(value_native_clipboard_items_inner_decoded_representations_values);
-                            let value_native_clipboard_items_inner_decoded = ClipboardItemDescriptor {
-                                presentation_style: value_native_clipboard_items_inner_decoded_presentation_style,
-                                representations: value_native_clipboard_items_inner_decoded_representations,
-                            };
-                            value_native_clipboard_items_inner_values.push(value_native_clipboard_items_inner_decoded);
-                        }
-                        let value_native_clipboard_items_inner = binding.store_slice(value_native_clipboard_items_inner_values);
-                        Some(value_native_clipboard_items_inner)
-                    } else {
-                        None
-                    };
-                    let value_native_is_composing = value.is_composing;
-                    let value_native = InputClipboardCommandEvent {
-                        kind: value_native_kind,
-                        metadata: value_native_metadata,
-                        command: value_native_command,
-                        clipboard_items: value_native_clipboard_items,
-                        is_composing: value_native_is_composing,
-                    };
-                    unsafe { out.write(value_native) };
-                    Ok(())
-                }
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
-            }
-        },
-    )
-}
-
-#[inline]
-fn destack_input_text_read_composition_replay(
-    binding: &BindingCallContext,
-    world: RuntimeWorld,
-    out: *mut InputCompositionEvent,
-    handle: resource::InputDeviceHandle,
-) -> RuntimeResult<()> {
-    let _ = &handle;
-
-    binding.trace().run_binding_without_context(
-        INPUT_TEXT_READ_COMPOSITION,
-        binding.replay_payload_for(INPUT_TEXT_READ_COMPOSITION)?,
-        || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_text_read_composition(binding, out, handle)
-            },
-            RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_input_text_read_composition(
-                    binding, out, handle,
-                )
-            },
-        },
-        |result| {
-            if let Ok(()) = result {
-                let result_value: InputCompositionEvent = unsafe { out.read() };
-                let result_recorded_kind = unsafe { result_value.kind.as_str()? }.to_string();
-                let result_recorded_metadata_timestamp_ns = result_value.metadata.timestamp_ns;
-                let result_recorded_metadata_sequence = result_value.metadata.sequence;
-                let result_recorded_metadata_device_id =
-                    unsafe { result_value.metadata.device_id.as_str()? }.to_string();
-                let result_recorded_metadata_target_window =
-                    if let Some(value) = result_value.metadata.target_window {
-                        let result_recorded_metadata_target_window_inner = value;
-                        Some(result_recorded_metadata_target_window_inner)
-                    } else {
-                        None
-                    };
-                let result_recorded_metadata = InputeventmetadataReplayRecord {
-                    timestamp_ns: result_recorded_metadata_timestamp_ns,
-                    sequence: result_recorded_metadata_sequence,
-                    device_id: result_recorded_metadata_device_id,
-                    target_window: result_recorded_metadata_target_window,
-                };
-                let result_recorded_payload_action = result_value.payload.action;
-                let result_recorded_payload_text =
-                    unsafe { result_value.payload.text.as_str()? }.to_string();
-                let result_recorded_payload_selection_start = result_value.payload.selection_start;
-                let result_recorded_payload_selection_end = result_value.payload.selection_end;
-                let result_recorded_payload = InputcompositioneventpayloadReplayRecord {
-                    action: result_recorded_payload_action,
-                    text: result_recorded_payload_text,
-                    selection_start: result_recorded_payload_selection_start,
-                    selection_end: result_recorded_payload_selection_end,
-                };
-                let result_recorded = InputcompositioneventReplayRecord {
-                    kind: result_recorded_kind,
-                    metadata: result_recorded_metadata,
-                    payload: result_recorded_payload,
-                };
-                let payload = InputTextReadCompositionReplayRecord {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(TraceError::from(error.as_ref()));
-                    InputTextReadCompositionReplayRecord { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |payload| {
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    let value_native_kind = binding.store_string(value.kind.as_str());
-                    let value_native_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                    let value_native_metadata_sequence = value.metadata.sequence;
-                    let value_native_metadata_device_id =
-                        binding.store_string(value.metadata.device_id.as_str());
-                    let value_native_metadata_target_window =
-                        if let Some(value) = value.metadata.target_window {
-                            let value_native_metadata_target_window_inner = value;
-                            Some(value_native_metadata_target_window_inner)
-                        } else {
-                            None
-                        };
-                    let value_native_metadata = InputEventMetadata {
-                        timestamp_ns: value_native_metadata_timestamp_ns,
-                        sequence: value_native_metadata_sequence,
-                        device_id: value_native_metadata_device_id,
-                        target_window: value_native_metadata_target_window,
-                    };
-                    let value_native_payload_action = value.payload.action;
-                    let value_native_payload_text =
-                        binding.store_string(value.payload.text.as_str());
-                    let value_native_payload_selection_start = value.payload.selection_start;
-                    let value_native_payload_selection_end = value.payload.selection_end;
-                    let value_native_payload = InputCompositionEventPayload {
-                        action: value_native_payload_action,
-                        text: value_native_payload_text,
-                        selection_start: value_native_payload_selection_start,
-                        selection_end: value_native_payload_selection_end,
-                    };
-                    let value_native = InputCompositionEvent {
-                        kind: value_native_kind,
-                        metadata: value_native_metadata,
-                        payload: value_native_payload,
-                    };
-                    unsafe { out.write(value_native) };
-                    Ok(())
-                }
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
-            }
-        },
-    )
-}
-
-#[inline]
-fn destack_input_text_read_edit_intent_replay(
-    binding: &BindingCallContext,
-    world: RuntimeWorld,
-    out: *mut InputEditIntentEvent,
-    handle: resource::InputDeviceHandle,
-) -> RuntimeResult<()> {
-    let _ = &handle;
-
-    binding.trace().run_binding_without_context(
-        INPUT_TEXT_READ_EDIT_INTENT,
-        binding.replay_payload_for(INPUT_TEXT_READ_EDIT_INTENT)?,
-        || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_input_text_read_edit_intent(binding, out, handle) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_input_text_read_edit_intent(binding, out, handle) },
-        },
-        |result| {
-            if let Ok(()) = result {
-                let result_value: InputEditIntentEvent = unsafe { out.read() };
-                let result_recorded_kind = unsafe { result_value.kind.as_str()? }.to_string();
-                let result_recorded_metadata_timestamp_ns = result_value.metadata.timestamp_ns;
-                let result_recorded_metadata_sequence = result_value.metadata.sequence;
-                let result_recorded_metadata_device_id = unsafe { result_value.metadata.device_id.as_str()? }.to_string();
-                let result_recorded_metadata_target_window = if let Some(value) = result_value.metadata.target_window {
-                    let result_recorded_metadata_target_window_inner = value;
-                    Some(result_recorded_metadata_target_window_inner)
-                } else {
-                    None
-                };
-                let result_recorded_metadata = InputeventmetadataReplayRecord {
-                    timestamp_ns: result_recorded_metadata_timestamp_ns,
-                    sequence: result_recorded_metadata_sequence,
-                    device_id: result_recorded_metadata_device_id,
-                    target_window: result_recorded_metadata_target_window,
-                };
-                let result_recorded_input_type = result_value.input_type;
-                let result_recorded_data = if let Some(value) = result_value.data {
-                    let result_recorded_data_inner = unsafe { value.as_str()? }.to_string();
-                    Some(result_recorded_data_inner)
-                } else {
-                    None
-                };
-                let mut result_recorded_target_ranges = Vec::new();
-                for result_recorded_target_ranges_item in unsafe { result_value.target_ranges.as_slice()? }.iter().cloned() {
-                    let result_recorded_target_ranges_item_recorded_start_offset = result_recorded_target_ranges_item.start_offset;
-                    let result_recorded_target_ranges_item_recorded_end_offset = result_recorded_target_ranges_item.end_offset;
-                    let result_recorded_target_ranges_item_recorded = InputTextRange {
-                        start_offset: result_recorded_target_ranges_item_recorded_start_offset,
-                        end_offset: result_recorded_target_ranges_item_recorded_end_offset,
-                    };
-                    result_recorded_target_ranges.push(result_recorded_target_ranges_item_recorded);
-                }
-                let result_recorded_clipboard_items = if let Some(value) = result_value.clipboard_items {
-                    let mut result_recorded_clipboard_items_inner = Vec::new();
-                    for result_recorded_clipboard_items_inner_item in unsafe { value.as_slice()? }.iter().cloned() {
-                        let result_recorded_clipboard_items_inner_item_recorded_presentation_style = result_recorded_clipboard_items_inner_item.presentation_style;
-                        let mut result_recorded_clipboard_items_inner_item_recorded_representations = Vec::new();
-                        for result_recorded_clipboard_items_inner_item_recorded_representations_item in unsafe { result_recorded_clipboard_items_inner_item.representations.as_slice()? }.iter().cloned() {
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type = unsafe { result_recorded_clipboard_items_inner_item_recorded_representations_item.mime_type.as_str()? }.to_string();
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_kind = result_recorded_clipboard_items_inner_item_recorded_representations_item.kind;
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_name = if let Some(value) = result_recorded_clipboard_items_inner_item_recorded_representations_item.name {
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner)
+                            let value_native_input_edit_intent_event_target_ranges = binding.store_slice(value_native_input_edit_intent_event_target_ranges_values);
+                            let value_native_input_edit_intent_event_clipboard_items = if let Some(value) = value.clipboard_items {
+                                let mut value_native_input_edit_intent_event_clipboard_items_inner_values = Vec::new();
+                                for value_native_input_edit_intent_event_clipboard_items_inner_item in value.iter().cloned() {
+                                    let value_native_input_edit_intent_event_clipboard_items_inner_decoded_presentation_style = value_native_input_edit_intent_event_clipboard_items_inner_item.presentation_style;
+                                    let mut value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_values = Vec::new();
+                                    for value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_item in value_native_input_edit_intent_event_clipboard_items_inner_item.representations.iter().cloned() {
+                                        let value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_decoded_mime_type = binding.store_string(value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_item.mime_type.as_str());
+                                        let value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_decoded_kind = value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_item.kind;
+                                        let value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_decoded_name = if let Some(value) = value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_item.name {
+                                            let value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_decoded_name_inner = binding.store_string(value.as_str());
+                                            Some(value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_decoded_name_inner)
+                                        } else {
+                                            None
+                                        };
+                                        let value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_decoded_is_directory = value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_item.is_directory;
+                                        let value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_decoded_byte_length = if let Some(value) = value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_item.byte_length {
+                                            let value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_decoded_byte_length_inner = value;
+                                            Some(value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_decoded_byte_length_inner)
+                                        } else {
+                                            None
+                                        };
+                                        let value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_decoded = ClipboardItemRepresentationDescriptor {
+                                            mime_type: value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_decoded_mime_type,
+                                            kind: value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_decoded_kind,
+                                            name: value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_decoded_name,
+                                            is_directory: value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_decoded_is_directory,
+                                            byte_length: value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_decoded_byte_length,
+                                        };
+                                        value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_values.push(value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_decoded);
+                                    }
+                                    let value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations = binding.store_slice(value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_values);
+                                    let value_native_input_edit_intent_event_clipboard_items_inner_decoded = ClipboardItemDescriptor {
+                                        presentation_style: value_native_input_edit_intent_event_clipboard_items_inner_decoded_presentation_style,
+                                        representations: value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations,
+                                    };
+                                    value_native_input_edit_intent_event_clipboard_items_inner_values.push(value_native_input_edit_intent_event_clipboard_items_inner_decoded);
+                                }
+                                let value_native_input_edit_intent_event_clipboard_items_inner = binding.store_slice(value_native_input_edit_intent_event_clipboard_items_inner_values);
+                                Some(value_native_input_edit_intent_event_clipboard_items_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_is_directory = result_recorded_clipboard_items_inner_item_recorded_representations_item.is_directory;
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length = if let Some(value) = result_recorded_clipboard_items_inner_item_recorded_representations_item.byte_length {
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length_inner = value;
-                                Some(result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length_inner)
-                            } else {
-                                None
-                            };
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded = ClipboarditemrepresentationdescriptorReplayRecord {
-                                mime_type: result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type,
-                                kind: result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_kind,
-                                name: result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_name,
-                                is_directory: result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_is_directory,
-                                byte_length: result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length,
-                            };
-                            result_recorded_clipboard_items_inner_item_recorded_representations.push(result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded);
-                        }
-                        let result_recorded_clipboard_items_inner_item_recorded = ClipboarditemdescriptorReplayRecord {
-                            presentation_style: result_recorded_clipboard_items_inner_item_recorded_presentation_style,
-                            representations: result_recorded_clipboard_items_inner_item_recorded_representations,
-                        };
-                        result_recorded_clipboard_items_inner.push(result_recorded_clipboard_items_inner_item_recorded);
-                    }
-                    Some(result_recorded_clipboard_items_inner)
-                } else {
-                    None
-                };
-                let result_recorded_drag = if let Some(value) = result_value.drag {
-                    let result_recorded_drag_inner_session = value.session;
-                    let result_recorded_drag_inner_is_external = value.is_external;
-                    let result_recorded_drag_inner_allowed_operations = value.allowed_operations;
-                    let result_recorded_drag_inner_proposed_operation = if let Some(value) = value.proposed_operation {
-                        let result_recorded_drag_inner_proposed_operation_inner = value;
-                        Some(result_recorded_drag_inner_proposed_operation_inner)
-                    } else {
-                        None
-                    };
-                    let result_recorded_drag_inner_position = if let Some(value) = value.position {
-                        let result_recorded_drag_inner_position_inner_x = value.x;
-                        let result_recorded_drag_inner_position_inner_y = value.y;
-                        let result_recorded_drag_inner_position_inner = display::DisplayDragPosition {
-                            x: result_recorded_drag_inner_position_inner_x,
-                            y: result_recorded_drag_inner_position_inner_y,
-                        };
-                        Some(result_recorded_drag_inner_position_inner)
-                    } else {
-                        None
-                    };
-                    let mut result_recorded_drag_inner_items = Vec::new();
-                    for result_recorded_drag_inner_items_item in unsafe { value.items.as_slice()? }.iter().cloned() {
-                        let result_recorded_drag_inner_items_item_recorded_kind = result_recorded_drag_inner_items_item.kind;
-                        let result_recorded_drag_inner_items_item_recorded_item_type = if let Some(value) = result_recorded_drag_inner_items_item.item_type {
-                            let result_recorded_drag_inner_items_item_recorded_item_type_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_drag_inner_items_item_recorded_item_type_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_drag_inner_items_item_recorded_name = if let Some(value) = result_recorded_drag_inner_items_item.name {
-                            let result_recorded_drag_inner_items_item_recorded_name_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_drag_inner_items_item_recorded_name_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_drag_inner_items_item_recorded_is_directory = result_recorded_drag_inner_items_item.is_directory;
-                        let result_recorded_drag_inner_items_item_recorded_byte_length = if let Some(value) = result_recorded_drag_inner_items_item.byte_length {
-                            let result_recorded_drag_inner_items_item_recorded_byte_length_inner = value;
-                            Some(result_recorded_drag_inner_items_item_recorded_byte_length_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_drag_inner_items_item_recorded = display::DisplaydragitemdescriptorReplayRecord {
-                            kind: result_recorded_drag_inner_items_item_recorded_kind,
-                            item_type: result_recorded_drag_inner_items_item_recorded_item_type,
-                            name: result_recorded_drag_inner_items_item_recorded_name,
-                            is_directory: result_recorded_drag_inner_items_item_recorded_is_directory,
-                            byte_length: result_recorded_drag_inner_items_item_recorded_byte_length,
-                        };
-                        result_recorded_drag_inner_items.push(result_recorded_drag_inner_items_item_recorded);
-                    }
-                    let result_recorded_drag_inner = display::DisplaydragtransferReplayRecord {
-                        session: result_recorded_drag_inner_session,
-                        is_external: result_recorded_drag_inner_is_external,
-                        allowed_operations: result_recorded_drag_inner_allowed_operations,
-                        proposed_operation: result_recorded_drag_inner_proposed_operation,
-                        position: result_recorded_drag_inner_position,
-                        items: result_recorded_drag_inner_items,
-                    };
-                    Some(result_recorded_drag_inner)
-                } else {
-                    None
-                };
-                let result_recorded_is_composing = result_value.is_composing;
-                let result_recorded = InputeditintenteventReplayRecord {
-                    kind: result_recorded_kind,
-                    metadata: result_recorded_metadata,
-                    input_type: result_recorded_input_type,
-                    data: result_recorded_data,
-                    target_ranges: result_recorded_target_ranges,
-                    clipboard_items: result_recorded_clipboard_items,
-                    drag: result_recorded_drag,
-                    is_composing: result_recorded_is_composing,
-                };
-                let payload = InputTextReadEditIntentReplayRecord {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(TraceError::from(error.as_ref()));
-                    InputTextReadEditIntentReplayRecord {
-                        result,
-                    }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |payload| {
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    let value_native_kind = binding.store_string(value.kind.as_str());
-                    let value_native_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                    let value_native_metadata_sequence = value.metadata.sequence;
-                    let value_native_metadata_device_id = binding.store_string(value.metadata.device_id.as_str());
-                    let value_native_metadata_target_window = if let Some(value) = value.metadata.target_window {
-                        let value_native_metadata_target_window_inner = value;
-                        Some(value_native_metadata_target_window_inner)
-                    } else {
-                        None
-                    };
-                    let value_native_metadata = InputEventMetadata {
-                        timestamp_ns: value_native_metadata_timestamp_ns,
-                        sequence: value_native_metadata_sequence,
-                        device_id: value_native_metadata_device_id,
-                        target_window: value_native_metadata_target_window,
-                    };
-                    let value_native_input_type = value.input_type;
-                    let value_native_data = if let Some(value) = value.data {
-                        let value_native_data_inner = binding.store_string(value.as_str());
-                        Some(value_native_data_inner)
-                    } else {
-                        None
-                    };
-                    let mut value_native_target_ranges_values = Vec::new();
-                    for value_native_target_ranges_item in value.target_ranges.iter().cloned() {
-                        let value_native_target_ranges_decoded_start_offset = value_native_target_ranges_item.start_offset;
-                        let value_native_target_ranges_decoded_end_offset = value_native_target_ranges_item.end_offset;
-                        let value_native_target_ranges_decoded = InputTextRange {
-                            start_offset: value_native_target_ranges_decoded_start_offset,
-                            end_offset: value_native_target_ranges_decoded_end_offset,
-                        };
-                        value_native_target_ranges_values.push(value_native_target_ranges_decoded);
-                    }
-                    let value_native_target_ranges = binding.store_slice(value_native_target_ranges_values);
-                    let value_native_clipboard_items = if let Some(value) = value.clipboard_items {
-                        let mut value_native_clipboard_items_inner_values = Vec::new();
-                        for value_native_clipboard_items_inner_item in value.iter().cloned() {
-                            let value_native_clipboard_items_inner_decoded_presentation_style = value_native_clipboard_items_inner_item.presentation_style;
-                            let mut value_native_clipboard_items_inner_decoded_representations_values = Vec::new();
-                            for value_native_clipboard_items_inner_decoded_representations_item in value_native_clipboard_items_inner_item.representations.iter().cloned() {
-                                let value_native_clipboard_items_inner_decoded_representations_decoded_mime_type = binding.store_string(value_native_clipboard_items_inner_decoded_representations_item.mime_type.as_str());
-                                let value_native_clipboard_items_inner_decoded_representations_decoded_kind = value_native_clipboard_items_inner_decoded_representations_item.kind;
-                                let value_native_clipboard_items_inner_decoded_representations_decoded_name = if let Some(value) = value_native_clipboard_items_inner_decoded_representations_item.name {
-                                    let value_native_clipboard_items_inner_decoded_representations_decoded_name_inner = binding.store_string(value.as_str());
-                                    Some(value_native_clipboard_items_inner_decoded_representations_decoded_name_inner)
+                            let value_native_input_edit_intent_event_drag = if let Some(value) = value.drag {
+                                let value_native_input_edit_intent_event_drag_inner_session = value.session;
+                                let value_native_input_edit_intent_event_drag_inner_is_external = value.is_external;
+                                let value_native_input_edit_intent_event_drag_inner_allowed_operations = value.allowed_operations;
+                                let value_native_input_edit_intent_event_drag_inner_proposed_operation = if let Some(value) = value.proposed_operation {
+                                    let value_native_input_edit_intent_event_drag_inner_proposed_operation_inner = value;
+                                    Some(value_native_input_edit_intent_event_drag_inner_proposed_operation_inner)
                                 } else {
                                     None
                                 };
-                                let value_native_clipboard_items_inner_decoded_representations_decoded_is_directory = value_native_clipboard_items_inner_decoded_representations_item.is_directory;
-                                let value_native_clipboard_items_inner_decoded_representations_decoded_byte_length = if let Some(value) = value_native_clipboard_items_inner_decoded_representations_item.byte_length {
-                                    let value_native_clipboard_items_inner_decoded_representations_decoded_byte_length_inner = value;
-                                    Some(value_native_clipboard_items_inner_decoded_representations_decoded_byte_length_inner)
+                                let value_native_input_edit_intent_event_drag_inner_position = if let Some(value) = value.position {
+                                    let value_native_input_edit_intent_event_drag_inner_position_inner_x = value.x;
+                                    let value_native_input_edit_intent_event_drag_inner_position_inner_y = value.y;
+                                    let value_native_input_edit_intent_event_drag_inner_position_inner = display::DisplayDragPosition {
+                                        x: value_native_input_edit_intent_event_drag_inner_position_inner_x,
+                                        y: value_native_input_edit_intent_event_drag_inner_position_inner_y,
+                                    };
+                                    Some(value_native_input_edit_intent_event_drag_inner_position_inner)
                                 } else {
                                     None
                                 };
-                                let value_native_clipboard_items_inner_decoded_representations_decoded = ClipboardItemRepresentationDescriptor {
-                                    mime_type: value_native_clipboard_items_inner_decoded_representations_decoded_mime_type,
-                                    kind: value_native_clipboard_items_inner_decoded_representations_decoded_kind,
-                                    name: value_native_clipboard_items_inner_decoded_representations_decoded_name,
-                                    is_directory: value_native_clipboard_items_inner_decoded_representations_decoded_is_directory,
-                                    byte_length: value_native_clipboard_items_inner_decoded_representations_decoded_byte_length,
+                                let mut value_native_input_edit_intent_event_drag_inner_items_values = Vec::new();
+                                for value_native_input_edit_intent_event_drag_inner_items_item in value.items.iter().cloned() {
+                                    let value_native_input_edit_intent_event_drag_inner_items_decoded_kind = value_native_input_edit_intent_event_drag_inner_items_item.kind;
+                                    let value_native_input_edit_intent_event_drag_inner_items_decoded_item_type = if let Some(value) = value_native_input_edit_intent_event_drag_inner_items_item.item_type {
+                                        let value_native_input_edit_intent_event_drag_inner_items_decoded_item_type_inner = binding.store_string(value.as_str());
+                                        Some(value_native_input_edit_intent_event_drag_inner_items_decoded_item_type_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_input_edit_intent_event_drag_inner_items_decoded_name = if let Some(value) = value_native_input_edit_intent_event_drag_inner_items_item.name {
+                                        let value_native_input_edit_intent_event_drag_inner_items_decoded_name_inner = binding.store_string(value.as_str());
+                                        Some(value_native_input_edit_intent_event_drag_inner_items_decoded_name_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_input_edit_intent_event_drag_inner_items_decoded_is_directory = value_native_input_edit_intent_event_drag_inner_items_item.is_directory;
+                                    let value_native_input_edit_intent_event_drag_inner_items_decoded_byte_length = if let Some(value) = value_native_input_edit_intent_event_drag_inner_items_item.byte_length {
+                                        let value_native_input_edit_intent_event_drag_inner_items_decoded_byte_length_inner = value;
+                                        Some(value_native_input_edit_intent_event_drag_inner_items_decoded_byte_length_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_input_edit_intent_event_drag_inner_items_decoded = display::DisplayDragItemDescriptor {
+                                        kind: value_native_input_edit_intent_event_drag_inner_items_decoded_kind,
+                                        item_type: value_native_input_edit_intent_event_drag_inner_items_decoded_item_type,
+                                        name: value_native_input_edit_intent_event_drag_inner_items_decoded_name,
+                                        is_directory: value_native_input_edit_intent_event_drag_inner_items_decoded_is_directory,
+                                        byte_length: value_native_input_edit_intent_event_drag_inner_items_decoded_byte_length,
+                                    };
+                                    value_native_input_edit_intent_event_drag_inner_items_values.push(value_native_input_edit_intent_event_drag_inner_items_decoded);
+                                }
+                                let value_native_input_edit_intent_event_drag_inner_items = binding.store_slice(value_native_input_edit_intent_event_drag_inner_items_values);
+                                let value_native_input_edit_intent_event_drag_inner = display::DisplayDragTransfer {
+                                    session: value_native_input_edit_intent_event_drag_inner_session,
+                                    is_external: value_native_input_edit_intent_event_drag_inner_is_external,
+                                    allowed_operations: value_native_input_edit_intent_event_drag_inner_allowed_operations,
+                                    proposed_operation: value_native_input_edit_intent_event_drag_inner_proposed_operation,
+                                    position: value_native_input_edit_intent_event_drag_inner_position,
+                                    items: value_native_input_edit_intent_event_drag_inner_items,
                                 };
-                                value_native_clipboard_items_inner_decoded_representations_values.push(value_native_clipboard_items_inner_decoded_representations_decoded);
-                            }
-                            let value_native_clipboard_items_inner_decoded_representations = binding.store_slice(value_native_clipboard_items_inner_decoded_representations_values);
-                            let value_native_clipboard_items_inner_decoded = ClipboardItemDescriptor {
-                                presentation_style: value_native_clipboard_items_inner_decoded_presentation_style,
-                                representations: value_native_clipboard_items_inner_decoded_representations,
+                                Some(value_native_input_edit_intent_event_drag_inner)
+                            } else {
+                                None
                             };
-                            value_native_clipboard_items_inner_values.push(value_native_clipboard_items_inner_decoded);
+                            let value_native_input_edit_intent_event_is_composing = value.is_composing;
+                            let value_native_input_edit_intent_event = InputEditIntentEvent {
+                                kind: value_native_input_edit_intent_event_kind,
+                                metadata: value_native_input_edit_intent_event_metadata,
+                                input_type: value_native_input_edit_intent_event_input_type,
+                                data: value_native_input_edit_intent_event_data,
+                                target_ranges: value_native_input_edit_intent_event_target_ranges,
+                                clipboard_items: value_native_input_edit_intent_event_clipboard_items,
+                                drag: value_native_input_edit_intent_event_drag,
+                                is_composing: value_native_input_edit_intent_event_is_composing,
+                            };
+                            InputTextSessionEvent::InputEditIntentEvent(value_native_input_edit_intent_event)
                         }
-                        let value_native_clipboard_items_inner = binding.store_slice(value_native_clipboard_items_inner_values);
-                        Some(value_native_clipboard_items_inner)
-                    } else {
-                        None
-                    };
-                    let value_native_drag = if let Some(value) = value.drag {
-                        let value_native_drag_inner_session = value.session;
-                        let value_native_drag_inner_is_external = value.is_external;
-                        let value_native_drag_inner_allowed_operations = value.allowed_operations;
-                        let value_native_drag_inner_proposed_operation = if let Some(value) = value.proposed_operation {
-                            let value_native_drag_inner_proposed_operation_inner = value;
-                            Some(value_native_drag_inner_proposed_operation_inner)
-                        } else {
-                            None
-                        };
-                        let value_native_drag_inner_position = if let Some(value) = value.position {
-                            let value_native_drag_inner_position_inner_x = value.x;
-                            let value_native_drag_inner_position_inner_y = value.y;
-                            let value_native_drag_inner_position_inner = display::DisplayDragPosition {
-                                x: value_native_drag_inner_position_inner_x,
-                                y: value_native_drag_inner_position_inner_y,
-                            };
-                            Some(value_native_drag_inner_position_inner)
-                        } else {
-                            None
-                        };
-                        let mut value_native_drag_inner_items_values = Vec::new();
-                        for value_native_drag_inner_items_item in value.items.iter().cloned() {
-                            let value_native_drag_inner_items_decoded_kind = value_native_drag_inner_items_item.kind;
-                            let value_native_drag_inner_items_decoded_item_type = if let Some(value) = value_native_drag_inner_items_item.item_type {
-                                let value_native_drag_inner_items_decoded_item_type_inner = binding.store_string(value.as_str());
-                                Some(value_native_drag_inner_items_decoded_item_type_inner)
+                        InputtextsessioneventReplayRecord::InputTextSessionStateEvent(value) => {
+                            let value_native_input_text_session_state_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_input_text_session_state_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_input_text_session_state_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_input_text_session_state_event_metadata_device_id = binding.store_string(value.metadata.device_id.as_str());
+                            let value_native_input_text_session_state_event_metadata_target_window = if let Some(value) = value.metadata.target_window {
+                                let value_native_input_text_session_state_event_metadata_target_window_inner = value;
+                                Some(value_native_input_text_session_state_event_metadata_target_window_inner)
                             } else {
                                 None
                             };
-                            let value_native_drag_inner_items_decoded_name = if let Some(value) = value_native_drag_inner_items_item.name {
-                                let value_native_drag_inner_items_decoded_name_inner = binding.store_string(value.as_str());
-                                Some(value_native_drag_inner_items_decoded_name_inner)
+                            let value_native_input_text_session_state_event_metadata = InputEventMetadata {
+                                timestamp_ns: value_native_input_text_session_state_event_metadata_timestamp_ns,
+                                sequence: value_native_input_text_session_state_event_metadata_sequence,
+                                device_id: value_native_input_text_session_state_event_metadata_device_id,
+                                target_window: value_native_input_text_session_state_event_metadata_target_window,
+                            };
+                            let value_native_input_text_session_state_event_state_text = binding.store_string(value.state.text.as_str());
+                            let value_native_input_text_session_state_event_state_selection_start_offset = value.state.selection.start_offset;
+                            let value_native_input_text_session_state_event_state_selection_end_offset = value.state.selection.end_offset;
+                            let value_native_input_text_session_state_event_state_selection = InputTextRange {
+                                start_offset: value_native_input_text_session_state_event_state_selection_start_offset,
+                                end_offset: value_native_input_text_session_state_event_state_selection_end_offset,
+                            };
+                            let value_native_input_text_session_state_event_state_composing = if let Some(value) = value.state.composing {
+                                let value_native_input_text_session_state_event_state_composing_inner_start_offset = value.start_offset;
+                                let value_native_input_text_session_state_event_state_composing_inner_end_offset = value.end_offset;
+                                let value_native_input_text_session_state_event_state_composing_inner = InputTextRange {
+                                    start_offset: value_native_input_text_session_state_event_state_composing_inner_start_offset,
+                                    end_offset: value_native_input_text_session_state_event_state_composing_inner_end_offset,
+                                };
+                                Some(value_native_input_text_session_state_event_state_composing_inner)
                             } else {
                                 None
                             };
-                            let value_native_drag_inner_items_decoded_is_directory = value_native_drag_inner_items_item.is_directory;
-                            let value_native_drag_inner_items_decoded_byte_length = if let Some(value) = value_native_drag_inner_items_item.byte_length {
-                                let value_native_drag_inner_items_decoded_byte_length_inner = value;
-                                Some(value_native_drag_inner_items_decoded_byte_length_inner)
-                            } else {
-                                None
+                            let value_native_input_text_session_state_event_state = InputTextSessionState {
+                                text: value_native_input_text_session_state_event_state_text,
+                                selection: value_native_input_text_session_state_event_state_selection,
+                                composing: value_native_input_text_session_state_event_state_composing,
                             };
-                            let value_native_drag_inner_items_decoded = display::DisplayDragItemDescriptor {
-                                kind: value_native_drag_inner_items_decoded_kind,
-                                item_type: value_native_drag_inner_items_decoded_item_type,
-                                name: value_native_drag_inner_items_decoded_name,
-                                is_directory: value_native_drag_inner_items_decoded_is_directory,
-                                byte_length: value_native_drag_inner_items_decoded_byte_length,
+                            let value_native_input_text_session_state_event = InputTextSessionStateEvent {
+                                kind: value_native_input_text_session_state_event_kind,
+                                metadata: value_native_input_text_session_state_event_metadata,
+                                state: value_native_input_text_session_state_event_state,
                             };
-                            value_native_drag_inner_items_values.push(value_native_drag_inner_items_decoded);
+                            InputTextSessionEvent::InputTextSessionStateEvent(value_native_input_text_session_state_event)
                         }
-                        let value_native_drag_inner_items = binding.store_slice(value_native_drag_inner_items_values);
-                        let value_native_drag_inner = display::DisplayDragTransfer {
-                            session: value_native_drag_inner_session,
-                            is_external: value_native_drag_inner_is_external,
-                            allowed_operations: value_native_drag_inner_allowed_operations,
-                            proposed_operation: value_native_drag_inner_proposed_operation,
-                            position: value_native_drag_inner_position,
-                            items: value_native_drag_inner_items,
-                        };
-                        Some(value_native_drag_inner)
-                    } else {
-                        None
-                    };
-                    let value_native_is_composing = value.is_composing;
-                    let value_native = InputEditIntentEvent {
-                        kind: value_native_kind,
-                        metadata: value_native_metadata,
-                        input_type: value_native_input_type,
-                        data: value_native_data,
-                        target_ranges: value_native_target_ranges,
-                        clipboard_items: value_native_clipboard_items,
-                        drag: value_native_drag,
-                        is_composing: value_native_is_composing,
                     };
                     unsafe { out.write(value_native) };
                     Ok(())
@@ -16638,23 +16771,20 @@ fn destack_input_text_read_edit_intent_replay(
 fn destack_input_text_set_area_replay(
     binding: &BindingCallContext,
     world: RuntimeWorld,
-    handle: resource::InputDeviceHandle,
-    target: InputWindowTarget,
+    session: resource::InputTextSessionHandle,
     area: InputTextInputArea,
 ) -> RuntimeResult<()> {
-    let _ = (&handle, &target, &area);
+    let _ = (&session, &area);
 
     binding.trace().run_binding_without_context(
         INPUT_TEXT_SET_AREA,
         binding.replay_payload_for(INPUT_TEXT_SET_AREA)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_text_set_area(binding, handle, target, area)
+                platform_native::destack_input_text_set_area(binding, session, area)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_input_text_set_area(
-                    binding, handle, target, area,
-                )
+                platform_simulation_native::destack_input_text_set_area(binding, session, area)
             },
         },
         |result| {
@@ -16687,32 +16817,29 @@ fn destack_input_text_set_area_replay(
 }
 
 #[inline]
-fn destack_input_text_start_replay(
+fn destack_input_text_set_state_replay(
     binding: &BindingCallContext,
     world: RuntimeWorld,
-    handle: resource::InputDeviceHandle,
-    target: InputWindowTarget,
-    inputtype: InputTextInputType,
+    session: resource::InputTextSessionHandle,
+    state: InputTextSessionState,
 ) -> RuntimeResult<()> {
-    let _ = (&handle, &target, &inputtype);
+    let _ = (&session, &state);
 
     binding.trace().run_binding_without_context(
-        INPUT_TEXT_START,
-        binding.replay_payload_for(INPUT_TEXT_START)?,
+        INPUT_TEXT_SET_STATE,
+        binding.replay_payload_for(INPUT_TEXT_SET_STATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_text_start(binding, handle, target, inputtype)
+                platform_native::destack_input_text_set_state(binding, session, state)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_input_text_start(
-                    binding, handle, target, inputtype,
-                )
+                platform_simulation_native::destack_input_text_set_state(binding, session, state)
             },
         },
         |result| {
             if let Ok(()) = result {
                 let result_recorded = ();
-                let payload = InputTextStartReplayRecord {
+                let payload = InputTextSetStateReplayRecord {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -16721,7 +16848,7 @@ fn destack_input_text_start_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(TraceError::from(error.as_ref()));
-                    InputTextStartReplayRecord { result }
+                    InputTextSetStateReplayRecord { result }
                 };
                 return Ok(Some(payload));
             }
@@ -16739,139 +16866,327 @@ fn destack_input_text_start_replay(
 }
 
 #[inline]
-fn destack_input_text_stop_replay(
+fn destack_input_text_try_read_event_replay(
     binding: &BindingCallContext,
     world: RuntimeWorld,
-    handle: resource::InputDeviceHandle,
-    target: InputWindowTarget,
+    out: *mut InputTextSessionEvent,
+    session: resource::InputTextSessionHandle,
 ) -> RuntimeResult<()> {
-    let _ = (&handle, &target);
+    let _ = &session;
 
     binding.trace().run_binding_without_context(
-        INPUT_TEXT_STOP,
-        binding.replay_payload_for(INPUT_TEXT_STOP)?,
+        INPUT_TEXT_TRY_READ_EVENT,
+        binding.replay_payload_for(INPUT_TEXT_TRY_READ_EVENT)?,
         || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_text_stop(binding, handle, target)
-            },
-            RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_input_text_stop(binding, handle, target)
-            },
+            RuntimeWorld::Host => unsafe { platform_native::destack_input_text_try_read_event(binding, out, session) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_input_text_try_read_event(binding, out, session) },
         },
         |result| {
             if let Ok(()) = result {
-                let result_recorded = ();
-                let payload = InputTextStopReplayRecord {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(TraceError::from(error.as_ref()));
-                    InputTextStopReplayRecord { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |payload| {
-            // replay result
-            match payload.result {
-                Ok(()) => Ok(()),
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
-            }
-        },
-    )
-}
-
-#[inline]
-fn destack_input_text_try_read_clipboard_command_replay(
-    binding: &BindingCallContext,
-    world: RuntimeWorld,
-    out: *mut InputClipboardCommandEvent,
-    handle: resource::InputDeviceHandle,
-) -> RuntimeResult<()> {
-    let _ = &handle;
-
-    binding.trace().run_binding_without_context(
-        INPUT_TEXT_TRY_READ_CLIPBOARD_COMMAND,
-        binding.replay_payload_for(INPUT_TEXT_TRY_READ_CLIPBOARD_COMMAND)?,
-        || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_input_text_try_read_clipboard_command(binding, out, handle) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_input_text_try_read_clipboard_command(binding, out, handle) },
-        },
-        |result| {
-            if let Ok(()) = result {
-                let result_value: InputClipboardCommandEvent = unsafe { out.read() };
-                let result_recorded_kind = unsafe { result_value.kind.as_str()? }.to_string();
-                let result_recorded_metadata_timestamp_ns = result_value.metadata.timestamp_ns;
-                let result_recorded_metadata_sequence = result_value.metadata.sequence;
-                let result_recorded_metadata_device_id = unsafe { result_value.metadata.device_id.as_str()? }.to_string();
-                let result_recorded_metadata_target_window = if let Some(value) = result_value.metadata.target_window {
-                    let result_recorded_metadata_target_window_inner = value;
-                    Some(result_recorded_metadata_target_window_inner)
-                } else {
-                    None
-                };
-                let result_recorded_metadata = InputeventmetadataReplayRecord {
-                    timestamp_ns: result_recorded_metadata_timestamp_ns,
-                    sequence: result_recorded_metadata_sequence,
-                    device_id: result_recorded_metadata_device_id,
-                    target_window: result_recorded_metadata_target_window,
-                };
-                let result_recorded_command = result_value.command;
-                let result_recorded_clipboard_items = if let Some(value) = result_value.clipboard_items {
-                    let mut result_recorded_clipboard_items_inner = Vec::new();
-                    for result_recorded_clipboard_items_inner_item in unsafe { value.as_slice()? }.iter().cloned() {
-                        let result_recorded_clipboard_items_inner_item_recorded_presentation_style = result_recorded_clipboard_items_inner_item.presentation_style;
-                        let mut result_recorded_clipboard_items_inner_item_recorded_representations = Vec::new();
-                        for result_recorded_clipboard_items_inner_item_recorded_representations_item in unsafe { result_recorded_clipboard_items_inner_item.representations.as_slice()? }.iter().cloned() {
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type = unsafe { result_recorded_clipboard_items_inner_item_recorded_representations_item.mime_type.as_str()? }.to_string();
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_kind = result_recorded_clipboard_items_inner_item_recorded_representations_item.kind;
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_name = if let Some(value) = result_recorded_clipboard_items_inner_item_recorded_representations_item.name {
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner)
-                            } else {
-                                None
-                            };
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_is_directory = result_recorded_clipboard_items_inner_item_recorded_representations_item.is_directory;
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length = if let Some(value) = result_recorded_clipboard_items_inner_item_recorded_representations_item.byte_length {
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length_inner = value;
-                                Some(result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length_inner)
-                            } else {
-                                None
-                            };
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded = ClipboarditemrepresentationdescriptorReplayRecord {
-                                mime_type: result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type,
-                                kind: result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_kind,
-                                name: result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_name,
-                                is_directory: result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_is_directory,
-                                byte_length: result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length,
-                            };
-                            result_recorded_clipboard_items_inner_item_recorded_representations.push(result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded);
-                        }
-                        let result_recorded_clipboard_items_inner_item_recorded = ClipboarditemdescriptorReplayRecord {
-                            presentation_style: result_recorded_clipboard_items_inner_item_recorded_presentation_style,
-                            representations: result_recorded_clipboard_items_inner_item_recorded_representations,
+                let result_value: InputTextSessionEvent = unsafe { out.read() };
+                let result_recorded = match result_value {
+                    InputTextSessionEvent::InputClipboardCommandEvent(value) => {
+                        let result_recorded_input_clipboard_command_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_input_clipboard_command_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_clipboard_command_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_clipboard_command_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                        let result_recorded_input_clipboard_command_event_metadata_target_window = if let Some(value) = value.metadata.target_window {
+                            let result_recorded_input_clipboard_command_event_metadata_target_window_inner = value;
+                            Some(result_recorded_input_clipboard_command_event_metadata_target_window_inner)
+                        } else {
+                            None
                         };
-                        result_recorded_clipboard_items_inner.push(result_recorded_clipboard_items_inner_item_recorded);
+                        let result_recorded_input_clipboard_command_event_metadata = InputeventmetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_clipboard_command_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_clipboard_command_event_metadata_sequence,
+                            device_id: result_recorded_input_clipboard_command_event_metadata_device_id,
+                            target_window: result_recorded_input_clipboard_command_event_metadata_target_window,
+                        };
+                        let result_recorded_input_clipboard_command_event_command = value.command;
+                        let result_recorded_input_clipboard_command_event_clipboard_items = if let Some(value) = value.clipboard_items {
+                            let mut result_recorded_input_clipboard_command_event_clipboard_items_inner = Vec::new();
+                            for result_recorded_input_clipboard_command_event_clipboard_items_inner_item in unsafe { value.as_slice()? }.iter().cloned() {
+                                let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_presentation_style = result_recorded_input_clipboard_command_event_clipboard_items_inner_item.presentation_style;
+                                let mut result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations = Vec::new();
+                                for result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item in unsafe { result_recorded_input_clipboard_command_event_clipboard_items_inner_item.representations.as_slice()? }.iter().cloned() {
+                                    let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type = unsafe { result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item.mime_type.as_str()? }.to_string();
+                                    let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_kind = result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item.kind;
+                                    let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_name = if let Some(value) = result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item.name {
+                                        let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner = unsafe { value.as_str()? }.to_string();
+                                        Some(result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_is_directory = result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item.is_directory;
+                                    let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length = if let Some(value) = result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item.byte_length {
+                                        let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length_inner = value;
+                                        Some(result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded = ClipboarditemrepresentationdescriptorReplayRecord {
+                                        mime_type: result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type,
+                                        kind: result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_kind,
+                                        name: result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_name,
+                                        is_directory: result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_is_directory,
+                                        byte_length: result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length,
+                                    };
+                                    result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations.push(result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded);
+                                }
+                                let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded = ClipboarditemdescriptorReplayRecord {
+                                    presentation_style: result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_presentation_style,
+                                    representations: result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations,
+                                };
+                                result_recorded_input_clipboard_command_event_clipboard_items_inner.push(result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded);
+                            }
+                            Some(result_recorded_input_clipboard_command_event_clipboard_items_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_input_clipboard_command_event_is_composing = value.is_composing;
+                        let result_recorded_input_clipboard_command_event = InputclipboardcommandeventReplayRecord {
+                            kind: result_recorded_input_clipboard_command_event_kind,
+                            metadata: result_recorded_input_clipboard_command_event_metadata,
+                            command: result_recorded_input_clipboard_command_event_command,
+                            clipboard_items: result_recorded_input_clipboard_command_event_clipboard_items,
+                            is_composing: result_recorded_input_clipboard_command_event_is_composing,
+                        };
+                        InputtextsessioneventReplayRecord::InputClipboardCommandEvent(result_recorded_input_clipboard_command_event)
                     }
-                    Some(result_recorded_clipboard_items_inner)
-                } else {
-                    None
+                    InputTextSessionEvent::InputCompositionEvent(value) => {
+                        let result_recorded_input_composition_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_input_composition_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_composition_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_composition_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                        let result_recorded_input_composition_event_metadata_target_window = if let Some(value) = value.metadata.target_window {
+                            let result_recorded_input_composition_event_metadata_target_window_inner = value;
+                            Some(result_recorded_input_composition_event_metadata_target_window_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_input_composition_event_metadata = InputeventmetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_composition_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_composition_event_metadata_sequence,
+                            device_id: result_recorded_input_composition_event_metadata_device_id,
+                            target_window: result_recorded_input_composition_event_metadata_target_window,
+                        };
+                        let result_recorded_input_composition_event_payload_action = value.payload.action;
+                        let result_recorded_input_composition_event_payload_text = unsafe { value.payload.text.as_str()? }.to_string();
+                        let result_recorded_input_composition_event_payload_selection_start = value.payload.selection_start;
+                        let result_recorded_input_composition_event_payload_selection_end = value.payload.selection_end;
+                        let result_recorded_input_composition_event_payload = InputcompositioneventpayloadReplayRecord {
+                            action: result_recorded_input_composition_event_payload_action,
+                            text: result_recorded_input_composition_event_payload_text,
+                            selection_start: result_recorded_input_composition_event_payload_selection_start,
+                            selection_end: result_recorded_input_composition_event_payload_selection_end,
+                        };
+                        let result_recorded_input_composition_event = InputcompositioneventReplayRecord {
+                            kind: result_recorded_input_composition_event_kind,
+                            metadata: result_recorded_input_composition_event_metadata,
+                            payload: result_recorded_input_composition_event_payload,
+                        };
+                        InputtextsessioneventReplayRecord::InputCompositionEvent(result_recorded_input_composition_event)
+                    }
+                    InputTextSessionEvent::InputEditIntentEvent(value) => {
+                        let result_recorded_input_edit_intent_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_input_edit_intent_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_edit_intent_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_edit_intent_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                        let result_recorded_input_edit_intent_event_metadata_target_window = if let Some(value) = value.metadata.target_window {
+                            let result_recorded_input_edit_intent_event_metadata_target_window_inner = value;
+                            Some(result_recorded_input_edit_intent_event_metadata_target_window_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_input_edit_intent_event_metadata = InputeventmetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_edit_intent_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_edit_intent_event_metadata_sequence,
+                            device_id: result_recorded_input_edit_intent_event_metadata_device_id,
+                            target_window: result_recorded_input_edit_intent_event_metadata_target_window,
+                        };
+                        let result_recorded_input_edit_intent_event_input_type = value.input_type;
+                        let result_recorded_input_edit_intent_event_data = if let Some(value) = value.data {
+                            let result_recorded_input_edit_intent_event_data_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_input_edit_intent_event_data_inner)
+                        } else {
+                            None
+                        };
+                        let mut result_recorded_input_edit_intent_event_target_ranges = Vec::new();
+                        for result_recorded_input_edit_intent_event_target_ranges_item in unsafe { value.target_ranges.as_slice()? }.iter().cloned() {
+                            let result_recorded_input_edit_intent_event_target_ranges_item_recorded_start_offset = result_recorded_input_edit_intent_event_target_ranges_item.start_offset;
+                            let result_recorded_input_edit_intent_event_target_ranges_item_recorded_end_offset = result_recorded_input_edit_intent_event_target_ranges_item.end_offset;
+                            let result_recorded_input_edit_intent_event_target_ranges_item_recorded = InputTextRange {
+                                start_offset: result_recorded_input_edit_intent_event_target_ranges_item_recorded_start_offset,
+                                end_offset: result_recorded_input_edit_intent_event_target_ranges_item_recorded_end_offset,
+                            };
+                            result_recorded_input_edit_intent_event_target_ranges.push(result_recorded_input_edit_intent_event_target_ranges_item_recorded);
+                        }
+                        let result_recorded_input_edit_intent_event_clipboard_items = if let Some(value) = value.clipboard_items {
+                            let mut result_recorded_input_edit_intent_event_clipboard_items_inner = Vec::new();
+                            for result_recorded_input_edit_intent_event_clipboard_items_inner_item in unsafe { value.as_slice()? }.iter().cloned() {
+                                let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_presentation_style = result_recorded_input_edit_intent_event_clipboard_items_inner_item.presentation_style;
+                                let mut result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations = Vec::new();
+                                for result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item in unsafe { result_recorded_input_edit_intent_event_clipboard_items_inner_item.representations.as_slice()? }.iter().cloned() {
+                                    let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type = unsafe { result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item.mime_type.as_str()? }.to_string();
+                                    let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_kind = result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item.kind;
+                                    let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_name = if let Some(value) = result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item.name {
+                                        let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner = unsafe { value.as_str()? }.to_string();
+                                        Some(result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_is_directory = result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item.is_directory;
+                                    let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length = if let Some(value) = result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item.byte_length {
+                                        let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length_inner = value;
+                                        Some(result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded = ClipboarditemrepresentationdescriptorReplayRecord {
+                                        mime_type: result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type,
+                                        kind: result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_kind,
+                                        name: result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_name,
+                                        is_directory: result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_is_directory,
+                                        byte_length: result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length,
+                                    };
+                                    result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations.push(result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded);
+                                }
+                                let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded = ClipboarditemdescriptorReplayRecord {
+                                    presentation_style: result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_presentation_style,
+                                    representations: result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations,
+                                };
+                                result_recorded_input_edit_intent_event_clipboard_items_inner.push(result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded);
+                            }
+                            Some(result_recorded_input_edit_intent_event_clipboard_items_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_input_edit_intent_event_drag = if let Some(value) = value.drag {
+                            let result_recorded_input_edit_intent_event_drag_inner_session = value.session;
+                            let result_recorded_input_edit_intent_event_drag_inner_is_external = value.is_external;
+                            let result_recorded_input_edit_intent_event_drag_inner_allowed_operations = value.allowed_operations;
+                            let result_recorded_input_edit_intent_event_drag_inner_proposed_operation = if let Some(value) = value.proposed_operation {
+                                let result_recorded_input_edit_intent_event_drag_inner_proposed_operation_inner = value;
+                                Some(result_recorded_input_edit_intent_event_drag_inner_proposed_operation_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_input_edit_intent_event_drag_inner_position = if let Some(value) = value.position {
+                                let result_recorded_input_edit_intent_event_drag_inner_position_inner_x = value.x;
+                                let result_recorded_input_edit_intent_event_drag_inner_position_inner_y = value.y;
+                                let result_recorded_input_edit_intent_event_drag_inner_position_inner = display::DisplayDragPosition {
+                                    x: result_recorded_input_edit_intent_event_drag_inner_position_inner_x,
+                                    y: result_recorded_input_edit_intent_event_drag_inner_position_inner_y,
+                                };
+                                Some(result_recorded_input_edit_intent_event_drag_inner_position_inner)
+                            } else {
+                                None
+                            };
+                            let mut result_recorded_input_edit_intent_event_drag_inner_items = Vec::new();
+                            for result_recorded_input_edit_intent_event_drag_inner_items_item in unsafe { value.items.as_slice()? }.iter().cloned() {
+                                let result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_kind = result_recorded_input_edit_intent_event_drag_inner_items_item.kind;
+                                let result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_item_type = if let Some(value) = result_recorded_input_edit_intent_event_drag_inner_items_item.item_type {
+                                    let result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_item_type_inner = unsafe { value.as_str()? }.to_string();
+                                    Some(result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_item_type_inner)
+                                } else {
+                                    None
+                                };
+                                let result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_name = if let Some(value) = result_recorded_input_edit_intent_event_drag_inner_items_item.name {
+                                    let result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_name_inner = unsafe { value.as_str()? }.to_string();
+                                    Some(result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_name_inner)
+                                } else {
+                                    None
+                                };
+                                let result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_is_directory = result_recorded_input_edit_intent_event_drag_inner_items_item.is_directory;
+                                let result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_byte_length = if let Some(value) = result_recorded_input_edit_intent_event_drag_inner_items_item.byte_length {
+                                    let result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_byte_length_inner = value;
+                                    Some(result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_byte_length_inner)
+                                } else {
+                                    None
+                                };
+                                let result_recorded_input_edit_intent_event_drag_inner_items_item_recorded = display::DisplaydragitemdescriptorReplayRecord {
+                                    kind: result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_kind,
+                                    item_type: result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_item_type,
+                                    name: result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_name,
+                                    is_directory: result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_is_directory,
+                                    byte_length: result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_byte_length,
+                                };
+                                result_recorded_input_edit_intent_event_drag_inner_items.push(result_recorded_input_edit_intent_event_drag_inner_items_item_recorded);
+                            }
+                            let result_recorded_input_edit_intent_event_drag_inner = display::DisplaydragtransferReplayRecord {
+                                session: result_recorded_input_edit_intent_event_drag_inner_session,
+                                is_external: result_recorded_input_edit_intent_event_drag_inner_is_external,
+                                allowed_operations: result_recorded_input_edit_intent_event_drag_inner_allowed_operations,
+                                proposed_operation: result_recorded_input_edit_intent_event_drag_inner_proposed_operation,
+                                position: result_recorded_input_edit_intent_event_drag_inner_position,
+                                items: result_recorded_input_edit_intent_event_drag_inner_items,
+                            };
+                            Some(result_recorded_input_edit_intent_event_drag_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_input_edit_intent_event_is_composing = value.is_composing;
+                        let result_recorded_input_edit_intent_event = InputeditintenteventReplayRecord {
+                            kind: result_recorded_input_edit_intent_event_kind,
+                            metadata: result_recorded_input_edit_intent_event_metadata,
+                            input_type: result_recorded_input_edit_intent_event_input_type,
+                            data: result_recorded_input_edit_intent_event_data,
+                            target_ranges: result_recorded_input_edit_intent_event_target_ranges,
+                            clipboard_items: result_recorded_input_edit_intent_event_clipboard_items,
+                            drag: result_recorded_input_edit_intent_event_drag,
+                            is_composing: result_recorded_input_edit_intent_event_is_composing,
+                        };
+                        InputtextsessioneventReplayRecord::InputEditIntentEvent(result_recorded_input_edit_intent_event)
+                    }
+                    InputTextSessionEvent::InputTextSessionStateEvent(value) => {
+                        let result_recorded_input_text_session_state_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_input_text_session_state_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_text_session_state_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_text_session_state_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                        let result_recorded_input_text_session_state_event_metadata_target_window = if let Some(value) = value.metadata.target_window {
+                            let result_recorded_input_text_session_state_event_metadata_target_window_inner = value;
+                            Some(result_recorded_input_text_session_state_event_metadata_target_window_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_input_text_session_state_event_metadata = InputeventmetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_text_session_state_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_text_session_state_event_metadata_sequence,
+                            device_id: result_recorded_input_text_session_state_event_metadata_device_id,
+                            target_window: result_recorded_input_text_session_state_event_metadata_target_window,
+                        };
+                        let result_recorded_input_text_session_state_event_state_text = unsafe { value.state.text.as_str()? }.to_string();
+                        let result_recorded_input_text_session_state_event_state_selection_start_offset = value.state.selection.start_offset;
+                        let result_recorded_input_text_session_state_event_state_selection_end_offset = value.state.selection.end_offset;
+                        let result_recorded_input_text_session_state_event_state_selection = InputTextRange {
+                            start_offset: result_recorded_input_text_session_state_event_state_selection_start_offset,
+                            end_offset: result_recorded_input_text_session_state_event_state_selection_end_offset,
+                        };
+                        let result_recorded_input_text_session_state_event_state_composing = if let Some(value) = value.state.composing {
+                            let result_recorded_input_text_session_state_event_state_composing_inner_start_offset = value.start_offset;
+                            let result_recorded_input_text_session_state_event_state_composing_inner_end_offset = value.end_offset;
+                            let result_recorded_input_text_session_state_event_state_composing_inner = InputTextRange {
+                                start_offset: result_recorded_input_text_session_state_event_state_composing_inner_start_offset,
+                                end_offset: result_recorded_input_text_session_state_event_state_composing_inner_end_offset,
+                            };
+                            Some(result_recorded_input_text_session_state_event_state_composing_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_input_text_session_state_event_state = InputtextsessionstateReplayRecord {
+                            text: result_recorded_input_text_session_state_event_state_text,
+                            selection: result_recorded_input_text_session_state_event_state_selection,
+                            composing: result_recorded_input_text_session_state_event_state_composing,
+                        };
+                        let result_recorded_input_text_session_state_event = InputtextsessionstateeventReplayRecord {
+                            kind: result_recorded_input_text_session_state_event_kind,
+                            metadata: result_recorded_input_text_session_state_event_metadata,
+                            state: result_recorded_input_text_session_state_event_state,
+                        };
+                        InputtextsessioneventReplayRecord::InputTextSessionStateEvent(result_recorded_input_text_session_state_event)
+                    }
                 };
-                let result_recorded_is_composing = result_value.is_composing;
-                let result_recorded = InputclipboardcommandeventReplayRecord {
-                    kind: result_recorded_kind,
-                    metadata: result_recorded_metadata,
-                    command: result_recorded_command,
-                    clipboard_items: result_recorded_clipboard_items,
-                    is_composing: result_recorded_is_composing,
-                };
-                let payload = InputTextTryReadClipboardCommandReplayRecord {
+                let payload = InputTextTryReadEventReplayRecord {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -16880,7 +17195,7 @@ fn destack_input_text_try_read_clipboard_command_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(TraceError::from(error.as_ref()));
-                    InputTextTryReadClipboardCommandReplayRecord {
+                    InputTextTryReadEventReplayRecord {
                         result,
                     }
                 };
@@ -16893,544 +17208,313 @@ fn destack_input_text_try_read_clipboard_command_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native_kind = binding.store_string(value.kind.as_str());
-                    let value_native_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                    let value_native_metadata_sequence = value.metadata.sequence;
-                    let value_native_metadata_device_id = binding.store_string(value.metadata.device_id.as_str());
-                    let value_native_metadata_target_window = if let Some(value) = value.metadata.target_window {
-                        let value_native_metadata_target_window_inner = value;
-                        Some(value_native_metadata_target_window_inner)
-                    } else {
-                        None
-                    };
-                    let value_native_metadata = InputEventMetadata {
-                        timestamp_ns: value_native_metadata_timestamp_ns,
-                        sequence: value_native_metadata_sequence,
-                        device_id: value_native_metadata_device_id,
-                        target_window: value_native_metadata_target_window,
-                    };
-                    let value_native_command = value.command;
-                    let value_native_clipboard_items = if let Some(value) = value.clipboard_items {
-                        let mut value_native_clipboard_items_inner_values = Vec::new();
-                        for value_native_clipboard_items_inner_item in value.iter().cloned() {
-                            let value_native_clipboard_items_inner_decoded_presentation_style = value_native_clipboard_items_inner_item.presentation_style;
-                            let mut value_native_clipboard_items_inner_decoded_representations_values = Vec::new();
-                            for value_native_clipboard_items_inner_decoded_representations_item in value_native_clipboard_items_inner_item.representations.iter().cloned() {
-                                let value_native_clipboard_items_inner_decoded_representations_decoded_mime_type = binding.store_string(value_native_clipboard_items_inner_decoded_representations_item.mime_type.as_str());
-                                let value_native_clipboard_items_inner_decoded_representations_decoded_kind = value_native_clipboard_items_inner_decoded_representations_item.kind;
-                                let value_native_clipboard_items_inner_decoded_representations_decoded_name = if let Some(value) = value_native_clipboard_items_inner_decoded_representations_item.name {
-                                    let value_native_clipboard_items_inner_decoded_representations_decoded_name_inner = binding.store_string(value.as_str());
-                                    Some(value_native_clipboard_items_inner_decoded_representations_decoded_name_inner)
-                                } else {
-                                    None
+                    let value_native = match value {
+                        InputtextsessioneventReplayRecord::InputClipboardCommandEvent(value) => {
+                            let value_native_input_clipboard_command_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_input_clipboard_command_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_input_clipboard_command_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_input_clipboard_command_event_metadata_device_id = binding.store_string(value.metadata.device_id.as_str());
+                            let value_native_input_clipboard_command_event_metadata_target_window = if let Some(value) = value.metadata.target_window {
+                                let value_native_input_clipboard_command_event_metadata_target_window_inner = value;
+                                Some(value_native_input_clipboard_command_event_metadata_target_window_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_input_clipboard_command_event_metadata = InputEventMetadata {
+                                timestamp_ns: value_native_input_clipboard_command_event_metadata_timestamp_ns,
+                                sequence: value_native_input_clipboard_command_event_metadata_sequence,
+                                device_id: value_native_input_clipboard_command_event_metadata_device_id,
+                                target_window: value_native_input_clipboard_command_event_metadata_target_window,
+                            };
+                            let value_native_input_clipboard_command_event_command = value.command;
+                            let value_native_input_clipboard_command_event_clipboard_items = if let Some(value) = value.clipboard_items {
+                                let mut value_native_input_clipboard_command_event_clipboard_items_inner_values = Vec::new();
+                                for value_native_input_clipboard_command_event_clipboard_items_inner_item in value.iter().cloned() {
+                                    let value_native_input_clipboard_command_event_clipboard_items_inner_decoded_presentation_style = value_native_input_clipboard_command_event_clipboard_items_inner_item.presentation_style;
+                                    let mut value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_values = Vec::new();
+                                    for value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_item in value_native_input_clipboard_command_event_clipboard_items_inner_item.representations.iter().cloned() {
+                                        let value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_decoded_mime_type = binding.store_string(value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_item.mime_type.as_str());
+                                        let value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_decoded_kind = value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_item.kind;
+                                        let value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_decoded_name = if let Some(value) = value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_item.name {
+                                            let value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_decoded_name_inner = binding.store_string(value.as_str());
+                                            Some(value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_decoded_name_inner)
+                                        } else {
+                                            None
+                                        };
+                                        let value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_decoded_is_directory = value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_item.is_directory;
+                                        let value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_decoded_byte_length = if let Some(value) = value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_item.byte_length {
+                                            let value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_decoded_byte_length_inner = value;
+                                            Some(value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_decoded_byte_length_inner)
+                                        } else {
+                                            None
+                                        };
+                                        let value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_decoded = ClipboardItemRepresentationDescriptor {
+                                            mime_type: value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_decoded_mime_type,
+                                            kind: value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_decoded_kind,
+                                            name: value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_decoded_name,
+                                            is_directory: value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_decoded_is_directory,
+                                            byte_length: value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_decoded_byte_length,
+                                        };
+                                        value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_values.push(value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_decoded);
+                                    }
+                                    let value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations = binding.store_slice(value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations_values);
+                                    let value_native_input_clipboard_command_event_clipboard_items_inner_decoded = ClipboardItemDescriptor {
+                                        presentation_style: value_native_input_clipboard_command_event_clipboard_items_inner_decoded_presentation_style,
+                                        representations: value_native_input_clipboard_command_event_clipboard_items_inner_decoded_representations,
+                                    };
+                                    value_native_input_clipboard_command_event_clipboard_items_inner_values.push(value_native_input_clipboard_command_event_clipboard_items_inner_decoded);
+                                }
+                                let value_native_input_clipboard_command_event_clipboard_items_inner = binding.store_slice(value_native_input_clipboard_command_event_clipboard_items_inner_values);
+                                Some(value_native_input_clipboard_command_event_clipboard_items_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_input_clipboard_command_event_is_composing = value.is_composing;
+                            let value_native_input_clipboard_command_event = InputClipboardCommandEvent {
+                                kind: value_native_input_clipboard_command_event_kind,
+                                metadata: value_native_input_clipboard_command_event_metadata,
+                                command: value_native_input_clipboard_command_event_command,
+                                clipboard_items: value_native_input_clipboard_command_event_clipboard_items,
+                                is_composing: value_native_input_clipboard_command_event_is_composing,
+                            };
+                            InputTextSessionEvent::InputClipboardCommandEvent(value_native_input_clipboard_command_event)
+                        }
+                        InputtextsessioneventReplayRecord::InputCompositionEvent(value) => {
+                            let value_native_input_composition_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_input_composition_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_input_composition_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_input_composition_event_metadata_device_id = binding.store_string(value.metadata.device_id.as_str());
+                            let value_native_input_composition_event_metadata_target_window = if let Some(value) = value.metadata.target_window {
+                                let value_native_input_composition_event_metadata_target_window_inner = value;
+                                Some(value_native_input_composition_event_metadata_target_window_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_input_composition_event_metadata = InputEventMetadata {
+                                timestamp_ns: value_native_input_composition_event_metadata_timestamp_ns,
+                                sequence: value_native_input_composition_event_metadata_sequence,
+                                device_id: value_native_input_composition_event_metadata_device_id,
+                                target_window: value_native_input_composition_event_metadata_target_window,
+                            };
+                            let value_native_input_composition_event_payload_action = value.payload.action;
+                            let value_native_input_composition_event_payload_text = binding.store_string(value.payload.text.as_str());
+                            let value_native_input_composition_event_payload_selection_start = value.payload.selection_start;
+                            let value_native_input_composition_event_payload_selection_end = value.payload.selection_end;
+                            let value_native_input_composition_event_payload = InputCompositionEventPayload {
+                                action: value_native_input_composition_event_payload_action,
+                                text: value_native_input_composition_event_payload_text,
+                                selection_start: value_native_input_composition_event_payload_selection_start,
+                                selection_end: value_native_input_composition_event_payload_selection_end,
+                            };
+                            let value_native_input_composition_event = InputCompositionEvent {
+                                kind: value_native_input_composition_event_kind,
+                                metadata: value_native_input_composition_event_metadata,
+                                payload: value_native_input_composition_event_payload,
+                            };
+                            InputTextSessionEvent::InputCompositionEvent(value_native_input_composition_event)
+                        }
+                        InputtextsessioneventReplayRecord::InputEditIntentEvent(value) => {
+                            let value_native_input_edit_intent_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_input_edit_intent_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_input_edit_intent_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_input_edit_intent_event_metadata_device_id = binding.store_string(value.metadata.device_id.as_str());
+                            let value_native_input_edit_intent_event_metadata_target_window = if let Some(value) = value.metadata.target_window {
+                                let value_native_input_edit_intent_event_metadata_target_window_inner = value;
+                                Some(value_native_input_edit_intent_event_metadata_target_window_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_input_edit_intent_event_metadata = InputEventMetadata {
+                                timestamp_ns: value_native_input_edit_intent_event_metadata_timestamp_ns,
+                                sequence: value_native_input_edit_intent_event_metadata_sequence,
+                                device_id: value_native_input_edit_intent_event_metadata_device_id,
+                                target_window: value_native_input_edit_intent_event_metadata_target_window,
+                            };
+                            let value_native_input_edit_intent_event_input_type = value.input_type;
+                            let value_native_input_edit_intent_event_data = if let Some(value) = value.data {
+                                let value_native_input_edit_intent_event_data_inner = binding.store_string(value.as_str());
+                                Some(value_native_input_edit_intent_event_data_inner)
+                            } else {
+                                None
+                            };
+                            let mut value_native_input_edit_intent_event_target_ranges_values = Vec::new();
+                            for value_native_input_edit_intent_event_target_ranges_item in value.target_ranges.iter().cloned() {
+                                let value_native_input_edit_intent_event_target_ranges_decoded_start_offset = value_native_input_edit_intent_event_target_ranges_item.start_offset;
+                                let value_native_input_edit_intent_event_target_ranges_decoded_end_offset = value_native_input_edit_intent_event_target_ranges_item.end_offset;
+                                let value_native_input_edit_intent_event_target_ranges_decoded = InputTextRange {
+                                    start_offset: value_native_input_edit_intent_event_target_ranges_decoded_start_offset,
+                                    end_offset: value_native_input_edit_intent_event_target_ranges_decoded_end_offset,
                                 };
-                                let value_native_clipboard_items_inner_decoded_representations_decoded_is_directory = value_native_clipboard_items_inner_decoded_representations_item.is_directory;
-                                let value_native_clipboard_items_inner_decoded_representations_decoded_byte_length = if let Some(value) = value_native_clipboard_items_inner_decoded_representations_item.byte_length {
-                                    let value_native_clipboard_items_inner_decoded_representations_decoded_byte_length_inner = value;
-                                    Some(value_native_clipboard_items_inner_decoded_representations_decoded_byte_length_inner)
-                                } else {
-                                    None
-                                };
-                                let value_native_clipboard_items_inner_decoded_representations_decoded = ClipboardItemRepresentationDescriptor {
-                                    mime_type: value_native_clipboard_items_inner_decoded_representations_decoded_mime_type,
-                                    kind: value_native_clipboard_items_inner_decoded_representations_decoded_kind,
-                                    name: value_native_clipboard_items_inner_decoded_representations_decoded_name,
-                                    is_directory: value_native_clipboard_items_inner_decoded_representations_decoded_is_directory,
-                                    byte_length: value_native_clipboard_items_inner_decoded_representations_decoded_byte_length,
-                                };
-                                value_native_clipboard_items_inner_decoded_representations_values.push(value_native_clipboard_items_inner_decoded_representations_decoded);
+                                value_native_input_edit_intent_event_target_ranges_values.push(value_native_input_edit_intent_event_target_ranges_decoded);
                             }
-                            let value_native_clipboard_items_inner_decoded_representations = binding.store_slice(value_native_clipboard_items_inner_decoded_representations_values);
-                            let value_native_clipboard_items_inner_decoded = ClipboardItemDescriptor {
-                                presentation_style: value_native_clipboard_items_inner_decoded_presentation_style,
-                                representations: value_native_clipboard_items_inner_decoded_representations,
-                            };
-                            value_native_clipboard_items_inner_values.push(value_native_clipboard_items_inner_decoded);
-                        }
-                        let value_native_clipboard_items_inner = binding.store_slice(value_native_clipboard_items_inner_values);
-                        Some(value_native_clipboard_items_inner)
-                    } else {
-                        None
-                    };
-                    let value_native_is_composing = value.is_composing;
-                    let value_native = InputClipboardCommandEvent {
-                        kind: value_native_kind,
-                        metadata: value_native_metadata,
-                        command: value_native_command,
-                        clipboard_items: value_native_clipboard_items,
-                        is_composing: value_native_is_composing,
-                    };
-                    unsafe { out.write(value_native) };
-                    Ok(())
-                }
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
-            }
-        },
-    )
-}
-
-#[inline]
-fn destack_input_text_try_read_composition_replay(
-    binding: &BindingCallContext,
-    world: RuntimeWorld,
-    out: *mut InputCompositionEvent,
-    handle: resource::InputDeviceHandle,
-) -> RuntimeResult<()> {
-    let _ = &handle;
-
-    binding.trace().run_binding_without_context(
-        INPUT_TEXT_TRY_READ_COMPOSITION,
-        binding.replay_payload_for(INPUT_TEXT_TRY_READ_COMPOSITION)?,
-        || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_text_try_read_composition(binding, out, handle)
-            },
-            RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_input_text_try_read_composition(
-                    binding, out, handle,
-                )
-            },
-        },
-        |result| {
-            if let Ok(()) = result {
-                let result_value: InputCompositionEvent = unsafe { out.read() };
-                let result_recorded_kind = unsafe { result_value.kind.as_str()? }.to_string();
-                let result_recorded_metadata_timestamp_ns = result_value.metadata.timestamp_ns;
-                let result_recorded_metadata_sequence = result_value.metadata.sequence;
-                let result_recorded_metadata_device_id =
-                    unsafe { result_value.metadata.device_id.as_str()? }.to_string();
-                let result_recorded_metadata_target_window =
-                    if let Some(value) = result_value.metadata.target_window {
-                        let result_recorded_metadata_target_window_inner = value;
-                        Some(result_recorded_metadata_target_window_inner)
-                    } else {
-                        None
-                    };
-                let result_recorded_metadata = InputeventmetadataReplayRecord {
-                    timestamp_ns: result_recorded_metadata_timestamp_ns,
-                    sequence: result_recorded_metadata_sequence,
-                    device_id: result_recorded_metadata_device_id,
-                    target_window: result_recorded_metadata_target_window,
-                };
-                let result_recorded_payload_action = result_value.payload.action;
-                let result_recorded_payload_text =
-                    unsafe { result_value.payload.text.as_str()? }.to_string();
-                let result_recorded_payload_selection_start = result_value.payload.selection_start;
-                let result_recorded_payload_selection_end = result_value.payload.selection_end;
-                let result_recorded_payload = InputcompositioneventpayloadReplayRecord {
-                    action: result_recorded_payload_action,
-                    text: result_recorded_payload_text,
-                    selection_start: result_recorded_payload_selection_start,
-                    selection_end: result_recorded_payload_selection_end,
-                };
-                let result_recorded = InputcompositioneventReplayRecord {
-                    kind: result_recorded_kind,
-                    metadata: result_recorded_metadata,
-                    payload: result_recorded_payload,
-                };
-                let payload = InputTextTryReadCompositionReplayRecord {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(TraceError::from(error.as_ref()));
-                    InputTextTryReadCompositionReplayRecord { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |payload| {
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    let value_native_kind = binding.store_string(value.kind.as_str());
-                    let value_native_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                    let value_native_metadata_sequence = value.metadata.sequence;
-                    let value_native_metadata_device_id =
-                        binding.store_string(value.metadata.device_id.as_str());
-                    let value_native_metadata_target_window =
-                        if let Some(value) = value.metadata.target_window {
-                            let value_native_metadata_target_window_inner = value;
-                            Some(value_native_metadata_target_window_inner)
-                        } else {
-                            None
-                        };
-                    let value_native_metadata = InputEventMetadata {
-                        timestamp_ns: value_native_metadata_timestamp_ns,
-                        sequence: value_native_metadata_sequence,
-                        device_id: value_native_metadata_device_id,
-                        target_window: value_native_metadata_target_window,
-                    };
-                    let value_native_payload_action = value.payload.action;
-                    let value_native_payload_text =
-                        binding.store_string(value.payload.text.as_str());
-                    let value_native_payload_selection_start = value.payload.selection_start;
-                    let value_native_payload_selection_end = value.payload.selection_end;
-                    let value_native_payload = InputCompositionEventPayload {
-                        action: value_native_payload_action,
-                        text: value_native_payload_text,
-                        selection_start: value_native_payload_selection_start,
-                        selection_end: value_native_payload_selection_end,
-                    };
-                    let value_native = InputCompositionEvent {
-                        kind: value_native_kind,
-                        metadata: value_native_metadata,
-                        payload: value_native_payload,
-                    };
-                    unsafe { out.write(value_native) };
-                    Ok(())
-                }
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
-            }
-        },
-    )
-}
-
-#[inline]
-fn destack_input_text_try_read_edit_intent_replay(
-    binding: &BindingCallContext,
-    world: RuntimeWorld,
-    out: *mut InputEditIntentEvent,
-    handle: resource::InputDeviceHandle,
-) -> RuntimeResult<()> {
-    let _ = &handle;
-
-    binding.trace().run_binding_without_context(
-        INPUT_TEXT_TRY_READ_EDIT_INTENT,
-        binding.replay_payload_for(INPUT_TEXT_TRY_READ_EDIT_INTENT)?,
-        || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_input_text_try_read_edit_intent(binding, out, handle) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_input_text_try_read_edit_intent(binding, out, handle) },
-        },
-        |result| {
-            if let Ok(()) = result {
-                let result_value: InputEditIntentEvent = unsafe { out.read() };
-                let result_recorded_kind = unsafe { result_value.kind.as_str()? }.to_string();
-                let result_recorded_metadata_timestamp_ns = result_value.metadata.timestamp_ns;
-                let result_recorded_metadata_sequence = result_value.metadata.sequence;
-                let result_recorded_metadata_device_id = unsafe { result_value.metadata.device_id.as_str()? }.to_string();
-                let result_recorded_metadata_target_window = if let Some(value) = result_value.metadata.target_window {
-                    let result_recorded_metadata_target_window_inner = value;
-                    Some(result_recorded_metadata_target_window_inner)
-                } else {
-                    None
-                };
-                let result_recorded_metadata = InputeventmetadataReplayRecord {
-                    timestamp_ns: result_recorded_metadata_timestamp_ns,
-                    sequence: result_recorded_metadata_sequence,
-                    device_id: result_recorded_metadata_device_id,
-                    target_window: result_recorded_metadata_target_window,
-                };
-                let result_recorded_input_type = result_value.input_type;
-                let result_recorded_data = if let Some(value) = result_value.data {
-                    let result_recorded_data_inner = unsafe { value.as_str()? }.to_string();
-                    Some(result_recorded_data_inner)
-                } else {
-                    None
-                };
-                let mut result_recorded_target_ranges = Vec::new();
-                for result_recorded_target_ranges_item in unsafe { result_value.target_ranges.as_slice()? }.iter().cloned() {
-                    let result_recorded_target_ranges_item_recorded_start_offset = result_recorded_target_ranges_item.start_offset;
-                    let result_recorded_target_ranges_item_recorded_end_offset = result_recorded_target_ranges_item.end_offset;
-                    let result_recorded_target_ranges_item_recorded = InputTextRange {
-                        start_offset: result_recorded_target_ranges_item_recorded_start_offset,
-                        end_offset: result_recorded_target_ranges_item_recorded_end_offset,
-                    };
-                    result_recorded_target_ranges.push(result_recorded_target_ranges_item_recorded);
-                }
-                let result_recorded_clipboard_items = if let Some(value) = result_value.clipboard_items {
-                    let mut result_recorded_clipboard_items_inner = Vec::new();
-                    for result_recorded_clipboard_items_inner_item in unsafe { value.as_slice()? }.iter().cloned() {
-                        let result_recorded_clipboard_items_inner_item_recorded_presentation_style = result_recorded_clipboard_items_inner_item.presentation_style;
-                        let mut result_recorded_clipboard_items_inner_item_recorded_representations = Vec::new();
-                        for result_recorded_clipboard_items_inner_item_recorded_representations_item in unsafe { result_recorded_clipboard_items_inner_item.representations.as_slice()? }.iter().cloned() {
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type = unsafe { result_recorded_clipboard_items_inner_item_recorded_representations_item.mime_type.as_str()? }.to_string();
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_kind = result_recorded_clipboard_items_inner_item_recorded_representations_item.kind;
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_name = if let Some(value) = result_recorded_clipboard_items_inner_item_recorded_representations_item.name {
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner)
+                            let value_native_input_edit_intent_event_target_ranges = binding.store_slice(value_native_input_edit_intent_event_target_ranges_values);
+                            let value_native_input_edit_intent_event_clipboard_items = if let Some(value) = value.clipboard_items {
+                                let mut value_native_input_edit_intent_event_clipboard_items_inner_values = Vec::new();
+                                for value_native_input_edit_intent_event_clipboard_items_inner_item in value.iter().cloned() {
+                                    let value_native_input_edit_intent_event_clipboard_items_inner_decoded_presentation_style = value_native_input_edit_intent_event_clipboard_items_inner_item.presentation_style;
+                                    let mut value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_values = Vec::new();
+                                    for value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_item in value_native_input_edit_intent_event_clipboard_items_inner_item.representations.iter().cloned() {
+                                        let value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_decoded_mime_type = binding.store_string(value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_item.mime_type.as_str());
+                                        let value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_decoded_kind = value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_item.kind;
+                                        let value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_decoded_name = if let Some(value) = value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_item.name {
+                                            let value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_decoded_name_inner = binding.store_string(value.as_str());
+                                            Some(value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_decoded_name_inner)
+                                        } else {
+                                            None
+                                        };
+                                        let value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_decoded_is_directory = value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_item.is_directory;
+                                        let value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_decoded_byte_length = if let Some(value) = value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_item.byte_length {
+                                            let value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_decoded_byte_length_inner = value;
+                                            Some(value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_decoded_byte_length_inner)
+                                        } else {
+                                            None
+                                        };
+                                        let value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_decoded = ClipboardItemRepresentationDescriptor {
+                                            mime_type: value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_decoded_mime_type,
+                                            kind: value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_decoded_kind,
+                                            name: value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_decoded_name,
+                                            is_directory: value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_decoded_is_directory,
+                                            byte_length: value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_decoded_byte_length,
+                                        };
+                                        value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_values.push(value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_decoded);
+                                    }
+                                    let value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations = binding.store_slice(value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations_values);
+                                    let value_native_input_edit_intent_event_clipboard_items_inner_decoded = ClipboardItemDescriptor {
+                                        presentation_style: value_native_input_edit_intent_event_clipboard_items_inner_decoded_presentation_style,
+                                        representations: value_native_input_edit_intent_event_clipboard_items_inner_decoded_representations,
+                                    };
+                                    value_native_input_edit_intent_event_clipboard_items_inner_values.push(value_native_input_edit_intent_event_clipboard_items_inner_decoded);
+                                }
+                                let value_native_input_edit_intent_event_clipboard_items_inner = binding.store_slice(value_native_input_edit_intent_event_clipboard_items_inner_values);
+                                Some(value_native_input_edit_intent_event_clipboard_items_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_is_directory = result_recorded_clipboard_items_inner_item_recorded_representations_item.is_directory;
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length = if let Some(value) = result_recorded_clipboard_items_inner_item_recorded_representations_item.byte_length {
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length_inner = value;
-                                Some(result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length_inner)
-                            } else {
-                                None
-                            };
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded = ClipboarditemrepresentationdescriptorReplayRecord {
-                                mime_type: result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type,
-                                kind: result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_kind,
-                                name: result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_name,
-                                is_directory: result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_is_directory,
-                                byte_length: result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length,
-                            };
-                            result_recorded_clipboard_items_inner_item_recorded_representations.push(result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded);
-                        }
-                        let result_recorded_clipboard_items_inner_item_recorded = ClipboarditemdescriptorReplayRecord {
-                            presentation_style: result_recorded_clipboard_items_inner_item_recorded_presentation_style,
-                            representations: result_recorded_clipboard_items_inner_item_recorded_representations,
-                        };
-                        result_recorded_clipboard_items_inner.push(result_recorded_clipboard_items_inner_item_recorded);
-                    }
-                    Some(result_recorded_clipboard_items_inner)
-                } else {
-                    None
-                };
-                let result_recorded_drag = if let Some(value) = result_value.drag {
-                    let result_recorded_drag_inner_session = value.session;
-                    let result_recorded_drag_inner_is_external = value.is_external;
-                    let result_recorded_drag_inner_allowed_operations = value.allowed_operations;
-                    let result_recorded_drag_inner_proposed_operation = if let Some(value) = value.proposed_operation {
-                        let result_recorded_drag_inner_proposed_operation_inner = value;
-                        Some(result_recorded_drag_inner_proposed_operation_inner)
-                    } else {
-                        None
-                    };
-                    let result_recorded_drag_inner_position = if let Some(value) = value.position {
-                        let result_recorded_drag_inner_position_inner_x = value.x;
-                        let result_recorded_drag_inner_position_inner_y = value.y;
-                        let result_recorded_drag_inner_position_inner = display::DisplayDragPosition {
-                            x: result_recorded_drag_inner_position_inner_x,
-                            y: result_recorded_drag_inner_position_inner_y,
-                        };
-                        Some(result_recorded_drag_inner_position_inner)
-                    } else {
-                        None
-                    };
-                    let mut result_recorded_drag_inner_items = Vec::new();
-                    for result_recorded_drag_inner_items_item in unsafe { value.items.as_slice()? }.iter().cloned() {
-                        let result_recorded_drag_inner_items_item_recorded_kind = result_recorded_drag_inner_items_item.kind;
-                        let result_recorded_drag_inner_items_item_recorded_item_type = if let Some(value) = result_recorded_drag_inner_items_item.item_type {
-                            let result_recorded_drag_inner_items_item_recorded_item_type_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_drag_inner_items_item_recorded_item_type_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_drag_inner_items_item_recorded_name = if let Some(value) = result_recorded_drag_inner_items_item.name {
-                            let result_recorded_drag_inner_items_item_recorded_name_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_drag_inner_items_item_recorded_name_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_drag_inner_items_item_recorded_is_directory = result_recorded_drag_inner_items_item.is_directory;
-                        let result_recorded_drag_inner_items_item_recorded_byte_length = if let Some(value) = result_recorded_drag_inner_items_item.byte_length {
-                            let result_recorded_drag_inner_items_item_recorded_byte_length_inner = value;
-                            Some(result_recorded_drag_inner_items_item_recorded_byte_length_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_drag_inner_items_item_recorded = display::DisplaydragitemdescriptorReplayRecord {
-                            kind: result_recorded_drag_inner_items_item_recorded_kind,
-                            item_type: result_recorded_drag_inner_items_item_recorded_item_type,
-                            name: result_recorded_drag_inner_items_item_recorded_name,
-                            is_directory: result_recorded_drag_inner_items_item_recorded_is_directory,
-                            byte_length: result_recorded_drag_inner_items_item_recorded_byte_length,
-                        };
-                        result_recorded_drag_inner_items.push(result_recorded_drag_inner_items_item_recorded);
-                    }
-                    let result_recorded_drag_inner = display::DisplaydragtransferReplayRecord {
-                        session: result_recorded_drag_inner_session,
-                        is_external: result_recorded_drag_inner_is_external,
-                        allowed_operations: result_recorded_drag_inner_allowed_operations,
-                        proposed_operation: result_recorded_drag_inner_proposed_operation,
-                        position: result_recorded_drag_inner_position,
-                        items: result_recorded_drag_inner_items,
-                    };
-                    Some(result_recorded_drag_inner)
-                } else {
-                    None
-                };
-                let result_recorded_is_composing = result_value.is_composing;
-                let result_recorded = InputeditintenteventReplayRecord {
-                    kind: result_recorded_kind,
-                    metadata: result_recorded_metadata,
-                    input_type: result_recorded_input_type,
-                    data: result_recorded_data,
-                    target_ranges: result_recorded_target_ranges,
-                    clipboard_items: result_recorded_clipboard_items,
-                    drag: result_recorded_drag,
-                    is_composing: result_recorded_is_composing,
-                };
-                let payload = InputTextTryReadEditIntentReplayRecord {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(TraceError::from(error.as_ref()));
-                    InputTextTryReadEditIntentReplayRecord {
-                        result,
-                    }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |payload| {
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    let value_native_kind = binding.store_string(value.kind.as_str());
-                    let value_native_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                    let value_native_metadata_sequence = value.metadata.sequence;
-                    let value_native_metadata_device_id = binding.store_string(value.metadata.device_id.as_str());
-                    let value_native_metadata_target_window = if let Some(value) = value.metadata.target_window {
-                        let value_native_metadata_target_window_inner = value;
-                        Some(value_native_metadata_target_window_inner)
-                    } else {
-                        None
-                    };
-                    let value_native_metadata = InputEventMetadata {
-                        timestamp_ns: value_native_metadata_timestamp_ns,
-                        sequence: value_native_metadata_sequence,
-                        device_id: value_native_metadata_device_id,
-                        target_window: value_native_metadata_target_window,
-                    };
-                    let value_native_input_type = value.input_type;
-                    let value_native_data = if let Some(value) = value.data {
-                        let value_native_data_inner = binding.store_string(value.as_str());
-                        Some(value_native_data_inner)
-                    } else {
-                        None
-                    };
-                    let mut value_native_target_ranges_values = Vec::new();
-                    for value_native_target_ranges_item in value.target_ranges.iter().cloned() {
-                        let value_native_target_ranges_decoded_start_offset = value_native_target_ranges_item.start_offset;
-                        let value_native_target_ranges_decoded_end_offset = value_native_target_ranges_item.end_offset;
-                        let value_native_target_ranges_decoded = InputTextRange {
-                            start_offset: value_native_target_ranges_decoded_start_offset,
-                            end_offset: value_native_target_ranges_decoded_end_offset,
-                        };
-                        value_native_target_ranges_values.push(value_native_target_ranges_decoded);
-                    }
-                    let value_native_target_ranges = binding.store_slice(value_native_target_ranges_values);
-                    let value_native_clipboard_items = if let Some(value) = value.clipboard_items {
-                        let mut value_native_clipboard_items_inner_values = Vec::new();
-                        for value_native_clipboard_items_inner_item in value.iter().cloned() {
-                            let value_native_clipboard_items_inner_decoded_presentation_style = value_native_clipboard_items_inner_item.presentation_style;
-                            let mut value_native_clipboard_items_inner_decoded_representations_values = Vec::new();
-                            for value_native_clipboard_items_inner_decoded_representations_item in value_native_clipboard_items_inner_item.representations.iter().cloned() {
-                                let value_native_clipboard_items_inner_decoded_representations_decoded_mime_type = binding.store_string(value_native_clipboard_items_inner_decoded_representations_item.mime_type.as_str());
-                                let value_native_clipboard_items_inner_decoded_representations_decoded_kind = value_native_clipboard_items_inner_decoded_representations_item.kind;
-                                let value_native_clipboard_items_inner_decoded_representations_decoded_name = if let Some(value) = value_native_clipboard_items_inner_decoded_representations_item.name {
-                                    let value_native_clipboard_items_inner_decoded_representations_decoded_name_inner = binding.store_string(value.as_str());
-                                    Some(value_native_clipboard_items_inner_decoded_representations_decoded_name_inner)
+                            let value_native_input_edit_intent_event_drag = if let Some(value) = value.drag {
+                                let value_native_input_edit_intent_event_drag_inner_session = value.session;
+                                let value_native_input_edit_intent_event_drag_inner_is_external = value.is_external;
+                                let value_native_input_edit_intent_event_drag_inner_allowed_operations = value.allowed_operations;
+                                let value_native_input_edit_intent_event_drag_inner_proposed_operation = if let Some(value) = value.proposed_operation {
+                                    let value_native_input_edit_intent_event_drag_inner_proposed_operation_inner = value;
+                                    Some(value_native_input_edit_intent_event_drag_inner_proposed_operation_inner)
                                 } else {
                                     None
                                 };
-                                let value_native_clipboard_items_inner_decoded_representations_decoded_is_directory = value_native_clipboard_items_inner_decoded_representations_item.is_directory;
-                                let value_native_clipboard_items_inner_decoded_representations_decoded_byte_length = if let Some(value) = value_native_clipboard_items_inner_decoded_representations_item.byte_length {
-                                    let value_native_clipboard_items_inner_decoded_representations_decoded_byte_length_inner = value;
-                                    Some(value_native_clipboard_items_inner_decoded_representations_decoded_byte_length_inner)
+                                let value_native_input_edit_intent_event_drag_inner_position = if let Some(value) = value.position {
+                                    let value_native_input_edit_intent_event_drag_inner_position_inner_x = value.x;
+                                    let value_native_input_edit_intent_event_drag_inner_position_inner_y = value.y;
+                                    let value_native_input_edit_intent_event_drag_inner_position_inner = display::DisplayDragPosition {
+                                        x: value_native_input_edit_intent_event_drag_inner_position_inner_x,
+                                        y: value_native_input_edit_intent_event_drag_inner_position_inner_y,
+                                    };
+                                    Some(value_native_input_edit_intent_event_drag_inner_position_inner)
                                 } else {
                                     None
                                 };
-                                let value_native_clipboard_items_inner_decoded_representations_decoded = ClipboardItemRepresentationDescriptor {
-                                    mime_type: value_native_clipboard_items_inner_decoded_representations_decoded_mime_type,
-                                    kind: value_native_clipboard_items_inner_decoded_representations_decoded_kind,
-                                    name: value_native_clipboard_items_inner_decoded_representations_decoded_name,
-                                    is_directory: value_native_clipboard_items_inner_decoded_representations_decoded_is_directory,
-                                    byte_length: value_native_clipboard_items_inner_decoded_representations_decoded_byte_length,
+                                let mut value_native_input_edit_intent_event_drag_inner_items_values = Vec::new();
+                                for value_native_input_edit_intent_event_drag_inner_items_item in value.items.iter().cloned() {
+                                    let value_native_input_edit_intent_event_drag_inner_items_decoded_kind = value_native_input_edit_intent_event_drag_inner_items_item.kind;
+                                    let value_native_input_edit_intent_event_drag_inner_items_decoded_item_type = if let Some(value) = value_native_input_edit_intent_event_drag_inner_items_item.item_type {
+                                        let value_native_input_edit_intent_event_drag_inner_items_decoded_item_type_inner = binding.store_string(value.as_str());
+                                        Some(value_native_input_edit_intent_event_drag_inner_items_decoded_item_type_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_input_edit_intent_event_drag_inner_items_decoded_name = if let Some(value) = value_native_input_edit_intent_event_drag_inner_items_item.name {
+                                        let value_native_input_edit_intent_event_drag_inner_items_decoded_name_inner = binding.store_string(value.as_str());
+                                        Some(value_native_input_edit_intent_event_drag_inner_items_decoded_name_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_input_edit_intent_event_drag_inner_items_decoded_is_directory = value_native_input_edit_intent_event_drag_inner_items_item.is_directory;
+                                    let value_native_input_edit_intent_event_drag_inner_items_decoded_byte_length = if let Some(value) = value_native_input_edit_intent_event_drag_inner_items_item.byte_length {
+                                        let value_native_input_edit_intent_event_drag_inner_items_decoded_byte_length_inner = value;
+                                        Some(value_native_input_edit_intent_event_drag_inner_items_decoded_byte_length_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_input_edit_intent_event_drag_inner_items_decoded = display::DisplayDragItemDescriptor {
+                                        kind: value_native_input_edit_intent_event_drag_inner_items_decoded_kind,
+                                        item_type: value_native_input_edit_intent_event_drag_inner_items_decoded_item_type,
+                                        name: value_native_input_edit_intent_event_drag_inner_items_decoded_name,
+                                        is_directory: value_native_input_edit_intent_event_drag_inner_items_decoded_is_directory,
+                                        byte_length: value_native_input_edit_intent_event_drag_inner_items_decoded_byte_length,
+                                    };
+                                    value_native_input_edit_intent_event_drag_inner_items_values.push(value_native_input_edit_intent_event_drag_inner_items_decoded);
+                                }
+                                let value_native_input_edit_intent_event_drag_inner_items = binding.store_slice(value_native_input_edit_intent_event_drag_inner_items_values);
+                                let value_native_input_edit_intent_event_drag_inner = display::DisplayDragTransfer {
+                                    session: value_native_input_edit_intent_event_drag_inner_session,
+                                    is_external: value_native_input_edit_intent_event_drag_inner_is_external,
+                                    allowed_operations: value_native_input_edit_intent_event_drag_inner_allowed_operations,
+                                    proposed_operation: value_native_input_edit_intent_event_drag_inner_proposed_operation,
+                                    position: value_native_input_edit_intent_event_drag_inner_position,
+                                    items: value_native_input_edit_intent_event_drag_inner_items,
                                 };
-                                value_native_clipboard_items_inner_decoded_representations_values.push(value_native_clipboard_items_inner_decoded_representations_decoded);
-                            }
-                            let value_native_clipboard_items_inner_decoded_representations = binding.store_slice(value_native_clipboard_items_inner_decoded_representations_values);
-                            let value_native_clipboard_items_inner_decoded = ClipboardItemDescriptor {
-                                presentation_style: value_native_clipboard_items_inner_decoded_presentation_style,
-                                representations: value_native_clipboard_items_inner_decoded_representations,
+                                Some(value_native_input_edit_intent_event_drag_inner)
+                            } else {
+                                None
                             };
-                            value_native_clipboard_items_inner_values.push(value_native_clipboard_items_inner_decoded);
+                            let value_native_input_edit_intent_event_is_composing = value.is_composing;
+                            let value_native_input_edit_intent_event = InputEditIntentEvent {
+                                kind: value_native_input_edit_intent_event_kind,
+                                metadata: value_native_input_edit_intent_event_metadata,
+                                input_type: value_native_input_edit_intent_event_input_type,
+                                data: value_native_input_edit_intent_event_data,
+                                target_ranges: value_native_input_edit_intent_event_target_ranges,
+                                clipboard_items: value_native_input_edit_intent_event_clipboard_items,
+                                drag: value_native_input_edit_intent_event_drag,
+                                is_composing: value_native_input_edit_intent_event_is_composing,
+                            };
+                            InputTextSessionEvent::InputEditIntentEvent(value_native_input_edit_intent_event)
                         }
-                        let value_native_clipboard_items_inner = binding.store_slice(value_native_clipboard_items_inner_values);
-                        Some(value_native_clipboard_items_inner)
-                    } else {
-                        None
-                    };
-                    let value_native_drag = if let Some(value) = value.drag {
-                        let value_native_drag_inner_session = value.session;
-                        let value_native_drag_inner_is_external = value.is_external;
-                        let value_native_drag_inner_allowed_operations = value.allowed_operations;
-                        let value_native_drag_inner_proposed_operation = if let Some(value) = value.proposed_operation {
-                            let value_native_drag_inner_proposed_operation_inner = value;
-                            Some(value_native_drag_inner_proposed_operation_inner)
-                        } else {
-                            None
-                        };
-                        let value_native_drag_inner_position = if let Some(value) = value.position {
-                            let value_native_drag_inner_position_inner_x = value.x;
-                            let value_native_drag_inner_position_inner_y = value.y;
-                            let value_native_drag_inner_position_inner = display::DisplayDragPosition {
-                                x: value_native_drag_inner_position_inner_x,
-                                y: value_native_drag_inner_position_inner_y,
-                            };
-                            Some(value_native_drag_inner_position_inner)
-                        } else {
-                            None
-                        };
-                        let mut value_native_drag_inner_items_values = Vec::new();
-                        for value_native_drag_inner_items_item in value.items.iter().cloned() {
-                            let value_native_drag_inner_items_decoded_kind = value_native_drag_inner_items_item.kind;
-                            let value_native_drag_inner_items_decoded_item_type = if let Some(value) = value_native_drag_inner_items_item.item_type {
-                                let value_native_drag_inner_items_decoded_item_type_inner = binding.store_string(value.as_str());
-                                Some(value_native_drag_inner_items_decoded_item_type_inner)
+                        InputtextsessioneventReplayRecord::InputTextSessionStateEvent(value) => {
+                            let value_native_input_text_session_state_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_input_text_session_state_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_input_text_session_state_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_input_text_session_state_event_metadata_device_id = binding.store_string(value.metadata.device_id.as_str());
+                            let value_native_input_text_session_state_event_metadata_target_window = if let Some(value) = value.metadata.target_window {
+                                let value_native_input_text_session_state_event_metadata_target_window_inner = value;
+                                Some(value_native_input_text_session_state_event_metadata_target_window_inner)
                             } else {
                                 None
                             };
-                            let value_native_drag_inner_items_decoded_name = if let Some(value) = value_native_drag_inner_items_item.name {
-                                let value_native_drag_inner_items_decoded_name_inner = binding.store_string(value.as_str());
-                                Some(value_native_drag_inner_items_decoded_name_inner)
+                            let value_native_input_text_session_state_event_metadata = InputEventMetadata {
+                                timestamp_ns: value_native_input_text_session_state_event_metadata_timestamp_ns,
+                                sequence: value_native_input_text_session_state_event_metadata_sequence,
+                                device_id: value_native_input_text_session_state_event_metadata_device_id,
+                                target_window: value_native_input_text_session_state_event_metadata_target_window,
+                            };
+                            let value_native_input_text_session_state_event_state_text = binding.store_string(value.state.text.as_str());
+                            let value_native_input_text_session_state_event_state_selection_start_offset = value.state.selection.start_offset;
+                            let value_native_input_text_session_state_event_state_selection_end_offset = value.state.selection.end_offset;
+                            let value_native_input_text_session_state_event_state_selection = InputTextRange {
+                                start_offset: value_native_input_text_session_state_event_state_selection_start_offset,
+                                end_offset: value_native_input_text_session_state_event_state_selection_end_offset,
+                            };
+                            let value_native_input_text_session_state_event_state_composing = if let Some(value) = value.state.composing {
+                                let value_native_input_text_session_state_event_state_composing_inner_start_offset = value.start_offset;
+                                let value_native_input_text_session_state_event_state_composing_inner_end_offset = value.end_offset;
+                                let value_native_input_text_session_state_event_state_composing_inner = InputTextRange {
+                                    start_offset: value_native_input_text_session_state_event_state_composing_inner_start_offset,
+                                    end_offset: value_native_input_text_session_state_event_state_composing_inner_end_offset,
+                                };
+                                Some(value_native_input_text_session_state_event_state_composing_inner)
                             } else {
                                 None
                             };
-                            let value_native_drag_inner_items_decoded_is_directory = value_native_drag_inner_items_item.is_directory;
-                            let value_native_drag_inner_items_decoded_byte_length = if let Some(value) = value_native_drag_inner_items_item.byte_length {
-                                let value_native_drag_inner_items_decoded_byte_length_inner = value;
-                                Some(value_native_drag_inner_items_decoded_byte_length_inner)
-                            } else {
-                                None
+                            let value_native_input_text_session_state_event_state = InputTextSessionState {
+                                text: value_native_input_text_session_state_event_state_text,
+                                selection: value_native_input_text_session_state_event_state_selection,
+                                composing: value_native_input_text_session_state_event_state_composing,
                             };
-                            let value_native_drag_inner_items_decoded = display::DisplayDragItemDescriptor {
-                                kind: value_native_drag_inner_items_decoded_kind,
-                                item_type: value_native_drag_inner_items_decoded_item_type,
-                                name: value_native_drag_inner_items_decoded_name,
-                                is_directory: value_native_drag_inner_items_decoded_is_directory,
-                                byte_length: value_native_drag_inner_items_decoded_byte_length,
+                            let value_native_input_text_session_state_event = InputTextSessionStateEvent {
+                                kind: value_native_input_text_session_state_event_kind,
+                                metadata: value_native_input_text_session_state_event_metadata,
+                                state: value_native_input_text_session_state_event_state,
                             };
-                            value_native_drag_inner_items_values.push(value_native_drag_inner_items_decoded);
+                            InputTextSessionEvent::InputTextSessionStateEvent(value_native_input_text_session_state_event)
                         }
-                        let value_native_drag_inner_items = binding.store_slice(value_native_drag_inner_items_values);
-                        let value_native_drag_inner = display::DisplayDragTransfer {
-                            session: value_native_drag_inner_session,
-                            is_external: value_native_drag_inner_is_external,
-                            allowed_operations: value_native_drag_inner_allowed_operations,
-                            proposed_operation: value_native_drag_inner_proposed_operation,
-                            position: value_native_drag_inner_position,
-                            items: value_native_drag_inner_items,
-                        };
-                        Some(value_native_drag_inner)
-                    } else {
-                        None
-                    };
-                    let value_native_is_composing = value.is_composing;
-                    let value_native = InputEditIntentEvent {
-                        kind: value_native_kind,
-                        metadata: value_native_metadata,
-                        input_type: value_native_input_type,
-                        data: value_native_data,
-                        target_ranges: value_native_target_ranges,
-                        clipboard_items: value_native_clipboard_items,
-                        drag: value_native_drag,
-                        is_composing: value_native_is_composing,
                     };
                     unsafe { out.write(value_native) };
                     Ok(())
@@ -18394,184 +18478,113 @@ pub(crate) unsafe extern "C" fn destack_input_sensor_try_read(
     })
 }
 
+#[unsafe(export_name = "destack.input.text.close")]
+pub(crate) unsafe extern "C" fn destack_input_text_close(
+    session: resource::InputTextSessionHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &session;
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_TEXT_CLOSE)?;
+        destack_input_text_close_replay(context, world, session)
+    })
+}
+
 #[unsafe(export_name = "destack.input.text.getArea")]
 pub(crate) unsafe extern "C" fn destack_input_text_get_area(
     out: *mut InputTextInputArea,
-    handle: resource::InputDeviceHandle,
-    target: InputWindowTarget,
+    session: resource::InputTextSessionHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
-        let _ = (&out, &handle, &target);
+        let _ = (&out, &session);
 
         let (world, _binding_hook_guard) =
             context.on_before_binding_resolve_world(INPUT_TEXT_GET_AREA)?;
-        destack_input_text_get_area_replay(context, world, out, handle, target)
+        destack_input_text_get_area_replay(context, world, out, session)
     })
 }
 
-#[unsafe(export_name = "destack.input.text.isActive")]
-pub(crate) unsafe extern "C" fn destack_input_text_is_active(
-    out: *mut bool,
-    handle: resource::InputDeviceHandle,
+#[unsafe(export_name = "destack.input.text.open")]
+pub(crate) unsafe extern "C" fn destack_input_text_open(
+    out: *mut resource::InputTextSessionHandle,
+    config: InputTextSessionConfig,
+    state: InputTextSessionState,
 ) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
-        let _ = (&out, &handle);
+        let _ = (&out, &config, &state);
 
         let (world, _binding_hook_guard) =
-            context.on_before_binding_resolve_world(INPUT_TEXT_IS_ACTIVE)?;
-        destack_input_text_is_active_replay(context, world, out, handle)
+            context.on_before_binding_resolve_world(INPUT_TEXT_OPEN)?;
+        destack_input_text_open_replay(context, world, out, config, state)
     })
 }
 
-#[unsafe(export_name = "destack.input.text.readClipboardCommand")]
-pub(crate) unsafe extern "C" fn destack_input_text_read_clipboard_command(
-    out: *mut InputClipboardCommandEvent,
-    handle: resource::InputDeviceHandle,
+#[unsafe(export_name = "destack.input.text.readEvent")]
+pub(crate) unsafe extern "C" fn destack_input_text_read_event(
+    out: *mut InputTextSessionEvent,
+    session: resource::InputTextSessionHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
-        let _ = (&out, &handle);
+        let _ = (&out, &session);
 
         let (world, _binding_hook_guard) =
-            context.on_before_binding_resolve_world(INPUT_TEXT_READ_CLIPBOARD_COMMAND)?;
-        destack_input_text_read_clipboard_command_replay(context, world, out, handle)
-    })
-}
-
-#[unsafe(export_name = "destack.input.text.readComposition")]
-pub(crate) unsafe extern "C" fn destack_input_text_read_composition(
-    out: *mut InputCompositionEvent,
-    handle: resource::InputDeviceHandle,
-) -> RuntimeStatus {
-    native_call(|context| {
-        if out.is_null() {
-            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-        }
-        let _ = (&out, &handle);
-
-        let (world, _binding_hook_guard) =
-            context.on_before_binding_resolve_world(INPUT_TEXT_READ_COMPOSITION)?;
-        destack_input_text_read_composition_replay(context, world, out, handle)
-    })
-}
-
-#[unsafe(export_name = "destack.input.text.readEditIntent")]
-pub(crate) unsafe extern "C" fn destack_input_text_read_edit_intent(
-    out: *mut InputEditIntentEvent,
-    handle: resource::InputDeviceHandle,
-) -> RuntimeStatus {
-    native_call(|context| {
-        if out.is_null() {
-            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-        }
-        let _ = (&out, &handle);
-
-        let (world, _binding_hook_guard) =
-            context.on_before_binding_resolve_world(INPUT_TEXT_READ_EDIT_INTENT)?;
-        destack_input_text_read_edit_intent_replay(context, world, out, handle)
+            context.on_before_binding_resolve_world(INPUT_TEXT_READ_EVENT)?;
+        destack_input_text_read_event_replay(context, world, out, session)
     })
 }
 
 #[unsafe(export_name = "destack.input.text.setArea")]
 pub(crate) unsafe extern "C" fn destack_input_text_set_area(
-    handle: resource::InputDeviceHandle,
-    target: InputWindowTarget,
+    session: resource::InputTextSessionHandle,
     area: InputTextInputArea,
 ) -> RuntimeStatus {
     native_call(|context| {
-        let _ = (&handle, &target, &area);
+        let _ = (&session, &area);
 
         let (world, _binding_hook_guard) =
             context.on_before_binding_resolve_world(INPUT_TEXT_SET_AREA)?;
-        destack_input_text_set_area_replay(context, world, handle, target, area)
+        destack_input_text_set_area_replay(context, world, session, area)
     })
 }
 
-#[unsafe(export_name = "destack.input.text.start")]
-pub(crate) unsafe extern "C" fn destack_input_text_start(
-    handle: resource::InputDeviceHandle,
-    target: InputWindowTarget,
-    inputtype: InputTextInputType,
+#[unsafe(export_name = "destack.input.text.setState")]
+pub(crate) unsafe extern "C" fn destack_input_text_set_state(
+    session: resource::InputTextSessionHandle,
+    state: InputTextSessionState,
 ) -> RuntimeStatus {
     native_call(|context| {
-        let _ = (&handle, &target, &inputtype);
+        let _ = (&session, &state);
 
         let (world, _binding_hook_guard) =
-            context.on_before_binding_resolve_world(INPUT_TEXT_START)?;
-        destack_input_text_start_replay(context, world, handle, target, inputtype)
+            context.on_before_binding_resolve_world(INPUT_TEXT_SET_STATE)?;
+        destack_input_text_set_state_replay(context, world, session, state)
     })
 }
 
-#[unsafe(export_name = "destack.input.text.stop")]
-pub(crate) unsafe extern "C" fn destack_input_text_stop(
-    handle: resource::InputDeviceHandle,
-    target: InputWindowTarget,
-) -> RuntimeStatus {
-    native_call(|context| {
-        let _ = (&handle, &target);
-
-        let (world, _binding_hook_guard) =
-            context.on_before_binding_resolve_world(INPUT_TEXT_STOP)?;
-        destack_input_text_stop_replay(context, world, handle, target)
-    })
-}
-
-#[unsafe(export_name = "destack.input.text.tryReadClipboardCommand")]
-pub(crate) unsafe extern "C" fn destack_input_text_try_read_clipboard_command(
-    out: *mut InputClipboardCommandEvent,
-    handle: resource::InputDeviceHandle,
+#[unsafe(export_name = "destack.input.text.tryReadEvent")]
+pub(crate) unsafe extern "C" fn destack_input_text_try_read_event(
+    out: *mut InputTextSessionEvent,
+    session: resource::InputTextSessionHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
-        let _ = (&out, &handle);
+        let _ = (&out, &session);
 
         let (world, _binding_hook_guard) =
-            context.on_before_binding_resolve_world(INPUT_TEXT_TRY_READ_CLIPBOARD_COMMAND)?;
-        destack_input_text_try_read_clipboard_command_replay(context, world, out, handle)
-    })
-}
-
-#[unsafe(export_name = "destack.input.text.tryReadComposition")]
-pub(crate) unsafe extern "C" fn destack_input_text_try_read_composition(
-    out: *mut InputCompositionEvent,
-    handle: resource::InputDeviceHandle,
-) -> RuntimeStatus {
-    native_call(|context| {
-        if out.is_null() {
-            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-        }
-        let _ = (&out, &handle);
-
-        let (world, _binding_hook_guard) =
-            context.on_before_binding_resolve_world(INPUT_TEXT_TRY_READ_COMPOSITION)?;
-        destack_input_text_try_read_composition_replay(context, world, out, handle)
-    })
-}
-
-#[unsafe(export_name = "destack.input.text.tryReadEditIntent")]
-pub(crate) unsafe extern "C" fn destack_input_text_try_read_edit_intent(
-    out: *mut InputEditIntentEvent,
-    handle: resource::InputDeviceHandle,
-) -> RuntimeStatus {
-    native_call(|context| {
-        if out.is_null() {
-            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-        }
-        let _ = (&out, &handle);
-
-        let (world, _binding_hook_guard) =
-            context.on_before_binding_resolve_world(INPUT_TEXT_TRY_READ_EDIT_INTENT)?;
-        destack_input_text_try_read_edit_intent_replay(context, world, out, handle)
+            context.on_before_binding_resolve_world(INPUT_TEXT_TRY_READ_EVENT)?;
+        destack_input_text_try_read_event_replay(context, world, out, session)
     })
 }
 
@@ -29621,12 +29634,61 @@ fn destack_input_sensor_try_read_vm_replay(
 }
 
 #[inline]
+fn destack_input_text_close_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    session: resource::InputTextSessionHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        INPUT_TEXT_CLOSE,
+        binding.replay_payload_for(INPUT_TEXT_CLOSE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_input_text_close(binding, context, session),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_input_text_close(binding, context, session)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = InputTextCloseReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    InputTextCloseReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_input_text_close_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
 fn destack_input_text_get_area_vm_replay(
     binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
-    handle: resource::InputDeviceHandle,
-    target: InputWindowTargetVm,
+    session: resource::InputTextSessionHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = binding.trace().run_binding(
         INPUT_TEXT_GET_AREA,
@@ -29634,11 +29696,11 @@ fn destack_input_text_get_area_vm_replay(
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_input_text_get_area(binding, context, handle, target)
+                platform_vm::destack_input_text_get_area(binding, context, session)
             }
-            RuntimeWorld::Simulation => platform_simulation_vm::destack_input_text_get_area(
-                binding, context, handle, target,
-            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_input_text_get_area(binding, context, session)
+            }
         },
         |context, result| {
             let _ = &context;
@@ -29700,30 +29762,31 @@ fn destack_input_text_get_area_vm_replay(
 }
 
 #[inline]
-fn destack_input_text_is_active_vm_replay(
+fn destack_input_text_open_vm_replay(
     binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
-    handle: resource::InputDeviceHandle,
+    config: InputTextSessionConfigVm,
+    state: InputTextSessionStateVm,
 ) -> RuntimeResult<vm::Value> {
     let result = binding.trace().run_binding(
-        INPUT_TEXT_IS_ACTIVE,
-        binding.replay_payload_for(INPUT_TEXT_IS_ACTIVE)?,
+        INPUT_TEXT_OPEN,
+        binding.replay_payload_for(INPUT_TEXT_OPEN)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_input_text_is_active(binding, context, handle)
+                platform_vm::destack_input_text_open(binding, context, config, state)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_input_text_is_active(binding, context, handle)
+                platform_simulation_vm::destack_input_text_open(binding, context, config, state)
             }
         },
         |context, result| {
             let _ = &context;
             if let Ok(value) = result {
-                let result_value: bool = value.clone();
+                let result_value: resource::InputTextSessionHandle = value.clone();
                 let result_recorded = result_value;
-                let payload = InputTextIsActiveReplayRecord {
+                let payload = InputTextOpenReplayRecord {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -29732,7 +29795,7 @@ fn destack_input_text_is_active_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(TraceError::from(error.as_ref()));
-                    InputTextIsActiveReplayRecord { result }
+                    InputTextOpenReplayRecord { result }
                 };
                 return Ok(Some(payload));
             }
@@ -29751,151 +29814,515 @@ fn destack_input_text_is_active_vm_replay(
             }
         },
     );
-    let result = encode_destack_input_text_is_active_result(context, result)?;
+    let result = encode_destack_input_text_open_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_input_text_read_clipboard_command_vm_replay(
+fn destack_input_text_read_event_vm_replay(
     binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
-    handle: resource::InputDeviceHandle,
+    session: resource::InputTextSessionHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = binding.trace().run_binding(
-        INPUT_TEXT_READ_CLIPBOARD_COMMAND,
-        binding.replay_payload_for(INPUT_TEXT_READ_CLIPBOARD_COMMAND)?,
+        INPUT_TEXT_READ_EVENT,
+        binding.replay_payload_for(INPUT_TEXT_READ_EVENT)?,
         context,
         |context| {
             match world {
-                RuntimeWorld::Host => platform_vm::destack_input_text_read_clipboard_command(binding, context, handle),
-                RuntimeWorld::Simulation => platform_simulation_vm::destack_input_text_read_clipboard_command(binding, context, handle),
+                RuntimeWorld::Host => platform_vm::destack_input_text_read_event(binding, context, session),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_input_text_read_event(binding, context, session),
             }
         },
         |context, result| {
             let _ = &context;
             if let Ok(value) = result {
-                let result_value: InputClipboardCommandEventVm = value.clone();
-                let result_recorded_kind = {
-                    let result_recorded_kind_ref = context.string_ref(result_value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_recorded_kind_ref.as_str().to_string()
-                };
-                let result_recorded_metadata_timestamp_ns = result_value.metadata.timestamp_ns;
-                let result_recorded_metadata_sequence = result_value.metadata.sequence;
-                let result_recorded_metadata_device_id = {
-                    let result_recorded_metadata_device_id_ref = context.string_ref(result_value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_recorded_metadata_device_id_ref.as_str().to_string()
-                };
-                let result_recorded_metadata_target_window = if let Some(value) = result_value.metadata.target_window {
-                    let result_recorded_metadata_target_window_inner = value;
-                    Some(result_recorded_metadata_target_window_inner)
-                } else {
-                    None
-                };
-                let result_recorded_metadata = InputeventmetadataReplayRecord {
-                    timestamp_ns: result_recorded_metadata_timestamp_ns,
-                    sequence: result_recorded_metadata_sequence,
-                    device_id: result_recorded_metadata_device_id,
-                    target_window: result_recorded_metadata_target_window,
-                };
-                let result_recorded_command = result_value.command;
-                let result_recorded_clipboard_items = if let Some(value) = result_value.clipboard_items {
-                    let result_recorded_clipboard_items_inner_raw = value.raw_values(context)?;
-                    let mut result_recorded_clipboard_items_inner = Vec::with_capacity(result_recorded_clipboard_items_inner_raw.len());
-                    for result_recorded_clipboard_items_inner_item_value in result_recorded_clipboard_items_inner_raw {
-                        let result_recorded_clipboard_items_inner_item = {
-                            if result_recorded_clipboard_items_inner_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_clipboard_items_inner_item", "item")).boxed()); }
-                            let slots = context.aggregate_slots(result_recorded_clipboard_items_inner_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
-                            if slots.len() != 2 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_clipboard_items_inner_item", "expected 2 fields")).boxed()); }
-                            let result_recorded_clipboard_items_inner_item_presentation_style_raw = decode_int32(slots[0], "result_recorded_clipboard_items_inner_item_presentation_style_raw", "presentationStyle")?;
-                            let result_recorded_clipboard_items_inner_item_presentation_style = match result_recorded_clipboard_items_inner_item_presentation_style_raw { 0i32 => ClipboardPresentationStyle::Unspecified, 1i32 => ClipboardPresentationStyle::Inline, 2i32 => ClipboardPresentationStyle::Attachment , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_clipboard_items_inner_item_presentation_style", "unknown ClipboardPresentationStyle value")).boxed()), };
-                            let result_recorded_clipboard_items_inner_item_representations = decode_slice::<ClipboardItemRepresentationDescriptorVm>(context, slots[1], "result_recorded_clipboard_items_inner_item_representations", "representations")?;
-                            ClipboardItemDescriptorVm {
-                                presentation_style: result_recorded_clipboard_items_inner_item_presentation_style,
-                                representations: result_recorded_clipboard_items_inner_item_representations,
-                            }
+                let result_value: InputTextSessionEventVm = value.clone();
+                let result_recorded = match result_value {
+                    InputTextSessionEventVm::InputClipboardCommandEvent(value) => {
+                        let result_recorded_input_clipboard_command_event_kind = {
+                            let result_recorded_input_clipboard_command_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_clipboard_command_event_kind_ref.as_str().to_string()
                         };
-                        let result_recorded_clipboard_items_inner_item_recorded_presentation_style = result_recorded_clipboard_items_inner_item.presentation_style;
-                        let result_recorded_clipboard_items_inner_item_recorded_representations_raw = result_recorded_clipboard_items_inner_item.representations.raw_values(context)?;
-                        let mut result_recorded_clipboard_items_inner_item_recorded_representations = Vec::with_capacity(result_recorded_clipboard_items_inner_item_recorded_representations_raw.len());
-                        for result_recorded_clipboard_items_inner_item_recorded_representations_item_value in result_recorded_clipboard_items_inner_item_recorded_representations_raw {
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item = {
-                                if result_recorded_clipboard_items_inner_item_recorded_representations_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_clipboard_items_inner_item_recorded_representations_item", "item")).boxed()); }
-                                let slots = context.aggregate_slots(result_recorded_clipboard_items_inner_item_recorded_representations_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                if slots.len() != 5 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_clipboard_items_inner_item_recorded_representations_item", "expected 5 fields")).boxed()); }
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_mime_type = decode_string(slots[0], "result_recorded_clipboard_items_inner_item_recorded_representations_item_mime_type", "mimeType")?;
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_kind_raw = decode_int32(slots[1], "result_recorded_clipboard_items_inner_item_recorded_representations_item_kind_raw", "kind")?;
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_kind = match result_recorded_clipboard_items_inner_item_recorded_representations_item_kind_raw { 1i32 => ClipboardItemRepresentationKind::String, 2i32 => ClipboardItemRepresentationKind::File, 3i32 => ClipboardItemRepresentationKind::Binary , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_clipboard_items_inner_item_recorded_representations_item_kind", "unknown ClipboardItemRepresentationKind value")).boxed()), };
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_name = if slots[2].tag() == vm::ValueTag::Void {
-                                    None
-                                } else {
-                                    let result_recorded_clipboard_items_inner_item_recorded_representations_item_name_inner = decode_string(slots[2], "result_recorded_clipboard_items_inner_item_recorded_representations_item_name_inner", "name")?;
-                                    Some(result_recorded_clipboard_items_inner_item_recorded_representations_item_name_inner)
+                        let result_recorded_input_clipboard_command_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_clipboard_command_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_clipboard_command_event_metadata_device_id = {
+                            let result_recorded_input_clipboard_command_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_clipboard_command_event_metadata_device_id_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_clipboard_command_event_metadata_target_window = if let Some(value) = value.metadata.target_window {
+                            let result_recorded_input_clipboard_command_event_metadata_target_window_inner = value;
+                            Some(result_recorded_input_clipboard_command_event_metadata_target_window_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_input_clipboard_command_event_metadata = InputeventmetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_clipboard_command_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_clipboard_command_event_metadata_sequence,
+                            device_id: result_recorded_input_clipboard_command_event_metadata_device_id,
+                            target_window: result_recorded_input_clipboard_command_event_metadata_target_window,
+                        };
+                        let result_recorded_input_clipboard_command_event_command = value.command;
+                        let result_recorded_input_clipboard_command_event_clipboard_items = if let Some(value) = value.clipboard_items {
+                            let result_recorded_input_clipboard_command_event_clipboard_items_inner_raw = value.raw_values(context)?;
+                            let mut result_recorded_input_clipboard_command_event_clipboard_items_inner = Vec::with_capacity(result_recorded_input_clipboard_command_event_clipboard_items_inner_raw.len());
+                            for result_recorded_input_clipboard_command_event_clipboard_items_inner_item_value in result_recorded_input_clipboard_command_event_clipboard_items_inner_raw {
+                                let result_recorded_input_clipboard_command_event_clipboard_items_inner_item = {
+                                    if result_recorded_input_clipboard_command_event_clipboard_items_inner_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_input_clipboard_command_event_clipboard_items_inner_item", "item")).boxed()); }
+                                    let slots = context.aggregate_slots(result_recorded_input_clipboard_command_event_clipboard_items_inner_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    if slots.len() != 2 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_input_clipboard_command_event_clipboard_items_inner_item", "expected 2 fields")).boxed()); }
+                                    let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_presentation_style_raw = decode_int32(slots[0], "result_recorded_input_clipboard_command_event_clipboard_items_inner_item_presentation_style_raw", "presentationStyle")?;
+                                    let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_presentation_style = match result_recorded_input_clipboard_command_event_clipboard_items_inner_item_presentation_style_raw { 0i32 => ClipboardPresentationStyle::Unspecified, 1i32 => ClipboardPresentationStyle::Inline, 2i32 => ClipboardPresentationStyle::Attachment , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_input_clipboard_command_event_clipboard_items_inner_item_presentation_style", "unknown ClipboardPresentationStyle value")).boxed()), };
+                                    let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_representations = decode_slice::<ClipboardItemRepresentationDescriptorVm>(context, slots[1], "result_recorded_input_clipboard_command_event_clipboard_items_inner_item_representations", "representations")?;
+                                    ClipboardItemDescriptorVm {
+                                        presentation_style: result_recorded_input_clipboard_command_event_clipboard_items_inner_item_presentation_style,
+                                        representations: result_recorded_input_clipboard_command_event_clipboard_items_inner_item_representations,
+                                    }
                                 };
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_is_directory = decode_bool(slots[3], "result_recorded_clipboard_items_inner_item_recorded_representations_item_is_directory", "isDirectory")?;
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_byte_length = if slots[4].tag() == vm::ValueTag::Void {
-                                    None
-                                } else {
-                                    let result_recorded_clipboard_items_inner_item_recorded_representations_item_byte_length_inner = decode_uint64(slots[4], "result_recorded_clipboard_items_inner_item_recorded_representations_item_byte_length_inner", "byteLength")?;
-                                    Some(result_recorded_clipboard_items_inner_item_recorded_representations_item_byte_length_inner)
+                                let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_presentation_style = result_recorded_input_clipboard_command_event_clipboard_items_inner_item.presentation_style;
+                                let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_raw = result_recorded_input_clipboard_command_event_clipboard_items_inner_item.representations.raw_values(context)?;
+                                let mut result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations = Vec::with_capacity(result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_raw.len());
+                                for result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_value in result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_raw {
+                                    let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item = {
+                                        if result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item", "item")).boxed()); }
+                                        let slots = context.aggregate_slots(result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                        if slots.len() != 5 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item", "expected 5 fields")).boxed()); }
+                                        let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_mime_type = decode_string(slots[0], "result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_mime_type", "mimeType")?;
+                                        let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_kind_raw = decode_int32(slots[1], "result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_kind_raw", "kind")?;
+                                        let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_kind = match result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_kind_raw { 1i32 => ClipboardItemRepresentationKind::String, 2i32 => ClipboardItemRepresentationKind::File, 3i32 => ClipboardItemRepresentationKind::Binary , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_kind", "unknown ClipboardItemRepresentationKind value")).boxed()), };
+                                        let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_name = if slots[2].tag() == vm::ValueTag::Void {
+                                            None
+                                        } else {
+                                            let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_name_inner = decode_string(slots[2], "result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_name_inner", "name")?;
+                                            Some(result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_name_inner)
+                                        };
+                                        let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_is_directory = decode_bool(slots[3], "result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_is_directory", "isDirectory")?;
+                                        let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_byte_length = if slots[4].tag() == vm::ValueTag::Void {
+                                            None
+                                        } else {
+                                            let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_byte_length_inner = decode_uint64(slots[4], "result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_byte_length_inner", "byteLength")?;
+                                            Some(result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_byte_length_inner)
+                                        };
+                                        ClipboardItemRepresentationDescriptorVm {
+                                            mime_type: result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_mime_type,
+                                            kind: result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_kind,
+                                            name: result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_name,
+                                            is_directory: result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_is_directory,
+                                            byte_length: result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_byte_length,
+                                        }
+                                    };
+                                    let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type = {
+                                        let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type_ref = context.string_ref(result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item.mime_type).map_err(|error| RuntimeError::from(error).boxed())?;
+                                        result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type_ref.as_str().to_string()
+                                    };
+                                    let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_kind = result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item.kind;
+                                    let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_name = if let Some(value) = result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item.name {
+                                        let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner = {
+                                            let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                            result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner_ref.as_str().to_string()
+                                        };
+                                        Some(result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_is_directory = result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item.is_directory;
+                                    let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length = if let Some(value) = result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item.byte_length {
+                                        let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length_inner = value;
+                                        Some(result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded = ClipboarditemrepresentationdescriptorReplayRecord {
+                                        mime_type: result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type,
+                                        kind: result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_kind,
+                                        name: result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_name,
+                                        is_directory: result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_is_directory,
+                                        byte_length: result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length,
+                                    };
+                                    result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations.push(result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded);
+                                }
+                                let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded = ClipboarditemdescriptorReplayRecord {
+                                    presentation_style: result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_presentation_style,
+                                    representations: result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations,
                                 };
-                                ClipboardItemRepresentationDescriptorVm {
-                                    mime_type: result_recorded_clipboard_items_inner_item_recorded_representations_item_mime_type,
-                                    kind: result_recorded_clipboard_items_inner_item_recorded_representations_item_kind,
-                                    name: result_recorded_clipboard_items_inner_item_recorded_representations_item_name,
-                                    is_directory: result_recorded_clipboard_items_inner_item_recorded_representations_item_is_directory,
-                                    byte_length: result_recorded_clipboard_items_inner_item_recorded_representations_item_byte_length,
+                                result_recorded_input_clipboard_command_event_clipboard_items_inner.push(result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded);
+                            }
+                            Some(result_recorded_input_clipboard_command_event_clipboard_items_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_input_clipboard_command_event_is_composing = value.is_composing;
+                        let result_recorded_input_clipboard_command_event = InputclipboardcommandeventReplayRecord {
+                            kind: result_recorded_input_clipboard_command_event_kind,
+                            metadata: result_recorded_input_clipboard_command_event_metadata,
+                            command: result_recorded_input_clipboard_command_event_command,
+                            clipboard_items: result_recorded_input_clipboard_command_event_clipboard_items,
+                            is_composing: result_recorded_input_clipboard_command_event_is_composing,
+                        };
+                        InputtextsessioneventReplayRecord::InputClipboardCommandEvent(result_recorded_input_clipboard_command_event)
+                    }
+                    InputTextSessionEventVm::InputCompositionEvent(value) => {
+                        let result_recorded_input_composition_event_kind = {
+                            let result_recorded_input_composition_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_composition_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_composition_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_composition_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_composition_event_metadata_device_id = {
+                            let result_recorded_input_composition_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_composition_event_metadata_device_id_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_composition_event_metadata_target_window = if let Some(value) = value.metadata.target_window {
+                            let result_recorded_input_composition_event_metadata_target_window_inner = value;
+                            Some(result_recorded_input_composition_event_metadata_target_window_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_input_composition_event_metadata = InputeventmetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_composition_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_composition_event_metadata_sequence,
+                            device_id: result_recorded_input_composition_event_metadata_device_id,
+                            target_window: result_recorded_input_composition_event_metadata_target_window,
+                        };
+                        let result_recorded_input_composition_event_payload_action = value.payload.action;
+                        let result_recorded_input_composition_event_payload_text = {
+                            let result_recorded_input_composition_event_payload_text_ref = context.string_ref(value.payload.text).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_composition_event_payload_text_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_composition_event_payload_selection_start = value.payload.selection_start;
+                        let result_recorded_input_composition_event_payload_selection_end = value.payload.selection_end;
+                        let result_recorded_input_composition_event_payload = InputcompositioneventpayloadReplayRecord {
+                            action: result_recorded_input_composition_event_payload_action,
+                            text: result_recorded_input_composition_event_payload_text,
+                            selection_start: result_recorded_input_composition_event_payload_selection_start,
+                            selection_end: result_recorded_input_composition_event_payload_selection_end,
+                        };
+                        let result_recorded_input_composition_event = InputcompositioneventReplayRecord {
+                            kind: result_recorded_input_composition_event_kind,
+                            metadata: result_recorded_input_composition_event_metadata,
+                            payload: result_recorded_input_composition_event_payload,
+                        };
+                        InputtextsessioneventReplayRecord::InputCompositionEvent(result_recorded_input_composition_event)
+                    }
+                    InputTextSessionEventVm::InputEditIntentEvent(value) => {
+                        let result_recorded_input_edit_intent_event_kind = {
+                            let result_recorded_input_edit_intent_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_edit_intent_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_edit_intent_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_edit_intent_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_edit_intent_event_metadata_device_id = {
+                            let result_recorded_input_edit_intent_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_edit_intent_event_metadata_device_id_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_edit_intent_event_metadata_target_window = if let Some(value) = value.metadata.target_window {
+                            let result_recorded_input_edit_intent_event_metadata_target_window_inner = value;
+                            Some(result_recorded_input_edit_intent_event_metadata_target_window_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_input_edit_intent_event_metadata = InputeventmetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_edit_intent_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_edit_intent_event_metadata_sequence,
+                            device_id: result_recorded_input_edit_intent_event_metadata_device_id,
+                            target_window: result_recorded_input_edit_intent_event_metadata_target_window,
+                        };
+                        let result_recorded_input_edit_intent_event_input_type = value.input_type;
+                        let result_recorded_input_edit_intent_event_data = if let Some(value) = value.data {
+                            let result_recorded_input_edit_intent_event_data_inner = {
+                                let result_recorded_input_edit_intent_event_data_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_input_edit_intent_event_data_inner_ref.as_str().to_string()
+                            };
+                            Some(result_recorded_input_edit_intent_event_data_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_input_edit_intent_event_target_ranges_raw = value.target_ranges.raw_values(context)?;
+                        let mut result_recorded_input_edit_intent_event_target_ranges = Vec::with_capacity(result_recorded_input_edit_intent_event_target_ranges_raw.len());
+                        for result_recorded_input_edit_intent_event_target_ranges_item_value in result_recorded_input_edit_intent_event_target_ranges_raw {
+                            let result_recorded_input_edit_intent_event_target_ranges_item = {
+                                if result_recorded_input_edit_intent_event_target_ranges_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_input_edit_intent_event_target_ranges_item", "item")).boxed()); }
+                                let slots = context.aggregate_slots(result_recorded_input_edit_intent_event_target_ranges_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                if slots.len() != 2 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_input_edit_intent_event_target_ranges_item", "expected 2 fields")).boxed()); }
+                                let result_recorded_input_edit_intent_event_target_ranges_item_start_offset = decode_uint32(slots[0], "result_recorded_input_edit_intent_event_target_ranges_item_start_offset", "startOffset")?;
+                                let result_recorded_input_edit_intent_event_target_ranges_item_end_offset = decode_uint32(slots[1], "result_recorded_input_edit_intent_event_target_ranges_item_end_offset", "endOffset")?;
+                                InputTextRangeVm {
+                                    start_offset: result_recorded_input_edit_intent_event_target_ranges_item_start_offset,
+                                    end_offset: result_recorded_input_edit_intent_event_target_ranges_item_end_offset,
                                 }
                             };
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type = {
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type_ref = context.string_ref(result_recorded_clipboard_items_inner_item_recorded_representations_item.mime_type).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type_ref.as_str().to_string()
+                            let result_recorded_input_edit_intent_event_target_ranges_item_recorded_start_offset = result_recorded_input_edit_intent_event_target_ranges_item.start_offset;
+                            let result_recorded_input_edit_intent_event_target_ranges_item_recorded_end_offset = result_recorded_input_edit_intent_event_target_ranges_item.end_offset;
+                            let result_recorded_input_edit_intent_event_target_ranges_item_recorded = InputTextRange {
+                                start_offset: result_recorded_input_edit_intent_event_target_ranges_item_recorded_start_offset,
+                                end_offset: result_recorded_input_edit_intent_event_target_ranges_item_recorded_end_offset,
                             };
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_kind = result_recorded_clipboard_items_inner_item_recorded_representations_item.kind;
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_name = if let Some(value) = result_recorded_clipboard_items_inner_item_recorded_representations_item.name {
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner = {
-                                    let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner_ref.as_str().to_string()
-                                };
-                                Some(result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner)
-                            } else {
-                                None
-                            };
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_is_directory = result_recorded_clipboard_items_inner_item_recorded_representations_item.is_directory;
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length = if let Some(value) = result_recorded_clipboard_items_inner_item_recorded_representations_item.byte_length {
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length_inner = value;
-                                Some(result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length_inner)
-                            } else {
-                                None
-                            };
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded = ClipboarditemrepresentationdescriptorReplayRecord {
-                                mime_type: result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type,
-                                kind: result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_kind,
-                                name: result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_name,
-                                is_directory: result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_is_directory,
-                                byte_length: result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length,
-                            };
-                            result_recorded_clipboard_items_inner_item_recorded_representations.push(result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded);
+                            result_recorded_input_edit_intent_event_target_ranges.push(result_recorded_input_edit_intent_event_target_ranges_item_recorded);
                         }
-                        let result_recorded_clipboard_items_inner_item_recorded = ClipboarditemdescriptorReplayRecord {
-                            presentation_style: result_recorded_clipboard_items_inner_item_recorded_presentation_style,
-                            representations: result_recorded_clipboard_items_inner_item_recorded_representations,
+                        let result_recorded_input_edit_intent_event_clipboard_items = if let Some(value) = value.clipboard_items {
+                            let result_recorded_input_edit_intent_event_clipboard_items_inner_raw = value.raw_values(context)?;
+                            let mut result_recorded_input_edit_intent_event_clipboard_items_inner = Vec::with_capacity(result_recorded_input_edit_intent_event_clipboard_items_inner_raw.len());
+                            for result_recorded_input_edit_intent_event_clipboard_items_inner_item_value in result_recorded_input_edit_intent_event_clipboard_items_inner_raw {
+                                let result_recorded_input_edit_intent_event_clipboard_items_inner_item = {
+                                    if result_recorded_input_edit_intent_event_clipboard_items_inner_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_input_edit_intent_event_clipboard_items_inner_item", "item")).boxed()); }
+                                    let slots = context.aggregate_slots(result_recorded_input_edit_intent_event_clipboard_items_inner_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    if slots.len() != 2 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_input_edit_intent_event_clipboard_items_inner_item", "expected 2 fields")).boxed()); }
+                                    let result_recorded_input_edit_intent_event_clipboard_items_inner_item_presentation_style_raw = decode_int32(slots[0], "result_recorded_input_edit_intent_event_clipboard_items_inner_item_presentation_style_raw", "presentationStyle")?;
+                                    let result_recorded_input_edit_intent_event_clipboard_items_inner_item_presentation_style = match result_recorded_input_edit_intent_event_clipboard_items_inner_item_presentation_style_raw { 0i32 => ClipboardPresentationStyle::Unspecified, 1i32 => ClipboardPresentationStyle::Inline, 2i32 => ClipboardPresentationStyle::Attachment , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_input_edit_intent_event_clipboard_items_inner_item_presentation_style", "unknown ClipboardPresentationStyle value")).boxed()), };
+                                    let result_recorded_input_edit_intent_event_clipboard_items_inner_item_representations = decode_slice::<ClipboardItemRepresentationDescriptorVm>(context, slots[1], "result_recorded_input_edit_intent_event_clipboard_items_inner_item_representations", "representations")?;
+                                    ClipboardItemDescriptorVm {
+                                        presentation_style: result_recorded_input_edit_intent_event_clipboard_items_inner_item_presentation_style,
+                                        representations: result_recorded_input_edit_intent_event_clipboard_items_inner_item_representations,
+                                    }
+                                };
+                                let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_presentation_style = result_recorded_input_edit_intent_event_clipboard_items_inner_item.presentation_style;
+                                let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_raw = result_recorded_input_edit_intent_event_clipboard_items_inner_item.representations.raw_values(context)?;
+                                let mut result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations = Vec::with_capacity(result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_raw.len());
+                                for result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_value in result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_raw {
+                                    let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item = {
+                                        if result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item", "item")).boxed()); }
+                                        let slots = context.aggregate_slots(result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                        if slots.len() != 5 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item", "expected 5 fields")).boxed()); }
+                                        let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_mime_type = decode_string(slots[0], "result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_mime_type", "mimeType")?;
+                                        let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_kind_raw = decode_int32(slots[1], "result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_kind_raw", "kind")?;
+                                        let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_kind = match result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_kind_raw { 1i32 => ClipboardItemRepresentationKind::String, 2i32 => ClipboardItemRepresentationKind::File, 3i32 => ClipboardItemRepresentationKind::Binary , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_kind", "unknown ClipboardItemRepresentationKind value")).boxed()), };
+                                        let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_name = if slots[2].tag() == vm::ValueTag::Void {
+                                            None
+                                        } else {
+                                            let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_name_inner = decode_string(slots[2], "result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_name_inner", "name")?;
+                                            Some(result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_name_inner)
+                                        };
+                                        let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_is_directory = decode_bool(slots[3], "result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_is_directory", "isDirectory")?;
+                                        let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_byte_length = if slots[4].tag() == vm::ValueTag::Void {
+                                            None
+                                        } else {
+                                            let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_byte_length_inner = decode_uint64(slots[4], "result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_byte_length_inner", "byteLength")?;
+                                            Some(result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_byte_length_inner)
+                                        };
+                                        ClipboardItemRepresentationDescriptorVm {
+                                            mime_type: result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_mime_type,
+                                            kind: result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_kind,
+                                            name: result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_name,
+                                            is_directory: result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_is_directory,
+                                            byte_length: result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_byte_length,
+                                        }
+                                    };
+                                    let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type = {
+                                        let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type_ref = context.string_ref(result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item.mime_type).map_err(|error| RuntimeError::from(error).boxed())?;
+                                        result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type_ref.as_str().to_string()
+                                    };
+                                    let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_kind = result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item.kind;
+                                    let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_name = if let Some(value) = result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item.name {
+                                        let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner = {
+                                            let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                            result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner_ref.as_str().to_string()
+                                        };
+                                        Some(result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_is_directory = result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item.is_directory;
+                                    let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length = if let Some(value) = result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item.byte_length {
+                                        let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length_inner = value;
+                                        Some(result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded = ClipboarditemrepresentationdescriptorReplayRecord {
+                                        mime_type: result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type,
+                                        kind: result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_kind,
+                                        name: result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_name,
+                                        is_directory: result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_is_directory,
+                                        byte_length: result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length,
+                                    };
+                                    result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations.push(result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded);
+                                }
+                                let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded = ClipboarditemdescriptorReplayRecord {
+                                    presentation_style: result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_presentation_style,
+                                    representations: result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations,
+                                };
+                                result_recorded_input_edit_intent_event_clipboard_items_inner.push(result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded);
+                            }
+                            Some(result_recorded_input_edit_intent_event_clipboard_items_inner)
+                        } else {
+                            None
                         };
-                        result_recorded_clipboard_items_inner.push(result_recorded_clipboard_items_inner_item_recorded);
+                        let result_recorded_input_edit_intent_event_drag = if let Some(value) = value.drag {
+                            let result_recorded_input_edit_intent_event_drag_inner_session = value.session;
+                            let result_recorded_input_edit_intent_event_drag_inner_is_external = value.is_external;
+                            let result_recorded_input_edit_intent_event_drag_inner_allowed_operations = value.allowed_operations;
+                            let result_recorded_input_edit_intent_event_drag_inner_proposed_operation = if let Some(value) = value.proposed_operation {
+                                let result_recorded_input_edit_intent_event_drag_inner_proposed_operation_inner = value;
+                                Some(result_recorded_input_edit_intent_event_drag_inner_proposed_operation_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_input_edit_intent_event_drag_inner_position = if let Some(value) = value.position {
+                                let result_recorded_input_edit_intent_event_drag_inner_position_inner_x = value.x;
+                                let result_recorded_input_edit_intent_event_drag_inner_position_inner_y = value.y;
+                                let result_recorded_input_edit_intent_event_drag_inner_position_inner = display::DisplayDragPosition {
+                                    x: result_recorded_input_edit_intent_event_drag_inner_position_inner_x,
+                                    y: result_recorded_input_edit_intent_event_drag_inner_position_inner_y,
+                                };
+                                Some(result_recorded_input_edit_intent_event_drag_inner_position_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_input_edit_intent_event_drag_inner_items_raw = value.items.raw_values(context)?;
+                            let mut result_recorded_input_edit_intent_event_drag_inner_items = Vec::with_capacity(result_recorded_input_edit_intent_event_drag_inner_items_raw.len());
+                            for result_recorded_input_edit_intent_event_drag_inner_items_item_value in result_recorded_input_edit_intent_event_drag_inner_items_raw {
+                                let result_recorded_input_edit_intent_event_drag_inner_items_item = {
+                                    if result_recorded_input_edit_intent_event_drag_inner_items_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_input_edit_intent_event_drag_inner_items_item", "item")).boxed()); }
+                                    let slots = context.aggregate_slots(result_recorded_input_edit_intent_event_drag_inner_items_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    if slots.len() != 5 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_input_edit_intent_event_drag_inner_items_item", "expected 5 fields")).boxed()); }
+                                    let result_recorded_input_edit_intent_event_drag_inner_items_item_kind_raw = decode_int32(slots[0], "result_recorded_input_edit_intent_event_drag_inner_items_item_kind_raw", "kind")?;
+                                    let result_recorded_input_edit_intent_event_drag_inner_items_item_kind = match result_recorded_input_edit_intent_event_drag_inner_items_item_kind_raw { 1i32 => display::DisplayDragItemKind::String, 2i32 => display::DisplayDragItemKind::File, 3i32 => display::DisplayDragItemKind::Binary , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_input_edit_intent_event_drag_inner_items_item_kind", "unknown display::DisplayDragItemKind value")).boxed()), };
+                                    let result_recorded_input_edit_intent_event_drag_inner_items_item_item_type = if slots[1].tag() == vm::ValueTag::Void {
+                                        None
+                                    } else {
+                                        let result_recorded_input_edit_intent_event_drag_inner_items_item_item_type_inner = decode_string(slots[1], "result_recorded_input_edit_intent_event_drag_inner_items_item_item_type_inner", "itemType")?;
+                                        Some(result_recorded_input_edit_intent_event_drag_inner_items_item_item_type_inner)
+                                    };
+                                    let result_recorded_input_edit_intent_event_drag_inner_items_item_name = if slots[2].tag() == vm::ValueTag::Void {
+                                        None
+                                    } else {
+                                        let result_recorded_input_edit_intent_event_drag_inner_items_item_name_inner = decode_string(slots[2], "result_recorded_input_edit_intent_event_drag_inner_items_item_name_inner", "name")?;
+                                        Some(result_recorded_input_edit_intent_event_drag_inner_items_item_name_inner)
+                                    };
+                                    let result_recorded_input_edit_intent_event_drag_inner_items_item_is_directory = decode_bool(slots[3], "result_recorded_input_edit_intent_event_drag_inner_items_item_is_directory", "isDirectory")?;
+                                    let result_recorded_input_edit_intent_event_drag_inner_items_item_byte_length = if slots[4].tag() == vm::ValueTag::Void {
+                                        None
+                                    } else {
+                                        let result_recorded_input_edit_intent_event_drag_inner_items_item_byte_length_inner = decode_uint64(slots[4], "result_recorded_input_edit_intent_event_drag_inner_items_item_byte_length_inner", "byteLength")?;
+                                        Some(result_recorded_input_edit_intent_event_drag_inner_items_item_byte_length_inner)
+                                    };
+                                    display::DisplayDragItemDescriptorVm {
+                                        kind: result_recorded_input_edit_intent_event_drag_inner_items_item_kind,
+                                        item_type: result_recorded_input_edit_intent_event_drag_inner_items_item_item_type,
+                                        name: result_recorded_input_edit_intent_event_drag_inner_items_item_name,
+                                        is_directory: result_recorded_input_edit_intent_event_drag_inner_items_item_is_directory,
+                                        byte_length: result_recorded_input_edit_intent_event_drag_inner_items_item_byte_length,
+                                    }
+                                };
+                                let result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_kind = result_recorded_input_edit_intent_event_drag_inner_items_item.kind;
+                                let result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_item_type = if let Some(value) = result_recorded_input_edit_intent_event_drag_inner_items_item.item_type {
+                                    let result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_item_type_inner = {
+                                        let result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_item_type_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                        result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_item_type_inner_ref.as_str().to_string()
+                                    };
+                                    Some(result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_item_type_inner)
+                                } else {
+                                    None
+                                };
+                                let result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_name = if let Some(value) = result_recorded_input_edit_intent_event_drag_inner_items_item.name {
+                                    let result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_name_inner = {
+                                        let result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_name_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                        result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_name_inner_ref.as_str().to_string()
+                                    };
+                                    Some(result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_name_inner)
+                                } else {
+                                    None
+                                };
+                                let result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_is_directory = result_recorded_input_edit_intent_event_drag_inner_items_item.is_directory;
+                                let result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_byte_length = if let Some(value) = result_recorded_input_edit_intent_event_drag_inner_items_item.byte_length {
+                                    let result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_byte_length_inner = value;
+                                    Some(result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_byte_length_inner)
+                                } else {
+                                    None
+                                };
+                                let result_recorded_input_edit_intent_event_drag_inner_items_item_recorded = display::DisplaydragitemdescriptorReplayRecord {
+                                    kind: result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_kind,
+                                    item_type: result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_item_type,
+                                    name: result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_name,
+                                    is_directory: result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_is_directory,
+                                    byte_length: result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_byte_length,
+                                };
+                                result_recorded_input_edit_intent_event_drag_inner_items.push(result_recorded_input_edit_intent_event_drag_inner_items_item_recorded);
+                            }
+                            let result_recorded_input_edit_intent_event_drag_inner = display::DisplaydragtransferReplayRecord {
+                                session: result_recorded_input_edit_intent_event_drag_inner_session,
+                                is_external: result_recorded_input_edit_intent_event_drag_inner_is_external,
+                                allowed_operations: result_recorded_input_edit_intent_event_drag_inner_allowed_operations,
+                                proposed_operation: result_recorded_input_edit_intent_event_drag_inner_proposed_operation,
+                                position: result_recorded_input_edit_intent_event_drag_inner_position,
+                                items: result_recorded_input_edit_intent_event_drag_inner_items,
+                            };
+                            Some(result_recorded_input_edit_intent_event_drag_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_input_edit_intent_event_is_composing = value.is_composing;
+                        let result_recorded_input_edit_intent_event = InputeditintenteventReplayRecord {
+                            kind: result_recorded_input_edit_intent_event_kind,
+                            metadata: result_recorded_input_edit_intent_event_metadata,
+                            input_type: result_recorded_input_edit_intent_event_input_type,
+                            data: result_recorded_input_edit_intent_event_data,
+                            target_ranges: result_recorded_input_edit_intent_event_target_ranges,
+                            clipboard_items: result_recorded_input_edit_intent_event_clipboard_items,
+                            drag: result_recorded_input_edit_intent_event_drag,
+                            is_composing: result_recorded_input_edit_intent_event_is_composing,
+                        };
+                        InputtextsessioneventReplayRecord::InputEditIntentEvent(result_recorded_input_edit_intent_event)
                     }
-                    Some(result_recorded_clipboard_items_inner)
-                } else {
-                    None
+                    InputTextSessionEventVm::InputTextSessionStateEvent(value) => {
+                        let result_recorded_input_text_session_state_event_kind = {
+                            let result_recorded_input_text_session_state_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_text_session_state_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_text_session_state_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_text_session_state_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_text_session_state_event_metadata_device_id = {
+                            let result_recorded_input_text_session_state_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_text_session_state_event_metadata_device_id_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_text_session_state_event_metadata_target_window = if let Some(value) = value.metadata.target_window {
+                            let result_recorded_input_text_session_state_event_metadata_target_window_inner = value;
+                            Some(result_recorded_input_text_session_state_event_metadata_target_window_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_input_text_session_state_event_metadata = InputeventmetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_text_session_state_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_text_session_state_event_metadata_sequence,
+                            device_id: result_recorded_input_text_session_state_event_metadata_device_id,
+                            target_window: result_recorded_input_text_session_state_event_metadata_target_window,
+                        };
+                        let result_recorded_input_text_session_state_event_state_text = {
+                            let result_recorded_input_text_session_state_event_state_text_ref = context.string_ref(value.state.text).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_text_session_state_event_state_text_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_text_session_state_event_state_selection_start_offset = value.state.selection.start_offset;
+                        let result_recorded_input_text_session_state_event_state_selection_end_offset = value.state.selection.end_offset;
+                        let result_recorded_input_text_session_state_event_state_selection = InputTextRange {
+                            start_offset: result_recorded_input_text_session_state_event_state_selection_start_offset,
+                            end_offset: result_recorded_input_text_session_state_event_state_selection_end_offset,
+                        };
+                        let result_recorded_input_text_session_state_event_state_composing = if let Some(value) = value.state.composing {
+                            let result_recorded_input_text_session_state_event_state_composing_inner_start_offset = value.start_offset;
+                            let result_recorded_input_text_session_state_event_state_composing_inner_end_offset = value.end_offset;
+                            let result_recorded_input_text_session_state_event_state_composing_inner = InputTextRange {
+                                start_offset: result_recorded_input_text_session_state_event_state_composing_inner_start_offset,
+                                end_offset: result_recorded_input_text_session_state_event_state_composing_inner_end_offset,
+                            };
+                            Some(result_recorded_input_text_session_state_event_state_composing_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_input_text_session_state_event_state = InputtextsessionstateReplayRecord {
+                            text: result_recorded_input_text_session_state_event_state_text,
+                            selection: result_recorded_input_text_session_state_event_state_selection,
+                            composing: result_recorded_input_text_session_state_event_state_composing,
+                        };
+                        let result_recorded_input_text_session_state_event = InputtextsessionstateeventReplayRecord {
+                            kind: result_recorded_input_text_session_state_event_kind,
+                            metadata: result_recorded_input_text_session_state_event_metadata,
+                            state: result_recorded_input_text_session_state_event_state,
+                        };
+                        InputtextsessioneventReplayRecord::InputTextSessionStateEvent(result_recorded_input_text_session_state_event)
+                    }
                 };
-                let result_recorded_is_composing = result_value.is_composing;
-                let result_recorded = InputclipboardcommandeventReplayRecord {
-                    kind: result_recorded_kind,
-                    metadata: result_recorded_metadata,
-                    command: result_recorded_command,
-                    clipboard_items: result_recorded_clipboard_items,
-                    is_composing: result_recorded_is_composing,
-                };
-                let payload = InputTextReadClipboardCommandReplayRecord {
+                let payload = InputTextReadEventReplayRecord {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -29904,7 +30331,7 @@ fn destack_input_text_read_clipboard_command_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(TraceError::from(error.as_ref()));
-                    InputTextReadClipboardCommandReplayRecord {
+                    InputTextReadEventReplayRecord {
                         result,
                     }
                 };
@@ -29918,676 +30345,313 @@ fn destack_input_text_read_clipboard_command_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                    let vm_result_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                    let vm_result_metadata_sequence = value.metadata.sequence;
-                    let vm_result_metadata_device_id = context.string_handle(value.metadata.device_id.as_str()).map_err(Box::<RuntimeError>::from)?;
-                    let vm_result_metadata_target_window = if let Some(value) = value.metadata.target_window {
-                        let vm_result_metadata_target_window_inner = value;
-                        Some(vm_result_metadata_target_window_inner)
-                    } else {
-                        None
-                    };
-                    let vm_result_metadata = InputEventMetadataVm {
-                        timestamp_ns: vm_result_metadata_timestamp_ns,
-                        sequence: vm_result_metadata_sequence,
-                        device_id: vm_result_metadata_device_id,
-                        target_window: vm_result_metadata_target_window,
-                    };
-                    let vm_result_command = value.command;
-                    let vm_result_clipboard_items = if let Some(value) = value.clipboard_items {
-                        let mut vm_result_clipboard_items_inner_values = Vec::with_capacity(value.len());
-                        for vm_result_clipboard_items_inner_item in value.iter().cloned() {
-                            let vm_result_clipboard_items_inner_item_value_presentation_style = vm_result_clipboard_items_inner_item.presentation_style;
-                            let mut vm_result_clipboard_items_inner_item_value_representations_values = Vec::with_capacity(vm_result_clipboard_items_inner_item.representations.len());
-                            for vm_result_clipboard_items_inner_item_value_representations_item in vm_result_clipboard_items_inner_item.representations.iter().cloned() {
-                                let vm_result_clipboard_items_inner_item_value_representations_item_value_mime_type = context.string_handle(vm_result_clipboard_items_inner_item_value_representations_item.mime_type.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                let vm_result_clipboard_items_inner_item_value_representations_item_value_kind = vm_result_clipboard_items_inner_item_value_representations_item.kind;
-                                let vm_result_clipboard_items_inner_item_value_representations_item_value_name = if let Some(value) = vm_result_clipboard_items_inner_item_value_representations_item.name {
-                                    let vm_result_clipboard_items_inner_item_value_representations_item_value_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_clipboard_items_inner_item_value_representations_item_value_name_inner)
-                                } else {
-                                    None
-                                };
-                                let vm_result_clipboard_items_inner_item_value_representations_item_value_is_directory = vm_result_clipboard_items_inner_item_value_representations_item.is_directory;
-                                let vm_result_clipboard_items_inner_item_value_representations_item_value_byte_length = if let Some(value) = vm_result_clipboard_items_inner_item_value_representations_item.byte_length {
-                                    let vm_result_clipboard_items_inner_item_value_representations_item_value_byte_length_inner = value;
-                                    Some(vm_result_clipboard_items_inner_item_value_representations_item_value_byte_length_inner)
-                                } else {
-                                    None
-                                };
-                                let vm_result_clipboard_items_inner_item_value_representations_item_value = ClipboardItemRepresentationDescriptorVm {
-                                    mime_type: vm_result_clipboard_items_inner_item_value_representations_item_value_mime_type,
-                                    kind: vm_result_clipboard_items_inner_item_value_representations_item_value_kind,
-                                    name: vm_result_clipboard_items_inner_item_value_representations_item_value_name,
-                                    is_directory: vm_result_clipboard_items_inner_item_value_representations_item_value_is_directory,
-                                    byte_length: vm_result_clipboard_items_inner_item_value_representations_item_value_byte_length,
-                                };
-                                vm_result_clipboard_items_inner_item_value_representations_values.push(vm_result_clipboard_items_inner_item_value_representations_item_value);
-                            }
-                            let vm_result_clipboard_items_inner_item_value_representations = VmSlice::from_values(context, &vm_result_clipboard_items_inner_item_value_representations_values)?;
-                            let vm_result_clipboard_items_inner_item_value = ClipboardItemDescriptorVm {
-                                presentation_style: vm_result_clipboard_items_inner_item_value_presentation_style,
-                                representations: vm_result_clipboard_items_inner_item_value_representations,
+                    let vm_result = match value {
+                        InputtextsessioneventReplayRecord::InputClipboardCommandEvent(value) => {
+                            let vm_result_input_clipboard_command_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_input_clipboard_command_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_input_clipboard_command_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_input_clipboard_command_event_metadata_device_id = context.string_handle(value.metadata.device_id.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_input_clipboard_command_event_metadata_target_window = if let Some(value) = value.metadata.target_window {
+                                let vm_result_input_clipboard_command_event_metadata_target_window_inner = value;
+                                Some(vm_result_input_clipboard_command_event_metadata_target_window_inner)
+                            } else {
+                                None
                             };
-                            vm_result_clipboard_items_inner_values.push(vm_result_clipboard_items_inner_item_value);
-                        }
-                        let vm_result_clipboard_items_inner = VmSlice::from_values(context, &vm_result_clipboard_items_inner_values)?;
-                        Some(vm_result_clipboard_items_inner)
-                    } else {
-                        None
-                    };
-                    let vm_result_is_composing = value.is_composing;
-                    let vm_result = InputClipboardCommandEventVm {
-                        kind: vm_result_kind,
-                        metadata: vm_result_metadata,
-                        command: vm_result_command,
-                        clipboard_items: vm_result_clipboard_items,
-                        is_composing: vm_result_is_composing,
-                    };
-                    Ok(vm_result)
-                }
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
-            }
-        },
-    );
-    let result = encode_destack_input_text_read_clipboard_command_result(context, result)?;
-    Ok(result)
-}
-
-#[inline]
-fn destack_input_text_read_composition_vm_replay(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
-    handle: resource::InputDeviceHandle,
-) -> RuntimeResult<vm::Value> {
-    let result = binding.trace().run_binding(
-        INPUT_TEXT_READ_COMPOSITION,
-        binding.replay_payload_for(INPUT_TEXT_READ_COMPOSITION)?,
-        context,
-        |context| match world {
-            RuntimeWorld::Host => {
-                platform_vm::destack_input_text_read_composition(binding, context, handle)
-            }
-            RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_input_text_read_composition(
-                    binding, context, handle,
-                )
-            }
-        },
-        |context, result| {
-            let _ = &context;
-            if let Ok(value) = result {
-                let result_value: InputCompositionEventVm = value.clone();
-                let result_recorded_kind = {
-                    let result_recorded_kind_ref = context
-                        .string_ref(result_value.kind)
-                        .map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_recorded_kind_ref.as_str().to_string()
-                };
-                let result_recorded_metadata_timestamp_ns = result_value.metadata.timestamp_ns;
-                let result_recorded_metadata_sequence = result_value.metadata.sequence;
-                let result_recorded_metadata_device_id = {
-                    let result_recorded_metadata_device_id_ref = context
-                        .string_ref(result_value.metadata.device_id)
-                        .map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_recorded_metadata_device_id_ref.as_str().to_string()
-                };
-                let result_recorded_metadata_target_window =
-                    if let Some(value) = result_value.metadata.target_window {
-                        let result_recorded_metadata_target_window_inner = value;
-                        Some(result_recorded_metadata_target_window_inner)
-                    } else {
-                        None
-                    };
-                let result_recorded_metadata = InputeventmetadataReplayRecord {
-                    timestamp_ns: result_recorded_metadata_timestamp_ns,
-                    sequence: result_recorded_metadata_sequence,
-                    device_id: result_recorded_metadata_device_id,
-                    target_window: result_recorded_metadata_target_window,
-                };
-                let result_recorded_payload_action = result_value.payload.action;
-                let result_recorded_payload_text = {
-                    let result_recorded_payload_text_ref = context
-                        .string_ref(result_value.payload.text)
-                        .map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_recorded_payload_text_ref.as_str().to_string()
-                };
-                let result_recorded_payload_selection_start = result_value.payload.selection_start;
-                let result_recorded_payload_selection_end = result_value.payload.selection_end;
-                let result_recorded_payload = InputcompositioneventpayloadReplayRecord {
-                    action: result_recorded_payload_action,
-                    text: result_recorded_payload_text,
-                    selection_start: result_recorded_payload_selection_start,
-                    selection_end: result_recorded_payload_selection_end,
-                };
-                let result_recorded = InputcompositioneventReplayRecord {
-                    kind: result_recorded_kind,
-                    metadata: result_recorded_metadata,
-                    payload: result_recorded_payload,
-                };
-                let payload = InputTextReadCompositionReplayRecord {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(TraceError::from(error.as_ref()));
-                    InputTextReadCompositionReplayRecord { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |context, payload| {
-            let _ = &context;
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    let vm_result_kind = context
-                        .string_handle(value.kind.as_str())
-                        .map_err(Box::<RuntimeError>::from)?;
-                    let vm_result_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                    let vm_result_metadata_sequence = value.metadata.sequence;
-                    let vm_result_metadata_device_id = context
-                        .string_handle(value.metadata.device_id.as_str())
-                        .map_err(Box::<RuntimeError>::from)?;
-                    let vm_result_metadata_target_window =
-                        if let Some(value) = value.metadata.target_window {
-                            let vm_result_metadata_target_window_inner = value;
-                            Some(vm_result_metadata_target_window_inner)
-                        } else {
-                            None
-                        };
-                    let vm_result_metadata = InputEventMetadataVm {
-                        timestamp_ns: vm_result_metadata_timestamp_ns,
-                        sequence: vm_result_metadata_sequence,
-                        device_id: vm_result_metadata_device_id,
-                        target_window: vm_result_metadata_target_window,
-                    };
-                    let vm_result_payload_action = value.payload.action;
-                    let vm_result_payload_text = context
-                        .string_handle(value.payload.text.as_str())
-                        .map_err(Box::<RuntimeError>::from)?;
-                    let vm_result_payload_selection_start = value.payload.selection_start;
-                    let vm_result_payload_selection_end = value.payload.selection_end;
-                    let vm_result_payload = InputCompositionEventPayloadVm {
-                        action: vm_result_payload_action,
-                        text: vm_result_payload_text,
-                        selection_start: vm_result_payload_selection_start,
-                        selection_end: vm_result_payload_selection_end,
-                    };
-                    let vm_result = InputCompositionEventVm {
-                        kind: vm_result_kind,
-                        metadata: vm_result_metadata,
-                        payload: vm_result_payload,
-                    };
-                    Ok(vm_result)
-                }
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
-            }
-        },
-    );
-    let result = encode_destack_input_text_read_composition_result(context, result)?;
-    Ok(result)
-}
-
-#[inline]
-fn destack_input_text_read_edit_intent_vm_replay(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
-    handle: resource::InputDeviceHandle,
-) -> RuntimeResult<vm::Value> {
-    let result = binding.trace().run_binding(
-        INPUT_TEXT_READ_EDIT_INTENT,
-        binding.replay_payload_for(INPUT_TEXT_READ_EDIT_INTENT)?,
-        context,
-        |context| {
-            match world {
-                RuntimeWorld::Host => platform_vm::destack_input_text_read_edit_intent(binding, context, handle),
-                RuntimeWorld::Simulation => platform_simulation_vm::destack_input_text_read_edit_intent(binding, context, handle),
-            }
-        },
-        |context, result| {
-            let _ = &context;
-            if let Ok(value) = result {
-                let result_value: InputEditIntentEventVm = value.clone();
-                let result_recorded_kind = {
-                    let result_recorded_kind_ref = context.string_ref(result_value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_recorded_kind_ref.as_str().to_string()
-                };
-                let result_recorded_metadata_timestamp_ns = result_value.metadata.timestamp_ns;
-                let result_recorded_metadata_sequence = result_value.metadata.sequence;
-                let result_recorded_metadata_device_id = {
-                    let result_recorded_metadata_device_id_ref = context.string_ref(result_value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_recorded_metadata_device_id_ref.as_str().to_string()
-                };
-                let result_recorded_metadata_target_window = if let Some(value) = result_value.metadata.target_window {
-                    let result_recorded_metadata_target_window_inner = value;
-                    Some(result_recorded_metadata_target_window_inner)
-                } else {
-                    None
-                };
-                let result_recorded_metadata = InputeventmetadataReplayRecord {
-                    timestamp_ns: result_recorded_metadata_timestamp_ns,
-                    sequence: result_recorded_metadata_sequence,
-                    device_id: result_recorded_metadata_device_id,
-                    target_window: result_recorded_metadata_target_window,
-                };
-                let result_recorded_input_type = result_value.input_type;
-                let result_recorded_data = if let Some(value) = result_value.data {
-                    let result_recorded_data_inner = {
-                        let result_recorded_data_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_recorded_data_inner_ref.as_str().to_string()
-                    };
-                    Some(result_recorded_data_inner)
-                } else {
-                    None
-                };
-                let result_recorded_target_ranges_raw = result_value.target_ranges.raw_values(context)?;
-                let mut result_recorded_target_ranges = Vec::with_capacity(result_recorded_target_ranges_raw.len());
-                for result_recorded_target_ranges_item_value in result_recorded_target_ranges_raw {
-                    let result_recorded_target_ranges_item = {
-                        if result_recorded_target_ranges_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_target_ranges_item", "item")).boxed()); }
-                        let slots = context.aggregate_slots(result_recorded_target_ranges_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
-                        if slots.len() != 2 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_target_ranges_item", "expected 2 fields")).boxed()); }
-                        let result_recorded_target_ranges_item_start_offset = decode_uint32(slots[0], "result_recorded_target_ranges_item_start_offset", "startOffset")?;
-                        let result_recorded_target_ranges_item_end_offset = decode_uint32(slots[1], "result_recorded_target_ranges_item_end_offset", "endOffset")?;
-                        InputTextRangeVm {
-                            start_offset: result_recorded_target_ranges_item_start_offset,
-                            end_offset: result_recorded_target_ranges_item_end_offset,
-                        }
-                    };
-                    let result_recorded_target_ranges_item_recorded_start_offset = result_recorded_target_ranges_item.start_offset;
-                    let result_recorded_target_ranges_item_recorded_end_offset = result_recorded_target_ranges_item.end_offset;
-                    let result_recorded_target_ranges_item_recorded = InputTextRange {
-                        start_offset: result_recorded_target_ranges_item_recorded_start_offset,
-                        end_offset: result_recorded_target_ranges_item_recorded_end_offset,
-                    };
-                    result_recorded_target_ranges.push(result_recorded_target_ranges_item_recorded);
-                }
-                let result_recorded_clipboard_items = if let Some(value) = result_value.clipboard_items {
-                    let result_recorded_clipboard_items_inner_raw = value.raw_values(context)?;
-                    let mut result_recorded_clipboard_items_inner = Vec::with_capacity(result_recorded_clipboard_items_inner_raw.len());
-                    for result_recorded_clipboard_items_inner_item_value in result_recorded_clipboard_items_inner_raw {
-                        let result_recorded_clipboard_items_inner_item = {
-                            if result_recorded_clipboard_items_inner_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_clipboard_items_inner_item", "item")).boxed()); }
-                            let slots = context.aggregate_slots(result_recorded_clipboard_items_inner_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
-                            if slots.len() != 2 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_clipboard_items_inner_item", "expected 2 fields")).boxed()); }
-                            let result_recorded_clipboard_items_inner_item_presentation_style_raw = decode_int32(slots[0], "result_recorded_clipboard_items_inner_item_presentation_style_raw", "presentationStyle")?;
-                            let result_recorded_clipboard_items_inner_item_presentation_style = match result_recorded_clipboard_items_inner_item_presentation_style_raw { 0i32 => ClipboardPresentationStyle::Unspecified, 1i32 => ClipboardPresentationStyle::Inline, 2i32 => ClipboardPresentationStyle::Attachment , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_clipboard_items_inner_item_presentation_style", "unknown ClipboardPresentationStyle value")).boxed()), };
-                            let result_recorded_clipboard_items_inner_item_representations = decode_slice::<ClipboardItemRepresentationDescriptorVm>(context, slots[1], "result_recorded_clipboard_items_inner_item_representations", "representations")?;
-                            ClipboardItemDescriptorVm {
-                                presentation_style: result_recorded_clipboard_items_inner_item_presentation_style,
-                                representations: result_recorded_clipboard_items_inner_item_representations,
-                            }
-                        };
-                        let result_recorded_clipboard_items_inner_item_recorded_presentation_style = result_recorded_clipboard_items_inner_item.presentation_style;
-                        let result_recorded_clipboard_items_inner_item_recorded_representations_raw = result_recorded_clipboard_items_inner_item.representations.raw_values(context)?;
-                        let mut result_recorded_clipboard_items_inner_item_recorded_representations = Vec::with_capacity(result_recorded_clipboard_items_inner_item_recorded_representations_raw.len());
-                        for result_recorded_clipboard_items_inner_item_recorded_representations_item_value in result_recorded_clipboard_items_inner_item_recorded_representations_raw {
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item = {
-                                if result_recorded_clipboard_items_inner_item_recorded_representations_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_clipboard_items_inner_item_recorded_representations_item", "item")).boxed()); }
-                                let slots = context.aggregate_slots(result_recorded_clipboard_items_inner_item_recorded_representations_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                if slots.len() != 5 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_clipboard_items_inner_item_recorded_representations_item", "expected 5 fields")).boxed()); }
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_mime_type = decode_string(slots[0], "result_recorded_clipboard_items_inner_item_recorded_representations_item_mime_type", "mimeType")?;
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_kind_raw = decode_int32(slots[1], "result_recorded_clipboard_items_inner_item_recorded_representations_item_kind_raw", "kind")?;
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_kind = match result_recorded_clipboard_items_inner_item_recorded_representations_item_kind_raw { 1i32 => ClipboardItemRepresentationKind::String, 2i32 => ClipboardItemRepresentationKind::File, 3i32 => ClipboardItemRepresentationKind::Binary , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_clipboard_items_inner_item_recorded_representations_item_kind", "unknown ClipboardItemRepresentationKind value")).boxed()), };
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_name = if slots[2].tag() == vm::ValueTag::Void {
-                                    None
-                                } else {
-                                    let result_recorded_clipboard_items_inner_item_recorded_representations_item_name_inner = decode_string(slots[2], "result_recorded_clipboard_items_inner_item_recorded_representations_item_name_inner", "name")?;
-                                    Some(result_recorded_clipboard_items_inner_item_recorded_representations_item_name_inner)
-                                };
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_is_directory = decode_bool(slots[3], "result_recorded_clipboard_items_inner_item_recorded_representations_item_is_directory", "isDirectory")?;
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_byte_length = if slots[4].tag() == vm::ValueTag::Void {
-                                    None
-                                } else {
-                                    let result_recorded_clipboard_items_inner_item_recorded_representations_item_byte_length_inner = decode_uint64(slots[4], "result_recorded_clipboard_items_inner_item_recorded_representations_item_byte_length_inner", "byteLength")?;
-                                    Some(result_recorded_clipboard_items_inner_item_recorded_representations_item_byte_length_inner)
-                                };
-                                ClipboardItemRepresentationDescriptorVm {
-                                    mime_type: result_recorded_clipboard_items_inner_item_recorded_representations_item_mime_type,
-                                    kind: result_recorded_clipboard_items_inner_item_recorded_representations_item_kind,
-                                    name: result_recorded_clipboard_items_inner_item_recorded_representations_item_name,
-                                    is_directory: result_recorded_clipboard_items_inner_item_recorded_representations_item_is_directory,
-                                    byte_length: result_recorded_clipboard_items_inner_item_recorded_representations_item_byte_length,
+                            let vm_result_input_clipboard_command_event_metadata = InputEventMetadataVm {
+                                timestamp_ns: vm_result_input_clipboard_command_event_metadata_timestamp_ns,
+                                sequence: vm_result_input_clipboard_command_event_metadata_sequence,
+                                device_id: vm_result_input_clipboard_command_event_metadata_device_id,
+                                target_window: vm_result_input_clipboard_command_event_metadata_target_window,
+                            };
+                            let vm_result_input_clipboard_command_event_command = value.command;
+                            let vm_result_input_clipboard_command_event_clipboard_items = if let Some(value) = value.clipboard_items {
+                                let mut vm_result_input_clipboard_command_event_clipboard_items_inner_values = Vec::with_capacity(value.len());
+                                for vm_result_input_clipboard_command_event_clipboard_items_inner_item in value.iter().cloned() {
+                                    let vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_presentation_style = vm_result_input_clipboard_command_event_clipboard_items_inner_item.presentation_style;
+                                    let mut vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_values = Vec::with_capacity(vm_result_input_clipboard_command_event_clipboard_items_inner_item.representations.len());
+                                    for vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item in vm_result_input_clipboard_command_event_clipboard_items_inner_item.representations.iter().cloned() {
+                                        let vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value_mime_type = context.string_handle(vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item.mime_type.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                        let vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value_kind = vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item.kind;
+                                        let vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value_name = if let Some(value) = vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item.name {
+                                            let vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                            Some(vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value_name_inner)
+                                        } else {
+                                            None
+                                        };
+                                        let vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value_is_directory = vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item.is_directory;
+                                        let vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value_byte_length = if let Some(value) = vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item.byte_length {
+                                            let vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value_byte_length_inner = value;
+                                            Some(vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value_byte_length_inner)
+                                        } else {
+                                            None
+                                        };
+                                        let vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value = ClipboardItemRepresentationDescriptorVm {
+                                            mime_type: vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value_mime_type,
+                                            kind: vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value_kind,
+                                            name: vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value_name,
+                                            is_directory: vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value_is_directory,
+                                            byte_length: vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value_byte_length,
+                                        };
+                                        vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_values.push(vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value);
+                                    }
+                                    let vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations = VmSlice::from_values(context, &vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_values)?;
+                                    let vm_result_input_clipboard_command_event_clipboard_items_inner_item_value = ClipboardItemDescriptorVm {
+                                        presentation_style: vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_presentation_style,
+                                        representations: vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations,
+                                    };
+                                    vm_result_input_clipboard_command_event_clipboard_items_inner_values.push(vm_result_input_clipboard_command_event_clipboard_items_inner_item_value);
                                 }
-                            };
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type = {
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type_ref = context.string_ref(result_recorded_clipboard_items_inner_item_recorded_representations_item.mime_type).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type_ref.as_str().to_string()
-                            };
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_kind = result_recorded_clipboard_items_inner_item_recorded_representations_item.kind;
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_name = if let Some(value) = result_recorded_clipboard_items_inner_item_recorded_representations_item.name {
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner = {
-                                    let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner_ref.as_str().to_string()
-                                };
-                                Some(result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner)
+                                let vm_result_input_clipboard_command_event_clipboard_items_inner = VmSlice::from_values(context, &vm_result_input_clipboard_command_event_clipboard_items_inner_values)?;
+                                Some(vm_result_input_clipboard_command_event_clipboard_items_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_is_directory = result_recorded_clipboard_items_inner_item_recorded_representations_item.is_directory;
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length = if let Some(value) = result_recorded_clipboard_items_inner_item_recorded_representations_item.byte_length {
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length_inner = value;
-                                Some(result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length_inner)
-                            } else {
-                                None
+                            let vm_result_input_clipboard_command_event_is_composing = value.is_composing;
+                            let vm_result_input_clipboard_command_event = InputClipboardCommandEventVm {
+                                kind: vm_result_input_clipboard_command_event_kind,
+                                metadata: vm_result_input_clipboard_command_event_metadata,
+                                command: vm_result_input_clipboard_command_event_command,
+                                clipboard_items: vm_result_input_clipboard_command_event_clipboard_items,
+                                is_composing: vm_result_input_clipboard_command_event_is_composing,
                             };
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded = ClipboarditemrepresentationdescriptorReplayRecord {
-                                mime_type: result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type,
-                                kind: result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_kind,
-                                name: result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_name,
-                                is_directory: result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_is_directory,
-                                byte_length: result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length,
-                            };
-                            result_recorded_clipboard_items_inner_item_recorded_representations.push(result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded);
+                            InputTextSessionEventVm::InputClipboardCommandEvent(vm_result_input_clipboard_command_event)
                         }
-                        let result_recorded_clipboard_items_inner_item_recorded = ClipboarditemdescriptorReplayRecord {
-                            presentation_style: result_recorded_clipboard_items_inner_item_recorded_presentation_style,
-                            representations: result_recorded_clipboard_items_inner_item_recorded_representations,
-                        };
-                        result_recorded_clipboard_items_inner.push(result_recorded_clipboard_items_inner_item_recorded);
-                    }
-                    Some(result_recorded_clipboard_items_inner)
-                } else {
-                    None
-                };
-                let result_recorded_drag = if let Some(value) = result_value.drag {
-                    let result_recorded_drag_inner_session = value.session;
-                    let result_recorded_drag_inner_is_external = value.is_external;
-                    let result_recorded_drag_inner_allowed_operations = value.allowed_operations;
-                    let result_recorded_drag_inner_proposed_operation = if let Some(value) = value.proposed_operation {
-                        let result_recorded_drag_inner_proposed_operation_inner = value;
-                        Some(result_recorded_drag_inner_proposed_operation_inner)
-                    } else {
-                        None
-                    };
-                    let result_recorded_drag_inner_position = if let Some(value) = value.position {
-                        let result_recorded_drag_inner_position_inner_x = value.x;
-                        let result_recorded_drag_inner_position_inner_y = value.y;
-                        let result_recorded_drag_inner_position_inner = display::DisplayDragPosition {
-                            x: result_recorded_drag_inner_position_inner_x,
-                            y: result_recorded_drag_inner_position_inner_y,
-                        };
-                        Some(result_recorded_drag_inner_position_inner)
-                    } else {
-                        None
-                    };
-                    let result_recorded_drag_inner_items_raw = value.items.raw_values(context)?;
-                    let mut result_recorded_drag_inner_items = Vec::with_capacity(result_recorded_drag_inner_items_raw.len());
-                    for result_recorded_drag_inner_items_item_value in result_recorded_drag_inner_items_raw {
-                        let result_recorded_drag_inner_items_item = {
-                            if result_recorded_drag_inner_items_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_drag_inner_items_item", "item")).boxed()); }
-                            let slots = context.aggregate_slots(result_recorded_drag_inner_items_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
-                            if slots.len() != 5 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_drag_inner_items_item", "expected 5 fields")).boxed()); }
-                            let result_recorded_drag_inner_items_item_kind_raw = decode_int32(slots[0], "result_recorded_drag_inner_items_item_kind_raw", "kind")?;
-                            let result_recorded_drag_inner_items_item_kind = match result_recorded_drag_inner_items_item_kind_raw { 1i32 => display::DisplayDragItemKind::String, 2i32 => display::DisplayDragItemKind::File, 3i32 => display::DisplayDragItemKind::Binary , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_drag_inner_items_item_kind", "unknown display::DisplayDragItemKind value")).boxed()), };
-                            let result_recorded_drag_inner_items_item_item_type = if slots[1].tag() == vm::ValueTag::Void {
-                                None
+                        InputtextsessioneventReplayRecord::InputCompositionEvent(value) => {
+                            let vm_result_input_composition_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_input_composition_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_input_composition_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_input_composition_event_metadata_device_id = context.string_handle(value.metadata.device_id.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_input_composition_event_metadata_target_window = if let Some(value) = value.metadata.target_window {
+                                let vm_result_input_composition_event_metadata_target_window_inner = value;
+                                Some(vm_result_input_composition_event_metadata_target_window_inner)
                             } else {
-                                let result_recorded_drag_inner_items_item_item_type_inner = decode_string(slots[1], "result_recorded_drag_inner_items_item_item_type_inner", "itemType")?;
-                                Some(result_recorded_drag_inner_items_item_item_type_inner)
-                            };
-                            let result_recorded_drag_inner_items_item_name = if slots[2].tag() == vm::ValueTag::Void {
                                 None
-                            } else {
-                                let result_recorded_drag_inner_items_item_name_inner = decode_string(slots[2], "result_recorded_drag_inner_items_item_name_inner", "name")?;
-                                Some(result_recorded_drag_inner_items_item_name_inner)
                             };
-                            let result_recorded_drag_inner_items_item_is_directory = decode_bool(slots[3], "result_recorded_drag_inner_items_item_is_directory", "isDirectory")?;
-                            let result_recorded_drag_inner_items_item_byte_length = if slots[4].tag() == vm::ValueTag::Void {
+                            let vm_result_input_composition_event_metadata = InputEventMetadataVm {
+                                timestamp_ns: vm_result_input_composition_event_metadata_timestamp_ns,
+                                sequence: vm_result_input_composition_event_metadata_sequence,
+                                device_id: vm_result_input_composition_event_metadata_device_id,
+                                target_window: vm_result_input_composition_event_metadata_target_window,
+                            };
+                            let vm_result_input_composition_event_payload_action = value.payload.action;
+                            let vm_result_input_composition_event_payload_text = context.string_handle(value.payload.text.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_input_composition_event_payload_selection_start = value.payload.selection_start;
+                            let vm_result_input_composition_event_payload_selection_end = value.payload.selection_end;
+                            let vm_result_input_composition_event_payload = InputCompositionEventPayloadVm {
+                                action: vm_result_input_composition_event_payload_action,
+                                text: vm_result_input_composition_event_payload_text,
+                                selection_start: vm_result_input_composition_event_payload_selection_start,
+                                selection_end: vm_result_input_composition_event_payload_selection_end,
+                            };
+                            let vm_result_input_composition_event = InputCompositionEventVm {
+                                kind: vm_result_input_composition_event_kind,
+                                metadata: vm_result_input_composition_event_metadata,
+                                payload: vm_result_input_composition_event_payload,
+                            };
+                            InputTextSessionEventVm::InputCompositionEvent(vm_result_input_composition_event)
+                        }
+                        InputtextsessioneventReplayRecord::InputEditIntentEvent(value) => {
+                            let vm_result_input_edit_intent_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_input_edit_intent_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_input_edit_intent_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_input_edit_intent_event_metadata_device_id = context.string_handle(value.metadata.device_id.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_input_edit_intent_event_metadata_target_window = if let Some(value) = value.metadata.target_window {
+                                let vm_result_input_edit_intent_event_metadata_target_window_inner = value;
+                                Some(vm_result_input_edit_intent_event_metadata_target_window_inner)
+                            } else {
                                 None
-                            } else {
-                                let result_recorded_drag_inner_items_item_byte_length_inner = decode_uint64(slots[4], "result_recorded_drag_inner_items_item_byte_length_inner", "byteLength")?;
-                                Some(result_recorded_drag_inner_items_item_byte_length_inner)
                             };
-                            display::DisplayDragItemDescriptorVm {
-                                kind: result_recorded_drag_inner_items_item_kind,
-                                item_type: result_recorded_drag_inner_items_item_item_type,
-                                name: result_recorded_drag_inner_items_item_name,
-                                is_directory: result_recorded_drag_inner_items_item_is_directory,
-                                byte_length: result_recorded_drag_inner_items_item_byte_length,
+                            let vm_result_input_edit_intent_event_metadata = InputEventMetadataVm {
+                                timestamp_ns: vm_result_input_edit_intent_event_metadata_timestamp_ns,
+                                sequence: vm_result_input_edit_intent_event_metadata_sequence,
+                                device_id: vm_result_input_edit_intent_event_metadata_device_id,
+                                target_window: vm_result_input_edit_intent_event_metadata_target_window,
+                            };
+                            let vm_result_input_edit_intent_event_input_type = value.input_type;
+                            let vm_result_input_edit_intent_event_data = if let Some(value) = value.data {
+                                let vm_result_input_edit_intent_event_data_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_input_edit_intent_event_data_inner)
+                            } else {
+                                None
+                            };
+                            let mut vm_result_input_edit_intent_event_target_ranges_values = Vec::with_capacity(value.target_ranges.len());
+                            for vm_result_input_edit_intent_event_target_ranges_item in value.target_ranges.iter().cloned() {
+                                let vm_result_input_edit_intent_event_target_ranges_item_value_start_offset = vm_result_input_edit_intent_event_target_ranges_item.start_offset;
+                                let vm_result_input_edit_intent_event_target_ranges_item_value_end_offset = vm_result_input_edit_intent_event_target_ranges_item.end_offset;
+                                let vm_result_input_edit_intent_event_target_ranges_item_value = InputTextRange {
+                                    start_offset: vm_result_input_edit_intent_event_target_ranges_item_value_start_offset,
+                                    end_offset: vm_result_input_edit_intent_event_target_ranges_item_value_end_offset,
+                                };
+                                vm_result_input_edit_intent_event_target_ranges_values.push(vm_result_input_edit_intent_event_target_ranges_item_value);
                             }
-                        };
-                        let result_recorded_drag_inner_items_item_recorded_kind = result_recorded_drag_inner_items_item.kind;
-                        let result_recorded_drag_inner_items_item_recorded_item_type = if let Some(value) = result_recorded_drag_inner_items_item.item_type {
-                            let result_recorded_drag_inner_items_item_recorded_item_type_inner = {
-                                let result_recorded_drag_inner_items_item_recorded_item_type_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_drag_inner_items_item_recorded_item_type_inner_ref.as_str().to_string()
+                            let vm_result_input_edit_intent_event_target_ranges = VmSlice::from_values(context, &vm_result_input_edit_intent_event_target_ranges_values)?;
+                            let vm_result_input_edit_intent_event_clipboard_items = if let Some(value) = value.clipboard_items {
+                                let mut vm_result_input_edit_intent_event_clipboard_items_inner_values = Vec::with_capacity(value.len());
+                                for vm_result_input_edit_intent_event_clipboard_items_inner_item in value.iter().cloned() {
+                                    let vm_result_input_edit_intent_event_clipboard_items_inner_item_value_presentation_style = vm_result_input_edit_intent_event_clipboard_items_inner_item.presentation_style;
+                                    let mut vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_values = Vec::with_capacity(vm_result_input_edit_intent_event_clipboard_items_inner_item.representations.len());
+                                    for vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item in vm_result_input_edit_intent_event_clipboard_items_inner_item.representations.iter().cloned() {
+                                        let vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value_mime_type = context.string_handle(vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item.mime_type.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                        let vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value_kind = vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item.kind;
+                                        let vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value_name = if let Some(value) = vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item.name {
+                                            let vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                            Some(vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value_name_inner)
+                                        } else {
+                                            None
+                                        };
+                                        let vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value_is_directory = vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item.is_directory;
+                                        let vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value_byte_length = if let Some(value) = vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item.byte_length {
+                                            let vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value_byte_length_inner = value;
+                                            Some(vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value_byte_length_inner)
+                                        } else {
+                                            None
+                                        };
+                                        let vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value = ClipboardItemRepresentationDescriptorVm {
+                                            mime_type: vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value_mime_type,
+                                            kind: vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value_kind,
+                                            name: vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value_name,
+                                            is_directory: vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value_is_directory,
+                                            byte_length: vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value_byte_length,
+                                        };
+                                        vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_values.push(vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value);
+                                    }
+                                    let vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations = VmSlice::from_values(context, &vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_values)?;
+                                    let vm_result_input_edit_intent_event_clipboard_items_inner_item_value = ClipboardItemDescriptorVm {
+                                        presentation_style: vm_result_input_edit_intent_event_clipboard_items_inner_item_value_presentation_style,
+                                        representations: vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations,
+                                    };
+                                    vm_result_input_edit_intent_event_clipboard_items_inner_values.push(vm_result_input_edit_intent_event_clipboard_items_inner_item_value);
+                                }
+                                let vm_result_input_edit_intent_event_clipboard_items_inner = VmSlice::from_values(context, &vm_result_input_edit_intent_event_clipboard_items_inner_values)?;
+                                Some(vm_result_input_edit_intent_event_clipboard_items_inner)
+                            } else {
+                                None
                             };
-                            Some(result_recorded_drag_inner_items_item_recorded_item_type_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_drag_inner_items_item_recorded_name = if let Some(value) = result_recorded_drag_inner_items_item.name {
-                            let result_recorded_drag_inner_items_item_recorded_name_inner = {
-                                let result_recorded_drag_inner_items_item_recorded_name_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_drag_inner_items_item_recorded_name_inner_ref.as_str().to_string()
-                            };
-                            Some(result_recorded_drag_inner_items_item_recorded_name_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_drag_inner_items_item_recorded_is_directory = result_recorded_drag_inner_items_item.is_directory;
-                        let result_recorded_drag_inner_items_item_recorded_byte_length = if let Some(value) = result_recorded_drag_inner_items_item.byte_length {
-                            let result_recorded_drag_inner_items_item_recorded_byte_length_inner = value;
-                            Some(result_recorded_drag_inner_items_item_recorded_byte_length_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_drag_inner_items_item_recorded = display::DisplaydragitemdescriptorReplayRecord {
-                            kind: result_recorded_drag_inner_items_item_recorded_kind,
-                            item_type: result_recorded_drag_inner_items_item_recorded_item_type,
-                            name: result_recorded_drag_inner_items_item_recorded_name,
-                            is_directory: result_recorded_drag_inner_items_item_recorded_is_directory,
-                            byte_length: result_recorded_drag_inner_items_item_recorded_byte_length,
-                        };
-                        result_recorded_drag_inner_items.push(result_recorded_drag_inner_items_item_recorded);
-                    }
-                    let result_recorded_drag_inner = display::DisplaydragtransferReplayRecord {
-                        session: result_recorded_drag_inner_session,
-                        is_external: result_recorded_drag_inner_is_external,
-                        allowed_operations: result_recorded_drag_inner_allowed_operations,
-                        proposed_operation: result_recorded_drag_inner_proposed_operation,
-                        position: result_recorded_drag_inner_position,
-                        items: result_recorded_drag_inner_items,
-                    };
-                    Some(result_recorded_drag_inner)
-                } else {
-                    None
-                };
-                let result_recorded_is_composing = result_value.is_composing;
-                let result_recorded = InputeditintenteventReplayRecord {
-                    kind: result_recorded_kind,
-                    metadata: result_recorded_metadata,
-                    input_type: result_recorded_input_type,
-                    data: result_recorded_data,
-                    target_ranges: result_recorded_target_ranges,
-                    clipboard_items: result_recorded_clipboard_items,
-                    drag: result_recorded_drag,
-                    is_composing: result_recorded_is_composing,
-                };
-                let payload = InputTextReadEditIntentReplayRecord {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(TraceError::from(error.as_ref()));
-                    InputTextReadEditIntentReplayRecord {
-                        result,
-                    }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |context, payload| {
-            let _ = &context;
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    let vm_result_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                    let vm_result_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                    let vm_result_metadata_sequence = value.metadata.sequence;
-                    let vm_result_metadata_device_id = context.string_handle(value.metadata.device_id.as_str()).map_err(Box::<RuntimeError>::from)?;
-                    let vm_result_metadata_target_window = if let Some(value) = value.metadata.target_window {
-                        let vm_result_metadata_target_window_inner = value;
-                        Some(vm_result_metadata_target_window_inner)
-                    } else {
-                        None
-                    };
-                    let vm_result_metadata = InputEventMetadataVm {
-                        timestamp_ns: vm_result_metadata_timestamp_ns,
-                        sequence: vm_result_metadata_sequence,
-                        device_id: vm_result_metadata_device_id,
-                        target_window: vm_result_metadata_target_window,
-                    };
-                    let vm_result_input_type = value.input_type;
-                    let vm_result_data = if let Some(value) = value.data {
-                        let vm_result_data_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                        Some(vm_result_data_inner)
-                    } else {
-                        None
-                    };
-                    let mut vm_result_target_ranges_values = Vec::with_capacity(value.target_ranges.len());
-                    for vm_result_target_ranges_item in value.target_ranges.iter().cloned() {
-                        let vm_result_target_ranges_item_value_start_offset = vm_result_target_ranges_item.start_offset;
-                        let vm_result_target_ranges_item_value_end_offset = vm_result_target_ranges_item.end_offset;
-                        let vm_result_target_ranges_item_value = InputTextRange {
-                            start_offset: vm_result_target_ranges_item_value_start_offset,
-                            end_offset: vm_result_target_ranges_item_value_end_offset,
-                        };
-                        vm_result_target_ranges_values.push(vm_result_target_ranges_item_value);
-                    }
-                    let vm_result_target_ranges = VmSlice::from_values(context, &vm_result_target_ranges_values)?;
-                    let vm_result_clipboard_items = if let Some(value) = value.clipboard_items {
-                        let mut vm_result_clipboard_items_inner_values = Vec::with_capacity(value.len());
-                        for vm_result_clipboard_items_inner_item in value.iter().cloned() {
-                            let vm_result_clipboard_items_inner_item_value_presentation_style = vm_result_clipboard_items_inner_item.presentation_style;
-                            let mut vm_result_clipboard_items_inner_item_value_representations_values = Vec::with_capacity(vm_result_clipboard_items_inner_item.representations.len());
-                            for vm_result_clipboard_items_inner_item_value_representations_item in vm_result_clipboard_items_inner_item.representations.iter().cloned() {
-                                let vm_result_clipboard_items_inner_item_value_representations_item_value_mime_type = context.string_handle(vm_result_clipboard_items_inner_item_value_representations_item.mime_type.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                let vm_result_clipboard_items_inner_item_value_representations_item_value_kind = vm_result_clipboard_items_inner_item_value_representations_item.kind;
-                                let vm_result_clipboard_items_inner_item_value_representations_item_value_name = if let Some(value) = vm_result_clipboard_items_inner_item_value_representations_item.name {
-                                    let vm_result_clipboard_items_inner_item_value_representations_item_value_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_clipboard_items_inner_item_value_representations_item_value_name_inner)
+                            let vm_result_input_edit_intent_event_drag = if let Some(value) = value.drag {
+                                let vm_result_input_edit_intent_event_drag_inner_session = value.session;
+                                let vm_result_input_edit_intent_event_drag_inner_is_external = value.is_external;
+                                let vm_result_input_edit_intent_event_drag_inner_allowed_operations = value.allowed_operations;
+                                let vm_result_input_edit_intent_event_drag_inner_proposed_operation = if let Some(value) = value.proposed_operation {
+                                    let vm_result_input_edit_intent_event_drag_inner_proposed_operation_inner = value;
+                                    Some(vm_result_input_edit_intent_event_drag_inner_proposed_operation_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_clipboard_items_inner_item_value_representations_item_value_is_directory = vm_result_clipboard_items_inner_item_value_representations_item.is_directory;
-                                let vm_result_clipboard_items_inner_item_value_representations_item_value_byte_length = if let Some(value) = vm_result_clipboard_items_inner_item_value_representations_item.byte_length {
-                                    let vm_result_clipboard_items_inner_item_value_representations_item_value_byte_length_inner = value;
-                                    Some(vm_result_clipboard_items_inner_item_value_representations_item_value_byte_length_inner)
+                                let vm_result_input_edit_intent_event_drag_inner_position = if let Some(value) = value.position {
+                                    let vm_result_input_edit_intent_event_drag_inner_position_inner_x = value.x;
+                                    let vm_result_input_edit_intent_event_drag_inner_position_inner_y = value.y;
+                                    let vm_result_input_edit_intent_event_drag_inner_position_inner = display::DisplayDragPosition {
+                                        x: vm_result_input_edit_intent_event_drag_inner_position_inner_x,
+                                        y: vm_result_input_edit_intent_event_drag_inner_position_inner_y,
+                                    };
+                                    Some(vm_result_input_edit_intent_event_drag_inner_position_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_clipboard_items_inner_item_value_representations_item_value = ClipboardItemRepresentationDescriptorVm {
-                                    mime_type: vm_result_clipboard_items_inner_item_value_representations_item_value_mime_type,
-                                    kind: vm_result_clipboard_items_inner_item_value_representations_item_value_kind,
-                                    name: vm_result_clipboard_items_inner_item_value_representations_item_value_name,
-                                    is_directory: vm_result_clipboard_items_inner_item_value_representations_item_value_is_directory,
-                                    byte_length: vm_result_clipboard_items_inner_item_value_representations_item_value_byte_length,
+                                let mut vm_result_input_edit_intent_event_drag_inner_items_values = Vec::with_capacity(value.items.len());
+                                for vm_result_input_edit_intent_event_drag_inner_items_item in value.items.iter().cloned() {
+                                    let vm_result_input_edit_intent_event_drag_inner_items_item_value_kind = vm_result_input_edit_intent_event_drag_inner_items_item.kind;
+                                    let vm_result_input_edit_intent_event_drag_inner_items_item_value_item_type = if let Some(value) = vm_result_input_edit_intent_event_drag_inner_items_item.item_type {
+                                        let vm_result_input_edit_intent_event_drag_inner_items_item_value_item_type_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                        Some(vm_result_input_edit_intent_event_drag_inner_items_item_value_item_type_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let vm_result_input_edit_intent_event_drag_inner_items_item_value_name = if let Some(value) = vm_result_input_edit_intent_event_drag_inner_items_item.name {
+                                        let vm_result_input_edit_intent_event_drag_inner_items_item_value_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                        Some(vm_result_input_edit_intent_event_drag_inner_items_item_value_name_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let vm_result_input_edit_intent_event_drag_inner_items_item_value_is_directory = vm_result_input_edit_intent_event_drag_inner_items_item.is_directory;
+                                    let vm_result_input_edit_intent_event_drag_inner_items_item_value_byte_length = if let Some(value) = vm_result_input_edit_intent_event_drag_inner_items_item.byte_length {
+                                        let vm_result_input_edit_intent_event_drag_inner_items_item_value_byte_length_inner = value;
+                                        Some(vm_result_input_edit_intent_event_drag_inner_items_item_value_byte_length_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let vm_result_input_edit_intent_event_drag_inner_items_item_value = display::DisplayDragItemDescriptorVm {
+                                        kind: vm_result_input_edit_intent_event_drag_inner_items_item_value_kind,
+                                        item_type: vm_result_input_edit_intent_event_drag_inner_items_item_value_item_type,
+                                        name: vm_result_input_edit_intent_event_drag_inner_items_item_value_name,
+                                        is_directory: vm_result_input_edit_intent_event_drag_inner_items_item_value_is_directory,
+                                        byte_length: vm_result_input_edit_intent_event_drag_inner_items_item_value_byte_length,
+                                    };
+                                    vm_result_input_edit_intent_event_drag_inner_items_values.push(vm_result_input_edit_intent_event_drag_inner_items_item_value);
+                                }
+                                let vm_result_input_edit_intent_event_drag_inner_items = VmSlice::from_values(context, &vm_result_input_edit_intent_event_drag_inner_items_values)?;
+                                let vm_result_input_edit_intent_event_drag_inner = display::DisplayDragTransferVm {
+                                    session: vm_result_input_edit_intent_event_drag_inner_session,
+                                    is_external: vm_result_input_edit_intent_event_drag_inner_is_external,
+                                    allowed_operations: vm_result_input_edit_intent_event_drag_inner_allowed_operations,
+                                    proposed_operation: vm_result_input_edit_intent_event_drag_inner_proposed_operation,
+                                    position: vm_result_input_edit_intent_event_drag_inner_position,
+                                    items: vm_result_input_edit_intent_event_drag_inner_items,
                                 };
-                                vm_result_clipboard_items_inner_item_value_representations_values.push(vm_result_clipboard_items_inner_item_value_representations_item_value);
-                            }
-                            let vm_result_clipboard_items_inner_item_value_representations = VmSlice::from_values(context, &vm_result_clipboard_items_inner_item_value_representations_values)?;
-                            let vm_result_clipboard_items_inner_item_value = ClipboardItemDescriptorVm {
-                                presentation_style: vm_result_clipboard_items_inner_item_value_presentation_style,
-                                representations: vm_result_clipboard_items_inner_item_value_representations,
+                                Some(vm_result_input_edit_intent_event_drag_inner)
+                            } else {
+                                None
                             };
-                            vm_result_clipboard_items_inner_values.push(vm_result_clipboard_items_inner_item_value);
+                            let vm_result_input_edit_intent_event_is_composing = value.is_composing;
+                            let vm_result_input_edit_intent_event = InputEditIntentEventVm {
+                                kind: vm_result_input_edit_intent_event_kind,
+                                metadata: vm_result_input_edit_intent_event_metadata,
+                                input_type: vm_result_input_edit_intent_event_input_type,
+                                data: vm_result_input_edit_intent_event_data,
+                                target_ranges: vm_result_input_edit_intent_event_target_ranges,
+                                clipboard_items: vm_result_input_edit_intent_event_clipboard_items,
+                                drag: vm_result_input_edit_intent_event_drag,
+                                is_composing: vm_result_input_edit_intent_event_is_composing,
+                            };
+                            InputTextSessionEventVm::InputEditIntentEvent(vm_result_input_edit_intent_event)
                         }
-                        let vm_result_clipboard_items_inner = VmSlice::from_values(context, &vm_result_clipboard_items_inner_values)?;
-                        Some(vm_result_clipboard_items_inner)
-                    } else {
-                        None
-                    };
-                    let vm_result_drag = if let Some(value) = value.drag {
-                        let vm_result_drag_inner_session = value.session;
-                        let vm_result_drag_inner_is_external = value.is_external;
-                        let vm_result_drag_inner_allowed_operations = value.allowed_operations;
-                        let vm_result_drag_inner_proposed_operation = if let Some(value) = value.proposed_operation {
-                            let vm_result_drag_inner_proposed_operation_inner = value;
-                            Some(vm_result_drag_inner_proposed_operation_inner)
-                        } else {
-                            None
-                        };
-                        let vm_result_drag_inner_position = if let Some(value) = value.position {
-                            let vm_result_drag_inner_position_inner_x = value.x;
-                            let vm_result_drag_inner_position_inner_y = value.y;
-                            let vm_result_drag_inner_position_inner = display::DisplayDragPosition {
-                                x: vm_result_drag_inner_position_inner_x,
-                                y: vm_result_drag_inner_position_inner_y,
-                            };
-                            Some(vm_result_drag_inner_position_inner)
-                        } else {
-                            None
-                        };
-                        let mut vm_result_drag_inner_items_values = Vec::with_capacity(value.items.len());
-                        for vm_result_drag_inner_items_item in value.items.iter().cloned() {
-                            let vm_result_drag_inner_items_item_value_kind = vm_result_drag_inner_items_item.kind;
-                            let vm_result_drag_inner_items_item_value_item_type = if let Some(value) = vm_result_drag_inner_items_item.item_type {
-                                let vm_result_drag_inner_items_item_value_item_type_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_drag_inner_items_item_value_item_type_inner)
+                        InputtextsessioneventReplayRecord::InputTextSessionStateEvent(value) => {
+                            let vm_result_input_text_session_state_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_input_text_session_state_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_input_text_session_state_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_input_text_session_state_event_metadata_device_id = context.string_handle(value.metadata.device_id.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_input_text_session_state_event_metadata_target_window = if let Some(value) = value.metadata.target_window {
+                                let vm_result_input_text_session_state_event_metadata_target_window_inner = value;
+                                Some(vm_result_input_text_session_state_event_metadata_target_window_inner)
                             } else {
                                 None
                             };
-                            let vm_result_drag_inner_items_item_value_name = if let Some(value) = vm_result_drag_inner_items_item.name {
-                                let vm_result_drag_inner_items_item_value_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_drag_inner_items_item_value_name_inner)
+                            let vm_result_input_text_session_state_event_metadata = InputEventMetadataVm {
+                                timestamp_ns: vm_result_input_text_session_state_event_metadata_timestamp_ns,
+                                sequence: vm_result_input_text_session_state_event_metadata_sequence,
+                                device_id: vm_result_input_text_session_state_event_metadata_device_id,
+                                target_window: vm_result_input_text_session_state_event_metadata_target_window,
+                            };
+                            let vm_result_input_text_session_state_event_state_text = context.string_handle(value.state.text.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_input_text_session_state_event_state_selection_start_offset = value.state.selection.start_offset;
+                            let vm_result_input_text_session_state_event_state_selection_end_offset = value.state.selection.end_offset;
+                            let vm_result_input_text_session_state_event_state_selection = InputTextRange {
+                                start_offset: vm_result_input_text_session_state_event_state_selection_start_offset,
+                                end_offset: vm_result_input_text_session_state_event_state_selection_end_offset,
+                            };
+                            let vm_result_input_text_session_state_event_state_composing = if let Some(value) = value.state.composing {
+                                let vm_result_input_text_session_state_event_state_composing_inner_start_offset = value.start_offset;
+                                let vm_result_input_text_session_state_event_state_composing_inner_end_offset = value.end_offset;
+                                let vm_result_input_text_session_state_event_state_composing_inner = InputTextRange {
+                                    start_offset: vm_result_input_text_session_state_event_state_composing_inner_start_offset,
+                                    end_offset: vm_result_input_text_session_state_event_state_composing_inner_end_offset,
+                                };
+                                Some(vm_result_input_text_session_state_event_state_composing_inner)
                             } else {
                                 None
                             };
-                            let vm_result_drag_inner_items_item_value_is_directory = vm_result_drag_inner_items_item.is_directory;
-                            let vm_result_drag_inner_items_item_value_byte_length = if let Some(value) = vm_result_drag_inner_items_item.byte_length {
-                                let vm_result_drag_inner_items_item_value_byte_length_inner = value;
-                                Some(vm_result_drag_inner_items_item_value_byte_length_inner)
-                            } else {
-                                None
+                            let vm_result_input_text_session_state_event_state = InputTextSessionStateVm {
+                                text: vm_result_input_text_session_state_event_state_text,
+                                selection: vm_result_input_text_session_state_event_state_selection,
+                                composing: vm_result_input_text_session_state_event_state_composing,
                             };
-                            let vm_result_drag_inner_items_item_value = display::DisplayDragItemDescriptorVm {
-                                kind: vm_result_drag_inner_items_item_value_kind,
-                                item_type: vm_result_drag_inner_items_item_value_item_type,
-                                name: vm_result_drag_inner_items_item_value_name,
-                                is_directory: vm_result_drag_inner_items_item_value_is_directory,
-                                byte_length: vm_result_drag_inner_items_item_value_byte_length,
+                            let vm_result_input_text_session_state_event = InputTextSessionStateEventVm {
+                                kind: vm_result_input_text_session_state_event_kind,
+                                metadata: vm_result_input_text_session_state_event_metadata,
+                                state: vm_result_input_text_session_state_event_state,
                             };
-                            vm_result_drag_inner_items_values.push(vm_result_drag_inner_items_item_value);
+                            InputTextSessionEventVm::InputTextSessionStateEvent(vm_result_input_text_session_state_event)
                         }
-                        let vm_result_drag_inner_items = VmSlice::from_values(context, &vm_result_drag_inner_items_values)?;
-                        let vm_result_drag_inner = display::DisplayDragTransferVm {
-                            session: vm_result_drag_inner_session,
-                            is_external: vm_result_drag_inner_is_external,
-                            allowed_operations: vm_result_drag_inner_allowed_operations,
-                            proposed_operation: vm_result_drag_inner_proposed_operation,
-                            position: vm_result_drag_inner_position,
-                            items: vm_result_drag_inner_items,
-                        };
-                        Some(vm_result_drag_inner)
-                    } else {
-                        None
-                    };
-                    let vm_result_is_composing = value.is_composing;
-                    let vm_result = InputEditIntentEventVm {
-                        kind: vm_result_kind,
-                        metadata: vm_result_metadata,
-                        input_type: vm_result_input_type,
-                        data: vm_result_data,
-                        target_ranges: vm_result_target_ranges,
-                        clipboard_items: vm_result_clipboard_items,
-                        drag: vm_result_drag,
-                        is_composing: vm_result_is_composing,
                     };
                     Ok(vm_result)
                 }
@@ -30595,7 +30659,7 @@ fn destack_input_text_read_edit_intent_vm_replay(
             }
         },
     );
-    let result = encode_destack_input_text_read_edit_intent_result(context, result)?;
+    let result = encode_destack_input_text_read_event_result(context, result)?;
     Ok(result)
 }
 
@@ -30604,8 +30668,7 @@ fn destack_input_text_set_area_vm_replay(
     binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
-    handle: resource::InputDeviceHandle,
-    target: InputWindowTargetVm,
+    session: resource::InputTextSessionHandle,
     area: InputTextInputAreaVm,
 ) -> RuntimeResult<vm::Value> {
     let result = binding.trace().run_binding(
@@ -30614,11 +30677,11 @@ fn destack_input_text_set_area_vm_replay(
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_input_text_set_area(binding, context, handle, target, area)
+                platform_vm::destack_input_text_set_area(binding, context, session, area)
             }
-            RuntimeWorld::Simulation => platform_simulation_vm::destack_input_text_set_area(
-                binding, context, handle, target, area,
-            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_input_text_set_area(binding, context, session, area)
+            }
         },
         |context, result| {
             let _ = &context;
@@ -30654,31 +30717,30 @@ fn destack_input_text_set_area_vm_replay(
 }
 
 #[inline]
-fn destack_input_text_start_vm_replay(
+fn destack_input_text_set_state_vm_replay(
     binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
-    handle: resource::InputDeviceHandle,
-    target: InputWindowTargetVm,
-    inputtype: InputTextInputType,
+    session: resource::InputTextSessionHandle,
+    state: InputTextSessionStateVm,
 ) -> RuntimeResult<vm::Value> {
     let result = binding.trace().run_binding(
-        INPUT_TEXT_START,
-        binding.replay_payload_for(INPUT_TEXT_START)?,
+        INPUT_TEXT_SET_STATE,
+        binding.replay_payload_for(INPUT_TEXT_SET_STATE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_input_text_start(binding, context, handle, target, inputtype)
+                platform_vm::destack_input_text_set_state(binding, context, session, state)
             }
-            RuntimeWorld::Simulation => platform_simulation_vm::destack_input_text_start(
-                binding, context, handle, target, inputtype,
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_input_text_set_state(
+                binding, context, session, state,
             ),
         },
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_recorded = ();
-                let payload = InputTextStartReplayRecord {
+                let payload = InputTextSetStateReplayRecord {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -30687,7 +30749,7 @@ fn destack_input_text_start_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(TraceError::from(error.as_ref()));
-                    InputTextStartReplayRecord { result }
+                    InputTextSetStateReplayRecord { result }
                 };
                 return Ok(Some(payload));
             }
@@ -30703,204 +30765,515 @@ fn destack_input_text_start_vm_replay(
             }
         },
     );
-    let result = encode_destack_input_text_start_result(context, result)?;
+    let result = encode_destack_input_text_set_state_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_input_text_stop_vm_replay(
+fn destack_input_text_try_read_event_vm_replay(
     binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
-    handle: resource::InputDeviceHandle,
-    target: InputWindowTargetVm,
+    session: resource::InputTextSessionHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = binding.trace().run_binding(
-        INPUT_TEXT_STOP,
-        binding.replay_payload_for(INPUT_TEXT_STOP)?,
-        context,
-        |context| match world {
-            RuntimeWorld::Host => {
-                platform_vm::destack_input_text_stop(binding, context, handle, target)
-            }
-            RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_input_text_stop(binding, context, handle, target)
-            }
-        },
-        |context, result| {
-            let _ = &context;
-            if let Ok(()) = result {
-                let result_recorded = ();
-                let payload = InputTextStopReplayRecord {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(TraceError::from(error.as_ref()));
-                    InputTextStopReplayRecord { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |context, payload| {
-            let _ = &context;
-            // replay result
-            match payload.result {
-                Ok(()) => Ok(()),
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
-            }
-        },
-    );
-    let result = encode_destack_input_text_stop_result(context, result)?;
-    Ok(result)
-}
-
-#[inline]
-fn destack_input_text_try_read_clipboard_command_vm_replay(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
-    handle: resource::InputDeviceHandle,
-) -> RuntimeResult<vm::Value> {
-    let result = binding.trace().run_binding(
-        INPUT_TEXT_TRY_READ_CLIPBOARD_COMMAND,
-        binding.replay_payload_for(INPUT_TEXT_TRY_READ_CLIPBOARD_COMMAND)?,
+        INPUT_TEXT_TRY_READ_EVENT,
+        binding.replay_payload_for(INPUT_TEXT_TRY_READ_EVENT)?,
         context,
         |context| {
             match world {
-                RuntimeWorld::Host => platform_vm::destack_input_text_try_read_clipboard_command(binding, context, handle),
-                RuntimeWorld::Simulation => platform_simulation_vm::destack_input_text_try_read_clipboard_command(binding, context, handle),
+                RuntimeWorld::Host => platform_vm::destack_input_text_try_read_event(binding, context, session),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_input_text_try_read_event(binding, context, session),
             }
         },
         |context, result| {
             let _ = &context;
             if let Ok(value) = result {
-                let result_value: InputClipboardCommandEventVm = value.clone();
-                let result_recorded_kind = {
-                    let result_recorded_kind_ref = context.string_ref(result_value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_recorded_kind_ref.as_str().to_string()
-                };
-                let result_recorded_metadata_timestamp_ns = result_value.metadata.timestamp_ns;
-                let result_recorded_metadata_sequence = result_value.metadata.sequence;
-                let result_recorded_metadata_device_id = {
-                    let result_recorded_metadata_device_id_ref = context.string_ref(result_value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_recorded_metadata_device_id_ref.as_str().to_string()
-                };
-                let result_recorded_metadata_target_window = if let Some(value) = result_value.metadata.target_window {
-                    let result_recorded_metadata_target_window_inner = value;
-                    Some(result_recorded_metadata_target_window_inner)
-                } else {
-                    None
-                };
-                let result_recorded_metadata = InputeventmetadataReplayRecord {
-                    timestamp_ns: result_recorded_metadata_timestamp_ns,
-                    sequence: result_recorded_metadata_sequence,
-                    device_id: result_recorded_metadata_device_id,
-                    target_window: result_recorded_metadata_target_window,
-                };
-                let result_recorded_command = result_value.command;
-                let result_recorded_clipboard_items = if let Some(value) = result_value.clipboard_items {
-                    let result_recorded_clipboard_items_inner_raw = value.raw_values(context)?;
-                    let mut result_recorded_clipboard_items_inner = Vec::with_capacity(result_recorded_clipboard_items_inner_raw.len());
-                    for result_recorded_clipboard_items_inner_item_value in result_recorded_clipboard_items_inner_raw {
-                        let result_recorded_clipboard_items_inner_item = {
-                            if result_recorded_clipboard_items_inner_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_clipboard_items_inner_item", "item")).boxed()); }
-                            let slots = context.aggregate_slots(result_recorded_clipboard_items_inner_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
-                            if slots.len() != 2 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_clipboard_items_inner_item", "expected 2 fields")).boxed()); }
-                            let result_recorded_clipboard_items_inner_item_presentation_style_raw = decode_int32(slots[0], "result_recorded_clipboard_items_inner_item_presentation_style_raw", "presentationStyle")?;
-                            let result_recorded_clipboard_items_inner_item_presentation_style = match result_recorded_clipboard_items_inner_item_presentation_style_raw { 0i32 => ClipboardPresentationStyle::Unspecified, 1i32 => ClipboardPresentationStyle::Inline, 2i32 => ClipboardPresentationStyle::Attachment , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_clipboard_items_inner_item_presentation_style", "unknown ClipboardPresentationStyle value")).boxed()), };
-                            let result_recorded_clipboard_items_inner_item_representations = decode_slice::<ClipboardItemRepresentationDescriptorVm>(context, slots[1], "result_recorded_clipboard_items_inner_item_representations", "representations")?;
-                            ClipboardItemDescriptorVm {
-                                presentation_style: result_recorded_clipboard_items_inner_item_presentation_style,
-                                representations: result_recorded_clipboard_items_inner_item_representations,
-                            }
+                let result_value: InputTextSessionEventVm = value.clone();
+                let result_recorded = match result_value {
+                    InputTextSessionEventVm::InputClipboardCommandEvent(value) => {
+                        let result_recorded_input_clipboard_command_event_kind = {
+                            let result_recorded_input_clipboard_command_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_clipboard_command_event_kind_ref.as_str().to_string()
                         };
-                        let result_recorded_clipboard_items_inner_item_recorded_presentation_style = result_recorded_clipboard_items_inner_item.presentation_style;
-                        let result_recorded_clipboard_items_inner_item_recorded_representations_raw = result_recorded_clipboard_items_inner_item.representations.raw_values(context)?;
-                        let mut result_recorded_clipboard_items_inner_item_recorded_representations = Vec::with_capacity(result_recorded_clipboard_items_inner_item_recorded_representations_raw.len());
-                        for result_recorded_clipboard_items_inner_item_recorded_representations_item_value in result_recorded_clipboard_items_inner_item_recorded_representations_raw {
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item = {
-                                if result_recorded_clipboard_items_inner_item_recorded_representations_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_clipboard_items_inner_item_recorded_representations_item", "item")).boxed()); }
-                                let slots = context.aggregate_slots(result_recorded_clipboard_items_inner_item_recorded_representations_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                if slots.len() != 5 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_clipboard_items_inner_item_recorded_representations_item", "expected 5 fields")).boxed()); }
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_mime_type = decode_string(slots[0], "result_recorded_clipboard_items_inner_item_recorded_representations_item_mime_type", "mimeType")?;
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_kind_raw = decode_int32(slots[1], "result_recorded_clipboard_items_inner_item_recorded_representations_item_kind_raw", "kind")?;
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_kind = match result_recorded_clipboard_items_inner_item_recorded_representations_item_kind_raw { 1i32 => ClipboardItemRepresentationKind::String, 2i32 => ClipboardItemRepresentationKind::File, 3i32 => ClipboardItemRepresentationKind::Binary , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_clipboard_items_inner_item_recorded_representations_item_kind", "unknown ClipboardItemRepresentationKind value")).boxed()), };
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_name = if slots[2].tag() == vm::ValueTag::Void {
-                                    None
-                                } else {
-                                    let result_recorded_clipboard_items_inner_item_recorded_representations_item_name_inner = decode_string(slots[2], "result_recorded_clipboard_items_inner_item_recorded_representations_item_name_inner", "name")?;
-                                    Some(result_recorded_clipboard_items_inner_item_recorded_representations_item_name_inner)
+                        let result_recorded_input_clipboard_command_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_clipboard_command_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_clipboard_command_event_metadata_device_id = {
+                            let result_recorded_input_clipboard_command_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_clipboard_command_event_metadata_device_id_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_clipboard_command_event_metadata_target_window = if let Some(value) = value.metadata.target_window {
+                            let result_recorded_input_clipboard_command_event_metadata_target_window_inner = value;
+                            Some(result_recorded_input_clipboard_command_event_metadata_target_window_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_input_clipboard_command_event_metadata = InputeventmetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_clipboard_command_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_clipboard_command_event_metadata_sequence,
+                            device_id: result_recorded_input_clipboard_command_event_metadata_device_id,
+                            target_window: result_recorded_input_clipboard_command_event_metadata_target_window,
+                        };
+                        let result_recorded_input_clipboard_command_event_command = value.command;
+                        let result_recorded_input_clipboard_command_event_clipboard_items = if let Some(value) = value.clipboard_items {
+                            let result_recorded_input_clipboard_command_event_clipboard_items_inner_raw = value.raw_values(context)?;
+                            let mut result_recorded_input_clipboard_command_event_clipboard_items_inner = Vec::with_capacity(result_recorded_input_clipboard_command_event_clipboard_items_inner_raw.len());
+                            for result_recorded_input_clipboard_command_event_clipboard_items_inner_item_value in result_recorded_input_clipboard_command_event_clipboard_items_inner_raw {
+                                let result_recorded_input_clipboard_command_event_clipboard_items_inner_item = {
+                                    if result_recorded_input_clipboard_command_event_clipboard_items_inner_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_input_clipboard_command_event_clipboard_items_inner_item", "item")).boxed()); }
+                                    let slots = context.aggregate_slots(result_recorded_input_clipboard_command_event_clipboard_items_inner_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    if slots.len() != 2 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_input_clipboard_command_event_clipboard_items_inner_item", "expected 2 fields")).boxed()); }
+                                    let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_presentation_style_raw = decode_int32(slots[0], "result_recorded_input_clipboard_command_event_clipboard_items_inner_item_presentation_style_raw", "presentationStyle")?;
+                                    let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_presentation_style = match result_recorded_input_clipboard_command_event_clipboard_items_inner_item_presentation_style_raw { 0i32 => ClipboardPresentationStyle::Unspecified, 1i32 => ClipboardPresentationStyle::Inline, 2i32 => ClipboardPresentationStyle::Attachment , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_input_clipboard_command_event_clipboard_items_inner_item_presentation_style", "unknown ClipboardPresentationStyle value")).boxed()), };
+                                    let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_representations = decode_slice::<ClipboardItemRepresentationDescriptorVm>(context, slots[1], "result_recorded_input_clipboard_command_event_clipboard_items_inner_item_representations", "representations")?;
+                                    ClipboardItemDescriptorVm {
+                                        presentation_style: result_recorded_input_clipboard_command_event_clipboard_items_inner_item_presentation_style,
+                                        representations: result_recorded_input_clipboard_command_event_clipboard_items_inner_item_representations,
+                                    }
                                 };
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_is_directory = decode_bool(slots[3], "result_recorded_clipboard_items_inner_item_recorded_representations_item_is_directory", "isDirectory")?;
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_byte_length = if slots[4].tag() == vm::ValueTag::Void {
-                                    None
-                                } else {
-                                    let result_recorded_clipboard_items_inner_item_recorded_representations_item_byte_length_inner = decode_uint64(slots[4], "result_recorded_clipboard_items_inner_item_recorded_representations_item_byte_length_inner", "byteLength")?;
-                                    Some(result_recorded_clipboard_items_inner_item_recorded_representations_item_byte_length_inner)
+                                let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_presentation_style = result_recorded_input_clipboard_command_event_clipboard_items_inner_item.presentation_style;
+                                let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_raw = result_recorded_input_clipboard_command_event_clipboard_items_inner_item.representations.raw_values(context)?;
+                                let mut result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations = Vec::with_capacity(result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_raw.len());
+                                for result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_value in result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_raw {
+                                    let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item = {
+                                        if result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item", "item")).boxed()); }
+                                        let slots = context.aggregate_slots(result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                        if slots.len() != 5 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item", "expected 5 fields")).boxed()); }
+                                        let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_mime_type = decode_string(slots[0], "result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_mime_type", "mimeType")?;
+                                        let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_kind_raw = decode_int32(slots[1], "result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_kind_raw", "kind")?;
+                                        let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_kind = match result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_kind_raw { 1i32 => ClipboardItemRepresentationKind::String, 2i32 => ClipboardItemRepresentationKind::File, 3i32 => ClipboardItemRepresentationKind::Binary , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_kind", "unknown ClipboardItemRepresentationKind value")).boxed()), };
+                                        let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_name = if slots[2].tag() == vm::ValueTag::Void {
+                                            None
+                                        } else {
+                                            let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_name_inner = decode_string(slots[2], "result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_name_inner", "name")?;
+                                            Some(result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_name_inner)
+                                        };
+                                        let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_is_directory = decode_bool(slots[3], "result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_is_directory", "isDirectory")?;
+                                        let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_byte_length = if slots[4].tag() == vm::ValueTag::Void {
+                                            None
+                                        } else {
+                                            let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_byte_length_inner = decode_uint64(slots[4], "result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_byte_length_inner", "byteLength")?;
+                                            Some(result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_byte_length_inner)
+                                        };
+                                        ClipboardItemRepresentationDescriptorVm {
+                                            mime_type: result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_mime_type,
+                                            kind: result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_kind,
+                                            name: result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_name,
+                                            is_directory: result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_is_directory,
+                                            byte_length: result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_byte_length,
+                                        }
+                                    };
+                                    let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type = {
+                                        let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type_ref = context.string_ref(result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item.mime_type).map_err(|error| RuntimeError::from(error).boxed())?;
+                                        result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type_ref.as_str().to_string()
+                                    };
+                                    let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_kind = result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item.kind;
+                                    let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_name = if let Some(value) = result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item.name {
+                                        let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner = {
+                                            let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                            result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner_ref.as_str().to_string()
+                                        };
+                                        Some(result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_is_directory = result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item.is_directory;
+                                    let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length = if let Some(value) = result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item.byte_length {
+                                        let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length_inner = value;
+                                        Some(result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded = ClipboarditemrepresentationdescriptorReplayRecord {
+                                        mime_type: result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type,
+                                        kind: result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_kind,
+                                        name: result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_name,
+                                        is_directory: result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_is_directory,
+                                        byte_length: result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length,
+                                    };
+                                    result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations.push(result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_recorded);
+                                }
+                                let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded = ClipboarditemdescriptorReplayRecord {
+                                    presentation_style: result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_presentation_style,
+                                    representations: result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations,
                                 };
-                                ClipboardItemRepresentationDescriptorVm {
-                                    mime_type: result_recorded_clipboard_items_inner_item_recorded_representations_item_mime_type,
-                                    kind: result_recorded_clipboard_items_inner_item_recorded_representations_item_kind,
-                                    name: result_recorded_clipboard_items_inner_item_recorded_representations_item_name,
-                                    is_directory: result_recorded_clipboard_items_inner_item_recorded_representations_item_is_directory,
-                                    byte_length: result_recorded_clipboard_items_inner_item_recorded_representations_item_byte_length,
+                                result_recorded_input_clipboard_command_event_clipboard_items_inner.push(result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded);
+                            }
+                            Some(result_recorded_input_clipboard_command_event_clipboard_items_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_input_clipboard_command_event_is_composing = value.is_composing;
+                        let result_recorded_input_clipboard_command_event = InputclipboardcommandeventReplayRecord {
+                            kind: result_recorded_input_clipboard_command_event_kind,
+                            metadata: result_recorded_input_clipboard_command_event_metadata,
+                            command: result_recorded_input_clipboard_command_event_command,
+                            clipboard_items: result_recorded_input_clipboard_command_event_clipboard_items,
+                            is_composing: result_recorded_input_clipboard_command_event_is_composing,
+                        };
+                        InputtextsessioneventReplayRecord::InputClipboardCommandEvent(result_recorded_input_clipboard_command_event)
+                    }
+                    InputTextSessionEventVm::InputCompositionEvent(value) => {
+                        let result_recorded_input_composition_event_kind = {
+                            let result_recorded_input_composition_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_composition_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_composition_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_composition_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_composition_event_metadata_device_id = {
+                            let result_recorded_input_composition_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_composition_event_metadata_device_id_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_composition_event_metadata_target_window = if let Some(value) = value.metadata.target_window {
+                            let result_recorded_input_composition_event_metadata_target_window_inner = value;
+                            Some(result_recorded_input_composition_event_metadata_target_window_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_input_composition_event_metadata = InputeventmetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_composition_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_composition_event_metadata_sequence,
+                            device_id: result_recorded_input_composition_event_metadata_device_id,
+                            target_window: result_recorded_input_composition_event_metadata_target_window,
+                        };
+                        let result_recorded_input_composition_event_payload_action = value.payload.action;
+                        let result_recorded_input_composition_event_payload_text = {
+                            let result_recorded_input_composition_event_payload_text_ref = context.string_ref(value.payload.text).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_composition_event_payload_text_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_composition_event_payload_selection_start = value.payload.selection_start;
+                        let result_recorded_input_composition_event_payload_selection_end = value.payload.selection_end;
+                        let result_recorded_input_composition_event_payload = InputcompositioneventpayloadReplayRecord {
+                            action: result_recorded_input_composition_event_payload_action,
+                            text: result_recorded_input_composition_event_payload_text,
+                            selection_start: result_recorded_input_composition_event_payload_selection_start,
+                            selection_end: result_recorded_input_composition_event_payload_selection_end,
+                        };
+                        let result_recorded_input_composition_event = InputcompositioneventReplayRecord {
+                            kind: result_recorded_input_composition_event_kind,
+                            metadata: result_recorded_input_composition_event_metadata,
+                            payload: result_recorded_input_composition_event_payload,
+                        };
+                        InputtextsessioneventReplayRecord::InputCompositionEvent(result_recorded_input_composition_event)
+                    }
+                    InputTextSessionEventVm::InputEditIntentEvent(value) => {
+                        let result_recorded_input_edit_intent_event_kind = {
+                            let result_recorded_input_edit_intent_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_edit_intent_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_edit_intent_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_edit_intent_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_edit_intent_event_metadata_device_id = {
+                            let result_recorded_input_edit_intent_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_edit_intent_event_metadata_device_id_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_edit_intent_event_metadata_target_window = if let Some(value) = value.metadata.target_window {
+                            let result_recorded_input_edit_intent_event_metadata_target_window_inner = value;
+                            Some(result_recorded_input_edit_intent_event_metadata_target_window_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_input_edit_intent_event_metadata = InputeventmetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_edit_intent_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_edit_intent_event_metadata_sequence,
+                            device_id: result_recorded_input_edit_intent_event_metadata_device_id,
+                            target_window: result_recorded_input_edit_intent_event_metadata_target_window,
+                        };
+                        let result_recorded_input_edit_intent_event_input_type = value.input_type;
+                        let result_recorded_input_edit_intent_event_data = if let Some(value) = value.data {
+                            let result_recorded_input_edit_intent_event_data_inner = {
+                                let result_recorded_input_edit_intent_event_data_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_input_edit_intent_event_data_inner_ref.as_str().to_string()
+                            };
+                            Some(result_recorded_input_edit_intent_event_data_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_input_edit_intent_event_target_ranges_raw = value.target_ranges.raw_values(context)?;
+                        let mut result_recorded_input_edit_intent_event_target_ranges = Vec::with_capacity(result_recorded_input_edit_intent_event_target_ranges_raw.len());
+                        for result_recorded_input_edit_intent_event_target_ranges_item_value in result_recorded_input_edit_intent_event_target_ranges_raw {
+                            let result_recorded_input_edit_intent_event_target_ranges_item = {
+                                if result_recorded_input_edit_intent_event_target_ranges_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_input_edit_intent_event_target_ranges_item", "item")).boxed()); }
+                                let slots = context.aggregate_slots(result_recorded_input_edit_intent_event_target_ranges_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                if slots.len() != 2 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_input_edit_intent_event_target_ranges_item", "expected 2 fields")).boxed()); }
+                                let result_recorded_input_edit_intent_event_target_ranges_item_start_offset = decode_uint32(slots[0], "result_recorded_input_edit_intent_event_target_ranges_item_start_offset", "startOffset")?;
+                                let result_recorded_input_edit_intent_event_target_ranges_item_end_offset = decode_uint32(slots[1], "result_recorded_input_edit_intent_event_target_ranges_item_end_offset", "endOffset")?;
+                                InputTextRangeVm {
+                                    start_offset: result_recorded_input_edit_intent_event_target_ranges_item_start_offset,
+                                    end_offset: result_recorded_input_edit_intent_event_target_ranges_item_end_offset,
                                 }
                             };
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type = {
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type_ref = context.string_ref(result_recorded_clipboard_items_inner_item_recorded_representations_item.mime_type).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type_ref.as_str().to_string()
+                            let result_recorded_input_edit_intent_event_target_ranges_item_recorded_start_offset = result_recorded_input_edit_intent_event_target_ranges_item.start_offset;
+                            let result_recorded_input_edit_intent_event_target_ranges_item_recorded_end_offset = result_recorded_input_edit_intent_event_target_ranges_item.end_offset;
+                            let result_recorded_input_edit_intent_event_target_ranges_item_recorded = InputTextRange {
+                                start_offset: result_recorded_input_edit_intent_event_target_ranges_item_recorded_start_offset,
+                                end_offset: result_recorded_input_edit_intent_event_target_ranges_item_recorded_end_offset,
                             };
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_kind = result_recorded_clipboard_items_inner_item_recorded_representations_item.kind;
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_name = if let Some(value) = result_recorded_clipboard_items_inner_item_recorded_representations_item.name {
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner = {
-                                    let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner_ref.as_str().to_string()
-                                };
-                                Some(result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner)
-                            } else {
-                                None
-                            };
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_is_directory = result_recorded_clipboard_items_inner_item_recorded_representations_item.is_directory;
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length = if let Some(value) = result_recorded_clipboard_items_inner_item_recorded_representations_item.byte_length {
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length_inner = value;
-                                Some(result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length_inner)
-                            } else {
-                                None
-                            };
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded = ClipboarditemrepresentationdescriptorReplayRecord {
-                                mime_type: result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type,
-                                kind: result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_kind,
-                                name: result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_name,
-                                is_directory: result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_is_directory,
-                                byte_length: result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length,
-                            };
-                            result_recorded_clipboard_items_inner_item_recorded_representations.push(result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded);
+                            result_recorded_input_edit_intent_event_target_ranges.push(result_recorded_input_edit_intent_event_target_ranges_item_recorded);
                         }
-                        let result_recorded_clipboard_items_inner_item_recorded = ClipboarditemdescriptorReplayRecord {
-                            presentation_style: result_recorded_clipboard_items_inner_item_recorded_presentation_style,
-                            representations: result_recorded_clipboard_items_inner_item_recorded_representations,
+                        let result_recorded_input_edit_intent_event_clipboard_items = if let Some(value) = value.clipboard_items {
+                            let result_recorded_input_edit_intent_event_clipboard_items_inner_raw = value.raw_values(context)?;
+                            let mut result_recorded_input_edit_intent_event_clipboard_items_inner = Vec::with_capacity(result_recorded_input_edit_intent_event_clipboard_items_inner_raw.len());
+                            for result_recorded_input_edit_intent_event_clipboard_items_inner_item_value in result_recorded_input_edit_intent_event_clipboard_items_inner_raw {
+                                let result_recorded_input_edit_intent_event_clipboard_items_inner_item = {
+                                    if result_recorded_input_edit_intent_event_clipboard_items_inner_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_input_edit_intent_event_clipboard_items_inner_item", "item")).boxed()); }
+                                    let slots = context.aggregate_slots(result_recorded_input_edit_intent_event_clipboard_items_inner_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    if slots.len() != 2 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_input_edit_intent_event_clipboard_items_inner_item", "expected 2 fields")).boxed()); }
+                                    let result_recorded_input_edit_intent_event_clipboard_items_inner_item_presentation_style_raw = decode_int32(slots[0], "result_recorded_input_edit_intent_event_clipboard_items_inner_item_presentation_style_raw", "presentationStyle")?;
+                                    let result_recorded_input_edit_intent_event_clipboard_items_inner_item_presentation_style = match result_recorded_input_edit_intent_event_clipboard_items_inner_item_presentation_style_raw { 0i32 => ClipboardPresentationStyle::Unspecified, 1i32 => ClipboardPresentationStyle::Inline, 2i32 => ClipboardPresentationStyle::Attachment , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_input_edit_intent_event_clipboard_items_inner_item_presentation_style", "unknown ClipboardPresentationStyle value")).boxed()), };
+                                    let result_recorded_input_edit_intent_event_clipboard_items_inner_item_representations = decode_slice::<ClipboardItemRepresentationDescriptorVm>(context, slots[1], "result_recorded_input_edit_intent_event_clipboard_items_inner_item_representations", "representations")?;
+                                    ClipboardItemDescriptorVm {
+                                        presentation_style: result_recorded_input_edit_intent_event_clipboard_items_inner_item_presentation_style,
+                                        representations: result_recorded_input_edit_intent_event_clipboard_items_inner_item_representations,
+                                    }
+                                };
+                                let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_presentation_style = result_recorded_input_edit_intent_event_clipboard_items_inner_item.presentation_style;
+                                let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_raw = result_recorded_input_edit_intent_event_clipboard_items_inner_item.representations.raw_values(context)?;
+                                let mut result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations = Vec::with_capacity(result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_raw.len());
+                                for result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_value in result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_raw {
+                                    let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item = {
+                                        if result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item", "item")).boxed()); }
+                                        let slots = context.aggregate_slots(result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                        if slots.len() != 5 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item", "expected 5 fields")).boxed()); }
+                                        let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_mime_type = decode_string(slots[0], "result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_mime_type", "mimeType")?;
+                                        let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_kind_raw = decode_int32(slots[1], "result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_kind_raw", "kind")?;
+                                        let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_kind = match result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_kind_raw { 1i32 => ClipboardItemRepresentationKind::String, 2i32 => ClipboardItemRepresentationKind::File, 3i32 => ClipboardItemRepresentationKind::Binary , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_kind", "unknown ClipboardItemRepresentationKind value")).boxed()), };
+                                        let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_name = if slots[2].tag() == vm::ValueTag::Void {
+                                            None
+                                        } else {
+                                            let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_name_inner = decode_string(slots[2], "result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_name_inner", "name")?;
+                                            Some(result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_name_inner)
+                                        };
+                                        let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_is_directory = decode_bool(slots[3], "result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_is_directory", "isDirectory")?;
+                                        let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_byte_length = if slots[4].tag() == vm::ValueTag::Void {
+                                            None
+                                        } else {
+                                            let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_byte_length_inner = decode_uint64(slots[4], "result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_byte_length_inner", "byteLength")?;
+                                            Some(result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_byte_length_inner)
+                                        };
+                                        ClipboardItemRepresentationDescriptorVm {
+                                            mime_type: result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_mime_type,
+                                            kind: result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_kind,
+                                            name: result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_name,
+                                            is_directory: result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_is_directory,
+                                            byte_length: result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_byte_length,
+                                        }
+                                    };
+                                    let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type = {
+                                        let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type_ref = context.string_ref(result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item.mime_type).map_err(|error| RuntimeError::from(error).boxed())?;
+                                        result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type_ref.as_str().to_string()
+                                    };
+                                    let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_kind = result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item.kind;
+                                    let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_name = if let Some(value) = result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item.name {
+                                        let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner = {
+                                            let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                            result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner_ref.as_str().to_string()
+                                        };
+                                        Some(result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_is_directory = result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item.is_directory;
+                                    let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length = if let Some(value) = result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item.byte_length {
+                                        let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length_inner = value;
+                                        Some(result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded = ClipboarditemrepresentationdescriptorReplayRecord {
+                                        mime_type: result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type,
+                                        kind: result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_kind,
+                                        name: result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_name,
+                                        is_directory: result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_is_directory,
+                                        byte_length: result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length,
+                                    };
+                                    result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations.push(result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_recorded);
+                                }
+                                let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded = ClipboarditemdescriptorReplayRecord {
+                                    presentation_style: result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_presentation_style,
+                                    representations: result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations,
+                                };
+                                result_recorded_input_edit_intent_event_clipboard_items_inner.push(result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded);
+                            }
+                            Some(result_recorded_input_edit_intent_event_clipboard_items_inner)
+                        } else {
+                            None
                         };
-                        result_recorded_clipboard_items_inner.push(result_recorded_clipboard_items_inner_item_recorded);
+                        let result_recorded_input_edit_intent_event_drag = if let Some(value) = value.drag {
+                            let result_recorded_input_edit_intent_event_drag_inner_session = value.session;
+                            let result_recorded_input_edit_intent_event_drag_inner_is_external = value.is_external;
+                            let result_recorded_input_edit_intent_event_drag_inner_allowed_operations = value.allowed_operations;
+                            let result_recorded_input_edit_intent_event_drag_inner_proposed_operation = if let Some(value) = value.proposed_operation {
+                                let result_recorded_input_edit_intent_event_drag_inner_proposed_operation_inner = value;
+                                Some(result_recorded_input_edit_intent_event_drag_inner_proposed_operation_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_input_edit_intent_event_drag_inner_position = if let Some(value) = value.position {
+                                let result_recorded_input_edit_intent_event_drag_inner_position_inner_x = value.x;
+                                let result_recorded_input_edit_intent_event_drag_inner_position_inner_y = value.y;
+                                let result_recorded_input_edit_intent_event_drag_inner_position_inner = display::DisplayDragPosition {
+                                    x: result_recorded_input_edit_intent_event_drag_inner_position_inner_x,
+                                    y: result_recorded_input_edit_intent_event_drag_inner_position_inner_y,
+                                };
+                                Some(result_recorded_input_edit_intent_event_drag_inner_position_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_input_edit_intent_event_drag_inner_items_raw = value.items.raw_values(context)?;
+                            let mut result_recorded_input_edit_intent_event_drag_inner_items = Vec::with_capacity(result_recorded_input_edit_intent_event_drag_inner_items_raw.len());
+                            for result_recorded_input_edit_intent_event_drag_inner_items_item_value in result_recorded_input_edit_intent_event_drag_inner_items_raw {
+                                let result_recorded_input_edit_intent_event_drag_inner_items_item = {
+                                    if result_recorded_input_edit_intent_event_drag_inner_items_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_input_edit_intent_event_drag_inner_items_item", "item")).boxed()); }
+                                    let slots = context.aggregate_slots(result_recorded_input_edit_intent_event_drag_inner_items_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    if slots.len() != 5 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_input_edit_intent_event_drag_inner_items_item", "expected 5 fields")).boxed()); }
+                                    let result_recorded_input_edit_intent_event_drag_inner_items_item_kind_raw = decode_int32(slots[0], "result_recorded_input_edit_intent_event_drag_inner_items_item_kind_raw", "kind")?;
+                                    let result_recorded_input_edit_intent_event_drag_inner_items_item_kind = match result_recorded_input_edit_intent_event_drag_inner_items_item_kind_raw { 1i32 => display::DisplayDragItemKind::String, 2i32 => display::DisplayDragItemKind::File, 3i32 => display::DisplayDragItemKind::Binary , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_input_edit_intent_event_drag_inner_items_item_kind", "unknown display::DisplayDragItemKind value")).boxed()), };
+                                    let result_recorded_input_edit_intent_event_drag_inner_items_item_item_type = if slots[1].tag() == vm::ValueTag::Void {
+                                        None
+                                    } else {
+                                        let result_recorded_input_edit_intent_event_drag_inner_items_item_item_type_inner = decode_string(slots[1], "result_recorded_input_edit_intent_event_drag_inner_items_item_item_type_inner", "itemType")?;
+                                        Some(result_recorded_input_edit_intent_event_drag_inner_items_item_item_type_inner)
+                                    };
+                                    let result_recorded_input_edit_intent_event_drag_inner_items_item_name = if slots[2].tag() == vm::ValueTag::Void {
+                                        None
+                                    } else {
+                                        let result_recorded_input_edit_intent_event_drag_inner_items_item_name_inner = decode_string(slots[2], "result_recorded_input_edit_intent_event_drag_inner_items_item_name_inner", "name")?;
+                                        Some(result_recorded_input_edit_intent_event_drag_inner_items_item_name_inner)
+                                    };
+                                    let result_recorded_input_edit_intent_event_drag_inner_items_item_is_directory = decode_bool(slots[3], "result_recorded_input_edit_intent_event_drag_inner_items_item_is_directory", "isDirectory")?;
+                                    let result_recorded_input_edit_intent_event_drag_inner_items_item_byte_length = if slots[4].tag() == vm::ValueTag::Void {
+                                        None
+                                    } else {
+                                        let result_recorded_input_edit_intent_event_drag_inner_items_item_byte_length_inner = decode_uint64(slots[4], "result_recorded_input_edit_intent_event_drag_inner_items_item_byte_length_inner", "byteLength")?;
+                                        Some(result_recorded_input_edit_intent_event_drag_inner_items_item_byte_length_inner)
+                                    };
+                                    display::DisplayDragItemDescriptorVm {
+                                        kind: result_recorded_input_edit_intent_event_drag_inner_items_item_kind,
+                                        item_type: result_recorded_input_edit_intent_event_drag_inner_items_item_item_type,
+                                        name: result_recorded_input_edit_intent_event_drag_inner_items_item_name,
+                                        is_directory: result_recorded_input_edit_intent_event_drag_inner_items_item_is_directory,
+                                        byte_length: result_recorded_input_edit_intent_event_drag_inner_items_item_byte_length,
+                                    }
+                                };
+                                let result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_kind = result_recorded_input_edit_intent_event_drag_inner_items_item.kind;
+                                let result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_item_type = if let Some(value) = result_recorded_input_edit_intent_event_drag_inner_items_item.item_type {
+                                    let result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_item_type_inner = {
+                                        let result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_item_type_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                        result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_item_type_inner_ref.as_str().to_string()
+                                    };
+                                    Some(result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_item_type_inner)
+                                } else {
+                                    None
+                                };
+                                let result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_name = if let Some(value) = result_recorded_input_edit_intent_event_drag_inner_items_item.name {
+                                    let result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_name_inner = {
+                                        let result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_name_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                        result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_name_inner_ref.as_str().to_string()
+                                    };
+                                    Some(result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_name_inner)
+                                } else {
+                                    None
+                                };
+                                let result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_is_directory = result_recorded_input_edit_intent_event_drag_inner_items_item.is_directory;
+                                let result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_byte_length = if let Some(value) = result_recorded_input_edit_intent_event_drag_inner_items_item.byte_length {
+                                    let result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_byte_length_inner = value;
+                                    Some(result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_byte_length_inner)
+                                } else {
+                                    None
+                                };
+                                let result_recorded_input_edit_intent_event_drag_inner_items_item_recorded = display::DisplaydragitemdescriptorReplayRecord {
+                                    kind: result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_kind,
+                                    item_type: result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_item_type,
+                                    name: result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_name,
+                                    is_directory: result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_is_directory,
+                                    byte_length: result_recorded_input_edit_intent_event_drag_inner_items_item_recorded_byte_length,
+                                };
+                                result_recorded_input_edit_intent_event_drag_inner_items.push(result_recorded_input_edit_intent_event_drag_inner_items_item_recorded);
+                            }
+                            let result_recorded_input_edit_intent_event_drag_inner = display::DisplaydragtransferReplayRecord {
+                                session: result_recorded_input_edit_intent_event_drag_inner_session,
+                                is_external: result_recorded_input_edit_intent_event_drag_inner_is_external,
+                                allowed_operations: result_recorded_input_edit_intent_event_drag_inner_allowed_operations,
+                                proposed_operation: result_recorded_input_edit_intent_event_drag_inner_proposed_operation,
+                                position: result_recorded_input_edit_intent_event_drag_inner_position,
+                                items: result_recorded_input_edit_intent_event_drag_inner_items,
+                            };
+                            Some(result_recorded_input_edit_intent_event_drag_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_input_edit_intent_event_is_composing = value.is_composing;
+                        let result_recorded_input_edit_intent_event = InputeditintenteventReplayRecord {
+                            kind: result_recorded_input_edit_intent_event_kind,
+                            metadata: result_recorded_input_edit_intent_event_metadata,
+                            input_type: result_recorded_input_edit_intent_event_input_type,
+                            data: result_recorded_input_edit_intent_event_data,
+                            target_ranges: result_recorded_input_edit_intent_event_target_ranges,
+                            clipboard_items: result_recorded_input_edit_intent_event_clipboard_items,
+                            drag: result_recorded_input_edit_intent_event_drag,
+                            is_composing: result_recorded_input_edit_intent_event_is_composing,
+                        };
+                        InputtextsessioneventReplayRecord::InputEditIntentEvent(result_recorded_input_edit_intent_event)
                     }
-                    Some(result_recorded_clipboard_items_inner)
-                } else {
-                    None
+                    InputTextSessionEventVm::InputTextSessionStateEvent(value) => {
+                        let result_recorded_input_text_session_state_event_kind = {
+                            let result_recorded_input_text_session_state_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_text_session_state_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_text_session_state_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_text_session_state_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_text_session_state_event_metadata_device_id = {
+                            let result_recorded_input_text_session_state_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_text_session_state_event_metadata_device_id_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_text_session_state_event_metadata_target_window = if let Some(value) = value.metadata.target_window {
+                            let result_recorded_input_text_session_state_event_metadata_target_window_inner = value;
+                            Some(result_recorded_input_text_session_state_event_metadata_target_window_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_input_text_session_state_event_metadata = InputeventmetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_text_session_state_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_text_session_state_event_metadata_sequence,
+                            device_id: result_recorded_input_text_session_state_event_metadata_device_id,
+                            target_window: result_recorded_input_text_session_state_event_metadata_target_window,
+                        };
+                        let result_recorded_input_text_session_state_event_state_text = {
+                            let result_recorded_input_text_session_state_event_state_text_ref = context.string_ref(value.state.text).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_text_session_state_event_state_text_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_text_session_state_event_state_selection_start_offset = value.state.selection.start_offset;
+                        let result_recorded_input_text_session_state_event_state_selection_end_offset = value.state.selection.end_offset;
+                        let result_recorded_input_text_session_state_event_state_selection = InputTextRange {
+                            start_offset: result_recorded_input_text_session_state_event_state_selection_start_offset,
+                            end_offset: result_recorded_input_text_session_state_event_state_selection_end_offset,
+                        };
+                        let result_recorded_input_text_session_state_event_state_composing = if let Some(value) = value.state.composing {
+                            let result_recorded_input_text_session_state_event_state_composing_inner_start_offset = value.start_offset;
+                            let result_recorded_input_text_session_state_event_state_composing_inner_end_offset = value.end_offset;
+                            let result_recorded_input_text_session_state_event_state_composing_inner = InputTextRange {
+                                start_offset: result_recorded_input_text_session_state_event_state_composing_inner_start_offset,
+                                end_offset: result_recorded_input_text_session_state_event_state_composing_inner_end_offset,
+                            };
+                            Some(result_recorded_input_text_session_state_event_state_composing_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_input_text_session_state_event_state = InputtextsessionstateReplayRecord {
+                            text: result_recorded_input_text_session_state_event_state_text,
+                            selection: result_recorded_input_text_session_state_event_state_selection,
+                            composing: result_recorded_input_text_session_state_event_state_composing,
+                        };
+                        let result_recorded_input_text_session_state_event = InputtextsessionstateeventReplayRecord {
+                            kind: result_recorded_input_text_session_state_event_kind,
+                            metadata: result_recorded_input_text_session_state_event_metadata,
+                            state: result_recorded_input_text_session_state_event_state,
+                        };
+                        InputtextsessioneventReplayRecord::InputTextSessionStateEvent(result_recorded_input_text_session_state_event)
+                    }
                 };
-                let result_recorded_is_composing = result_value.is_composing;
-                let result_recorded = InputclipboardcommandeventReplayRecord {
-                    kind: result_recorded_kind,
-                    metadata: result_recorded_metadata,
-                    command: result_recorded_command,
-                    clipboard_items: result_recorded_clipboard_items,
-                    is_composing: result_recorded_is_composing,
-                };
-                let payload = InputTextTryReadClipboardCommandReplayRecord {
+                let payload = InputTextTryReadEventReplayRecord {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -30909,7 +31282,7 @@ fn destack_input_text_try_read_clipboard_command_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(TraceError::from(error.as_ref()));
-                    InputTextTryReadClipboardCommandReplayRecord {
+                    InputTextTryReadEventReplayRecord {
                         result,
                     }
                 };
@@ -30923,676 +31296,313 @@ fn destack_input_text_try_read_clipboard_command_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                    let vm_result_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                    let vm_result_metadata_sequence = value.metadata.sequence;
-                    let vm_result_metadata_device_id = context.string_handle(value.metadata.device_id.as_str()).map_err(Box::<RuntimeError>::from)?;
-                    let vm_result_metadata_target_window = if let Some(value) = value.metadata.target_window {
-                        let vm_result_metadata_target_window_inner = value;
-                        Some(vm_result_metadata_target_window_inner)
-                    } else {
-                        None
-                    };
-                    let vm_result_metadata = InputEventMetadataVm {
-                        timestamp_ns: vm_result_metadata_timestamp_ns,
-                        sequence: vm_result_metadata_sequence,
-                        device_id: vm_result_metadata_device_id,
-                        target_window: vm_result_metadata_target_window,
-                    };
-                    let vm_result_command = value.command;
-                    let vm_result_clipboard_items = if let Some(value) = value.clipboard_items {
-                        let mut vm_result_clipboard_items_inner_values = Vec::with_capacity(value.len());
-                        for vm_result_clipboard_items_inner_item in value.iter().cloned() {
-                            let vm_result_clipboard_items_inner_item_value_presentation_style = vm_result_clipboard_items_inner_item.presentation_style;
-                            let mut vm_result_clipboard_items_inner_item_value_representations_values = Vec::with_capacity(vm_result_clipboard_items_inner_item.representations.len());
-                            for vm_result_clipboard_items_inner_item_value_representations_item in vm_result_clipboard_items_inner_item.representations.iter().cloned() {
-                                let vm_result_clipboard_items_inner_item_value_representations_item_value_mime_type = context.string_handle(vm_result_clipboard_items_inner_item_value_representations_item.mime_type.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                let vm_result_clipboard_items_inner_item_value_representations_item_value_kind = vm_result_clipboard_items_inner_item_value_representations_item.kind;
-                                let vm_result_clipboard_items_inner_item_value_representations_item_value_name = if let Some(value) = vm_result_clipboard_items_inner_item_value_representations_item.name {
-                                    let vm_result_clipboard_items_inner_item_value_representations_item_value_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_clipboard_items_inner_item_value_representations_item_value_name_inner)
-                                } else {
-                                    None
-                                };
-                                let vm_result_clipboard_items_inner_item_value_representations_item_value_is_directory = vm_result_clipboard_items_inner_item_value_representations_item.is_directory;
-                                let vm_result_clipboard_items_inner_item_value_representations_item_value_byte_length = if let Some(value) = vm_result_clipboard_items_inner_item_value_representations_item.byte_length {
-                                    let vm_result_clipboard_items_inner_item_value_representations_item_value_byte_length_inner = value;
-                                    Some(vm_result_clipboard_items_inner_item_value_representations_item_value_byte_length_inner)
-                                } else {
-                                    None
-                                };
-                                let vm_result_clipboard_items_inner_item_value_representations_item_value = ClipboardItemRepresentationDescriptorVm {
-                                    mime_type: vm_result_clipboard_items_inner_item_value_representations_item_value_mime_type,
-                                    kind: vm_result_clipboard_items_inner_item_value_representations_item_value_kind,
-                                    name: vm_result_clipboard_items_inner_item_value_representations_item_value_name,
-                                    is_directory: vm_result_clipboard_items_inner_item_value_representations_item_value_is_directory,
-                                    byte_length: vm_result_clipboard_items_inner_item_value_representations_item_value_byte_length,
-                                };
-                                vm_result_clipboard_items_inner_item_value_representations_values.push(vm_result_clipboard_items_inner_item_value_representations_item_value);
-                            }
-                            let vm_result_clipboard_items_inner_item_value_representations = VmSlice::from_values(context, &vm_result_clipboard_items_inner_item_value_representations_values)?;
-                            let vm_result_clipboard_items_inner_item_value = ClipboardItemDescriptorVm {
-                                presentation_style: vm_result_clipboard_items_inner_item_value_presentation_style,
-                                representations: vm_result_clipboard_items_inner_item_value_representations,
+                    let vm_result = match value {
+                        InputtextsessioneventReplayRecord::InputClipboardCommandEvent(value) => {
+                            let vm_result_input_clipboard_command_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_input_clipboard_command_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_input_clipboard_command_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_input_clipboard_command_event_metadata_device_id = context.string_handle(value.metadata.device_id.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_input_clipboard_command_event_metadata_target_window = if let Some(value) = value.metadata.target_window {
+                                let vm_result_input_clipboard_command_event_metadata_target_window_inner = value;
+                                Some(vm_result_input_clipboard_command_event_metadata_target_window_inner)
+                            } else {
+                                None
                             };
-                            vm_result_clipboard_items_inner_values.push(vm_result_clipboard_items_inner_item_value);
-                        }
-                        let vm_result_clipboard_items_inner = VmSlice::from_values(context, &vm_result_clipboard_items_inner_values)?;
-                        Some(vm_result_clipboard_items_inner)
-                    } else {
-                        None
-                    };
-                    let vm_result_is_composing = value.is_composing;
-                    let vm_result = InputClipboardCommandEventVm {
-                        kind: vm_result_kind,
-                        metadata: vm_result_metadata,
-                        command: vm_result_command,
-                        clipboard_items: vm_result_clipboard_items,
-                        is_composing: vm_result_is_composing,
-                    };
-                    Ok(vm_result)
-                }
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
-            }
-        },
-    );
-    let result = encode_destack_input_text_try_read_clipboard_command_result(context, result)?;
-    Ok(result)
-}
-
-#[inline]
-fn destack_input_text_try_read_composition_vm_replay(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
-    handle: resource::InputDeviceHandle,
-) -> RuntimeResult<vm::Value> {
-    let result = binding.trace().run_binding(
-        INPUT_TEXT_TRY_READ_COMPOSITION,
-        binding.replay_payload_for(INPUT_TEXT_TRY_READ_COMPOSITION)?,
-        context,
-        |context| match world {
-            RuntimeWorld::Host => {
-                platform_vm::destack_input_text_try_read_composition(binding, context, handle)
-            }
-            RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_input_text_try_read_composition(
-                    binding, context, handle,
-                )
-            }
-        },
-        |context, result| {
-            let _ = &context;
-            if let Ok(value) = result {
-                let result_value: InputCompositionEventVm = value.clone();
-                let result_recorded_kind = {
-                    let result_recorded_kind_ref = context
-                        .string_ref(result_value.kind)
-                        .map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_recorded_kind_ref.as_str().to_string()
-                };
-                let result_recorded_metadata_timestamp_ns = result_value.metadata.timestamp_ns;
-                let result_recorded_metadata_sequence = result_value.metadata.sequence;
-                let result_recorded_metadata_device_id = {
-                    let result_recorded_metadata_device_id_ref = context
-                        .string_ref(result_value.metadata.device_id)
-                        .map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_recorded_metadata_device_id_ref.as_str().to_string()
-                };
-                let result_recorded_metadata_target_window =
-                    if let Some(value) = result_value.metadata.target_window {
-                        let result_recorded_metadata_target_window_inner = value;
-                        Some(result_recorded_metadata_target_window_inner)
-                    } else {
-                        None
-                    };
-                let result_recorded_metadata = InputeventmetadataReplayRecord {
-                    timestamp_ns: result_recorded_metadata_timestamp_ns,
-                    sequence: result_recorded_metadata_sequence,
-                    device_id: result_recorded_metadata_device_id,
-                    target_window: result_recorded_metadata_target_window,
-                };
-                let result_recorded_payload_action = result_value.payload.action;
-                let result_recorded_payload_text = {
-                    let result_recorded_payload_text_ref = context
-                        .string_ref(result_value.payload.text)
-                        .map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_recorded_payload_text_ref.as_str().to_string()
-                };
-                let result_recorded_payload_selection_start = result_value.payload.selection_start;
-                let result_recorded_payload_selection_end = result_value.payload.selection_end;
-                let result_recorded_payload = InputcompositioneventpayloadReplayRecord {
-                    action: result_recorded_payload_action,
-                    text: result_recorded_payload_text,
-                    selection_start: result_recorded_payload_selection_start,
-                    selection_end: result_recorded_payload_selection_end,
-                };
-                let result_recorded = InputcompositioneventReplayRecord {
-                    kind: result_recorded_kind,
-                    metadata: result_recorded_metadata,
-                    payload: result_recorded_payload,
-                };
-                let payload = InputTextTryReadCompositionReplayRecord {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(TraceError::from(error.as_ref()));
-                    InputTextTryReadCompositionReplayRecord { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |context, payload| {
-            let _ = &context;
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    let vm_result_kind = context
-                        .string_handle(value.kind.as_str())
-                        .map_err(Box::<RuntimeError>::from)?;
-                    let vm_result_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                    let vm_result_metadata_sequence = value.metadata.sequence;
-                    let vm_result_metadata_device_id = context
-                        .string_handle(value.metadata.device_id.as_str())
-                        .map_err(Box::<RuntimeError>::from)?;
-                    let vm_result_metadata_target_window =
-                        if let Some(value) = value.metadata.target_window {
-                            let vm_result_metadata_target_window_inner = value;
-                            Some(vm_result_metadata_target_window_inner)
-                        } else {
-                            None
-                        };
-                    let vm_result_metadata = InputEventMetadataVm {
-                        timestamp_ns: vm_result_metadata_timestamp_ns,
-                        sequence: vm_result_metadata_sequence,
-                        device_id: vm_result_metadata_device_id,
-                        target_window: vm_result_metadata_target_window,
-                    };
-                    let vm_result_payload_action = value.payload.action;
-                    let vm_result_payload_text = context
-                        .string_handle(value.payload.text.as_str())
-                        .map_err(Box::<RuntimeError>::from)?;
-                    let vm_result_payload_selection_start = value.payload.selection_start;
-                    let vm_result_payload_selection_end = value.payload.selection_end;
-                    let vm_result_payload = InputCompositionEventPayloadVm {
-                        action: vm_result_payload_action,
-                        text: vm_result_payload_text,
-                        selection_start: vm_result_payload_selection_start,
-                        selection_end: vm_result_payload_selection_end,
-                    };
-                    let vm_result = InputCompositionEventVm {
-                        kind: vm_result_kind,
-                        metadata: vm_result_metadata,
-                        payload: vm_result_payload,
-                    };
-                    Ok(vm_result)
-                }
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
-            }
-        },
-    );
-    let result = encode_destack_input_text_try_read_composition_result(context, result)?;
-    Ok(result)
-}
-
-#[inline]
-fn destack_input_text_try_read_edit_intent_vm_replay(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
-    handle: resource::InputDeviceHandle,
-) -> RuntimeResult<vm::Value> {
-    let result = binding.trace().run_binding(
-        INPUT_TEXT_TRY_READ_EDIT_INTENT,
-        binding.replay_payload_for(INPUT_TEXT_TRY_READ_EDIT_INTENT)?,
-        context,
-        |context| {
-            match world {
-                RuntimeWorld::Host => platform_vm::destack_input_text_try_read_edit_intent(binding, context, handle),
-                RuntimeWorld::Simulation => platform_simulation_vm::destack_input_text_try_read_edit_intent(binding, context, handle),
-            }
-        },
-        |context, result| {
-            let _ = &context;
-            if let Ok(value) = result {
-                let result_value: InputEditIntentEventVm = value.clone();
-                let result_recorded_kind = {
-                    let result_recorded_kind_ref = context.string_ref(result_value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_recorded_kind_ref.as_str().to_string()
-                };
-                let result_recorded_metadata_timestamp_ns = result_value.metadata.timestamp_ns;
-                let result_recorded_metadata_sequence = result_value.metadata.sequence;
-                let result_recorded_metadata_device_id = {
-                    let result_recorded_metadata_device_id_ref = context.string_ref(result_value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_recorded_metadata_device_id_ref.as_str().to_string()
-                };
-                let result_recorded_metadata_target_window = if let Some(value) = result_value.metadata.target_window {
-                    let result_recorded_metadata_target_window_inner = value;
-                    Some(result_recorded_metadata_target_window_inner)
-                } else {
-                    None
-                };
-                let result_recorded_metadata = InputeventmetadataReplayRecord {
-                    timestamp_ns: result_recorded_metadata_timestamp_ns,
-                    sequence: result_recorded_metadata_sequence,
-                    device_id: result_recorded_metadata_device_id,
-                    target_window: result_recorded_metadata_target_window,
-                };
-                let result_recorded_input_type = result_value.input_type;
-                let result_recorded_data = if let Some(value) = result_value.data {
-                    let result_recorded_data_inner = {
-                        let result_recorded_data_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_recorded_data_inner_ref.as_str().to_string()
-                    };
-                    Some(result_recorded_data_inner)
-                } else {
-                    None
-                };
-                let result_recorded_target_ranges_raw = result_value.target_ranges.raw_values(context)?;
-                let mut result_recorded_target_ranges = Vec::with_capacity(result_recorded_target_ranges_raw.len());
-                for result_recorded_target_ranges_item_value in result_recorded_target_ranges_raw {
-                    let result_recorded_target_ranges_item = {
-                        if result_recorded_target_ranges_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_target_ranges_item", "item")).boxed()); }
-                        let slots = context.aggregate_slots(result_recorded_target_ranges_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
-                        if slots.len() != 2 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_target_ranges_item", "expected 2 fields")).boxed()); }
-                        let result_recorded_target_ranges_item_start_offset = decode_uint32(slots[0], "result_recorded_target_ranges_item_start_offset", "startOffset")?;
-                        let result_recorded_target_ranges_item_end_offset = decode_uint32(slots[1], "result_recorded_target_ranges_item_end_offset", "endOffset")?;
-                        InputTextRangeVm {
-                            start_offset: result_recorded_target_ranges_item_start_offset,
-                            end_offset: result_recorded_target_ranges_item_end_offset,
-                        }
-                    };
-                    let result_recorded_target_ranges_item_recorded_start_offset = result_recorded_target_ranges_item.start_offset;
-                    let result_recorded_target_ranges_item_recorded_end_offset = result_recorded_target_ranges_item.end_offset;
-                    let result_recorded_target_ranges_item_recorded = InputTextRange {
-                        start_offset: result_recorded_target_ranges_item_recorded_start_offset,
-                        end_offset: result_recorded_target_ranges_item_recorded_end_offset,
-                    };
-                    result_recorded_target_ranges.push(result_recorded_target_ranges_item_recorded);
-                }
-                let result_recorded_clipboard_items = if let Some(value) = result_value.clipboard_items {
-                    let result_recorded_clipboard_items_inner_raw = value.raw_values(context)?;
-                    let mut result_recorded_clipboard_items_inner = Vec::with_capacity(result_recorded_clipboard_items_inner_raw.len());
-                    for result_recorded_clipboard_items_inner_item_value in result_recorded_clipboard_items_inner_raw {
-                        let result_recorded_clipboard_items_inner_item = {
-                            if result_recorded_clipboard_items_inner_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_clipboard_items_inner_item", "item")).boxed()); }
-                            let slots = context.aggregate_slots(result_recorded_clipboard_items_inner_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
-                            if slots.len() != 2 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_clipboard_items_inner_item", "expected 2 fields")).boxed()); }
-                            let result_recorded_clipboard_items_inner_item_presentation_style_raw = decode_int32(slots[0], "result_recorded_clipboard_items_inner_item_presentation_style_raw", "presentationStyle")?;
-                            let result_recorded_clipboard_items_inner_item_presentation_style = match result_recorded_clipboard_items_inner_item_presentation_style_raw { 0i32 => ClipboardPresentationStyle::Unspecified, 1i32 => ClipboardPresentationStyle::Inline, 2i32 => ClipboardPresentationStyle::Attachment , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_clipboard_items_inner_item_presentation_style", "unknown ClipboardPresentationStyle value")).boxed()), };
-                            let result_recorded_clipboard_items_inner_item_representations = decode_slice::<ClipboardItemRepresentationDescriptorVm>(context, slots[1], "result_recorded_clipboard_items_inner_item_representations", "representations")?;
-                            ClipboardItemDescriptorVm {
-                                presentation_style: result_recorded_clipboard_items_inner_item_presentation_style,
-                                representations: result_recorded_clipboard_items_inner_item_representations,
-                            }
-                        };
-                        let result_recorded_clipboard_items_inner_item_recorded_presentation_style = result_recorded_clipboard_items_inner_item.presentation_style;
-                        let result_recorded_clipboard_items_inner_item_recorded_representations_raw = result_recorded_clipboard_items_inner_item.representations.raw_values(context)?;
-                        let mut result_recorded_clipboard_items_inner_item_recorded_representations = Vec::with_capacity(result_recorded_clipboard_items_inner_item_recorded_representations_raw.len());
-                        for result_recorded_clipboard_items_inner_item_recorded_representations_item_value in result_recorded_clipboard_items_inner_item_recorded_representations_raw {
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item = {
-                                if result_recorded_clipboard_items_inner_item_recorded_representations_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_clipboard_items_inner_item_recorded_representations_item", "item")).boxed()); }
-                                let slots = context.aggregate_slots(result_recorded_clipboard_items_inner_item_recorded_representations_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                if slots.len() != 5 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_clipboard_items_inner_item_recorded_representations_item", "expected 5 fields")).boxed()); }
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_mime_type = decode_string(slots[0], "result_recorded_clipboard_items_inner_item_recorded_representations_item_mime_type", "mimeType")?;
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_kind_raw = decode_int32(slots[1], "result_recorded_clipboard_items_inner_item_recorded_representations_item_kind_raw", "kind")?;
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_kind = match result_recorded_clipboard_items_inner_item_recorded_representations_item_kind_raw { 1i32 => ClipboardItemRepresentationKind::String, 2i32 => ClipboardItemRepresentationKind::File, 3i32 => ClipboardItemRepresentationKind::Binary , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_clipboard_items_inner_item_recorded_representations_item_kind", "unknown ClipboardItemRepresentationKind value")).boxed()), };
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_name = if slots[2].tag() == vm::ValueTag::Void {
-                                    None
-                                } else {
-                                    let result_recorded_clipboard_items_inner_item_recorded_representations_item_name_inner = decode_string(slots[2], "result_recorded_clipboard_items_inner_item_recorded_representations_item_name_inner", "name")?;
-                                    Some(result_recorded_clipboard_items_inner_item_recorded_representations_item_name_inner)
-                                };
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_is_directory = decode_bool(slots[3], "result_recorded_clipboard_items_inner_item_recorded_representations_item_is_directory", "isDirectory")?;
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_byte_length = if slots[4].tag() == vm::ValueTag::Void {
-                                    None
-                                } else {
-                                    let result_recorded_clipboard_items_inner_item_recorded_representations_item_byte_length_inner = decode_uint64(slots[4], "result_recorded_clipboard_items_inner_item_recorded_representations_item_byte_length_inner", "byteLength")?;
-                                    Some(result_recorded_clipboard_items_inner_item_recorded_representations_item_byte_length_inner)
-                                };
-                                ClipboardItemRepresentationDescriptorVm {
-                                    mime_type: result_recorded_clipboard_items_inner_item_recorded_representations_item_mime_type,
-                                    kind: result_recorded_clipboard_items_inner_item_recorded_representations_item_kind,
-                                    name: result_recorded_clipboard_items_inner_item_recorded_representations_item_name,
-                                    is_directory: result_recorded_clipboard_items_inner_item_recorded_representations_item_is_directory,
-                                    byte_length: result_recorded_clipboard_items_inner_item_recorded_representations_item_byte_length,
+                            let vm_result_input_clipboard_command_event_metadata = InputEventMetadataVm {
+                                timestamp_ns: vm_result_input_clipboard_command_event_metadata_timestamp_ns,
+                                sequence: vm_result_input_clipboard_command_event_metadata_sequence,
+                                device_id: vm_result_input_clipboard_command_event_metadata_device_id,
+                                target_window: vm_result_input_clipboard_command_event_metadata_target_window,
+                            };
+                            let vm_result_input_clipboard_command_event_command = value.command;
+                            let vm_result_input_clipboard_command_event_clipboard_items = if let Some(value) = value.clipboard_items {
+                                let mut vm_result_input_clipboard_command_event_clipboard_items_inner_values = Vec::with_capacity(value.len());
+                                for vm_result_input_clipboard_command_event_clipboard_items_inner_item in value.iter().cloned() {
+                                    let vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_presentation_style = vm_result_input_clipboard_command_event_clipboard_items_inner_item.presentation_style;
+                                    let mut vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_values = Vec::with_capacity(vm_result_input_clipboard_command_event_clipboard_items_inner_item.representations.len());
+                                    for vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item in vm_result_input_clipboard_command_event_clipboard_items_inner_item.representations.iter().cloned() {
+                                        let vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value_mime_type = context.string_handle(vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item.mime_type.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                        let vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value_kind = vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item.kind;
+                                        let vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value_name = if let Some(value) = vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item.name {
+                                            let vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                            Some(vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value_name_inner)
+                                        } else {
+                                            None
+                                        };
+                                        let vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value_is_directory = vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item.is_directory;
+                                        let vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value_byte_length = if let Some(value) = vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item.byte_length {
+                                            let vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value_byte_length_inner = value;
+                                            Some(vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value_byte_length_inner)
+                                        } else {
+                                            None
+                                        };
+                                        let vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value = ClipboardItemRepresentationDescriptorVm {
+                                            mime_type: vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value_mime_type,
+                                            kind: vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value_kind,
+                                            name: vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value_name,
+                                            is_directory: vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value_is_directory,
+                                            byte_length: vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value_byte_length,
+                                        };
+                                        vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_values.push(vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value);
+                                    }
+                                    let vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations = VmSlice::from_values(context, &vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_values)?;
+                                    let vm_result_input_clipboard_command_event_clipboard_items_inner_item_value = ClipboardItemDescriptorVm {
+                                        presentation_style: vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_presentation_style,
+                                        representations: vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations,
+                                    };
+                                    vm_result_input_clipboard_command_event_clipboard_items_inner_values.push(vm_result_input_clipboard_command_event_clipboard_items_inner_item_value);
                                 }
-                            };
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type = {
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type_ref = context.string_ref(result_recorded_clipboard_items_inner_item_recorded_representations_item.mime_type).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type_ref.as_str().to_string()
-                            };
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_kind = result_recorded_clipboard_items_inner_item_recorded_representations_item.kind;
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_name = if let Some(value) = result_recorded_clipboard_items_inner_item_recorded_representations_item.name {
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner = {
-                                    let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner_ref.as_str().to_string()
-                                };
-                                Some(result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_name_inner)
+                                let vm_result_input_clipboard_command_event_clipboard_items_inner = VmSlice::from_values(context, &vm_result_input_clipboard_command_event_clipboard_items_inner_values)?;
+                                Some(vm_result_input_clipboard_command_event_clipboard_items_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_is_directory = result_recorded_clipboard_items_inner_item_recorded_representations_item.is_directory;
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length = if let Some(value) = result_recorded_clipboard_items_inner_item_recorded_representations_item.byte_length {
-                                let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length_inner = value;
-                                Some(result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length_inner)
-                            } else {
-                                None
+                            let vm_result_input_clipboard_command_event_is_composing = value.is_composing;
+                            let vm_result_input_clipboard_command_event = InputClipboardCommandEventVm {
+                                kind: vm_result_input_clipboard_command_event_kind,
+                                metadata: vm_result_input_clipboard_command_event_metadata,
+                                command: vm_result_input_clipboard_command_event_command,
+                                clipboard_items: vm_result_input_clipboard_command_event_clipboard_items,
+                                is_composing: vm_result_input_clipboard_command_event_is_composing,
                             };
-                            let result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded = ClipboarditemrepresentationdescriptorReplayRecord {
-                                mime_type: result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_mime_type,
-                                kind: result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_kind,
-                                name: result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_name,
-                                is_directory: result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_is_directory,
-                                byte_length: result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded_byte_length,
-                            };
-                            result_recorded_clipboard_items_inner_item_recorded_representations.push(result_recorded_clipboard_items_inner_item_recorded_representations_item_recorded);
+                            InputTextSessionEventVm::InputClipboardCommandEvent(vm_result_input_clipboard_command_event)
                         }
-                        let result_recorded_clipboard_items_inner_item_recorded = ClipboarditemdescriptorReplayRecord {
-                            presentation_style: result_recorded_clipboard_items_inner_item_recorded_presentation_style,
-                            representations: result_recorded_clipboard_items_inner_item_recorded_representations,
-                        };
-                        result_recorded_clipboard_items_inner.push(result_recorded_clipboard_items_inner_item_recorded);
-                    }
-                    Some(result_recorded_clipboard_items_inner)
-                } else {
-                    None
-                };
-                let result_recorded_drag = if let Some(value) = result_value.drag {
-                    let result_recorded_drag_inner_session = value.session;
-                    let result_recorded_drag_inner_is_external = value.is_external;
-                    let result_recorded_drag_inner_allowed_operations = value.allowed_operations;
-                    let result_recorded_drag_inner_proposed_operation = if let Some(value) = value.proposed_operation {
-                        let result_recorded_drag_inner_proposed_operation_inner = value;
-                        Some(result_recorded_drag_inner_proposed_operation_inner)
-                    } else {
-                        None
-                    };
-                    let result_recorded_drag_inner_position = if let Some(value) = value.position {
-                        let result_recorded_drag_inner_position_inner_x = value.x;
-                        let result_recorded_drag_inner_position_inner_y = value.y;
-                        let result_recorded_drag_inner_position_inner = display::DisplayDragPosition {
-                            x: result_recorded_drag_inner_position_inner_x,
-                            y: result_recorded_drag_inner_position_inner_y,
-                        };
-                        Some(result_recorded_drag_inner_position_inner)
-                    } else {
-                        None
-                    };
-                    let result_recorded_drag_inner_items_raw = value.items.raw_values(context)?;
-                    let mut result_recorded_drag_inner_items = Vec::with_capacity(result_recorded_drag_inner_items_raw.len());
-                    for result_recorded_drag_inner_items_item_value in result_recorded_drag_inner_items_raw {
-                        let result_recorded_drag_inner_items_item = {
-                            if result_recorded_drag_inner_items_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_drag_inner_items_item", "item")).boxed()); }
-                            let slots = context.aggregate_slots(result_recorded_drag_inner_items_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
-                            if slots.len() != 5 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_drag_inner_items_item", "expected 5 fields")).boxed()); }
-                            let result_recorded_drag_inner_items_item_kind_raw = decode_int32(slots[0], "result_recorded_drag_inner_items_item_kind_raw", "kind")?;
-                            let result_recorded_drag_inner_items_item_kind = match result_recorded_drag_inner_items_item_kind_raw { 1i32 => display::DisplayDragItemKind::String, 2i32 => display::DisplayDragItemKind::File, 3i32 => display::DisplayDragItemKind::Binary , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_drag_inner_items_item_kind", "unknown display::DisplayDragItemKind value")).boxed()), };
-                            let result_recorded_drag_inner_items_item_item_type = if slots[1].tag() == vm::ValueTag::Void {
-                                None
+                        InputtextsessioneventReplayRecord::InputCompositionEvent(value) => {
+                            let vm_result_input_composition_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_input_composition_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_input_composition_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_input_composition_event_metadata_device_id = context.string_handle(value.metadata.device_id.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_input_composition_event_metadata_target_window = if let Some(value) = value.metadata.target_window {
+                                let vm_result_input_composition_event_metadata_target_window_inner = value;
+                                Some(vm_result_input_composition_event_metadata_target_window_inner)
                             } else {
-                                let result_recorded_drag_inner_items_item_item_type_inner = decode_string(slots[1], "result_recorded_drag_inner_items_item_item_type_inner", "itemType")?;
-                                Some(result_recorded_drag_inner_items_item_item_type_inner)
-                            };
-                            let result_recorded_drag_inner_items_item_name = if slots[2].tag() == vm::ValueTag::Void {
                                 None
-                            } else {
-                                let result_recorded_drag_inner_items_item_name_inner = decode_string(slots[2], "result_recorded_drag_inner_items_item_name_inner", "name")?;
-                                Some(result_recorded_drag_inner_items_item_name_inner)
                             };
-                            let result_recorded_drag_inner_items_item_is_directory = decode_bool(slots[3], "result_recorded_drag_inner_items_item_is_directory", "isDirectory")?;
-                            let result_recorded_drag_inner_items_item_byte_length = if slots[4].tag() == vm::ValueTag::Void {
+                            let vm_result_input_composition_event_metadata = InputEventMetadataVm {
+                                timestamp_ns: vm_result_input_composition_event_metadata_timestamp_ns,
+                                sequence: vm_result_input_composition_event_metadata_sequence,
+                                device_id: vm_result_input_composition_event_metadata_device_id,
+                                target_window: vm_result_input_composition_event_metadata_target_window,
+                            };
+                            let vm_result_input_composition_event_payload_action = value.payload.action;
+                            let vm_result_input_composition_event_payload_text = context.string_handle(value.payload.text.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_input_composition_event_payload_selection_start = value.payload.selection_start;
+                            let vm_result_input_composition_event_payload_selection_end = value.payload.selection_end;
+                            let vm_result_input_composition_event_payload = InputCompositionEventPayloadVm {
+                                action: vm_result_input_composition_event_payload_action,
+                                text: vm_result_input_composition_event_payload_text,
+                                selection_start: vm_result_input_composition_event_payload_selection_start,
+                                selection_end: vm_result_input_composition_event_payload_selection_end,
+                            };
+                            let vm_result_input_composition_event = InputCompositionEventVm {
+                                kind: vm_result_input_composition_event_kind,
+                                metadata: vm_result_input_composition_event_metadata,
+                                payload: vm_result_input_composition_event_payload,
+                            };
+                            InputTextSessionEventVm::InputCompositionEvent(vm_result_input_composition_event)
+                        }
+                        InputtextsessioneventReplayRecord::InputEditIntentEvent(value) => {
+                            let vm_result_input_edit_intent_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_input_edit_intent_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_input_edit_intent_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_input_edit_intent_event_metadata_device_id = context.string_handle(value.metadata.device_id.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_input_edit_intent_event_metadata_target_window = if let Some(value) = value.metadata.target_window {
+                                let vm_result_input_edit_intent_event_metadata_target_window_inner = value;
+                                Some(vm_result_input_edit_intent_event_metadata_target_window_inner)
+                            } else {
                                 None
-                            } else {
-                                let result_recorded_drag_inner_items_item_byte_length_inner = decode_uint64(slots[4], "result_recorded_drag_inner_items_item_byte_length_inner", "byteLength")?;
-                                Some(result_recorded_drag_inner_items_item_byte_length_inner)
                             };
-                            display::DisplayDragItemDescriptorVm {
-                                kind: result_recorded_drag_inner_items_item_kind,
-                                item_type: result_recorded_drag_inner_items_item_item_type,
-                                name: result_recorded_drag_inner_items_item_name,
-                                is_directory: result_recorded_drag_inner_items_item_is_directory,
-                                byte_length: result_recorded_drag_inner_items_item_byte_length,
+                            let vm_result_input_edit_intent_event_metadata = InputEventMetadataVm {
+                                timestamp_ns: vm_result_input_edit_intent_event_metadata_timestamp_ns,
+                                sequence: vm_result_input_edit_intent_event_metadata_sequence,
+                                device_id: vm_result_input_edit_intent_event_metadata_device_id,
+                                target_window: vm_result_input_edit_intent_event_metadata_target_window,
+                            };
+                            let vm_result_input_edit_intent_event_input_type = value.input_type;
+                            let vm_result_input_edit_intent_event_data = if let Some(value) = value.data {
+                                let vm_result_input_edit_intent_event_data_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_input_edit_intent_event_data_inner)
+                            } else {
+                                None
+                            };
+                            let mut vm_result_input_edit_intent_event_target_ranges_values = Vec::with_capacity(value.target_ranges.len());
+                            for vm_result_input_edit_intent_event_target_ranges_item in value.target_ranges.iter().cloned() {
+                                let vm_result_input_edit_intent_event_target_ranges_item_value_start_offset = vm_result_input_edit_intent_event_target_ranges_item.start_offset;
+                                let vm_result_input_edit_intent_event_target_ranges_item_value_end_offset = vm_result_input_edit_intent_event_target_ranges_item.end_offset;
+                                let vm_result_input_edit_intent_event_target_ranges_item_value = InputTextRange {
+                                    start_offset: vm_result_input_edit_intent_event_target_ranges_item_value_start_offset,
+                                    end_offset: vm_result_input_edit_intent_event_target_ranges_item_value_end_offset,
+                                };
+                                vm_result_input_edit_intent_event_target_ranges_values.push(vm_result_input_edit_intent_event_target_ranges_item_value);
                             }
-                        };
-                        let result_recorded_drag_inner_items_item_recorded_kind = result_recorded_drag_inner_items_item.kind;
-                        let result_recorded_drag_inner_items_item_recorded_item_type = if let Some(value) = result_recorded_drag_inner_items_item.item_type {
-                            let result_recorded_drag_inner_items_item_recorded_item_type_inner = {
-                                let result_recorded_drag_inner_items_item_recorded_item_type_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_drag_inner_items_item_recorded_item_type_inner_ref.as_str().to_string()
+                            let vm_result_input_edit_intent_event_target_ranges = VmSlice::from_values(context, &vm_result_input_edit_intent_event_target_ranges_values)?;
+                            let vm_result_input_edit_intent_event_clipboard_items = if let Some(value) = value.clipboard_items {
+                                let mut vm_result_input_edit_intent_event_clipboard_items_inner_values = Vec::with_capacity(value.len());
+                                for vm_result_input_edit_intent_event_clipboard_items_inner_item in value.iter().cloned() {
+                                    let vm_result_input_edit_intent_event_clipboard_items_inner_item_value_presentation_style = vm_result_input_edit_intent_event_clipboard_items_inner_item.presentation_style;
+                                    let mut vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_values = Vec::with_capacity(vm_result_input_edit_intent_event_clipboard_items_inner_item.representations.len());
+                                    for vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item in vm_result_input_edit_intent_event_clipboard_items_inner_item.representations.iter().cloned() {
+                                        let vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value_mime_type = context.string_handle(vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item.mime_type.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                        let vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value_kind = vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item.kind;
+                                        let vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value_name = if let Some(value) = vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item.name {
+                                            let vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                            Some(vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value_name_inner)
+                                        } else {
+                                            None
+                                        };
+                                        let vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value_is_directory = vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item.is_directory;
+                                        let vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value_byte_length = if let Some(value) = vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item.byte_length {
+                                            let vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value_byte_length_inner = value;
+                                            Some(vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value_byte_length_inner)
+                                        } else {
+                                            None
+                                        };
+                                        let vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value = ClipboardItemRepresentationDescriptorVm {
+                                            mime_type: vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value_mime_type,
+                                            kind: vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value_kind,
+                                            name: vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value_name,
+                                            is_directory: vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value_is_directory,
+                                            byte_length: vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value_byte_length,
+                                        };
+                                        vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_values.push(vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value);
+                                    }
+                                    let vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations = VmSlice::from_values(context, &vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_values)?;
+                                    let vm_result_input_edit_intent_event_clipboard_items_inner_item_value = ClipboardItemDescriptorVm {
+                                        presentation_style: vm_result_input_edit_intent_event_clipboard_items_inner_item_value_presentation_style,
+                                        representations: vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations,
+                                    };
+                                    vm_result_input_edit_intent_event_clipboard_items_inner_values.push(vm_result_input_edit_intent_event_clipboard_items_inner_item_value);
+                                }
+                                let vm_result_input_edit_intent_event_clipboard_items_inner = VmSlice::from_values(context, &vm_result_input_edit_intent_event_clipboard_items_inner_values)?;
+                                Some(vm_result_input_edit_intent_event_clipboard_items_inner)
+                            } else {
+                                None
                             };
-                            Some(result_recorded_drag_inner_items_item_recorded_item_type_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_drag_inner_items_item_recorded_name = if let Some(value) = result_recorded_drag_inner_items_item.name {
-                            let result_recorded_drag_inner_items_item_recorded_name_inner = {
-                                let result_recorded_drag_inner_items_item_recorded_name_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_drag_inner_items_item_recorded_name_inner_ref.as_str().to_string()
-                            };
-                            Some(result_recorded_drag_inner_items_item_recorded_name_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_drag_inner_items_item_recorded_is_directory = result_recorded_drag_inner_items_item.is_directory;
-                        let result_recorded_drag_inner_items_item_recorded_byte_length = if let Some(value) = result_recorded_drag_inner_items_item.byte_length {
-                            let result_recorded_drag_inner_items_item_recorded_byte_length_inner = value;
-                            Some(result_recorded_drag_inner_items_item_recorded_byte_length_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_drag_inner_items_item_recorded = display::DisplaydragitemdescriptorReplayRecord {
-                            kind: result_recorded_drag_inner_items_item_recorded_kind,
-                            item_type: result_recorded_drag_inner_items_item_recorded_item_type,
-                            name: result_recorded_drag_inner_items_item_recorded_name,
-                            is_directory: result_recorded_drag_inner_items_item_recorded_is_directory,
-                            byte_length: result_recorded_drag_inner_items_item_recorded_byte_length,
-                        };
-                        result_recorded_drag_inner_items.push(result_recorded_drag_inner_items_item_recorded);
-                    }
-                    let result_recorded_drag_inner = display::DisplaydragtransferReplayRecord {
-                        session: result_recorded_drag_inner_session,
-                        is_external: result_recorded_drag_inner_is_external,
-                        allowed_operations: result_recorded_drag_inner_allowed_operations,
-                        proposed_operation: result_recorded_drag_inner_proposed_operation,
-                        position: result_recorded_drag_inner_position,
-                        items: result_recorded_drag_inner_items,
-                    };
-                    Some(result_recorded_drag_inner)
-                } else {
-                    None
-                };
-                let result_recorded_is_composing = result_value.is_composing;
-                let result_recorded = InputeditintenteventReplayRecord {
-                    kind: result_recorded_kind,
-                    metadata: result_recorded_metadata,
-                    input_type: result_recorded_input_type,
-                    data: result_recorded_data,
-                    target_ranges: result_recorded_target_ranges,
-                    clipboard_items: result_recorded_clipboard_items,
-                    drag: result_recorded_drag,
-                    is_composing: result_recorded_is_composing,
-                };
-                let payload = InputTextTryReadEditIntentReplayRecord {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(TraceError::from(error.as_ref()));
-                    InputTextTryReadEditIntentReplayRecord {
-                        result,
-                    }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |context, payload| {
-            let _ = &context;
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    let vm_result_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                    let vm_result_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                    let vm_result_metadata_sequence = value.metadata.sequence;
-                    let vm_result_metadata_device_id = context.string_handle(value.metadata.device_id.as_str()).map_err(Box::<RuntimeError>::from)?;
-                    let vm_result_metadata_target_window = if let Some(value) = value.metadata.target_window {
-                        let vm_result_metadata_target_window_inner = value;
-                        Some(vm_result_metadata_target_window_inner)
-                    } else {
-                        None
-                    };
-                    let vm_result_metadata = InputEventMetadataVm {
-                        timestamp_ns: vm_result_metadata_timestamp_ns,
-                        sequence: vm_result_metadata_sequence,
-                        device_id: vm_result_metadata_device_id,
-                        target_window: vm_result_metadata_target_window,
-                    };
-                    let vm_result_input_type = value.input_type;
-                    let vm_result_data = if let Some(value) = value.data {
-                        let vm_result_data_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                        Some(vm_result_data_inner)
-                    } else {
-                        None
-                    };
-                    let mut vm_result_target_ranges_values = Vec::with_capacity(value.target_ranges.len());
-                    for vm_result_target_ranges_item in value.target_ranges.iter().cloned() {
-                        let vm_result_target_ranges_item_value_start_offset = vm_result_target_ranges_item.start_offset;
-                        let vm_result_target_ranges_item_value_end_offset = vm_result_target_ranges_item.end_offset;
-                        let vm_result_target_ranges_item_value = InputTextRange {
-                            start_offset: vm_result_target_ranges_item_value_start_offset,
-                            end_offset: vm_result_target_ranges_item_value_end_offset,
-                        };
-                        vm_result_target_ranges_values.push(vm_result_target_ranges_item_value);
-                    }
-                    let vm_result_target_ranges = VmSlice::from_values(context, &vm_result_target_ranges_values)?;
-                    let vm_result_clipboard_items = if let Some(value) = value.clipboard_items {
-                        let mut vm_result_clipboard_items_inner_values = Vec::with_capacity(value.len());
-                        for vm_result_clipboard_items_inner_item in value.iter().cloned() {
-                            let vm_result_clipboard_items_inner_item_value_presentation_style = vm_result_clipboard_items_inner_item.presentation_style;
-                            let mut vm_result_clipboard_items_inner_item_value_representations_values = Vec::with_capacity(vm_result_clipboard_items_inner_item.representations.len());
-                            for vm_result_clipboard_items_inner_item_value_representations_item in vm_result_clipboard_items_inner_item.representations.iter().cloned() {
-                                let vm_result_clipboard_items_inner_item_value_representations_item_value_mime_type = context.string_handle(vm_result_clipboard_items_inner_item_value_representations_item.mime_type.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                let vm_result_clipboard_items_inner_item_value_representations_item_value_kind = vm_result_clipboard_items_inner_item_value_representations_item.kind;
-                                let vm_result_clipboard_items_inner_item_value_representations_item_value_name = if let Some(value) = vm_result_clipboard_items_inner_item_value_representations_item.name {
-                                    let vm_result_clipboard_items_inner_item_value_representations_item_value_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_clipboard_items_inner_item_value_representations_item_value_name_inner)
+                            let vm_result_input_edit_intent_event_drag = if let Some(value) = value.drag {
+                                let vm_result_input_edit_intent_event_drag_inner_session = value.session;
+                                let vm_result_input_edit_intent_event_drag_inner_is_external = value.is_external;
+                                let vm_result_input_edit_intent_event_drag_inner_allowed_operations = value.allowed_operations;
+                                let vm_result_input_edit_intent_event_drag_inner_proposed_operation = if let Some(value) = value.proposed_operation {
+                                    let vm_result_input_edit_intent_event_drag_inner_proposed_operation_inner = value;
+                                    Some(vm_result_input_edit_intent_event_drag_inner_proposed_operation_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_clipboard_items_inner_item_value_representations_item_value_is_directory = vm_result_clipboard_items_inner_item_value_representations_item.is_directory;
-                                let vm_result_clipboard_items_inner_item_value_representations_item_value_byte_length = if let Some(value) = vm_result_clipboard_items_inner_item_value_representations_item.byte_length {
-                                    let vm_result_clipboard_items_inner_item_value_representations_item_value_byte_length_inner = value;
-                                    Some(vm_result_clipboard_items_inner_item_value_representations_item_value_byte_length_inner)
+                                let vm_result_input_edit_intent_event_drag_inner_position = if let Some(value) = value.position {
+                                    let vm_result_input_edit_intent_event_drag_inner_position_inner_x = value.x;
+                                    let vm_result_input_edit_intent_event_drag_inner_position_inner_y = value.y;
+                                    let vm_result_input_edit_intent_event_drag_inner_position_inner = display::DisplayDragPosition {
+                                        x: vm_result_input_edit_intent_event_drag_inner_position_inner_x,
+                                        y: vm_result_input_edit_intent_event_drag_inner_position_inner_y,
+                                    };
+                                    Some(vm_result_input_edit_intent_event_drag_inner_position_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_clipboard_items_inner_item_value_representations_item_value = ClipboardItemRepresentationDescriptorVm {
-                                    mime_type: vm_result_clipboard_items_inner_item_value_representations_item_value_mime_type,
-                                    kind: vm_result_clipboard_items_inner_item_value_representations_item_value_kind,
-                                    name: vm_result_clipboard_items_inner_item_value_representations_item_value_name,
-                                    is_directory: vm_result_clipboard_items_inner_item_value_representations_item_value_is_directory,
-                                    byte_length: vm_result_clipboard_items_inner_item_value_representations_item_value_byte_length,
+                                let mut vm_result_input_edit_intent_event_drag_inner_items_values = Vec::with_capacity(value.items.len());
+                                for vm_result_input_edit_intent_event_drag_inner_items_item in value.items.iter().cloned() {
+                                    let vm_result_input_edit_intent_event_drag_inner_items_item_value_kind = vm_result_input_edit_intent_event_drag_inner_items_item.kind;
+                                    let vm_result_input_edit_intent_event_drag_inner_items_item_value_item_type = if let Some(value) = vm_result_input_edit_intent_event_drag_inner_items_item.item_type {
+                                        let vm_result_input_edit_intent_event_drag_inner_items_item_value_item_type_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                        Some(vm_result_input_edit_intent_event_drag_inner_items_item_value_item_type_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let vm_result_input_edit_intent_event_drag_inner_items_item_value_name = if let Some(value) = vm_result_input_edit_intent_event_drag_inner_items_item.name {
+                                        let vm_result_input_edit_intent_event_drag_inner_items_item_value_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                        Some(vm_result_input_edit_intent_event_drag_inner_items_item_value_name_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let vm_result_input_edit_intent_event_drag_inner_items_item_value_is_directory = vm_result_input_edit_intent_event_drag_inner_items_item.is_directory;
+                                    let vm_result_input_edit_intent_event_drag_inner_items_item_value_byte_length = if let Some(value) = vm_result_input_edit_intent_event_drag_inner_items_item.byte_length {
+                                        let vm_result_input_edit_intent_event_drag_inner_items_item_value_byte_length_inner = value;
+                                        Some(vm_result_input_edit_intent_event_drag_inner_items_item_value_byte_length_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let vm_result_input_edit_intent_event_drag_inner_items_item_value = display::DisplayDragItemDescriptorVm {
+                                        kind: vm_result_input_edit_intent_event_drag_inner_items_item_value_kind,
+                                        item_type: vm_result_input_edit_intent_event_drag_inner_items_item_value_item_type,
+                                        name: vm_result_input_edit_intent_event_drag_inner_items_item_value_name,
+                                        is_directory: vm_result_input_edit_intent_event_drag_inner_items_item_value_is_directory,
+                                        byte_length: vm_result_input_edit_intent_event_drag_inner_items_item_value_byte_length,
+                                    };
+                                    vm_result_input_edit_intent_event_drag_inner_items_values.push(vm_result_input_edit_intent_event_drag_inner_items_item_value);
+                                }
+                                let vm_result_input_edit_intent_event_drag_inner_items = VmSlice::from_values(context, &vm_result_input_edit_intent_event_drag_inner_items_values)?;
+                                let vm_result_input_edit_intent_event_drag_inner = display::DisplayDragTransferVm {
+                                    session: vm_result_input_edit_intent_event_drag_inner_session,
+                                    is_external: vm_result_input_edit_intent_event_drag_inner_is_external,
+                                    allowed_operations: vm_result_input_edit_intent_event_drag_inner_allowed_operations,
+                                    proposed_operation: vm_result_input_edit_intent_event_drag_inner_proposed_operation,
+                                    position: vm_result_input_edit_intent_event_drag_inner_position,
+                                    items: vm_result_input_edit_intent_event_drag_inner_items,
                                 };
-                                vm_result_clipboard_items_inner_item_value_representations_values.push(vm_result_clipboard_items_inner_item_value_representations_item_value);
-                            }
-                            let vm_result_clipboard_items_inner_item_value_representations = VmSlice::from_values(context, &vm_result_clipboard_items_inner_item_value_representations_values)?;
-                            let vm_result_clipboard_items_inner_item_value = ClipboardItemDescriptorVm {
-                                presentation_style: vm_result_clipboard_items_inner_item_value_presentation_style,
-                                representations: vm_result_clipboard_items_inner_item_value_representations,
+                                Some(vm_result_input_edit_intent_event_drag_inner)
+                            } else {
+                                None
                             };
-                            vm_result_clipboard_items_inner_values.push(vm_result_clipboard_items_inner_item_value);
+                            let vm_result_input_edit_intent_event_is_composing = value.is_composing;
+                            let vm_result_input_edit_intent_event = InputEditIntentEventVm {
+                                kind: vm_result_input_edit_intent_event_kind,
+                                metadata: vm_result_input_edit_intent_event_metadata,
+                                input_type: vm_result_input_edit_intent_event_input_type,
+                                data: vm_result_input_edit_intent_event_data,
+                                target_ranges: vm_result_input_edit_intent_event_target_ranges,
+                                clipboard_items: vm_result_input_edit_intent_event_clipboard_items,
+                                drag: vm_result_input_edit_intent_event_drag,
+                                is_composing: vm_result_input_edit_intent_event_is_composing,
+                            };
+                            InputTextSessionEventVm::InputEditIntentEvent(vm_result_input_edit_intent_event)
                         }
-                        let vm_result_clipboard_items_inner = VmSlice::from_values(context, &vm_result_clipboard_items_inner_values)?;
-                        Some(vm_result_clipboard_items_inner)
-                    } else {
-                        None
-                    };
-                    let vm_result_drag = if let Some(value) = value.drag {
-                        let vm_result_drag_inner_session = value.session;
-                        let vm_result_drag_inner_is_external = value.is_external;
-                        let vm_result_drag_inner_allowed_operations = value.allowed_operations;
-                        let vm_result_drag_inner_proposed_operation = if let Some(value) = value.proposed_operation {
-                            let vm_result_drag_inner_proposed_operation_inner = value;
-                            Some(vm_result_drag_inner_proposed_operation_inner)
-                        } else {
-                            None
-                        };
-                        let vm_result_drag_inner_position = if let Some(value) = value.position {
-                            let vm_result_drag_inner_position_inner_x = value.x;
-                            let vm_result_drag_inner_position_inner_y = value.y;
-                            let vm_result_drag_inner_position_inner = display::DisplayDragPosition {
-                                x: vm_result_drag_inner_position_inner_x,
-                                y: vm_result_drag_inner_position_inner_y,
-                            };
-                            Some(vm_result_drag_inner_position_inner)
-                        } else {
-                            None
-                        };
-                        let mut vm_result_drag_inner_items_values = Vec::with_capacity(value.items.len());
-                        for vm_result_drag_inner_items_item in value.items.iter().cloned() {
-                            let vm_result_drag_inner_items_item_value_kind = vm_result_drag_inner_items_item.kind;
-                            let vm_result_drag_inner_items_item_value_item_type = if let Some(value) = vm_result_drag_inner_items_item.item_type {
-                                let vm_result_drag_inner_items_item_value_item_type_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_drag_inner_items_item_value_item_type_inner)
+                        InputtextsessioneventReplayRecord::InputTextSessionStateEvent(value) => {
+                            let vm_result_input_text_session_state_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_input_text_session_state_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_input_text_session_state_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_input_text_session_state_event_metadata_device_id = context.string_handle(value.metadata.device_id.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_input_text_session_state_event_metadata_target_window = if let Some(value) = value.metadata.target_window {
+                                let vm_result_input_text_session_state_event_metadata_target_window_inner = value;
+                                Some(vm_result_input_text_session_state_event_metadata_target_window_inner)
                             } else {
                                 None
                             };
-                            let vm_result_drag_inner_items_item_value_name = if let Some(value) = vm_result_drag_inner_items_item.name {
-                                let vm_result_drag_inner_items_item_value_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_drag_inner_items_item_value_name_inner)
+                            let vm_result_input_text_session_state_event_metadata = InputEventMetadataVm {
+                                timestamp_ns: vm_result_input_text_session_state_event_metadata_timestamp_ns,
+                                sequence: vm_result_input_text_session_state_event_metadata_sequence,
+                                device_id: vm_result_input_text_session_state_event_metadata_device_id,
+                                target_window: vm_result_input_text_session_state_event_metadata_target_window,
+                            };
+                            let vm_result_input_text_session_state_event_state_text = context.string_handle(value.state.text.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_input_text_session_state_event_state_selection_start_offset = value.state.selection.start_offset;
+                            let vm_result_input_text_session_state_event_state_selection_end_offset = value.state.selection.end_offset;
+                            let vm_result_input_text_session_state_event_state_selection = InputTextRange {
+                                start_offset: vm_result_input_text_session_state_event_state_selection_start_offset,
+                                end_offset: vm_result_input_text_session_state_event_state_selection_end_offset,
+                            };
+                            let vm_result_input_text_session_state_event_state_composing = if let Some(value) = value.state.composing {
+                                let vm_result_input_text_session_state_event_state_composing_inner_start_offset = value.start_offset;
+                                let vm_result_input_text_session_state_event_state_composing_inner_end_offset = value.end_offset;
+                                let vm_result_input_text_session_state_event_state_composing_inner = InputTextRange {
+                                    start_offset: vm_result_input_text_session_state_event_state_composing_inner_start_offset,
+                                    end_offset: vm_result_input_text_session_state_event_state_composing_inner_end_offset,
+                                };
+                                Some(vm_result_input_text_session_state_event_state_composing_inner)
                             } else {
                                 None
                             };
-                            let vm_result_drag_inner_items_item_value_is_directory = vm_result_drag_inner_items_item.is_directory;
-                            let vm_result_drag_inner_items_item_value_byte_length = if let Some(value) = vm_result_drag_inner_items_item.byte_length {
-                                let vm_result_drag_inner_items_item_value_byte_length_inner = value;
-                                Some(vm_result_drag_inner_items_item_value_byte_length_inner)
-                            } else {
-                                None
+                            let vm_result_input_text_session_state_event_state = InputTextSessionStateVm {
+                                text: vm_result_input_text_session_state_event_state_text,
+                                selection: vm_result_input_text_session_state_event_state_selection,
+                                composing: vm_result_input_text_session_state_event_state_composing,
                             };
-                            let vm_result_drag_inner_items_item_value = display::DisplayDragItemDescriptorVm {
-                                kind: vm_result_drag_inner_items_item_value_kind,
-                                item_type: vm_result_drag_inner_items_item_value_item_type,
-                                name: vm_result_drag_inner_items_item_value_name,
-                                is_directory: vm_result_drag_inner_items_item_value_is_directory,
-                                byte_length: vm_result_drag_inner_items_item_value_byte_length,
+                            let vm_result_input_text_session_state_event = InputTextSessionStateEventVm {
+                                kind: vm_result_input_text_session_state_event_kind,
+                                metadata: vm_result_input_text_session_state_event_metadata,
+                                state: vm_result_input_text_session_state_event_state,
                             };
-                            vm_result_drag_inner_items_values.push(vm_result_drag_inner_items_item_value);
+                            InputTextSessionEventVm::InputTextSessionStateEvent(vm_result_input_text_session_state_event)
                         }
-                        let vm_result_drag_inner_items = VmSlice::from_values(context, &vm_result_drag_inner_items_values)?;
-                        let vm_result_drag_inner = display::DisplayDragTransferVm {
-                            session: vm_result_drag_inner_session,
-                            is_external: vm_result_drag_inner_is_external,
-                            allowed_operations: vm_result_drag_inner_allowed_operations,
-                            proposed_operation: vm_result_drag_inner_proposed_operation,
-                            position: vm_result_drag_inner_position,
-                            items: vm_result_drag_inner_items,
-                        };
-                        Some(vm_result_drag_inner)
-                    } else {
-                        None
-                    };
-                    let vm_result_is_composing = value.is_composing;
-                    let vm_result = InputEditIntentEventVm {
-                        kind: vm_result_kind,
-                        metadata: vm_result_metadata,
-                        input_type: vm_result_input_type,
-                        data: vm_result_data,
-                        target_ranges: vm_result_target_ranges,
-                        clipboard_items: vm_result_clipboard_items,
-                        drag: vm_result_drag,
-                        is_composing: vm_result_is_composing,
                     };
                     Ok(vm_result)
                 }
@@ -31600,7 +31610,7 @@ fn destack_input_text_try_read_edit_intent_vm_replay(
             }
         },
     );
-    let result = encode_destack_input_text_try_read_edit_intent_result(context, result)?;
+    let result = encode_destack_input_text_try_read_event_result(context, result)?;
     Ok(result)
 }
 
@@ -32845,6 +32855,20 @@ pub(crate) fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate
         );
     }
     {
+        binding!(registry, isolate, INPUT_TEXT_CLOSE, move |context, args| {
+            with_binding_call_context(|binding| {
+                // decode args
+                let (session,) = decode_destack_input_text_close_args(context, args)?;
+
+                // execute binding
+                let (world, _binding_hook_guard) =
+                    binding.on_before_binding_resolve_world(INPUT_TEXT_CLOSE)?;
+                destack_input_text_close_vm_replay(binding, context, world, session)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
         binding!(
             registry,
             isolate,
@@ -32852,91 +32876,45 @@ pub(crate) fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate
             move |context, args| {
                 with_binding_call_context(|binding| {
                     // decode args
-                    let (handle, target) = decode_destack_input_text_get_area_args(context, args)?;
+                    let (session,) = decode_destack_input_text_get_area_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
                         binding.on_before_binding_resolve_world(INPUT_TEXT_GET_AREA)?;
-                    destack_input_text_get_area_vm_replay(binding, context, world, handle, target)
+                    destack_input_text_get_area_vm_replay(binding, context, world, session)
                 })
                 .map_err(Into::into)
             }
         );
     }
     {
+        binding!(registry, isolate, INPUT_TEXT_OPEN, move |context, args| {
+            with_binding_call_context(|binding| {
+                // decode args
+                let (config, state) = decode_destack_input_text_open_args(context, args)?;
+
+                // execute binding
+                let (world, _binding_hook_guard) =
+                    binding.on_before_binding_resolve_world(INPUT_TEXT_OPEN)?;
+                destack_input_text_open_vm_replay(binding, context, world, config, state)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
         binding!(
             registry,
             isolate,
-            INPUT_TEXT_IS_ACTIVE,
+            INPUT_TEXT_READ_EVENT,
             move |context, args| {
                 with_binding_call_context(|binding| {
                     // decode args
-                    let (handle,) = decode_destack_input_text_is_active_args(context, args)?;
+                    let (session,) = decode_destack_input_text_read_event_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        binding.on_before_binding_resolve_world(INPUT_TEXT_IS_ACTIVE)?;
-                    destack_input_text_is_active_vm_replay(binding, context, world, handle)
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
-            INPUT_TEXT_READ_CLIPBOARD_COMMAND,
-            move |context, args| {
-                with_binding_call_context(|binding| {
-                    // decode args
-                    let (handle,) =
-                        decode_destack_input_text_read_clipboard_command_args(context, args)?;
-
-                    // execute binding
-                    let (world, _binding_hook_guard) = binding
-                        .on_before_binding_resolve_world(INPUT_TEXT_READ_CLIPBOARD_COMMAND)?;
-                    destack_input_text_read_clipboard_command_vm_replay(
-                        binding, context, world, handle,
-                    )
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
-            INPUT_TEXT_READ_COMPOSITION,
-            move |context, args| {
-                with_binding_call_context(|binding| {
-                    // decode args
-                    let (handle,) = decode_destack_input_text_read_composition_args(context, args)?;
-
-                    // execute binding
-                    let (world, _binding_hook_guard) =
-                        binding.on_before_binding_resolve_world(INPUT_TEXT_READ_COMPOSITION)?;
-                    destack_input_text_read_composition_vm_replay(binding, context, world, handle)
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
-            INPUT_TEXT_READ_EDIT_INTENT,
-            move |context, args| {
-                with_binding_call_context(|binding| {
-                    // decode args
-                    let (handle,) = decode_destack_input_text_read_edit_intent_args(context, args)?;
-
-                    // execute binding
-                    let (world, _binding_hook_guard) =
-                        binding.on_before_binding_resolve_world(INPUT_TEXT_READ_EDIT_INTENT)?;
-                    destack_input_text_read_edit_intent_vm_replay(binding, context, world, handle)
+                        binding.on_before_binding_resolve_world(INPUT_TEXT_READ_EVENT)?;
+                    destack_input_text_read_event_vm_replay(binding, context, world, session)
                 })
                 .map_err(Into::into)
             }
@@ -32950,68 +32928,12 @@ pub(crate) fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate
             move |context, args| {
                 with_binding_call_context(|binding| {
                     // decode args
-                    let (handle, target, area) =
-                        decode_destack_input_text_set_area_args(context, args)?;
+                    let (session, area) = decode_destack_input_text_set_area_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
                         binding.on_before_binding_resolve_world(INPUT_TEXT_SET_AREA)?;
-                    destack_input_text_set_area_vm_replay(
-                        binding, context, world, handle, target, area,
-                    )
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(registry, isolate, INPUT_TEXT_START, move |context, args| {
-            with_binding_call_context(|binding| {
-                // decode args
-                let (handle, target, inputtype) =
-                    decode_destack_input_text_start_args(context, args)?;
-
-                // execute binding
-                let (world, _binding_hook_guard) =
-                    binding.on_before_binding_resolve_world(INPUT_TEXT_START)?;
-                destack_input_text_start_vm_replay(
-                    binding, context, world, handle, target, inputtype,
-                )
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, INPUT_TEXT_STOP, move |context, args| {
-            with_binding_call_context(|binding| {
-                // decode args
-                let (handle, target) = decode_destack_input_text_stop_args(context, args)?;
-
-                // execute binding
-                let (world, _binding_hook_guard) =
-                    binding.on_before_binding_resolve_world(INPUT_TEXT_STOP)?;
-                destack_input_text_stop_vm_replay(binding, context, world, handle, target)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(
-            registry,
-            isolate,
-            INPUT_TEXT_TRY_READ_CLIPBOARD_COMMAND,
-            move |context, args| {
-                with_binding_call_context(|binding| {
-                    // decode args
-                    let (handle,) =
-                        decode_destack_input_text_try_read_clipboard_command_args(context, args)?;
-
-                    // execute binding
-                    let (world, _binding_hook_guard) = binding
-                        .on_before_binding_resolve_world(INPUT_TEXT_TRY_READ_CLIPBOARD_COMMAND)?;
-                    destack_input_text_try_read_clipboard_command_vm_replay(
-                        binding, context, world, handle,
-                    )
+                    destack_input_text_set_area_vm_replay(binding, context, world, session, area)
                 })
                 .map_err(Into::into)
             }
@@ -33021,19 +32943,16 @@ pub(crate) fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate
         binding!(
             registry,
             isolate,
-            INPUT_TEXT_TRY_READ_COMPOSITION,
+            INPUT_TEXT_SET_STATE,
             move |context, args| {
                 with_binding_call_context(|binding| {
                     // decode args
-                    let (handle,) =
-                        decode_destack_input_text_try_read_composition_args(context, args)?;
+                    let (session, state) = decode_destack_input_text_set_state_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        binding.on_before_binding_resolve_world(INPUT_TEXT_TRY_READ_COMPOSITION)?;
-                    destack_input_text_try_read_composition_vm_replay(
-                        binding, context, world, handle,
-                    )
+                        binding.on_before_binding_resolve_world(INPUT_TEXT_SET_STATE)?;
+                    destack_input_text_set_state_vm_replay(binding, context, world, session, state)
                 })
                 .map_err(Into::into)
             }
@@ -33043,19 +32962,16 @@ pub(crate) fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate
         binding!(
             registry,
             isolate,
-            INPUT_TEXT_TRY_READ_EDIT_INTENT,
+            INPUT_TEXT_TRY_READ_EVENT,
             move |context, args| {
                 with_binding_call_context(|binding| {
                     // decode args
-                    let (handle,) =
-                        decode_destack_input_text_try_read_edit_intent_args(context, args)?;
+                    let (session,) = decode_destack_input_text_try_read_event_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        binding.on_before_binding_resolve_world(INPUT_TEXT_TRY_READ_EDIT_INTENT)?;
-                    destack_input_text_try_read_edit_intent_vm_replay(
-                        binding, context, world, handle,
-                    )
+                        binding.on_before_binding_resolve_world(INPUT_TEXT_TRY_READ_EVENT)?;
+                    destack_input_text_try_read_event_vm_replay(binding, context, world, session)
                 })
                 .map_err(Into::into)
             }
