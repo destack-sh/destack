@@ -1,41 +1,46 @@
+use crate::host::abi::calendar::{
+    HostCalendarDescriptorArray, HostCalendarEvent, HostCalendarEventArray, HostCalendarEventDraft,
+    HostCalendarEventId, HostCalendarEventQuery,
+};
 use crate::host::android::abi::bindings::invoke_android_binding_callback;
-use crate::runtime::NativeSlice;
 
 /// Host callback for listing Android calendars.
-pub(crate) type AndroidHostCalendarListCallback =
-    unsafe extern "C" fn(runtime_id: u64, output: NativeSlice<u8>, output_written: *mut u32) -> u32;
+pub(crate) type AndroidHostCalendarListCallback = unsafe extern "C" fn(
+    runtime_id: u64,
+    output_calendars: *mut HostCalendarDescriptorArray,
+) -> u32;
 
 /// Host callback for listing Android calendar events.
 pub(crate) type AndroidHostCalendarEventListCallback = unsafe extern "C" fn(
     runtime_id: u64,
-    payload: NativeSlice<u8>,
-    output: NativeSlice<u8>,
-    output_written: *mut u32,
+    query: HostCalendarEventQuery,
+    output_events: *mut HostCalendarEventArray,
 ) -> u32;
 
 /// Host callback for reading one Android calendar event.
 pub(crate) type AndroidHostCalendarEventReadCallback = unsafe extern "C" fn(
     runtime_id: u64,
-    id: NativeSlice<u8>,
-    output: NativeSlice<u8>,
-    output_written: *mut u32,
+    id: HostCalendarEventId,
+    output_event: *mut HostCalendarEvent,
 ) -> u32;
 
 /// Host callback for creating one Android calendar event.
 pub(crate) type AndroidHostCalendarEventCreateCallback = unsafe extern "C" fn(
     runtime_id: u64,
-    payload: NativeSlice<u8>,
-    output_id: NativeSlice<u8>,
-    output_written: *mut u32,
+    event: HostCalendarEventDraft,
+    output_id: *mut HostCalendarEventId,
 ) -> u32;
 
 /// Host callback for updating one Android calendar event.
-pub(crate) type AndroidHostCalendarEventUpdateCallback =
-    unsafe extern "C" fn(runtime_id: u64, id: NativeSlice<u8>, payload: NativeSlice<u8>) -> u32;
+pub(crate) type AndroidHostCalendarEventUpdateCallback = unsafe extern "C" fn(
+    runtime_id: u64,
+    id: HostCalendarEventId,
+    event: HostCalendarEventDraft,
+) -> u32;
 
 /// Host callback for deleting one Android calendar event.
 pub(crate) type AndroidHostCalendarEventDeleteCallback =
-    unsafe extern "C" fn(runtime_id: u64, id: NativeSlice<u8>) -> u32;
+    unsafe extern "C" fn(runtime_id: u64, id: HostCalendarEventId) -> u32;
 
 /// Callback table for Android host calendar request interop.
 #[derive(Clone, Copy, Debug, Default)]

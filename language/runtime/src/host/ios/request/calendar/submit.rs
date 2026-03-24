@@ -1,8 +1,12 @@
+use std::mem::MaybeUninit;
+
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::callback::{
-    decode_callback_host_status, encode_callback_host_json, read_buffered_callback_host_json,
-    read_buffered_callback_host_string,
+use crate::host::abi::calendar::{
+    HostCalendarDescriptorArray, HostCalendarEvent, HostCalendarEventArray, HostCalendarEventId,
+    decode_calendar_descriptors, decode_calendar_event, decode_calendar_events,
+    encode_calendar_event_draft, encode_calendar_event_query,
 };
+use crate::host::core::callback::decode_callback_host_status;
 use crate::host::core::{HostRequest, HostRequestOutcome, HostRequestResult};
 use crate::host::ios::abi::calendar::{
     destack_host_ios_calendar_event_create, destack_host_ios_calendar_event_delete,
@@ -12,7 +16,7 @@ use crate::host::ios::abi::calendar::{
 use crate::platform::os::abi_generated::{
     CalendarDescriptorValue, CalendarEventDraftValue, CalendarEventQueryValue, CalendarEventValue,
 };
-use crate::runtime::NativeSlice;
+use crate::runtime::{BindingCallContext, NativeStringRef};
 
 /// Return one iOS calendar request outcome when supported.
 pub(crate) fn submit_calendar_request(
@@ -21,13 +25,13 @@ pub(crate) fn submit_calendar_request(
 ) -> RuntimeResult<Option<HostRequestOutcome>> {
     match request {
         HostRequest::OsCalendarList => {
-            let calendars = read_buffered_callback_host_json::<Vec<CalendarDescriptorValue>>(
-                request.operation_name(),
-                "calendar descriptors",
-                |output, output_written| unsafe {
-                    destack_host_ios_calendar_list(runtime_id, output, output_written)
-                },
-            )?;
+            let mut calendars = MaybeUninit::<HostCalendarDescriptorArray>::uninit();
+            let status =
+                unsafe { destack_host_ios_calendar_list(runtime_id, calendars.as_mut_ptr()) };
+            decode_callback_host_status(status, request.operation_name())?;
+
+            let calendars = unsafe { calendars.assume_init() };
+            let calendars = unsafe { decode_calendar_descriptors(calendars) }?;
 
             Ok(Some(HostRequestOutcome::immediate(
                 HostRequestResult::CalendarDescriptors(calendars),
@@ -60,15 +64,8 @@ pub(crate) fn submit_calendar_request(
             Ok(Some(HostRequestOutcome::immediate(HostRequestResult::None)))
         }
         HostRequest::OsCalendarEventDelete { id } => {
-            let id = id.as_bytes();
             let call_status = unsafe {
-                destack_host_ios_calendar_event_delete(
-                    runtime_id,
-                    NativeSlice {
-                        data: id.as_ptr() as *mut u8,
-                        len: id.len() as u32,
-                    },
-                )
+                destack_host_ios_calendar_event_delete(runtime_id, NativeStringRef::from(id))
             };
             decode_callback_host_status(call_status, request.operation_name())?;
 
@@ -84,19 +81,16 @@ fn submit_calendar_event_list(
     operation: &'static str,
     query: &CalendarEventQueryValue,
 ) -> RuntimeResult<Vec<CalendarEventValue>> {
-    let payload = encode_callback_host_json(query, operation)?;
-    let payload = NativeSlice {
-        data: payload.as_ptr() as *mut u8,
-        len: payload.len() as u32,
+    let binding = BindingCallContext::from_current_agent_for_native()?;
+    let query = encode_calendar_event_query(&binding, query);
+    let mut output_events = MaybeUninit::<HostCalendarEventArray>::uninit();
+    let status = unsafe {
+        destack_host_ios_calendar_event_list(runtime_id, query, output_events.as_mut_ptr())
     };
+    decode_callback_host_status(status, operation)?;
 
-    read_buffered_callback_host_json(
-        operation,
-        "calendar events",
-        |output, output_written| unsafe {
-            destack_host_ios_calendar_event_list(runtime_id, payload, output, output_written)
-        },
-    )
+    let output_events = unsafe { output_events.assume_init() };
+    unsafe { decode_calendar_events(output_events) }
 }
 
 /// Submit one iOS calendar event-read request.
@@ -105,19 +99,18 @@ fn submit_calendar_event_read(
     operation: &'static str,
     id: &str,
 ) -> RuntimeResult<CalendarEventValue> {
-    let id = id.as_bytes();
-    let id = NativeSlice {
-        data: id.as_ptr() as *mut u8,
-        len: id.len() as u32,
+    let mut output_event = MaybeUninit::<HostCalendarEvent>::uninit();
+    let status = unsafe {
+        destack_host_ios_calendar_event_read(
+            runtime_id,
+            NativeStringRef::from(id),
+            output_event.as_mut_ptr(),
+        )
     };
+    decode_callback_host_status(status, operation)?;
 
-    read_buffered_callback_host_json(
-        operation,
-        "calendar event",
-        |output, output_written| unsafe {
-            destack_host_ios_calendar_event_read(runtime_id, id, output, output_written)
-        },
-    )
+    let output_event = unsafe { output_event.assume_init() };
+    unsafe { decode_calendar_event(output_event) }
 }
 
 /// Submit one iOS calendar event-create request.
@@ -126,15 +119,16 @@ fn submit_calendar_event_create(
     operation: &'static str,
     event: &CalendarEventDraftValue,
 ) -> RuntimeResult<String> {
-    let payload = encode_callback_host_json(event, operation)?;
-    let payload = NativeSlice {
-        data: payload.as_ptr() as *mut u8,
-        len: payload.len() as u32,
+    let binding = BindingCallContext::from_current_agent_for_native()?;
+    let event = encode_calendar_event_draft(&binding, event);
+    let mut output_id = MaybeUninit::<HostCalendarEventId>::uninit();
+    let status = unsafe {
+        destack_host_ios_calendar_event_create(runtime_id, event, output_id.as_mut_ptr())
     };
+    decode_callback_host_status(status, operation)?;
 
-    read_buffered_callback_host_string(operation, |output_id, output_written| unsafe {
-        destack_host_ios_calendar_event_create(runtime_id, payload, output_id, output_written)
-    })
+    let output_id = unsafe { output_id.assume_init() };
+    Ok(unsafe { output_id.as_str()? }.to_string())
 }
 
 /// Submit one iOS calendar event-update request.
@@ -144,16 +138,10 @@ fn submit_calendar_event_update(
     id: &str,
     event: &CalendarEventDraftValue,
 ) -> RuntimeResult<()> {
-    let id = id.as_bytes();
-    let id = NativeSlice {
-        data: id.as_ptr() as *mut u8,
-        len: id.len() as u32,
+    let binding = BindingCallContext::from_current_agent_for_native()?;
+    let event = encode_calendar_event_draft(&binding, event);
+    let call_status = unsafe {
+        destack_host_ios_calendar_event_update(runtime_id, NativeStringRef::from(id), event)
     };
-    let payload = encode_callback_host_json(event, operation)?;
-    let payload = NativeSlice {
-        data: payload.as_ptr() as *mut u8,
-        len: payload.len() as u32,
-    };
-    let call_status = unsafe { destack_host_ios_calendar_event_update(runtime_id, id, payload) };
     decode_callback_host_status(call_status, operation)
 }

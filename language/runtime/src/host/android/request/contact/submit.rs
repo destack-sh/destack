@@ -1,18 +1,20 @@
+use std::mem::MaybeUninit;
+
 use crate::diagnostic::RuntimeResult;
+use crate::host::abi::contact::{
+    decode_contact, decode_contact_page, encode_contact_draft, encode_contact_query,
+};
 use crate::host::android::abi::contact::{
     destack_host_android_contact_create, destack_host_android_contact_delete,
     destack_host_android_contact_list, destack_host_android_contact_read,
     destack_host_android_contact_search, destack_host_android_contact_update,
 };
-use crate::host::core::callback::{
-    decode_callback_host_status, encode_callback_host_json, read_buffered_callback_host_json,
-    read_buffered_callback_host_string,
-};
+use crate::host::core::callback::decode_callback_host_status;
 use crate::host::core::{HostRequest, HostRequestOutcome, HostRequestResult};
 use crate::platform::os::abi_generated::{
-    ContactDraftValue, ContactPageValue, ContactQueryValue, ContactValue,
+    Contact, ContactDraftValue, ContactPage, ContactPageValue, ContactQueryValue, ContactValue,
 };
-use crate::runtime::NativeSlice;
+use crate::runtime::{BindingCallContext, NativeStringRef};
 
 /// Return one Android contact request outcome when supported.
 pub(crate) fn submit_contact_request(
@@ -55,15 +57,8 @@ pub(crate) fn submit_contact_request(
             Ok(Some(HostRequestOutcome::immediate(HostRequestResult::None)))
         }
         HostRequest::OsContactDelete { id } => {
-            let id = id.as_bytes();
             let call_status = unsafe {
-                destack_host_android_contact_delete(
-                    runtime_id,
-                    NativeSlice {
-                        data: id.as_ptr() as *mut u8,
-                        len: id.len() as u32,
-                    },
-                )
+                destack_host_android_contact_delete(runtime_id, NativeStringRef::from(id))
             };
             decode_callback_host_status(call_status, request.operation_name())?;
 
@@ -79,15 +74,15 @@ fn submit_contact_list(
     operation: &'static str,
     query: &ContactQueryValue,
 ) -> RuntimeResult<ContactPageValue> {
-    let payload = encode_callback_host_json(query, operation)?;
-    let payload = NativeSlice {
-        data: payload.as_ptr() as *mut u8,
-        len: payload.len() as u32,
-    };
+    let binding = BindingCallContext::from_current_agent_for_native()?;
+    let query = encode_contact_query(&binding, query);
+    let mut output_page = MaybeUninit::<ContactPage>::uninit();
+    let status =
+        unsafe { destack_host_android_contact_list(runtime_id, query, output_page.as_mut_ptr()) };
+    decode_callback_host_status(status, operation)?;
 
-    read_buffered_callback_host_json(operation, "contact page", |output, output_written| unsafe {
-        destack_host_android_contact_list(runtime_id, payload, output, output_written)
-    })
+    let output_page = unsafe { output_page.assume_init() };
+    unsafe { decode_contact_page(output_page) }
 }
 
 /// Submit one Android contact-search request.
@@ -97,20 +92,21 @@ fn submit_contact_search(
     query_text: &str,
     query: &ContactQueryValue,
 ) -> RuntimeResult<ContactPageValue> {
-    let query_text = query_text.as_bytes();
-    let query_text = NativeSlice {
-        data: query_text.as_ptr() as *mut u8,
-        len: query_text.len() as u32,
+    let binding = BindingCallContext::from_current_agent_for_native()?;
+    let query = encode_contact_query(&binding, query);
+    let mut output_page = MaybeUninit::<ContactPage>::uninit();
+    let status = unsafe {
+        destack_host_android_contact_search(
+            runtime_id,
+            NativeStringRef::from(query_text),
+            query,
+            output_page.as_mut_ptr(),
+        )
     };
-    let payload = encode_callback_host_json(query, operation)?;
-    let payload = NativeSlice {
-        data: payload.as_ptr() as *mut u8,
-        len: payload.len() as u32,
-    };
+    decode_callback_host_status(status, operation)?;
 
-    read_buffered_callback_host_json(operation, "contact page", |output, output_written| unsafe {
-        destack_host_android_contact_search(runtime_id, query_text, payload, output, output_written)
-    })
+    let output_page = unsafe { output_page.assume_init() };
+    unsafe { decode_contact_page(output_page) }
 }
 
 /// Submit one Android contact-read request.
@@ -119,15 +115,18 @@ fn submit_contact_read(
     operation: &'static str,
     id: &str,
 ) -> RuntimeResult<ContactValue> {
-    let id = id.as_bytes();
-    let id = NativeSlice {
-        data: id.as_ptr() as *mut u8,
-        len: id.len() as u32,
+    let mut output_contact = MaybeUninit::<Contact>::uninit();
+    let status = unsafe {
+        destack_host_android_contact_read(
+            runtime_id,
+            NativeStringRef::from(id),
+            output_contact.as_mut_ptr(),
+        )
     };
+    decode_callback_host_status(status, operation)?;
 
-    read_buffered_callback_host_json(operation, "contact", |output, output_written| unsafe {
-        destack_host_android_contact_read(runtime_id, id, output, output_written)
-    })
+    let output_contact = unsafe { output_contact.assume_init() };
+    unsafe { decode_contact(output_contact) }
 }
 
 /// Submit one Android contact-create request.
@@ -136,15 +135,15 @@ fn submit_contact_create(
     operation: &'static str,
     contact: &ContactDraftValue,
 ) -> RuntimeResult<String> {
-    let payload = encode_callback_host_json(contact, operation)?;
-    let payload = NativeSlice {
-        data: payload.as_ptr() as *mut u8,
-        len: payload.len() as u32,
-    };
+    let binding = BindingCallContext::from_current_agent_for_native()?;
+    let draft = encode_contact_draft(&binding, contact);
+    let mut output_id = MaybeUninit::<NativeStringRef>::uninit();
+    let status =
+        unsafe { destack_host_android_contact_create(runtime_id, draft, output_id.as_mut_ptr()) };
+    decode_callback_host_status(status, operation)?;
 
-    read_buffered_callback_host_string(operation, |output_id, output_written| unsafe {
-        destack_host_android_contact_create(runtime_id, payload, output_id, output_written)
-    })
+    let output_id = unsafe { output_id.assume_init() };
+    Ok(unsafe { output_id.as_str()? }.to_string())
 }
 
 /// Submit one Android contact-update request.
@@ -154,16 +153,10 @@ fn submit_contact_update(
     id: &str,
     contact: &ContactDraftValue,
 ) -> RuntimeResult<()> {
-    let id = id.as_bytes();
-    let id = NativeSlice {
-        data: id.as_ptr() as *mut u8,
-        len: id.len() as u32,
+    let binding = BindingCallContext::from_current_agent_for_native()?;
+    let draft = encode_contact_draft(&binding, contact);
+    let call_status = unsafe {
+        destack_host_android_contact_update(runtime_id, NativeStringRef::from(id), draft)
     };
-    let payload = encode_callback_host_json(contact, operation)?;
-    let payload = NativeSlice {
-        data: payload.as_ptr() as *mut u8,
-        len: payload.len() as u32,
-    };
-    let call_status = unsafe { destack_host_android_contact_update(runtime_id, id, payload) };
     decode_callback_host_status(call_status, operation)
 }

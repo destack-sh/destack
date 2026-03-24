@@ -1,41 +1,46 @@
+use crate::host::abi::calendar::{
+    HostCalendarDescriptorArray, HostCalendarEvent, HostCalendarEventArray, HostCalendarEventDraft,
+    HostCalendarEventId, HostCalendarEventQuery,
+};
 use crate::host::ios::abi::bindings::invoke_ios_binding_callback;
-use crate::runtime::NativeSlice;
 
 /// Host callback for listing iOS calendars.
-pub(crate) type IosHostCalendarListCallback =
-    unsafe extern "C" fn(runtime_id: u64, output: NativeSlice<u8>, output_written: *mut u32) -> u32;
+pub(crate) type IosHostCalendarListCallback = unsafe extern "C" fn(
+    runtime_id: u64,
+    output_calendars: *mut HostCalendarDescriptorArray,
+) -> u32;
 
 /// Host callback for listing iOS calendar events.
 pub(crate) type IosHostCalendarEventListCallback = unsafe extern "C" fn(
     runtime_id: u64,
-    payload: NativeSlice<u8>,
-    output: NativeSlice<u8>,
-    output_written: *mut u32,
+    query: HostCalendarEventQuery,
+    output_events: *mut HostCalendarEventArray,
 ) -> u32;
 
 /// Host callback for reading one iOS calendar event.
 pub(crate) type IosHostCalendarEventReadCallback = unsafe extern "C" fn(
     runtime_id: u64,
-    id: NativeSlice<u8>,
-    output: NativeSlice<u8>,
-    output_written: *mut u32,
+    id: HostCalendarEventId,
+    output_event: *mut HostCalendarEvent,
 ) -> u32;
 
 /// Host callback for creating one iOS calendar event.
 pub(crate) type IosHostCalendarEventCreateCallback = unsafe extern "C" fn(
     runtime_id: u64,
-    payload: NativeSlice<u8>,
-    output_id: NativeSlice<u8>,
-    output_written: *mut u32,
+    event: HostCalendarEventDraft,
+    output_id: *mut HostCalendarEventId,
 ) -> u32;
 
 /// Host callback for updating one iOS calendar event.
-pub(crate) type IosHostCalendarEventUpdateCallback =
-    unsafe extern "C" fn(runtime_id: u64, id: NativeSlice<u8>, payload: NativeSlice<u8>) -> u32;
+pub(crate) type IosHostCalendarEventUpdateCallback = unsafe extern "C" fn(
+    runtime_id: u64,
+    id: HostCalendarEventId,
+    event: HostCalendarEventDraft,
+) -> u32;
 
 /// Host callback for deleting one iOS calendar event.
 pub(crate) type IosHostCalendarEventDeleteCallback =
-    unsafe extern "C" fn(runtime_id: u64, id: NativeSlice<u8>) -> u32;
+    unsafe extern "C" fn(runtime_id: u64, id: HostCalendarEventId) -> u32;
 
 /// Callback table for iOS host calendar request interop.
 #[derive(Clone, Copy, Debug, Default)]

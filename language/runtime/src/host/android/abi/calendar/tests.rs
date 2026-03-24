@@ -1,3 +1,11 @@
+use std::mem::MaybeUninit;
+
+use crate::host::abi::calendar::{
+    HostCalendarAttendee, HostCalendarDescriptor, HostCalendarEvent, HostCalendarEventDraft,
+    HostCalendarEventQuery, HostCalendarRecurrenceRule, HostCalendarRecurrenceWeekday,
+    HostCalendarReminder,
+};
+use crate::host::abi::core::{HostOptionalStringRef, HostOptionalU32, HostOptionalU64};
 use crate::host::android::abi::bindings::AndroidHostBindings;
 use crate::host::android::abi::calendar::callbacks::AndroidHostCalendarCallbacks;
 use crate::host::android::abi::calendar::ffi::{
@@ -10,72 +18,79 @@ use crate::host::android::tests::{
 };
 use crate::host::core::registry::HostSessionRegistry;
 use crate::host::{
-    HOST_STATUS_BUFFER_TOO_SMALL, HOST_STATUS_NOT_FOUND, HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK,
+    HOST_STATUS_INVALID_ARGUMENT, HOST_STATUS_NOT_FOUND, HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK,
 };
 use crate::platform::os::abi_generated::{
     CalendarDescriptorValue, CalendarEventDraftValue, CalendarEventQueryValue, CalendarEventValue,
 };
-use crate::platform::os::{CalendarAccess, CalendarAvailability};
-use crate::runtime::NativeSlice;
+use crate::platform::os::{CalendarAccess, CalendarAvailability, CalendarRecurrenceFrequency};
+use crate::platform::{NativeAbiCodec, NativeArray, NativeStringRef};
 
 unsafe extern "C" fn test_calendar_list_callback(
     _runtime_id: u64,
-    output: NativeSlice<u8>,
-    output_written: *mut u32,
+    output_calendars: *mut NativeArray<HostCalendarDescriptor>,
 ) -> u32 {
-    write_json_output(output, output_written, &vec![test_calendar_descriptor()])
+    unsafe {
+        *output_calendars = test_host_calendar_descriptors();
+    }
+
+    HOST_STATUS_OK
 }
 
 unsafe extern "C" fn test_calendar_event_list_callback(
     _runtime_id: u64,
-    payload: NativeSlice<u8>,
-    output: NativeSlice<u8>,
-    output_written: *mut u32,
+    query: HostCalendarEventQuery,
+    output_events: *mut NativeArray<HostCalendarEvent>,
 ) -> u32 {
-    let payload = unsafe { payload.as_slice() }.unwrap();
-    let query = serde_json::from_slice::<CalendarEventQueryValue>(payload).unwrap();
-
+    let query = unsafe { query.into_value() }.unwrap();
     assert_eq!(query, test_calendar_query());
 
-    write_json_output(output, output_written, &vec![test_calendar_event()])
+    unsafe {
+        *output_events = test_host_calendar_events();
+    }
+
+    HOST_STATUS_OK
 }
 
 unsafe extern "C" fn test_calendar_event_read_callback(
     _runtime_id: u64,
-    id: NativeSlice<u8>,
-    output: NativeSlice<u8>,
-    output_written: *mut u32,
+    id: NativeStringRef,
+    output_event: *mut HostCalendarEvent,
 ) -> u32 {
-    let id = unsafe { id.as_slice() }.unwrap();
-    assert_eq!(std::str::from_utf8(id).unwrap(), "event-1");
+    let id = unsafe { id.as_str() }.unwrap();
+    assert_eq!(id, "event-1");
 
-    write_json_output(output, output_written, &test_calendar_event())
+    unsafe {
+        *output_event = test_host_calendar_event();
+    }
+
+    HOST_STATUS_OK
 }
 
 unsafe extern "C" fn test_calendar_event_create_callback(
     _runtime_id: u64,
-    payload: NativeSlice<u8>,
-    output_id: NativeSlice<u8>,
-    output_written: *mut u32,
+    event: HostCalendarEventDraft,
+    output_id: *mut NativeStringRef,
 ) -> u32 {
-    let payload = unsafe { payload.as_slice() }.unwrap();
-    let event = serde_json::from_slice::<CalendarEventDraftValue>(payload).unwrap();
-
+    let event = unsafe { event.into_value() }.unwrap();
     assert_eq!(event, test_calendar_event_draft());
 
-    write_string_output(output_id, output_written, "event-1")
+    unsafe {
+        *output_id = NativeStringRef::from("event-1");
+    }
+
+    HOST_STATUS_OK
 }
 
 unsafe extern "C" fn test_calendar_event_update_callback(
     _runtime_id: u64,
-    id: NativeSlice<u8>,
-    payload: NativeSlice<u8>,
+    id: NativeStringRef,
+    event: HostCalendarEventDraft,
 ) -> u32 {
-    let id = unsafe { id.as_slice() }.unwrap();
-    let payload = unsafe { payload.as_slice() }.unwrap();
-    let event = serde_json::from_slice::<CalendarEventDraftValue>(payload).unwrap();
+    let id = unsafe { id.as_str() }.unwrap();
+    let event = unsafe { event.into_value() }.unwrap();
 
-    assert_eq!(std::str::from_utf8(id).unwrap(), "event-1");
+    assert_eq!(id, "event-1");
     assert_eq!(event, test_calendar_event_draft());
 
     HOST_STATUS_OK
@@ -83,10 +98,10 @@ unsafe extern "C" fn test_calendar_event_update_callback(
 
 unsafe extern "C" fn test_calendar_event_delete_callback(
     _runtime_id: u64,
-    id: NativeSlice<u8>,
+    id: NativeStringRef,
 ) -> u32 {
-    let id = unsafe { id.as_slice() }.unwrap();
-    assert_eq!(std::str::from_utf8(id).unwrap(), "event-1");
+    let id = unsafe { id.as_str() }.unwrap();
+    assert_eq!(id, "event-1");
 
     HOST_STATUS_OK
 }
@@ -95,9 +110,8 @@ unsafe extern "C" fn test_calendar_event_delete_callback(
 fn test_calendar_callbacks_report_missing_runtime_registration() {
     let _lock = callback_test_lock().lock().unwrap();
     let runtime_id = HostSessionRegistry::allocate_session_id().0;
-    let status = unsafe {
-        destack_host_android_calendar_list(runtime_id, empty_output(), std::ptr::null_mut())
-    };
+    let mut output = MaybeUninit::<NativeArray<HostCalendarDescriptor>>::uninit();
+    let status = unsafe { destack_host_android_calendar_list(runtime_id, output.as_mut_ptr()) };
 
     assert_eq!(status, HOST_STATUS_NOT_FOUND);
 }
@@ -109,9 +123,8 @@ fn test_calendar_callbacks_report_unsupported_without_registered_handler() {
     let status = register_android_bindings(runtime_id, AndroidHostBindings::default());
     assert_eq!(status, HOST_STATUS_OK);
 
-    let status = unsafe {
-        destack_host_android_calendar_list(runtime_id, empty_output(), std::ptr::null_mut())
-    };
+    let mut output = MaybeUninit::<NativeArray<HostCalendarDescriptor>>::uninit();
+    let status = unsafe { destack_host_android_calendar_list(runtime_id, output.as_mut_ptr()) };
     assert_eq!(status, HOST_STATUS_NOT_SUPPORTED);
 }
 
@@ -135,161 +148,144 @@ fn test_calendar_callbacks_route_registered_handlers() {
     );
     assert_eq!(status, HOST_STATUS_OK);
 
-    // list calendars
-    let mut list_output = vec![0_u8; 512];
-    let mut list_written = 0_u32;
-    let list_status = unsafe {
-        destack_host_android_calendar_list(
-            runtime_id,
-            NativeSlice {
-                data: list_output.as_mut_ptr(),
-                len: list_output.len() as u32,
-            },
-            &mut list_written,
-        )
-    };
+    let mut list_output = MaybeUninit::<NativeArray<HostCalendarDescriptor>>::uninit();
+    let list_status =
+        unsafe { destack_host_android_calendar_list(runtime_id, list_output.as_mut_ptr()) };
     assert_eq!(list_status, HOST_STATUS_OK);
-    let calendars = serde_json::from_slice::<Vec<CalendarDescriptorValue>>(
-        &list_output[..list_written as usize],
-    )
-    .unwrap();
+    let calendars = unsafe { list_output.assume_init().into_value() }.unwrap();
     assert_eq!(calendars, vec![test_calendar_descriptor()]);
 
-    // list events
-    let query = serde_json::to_vec(&test_calendar_query()).unwrap();
-    let mut event_list_output = vec![0_u8; 1024];
-    let mut event_list_written = 0_u32;
+    let mut event_list_output = MaybeUninit::<NativeArray<HostCalendarEvent>>::uninit();
     let event_list_status = unsafe {
         destack_host_android_calendar_event_list(
             runtime_id,
-            NativeSlice {
-                data: query.as_ptr() as *mut u8,
-                len: query.len() as u32,
-            },
-            NativeSlice {
-                data: event_list_output.as_mut_ptr(),
-                len: event_list_output.len() as u32,
-            },
-            &mut event_list_written,
+            test_host_calendar_query(),
+            event_list_output.as_mut_ptr(),
         )
     };
     assert_eq!(event_list_status, HOST_STATUS_OK);
-    let events = serde_json::from_slice::<Vec<CalendarEventValue>>(
-        &event_list_output[..event_list_written as usize],
-    )
-    .unwrap();
+    let events = unsafe { event_list_output.assume_init().into_value() }.unwrap();
     assert_eq!(events, vec![test_calendar_event()]);
 
-    // read one event
-    let event_id = b"event-1";
-    let mut event_read_output = vec![0_u8; 1024];
-    let mut event_read_written = 0_u32;
+    let mut event_read_output = MaybeUninit::<HostCalendarEvent>::uninit();
     let event_read_status = unsafe {
         destack_host_android_calendar_event_read(
             runtime_id,
-            NativeSlice {
-                data: event_id.as_ptr() as *mut u8,
-                len: event_id.len() as u32,
-            },
-            NativeSlice {
-                data: event_read_output.as_mut_ptr(),
-                len: event_read_output.len() as u32,
-            },
-            &mut event_read_written,
+            NativeStringRef::from("event-1"),
+            event_read_output.as_mut_ptr(),
         )
     };
     assert_eq!(event_read_status, HOST_STATUS_OK);
-    let event = serde_json::from_slice::<CalendarEventValue>(
-        &event_read_output[..event_read_written as usize],
-    )
-    .unwrap();
+    let event = unsafe { event_read_output.assume_init().into_value() }.unwrap();
     assert_eq!(event, test_calendar_event());
 
-    // create one event
-    let draft = serde_json::to_vec(&test_calendar_event_draft()).unwrap();
-    let mut create_output = vec![0_u8; 128];
-    let mut create_written = 0_u32;
+    let mut create_output = MaybeUninit::<NativeStringRef>::uninit();
     let create_status = unsafe {
         destack_host_android_calendar_event_create(
             runtime_id,
-            NativeSlice {
-                data: draft.as_ptr() as *mut u8,
-                len: draft.len() as u32,
-            },
-            NativeSlice {
-                data: create_output.as_mut_ptr(),
-                len: create_output.len() as u32,
-            },
-            &mut create_written,
+            test_host_calendar_event_draft(),
+            create_output.as_mut_ptr(),
         )
     };
     assert_eq!(create_status, HOST_STATUS_OK);
-    assert_eq!(
-        std::str::from_utf8(&create_output[..create_written as usize]).unwrap(),
-        "event-1"
-    );
+    let create_output = unsafe { create_output.assume_init() };
+    assert_eq!(unsafe { create_output.as_str() }.unwrap(), "event-1");
 
-    // update and delete
     let update_status = unsafe {
         destack_host_android_calendar_event_update(
             runtime_id,
-            NativeSlice {
-                data: event_id.as_ptr() as *mut u8,
-                len: event_id.len() as u32,
-            },
-            NativeSlice {
-                data: draft.as_ptr() as *mut u8,
-                len: draft.len() as u32,
-            },
+            NativeStringRef::from("event-1"),
+            test_host_calendar_event_draft(),
         )
     };
     assert_eq!(update_status, HOST_STATUS_OK);
 
     let delete_status = unsafe {
-        destack_host_android_calendar_event_delete(
-            runtime_id,
-            NativeSlice {
-                data: event_id.as_ptr() as *mut u8,
-                len: event_id.len() as u32,
-            },
-        )
+        destack_host_android_calendar_event_delete(runtime_id, NativeStringRef::from("event-1"))
     };
     assert_eq!(delete_status, HOST_STATUS_OK);
 }
 
-fn empty_output() -> NativeSlice<u8> {
-    NativeSlice {
-        data: std::ptr::null_mut(),
-        len: 0,
+#[test]
+fn test_calendar_callbacks_require_output_pointers() {
+    let _lock = callback_test_lock().lock().unwrap();
+    let (_queue, _registration, runtime_id) = register_android_runtime();
+    let status = register_android_bindings(
+        runtime_id,
+        AndroidHostBindings {
+            calendar: AndroidHostCalendarCallbacks {
+                list: Some(test_calendar_list_callback),
+                event_list: Some(test_calendar_event_list_callback),
+                event_read: Some(test_calendar_event_read_callback),
+                event_create: Some(test_calendar_event_create_callback),
+                ..AndroidHostCalendarCallbacks::default()
+            },
+            ..AndroidHostBindings::default()
+        },
+    );
+    assert_eq!(status, HOST_STATUS_OK);
+
+    let list_status =
+        unsafe { destack_host_android_calendar_list(runtime_id, std::ptr::null_mut()) };
+    assert_eq!(list_status, HOST_STATUS_INVALID_ARGUMENT);
+
+    let event_list_status = unsafe {
+        destack_host_android_calendar_event_list(
+            runtime_id,
+            test_host_calendar_query(),
+            std::ptr::null_mut(),
+        )
+    };
+    assert_eq!(event_list_status, HOST_STATUS_INVALID_ARGUMENT);
+
+    let event_read_status = unsafe {
+        destack_host_android_calendar_event_read(
+            runtime_id,
+            NativeStringRef::from("event-1"),
+            std::ptr::null_mut(),
+        )
+    };
+    assert_eq!(event_read_status, HOST_STATUS_INVALID_ARGUMENT);
+
+    let event_create_status = unsafe {
+        destack_host_android_calendar_event_create(
+            runtime_id,
+            test_host_calendar_event_draft(),
+            std::ptr::null_mut(),
+        )
+    };
+    assert_eq!(event_create_status, HOST_STATUS_INVALID_ARGUMENT);
+}
+
+fn leak_array<T>(values: Vec<T>) -> NativeArray<T> {
+    let values = values.into_boxed_slice();
+    let len = values.len() as u32;
+    let data = Box::leak(values).as_mut_ptr();
+
+    NativeArray {
+        data,
+        len,
+        capacity: len,
     }
 }
 
-fn write_json_output<T: serde::Serialize>(
-    output: NativeSlice<u8>,
-    output_written: *mut u32,
-    value: &T,
-) -> u32 {
-    let bytes = serde_json::to_vec(value).unwrap();
-    write_bytes_output(output, output_written, &bytes)
+fn test_host_calendar_descriptors() -> NativeArray<HostCalendarDescriptor> {
+    leak_array(vec![test_host_calendar_descriptor()])
 }
 
-fn write_string_output(output: NativeSlice<u8>, output_written: *mut u32, value: &str) -> u32 {
-    write_bytes_output(output, output_written, value.as_bytes())
-}
-
-fn write_bytes_output(output: NativeSlice<u8>, output_written: *mut u32, bytes: &[u8]) -> u32 {
-    let output_written = unsafe { &mut *output_written };
-
-    if output.len < bytes.len() as u32 {
-        *output_written = bytes.len() as u32;
-        return HOST_STATUS_BUFFER_TOO_SMALL;
+fn test_host_calendar_descriptor() -> HostCalendarDescriptor {
+    HostCalendarDescriptor {
+        id: NativeStringRef::from("calendar-1"),
+        title: NativeStringRef::from("Personal"),
+        source: NativeStringRef::from("local"),
+        owner: HostOptionalStringRef {
+            has_value: true,
+            value: NativeStringRef::from("user@example.com"),
+        },
+        color_argb: 0xff336699,
+        primary: true,
+        access: CalendarAccess::Write,
     }
-
-    let output = unsafe { output.as_mut_slice() }.unwrap();
-    output[..bytes.len()].copy_from_slice(bytes);
-    *output_written = bytes.len() as u32;
-
-    HOST_STATUS_OK
 }
 
 fn test_calendar_descriptor() -> CalendarDescriptorValue {
@@ -304,6 +300,21 @@ fn test_calendar_descriptor() -> CalendarDescriptorValue {
     }
 }
 
+fn test_host_calendar_query() -> HostCalendarEventQuery {
+    HostCalendarEventQuery {
+        calendar_ids: leak_array(vec![NativeStringRef::from("calendar-1")]),
+        start_unix_ns: 1_000,
+        end_unix_ns: 2_000,
+        limit: HostOptionalU32 {
+            has_value: true,
+            value: 10,
+        },
+        include_canceled: false,
+        include_declined: false,
+        include_recurrence_instances: true,
+    }
+}
+
 fn test_calendar_query() -> CalendarEventQueryValue {
     CalendarEventQueryValue {
         calendar_ids: vec!["calendar-1".to_string()],
@@ -313,6 +324,53 @@ fn test_calendar_query() -> CalendarEventQueryValue {
         include_canceled: false,
         include_declined: false,
         include_recurrence_instances: true,
+    }
+}
+
+fn test_host_calendar_events() -> NativeArray<HostCalendarEvent> {
+    leak_array(vec![test_host_calendar_event()])
+}
+
+fn test_host_calendar_event() -> HostCalendarEvent {
+    HostCalendarEvent {
+        id: NativeStringRef::from("event-1"),
+        calendar_id: NativeStringRef::from("calendar-1"),
+        title: NativeStringRef::from("Standup"),
+        notes: HostOptionalStringRef {
+            has_value: true,
+            value: NativeStringRef::from("daily sync"),
+        },
+        location: HostOptionalStringRef {
+            has_value: true,
+            value: NativeStringRef::from("Room 1"),
+        },
+        start_unix_ns: 1_200,
+        end_unix_ns: 1_500,
+        all_day: false,
+        canceled: false,
+        time_zone: HostOptionalStringRef {
+            has_value: true,
+            value: NativeStringRef::from("UTC"),
+        },
+        availability: CalendarAvailability::Busy,
+        url: HostOptionalStringRef::none(),
+        organizer_name: HostOptionalStringRef {
+            has_value: true,
+            value: NativeStringRef::from("Casey"),
+        },
+        organizer_email: HostOptionalStringRef {
+            has_value: true,
+            value: NativeStringRef::from("casey@example.com"),
+        },
+        recurring: false,
+        recurrence_master_id: HostOptionalStringRef::none(),
+        recurrence_id_unix_ns: HostOptionalU64::none(),
+        has_recurrence_rule: false,
+        recurrence_rule: empty_recurrence_rule(),
+        has_attendees: false,
+        attendees: leak_array(Vec::<HostCalendarAttendee>::new()),
+        has_reminders: false,
+        reminders: leak_array(Vec::<HostCalendarReminder>::new()),
     }
 }
 
@@ -341,6 +399,36 @@ fn test_calendar_event() -> CalendarEventValue {
     }
 }
 
+fn test_host_calendar_event_draft() -> HostCalendarEventDraft {
+    HostCalendarEventDraft {
+        calendar_id: NativeStringRef::from("calendar-1"),
+        title: NativeStringRef::from("Standup"),
+        notes: HostOptionalStringRef {
+            has_value: true,
+            value: NativeStringRef::from("daily sync"),
+        },
+        location: HostOptionalStringRef {
+            has_value: true,
+            value: NativeStringRef::from("Room 1"),
+        },
+        start_unix_ns: 1_200,
+        end_unix_ns: 1_500,
+        all_day: false,
+        time_zone: HostOptionalStringRef {
+            has_value: true,
+            value: NativeStringRef::from("UTC"),
+        },
+        availability: CalendarAvailability::Busy,
+        url: HostOptionalStringRef::none(),
+        has_recurrence_rule: false,
+        recurrence_rule: empty_recurrence_rule(),
+        has_attendees: false,
+        attendees: leak_array(Vec::<HostCalendarAttendee>::new()),
+        has_reminders: false,
+        reminders: leak_array(Vec::<HostCalendarReminder>::new()),
+    }
+}
+
 fn test_calendar_event_draft() -> CalendarEventDraftValue {
     CalendarEventDraftValue {
         calendar_id: "calendar-1".to_string(),
@@ -356,5 +444,21 @@ fn test_calendar_event_draft() -> CalendarEventDraftValue {
         recurrence_rule: None,
         attendees: None,
         reminders: None,
+    }
+}
+
+fn empty_recurrence_rule() -> HostCalendarRecurrenceRule {
+    HostCalendarRecurrenceRule {
+        frequency: CalendarRecurrenceFrequency::Daily,
+        interval: 0,
+        count: HostOptionalU32::none(),
+        until_unix_ns: HostOptionalU64::none(),
+        by_week_days: leak_array(Vec::<u8>::new()),
+        by_weekday_ordinals: leak_array(Vec::<HostCalendarRecurrenceWeekday>::new()),
+        by_month_days: leak_array(Vec::<i8>::new()),
+        by_months: leak_array(Vec::<u8>::new()),
+        by_year_days: leak_array(Vec::<i16>::new()),
+        by_week_numbers: leak_array(Vec::<i8>::new()),
+        by_set_positions: leak_array(Vec::<i16>::new()),
     }
 }
