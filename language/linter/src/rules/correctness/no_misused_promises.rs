@@ -58,6 +58,8 @@ struct MisusedPromiseVisitor<'a, 'b> {
     check_conditionals: bool,
     /// Whether to check callback positions.
     check_callbacks: bool,
+    /// Whether to check spread positions.
+    check_spreads: bool,
     /// The visitor options.
     options: NodeVisitorOptions,
 }
@@ -71,6 +73,7 @@ impl<'a, 'b> MisusedPromiseVisitor<'a, 'b> {
             .unwrap_or_else(|| ctx.well_known_symbol(WellKnownSymbol::Promise));
         let check_conditionals = ctx.options.check_misused_promises_in_conditionals;
         let check_callbacks = ctx.options.check_misused_promises_in_callbacks;
+        let check_spreads = ctx.options.check_misused_promises_in_spreads;
 
         Self {
             ctx,
@@ -78,6 +81,7 @@ impl<'a, 'b> MisusedPromiseVisitor<'a, 'b> {
             promise_symbol,
             check_conditionals,
             check_callbacks,
+            check_spreads,
             options: NodeVisitorOptions::default(),
         }
     }
@@ -170,10 +174,6 @@ impl<'a, 'b> MisusedPromiseVisitor<'a, 'b> {
         callee_id: dir::LocalNodeId<dir::Expression>,
         arguments: &[dir::LocalNodeId<dir::Argument>],
     ) {
-        if !self.check_callbacks {
-            return;
-        }
-
         // resolve callee type once
         let Some(callee_type_id) = expression_declared_or_inferred_type_id(
             self.ctx.module_id(),
@@ -207,6 +207,10 @@ impl<'a, 'b> MisusedPromiseVisitor<'a, 'b> {
 
             // spread Promise elements passed where Promise elements are not accepted
             if is_spread {
+                if !self.check_spreads {
+                    continue;
+                }
+
                 if supports_promise_spread_elements(
                     self.ctx.types,
                     argument_type_id,
@@ -224,6 +228,11 @@ impl<'a, 'b> MisusedPromiseVisitor<'a, 'b> {
                         "await the Promise before passing it",
                     );
                 }
+                continue;
+            }
+
+            // skip non spread checks when callback analysis is disabled
+            if !self.check_callbacks {
                 continue;
             }
 
@@ -444,6 +453,26 @@ async function load(): Promise<number> {
 
 const promisedNumbers = [load()];
 takesPromises(...promisedNumbers);
+"#,
+        );
+        test.result(result).assert_no_lint("no-misused-promises");
+    }
+
+    #[test]
+    fn test_allows_promise_spread_when_disabled() {
+        let test = TestProgram::for_rule_with_prelude(NoMisusedPromises).with_options(|options| {
+            options.check_misused_promises_in_spreads = false;
+        });
+        let result = test.lint_dir(
+            "no_misused_promises/test_allows_promise_spread_when_disabled.ts",
+            r#"
+function takesNumbers(...values: number[]): void {}
+async function load(): Promise<number> {
+    return 1;
+}
+
+const promisedNumbers = [load()];
+takesNumbers(...promisedNumbers);
 "#,
         );
         test.result(result).assert_no_lint("no-misused-promises");

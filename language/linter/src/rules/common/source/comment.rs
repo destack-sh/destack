@@ -1,3 +1,6 @@
+use destack_workspace::WarningCommentLocation;
+use regex::Regex;
+
 /// Parsed keyword comment metadata.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KeywordCommentInfo {
@@ -76,10 +79,19 @@ pub fn is_directive_comment(text: &str) -> bool {
 
 /// Return true when one comment declares intentional switch fallthrough.
 pub fn is_fallthrough_comment(text: &str) -> bool {
+    fallthrough_comment_matches(text, None)
+}
+
+/// Return true when one comment declares intentional switch fallthrough.
+pub fn fallthrough_comment_matches(text: &str, pattern: Option<&Regex>) -> bool {
     let normalized = normalize_comment_text(text).to_ascii_lowercase();
     let normalized = normalized.trim();
     if is_directive_comment(normalized) {
         return false;
+    }
+
+    if let Some(pattern) = pattern {
+        return pattern.is_match(normalized);
     }
 
     normalized.contains("fallthrough")
@@ -432,6 +444,18 @@ mod tests {
         assert!(is_fallthrough_comment("// fall through"));
     }
 
+    /// Respect custom fallthrough comment patterns.
+    #[test]
+    fn test_matches_custom_fallthrough_comment_pattern() {
+        let pattern =
+            Regex::new(r"no break").unwrap_or_else(|error| panic!("expected valid regex: {error}"));
+        assert!(fallthrough_comment_matches("// no break", Some(&pattern)));
+        assert!(!fallthrough_comment_matches(
+            "// fallthrough",
+            Some(&pattern)
+        ));
+    }
+
     /// Skip non fallthrough comments.
     #[test]
     fn test_skips_non_fallthrough_comment() {
@@ -508,4 +532,3 @@ mod tests {
         ));
     }
 }
-use destack_workspace::WarningCommentLocation;

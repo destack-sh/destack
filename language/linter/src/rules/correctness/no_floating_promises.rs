@@ -5,6 +5,7 @@ use destack_workspace::LintSeverity;
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
     expression_is_promise_like, expression_unwrap_parenthesized, is_function_type,
+    supports_promise_spread_elements,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -138,6 +139,30 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
         )
     }
 
+    /// Return true when an expression produces an array or tuple of Promises.
+    fn is_promise_array_expression(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> bool {
+        let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
+        let expression = self.ctx.tree.get(expression_id);
+
+        // preserve Promise array checks for explicit void discards
+        if let dir::Expression::Unary {
+            operator: dir::UnaryOperator::Void,
+            right,
+        } = expression
+        {
+            return self.is_promise_array_expression(*right);
+        }
+
+        let Some(type_id) = self.ctx.expression_type_id(expression_id) else {
+            return false;
+        };
+
+        supports_promise_spread_elements(self.ctx.types, type_id, Some(self.promise_symbol))
+    }
+
     /// Return true when a call is a Promise handler chain.
     fn is_handler_call(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
         let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
@@ -204,7 +229,10 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
         statement_id: dir::LocalNodeId<dir::Expression>,
         inner_id: dir::LocalNodeId<dir::Expression>,
     ) {
-        if !self.is_promise_expression(inner_id) {
+        let is_promise_expression = self.is_promise_expression(inner_id);
+        let is_promise_array_expression = self.is_promise_array_expression(inner_id);
+
+        if !is_promise_expression && !is_promise_array_expression {
             return;
         }
         if self.is_handled_expression(inner_id) {
@@ -224,11 +252,19 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
             NO_FLOATING_PROMISES.code,
             NO_FLOATING_PROMISES.category,
             severity,
-            "Promise result is ignored",
+            if is_promise_array_expression {
+                "array of Promise results is ignored"
+            } else {
+                "Promise result is ignored"
+            },
             self.ctx.module.file_id,
             span,
         )
-        .with_label("await, return, or attach a Promise handler");
+        .with_label(if is_promise_array_expression {
+            "await Promise.all(...), return it, or handle the Promises explicitly"
+        } else {
+            "await, return, or attach a Promise handler"
+        });
 
         // compute fixes only when requested by the runner
         if self.ctx.include_fixes
@@ -476,6 +512,38 @@ new Promise((resolve) => {
     }
 
     #[test]
+    fn test_flags_array_of_promises_statement() {
+        let test = TestProgram::for_rule_with_prelude(NoFloatingPromises);
+        let result = test.lint_dir(
+            "no_floating_promises/test_flags_array_of_promises_statement.ts",
+            r#"
+async function load(): Promise<number> {
+    return 1;
+}
+
+[load()];
+"#,
+        );
+        test.result(result).assert_lint("no-floating-promises");
+    }
+
+    #[test]
+    fn test_allows_void_array_of_promises_when_enabled() {
+        let test = TestProgram::for_rule_with_prelude(NoFloatingPromises);
+        let result = test.lint_dir(
+            "no_floating_promises/test_allows_void_array_of_promises_when_enabled.ts",
+            r#"
+async function load(): Promise<number> {
+    return 1;
+}
+
+void [load()];
+"#,
+        );
+        test.result(result).assert_no_lint("no-floating-promises");
+    }
+
+    #[test]
     fn test_fix_prefixes_floating_promise_with_void() {
         let test = TestProgram::for_rule_with_prelude(NoFloatingPromises);
         let result = test.lint_dir(
@@ -497,6 +565,32 @@ async function load(): Promise<number> {
 }
 
 void load();
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_prefixes_array_of_promises_with_void() {
+        let test = TestProgram::for_rule_with_prelude(NoFloatingPromises);
+        let result = test.lint_dir(
+            "no_floating_promises/test_fix_prefixes_array_of_promises_with_void.ts",
+            r#"
+async function load(): Promise<number> {
+    return 1;
+}
+
+[load()];
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-floating-promises")
+            .assert_safe_fixed(
+                r#"
+async function load(): Promise<number> {
+    return 1;
+}
+
+void [load()];
 "#,
             );
     }

@@ -191,7 +191,7 @@ impl LintRule for NoUnusedParameters {
     }
 }
 
-/// Build a safe fix by prefixing an unused named parameter with `_`.
+/// Build an unsafe fix by prefixing an unused named parameter with `_`.
 fn unused_named_parameter_fix(
     ctx: &LintModuleDirContext<'_>,
     parameter_id: dir::LocalNodeId<dir::Parameter>,
@@ -232,7 +232,7 @@ fn unused_named_parameter_fix(
     // insert one leading underscore at the parameter name position
     let insert_position = parameter_span.start + insert_offset as u32;
     let edits = ctx.edit_builder().insert(insert_position, "_").into_edits();
-    Some(LintFix::safe("Prefix unused parameter with `_`").with_edits(edits))
+    Some(LintFix::r#unsafe("Prefix unused parameter with `_`").with_edits(edits))
 }
 
 /// Return true when this symbol is a value space binding.
@@ -472,7 +472,7 @@ function run({ _first, second }: { _first: int32; second: int32 }): int32 {
             .assert_lint_count("no-unused-parameters", 1);
     }
 
-    /// Safely fix one unused named parameter by prefixing `_`.
+    /// Unsafely fix one unused named parameter by prefixing `_`.
     #[test]
     fn test_fix_prefixes_unused_named_parameter() {
         let test = TestProgram::for_rule_without_prelude(NoUnusedParameters);
@@ -486,7 +486,7 @@ function run(value: int32): int32 {
         );
         test.result(result)
             .assert_lint("no-unused-parameters")
-            .assert_safe_fixed(
+            .assert_unsafe_fixed(
                 r#"
 function run(_value: int32): int32 {
     return 1;
