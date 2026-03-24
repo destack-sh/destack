@@ -98,10 +98,7 @@ pub struct TargetBundleChunk {
 impl TargetBundleChunk {
     /// Return whether this chunk policy requires assembled output.
     pub fn is_assembled(&self) -> bool {
-        self.splitting
-            || self.inline_dynamic_imports
-            || self.preserve_modules
-            || !self.manual_chunks.is_empty()
+        self.splitting || self.inline_dynamic_imports || !self.manual_chunks.is_empty()
     }
 }
 
@@ -253,7 +250,7 @@ pub struct TargetBundle {
 impl TargetBundle {
     /// Return whether this bundler policy implies target level assembly.
     pub fn is_assembled(&self) -> bool {
-        self != &Self::default()
+        self.chunk.is_assembled()
     }
 }
 

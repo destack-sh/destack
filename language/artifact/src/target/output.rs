@@ -145,10 +145,19 @@ pub enum OutputContent {
 }
 
 impl OutputContent {
+    /// Normalize one emitted text payload to the canonical file form.
+    fn normalize_text_payload(mut text: String) -> String {
+        if !text.is_empty() && !text.ends_with('\n') {
+            text.push('\n');
+        }
+
+        text
+    }
+
     /// Create JavaScript content.
     pub fn javascript(code: String) -> Self {
         Self::Text {
-            code,
+            code: Self::normalize_text_payload(code),
             file_type: FileType::JavaScript,
         }
     }
@@ -156,7 +165,7 @@ impl OutputContent {
     /// Create TypeScript content.
     pub fn typescript(code: String) -> Self {
         Self::Text {
-            code,
+            code: Self::normalize_text_payload(code),
             file_type: FileType::TypeScript,
         }
     }
@@ -164,7 +173,7 @@ impl OutputContent {
     /// Create TypeScript declaration content.
     pub fn declaration(code: String) -> Self {
         Self::Text {
-            code,
+            code: Self::normalize_text_payload(code),
             file_type: FileType::TypeScriptDeclaration,
         }
     }
@@ -172,8 +181,17 @@ impl OutputContent {
     /// Create HTML content.
     pub fn html(code: String) -> Self {
         Self::Text {
-            code,
+            code: Self::normalize_text_payload(code),
             file_type: FileType::Html,
+        }
+    }
+
+    /// Create JSON content.
+    pub fn json(content: String, value: serde_json::Value, file_type: FileType) -> Self {
+        Self::Json {
+            content: Self::normalize_text_payload(content),
+            value,
+            file_type,
         }
     }
 
@@ -181,11 +199,7 @@ impl OutputContent {
     pub fn source_map(value: &SourceMapArtifact) -> Result<Self, serde_json::Error> {
         let content = serde_json::to_string(value)?;
         let value = value.to_json_value()?;
-        Ok(Self::Json {
-            content,
-            value,
-            file_type: FileType::SourceMap,
-        })
+        Ok(Self::json(content, value, FileType::SourceMap))
     }
 
     /// Create WebAssembly content.
