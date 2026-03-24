@@ -18,11 +18,15 @@ pub(crate) use pending::{
     schedule_notification,
 };
 pub(crate) use permission::request_notification_permission;
-pub(crate) use posted::{
-    cancel_all_notifications, cancel_notification, post_notification, remove_posted_notification,
-};
+#[cfg(all(unix, not(target_os = "macos")))]
+pub(crate) use posted::remove_posted_notification;
+pub(crate) use posted::{cancel_all_notifications, cancel_notification, post_notification};
 #[cfg(test)]
 pub(crate) use state::desktop_notification_test_mode_enabled;
-pub(crate) use state::notification_runtime_service;
+#[cfg(windows)]
+pub(crate) use state::pending_notification;
 #[cfg(test)]
 pub(crate) use state::with_notification_test_mode;
+pub(crate) use state::{
+    notification_request, notification_runtime_service, remove_notification_request,
+};

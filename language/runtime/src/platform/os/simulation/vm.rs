@@ -218,7 +218,7 @@ pub(crate) fn destack_os_background_register(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses BGTaskScheduler on Apple platforms, WorkManager or JobScheduler on Android, and host scheduler bridges on desktop platforms.
+/// Uses host scheduler bridges on supported desktop platforms.
 ///
 /// # Errors
 /// Returns ioInvalidData, notSupported.
@@ -1137,7 +1137,7 @@ pub(crate) fn destack_os_intent_open(
 
 /// Request host to open one file path target.
 ///
-/// Ask host shell or app framework to open one file path with default routing.
+/// Ask the host platform or app framework to open one file path with default routing.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -1162,7 +1162,7 @@ pub(crate) fn destack_os_intent_open_path(
 
 /// Request host to open one URL target.
 ///
-/// Ask host shell or app framework to open one URL with default routing.
+/// Ask the host platform or app framework to open one URL with default routing.
 ///
 /// # Platform
 /// Unix and Windows.

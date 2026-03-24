@@ -14,6 +14,9 @@ use crate::platform::diagnostic::PlatformErrorCode;
 
 use super::core::DESKTOP_BACKGROUND_SCHEDULER_PREFIX;
 
+/// Extension for persisted desktop background task records.
+pub(crate) const DESKTOP_BACKGROUND_RECORD_EXTENSION: &str = "record";
+
 /// Return the persisted scheduler artifact directory for one runtime.
 pub(crate) fn background_scheduler_directory(
     context: &HostRequestContext,
@@ -126,7 +129,7 @@ pub(crate) fn background_task_record_path(
     let directory = background_task_directory(context)?;
     let hash = fnv1a_64(identifier.as_bytes());
 
-    Ok(directory.join(format!("{hash:016x}.json")))
+    Ok(directory.join(format!("{hash:016x}.{DESKTOP_BACKGROUND_RECORD_EXTENSION}")))
 }
 
 /// Return the effective state root for one runtime.

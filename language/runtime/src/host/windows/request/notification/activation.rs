@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use parking_lot::Mutex;
-use serde::{Deserialize, Serialize};
 use tracing::warn;
 use windows::Win32::Foundation::{CLASS_E_NOAGGREGATION, E_NOINTERFACE};
 use windows::Win32::UI::Notifications::NOTIFICATION_USER_INPUT_DATA;
@@ -128,6 +127,15 @@ fn handle_windows_notification_activation(
     response_text: Option<String>,
 ) -> RuntimeResult<()> {
     let source_host_runtime_id = Some(HostSessionId(activation.source_host_runtime_id));
+    let request = runtime::notification_request(
+        HostSessionId(activation.source_host_runtime_id),
+        &activation.notification_id,
+    )
+    .ok_or_else(|| {
+        super::core::windows_notification_payload_error(
+            "Windows activation payload referenced one unknown notification",
+        )
+    })?;
     let payload = NotificationInteractedPayloadValue {
         action_id: activation.action_id,
         action_response_text: response_text,
@@ -139,7 +147,7 @@ fn handle_windows_notification_activation(
         return publish_windows_notification_activation(
             source_host_runtime_id,
             activation.notification_id,
-            activation.request,
+            request,
             payload,
         );
     }
@@ -147,7 +155,7 @@ fn handle_windows_notification_activation(
     queue_pending_windows_notification_activation(
         source_host_runtime_id,
         activation.notification_id,
-        activation.request,
+        request,
         payload,
     );
 
@@ -161,7 +169,7 @@ fn publish_windows_notification_activation(
     request: NotificationRequestValue,
     payload: NotificationInteractedPayloadValue,
 ) -> RuntimeResult<()> {
-    runtime::remove_posted_notification(host_session_id, &notification_id);
+    runtime::remove_notification_request(host_session_id, &notification_id);
 
     let sequence = runtime::next_notification_sequence(host_session_id, Platform::Windows);
 
@@ -319,14 +327,12 @@ impl windows::Win32::System::Com::IClassFactory_Impl for WindowsNotificationClas
 }
 
 /// Activation arguments carried by Windows toast actions.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub(super) struct WindowsNotificationActivationPayload {
     /// Host runtime id that originally created the toast when known.
     pub(super) source_host_runtime_id: u64,
     /// Notification identifier carried by the toast.
     pub(super) notification_id: String,
-    /// Full notification request payload for the interaction event.
-    pub(super) request: NotificationRequestValue,
     /// Action identifier routed back into the runtime when present.
     pub(super) action_id: Option<String>,
     /// Text-input field identifier used to read one response payload when present.

@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use destack_workspace::{RuntimeAppBackgroundMode, RuntimeOptions};
 use parking_lot::Mutex;
 
-use crate::host::app::background::with_background_test_mode;
+use crate::platform::os::background::with_background_test_mode;
 
 /// Shared desktop background test state root override.
 static DESKTOP_BACKGROUND_TEST_STATE_DIRECTORY: OnceLock<Mutex<Option<PathBuf>>> = OnceLock::new();

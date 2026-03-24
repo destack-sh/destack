@@ -100,12 +100,12 @@ fn windows_open_target_wide(target_wide: &[u16], operation: &'static str) -> Run
         SHELL_EXECUTE_ACCESS_DENIED => io_operation_error(
             operation,
             Some(PlatformErrorCode::IoPermissionDenied),
-            "host shell denied the open request",
+            "host platform denied the open request",
         ),
         SHELL_EXECUTE_OUT_OF_MEMORY | SHELL_EXECUTE_SHARING_VIOLATION => io_operation_error(
             operation,
             Some(PlatformErrorCode::IoWouldBlock),
-            format!("host shell rejected the open request with status {error_code}"),
+            format!("host platform rejected the open request with status {error_code}"),
         ),
         SHELL_EXECUTE_NO_ASSOCIATION | SHELL_EXECUTE_DLL_NOT_FOUND => not_supported(operation),
         _ => io_operation_error(

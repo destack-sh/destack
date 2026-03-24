@@ -1,7 +1,10 @@
 use super::posted::{
     notification_identifier_belongs_to_runtime, notification_identifier_for_request,
 };
-use super::state::{DesktopNotificationRuntimeState, notification_runtime_service};
+use super::state::{
+    DesktopNotificationRuntimeState, notification_runtime_service, pending_notifications,
+    remove_notification_request, upsert_pending_notification,
+};
 #[cfg(test)]
 use super::state::{desktop_notification_test_mode_enabled, wall_clock_now_ns};
 use crate::diagnostic::RuntimeResult;
@@ -36,15 +39,7 @@ pub(crate) fn list_pending_notifications(
         return Ok(pending_descriptors);
     }
 
-    let pending = delivery::list_native_pending_notifications(context)?;
-    let pending = pending
-        .into_iter()
-        .filter(|descriptor| {
-            notification_identifier_belongs_to_runtime(context.host_session_id, &descriptor.id)
-        })
-        .collect();
-
-    Ok(pending)
+    Ok(pending_notifications(context.host_session_id))
 }
 
 /// Cancel one pending scheduled notification for this runtime.
@@ -74,13 +69,7 @@ pub(crate) fn cancel_pending_notification(
 
     delivery::cancel_native_pending_notification(context, id)?;
 
-    let service = notification_runtime_service();
-    let mut registry = service.registry.lock();
-    let runtime_state = registry
-        .runtimes
-        .entry(context.host_session_id)
-        .or_insert_with(|| DesktopNotificationRuntimeState::new(context.platform));
-    runtime_state.pending.remove(id);
+    remove_notification_request(context.host_session_id, id);
 
     Ok(())
 }
@@ -100,25 +89,18 @@ pub(crate) fn cancel_all_pending_notifications(context: &HostRequestContext) -> 
         return Ok(());
     }
 
-    let pending_ids = delivery::list_native_pending_notifications(context)?
+    let pending_ids = pending_notifications(context.host_session_id)
         .into_iter()
-        .filter(|descriptor| {
-            notification_identifier_belongs_to_runtime(context.host_session_id, &descriptor.id)
-        })
         .map(|descriptor| descriptor.id)
         .collect::<Vec<_>>();
 
-    for id in pending_ids {
-        delivery::cancel_native_pending_notification(context, &id)?;
+    for id in &pending_ids {
+        delivery::cancel_native_pending_notification(context, id)?;
     }
 
-    let service = notification_runtime_service();
-    let mut registry = service.registry.lock();
-    let runtime_state = registry
-        .runtimes
-        .entry(context.host_session_id)
-        .or_insert_with(|| DesktopNotificationRuntimeState::new(context.platform));
-    runtime_state.pending.clear();
+    for id in pending_ids {
+        remove_notification_request(context.host_session_id, &id);
+    }
 
     Ok(())
 }
@@ -170,6 +152,14 @@ pub(crate) fn schedule_notification(
     };
 
     delivery::schedule_native_notification(context, &id, &request)?;
+
+    let descriptor = NotificationScheduledDescriptorValue {
+        id: id.clone(),
+        request,
+        scheduled_unix_ns: None,
+    };
+
+    upsert_pending_notification(context.host_session_id, context.platform, descriptor);
 
     Ok(id)
 }

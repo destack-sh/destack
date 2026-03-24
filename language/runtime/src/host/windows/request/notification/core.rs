@@ -17,7 +17,6 @@ use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::NotificationPermissionState;
 use crate::platform::os::abi_generated::{
     NotificationCategoryValue, NotificationInteractedPayloadValue, NotificationRequestValue,
-    NotificationScheduledDescriptorValue,
 };
 use crate::platform::os::notification::runtime;
 
@@ -32,8 +31,7 @@ use super::identity::{
 };
 use super::toast::{
     remove_scheduled_notification_by_id, validate_windows_notification_category,
-    windows_datetime_to_unix_ns, windows_interacted_payload, windows_request_from_document,
-    windows_scheduled_delivery_time, windows_toast_document,
+    windows_interacted_payload, windows_scheduled_delivery_time, windows_toast_document,
 };
 
 pub(super) const WINDOWS_EPOCH_OFFSET_TICKS: i64 = 116_444_736_000_000_000;
@@ -177,7 +175,7 @@ pub(crate) fn deliver_notification(
             .Activated(&TypedEventHandler::new(
                 move |_sender: Ref<'_, ToastNotification>, args: Ref<'_, IInspectable>| {
                     unregister_active_notification(host_session_id, &activated_id);
-                    runtime::remove_posted_notification(host_session_id, &activated_id);
+                    runtime::remove_notification_request(host_session_id, &activated_id);
 
                     let sequence = runtime::next_notification_sequence(host_session_id, platform);
                     let payload = windows_interacted_payload(
@@ -229,7 +227,7 @@ pub(crate) fn deliver_notification(
         .Dismissed(&TypedEventHandler::new(
             move |_sender: Ref<'_, ToastNotification>, args: Ref<'_, ToastDismissedEventArgs>| {
                 unregister_active_notification(host_session_id, &dismissed_id);
-                runtime::remove_posted_notification(host_session_id, &dismissed_id);
+                runtime::remove_notification_request(host_session_id, &dismissed_id);
 
                 let Some(args): Option<&ToastDismissedEventArgs> = args.as_ref() else {
                     return Ok(());
@@ -267,7 +265,7 @@ pub(crate) fn deliver_notification(
         .Failed(&TypedEventHandler::new(
             move |_sender: Ref<'_, ToastNotification>, args: Ref<'_, ToastFailedEventArgs>| {
                 unregister_active_notification(host_session_id, &failed_id);
-                runtime::remove_posted_notification(host_session_id, &failed_id);
+                runtime::remove_notification_request(host_session_id, &failed_id);
 
                 let args: Option<&ToastFailedEventArgs> = args.as_ref();
 
@@ -382,43 +380,6 @@ pub(crate) fn schedule_notification(
         .map_err(windows_notification_error)?;
 
     Ok(())
-}
-
-/// Return pending scheduled notifications from the Windows toast scheduler.
-pub(crate) fn list_pending_notifications(
-    context: &HostRequestContext,
-) -> RuntimeResult<Vec<NotificationScheduledDescriptorValue>> {
-    let notifier = windows_toast_notifier(context)?;
-    let scheduled = notifier
-        .GetScheduledToastNotifications()
-        .map_err(windows_notification_error)?;
-    let count = scheduled.Size().map_err(windows_notification_error)?;
-    let mut descriptors = Vec::with_capacity(count as usize);
-
-    // scheduled requests
-    for index in 0..count {
-        let scheduled = scheduled.GetAt(index).map_err(windows_notification_error)?;
-        let id = scheduled
-            .Id()
-            .map_err(windows_notification_error)?
-            .to_string_lossy();
-        let request = windows_request_from_document(
-            &scheduled.Content().map_err(windows_notification_error)?,
-        )?;
-        let scheduled_unix_ns = windows_datetime_to_unix_ns(
-            scheduled
-                .DeliveryTime()
-                .map_err(windows_notification_error)?,
-        );
-
-        descriptors.push(NotificationScheduledDescriptorValue {
-            id,
-            request,
-            scheduled_unix_ns: Some(scheduled_unix_ns),
-        });
-    }
-
-    Ok(descriptors)
 }
 
 /// Validate Windows notification categories and rely on runtime-backed action lookup.

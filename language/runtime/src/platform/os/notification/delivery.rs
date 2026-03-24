@@ -2,9 +2,7 @@ use crate::diagnostic::RuntimeResult;
 use crate::host::Platform;
 use crate::host::core::HostRequestContext;
 use crate::platform::os::NotificationPermissionState;
-use crate::platform::os::abi_generated::{
-    NotificationCategoryValue, NotificationRequestValue, NotificationScheduledDescriptorValue,
-};
+use crate::platform::os::abi_generated::{NotificationCategoryValue, NotificationRequestValue};
 
 #[cfg(target_os = "macos")]
 use crate::host::macos::request::notification::backend as notification_backend;
@@ -56,18 +54,6 @@ pub(super) fn schedule_native_notification(
     }
 
     schedule_platform_notification(context, id, request)
-}
-
-/// Return pending scheduled notifications through the active desktop host.
-pub(super) fn list_native_pending_notifications(
-    context: &HostRequestContext,
-) -> RuntimeResult<Vec<NotificationScheduledDescriptorValue>> {
-    #[cfg(test)]
-    if desktop_notification_test_mode_enabled() {
-        return Ok(Vec::new());
-    }
-
-    list_platform_pending_notifications(context)
 }
 
 /// Cancel one pending scheduled notification through the active desktop host.
@@ -129,13 +115,6 @@ fn schedule_platform_notification(
     request: &NotificationRequestValue,
 ) -> RuntimeResult<()> {
     notification_backend::schedule_notification(context, id, request)
-}
-
-/// Return pending scheduled notifications through the compiled host backend.
-fn list_platform_pending_notifications(
-    context: &HostRequestContext,
-) -> RuntimeResult<Vec<NotificationScheduledDescriptorValue>> {
-    notification_backend::list_pending_notifications(context)
 }
 
 /// Cancel one pending scheduled notification through the compiled host backend.

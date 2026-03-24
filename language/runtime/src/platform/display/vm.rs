@@ -104,7 +104,7 @@ pub(crate) fn destack_display_drag_session_read_bytes(
         host_display::destack_display_drag_session_read_bytes(binding, out, session, itemindex)
     })?;
 
-    VmSlice::from_bytes(context, &unsafe { value.as_slice()? })
+    VmSlice::from_bytes(context, unsafe { value.as_slice()? })
 }
 
 /// Read one drag session item as one path.

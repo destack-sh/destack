@@ -4566,16 +4566,10 @@ fn encode_destack_os_notification_event_read_result(
                                     Some(value) => Ok(value.value()),
                                     None => Ok(vm::Value::VOID),
                                 };
-                            let field_12: RuntimeResult<vm::Value> =
-                                match value.metadata.request.data_json {
-                                    Some(value) => Ok(value.value()),
-                                    None => Ok(vm::Value::VOID),
-                                };
                             context
                                 .allocate_aggregate(vec![
                                     field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
                                     field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
-                                    field_12?,
                                 ])
                                 .map_err(Box::<RuntimeError>::from)
                         };
@@ -4720,16 +4714,10 @@ fn encode_destack_os_notification_event_read_result(
                                     Some(value) => Ok(value.value()),
                                     None => Ok(vm::Value::VOID),
                                 };
-                            let field_12: RuntimeResult<vm::Value> =
-                                match value.metadata.request.data_json {
-                                    Some(value) => Ok(value.value()),
-                                    None => Ok(vm::Value::VOID),
-                                };
                             context
                                 .allocate_aggregate(vec![
                                     field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
                                     field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
-                                    field_12?,
                                 ])
                                 .map_err(Box::<RuntimeError>::from)
                         };
@@ -4874,16 +4862,10 @@ fn encode_destack_os_notification_event_read_result(
                                     Some(value) => Ok(value.value()),
                                     None => Ok(vm::Value::VOID),
                                 };
-                            let field_12: RuntimeResult<vm::Value> =
-                                match value.metadata.request.data_json {
-                                    Some(value) => Ok(value.value()),
-                                    None => Ok(vm::Value::VOID),
-                                };
                             context
                                 .allocate_aggregate(vec![
                                     field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
                                     field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
-                                    field_12?,
                                 ])
                                 .map_err(Box::<RuntimeError>::from)
                         };
@@ -5071,16 +5053,10 @@ fn encode_destack_os_notification_event_try_read_result(
                                     Some(value) => Ok(value.value()),
                                     None => Ok(vm::Value::VOID),
                                 };
-                            let field_12: RuntimeResult<vm::Value> =
-                                match value.metadata.request.data_json {
-                                    Some(value) => Ok(value.value()),
-                                    None => Ok(vm::Value::VOID),
-                                };
                             context
                                 .allocate_aggregate(vec![
                                     field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
                                     field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
-                                    field_12?,
                                 ])
                                 .map_err(Box::<RuntimeError>::from)
                         };
@@ -5225,16 +5201,10 @@ fn encode_destack_os_notification_event_try_read_result(
                                     Some(value) => Ok(value.value()),
                                     None => Ok(vm::Value::VOID),
                                 };
-                            let field_12: RuntimeResult<vm::Value> =
-                                match value.metadata.request.data_json {
-                                    Some(value) => Ok(value.value()),
-                                    None => Ok(vm::Value::VOID),
-                                };
                             context
                                 .allocate_aggregate(vec![
                                     field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
                                     field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
-                                    field_12?,
                                 ])
                                 .map_err(Box::<RuntimeError>::from)
                         };
@@ -5379,16 +5349,10 @@ fn encode_destack_os_notification_event_try_read_result(
                                     Some(value) => Ok(value.value()),
                                     None => Ok(vm::Value::VOID),
                                 };
-                            let field_12: RuntimeResult<vm::Value> =
-                                match value.metadata.request.data_json {
-                                    Some(value) => Ok(value.value()),
-                                    None => Ok(vm::Value::VOID),
-                                };
                             context
                                 .allocate_aggregate(vec![
                                     field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
                                     field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
-                                    field_12?,
                                 ])
                                 .map_err(Box::<RuntimeError>::from)
                         };
@@ -5491,10 +5455,10 @@ fn decode_destack_os_notification_post_args(
         let slots = context
             .aggregate_slots(request_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 13 {
+        if slots.len() != 12 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "request",
-                "expected 13 fields",
+                "expected 12 fields",
             ))
             .boxed());
         }
@@ -5564,13 +5528,6 @@ fn decode_destack_os_notification_post_args(
                 decode_string(slots[11], "request_action_id_inner", "actionId")?;
             Some(request_action_id_inner)
         };
-        let request_data_json = if slots[12].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let request_data_json_inner =
-                decode_string(slots[12], "request_data_json_inner", "dataJson")?;
-            Some(request_data_json_inner)
-        };
         NotificationRequestVm {
             title: request_title,
             subtitle: request_subtitle,
@@ -5584,7 +5541,6 @@ fn decode_destack_os_notification_post_args(
             thread_id: request_thread_id,
             trigger: request_trigger,
             action_id: request_action_id,
-            data_json: request_data_json,
         }
     };
     Ok((request,))
@@ -5630,10 +5586,10 @@ fn decode_destack_os_notification_schedule_args(
         let slots = context
             .aggregate_slots(request_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 13 {
+        if slots.len() != 12 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "request",
-                "expected 13 fields",
+                "expected 12 fields",
             ))
             .boxed());
         }
@@ -5703,13 +5659,6 @@ fn decode_destack_os_notification_schedule_args(
                 decode_string(slots[11], "request_action_id_inner", "actionId")?;
             Some(request_action_id_inner)
         };
-        let request_data_json = if slots[12].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let request_data_json_inner =
-                decode_string(slots[12], "request_data_json_inner", "dataJson")?;
-            Some(request_data_json_inner)
-        };
         NotificationRequestVm {
             title: request_title,
             subtitle: request_subtitle,
@@ -5723,7 +5672,6 @@ fn decode_destack_os_notification_schedule_args(
             thread_id: request_thread_id,
             trigger: request_trigger,
             action_id: request_action_id,
-            data_json: request_data_json,
         }
     };
     Ok((request,))
@@ -12868,12 +12816,6 @@ fn destack_os_notification_pending_list_replay(
                     } else {
                         None
                     };
-                    let result_recorded_item_recorded_request_data_json = if let Some(value) = result_recorded_item.request.data_json {
-                        let result_recorded_item_recorded_request_data_json_inner = unsafe { value.as_str()? }.to_string();
-                        Some(result_recorded_item_recorded_request_data_json_inner)
-                    } else {
-                        None
-                    };
                     let result_recorded_item_recorded_request = NotificationrequestReplayRecord {
                         title: result_recorded_item_recorded_request_title,
                         subtitle: result_recorded_item_recorded_request_subtitle,
@@ -12887,7 +12829,6 @@ fn destack_os_notification_pending_list_replay(
                         thread_id: result_recorded_item_recorded_request_thread_id,
                         trigger: result_recorded_item_recorded_request_trigger,
                         action_id: result_recorded_item_recorded_request_action_id,
-                        data_json: result_recorded_item_recorded_request_data_json,
                     };
                     let result_recorded_item_recorded_scheduled_unix_ns = if let Some(value) = result_recorded_item.scheduled_unix_ns {
                         let result_recorded_item_recorded_scheduled_unix_ns_inner = value;
@@ -13017,12 +12958,6 @@ fn destack_os_notification_pending_list_replay(
                         } else {
                             None
                         };
-                        let value_native_decoded_request_data_json = if let Some(value) = value_native_item.request.data_json {
-                            let value_native_decoded_request_data_json_inner = binding.store_string(value.as_str());
-                            Some(value_native_decoded_request_data_json_inner)
-                        } else {
-                            None
-                        };
                         let value_native_decoded_request = NotificationRequest {
                             title: value_native_decoded_request_title,
                             subtitle: value_native_decoded_request_subtitle,
@@ -13036,7 +12971,6 @@ fn destack_os_notification_pending_list_replay(
                             thread_id: value_native_decoded_request_thread_id,
                             trigger: value_native_decoded_request_trigger,
                             action_id: value_native_decoded_request_action_id,
-                            data_json: value_native_decoded_request_data_json,
                         };
                         let value_native_decoded_scheduled_unix_ns = if let Some(value) = value_native_item.scheduled_unix_ns {
                             let value_native_decoded_scheduled_unix_ns_inner = value;
@@ -20039,7 +19973,7 @@ fn destack_os_notification_pending_list_vm_replay(
                         let result_recorded_item_request = {
                             if slots[1].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_request", "request")).boxed()); }
                             let slots = context.aggregate_slots(slots[1]).map_err(|error| RuntimeError::from(error).boxed())?;
-                            if slots.len() != 13 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_request", "expected 13 fields")).boxed()); }
+                            if slots.len() != 12 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_request", "expected 12 fields")).boxed()); }
                             let result_recorded_item_request_title = decode_string(slots[0], "result_recorded_item_request_title", "title")?;
                             let result_recorded_item_request_subtitle = if slots[1].tag() == vm::ValueTag::Void {
                                 None
@@ -20088,12 +20022,6 @@ fn destack_os_notification_pending_list_vm_replay(
                                 let result_recorded_item_request_action_id_inner = decode_string(slots[11], "result_recorded_item_request_action_id_inner", "actionId")?;
                                 Some(result_recorded_item_request_action_id_inner)
                             };
-                            let result_recorded_item_request_data_json = if slots[12].tag() == vm::ValueTag::Void {
-                                None
-                            } else {
-                                let result_recorded_item_request_data_json_inner = decode_string(slots[12], "result_recorded_item_request_data_json_inner", "dataJson")?;
-                                Some(result_recorded_item_request_data_json_inner)
-                            };
                             NotificationRequestVm {
                                 title: result_recorded_item_request_title,
                                 subtitle: result_recorded_item_request_subtitle,
@@ -20107,7 +20035,6 @@ fn destack_os_notification_pending_list_vm_replay(
                                 thread_id: result_recorded_item_request_thread_id,
                                 trigger: result_recorded_item_request_trigger,
                                 action_id: result_recorded_item_request_action_id,
-                                data_json: result_recorded_item_request_data_json,
                             }
                         };
                         let result_recorded_item_scheduled_unix_ns = if slots[2].tag() == vm::ValueTag::Void {
@@ -20255,15 +20182,6 @@ fn destack_os_notification_pending_list_vm_replay(
                     } else {
                         None
                     };
-                    let result_recorded_item_recorded_request_data_json = if let Some(value) = result_recorded_item.request.data_json {
-                        let result_recorded_item_recorded_request_data_json_inner = {
-                            let result_recorded_item_recorded_request_data_json_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_item_recorded_request_data_json_inner_ref.as_str().to_string()
-                        };
-                        Some(result_recorded_item_recorded_request_data_json_inner)
-                    } else {
-                        None
-                    };
                     let result_recorded_item_recorded_request = NotificationrequestReplayRecord {
                         title: result_recorded_item_recorded_request_title,
                         subtitle: result_recorded_item_recorded_request_subtitle,
@@ -20277,7 +20195,6 @@ fn destack_os_notification_pending_list_vm_replay(
                         thread_id: result_recorded_item_recorded_request_thread_id,
                         trigger: result_recorded_item_recorded_request_trigger,
                         action_id: result_recorded_item_recorded_request_action_id,
-                        data_json: result_recorded_item_recorded_request_data_json,
                     };
                     let result_recorded_item_recorded_scheduled_unix_ns = if let Some(value) = result_recorded_item.scheduled_unix_ns {
                         let result_recorded_item_recorded_scheduled_unix_ns_inner = value;
@@ -20408,12 +20325,6 @@ fn destack_os_notification_pending_list_vm_replay(
                         } else {
                             None
                         };
-                        let vm_result_item_value_request_data_json = if let Some(value) = vm_result_item.request.data_json {
-                            let vm_result_item_value_request_data_json_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            Some(vm_result_item_value_request_data_json_inner)
-                        } else {
-                            None
-                        };
                         let vm_result_item_value_request = NotificationRequestVm {
                             title: vm_result_item_value_request_title,
                             subtitle: vm_result_item_value_request_subtitle,
@@ -20427,7 +20338,6 @@ fn destack_os_notification_pending_list_vm_replay(
                             thread_id: vm_result_item_value_request_thread_id,
                             trigger: vm_result_item_value_request_trigger,
                             action_id: vm_result_item_value_request_action_id,
-                            data_json: vm_result_item_value_request_data_json,
                         };
                         let vm_result_item_value_scheduled_unix_ns = if let Some(value) = vm_result_item.scheduled_unix_ns {
                             let vm_result_item_value_scheduled_unix_ns_inner = value;

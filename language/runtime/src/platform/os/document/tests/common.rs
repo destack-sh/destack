@@ -12,7 +12,9 @@ use crate::platform::os::tests::{HarnessContext, HarnessValue, with_harness_cont
 use crate::platform::os::{
     DocumentDescriptor, DocumentDescriptorVm, DocumentPickOptions, DocumentPickOptionsVm,
 };
-use crate::platform::{NativeArray, NativeSlice, NativeStringRef, VmArray, VmSlice};
+use crate::platform::{
+    NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, VmAbiCodec, VmArray, VmSlice,
+};
 
 /// Shared picker-test mutex that serializes the process-global picker hook.
 pub(super) static TEST_DOCUMENT_PICK_MUTEX: OnceLock<Mutex<()>> = OnceLock::new();
@@ -146,9 +148,7 @@ pub(super) fn decode_document_descriptors(
             let descriptors = unsafe { value.as_slice() }?
                 .iter()
                 .copied()
-                .map(|value| unsafe {
-                    <DocumentDescriptor as crate::platform::core::NativeAbiCodec>::into_value(value)
-                })
+                .map(|value| unsafe { <DocumentDescriptor as NativeAbiCodec>::into_value(value) })
                 .collect::<RuntimeResult<Vec<_>>>()?;
 
             Ok(descriptors)
@@ -166,9 +166,7 @@ pub(super) fn decode_document_descriptors(
             // decode one vm descriptor per picker result
             for descriptor in descriptors {
                 let descriptor =
-                    <DocumentDescriptorVm as crate::platform::core::VmAbiCodec>::into_value(
-                        descriptor, vm_context,
-                    )?;
+                    <DocumentDescriptorVm as VmAbiCodec>::into_value(descriptor, vm_context)?;
                 values.push(descriptor);
             }
 

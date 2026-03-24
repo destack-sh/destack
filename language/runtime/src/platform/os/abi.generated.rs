@@ -16322,8 +16322,6 @@ pub struct NotificationRequestAbi<A: BindingAbi> {
     pub trigger: platform_os::NotificationTriggerAbi<A>,
     /// Optional host action identifier payload.
     pub action_id: Option<A::String>,
-    /// Optional JSON payload string.
-    pub data_json: Option<A::String>,
 }
 
 pub type NotificationRequest = NotificationRequestAbi<NativeAbi>;
@@ -16365,10 +16363,10 @@ impl VmAggregateCodec for NotificationRequestAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 13 {
+        if slots.len() != 12 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 13 fields",
+                "expected 12 fields",
             ))
             .boxed());
         }
@@ -16397,9 +16395,6 @@ impl VmAggregateCodec for NotificationRequestAbi<VmAbi> {
         let field_action_id = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(
             context, slots[11],
         )?;
-        let field_data_json = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(
-            context, slots[12],
-        )?;
         Ok(Self {
             title: field_title,
             subtitle: field_subtitle,
@@ -16413,7 +16408,6 @@ impl VmAggregateCodec for NotificationRequestAbi<VmAbi> {
             thread_id: field_thread_id,
             trigger: field_trigger,
             action_id: field_action_id,
-            data_json: field_data_json,
         })
     }
 
@@ -16457,10 +16451,6 @@ impl VmAggregateCodec for NotificationRequestAbi<VmAbi> {
                 self.action_id,
                 context,
             )?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
-                self.data_json,
-                context,
-            )?,
         ];
         context
             .allocate_aggregate(slots)
@@ -16497,8 +16487,6 @@ pub struct NotificationRequestValue {
     pub trigger: NotificationTriggerValue,
     /// Optional host action identifier payload.
     pub action_id: Option<String>,
-    /// Optional JSON payload string.
-    pub data_json: Option<String>,
 }
 
 impl NativeAbiCodec for NotificationRequestAbi<NativeAbi> {
@@ -16529,9 +16517,6 @@ impl NativeAbiCodec for NotificationRequestAbi<NativeAbi> {
             trigger: unsafe { <NotificationTrigger as NativeAbiCodec>::into_value(self.trigger)? },
             action_id: unsafe {
                 <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.action_id)?
-            },
-            data_json: unsafe {
-                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.data_json)?
             },
         })
     }
@@ -16564,10 +16549,6 @@ impl NativeAbiCodec for NotificationRequestAbi<NativeAbi> {
             action_id: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
                 binding,
                 value.action_id,
-            ),
-            data_json: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
-                binding,
-                value.data_json,
             ),
         }
     }
@@ -16605,10 +16586,6 @@ impl VmAbiCodec for NotificationRequestAbi<VmAbi> {
                 self.action_id,
                 context,
             )?,
-            data_json: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
-                self.data_json,
-                context,
-            )?,
         })
     }
 
@@ -16643,10 +16620,6 @@ impl VmAbiCodec for NotificationRequestAbi<VmAbi> {
             action_id: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
                 context,
                 value.action_id,
-            )?,
-            data_json: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
-                context,
-                value.data_json,
             )?,
         })
     }
@@ -18305,8 +18278,6 @@ pub struct NotificationrequestReplayRecord {
     pub trigger: NotificationtriggerReplayRecord,
     /// Optional host action identifier payload.
     pub action_id: Option<String>,
-    /// Optional JSON payload string.
-    pub data_json: Option<String>,
 }
 
 /// Replay struct for NotificationScheduledDescriptor.

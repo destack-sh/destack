@@ -2,6 +2,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use destack_core::fnv1a_64;
+use postcard::{from_bytes, to_allocvec};
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -16,6 +17,8 @@ use crate::platform::os::abi_generated::{
 
 /// Prefix for persisted desktop notification scheduler artifacts.
 const DESKTOP_NOTIFICATION_SCHEDULER_PREFIX: &str = "destack-notification";
+/// Extension for persisted desktop notification records.
+const DESKTOP_NOTIFICATION_RECORD_EXTENSION: &str = "record";
 
 /// Persisted scheduled notification record.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -73,11 +76,13 @@ pub(crate) fn read_notification_records(
         })?;
         let path = entry.path();
 
-        if path.extension().and_then(|value| value.to_str()) != Some("json") {
+        if path.extension().and_then(|value| value.to_str())
+            != Some(DESKTOP_NOTIFICATION_RECORD_EXTENSION)
+        {
             continue;
         }
 
-        let payload = fs::read_to_string(&path).map_err(|error| {
+        let payload = fs::read(&path).map_err(|error| {
             RuntimeError::from(PlatformError::generic(
                 Some(PlatformErrorCode::IoPermissionDenied),
                 format!(
@@ -87,17 +92,8 @@ pub(crate) fn read_notification_records(
             ))
             .boxed()
         })?;
-        let record = serde_json::from_str::<DesktopScheduledNotificationRecord>(&payload)
-            .map_err(|error| {
-                RuntimeError::from(PlatformError::generic(
-                    Some(PlatformErrorCode::IoInvalidData),
-                    format!(
-                        "destack.os.notification.pendingList: invalid scheduled notification record {}: {error}",
-                        path.display()
-                    ),
-                ))
-                .boxed()
-            })?;
+        let record =
+            decode_notification_record("destack.os.notification.pendingList", &path, &payload)?;
 
         records.push(record);
     }
@@ -116,7 +112,7 @@ pub(crate) fn read_notification_record(
         return Ok(None);
     }
 
-    let payload = fs::read_to_string(&path).map_err(|error| {
+    let payload = fs::read(&path).map_err(|error| {
         RuntimeError::from(PlatformError::generic(
             Some(PlatformErrorCode::IoPermissionDenied),
             format!(
@@ -126,18 +122,8 @@ pub(crate) fn read_notification_record(
         ))
         .boxed()
     })?;
-    let record = serde_json::from_str::<DesktopScheduledNotificationRecord>(&payload).map_err(
-        |error| {
-            RuntimeError::from(PlatformError::generic(
-                Some(PlatformErrorCode::IoInvalidData),
-                format!(
-                    "destack.os.notification.pendingList: invalid scheduled notification record {}: {error}",
-                    path.display()
-                ),
-            ))
-            .boxed()
-        },
-    )?;
+    let record =
+        decode_notification_record("destack.os.notification.pendingList", &path, &payload)?;
 
     Ok(Some(record))
 }
@@ -149,15 +135,7 @@ pub(crate) fn write_notification_record(
 ) -> RuntimeResult<()> {
     let directory = ensure_notification_record_directory(context)?;
     let path = notification_record_path(context, &record.id)?;
-    let payload = serde_json::to_vec_pretty(record).map_err(|error| {
-        RuntimeError::from(PlatformError::generic(
-            Some(PlatformErrorCode::IoInvalidData),
-            format!(
-                "destack.os.notification.schedule: failed to encode scheduled notification record: {error}"
-            ),
-        ))
-        .boxed()
-    })?;
+    let payload = encode_notification_record("destack.os.notification.schedule", record)?;
 
     fs::create_dir_all(&directory).map_err(|error| {
         RuntimeError::from(PlatformError::generic(
@@ -182,6 +160,38 @@ pub(crate) fn write_notification_record(
     })?;
 
     Ok(())
+}
+
+/// Decode one persisted scheduled notification record.
+fn decode_notification_record(
+    operation: &'static str,
+    path: &std::path::Path,
+    payload: &[u8],
+) -> RuntimeResult<DesktopScheduledNotificationRecord> {
+    from_bytes::<DesktopScheduledNotificationRecord>(payload).map_err(|error| {
+        RuntimeError::from(PlatformError::generic(
+            Some(PlatformErrorCode::IoInvalidData),
+            format!(
+                "{operation}: invalid scheduled notification record {}: {error}",
+                path.display()
+            ),
+        ))
+        .boxed()
+    })
+}
+
+/// Encode one persisted scheduled notification record.
+fn encode_notification_record(
+    operation: &'static str,
+    record: &DesktopScheduledNotificationRecord,
+) -> RuntimeResult<Vec<u8>> {
+    to_allocvec(record).map_err(|error| {
+        RuntimeError::from(PlatformError::generic(
+            Some(PlatformErrorCode::IoInvalidData),
+            format!("{operation}: failed to encode scheduled notification record: {error}"),
+        ))
+        .boxed()
+    })
 }
 
 /// Remove one persisted scheduled notification record when it exists.
@@ -303,7 +313,9 @@ fn notification_record_path(context: &HostRequestContext, id: &str) -> RuntimeRe
     let directory = notification_record_directory(context)?;
     let hash = fnv1a_64(id.as_bytes());
 
-    Ok(directory.join(format!("{hash:016x}.json")))
+    Ok(directory.join(format!(
+        "{hash:016x}.{DESKTOP_NOTIFICATION_RECORD_EXTENSION}"
+    )))
 }
 
 /// Return the persisted scheduled notification record directory.

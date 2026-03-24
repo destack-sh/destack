@@ -65,7 +65,7 @@ pub(crate) fn cancel_all_notifications(context: &HostRequestContext) -> RuntimeR
 }
 
 /// Remove one posted notification from runtime state when present.
-#[cfg(any(target_os = "macos", windows, all(unix, not(target_os = "macos"))))]
+#[cfg(all(unix, not(target_os = "macos")))]
 pub(crate) fn remove_posted_notification(host_session_id: HostSessionId, id: &str) {
     let service = notification_runtime_service();
     let mut registry = service.registry.lock();
@@ -231,7 +231,6 @@ mod tests {
                 },
             ),
             action_id: None,
-            data_json: None,
         }
     }
 }

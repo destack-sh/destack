@@ -98,10 +98,10 @@ pub(crate) fn close_drag_session(
             .resources
             .remove(binding.world(), session.0, Some(binding.engine()));
 
-    if let Some(entry) = removed {
-        if entry.kind == ResourceKind::DisplayDragSession {
-            return Ok(());
-        }
+    if let Some(entry) = removed
+        && entry.kind == ResourceKind::DisplayDragSession
+    {
+        return Ok(());
     }
 
     Err(RuntimeError::from(PlatformError::invalid_argument(

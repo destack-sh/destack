@@ -6,15 +6,12 @@ use crate::host::core::{HostRequestContext, HostSessionContext, HostSessionId};
 use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::abi_generated::{
-    NotificationCategoryValue, NotificationRequestValue, NotificationScheduledDescriptorValue,
-    NotificationTriggerValue,
+    NotificationCategoryValue, NotificationRequestValue, NotificationTriggerValue,
 };
 use crate::platform::os::{NotificationActionStyle, NotificationPermissionState};
 
-use super::content::{
-    build_notification_content, notification_action_options, pending_descriptor_from_native_request,
-};
-use super::core::{MacosNotificationPayload, ensure_notification_delegate_registered};
+use super::content::{build_notification_content, notification_action_options};
+use super::core::ensure_notification_delegate_registered;
 use super::trigger::{build_notification_trigger, trigger_delivery_unix_ns};
 
 /// Deliver one notification through the macOS user notification center.
@@ -23,16 +20,7 @@ pub(crate) fn deliver_notification(
     id: &str,
     request: &NotificationRequestValue,
 ) -> RuntimeResult<()> {
-    submit_notification_request(
-        id,
-        request,
-        MacosNotificationPayload {
-            host_session_id: context.host_session_id.0,
-            request: request.clone(),
-            scheduled_unix_ns: None,
-        },
-        None,
-    )
+    submit_notification_request(context.host_session_id, id, request, None)
 }
 
 /// Request one macOS notification permission state through the native notification center.
@@ -94,74 +82,14 @@ pub(crate) fn schedule_notification(
     id: &str,
     request: &NotificationRequestValue,
 ) -> RuntimeResult<()> {
-    let scheduled_unix_ns = trigger_delivery_unix_ns(&request.trigger)?;
+    let _scheduled_unix_ns = trigger_delivery_unix_ns(&request.trigger)?;
 
     submit_notification_request(
+        context.host_session_id,
         id,
         request,
-        MacosNotificationPayload {
-            host_session_id: context.host_session_id.0,
-            request: request.clone(),
-            scheduled_unix_ns: Some(scheduled_unix_ns),
-        },
         Some(request.trigger.clone()),
     )
-}
-
-/// Return pending scheduled notifications from the macOS notification center.
-pub(crate) fn list_pending_notifications(
-    context: &HostRequestContext,
-) -> RuntimeResult<Vec<NotificationScheduledDescriptorValue>> {
-    use std::sync::mpsc::channel;
-
-    use block2::RcBlock;
-    use objc2_user_notifications::UNUserNotificationCenter;
-
-    let host_session_id = context.host_session_id;
-
-    call_process_main_context_if_needed(move || {
-        let center = UNUserNotificationCenter::currentNotificationCenter();
-        let (sender, receiver) = channel();
-        let completion = RcBlock::new(
-            move |pending: core::ptr::NonNull<
-                objc2_foundation::NSArray<objc2_user_notifications::UNNotificationRequest>,
-            >| {
-                let pending = unsafe { pending.as_ref() };
-                let mut descriptors = Vec::with_capacity(pending.len());
-
-                // decode each pending native request
-                for request in pending.iter() {
-                    match pending_descriptor_from_native_request(&request, host_session_id) {
-                        Ok(Some(descriptor)) => descriptors.push(descriptor),
-                        Ok(None) => {}
-                        Err(error) => {
-                            if let Err(send_error) = sender.send(Err(error)) {
-                                warn!(
-                                    ?send_error,
-                                    "failed to publish macOS pending notification decode error"
-                                );
-                            }
-                            return;
-                        }
-                    }
-                }
-
-                if let Err(error) = sender.send(Ok(descriptors)) {
-                    warn!(?error, "failed to publish macOS pending notification list");
-                }
-            },
-        );
-
-        center.getPendingNotificationRequestsWithCompletionHandler(&completion);
-
-        receiver.recv().map_err(|error| {
-            RuntimeError::from(PlatformError::generic(
-                Some(PlatformErrorCode::Generic),
-                format!("destack.os.notification.pendingList could not receive one macOS notification result: {error}"),
-            ))
-            .boxed()
-        })?
-    })
 }
 
 /// Register notification categories in the macOS notification center.
@@ -277,9 +205,9 @@ pub(crate) fn service_notification_ingress(_context: &HostSessionContext) -> Run
 
 /// Submit one native macOS notification request.
 fn submit_notification_request(
+    host_session_id: HostSessionId,
     id: &str,
     request: &NotificationRequestValue,
-    payload: MacosNotificationPayload,
     trigger: Option<NotificationTriggerValue>,
 ) -> RuntimeResult<()> {
     use std::sync::mpsc::channel;
@@ -294,7 +222,7 @@ fn submit_notification_request(
         let center = UNUserNotificationCenter::currentNotificationCenter();
         ensure_notification_delegate_registered(&center)?;
         let identifier = NSString::from_str(id);
-        let content = build_notification_content(&request, payload)?;
+        let content = build_notification_content(&request, host_session_id)?;
         let trigger = trigger
             .as_ref()
             .map(build_notification_trigger)

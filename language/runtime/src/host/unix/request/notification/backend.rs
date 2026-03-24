@@ -1,9 +1,7 @@
 use crate::diagnostic::RuntimeResult;
 use crate::host::core::{HostRequestContext, HostSessionContext, HostSessionId};
 use crate::platform::os::NotificationPermissionState;
-use crate::platform::os::abi_generated::{
-    NotificationCategoryValue, NotificationRequestValue, NotificationScheduledDescriptorValue,
-};
+use crate::platform::os::abi_generated::{NotificationCategoryValue, NotificationRequestValue};
 
 #[cfg(all(unix, not(target_vendor = "apple"), not(target_os = "linux")))]
 use super::core as notification_backend;
@@ -38,13 +36,6 @@ pub(crate) fn schedule_notification(
     request: &NotificationRequestValue,
 ) -> RuntimeResult<()> {
     notification_backend::schedule_notification(context, id, request)
-}
-
-/// List pending notifications through the active Unix backend.
-pub(crate) fn list_pending_notifications(
-    context: &HostRequestContext,
-) -> RuntimeResult<Vec<NotificationScheduledDescriptorValue>> {
-    notification_backend::list_pending_notifications(context)
 }
 
 /// Cancel one pending notification through the active Unix backend.

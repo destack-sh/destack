@@ -1,13 +1,17 @@
 use std::fs;
 use std::path::PathBuf;
 
+use postcard::{from_bytes, to_allocvec};
+
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::core::HostRequestContext;
 use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
 
 use super::core::DesktopBackgroundTaskRecord;
-use super::path::{background_task_directory, background_task_record_path};
+use super::path::{
+    DESKTOP_BACKGROUND_RECORD_EXTENSION, background_task_directory, background_task_record_path,
+};
 
 /// Ensure the persisted background task directory exists.
 pub(crate) fn ensure_background_task_directory(
@@ -61,11 +65,13 @@ pub(crate) fn read_background_task_records(
         })?;
         let path = entry.path();
 
-        if path.extension().and_then(|value| value.to_str()) != Some("json") {
+        if path.extension().and_then(|value| value.to_str())
+            != Some(DESKTOP_BACKGROUND_RECORD_EXTENSION)
+        {
             continue;
         }
 
-        let payload = fs::read_to_string(&path).map_err(|error| {
+        let payload = fs::read(&path).map_err(|error| {
             RuntimeError::from(PlatformError::generic(
                 Some(PlatformErrorCode::IoPermissionDenied),
                 format!(
@@ -75,17 +81,7 @@ pub(crate) fn read_background_task_records(
             ))
             .boxed()
         })?;
-        let record =
-            serde_json::from_str::<DesktopBackgroundTaskRecord>(&payload).map_err(|error| {
-                RuntimeError::from(PlatformError::generic(
-                    Some(PlatformErrorCode::IoInvalidData),
-                    format!(
-                        "destack.os.background.list: invalid background task record {}: {error}",
-                        path.display()
-                    ),
-                ))
-                .boxed()
-            })?;
+        let record = decode_background_task_record("destack.os.background.list", &path, &payload)?;
 
         records.push(record);
     }
@@ -104,7 +100,7 @@ pub(crate) fn read_background_task_record(
         return Ok(None);
     }
 
-    let payload = fs::read_to_string(&path).map_err(|error| {
+    let payload = fs::read(&path).map_err(|error| {
         RuntimeError::from(PlatformError::generic(
             Some(PlatformErrorCode::IoPermissionDenied),
             format!(
@@ -114,17 +110,7 @@ pub(crate) fn read_background_task_record(
         ))
         .boxed()
     })?;
-    let record =
-        serde_json::from_str::<DesktopBackgroundTaskRecord>(&payload).map_err(|error| {
-            RuntimeError::from(PlatformError::generic(
-                Some(PlatformErrorCode::IoInvalidData),
-                format!(
-                    "destack.os.background: invalid background task record {}: {error}",
-                    path.display()
-                ),
-            ))
-            .boxed()
-        })?;
+    let record = decode_background_task_record("destack.os.background", &path, &payload)?;
 
     Ok(Some(record))
 }
@@ -135,15 +121,7 @@ pub(crate) fn write_background_task_record(
     record: &DesktopBackgroundTaskRecord,
 ) -> RuntimeResult<()> {
     let path = background_task_record_path(context, &record.options.identifier)?;
-    let payload = serde_json::to_vec_pretty(record).map_err(|error| {
-        RuntimeError::from(PlatformError::generic(
-            Some(PlatformErrorCode::IoInvalidData),
-            format!(
-                "destack.os.background.register: failed to encode background task record: {error}"
-            ),
-        ))
-        .boxed()
-    })?;
+    let payload = encode_background_task_record("destack.os.background.register", record)?;
 
     fs::write(&path, payload).map_err(|error| {
         RuntimeError::from(PlatformError::generic(
@@ -157,6 +135,38 @@ pub(crate) fn write_background_task_record(
     })?;
 
     Ok(())
+}
+
+/// Decode one persisted desktop background task record.
+fn decode_background_task_record(
+    operation: &'static str,
+    path: &std::path::Path,
+    payload: &[u8],
+) -> RuntimeResult<DesktopBackgroundTaskRecord> {
+    from_bytes::<DesktopBackgroundTaskRecord>(payload).map_err(|error| {
+        RuntimeError::from(PlatformError::generic(
+            Some(PlatformErrorCode::IoInvalidData),
+            format!(
+                "{operation}: invalid background task record {}: {error}",
+                path.display()
+            ),
+        ))
+        .boxed()
+    })
+}
+
+/// Encode one persisted desktop background task record.
+fn encode_background_task_record(
+    operation: &'static str,
+    record: &DesktopBackgroundTaskRecord,
+) -> RuntimeResult<Vec<u8>> {
+    to_allocvec(record).map_err(|error| {
+        RuntimeError::from(PlatformError::generic(
+            Some(PlatformErrorCode::IoInvalidData),
+            format!("{operation}: failed to encode background task record: {error}"),
+        ))
+        .boxed()
+    })
 }
 
 /// Remove one persisted desktop background task record when it exists.

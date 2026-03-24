@@ -4,25 +4,12 @@ use objc2::runtime::ProtocolObject;
 use objc2::{MainThreadMarker, MainThreadOnly, define_class};
 use objc2_foundation::NSObjectProtocol;
 use objc2_user_notifications::UNUserNotificationCenterDelegate;
-use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::os::abi_generated::NotificationRequestValue;
 
 use super::delegate::handle_notification_response;
-
-/// Serialized metadata preserved on native notification requests.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub(super) struct MacosNotificationPayload {
-    /// The owning host runtime id for delegate event routing.
-    pub(super) host_session_id: u64,
-    /// The original runtime notification request.
-    pub(super) request: NotificationRequestValue,
-    /// The scheduled delivery timestamp when present.
-    pub(super) scheduled_unix_ns: Option<u64>,
-}
 
 /// Stored ivars for the shared macOS notification center delegate.
 #[derive(Debug, Default)]
@@ -104,6 +91,24 @@ pub(super) fn macos_notification_payload_error(error: impl std::fmt::Display) ->
         format!("destack.os.notification payload conversion failed: {error}"),
     ))
     .boxed()
+}
+
+/// Encode one host session id for the macOS notification payload slot.
+pub(super) fn encode_notification_host_session_id(host_session_id: u64) -> String {
+    format!("destack.notification.macos.v1:{host_session_id}")
+}
+
+/// Decode one host session id from the macOS notification payload slot.
+pub(super) fn decode_notification_host_session_id(payload: &str) -> RuntimeResult<u64> {
+    let Some(host_session_id) = payload.strip_prefix("destack.notification.macos.v1:") else {
+        return Err(macos_notification_payload_error(
+            "unexpected macOS notification payload kind",
+        ));
+    };
+
+    host_session_id
+        .parse::<u64>()
+        .map_err(macos_notification_payload_error)
 }
 
 /// Map one wall-clock conversion error into one runtime error.

@@ -344,20 +344,19 @@ pub(crate) unsafe fn destack_input_clipboard_write_items(
     for representation in representations {
         let mime_type = unsafe { representation.mime_type.as_str()? };
 
-        if representation.kind == ClipboardItemRepresentationKind::String {
-            if let Some(text) = representation.text {
-                let text = unsafe { text.as_str()? };
-                return write_text(text);
-            }
+        if representation.kind == ClipboardItemRepresentationKind::String
+            && let Some(text) = representation.text
+        {
+            let text = unsafe { text.as_str()? };
+            return write_text(text);
         }
 
         if representation.kind == ClipboardItemRepresentationKind::Binary
             && mime_type == HTML_MIME_TYPE
+            && let Some(bytes) = representation.bytes
         {
-            if let Some(bytes) = representation.bytes {
-                let bytes = unsafe { bytes.as_slice()? };
-                return super::target::write_html_bytes(bytes);
-            }
+            let bytes = unsafe { bytes.as_slice()? };
+            return super::target::write_html_bytes(bytes);
         }
     }
 

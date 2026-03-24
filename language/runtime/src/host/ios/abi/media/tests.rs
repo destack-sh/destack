@@ -14,11 +14,11 @@ use crate::host::ios::abi::media::ffi::{
 };
 use crate::host::ios::abi::registry::unregister_ios_bindings;
 use crate::host::{
-    HOST_STATUS_BUFFER_TOO_SMALL, HOST_STATUS_INVALID_ARGUMENT, HOST_STATUS_NOT_FOUND,
-    HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK, Platform,
+    HOST_STATUS_INVALID_ARGUMENT, HOST_STATUS_NOT_FOUND, HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK,
+    Platform,
 };
 use crate::platform::os::MediaAssetKind;
-use crate::platform::os::abi_generated::MediaAssetDescriptorValue;
+use crate::platform::os::abi_generated::{MediaAssetDescriptorValue, MediaPageValue};
 use crate::runtime::{NativeSlice, NativeStringRef, NativeStringSlice};
 
 /// Register one temporary iOS host queue and keep registration state alive.
@@ -294,7 +294,7 @@ fn test_host_media_asset_descriptor() -> HostMediaAssetDescriptor {
     }
 }
 
-fn decode_media_page(value: HostMediaPage) -> crate::platform::os::abi_generated::MediaPageValue {
+fn decode_media_page(value: HostMediaPage) -> MediaPageValue {
     value.decode("mediaList").unwrap()
 }
 

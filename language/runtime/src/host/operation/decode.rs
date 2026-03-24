@@ -2,13 +2,13 @@ use crate::diagnostic::RuntimeResult;
 use crate::host::core::request::{
     HostRequestOutcome, HostRequestResult, unexpected_request_result,
 };
+use crate::platform::os::NotificationPermissionState;
 use crate::platform::os::abi_generated::{
     BackgroundStatusValue, BackgroundTaskDescriptorValue, CalendarDescriptorValue,
-    CalendarEventValue, ContactPageValue, ContactValue, DocumentDescriptorValue,
-    LocationSampleValue, MediaAssetDescriptorValue, MediaPageValue, NotificationCategoryValue,
+    CalendarEventValue, ContactPageValue, ContactValue, LocationSampleValue,
+    MediaAssetDescriptorValue, MediaPageValue, NotificationCategoryValue,
     NotificationScheduledDescriptorValue,
 };
-use crate::platform::os::{NotificationPermissionState, PermissionEntry, PermissionState};
 
 /// Decode one unit request result.
 pub(crate) fn none(outcome: HostRequestOutcome, operation: &'static str) -> RuntimeResult<()> {
@@ -131,17 +131,6 @@ pub(crate) fn contact(
     }
 }
 
-/// Decode one document descriptor list request result.
-pub(crate) fn document_descriptors(
-    outcome: HostRequestOutcome,
-    operation: &'static str,
-) -> RuntimeResult<Vec<DocumentDescriptorValue>> {
-    match outcome.result {
-        HostRequestResult::DocumentDescriptors(value) => Ok(value),
-        _ => Err(unexpected_request_result(operation, "document descriptors")),
-    }
-}
-
 /// Decode one location sample request result.
 pub(crate) fn location_sample(
     outcome: HostRequestOutcome,
@@ -175,28 +164,6 @@ pub(crate) fn media_page(
     match outcome.result {
         HostRequestResult::MediaPage(value) => Ok(value),
         _ => Err(unexpected_request_result(operation, "media page")),
-    }
-}
-
-/// Decode one permission state request result.
-pub(crate) fn permission_state(
-    outcome: HostRequestOutcome,
-    operation: &'static str,
-) -> RuntimeResult<PermissionState> {
-    match outcome.result {
-        HostRequestResult::PermissionState(value) => Ok(value),
-        _ => Err(unexpected_request_result(operation, "permission state")),
-    }
-}
-
-/// Decode one permission entry list request result.
-pub(crate) fn permission_entries(
-    outcome: HostRequestOutcome,
-    operation: &'static str,
-) -> RuntimeResult<Vec<PermissionEntry>> {
-    match outcome.result {
-        HostRequestResult::PermissionEntries(value) => Ok(value),
-        _ => Err(unexpected_request_result(operation, "permission entries")),
     }
 }
 

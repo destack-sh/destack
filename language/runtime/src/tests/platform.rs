@@ -1,4 +1,4 @@
-#![cfg_attr(feature = "execution", allow(dead_code))]
+#![cfg_attr(feature = "execution", allow(dead_code, unused_imports))]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;

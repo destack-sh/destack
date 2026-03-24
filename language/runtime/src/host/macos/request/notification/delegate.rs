@@ -5,7 +5,7 @@ use crate::host::core::HostSessionId;
 use crate::platform::os::abi_generated::NotificationInteractedPayloadValue;
 use crate::platform::os::notification::runtime;
 
-use super::content::notification_payload_from_native_request;
+use super::content::notification_host_session_id_from_native_request;
 
 /// Handle one native macOS notification response through the runtime event bridge.
 pub(super) fn handle_notification_response(
@@ -20,20 +20,27 @@ pub(super) fn handle_notification_response(
     let notification = response.notification();
     let request = notification.request();
     let id = request.identifier().to_string();
-    let payload = match notification_payload_from_native_request(&request) {
-        Ok(payload) => payload,
+    let host_session_id = match notification_host_session_id_from_native_request(&request) {
+        Ok(host_session_id) => HostSessionId(host_session_id),
         Err(error) => {
             warn!(
                 ?error,
                 notification_id = id,
-                "failed to decode macOS notification payload"
+                "failed to decode macOS notification host session id"
             );
             return;
         }
     };
 
-    let host_session_id = HostSessionId(payload.host_session_id);
-    runtime::remove_posted_notification(host_session_id, &id);
+    let Some(notification_request) = runtime::notification_request(host_session_id, &id) else {
+        warn!(
+            notification_id = id,
+            "failed to resolve macOS notification request"
+        );
+        return;
+    };
+
+    runtime::remove_notification_request(host_session_id, &id);
     let action_identifier = response.actionIdentifier().to_string();
 
     let dismiss_action_identifier = unsafe { UNNotificationDismissActionIdentifier }.to_string();
@@ -43,7 +50,7 @@ pub(super) fn handle_notification_response(
             host_session_id,
             Platform::MacOS,
             id,
-            payload.request,
+            notification_request,
             sequence,
         );
 
@@ -59,7 +66,7 @@ pub(super) fn handle_notification_response(
         .map(|response| response.userText().to_string());
     let default_action_identifier = unsafe { UNNotificationDefaultActionIdentifier }.to_string();
     let action_id = if action_identifier == default_action_identifier {
-        payload.request.action_id.clone()
+        notification_request.action_id.clone()
     } else {
         Some(action_identifier)
     };
@@ -68,7 +75,7 @@ pub(super) fn handle_notification_response(
         host_session_id,
         Platform::MacOS,
         id,
-        payload.request,
+        notification_request,
         sequence,
         NotificationInteractedPayloadValue {
             action_id,
