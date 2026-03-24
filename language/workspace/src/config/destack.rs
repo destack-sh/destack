@@ -65,6 +65,10 @@ impl Destack {
         // parse the Destack config from the JSON value
         let destack_config_json: DestackJson = serde_json::from_value(value.clone())?;
 
+        destack_config_json.linter.validate().map_err(|error| {
+            serde_json::Error::io(std::io::Error::new(std::io::ErrorKind::InvalidData, error))
+        })?;
+
         // extract path from file (prefer file.path, fall back to URI conversion)
         let path = file
             .path
@@ -1030,4 +1034,42 @@ pub enum ExtendsFieldJson {
     Single(String),
     /// Extend multiple Destack configs.
     Multiple(Vec<String>),
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+    use std::sync::Arc;
+
+    use destack_source::{FileType, Uri};
+
+    use super::*;
+
+    /// Reject invalid linter regex patterns during config parse.
+    #[test]
+    fn test_rejects_invalid_linter_regex_pattern() {
+        let file = File::from_text_as_json(
+            FileId::new(1),
+            "destack.json".to_string(),
+            Uri::from_string("file:///tmp/destack.json"),
+            Some(PathBuf::from("/tmp/destack.json")),
+            FileType::Json,
+            r#"
+{
+  "linter": {
+    "allowedRequireImportPatterns": ["["]
+  }
+}
+"#
+            .to_string(),
+        )
+        .unwrap_or_else(|error| panic!("expected valid json fixture: {error}"));
+        let file = Arc::new(file);
+
+        let error = Destack::parse(&file)
+            .err()
+            .unwrap_or_else(|| panic!("expected invalid regex parse error"));
+        let message = error.to_string();
+        assert!(message.contains("linter.allowedRequireImportPatterns"));
+    }
 }

@@ -1,8 +1,12 @@
+use std::sync::Arc;
+
+use regex::Regex;
+
 use destack_core::StringId;
 use destack_dir::{
     self as dir, DependencySource, NodeVisitor, NodeVisitorOptions, walk_expression,
 };
-use destack_workspace::LintSeverity;
+use destack_workspace::{LintSeverity, compiled_allowed_require_import_patterns};
 
 use crate::rules::common::{
     expression_is_global_qualified_member, expression_static_string_literal,
@@ -53,6 +57,10 @@ struct NoRequireImportsVisitor<'a, 'b> {
     require_name: StringId,
     /// The global qualifier symbols.
     global_qualifiers: Vec<dir::GlobalSymbolId>,
+    /// Static require target allow patterns.
+    allowed_target_patterns: Arc<[Regex]>,
+    /// Whether import-equals require aliases are allowed.
+    allow_require_import_aliases: bool,
     /// The visitor options.
     options: NodeVisitorOptions,
 }
@@ -62,12 +70,17 @@ impl<'a, 'b> NoRequireImportsVisitor<'a, 'b> {
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let require_name = ctx.program.strings.intern("require");
         let global_qualifiers = ctx.global_qualifier_symbols();
+        let allowed_target_patterns =
+            compiled_allowed_require_import_patterns(&ctx.options.allowed_require_import_patterns);
+        let allow_require_import_aliases = ctx.options.allow_require_import_aliases;
 
         Self {
             ctx,
             meta,
             require_name,
             global_qualifiers,
+            allowed_target_patterns,
+            allow_require_import_aliases,
             options: NodeVisitorOptions::default(),
         }
     }
@@ -90,6 +103,24 @@ impl<'a, 'b> NoRequireImportsVisitor<'a, 'b> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
+        if self.allow_require_import_aliases
+            && expression_is_require_import_alias(self.ctx.tree, expression)
+        {
+            return;
+        }
+
+        if let Some(target) = require_import_target(
+            self.ctx.tree,
+            expression,
+            &self.global_qualifiers,
+            self.require_name,
+        ) && require_target_is_allowed(
+            self.ctx.program.strings.get(target).as_ref(),
+            &self.allowed_target_patterns,
+        ) {
+            return;
+        }
+
         if !expression_uses_require_import(
             self.ctx.tree,
             expression,
@@ -151,6 +182,22 @@ impl NodeVisitor for NoRequireImportsVisitor<'_, '_> {
     }
 }
 
+/// Return true when an expression is `import foo = require("foo")`.
+fn expression_is_require_import_alias(tree: &dir::NodeTree, expression: &dir::Expression) -> bool {
+    let dir::Expression::Declaration { declaration } = expression else {
+        return false;
+    };
+
+    let declaration = tree.get(*declaration);
+    matches!(
+        declaration,
+        dir::Declaration::ImportAlias {
+            target: dir::ImportAliasTarget::Require { .. },
+            ..
+        }
+    )
+}
+
 /// Return true when an expression represents a require() import.
 fn expression_uses_require_import(
     tree: &dir::NodeTree,
@@ -204,6 +251,74 @@ fn expression_uses_require_import(
     }
 
     expression_is_global_qualified_member(tree, callee_id, global_qualifiers, require_name)
+}
+
+/// Return the static target string for one require-based import form.
+fn require_import_target(
+    tree: &dir::NodeTree,
+    expression: &dir::Expression,
+    global_qualifiers: &[dir::GlobalSymbolId],
+    require_name: StringId,
+) -> Option<StringId> {
+    match expression {
+        dir::Expression::Declaration { declaration } => {
+            let declaration = tree.get(*declaration);
+            let dir::Declaration::ImportAlias {
+                target: dir::ImportAliasTarget::Require { target },
+                ..
+            } = declaration
+            else {
+                return None;
+            };
+
+            return Some(*target);
+        }
+        dir::Expression::Import { source, target, .. }
+            if *source == DependencySource::RequireCall
+                || *source == DependencySource::ImportEquals =>
+        {
+            return Some(*target);
+        }
+        dir::Expression::UnresolvedImport { source, target, .. }
+            if *source == DependencySource::RequireCall
+                || *source == DependencySource::ImportEquals =>
+        {
+            let dir::ImportTarget::String(target) = target else {
+                return None;
+            };
+
+            return Some(*target);
+        }
+        _ => {}
+    }
+
+    let dir::Expression::Call {
+        dynamic_arguments, ..
+    } = expression
+    else {
+        return None;
+    };
+    if dynamic_arguments.len() != 1 {
+        return None;
+    }
+
+    if !expression_uses_require_import(tree, expression, global_qualifiers, require_name) {
+        return None;
+    }
+
+    let argument = tree.get(dynamic_arguments[0]);
+    let dir::Argument::Positional { value, .. } = argument else {
+        return None;
+    };
+
+    expression_static_string_literal(tree, *value)
+}
+
+/// Return true when one static require target matches an allowed pattern.
+fn require_target_is_allowed(target: &str, allowed_target_patterns: &[Regex]) -> bool {
+    allowed_target_patterns
+        .iter()
+        .any(|pattern| pattern.is_match(target))
 }
 
 /// Build a fix for one supported require() import form.
@@ -482,6 +597,22 @@ React;
         test.result(result).assert_lint("no-require-imports");
     }
 
+    /// Allow import-equals require declarations when configured.
+    #[test]
+    fn test_allows_import_equals_require_when_enabled() {
+        let test = TestProgram::for_rule_with_prelude(NoRequireImports).with_options(|options| {
+            options.allow_require_import_aliases = true;
+        });
+        let result = test.lint_dir(
+            "no_require_imports/test_allows_import_equals_require_when_enabled.ds",
+            r#"
+import fs = require("fs");
+fs;
+"#,
+        );
+        test.result(result).assert_no_lint("no-require-imports");
+    }
+
     /// Allow locally shadowed globalThis.require calls.
     #[test]
     fn test_allows_shadowed_global_require_member_call() {
@@ -514,6 +645,51 @@ fs;
 "#,
         );
         test.result(result).assert_no_lint("no-require-imports");
+    }
+
+    /// Allow require calls that match configured target patterns.
+    #[test]
+    fn test_allows_require_call_with_allowed_target_pattern() {
+        let test = TestProgram::for_rule_with_prelude(NoRequireImports).with_options(|options| {
+            options.allowed_require_import_patterns = vec!["/package\\.json$".to_string()];
+        });
+        let result = test.lint_dir(
+            "no_require_imports/test_allows_require_call_with_allowed_target_pattern.ds",
+            r#"
+const pkg = require("../package.json");
+"#,
+        );
+        test.result(result).assert_no_lint("no-require-imports");
+    }
+
+    /// Allow template-literal require calls that match configured target patterns.
+    #[test]
+    fn test_allows_template_require_call_with_allowed_target_pattern() {
+        let test = TestProgram::for_rule_with_prelude(NoRequireImports).with_options(|options| {
+            options.allowed_require_import_patterns = vec!["/package\\.json$".to_string()];
+        });
+        let result = test.lint_dir(
+            "no_require_imports/test_allows_template_require_call_with_allowed_target_pattern.ds",
+            r#"
+const pkg = require(`../package.json`);
+"#,
+        );
+        test.result(result).assert_no_lint("no-require-imports");
+    }
+
+    /// Keep reporting require calls when the configured target patterns do not match.
+    #[test]
+    fn test_flags_require_call_when_allowed_target_pattern_does_not_match() {
+        let test = TestProgram::for_rule_with_prelude(NoRequireImports).with_options(|options| {
+            options.allowed_require_import_patterns = vec!["/package\\.json$".to_string()];
+        });
+        let result = test.lint_dir(
+            "no_require_imports/test_flags_require_call_when_allowed_target_pattern_does_not_match.ds",
+            r#"
+const fs = require("fs");
+"#,
+        );
+        test.result(result).assert_lint("no-require-imports");
     }
 
     /// Unsafely rewrite one import equals require alias to ESM.
