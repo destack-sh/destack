@@ -130,6 +130,7 @@ fn main() {
     let (diagnostic_count, performance) = run_lint_phase(
         &runner,
         program.clone(),
+        compiler.artifacts.clone(),
         &modules,
         profile_id,
         &lint_options,
@@ -292,6 +293,7 @@ fn run_analyze_phase(
 fn run_lint_phase(
     runner: &LintRunner,
     program: Arc<Program>,
+    artifacts: Arc<destack_artifact::ArtifactStore>,
     modules: &[ModuleId],
     profile_id: destack_workspace::ProfileId,
     options: &LinterOptions,
@@ -307,6 +309,7 @@ fn run_lint_phase(
         if include_ast {
             let report = runner.lint_module_profiled(
                 program.clone(),
+                artifacts.clone(),
                 module.clone(),
                 profile_id,
                 options,
@@ -319,6 +322,7 @@ fn run_lint_phase(
         if include_dir {
             let report = runner.lint_module_profiled(
                 program.clone(),
+                artifacts.clone(),
                 module.clone(),
                 profile_id,
                 options,
@@ -331,14 +335,14 @@ fn run_lint_phase(
 
     // program scope ast run
     if include_ast {
-        let report = runner.lint_program_ast_profiled(program.clone(), options);
+        let report = runner.lint_program_ast_profiled(program.clone(), artifacts.clone(), options);
         diagnostics += report.diagnostics.len();
         performance.merge(&report.performance);
     }
 
     // program scope dir run
     if include_dir {
-        let report = runner.lint_program_dir_profiled(program, profile_id, options);
+        let report = runner.lint_program_dir_profiled(program, artifacts, profile_id, options);
         diagnostics += report.diagnostics.len();
         performance.merge(&report.performance);
     }

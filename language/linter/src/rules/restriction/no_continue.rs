@@ -123,4 +123,20 @@ do {
         );
         test.result(result).assert_lint("no-continue");
     }
+
+    #[test]
+    fn test_detects_continue_in_while() {
+        let test = TestProgram::for_rule_without_prelude(NoContinue);
+        let result = test.lint_ast(
+            "no_continue/test_detects_continue_in_while.ts",
+            r#"
+let i = 0;
+while (i < 3) {
+    i += 1;
+    continue;
+}
+"#,
+        );
+        test.result(result).assert_lint("no-continue");
+    }
 }

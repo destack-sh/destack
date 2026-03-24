@@ -277,8 +277,8 @@ value;
         let result = test.lint_dir(
             "no_relative_parent_imports/test_allows_package_import.ds",
             r#"
-import { readFile } from "node:fs";
-readFile;
+import { safe } from "public/safe";
+safe;
 "#,
         );
         test.result(result)

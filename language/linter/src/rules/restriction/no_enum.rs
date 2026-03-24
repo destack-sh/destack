@@ -6,8 +6,9 @@ use crate::{LintAstContext, LintDiagnostic, LintMeta, LintRule, declare_lint};
 declare_lint! {
     /// Disallow TypeScript enums.
     ///
-    /// TypeScript enums have unusual runtime behavior and can lead to larger
-    /// bundle sizes. Consider using union types or const objects instead.
+    /// TypeScript enums have semantics that differ from plain union types and
+    /// object literals, and regular enums can also increase emitted runtime
+    /// surface. Consider using union types or const objects instead.
     #[lint(
         id = "no-enum",
         code = "LR011",
@@ -141,6 +142,21 @@ declare enum Color {
         });
         let result = test.lint_ast(
             "no_enum/test_includes_declaration_file_when_enabled.d.ts",
+            r#"
+declare enum Color {
+    Red,
+    Green
+}
+"#,
+        );
+        test.result(result).assert_lint("no-enum");
+    }
+
+    #[test]
+    fn test_detects_ambient_enum_in_source_file() {
+        let test = TestProgram::for_rule_without_prelude(NoEnum);
+        let result = test.lint_ast(
+            "no_enum/test_detects_ambient_enum_in_source_file.ts",
             r#"
 declare enum Color {
     Red,
