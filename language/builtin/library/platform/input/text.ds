@@ -3,7 +3,7 @@ import type { PlatformError } from "../error/index.ds";
 import { DisplayDragTransfer } from "../display/drag.ds";
 import { ClipboardItemDescriptor } from "./clipboard.ds";
 import { InputCompositionEvent, InputEventMetadata } from "./event.ds";
-import { InputDeviceHandle } from "../resource/index.ds";
+import { InputTextSessionHandle } from "../resource/index.ds";
 import { InputWindowTarget } from "./target.ds";
 
 /// Text input type hint.
@@ -44,6 +44,28 @@ export struct InputTextInputArea {
     height: uint32;
     /// Cursor offset inside the text area.
     cursor: int32;
+}
+
+/// Text input session configuration.
+export struct InputTextSessionConfig {
+    /// Window target when one explicit host window scope is required.
+    target: InputWindowTarget;
+    /// Text input type hint.
+    inputType: InputTextInputType;
+    /// Whether the session is multiline.
+    isMultiline: boolean;
+    /// Whether the session is secure or password-like.
+    isSecure: boolean;
+}
+
+/// Text input session state.
+export struct InputTextSessionState {
+    /// Full text state.
+    text: string;
+    /// Current selection range in UTF-16 code units.
+    selection: InputTextRange;
+    /// Current composing range in UTF-16 code units when one composition is active.
+    composing: InputTextRange | void;
 }
 
 /// Edit intent kind aligned with web `beforeinput` input types.
@@ -186,17 +208,33 @@ export struct InputClipboardCommandEvent {
     isComposing: boolean;
 }
 
+/// One text-session state event.
+export struct InputTextSessionStateEvent {
+    /// Discriminator for this text event variant.
+    kind: "stateChanged";
+    /// Shared event metadata.
+    metadata: InputEventMetadata;
+    /// The current host text state.
+    state: InputTextSessionState;
+}
+
+/// One text-session event.
+export newtype InputTextSessionEvent =
+    | InputTextSessionStateEvent
+    | InputCompositionEvent
+    | InputEditIntentEvent
+    | InputClipboardCommandEvent;
+
 /// Input text bindings.
 declare namespace input {
-    /// Start text input.
+    /// Open one text input session.
     ///
-    /// Enable text input and composition dispatch for one opened input device and one optional window target.
-    /// Text conversion behavior follows host IME and keyboard policy for the selected target scope.
+    /// Open one focused text input session for the active renderer editor and initial text state.
+    /// The host uses this session to attach platform IME or editing services for the selected target scope.
     ///
     /// # Platform
     /// Unix and Windows.
     /// Returns operation-level `notSupported` where text input sessions or one window scope are unavailable.
-    /// Uses backend-specific text input activation primitives.
     /// Unix terminal and Windows console backends currently support only the default focus scope.
     ///
     /// # Errors
@@ -207,7 +245,7 @@ declare namespace input {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.input.text.start", {
+    @binding("destack.input.text.open", {
         effect: "external",
         replay: "recordable",
         capabilities: ["input.text"],
@@ -217,76 +255,43 @@ declare namespace input {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function textStart(
-        handle: InputDeviceHandle,
-        target: InputWindowTarget,
-        inputType: InputTextInputType,
-    ): Result<void, PlatformError>;
+    export function textOpen(
+        config: InputTextSessionConfig,
+        state: InputTextSessionState,
+    ): Result<InputTextSessionHandle, PlatformError>;
 
-    /// Stop text input.
+    /// Close one text input session.
     ///
-    /// Disable text input and composition dispatch for one opened input device and one optional window target.
-    /// Pending composition updates are finalized or canceled according to backend policy for the selected target scope.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where one window scope is unavailable.
-    /// Uses backend-specific text input deactivation primitives.
-    /// Unix terminal and Windows console backends currently support only the default focus scope.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.text`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    @binding("destack.input.text.stop", {
-        effect: "external",
-        replay: "recordable",
-        capabilities: ["input.text"],
-        platforms: ["windows", "unix"],
-        simulation: "stub",
-        scope: "host",
-        blocking: "sometimes",
-        affinity: "any",
-    })
-    export function textStop(
-        handle: InputDeviceHandle,
-        target: InputWindowTarget,
-    ): Result<void, PlatformError>;
-
-    /// Query text input active state.
-    ///
-    /// Return whether text input is currently active for one opened input device.
+    /// Close one active text input session and detach any host IME or editing services.
+    /// Pending composition updates are finalized or canceled according to backend policy.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend-specific text session status checks.
+    /// Returns operation-level `notSupported` where text input sessions are unavailable.
     ///
     /// # Errors
-    /// Returns invalidArgument, ioNotFound, notSupported.
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
     ///
     /// # Security
     /// Requires `input.text`.
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.input.text.isActive", {
+    @binding("destack.input.text.close", {
         effect: "external",
         replay: "recordable",
         capabilities: ["input.text"],
         platforms: ["windows", "unix"],
         simulation: "stub",
         scope: "host",
-        blocking: "never",
+        blocking: "sometimes",
         affinity: "any",
     })
-    export function textIsActive(handle: InputDeviceHandle): Result<boolean, PlatformError>;
+    export function textClose(session: InputTextSessionHandle): Result<void, PlatformError>;
 
     /// Set text input area.
     ///
-    /// Set one text input area and cursor position hint for one opened input device and one optional window target.
+    /// Set one text input area and cursor position hint for one active text input session.
     /// Area hints are used by host IME placement when supported for the selected target scope.
     ///
     /// # Platform
@@ -313,15 +318,14 @@ declare namespace input {
         affinity: "any",
     })
     export function textSetArea(
-        handle: InputDeviceHandle,
-        target: InputWindowTarget,
+        session: InputTextSessionHandle,
         area: InputTextInputArea,
     ): Result<void, PlatformError>;
 
     /// Get text input area.
     ///
     /// Return the currently configured text input area and cursor position hint.
-    /// Resolve state for one opened input device and one optional window target.
+    /// Resolve state for one active text input session.
     ///
     /// # Platform
     /// Unix and Windows, with operation-level `notSupported` where one window scope is unavailable.
@@ -347,57 +351,27 @@ declare namespace input {
         affinity: "any",
     })
     export function textGetArea(
-        handle: InputDeviceHandle,
-        target: InputWindowTarget,
+        session: InputTextSessionHandle,
     ): Result<InputTextInputArea, PlatformError>;
 
-    /// Read one composition event.
+    /// Set text input state.
     ///
-    /// Read one pending composition lifecycle event for one opened input device.
-    /// Composition events represent begin, update, commit, end, and cancel transitions.
+    /// Update one active text input session with renderer-owned text, selection, and composition state.
+    /// Hosts use this state to synchronize platform IME or editing services with the focused editor.
     ///
     /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where composition events are unavailable.
-    /// Uses backend-specific IME composition queues.
+    /// Unix and Windows.
+    /// Returns operation-level `notSupported` where text input sessions are unavailable.
     ///
     /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    /// Returns invalidArgument, ioNotFound, notSupported.
     ///
     /// # Security
     /// Requires `input.text`.
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.input.text.readComposition", {
-        effect: "external",
-        replay: "recordable",
-        capabilities: ["input.text"],
-        platforms: ["windows", "unix"],
-        simulation: "stub",
-        scope: "host",
-        blocking: "sometimes",
-        affinity: "any",
-    })
-    export function textReadComposition(handle: InputDeviceHandle): Result<InputCompositionEvent, PlatformError>;
-
-    /// Poll one composition event without blocking.
-    ///
-    /// Poll one pending composition lifecycle event and return immediately when no event is queued.
-    /// Empty queue state is reported through ioWouldBlock.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where composition events are unavailable.
-    /// Uses backend-specific nonblocking IME composition queue reads.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.text`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    @binding("destack.input.text.tryReadComposition", {
+    @binding("destack.input.text.setState", {
         effect: "external",
         replay: "recordable",
         capabilities: ["input.text"],
@@ -407,15 +381,19 @@ declare namespace input {
         blocking: "never",
         affinity: "any",
     })
-    export function textTryReadComposition(handle: InputDeviceHandle): Result<InputCompositionEvent, PlatformError>;
+    export function textSetState(
+        session: InputTextSessionHandle,
+        state: InputTextSessionState,
+    ): Result<void, PlatformError>;
 
-    /// Read one edit intent event.
+    /// Read one text-session event.
     ///
-    /// Read one pending edit intent for one opened text-capable input device.
-    /// Edit intents align with web `beforeinput` semantics for text insertion, deletion, formatting, paste, and drop operations.
+    /// Read one pending text-session event for one active text input session.
+    /// Session events include host state changes, composition events, edit intents, and clipboard commands.
     ///
     /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where edit intents are unavailable.
+    /// Unix and Windows, with operation-level `notSupported` where text-session events are unavailable.
+    /// Uses backend-specific IME, editing, and clipboard event queues.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -425,7 +403,7 @@ declare namespace input {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.input.text.readEditIntent", {
+    @binding("destack.input.text.readEvent", {
         effect: "external",
         replay: "recordable",
         capabilities: ["input.text"],
@@ -435,15 +413,18 @@ declare namespace input {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function textReadEditIntent(handle: InputDeviceHandle): Result<InputEditIntentEvent, PlatformError>;
+    export function textReadEvent(
+        session: InputTextSessionHandle,
+    ): Result<InputTextSessionEvent, PlatformError>;
 
-    /// Poll one edit intent event without blocking.
+    /// Poll one text-session event without blocking.
     ///
-    /// Poll one pending edit intent event and return immediately when no event is queued.
+    /// Poll one pending text-session event and return immediately when no event is queued.
     /// Empty queue state is reported through ioWouldBlock.
     ///
     /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where edit intents are unavailable.
+    /// Unix and Windows, with operation-level `notSupported` where text-session events are unavailable.
+    /// Uses backend-specific nonblocking IME, editing, and clipboard queue reads.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -453,7 +434,7 @@ declare namespace input {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.input.text.tryReadEditIntent", {
+    @binding("destack.input.text.tryReadEvent", {
         effect: "external",
         replay: "recordable",
         capabilities: ["input.text"],
@@ -463,65 +444,7 @@ declare namespace input {
         blocking: "never",
         affinity: "any",
     })
-    export function textTryReadEditIntent(handle: InputDeviceHandle): Result<InputEditIntentEvent, PlatformError>;
-
-    /// Read one clipboard command event.
-    ///
-    /// Read one pending clipboard or selection command for one opened text-capable input device.
-    /// This lane aligns with web `copy`, `cut`, `paste`, and selection command semantics.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where clipboard command events are unavailable.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.text`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    @binding("destack.input.text.readClipboardCommand", {
-        effect: "external",
-        replay: "recordable",
-        capabilities: ["input.text"],
-        platforms: ["windows", "unix"],
-        simulation: "stub",
-        scope: "host",
-        blocking: "sometimes",
-        affinity: "any",
-    })
-    export function textReadClipboardCommand(
-        handle: InputDeviceHandle,
-    ): Result<InputClipboardCommandEvent, PlatformError>;
-
-    /// Poll one clipboard command event without blocking.
-    ///
-    /// Poll one pending clipboard command event and return immediately when no event is queued.
-    /// Empty queue state is reported through ioWouldBlock.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where clipboard command events are unavailable.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.text`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    @binding("destack.input.text.tryReadClipboardCommand", {
-        effect: "external",
-        replay: "recordable",
-        capabilities: ["input.text"],
-        platforms: ["windows", "unix"],
-        simulation: "stub",
-        scope: "host",
-        blocking: "never",
-        affinity: "any",
-    })
-    export function textTryReadClipboardCommand(
-        handle: InputDeviceHandle,
-    ): Result<InputClipboardCommandEvent, PlatformError>;
+    export function textTryReadEvent(
+        session: InputTextSessionHandle,
+    ): Result<InputTextSessionEvent, PlatformError>;
 }
