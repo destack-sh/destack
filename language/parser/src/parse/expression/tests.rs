@@ -1,11 +1,11 @@
 use destack_ast::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, BindingKind, Block, CommentStyle,
     Declaration, DeclarationDescriptor, Declarator, DependencyItem, DependencyKind, DependencyMode,
-    EnumField, EnumKind, Expression, FunctionKind, IfCondition, IfKind, ImportAliasTarget,
-    ImportSource, ImportTarget, IntType, Key, LetKind, Member, Mutability, Name, Parameter,
-    Pattern, PatternField, PostfixPosition, Property, ScalarLiteral, TemplateLiteral, TokenType,
-    TypeBinaryOperator, TypeLiteral, TypePredicateSubject, TypeUnaryOperator, UnaryOperator,
-    VarianceBound,
+    EnumField, EnumKind, Expression, FunctionCardinality, FunctionKind, FunctionMode, IfCondition,
+    IfKind, ImportAliasTarget, ImportSource, ImportTarget, IntType, Key, LetKind, Member,
+    Mutability, Name, Parameter, Pattern, PatternField, PostfixPosition, Property, ScalarLiteral,
+    TemplateLiteral, TokenType, TypeBinaryOperator, TypeLiteral, TypePredicateSubject,
+    TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
 use destack_source::LanguageType;
 
@@ -925,13 +925,13 @@ fn test_parse_export_expression_with_items_block() {
         assert_string!(parser, *target, "foo");
         assert_eq!(items.len(), 2);
         // bar
-        assert_node!(parser.tree, items[0], DependencyItem { mode, name: Some(name), alias, .. } => {
+        assert_node!(parser.tree, items[0], DependencyItem::Item { mode, name: Some(name), alias, .. } => {
             assert_eq!(*mode, DependencyMode::Item);
             assert_string!(parser, name.string(), "bar");
             assert!(alias.is_none());
         });
         // baz
-        assert_node!(parser.tree, items[1], DependencyItem { mode, name: Some(name), alias, .. } => {
+        assert_node!(parser.tree, items[1], DependencyItem::Item { mode, name: Some(name), alias, .. } => {
             assert_eq!(*mode, DependencyMode::Item);
             assert_string!(parser, name.string(), "baz");
             assert!(alias.is_none());
@@ -950,13 +950,13 @@ fn test_parse_export_expression_items_without_target() {
         assert_eq!(*kind, DependencyKind::Value);
         assert_eq!(items.len(), 2);
         // bar
-        assert_node!(parser.tree, items[0], DependencyItem { mode, name: Some(name), alias, .. } => {
+        assert_node!(parser.tree, items[0], DependencyItem::Item { mode, name: Some(name), alias, .. } => {
             assert_eq!(*mode, DependencyMode::Item);
             assert_string!(parser, name.string(), "bar");
             assert!(alias.is_none());
         });
         // baz
-        assert_node!(parser.tree, items[1], DependencyItem { mode, name: Some(name), alias, .. } => {
+        assert_node!(parser.tree, items[1], DependencyItem::Item { mode, name: Some(name), alias, .. } => {
             assert_eq!(*mode, DependencyMode::Item);
             assert_string!(parser, name.string(), "baz");
             assert!(alias.is_none());
@@ -975,12 +975,12 @@ fn test_parse_export_expression_type_items_with_target() {
         assert_eq!(*kind, DependencyKind::Type);
         assert_string!(parser, *target, "module");
         assert_eq!(items.len(), 2);
-        assert_node!(parser.tree, items[0], DependencyItem { mode, name: Some(name), alias, .. } => {
+        assert_node!(parser.tree, items[0], DependencyItem::Item { mode, name: Some(name), alias, .. } => {
             assert_eq!(*mode, DependencyMode::Item);
             assert_string!(parser, name.string(), "Foo");
             assert!(alias.is_none());
         });
-        assert_node!(parser.tree, items[1], DependencyItem { mode, name: Some(name), alias, .. } => {
+        assert_node!(parser.tree, items[1], DependencyItem::Item { mode, name: Some(name), alias, .. } => {
             assert_eq!(*mode, DependencyMode::Item);
             assert_string!(parser, name.string(), "Bar");
             assert!(alias.is_none());
@@ -998,7 +998,7 @@ fn test_parse_export_expression_type_items_without_target() {
     assert_node!(parser.tree, expression_id, Expression::Export { kind, target: None, items, .. } => {
         assert_eq!(*kind, DependencyKind::Type);
         assert_eq!(items.len(), 1);
-        assert_node!(parser.tree, items[0], DependencyItem { mode, name: Some(name), alias, .. } => {
+        assert_node!(parser.tree, items[0], DependencyItem::Item { mode, name: Some(name), alias, .. } => {
             assert_eq!(*mode, DependencyMode::Item);
             assert_string!(parser, name.string(), "Foo");
             assert!(alias.is_none());
@@ -1019,7 +1019,7 @@ fn test_parse_export_expression_namespace_alias() {
         assert_string!(parser, *target, "foo");
         assert_eq!(items.len(), 1);
         // * as baz
-        assert_node!(parser.tree, items[0], DependencyItem { mode, name: None, alias: Some(alias), .. } => {
+        assert_node!(parser.tree, items[0], DependencyItem::Item { mode, name: None, alias: Some(alias), .. } => {
             assert_eq!(*mode, DependencyMode::Namespace);
             assert_string!(parser, *alias, "baz");
         });
@@ -1037,7 +1037,7 @@ fn test_parse_export_expression_module_export() {
         assert!(target.is_none());
         assert_eq!(items.len(), 1);
         // = foo
-        assert_node!(parser.tree, items[0], DependencyItem { mode, name: None, alias: None, value: Some(value), .. } => {
+        assert_node!(parser.tree, items[0], DependencyItem::Item { mode, name: None, alias: None, value: Some(value), .. } => {
             assert_eq!(*mode, DependencyMode::Namespace);
             assert_expression_path!(parser, parser.tree.get(*value), "foo");
         });
@@ -1076,7 +1076,7 @@ fn test_parse_export_default_abstract_class_with_decorator_prefixes() {
     assert_node!(parser.tree, expression_id, Expression::Export { kind, items, .. } => {
         assert_eq!(*kind, DependencyKind::Value);
         assert_eq!(items.len(), 1);
-        assert_node!(parser.tree, items[0], DependencyItem { mode, value: Some(value), .. } => {
+        assert_node!(parser.tree, items[0], DependencyItem::Item { mode, value: Some(value), .. } => {
             assert_eq!(*mode, DependencyMode::Default);
             assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
                 assert_node!(parser.tree, *declaration_id, Declaration::Class { descriptor, .. } => {
@@ -1224,13 +1224,13 @@ fn test_parse_import_expression_with_items_block() {
         assert_import_target_string(&parser, target, "foo");
         assert_eq!(items.len(), 2);
         // bar
-        assert_node!(parser.tree, items[0], DependencyItem { mode, name: Some(name), alias, .. } => {
+        assert_node!(parser.tree, items[0], DependencyItem::Item { mode, name: Some(name), alias, .. } => {
             assert_eq!(*mode, DependencyMode::Item);
             assert_string!(parser, name.string(), "bar");
             assert!(alias.is_none());
         });
         // baz
-        assert_node!(parser.tree, items[1], DependencyItem { mode, name: Some(name), alias, .. } => {
+        assert_node!(parser.tree, items[1], DependencyItem::Item { mode, name: Some(name), alias, .. } => {
             assert_eq!(*mode, DependencyMode::Item);
             assert_string!(parser, name.string(), "baz");
             assert!(alias.is_none());
@@ -1252,7 +1252,7 @@ fn test_parse_import_expression_namespace_alias_with_arguments() {
         assert_import_target_string(&parser, target, "foo");
         assert_eq!(items.len(), 1);
         // * as baz
-        assert_node!(parser.tree, items[0], DependencyItem { mode, name: None, alias: Some(alias), .. } => {
+        assert_node!(parser.tree, items[0], DependencyItem::Item { mode, name: None, alias: Some(alias), .. } => {
             assert_eq!(*mode, DependencyMode::Namespace);
             assert_string!(parser, *alias, "baz");
         });
@@ -3748,14 +3748,14 @@ fn test_parse_object_boolean_identifier_name_keys() {
             assert_node!(key, Some(Key::Name(Name::Identifier(name))) => {
                 assert_string!(parser, *name, "true");
             });
-            assert_eq!(signature.mode, Some(destack_ast::FunctionMode::Getter));
+            assert_eq!(signature.mode, Some(FunctionMode::Getter));
         });
 
         assert_node!(parser.tree, properties[3], Property::Method { key, signature, .. } => {
             assert_node!(key, Some(Key::Name(Name::Identifier(name))) => {
                 assert_string!(parser, *name, "false");
             });
-            assert_eq!(signature.mode, Some(destack_ast::FunctionMode::Setter));
+            assert_eq!(signature.mode, Some(FunctionMode::Setter));
         });
     });
 }
@@ -3772,7 +3772,7 @@ fn test_parse_export_default_regex_literal() {
     assert_node!(parser.tree, expr_id, Expression::Export { target, items, .. } => {
         assert!(target.is_none());
         assert_eq!(items.len(), 1);
-        assert_node!(parser.tree, items[0], DependencyItem { value: Some(value), .. } => {
+        assert_node!(parser.tree, items[0], DependencyItem::Item { value: Some(value), .. } => {
             assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }));
         });
     });
@@ -5180,6 +5180,89 @@ fn test_parse_async_as_cast() {
     });
 }
 
+/// Parse casts with a missing type target.
+#[test]
+fn test_parse_as_cast_missing_type_target() {
+    let mut test = TestParser::new_with_options("value as", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    assert_eq!(parser.errors.len(), 1);
+
+    // value as
+    assert_node!(parser.tree, expr_id, Expression::TypeBinary { left, operator, right } => {
+        assert_eq!(*operator, TypeBinaryOperator::Cast);
+        assert_expression_path!(parser, parser.tree.get(*left), "value");
+        assert_node!(parser.tree, *right, Expression::Missing);
+    });
+}
+
+/// Parse satisfies expressions with a missing type target.
+#[test]
+fn test_parse_satisfies_missing_type_target() {
+    let mut test = TestParser::new_with_options("value satisfies", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    assert_eq!(parser.errors.len(), 1);
+
+    // value satisfies
+    assert_node!(parser.tree, expr_id, Expression::TypeBinary { left, operator, right } => {
+        assert_eq!(*operator, TypeBinaryOperator::Satisfies);
+        assert_expression_path!(parser, parser.tree.get(*left), "value");
+        assert_node!(parser.tree, *right, Expression::Missing);
+    });
+}
+
+/// Parse multiline cast rhs unions after an own-line seam comment.
+#[test]
+fn test_parse_cast_rhs_leading_union_after_own_line_comment() {
+    let mut test = TestParser::new_with_options(
+        "functionArg = a as\n  // comment\n  TSESTree.ArrowFunctionExpression\n  | TSESTree.ArrowFunctionExpression\n  | TSESTree.FunctionExpression\n  | undefined",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    // functionArg = a as // comment TSESTree.ArrowFunctionExpression | ...
+    assert_node!(parser.tree, expr_id, Expression::Assign { left, operator, right } => {
+        assert_eq!(*operator, AssignOperator::Assign);
+        assert_expression_path!(parser, parser.tree.get(*left), "functionArg");
+
+        assert_node!(parser.tree, *right, Expression::TypeBinary { left, operator, right } => {
+            assert_eq!(*operator, TypeBinaryOperator::Cast);
+            assert_expression_path!(parser, parser.tree.get(*left), "a");
+
+            assert_node!(parser.tree, *right, Expression::Binary { operator, .. } => {
+                assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+            });
+        });
+    });
+}
+
+/// Parse multiline satisfies rhs intersections with a leading separator.
+#[test]
+fn test_parse_satisfies_rhs_leading_intersection() {
+    let mut test = TestParser::new_with_options(
+        "value satisfies\n  & Foo\n  & Bar",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    // value satisfies & Foo & Bar
+    assert_node!(parser.tree, expr_id, Expression::TypeBinary { left, operator, right } => {
+        assert_eq!(*operator, TypeBinaryOperator::Satisfies);
+        assert_expression_path!(parser, parser.tree.get(*left), "value");
+
+        assert_node!(parser.tree, *right, Expression::Binary { operator, left, right } => {
+            assert_eq!(*operator, BinaryOperator::ElementwiseAnd);
+            assert_expression_path!(parser, parser.tree.get(*left), "Foo");
+            assert_expression_path!(parser, parser.tree.get(*right), "Bar");
+        });
+    });
+}
+
 /// Parse async arrows with a parameter named `as`.
 #[test]
 fn test_parse_async_arrow_with_as_parameter() {
@@ -5731,7 +5814,7 @@ fn test_parse_new_class_expression_with_generic_implements_clause() {
                 assert_eq!(implements_types.len(), 1);
                 assert_eq!(members.len(), 1);
                 assert_node!(parser.tree, members[0], Member::Method { signature, .. } => {
-                    assert_eq!(signature.cardinality, destack_ast::FunctionCardinality::Generator);
+                    assert_eq!(signature.cardinality, FunctionCardinality::Generator);
                 });
             });
         });
@@ -6027,7 +6110,7 @@ fn test_parse_arrow_return_type_predicate_with_keyword_subject_override() {
     // const isSystemOverride = (...) : override is SystemConfigOverrideRule => { ... }
     assert_node!(parser.tree, expression_id, Expression::Let { declarators, .. } => {
         assert_eq!(declarators.len(), 1);
-        assert_node!(parser.tree, declarators[0], destack_ast::Declarator { value, .. } => {
+        assert_node!(parser.tree, declarators[0], Declarator { value, .. } => {
             assert_node!(parser.tree, value.expect("expected initializer"), Expression::Declaration(function_id) => {
                 assert_node!(parser.tree, *function_id, Declaration::Function { signature, .. } => {
                     assert_node!(parser.tree, signature.return_type.expect("expected return type"), Expression::TypePredicate { asserts, subject, target } => {

@@ -1,10 +1,10 @@
 #![allow(clippy::type_complexity)]
 
 use destack_ast::{
-    AbstractionModifier, Asynchrony, BindingKind, BindingModifier, BindingOperator, BlockContext,
-    Expression, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
-    FunctionSignature, Generics, Key, Keyword, LocalNodeId, Member, Name, NodeType, Property,
-    Timing, TokenType, Visibility,
+    AbstractionModifier, Asynchrony, BindingAnchor, BindingKind, BindingModifier, BindingOperator,
+    BlockContext, Expression, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
+    FunctionSignature, Generics, Key, Keyword, LocalNodeId, Member, Name, NodeType, Parameter,
+    Property, Timing, TokenType, Visibility,
 };
 use destack_source::NodeSpanType;
 
@@ -46,7 +46,7 @@ impl Parser {
     fn eat_property_dynamic_parameters(
         &mut self,
         is_generator: bool,
-    ) -> ParseResult<Vec<LocalNodeId<destack_ast::Parameter>>> {
+    ) -> ParseResult<Vec<LocalNodeId<Parameter>>> {
         let ambient_context = self
             .options
             .with_generator(is_generator)
@@ -60,11 +60,10 @@ impl Parser {
     /// Eat a property or member return type.
     #[inline]
     fn eat_property_return_type(&mut self) -> ParseResult<LocalNodeId<Expression>> {
-        let ambient_context = self
-            .options
-            .nested()
-            .with_type(true)
-            .with_before_block(true);
+        let mut ambient_context = self.options.nested().with_type(true);
+        if !self.peek_is(TokenType::OpenBrace) {
+            ambient_context = ambient_context.with_before_block(true);
+        }
         let expression_context = self.options.nested();
         self.eat_expression(
             self.options
@@ -154,16 +153,17 @@ impl Parser {
         )
     }
 
-    /// Try to eat a property (return Property::Error if error and recovery is possible).
-    pub fn try_eat_property(&mut self, recover: TokenType) -> ParseResult<LocalNodeId<Property>> {
+    /// Try to eat a property and recover into one error slot when possible.
+    pub fn try_eat_property(&mut self, _recover: TokenType) -> ParseResult<LocalNodeId<Property>> {
         match self.eat_property() {
             Ok(property_id) => Ok(property_id),
             Err(err) => {
-                let err = err.for_node_type(NodeType::Expression);
+                let err = err.for_node_type(NodeType::Property);
                 let span = err.leaf_span();
                 let start = ParserMark::from_span(span);
-                self.try_recover(&start, recover, Some(err.clone()))?;
-                Err(err)
+                self.try_recover_in_body(&start, Some(err.clone()))?;
+
+                Ok(self.insert_node(Property::Error, self.get_span_from(&start)))
             }
         }
     }
@@ -472,7 +472,11 @@ impl Parser {
                 self.eat_newlines_maybe()?;
                 self.eat_token(TokenType::Colon)?;
                 self.eat_newlines_maybe()?;
-                let return_type = self.eat_property_return_type()?;
+                let return_type = if self.peek_is(TokenType::CloseBrace) || self.is_any_stop() {
+                    self.recover_missing_expression_here(NodeType::Property)
+                } else {
+                    self.eat_property_return_type()?
+                };
                 (Some(return_type), Some(self.get_span_from(&type_start)))
             } else {
                 (None, None)
@@ -558,7 +562,15 @@ impl Parser {
 
                 // parse type annotations in type or variant contexts
                 let is_type_context = self.options.is_in_variant() || self.options.is_in_type();
-                let value = self.eat_property_field_type(is_type_context)?;
+                let value = if self.peek_is(TokenType::Assign)
+                    || self.peek_is(TokenType::Comma)
+                    || self.peek_is(TokenType::CloseBrace)
+                    || self.is_any_stop()
+                {
+                    self.recover_missing_expression_here(NodeType::Property)
+                } else {
+                    self.eat_property_field_type(is_type_context)?
+                };
                 (Some(value), Some(self.get_span_from(&type_start)))
             } else {
                 (None, None)
@@ -569,8 +581,14 @@ impl Parser {
                 self.bump(); // eat assign
                 self.eat_newlines_maybe()?;
                 // keep associated comptime defaults in expression mode
-                let default =
-                    self.eat_property_default_expression(associated_comptime_name.is_some())?;
+                let default = if self.peek_is(TokenType::Comma)
+                    || self.peek_is(TokenType::CloseBrace)
+                    || self.is_any_stop()
+                {
+                    self.recover_missing_expression_here(NodeType::Property)
+                } else {
+                    self.eat_property_default_expression(associated_comptime_name.is_some())?
+                };
                 Some(default)
             } else {
                 None
@@ -661,16 +679,17 @@ impl Parser {
         Ok(properties)
     }
 
-    /// Try to eat a member (return Member::Error if error and recovery is possible).
-    pub fn try_eat_member(&mut self, recover: TokenType) -> ParseResult<LocalNodeId<Member>> {
+    /// Try to eat a member and recover into one error slot when possible.
+    pub fn try_eat_member(&mut self, _recover: TokenType) -> ParseResult<LocalNodeId<Member>> {
         match self.eat_member() {
             Ok(member_id) => Ok(member_id),
             Err(err) => {
-                let err = err.for_node_type(NodeType::Expression);
+                let err = err.for_node_type(NodeType::Member);
                 let span = err.leaf_span();
                 let start = ParserMark::from_span(span);
-                self.try_recover(&start, recover, Some(err.clone()))?;
-                Err(err)
+                self.try_recover_in_body(&start, Some(err.clone()))?;
+
+                Ok(self.insert_node(Member::Error, self.get_span_from(&start)))
             }
         }
     }
@@ -725,7 +744,7 @@ impl Parser {
         // duplicate static modifier across newlines
         if modifiers
             .as_ref()
-            .is_some_and(|modifiers| modifiers.anchor == Some(destack_ast::BindingAnchor::Static))
+            .is_some_and(|modifiers| modifiers.anchor == Some(BindingAnchor::Static))
             && self.peek_is(TokenType::Newline)
         {
             let static_index = self.next_non_newline_index_from(self.pos_index() + 1);
@@ -754,7 +773,7 @@ impl Parser {
         // must check before key parsing since static is already a modifier
         if modifiers
             .as_ref()
-            .is_some_and(|m| m.anchor == Some(destack_ast::BindingAnchor::Static))
+            .is_some_and(|m| m.anchor == Some(BindingAnchor::Static))
             && self.is_token_after_newlines(self.pos().saturating_sub(1), TokenType::OpenBrace)
         {
             self.eat_newlines_maybe()?;
@@ -783,14 +802,30 @@ impl Parser {
             let ty = if self.peek_colon_is() {
                 self.bump(); // eat colon
                 self.eat_newlines_maybe()?;
-                Some(self.eat_member_type_expression()?)
+                Some(
+                    if self.peek_is(TokenType::Assign)
+                        || self.peek_is(TokenType::CloseBrace)
+                        || self.is_any_stop()
+                    {
+                        self.recover_missing_expression_here(NodeType::Member)
+                    } else {
+                        self.eat_member_type_expression()?
+                    },
+                )
             } else {
                 None
             };
             // optional value: `= Type`
             let value = if self.peek_is(TokenType::Assign) {
                 self.bump(); // eat assign
-                Some(self.eat_member_type_expression()?)
+                self.eat_newlines_maybe()?;
+                Some(
+                    if self.peek_is(TokenType::CloseBrace) || self.is_any_stop() {
+                        self.recover_missing_expression_here(NodeType::Member)
+                    } else {
+                        self.eat_member_type_expression()?
+                    },
+                )
             } else {
                 None
             };
@@ -808,7 +843,7 @@ impl Parser {
         // comptime block: `comptime { ... }` (timing modifier already consumed)
         if modifiers
             .as_ref()
-            .is_some_and(|m| m.timing == Some(destack_ast::Timing::Comptime))
+            .is_some_and(|m| m.timing == Some(Timing::Comptime))
             && self.is_token_after_newlines(self.pos().saturating_sub(1), TokenType::OpenBrace)
         {
             self.eat_newlines_maybe()?;
@@ -1078,7 +1113,11 @@ impl Parser {
                 self.eat_newlines_maybe()?;
                 self.eat_token(TokenType::Colon)?;
                 self.eat_newlines_maybe()?;
-                let return_type = self.eat_property_return_type()?;
+                let return_type = if self.peek_is(TokenType::CloseBrace) || self.is_any_stop() {
+                    self.recover_missing_expression_here(NodeType::Member)
+                } else {
+                    self.eat_property_return_type()?
+                };
                 (Some(return_type), Some(self.get_span_from(&type_start)))
             } else {
                 (None, None)
@@ -1158,14 +1197,21 @@ impl Parser {
                 self.bump(); // eat colon
                 self.eat_newlines_maybe()?;
                 // member field annotations are always type positions
-                let value = self.eat_expression(
-                    self.options
-                        .nested()
-                        .not_in_position()
-                        .not_in_left_precedence()
-                        .not_in_sequence_expression()
-                        .in_type(),
-                )?;
+                let value = if self.peek_is(TokenType::Assign)
+                    || self.peek_is(TokenType::CloseBrace)
+                    || self.is_any_stop()
+                {
+                    self.recover_missing_expression_here(NodeType::Member)
+                } else {
+                    self.eat_expression(
+                        self.options
+                            .nested()
+                            .not_in_position()
+                            .not_in_left_precedence()
+                            .not_in_sequence_expression()
+                            .in_type(),
+                    )?
+                };
                 (Some(value), Some(self.get_span_from(&type_start)))
             } else {
                 (None, None)
@@ -1175,12 +1221,16 @@ impl Parser {
             let default = if self.peek_is(TokenType::Assign) {
                 self.bump(); // eat assign
                 self.eat_newlines_maybe()?;
-                let default = self.eat_expression(
-                    self.options
-                        .not_in_position()
-                        .not_in_left_precedence()
-                        .not_in_sequence_expression(),
-                )?;
+                let default = if self.peek_is(TokenType::CloseBrace) || self.is_any_stop() {
+                    self.recover_missing_expression_here(NodeType::Member)
+                } else {
+                    self.eat_expression(
+                        self.options
+                            .not_in_position()
+                            .not_in_left_precedence()
+                            .not_in_sequence_expression(),
+                    )?
+                };
                 Some(default)
             } else {
                 None
@@ -1292,10 +1342,10 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        AbstractionModifier, Argument, Asynchrony, BinaryOperator, BindingAnchor, BindingKind,
-        Block, CommentStyle, Declaration, DeclarationKind, Expression, FunctionAbstraction,
-        FunctionKind, FunctionMode, IntType, Key, Member, Name, Parameter, Property, ScalarLiteral,
-        TypeLiteral, TypePredicateSubject, Visibility,
+        AbstractionModifier, AccessorKind, Argument, Asynchrony, BinaryOperator, BindingAnchor,
+        BindingKind, BindingOperator, Block, CommentStyle, Declaration, DeclarationKind,
+        Expression, FunctionAbstraction, FunctionKind, FunctionMode, IntType, Key, Member, Name,
+        Parameter, Property, ScalarLiteral, Timing, TypeLiteral, TypePredicateSubject, Visibility,
     };
     use destack_source::LanguageType;
 
@@ -1334,7 +1384,7 @@ mod tests {
 
         let member = parser.eat_member().unwrap();
         assert_node!(parser.tree, member, Member::Field { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), value: Some(value), default: None, .. } => {
-            assert_eq!(modifiers.accessor, Some(destack_ast::AccessorKind::Accessor));
+            assert_eq!(modifiers.accessor, Some(AccessorKind::Accessor));
             assert_eq!(modifiers.kind, Some(BindingKind::Must));
             assert_string!(parser, *name, "a");
             assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Any));
@@ -1558,6 +1608,31 @@ port2 = {
     }
 
     #[test]
+    fn test_parse_member_method_object_union_return_type_typescript() {
+        let mut test = TestParser::new_with_options(
+            "overlaps(): { overlaps: false } | { overlaps: true; reason: string }",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+
+        let member = parser.eat_member().unwrap();
+
+        assert_node!(parser.tree, member, Member::Method { key: Some(Key::Name(Name::Identifier(name))), signature, body: None, .. } => {
+            assert_string!(parser, *name, "overlaps");
+
+            assert_node!(parser.tree, signature.return_type.expect("expected return type"), Expression::Binary { operator, left, right } => {
+                assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                assert_node!(parser.tree, *left, Expression::ObjectExpression { properties, .. } => {
+                    assert_eq!(properties.len(), 1);
+                });
+                assert_node!(parser.tree, *right, Expression::ObjectExpression { properties, .. } => {
+                    assert_eq!(properties.len(), 2);
+                });
+            });
+        });
+    }
+
+    #[test]
     fn test_parse_member_method_body_boundary_comment_on_return_type_typescript() {
         let mut test = TestParser::new_with_options(
             "method(): number // method-body\n{ return 1 }",
@@ -1653,6 +1728,40 @@ port2 = {
     }
 
     #[test]
+    fn test_parse_member_missing_default_expression() {
+        // x =
+        let mut test = TestParser::new("x =");
+        let mut parser = test.prepare();
+        let member = parser.eat_member().unwrap();
+
+        assert_eq!(parser.errors.len(), 1);
+
+        // x =
+        assert_node!(parser.tree, member, Member::Field { modifiers: None, key: Some(Key::Name(Name::Identifier(name))), value: None, default: Some(default), .. } => {
+            assert_string!(parser, *name, "x");
+            assert_node!(parser.tree, *default, Expression::Missing);
+        });
+    }
+
+    #[test]
+    fn test_parse_members_recover_error_slot() {
+        // +\ny: int32
+        let mut test = TestParser::new("+\ny: int32");
+        let mut parser = test.prepare();
+        let members = parser.eat_members(false).unwrap();
+
+        assert_eq!(parser.errors.len(), 1);
+        assert_eq!(members.len(), 2);
+
+        // error, y: int32
+        assert_node!(parser.tree, members[0], Member::Error);
+        assert_node!(parser.tree, members[1], Member::Field { modifiers: None, key: Some(Key::Name(Name::Identifier(name))), value: Some(value), default: None, .. } => {
+            assert_string!(parser, *name, "y");
+            assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
+        });
+    }
+
+    #[test]
     fn test_reject_member_method_signature_without_separator() {
         let mut test = TestParser::new_with_options("method() method2()", LanguageType::TypeScript);
         let mut parser = test.prepare();
@@ -1737,6 +1846,22 @@ foo(): string;"#,
     }
 
     #[test]
+    fn test_parse_property_missing_value_expression() {
+        // x:
+        let mut test = TestParser::new("x:");
+        let mut parser = test.prepare();
+        let property = parser.eat_property().unwrap();
+
+        assert_eq!(parser.errors.len(), 1);
+
+        // x:
+        assert_node!(parser.tree, property, Property::Field { modifiers: None, key: Some(Key::Name(Name::Identifier(name))), value: Some(value), default: None, .. } => {
+            assert_string!(parser, *name, "x");
+            assert_node!(parser.tree, *value, Expression::Missing);
+        });
+    }
+
+    #[test]
     fn test_parse_property_with_typed_arrow_value() {
         let mut test = TestParser::new_with_options(
             "reproFunc: (_: any): any => { }",
@@ -1784,6 +1909,25 @@ foo(): string;"#,
     }
 
     #[test]
+    fn test_parse_properties_recover_error_slot() {
+        // +\ny: int32
+        let mut test = TestParser::new("+\ny: int32");
+        let mut parser = test.prepare();
+        parser.options.set_in_variant(true);
+        let properties = parser.eat_properties().unwrap();
+
+        assert_eq!(parser.errors.len(), 1);
+        assert_eq!(properties.len(), 2);
+
+        // error, y: int32
+        assert_node!(parser.tree, properties[0], Property::Error);
+        assert_node!(parser.tree, properties[1], Property::Field { modifiers: None, key: Some(Key::Name(Name::Identifier(name))), value: Some(value), default: None, .. } => {
+            assert_string!(parser, *name, "y");
+            assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
+        });
+    }
+
+    #[test]
     fn test_parse_property_method_call() {
         let mut test = TestParser::new("<T = any>(x: T): T");
         let mut parser = test.prepare();
@@ -1810,6 +1954,20 @@ foo(): string;"#,
             });
             // T
             assert_expression_path!(parser, parser.tree.get(signature.return_type.unwrap()), "T");
+        });
+    }
+
+    #[test]
+    fn test_parse_property_method_object_return_type() {
+        let mut test = TestParser::new("method(): { value: string; count: number }");
+        let mut parser = test.prepare();
+        let property_id = parser.eat_property().unwrap();
+
+        assert_node!(parser.tree, property_id, Property::Method { key: Some(Key::Name(Name::Identifier(name))), signature, .. } => {
+            assert_string!(parser, *name, "method");
+            assert_node!(parser.tree, signature.return_type.expect("expected return type"), Expression::ObjectExpression { properties, .. } => {
+                assert_eq!(properties.len(), 2);
+            });
         });
     }
 
@@ -1951,8 +2109,8 @@ foo(): string;"#,
         let mut parser = test.prepare();
         let member_id = parser.eat_member().unwrap();
         assert_node!(parser.tree, member_id, Member::ComptimeConst { modifiers: Some(modifiers), name, ty: Some(ty), value: Some(value) } => {
-            assert_eq!(modifiers.timing, Some(destack_ast::Timing::Comptime));
-            assert_eq!(modifiers.operator, Some(destack_ast::BindingOperator::AsConst));
+            assert_eq!(modifiers.timing, Some(Timing::Comptime));
+            assert_eq!(modifiers.operator, Some(BindingOperator::AsConst));
             assert_string!(parser, *name, "Rows");
             assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Number));
             assert_node!(parser.tree, *value, Expression::ScalarLiteral(value) => {

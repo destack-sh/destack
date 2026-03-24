@@ -1,5 +1,5 @@
 use crate::{ParseResult, Parser};
-use destack_ast::{BlockContext, Expression, Keyword, LocalNodeId, TokenType};
+use destack_ast::{BlockContext, Expression, Keyword, LocalNodeId, NodeType, TokenType};
 
 impl Parser {
     /// Eat a try expression.
@@ -79,8 +79,9 @@ impl Parser {
                         let catch_ty = if self.peek_colon_is() {
                             self.bump(); // eat :
                             self.eat_newlines_maybe()?;
-                            let catch_ty = self.eat_expression(
+                            let catch_ty = self.eat_type_expression_or_recover_missing(
                                 self.options.not_in_position().in_type().in_before_block(),
+                                NodeType::Pattern,
                             )?;
                             self.eat_newlines_maybe()?;
                             Some(catch_ty)
@@ -101,8 +102,9 @@ impl Parser {
                         let catch_ty = if self.peek_colon_is() {
                             self.bump(); // eat :
                             self.eat_newlines_maybe()?;
-                            let catch_ty = self.eat_expression(
+                            let catch_ty = self.eat_type_expression_or_recover_missing(
                                 self.options.not_in_position().in_type().in_before_block(),
+                                NodeType::Pattern,
                             )?;
                             self.eat_newlines_maybe()?;
                             Some(catch_ty)
@@ -172,7 +174,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use destack_ast::{Block, Expression, Pattern};
+    use destack_ast::{Block, Expression, Name, Pattern, PatternField};
     use destack_source::LanguageType;
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
@@ -286,7 +288,7 @@ try {
     bar()
 }
 "###,
-            destack_source::LanguageType::TypeScript,
+            LanguageType::TypeScript,
         );
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
@@ -337,7 +339,7 @@ try {
     bar()
 }
 "###,
-            destack_source::LanguageType::TypeScript,
+            LanguageType::TypeScript,
         );
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
@@ -347,13 +349,13 @@ try {
             // catch { name, message }
             assert_node!(parser.tree, *catch_pattern, Pattern::Object { fields } => {
                 assert_eq!(fields.len(), 2);
-                assert_node!(parser.tree, fields[0], destack_ast::PatternField::Named { name, pattern: None, .. } => {
-                    assert_node!(name, destack_ast::Name::Identifier(name) => {
+                assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: None, .. } => {
+                    assert_node!(name, Name::Identifier(name) => {
                         assert_string!(parser, *name, "name");
                     });
                 });
-                assert_node!(parser.tree, fields[1], destack_ast::PatternField::Named { name, pattern: None, .. } => {
-                    assert_node!(name, destack_ast::Name::Identifier(name) => {
+                assert_node!(parser.tree, fields[1], PatternField::Named { name, pattern: None, .. } => {
+                    assert_node!(name, Name::Identifier(name) => {
                         assert_string!(parser, *name, "message");
                     });
                 });

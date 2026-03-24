@@ -3,13 +3,27 @@ use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
     Annotation, Argument, Declaration, DeclarationDescriptor, Expression, FloatType, IntType,
-    IntrinsicType, Keyword, LocalNodeId, Mutability, Name, TokenType, TypeBinaryOperator, TypeKind,
-    TypeLiteral, TypeMappedModifiers, TypeMappedParameter, TypeModifier, TypePredicateSubject,
-    TypeUnaryOperator, UnaryOperator, VarianceBound,
+    IntrinsicType, Keyword, LocalNodeId, Mutability, Name, NodeType, TokenType, TypeBinaryOperator,
+    TypeKind, TypeLiteral, TypeMappedModifiers, TypeMappedParameter, TypeModifier,
+    TypePredicateSubject, TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
 use destack_source::NodeSpanType;
 
 impl Parser {
+    /// Insert one positional argument node for an existing value.
+    fn insert_positional_argument(
+        &mut self,
+        value: LocalNodeId<Expression>,
+    ) -> LocalNodeId<Argument> {
+        self.insert_node(
+            Argument::Positional {
+                modifiers: None,
+                value,
+            },
+            self.tree.get_span(value),
+        )
+    }
+
     /// Map identifier text to always-available type literals.
     #[inline]
     fn type_literal_always_available_str(&self, identifier: &str) -> Option<TypeLiteral> {
@@ -620,7 +634,7 @@ impl Parser {
 
         // close argument list
         self.eat_newlines_maybe()?;
-        self.eat_token(TokenType::CloseParenthesis)?;
+        self.eat_type_token_or_recover_missing(TokenType::CloseParenthesis, NodeType::Expression)?;
         Ok(arguments)
     }
 
@@ -640,7 +654,10 @@ impl Parser {
             if self.is_keyword(Keyword::Extends) && !self.infer_extends_starts_conditional() {
                 self.bump(); // eat extends
                 self.eat_newlines_maybe()?;
-                Some(self.eat_expression(constraint_options)?)
+                Some(self.eat_type_expression_or_recover_missing(
+                    constraint_options,
+                    NodeType::Expression,
+                )?)
             } else {
                 None
             };
@@ -666,21 +683,28 @@ impl Parser {
         })?;
 
         // target
-        if arguments.is_empty() {
-            return Err(ParseError::expected(
-                self.get_span_from(&start),
-                TokenType::Literal,
-            ));
-        }
-        let (target, target_span) = {
-            let first_argument = self.tree.get(arguments[0]);
-            let Argument::Positional { value, .. } = first_argument else {
-                return Err(ParseError::expected(
-                    self.tree.get_span(arguments[0]),
-                    TokenType::Literal,
-                ));
-            };
-            (*value, self.tree.get_span(*value))
+        let mut arguments = arguments;
+        let (target, target_span) = if arguments.is_empty() {
+            let target = self.recover_missing_expression_here(NodeType::Expression);
+            let target_span = self.tree.get_span(target);
+
+            arguments.push(self.insert_positional_argument(target));
+            (target, target_span)
+        } else {
+            match self.tree.get(arguments[0]) {
+                Argument::Positional { value, .. } => (*value, self.tree.get_span(*value)),
+                Argument::Error => {
+                    let target = self.recover_missing_expression_here(NodeType::Expression);
+                    let target_span = self.tree.get_span(target);
+                    (target, target_span)
+                }
+                _ => {
+                    return Err(ParseError::expected(
+                        self.tree.get_span(arguments[0]),
+                        TokenType::Literal,
+                    ));
+                }
+            }
         };
 
         // qualifier (e.g., import("mod").Type)
@@ -738,7 +762,7 @@ impl Parser {
             if self.options.is_in_type_conditional_right() {
                 target_options = target_options.in_type_conditional_right();
             }
-            Some(self.eat_expression(target_options)?)
+            Some(self.eat_type_expression_or_recover_missing(target_options, NodeType::Expression)?)
         } else {
             None
         };
@@ -818,7 +842,9 @@ impl Parser {
         }
 
         // find the matching `]` without requiring full stream pairing state
+        // allow a missing `]` to recover at the mapped value delimiter
         let mut bracket_depth = 1usize;
+        let mut has_close_bracket = false;
         look_index = self.next_non_newline_index_from(open_bracket_index.saturating_add(1));
         while bracket_depth > 0 {
             let token_type = self.token_type_at(look_index);
@@ -828,9 +854,22 @@ impl Parser {
 
             if token_type == TokenType::OpenBracket {
                 bracket_depth = bracket_depth.saturating_add(1);
+            }
+            // missing `]` before the mapped value still commits to a mapped head
+            else if bracket_depth == 1
+                && matches!(
+                    token_type,
+                    TokenType::Colon
+                        | TokenType::CloseBrace
+                        | TokenType::Semicolon
+                        | TokenType::Comma
+                )
+            {
+                break;
             } else if token_type == TokenType::CloseBracket {
                 bracket_depth = bracket_depth.saturating_sub(1);
                 if bracket_depth == 0 {
+                    has_close_bracket = true;
                     break;
                 }
             }
@@ -839,15 +878,17 @@ impl Parser {
         }
 
         // mapped optional modifiers can appear after `]`: `?`, `+?`, `-?`
-        look_index = self.next_non_newline_index_from(look_index.saturating_add(1));
-        if self.token_type_at(look_index) == TokenType::Maybe {
+        if has_close_bracket {
             look_index = self.next_non_newline_index_from(look_index.saturating_add(1));
-        } else if self.token_type_at(look_index) == TokenType::Add
-            || self.token_type_at(look_index) == TokenType::Subtract
-        {
-            let maybe_index = self.next_non_newline_index_from(look_index.saturating_add(1));
-            if self.token_type_at(maybe_index) == TokenType::Maybe {
-                look_index = self.next_non_newline_index_from(maybe_index.saturating_add(1));
+            if self.token_type_at(look_index) == TokenType::Maybe {
+                look_index = self.next_non_newline_index_from(look_index.saturating_add(1));
+            } else if self.token_type_at(look_index) == TokenType::Add
+                || self.token_type_at(look_index) == TokenType::Subtract
+            {
+                let maybe_index = self.next_non_newline_index_from(look_index.saturating_add(1));
+                if self.token_type_at(maybe_index) == TokenType::Maybe {
+                    look_index = self.next_non_newline_index_from(maybe_index.saturating_add(1));
+                }
             }
         }
 
@@ -876,12 +917,13 @@ impl Parser {
         self.eat_newlines_maybe()?;
         self.eat_keyword(Keyword::In)?;
         self.eat_newlines_maybe()?;
-        let constraint = self.eat_expression(
+        let constraint = self.eat_type_expression_or_recover_missing(
             self.options
                 .not_in_position()
                 .not_in_left_precedence()
                 .in_type()
                 .in_type_mapped_constraint(),
+            NodeType::Expression,
         )?;
 
         // map key remaps can parse as a type cast in the constraint
@@ -901,17 +943,18 @@ impl Parser {
             self.bump(); // eat as
             self.eat_newlines_maybe()?;
             key_remap = Some(
-                self.eat_expression(
+                self.eat_type_expression_or_recover_missing(
                     self.options
                         .not_in_position()
                         .not_in_left_precedence()
                         .in_type(),
+                    NodeType::Expression,
                 )?,
             );
         }
 
         self.eat_newlines_maybe()?;
-        self.eat_token(TokenType::CloseBracket)?;
+        self.eat_type_token_or_recover_missing(TokenType::CloseBracket, NodeType::Expression)?;
 
         // optional modifier: ?, +?, -?
         let optional = self.eat_type_mapped_optional_modifier()?;
@@ -922,11 +965,12 @@ impl Parser {
         let value = if self.peek_is(TokenType::Colon) {
             self.bump(); // eat :
             self.eat_newlines_maybe()?;
-            self.eat_expression(
+            self.eat_type_expression_or_recover_missing(
                 self.options
                     .not_in_position()
                     .not_in_left_precedence()
                     .in_type(),
+                NodeType::Expression,
             )?
         } else {
             let any_span = self.peek()?.span;
@@ -938,7 +982,7 @@ impl Parser {
             self.bump();
             self.eat_newlines_maybe()?;
         }
-        self.eat_token(TokenType::CloseBrace)?;
+        self.eat_type_token_or_recover_missing(TokenType::CloseBrace, NodeType::Expression)?;
 
         let parameter = TypeMappedParameter {
             name,
@@ -2360,6 +2404,62 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_type_import_expression_missing_target() {
+        // type T = import()
+        let mut test = TestParser::new("type T = import()");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression(parser.options).unwrap();
+
+        assert_eq!(parser.errors.len(), 1);
+
+        // type T = import()
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeImport { target, arguments, qualifier, static_arguments } => {
+                    assert_node!(parser.tree, *target, Expression::Missing);
+                    assert_eq!(arguments.len(), 1);
+                    assert_node!(parser.tree, arguments[0], Argument::Positional { modifiers: _, value } => {
+                        assert_eq!(*target, *value);
+                        assert_node!(parser.tree, *value, Expression::Missing);
+                    });
+                    assert!(qualifier.is_none());
+                    assert!(static_arguments.is_none());
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_type_import_expression_missing_close_parenthesis_with_member_target() {
+        // type T = import("mod".Type
+        let mut test = TestParser::new("type T = import(\"mod\".Type");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression(parser.options).unwrap();
+
+        assert_eq!(parser.errors.len(), 1);
+
+        // type T = import("mod".Type
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeImport { target, arguments, qualifier, static_arguments } => {
+                    assert_node!(parser.tree, *target, Expression::Member { left, name: Some(name), static_arguments: None } => {
+                        assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
+                            assert_string!(parser, *string_id, "mod");
+                        });
+                        assert_string!(parser, *name, "Type");
+                    });
+                    assert_eq!(arguments.len(), 1);
+                    assert_node!(parser.tree, arguments[0], Argument::Positional { modifiers: _, value } => {
+                        assert_eq!(*target, *value);
+                    });
+                    assert!(qualifier.is_none());
+                    assert!(static_arguments.is_none());
+                });
+            });
+        });
+    }
+
+    #[test]
     fn test_parse_type_infer_with_constraint() {
         let mut test = TestParser::new("type T = infer U extends V");
         let mut parser = test.prepare();
@@ -2709,6 +2809,88 @@ mod tests {
                 assert_node!(parser.tree, *value, Expression::TypeMapped { parameter, .. } => {
                     assert_string!(parser, parameter.name, "K");
                     assert!(parameter.key_remap.is_some());
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_type_mapped_expression_missing_value_type() {
+        // type T = { [K in keyof T]: }
+        let mut test = TestParser::new("type T = { [K in keyof T]: }");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression(parser.options).unwrap();
+
+        assert_eq!(parser.errors.len(), 1);
+
+        // type T = { [K in keyof T]: }
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeMapped { parameter, value, .. } => {
+                    assert_string!(parser, parameter.name, "K");
+                    assert_node!(parser.tree, parameter.constraint, Expression::TypeUnary { operator, right } => {
+                        assert_eq!(*operator, TypeUnaryOperator::Keyof);
+                        assert_expression_path!(parser, parser.tree.get(*right), "T");
+                    });
+                    assert_node!(parser.tree, *value, Expression::Missing);
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_type_mapped_expression_missing_close_bracket_before_colon() {
+        // type T = { [K in keyof T: T[K] }
+        let mut test = TestParser::new("type T = { [K in keyof T: T[K] }");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression(parser.options).unwrap();
+
+        assert_eq!(parser.errors.len(), 1);
+
+        // type T = { [K in keyof T: T[K] }
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeMapped { parameter, value, .. } => {
+                    assert_string!(parser, parameter.name, "K");
+                    assert_node!(parser.tree, parameter.constraint, Expression::TypeUnary { operator, right } => {
+                        assert_eq!(*operator, TypeUnaryOperator::Keyof);
+                        assert_expression_path!(parser, parser.tree.get(*right), "T");
+                    });
+                    assert_node!(parser.tree, *value, Expression::TypeIndex { left, index } => {
+                        assert_expression_path!(parser, parser.tree.get(*left), "T");
+                        assert_expression_path!(parser, parser.tree.get(*index), "K");
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_type_mapped_expression_with_leading_union_constraint() {
+        let mut test = TestParser::new_with_options(
+            r#"type T = {
+  /* head */
+  [K in
+    | Foo
+    | Bar]: string
+}"#,
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression(parser.options).unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeMapped { parameter, value, .. } => {
+                    assert_string!(parser, parameter.name, "K");
+
+                    assert_node!(parser.tree, parameter.constraint, Expression::Binary { operator, left, right } => {
+                        assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                        assert_expression_path!(parser, parser.tree.get(*left), "Foo");
+                        assert_expression_path!(parser, parser.tree.get(*right), "Bar");
+                    });
+
+                    assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::String));
                 });
             });
         });
@@ -3988,6 +4170,46 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_typeof_query_missing_operand() {
+        // type T = typeof
+        let mut test = TestParser::new("type T = typeof");
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression(parser.options).unwrap();
+
+        assert_eq!(parser.errors.len(), 1);
+
+        // type T = typeof
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeUnary { operator, right } => {
+                    assert_eq!(*operator, TypeUnaryOperator::Typeof);
+                    assert_node!(parser.tree, *right, Expression::Missing);
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_keyof_query_missing_operand() {
+        // type T = keyof
+        let mut test = TestParser::new("type T = keyof");
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression(parser.options).unwrap();
+
+        assert_eq!(parser.errors.len(), 1);
+
+        // type T = keyof
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeUnary { operator, right } => {
+                    assert_eq!(*operator, TypeUnaryOperator::Keyof);
+                    assert_node!(parser.tree, *right, Expression::Missing);
+                });
+            });
+        });
+    }
+
+    #[test]
     fn test_parse_type_literal_abstract_construct_signature() {
         let mut test = TestParser::new("type T = { abstract new (x: number): Foo }");
         let mut parser = test.prepare();
@@ -4316,6 +4538,27 @@ mod tests {
             assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
                 assert_node!(parser.tree, *value, Expression::Path { static_arguments: Some(args), .. } => {
                     assert_eq!(args.len(), 2);
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_type_path_empty_static_arguments_recovers_error_slot() {
+        // type T = Container<>
+        let mut test = TestParser::new("type T = Container<>");
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression(parser.options).unwrap();
+
+        assert_eq!(parser.errors.len(), 1);
+
+        // type T = Container<>
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::Path { path, static_arguments: Some(static_arguments) } => {
+                    assert_path!(parser, *path, "Container");
+                    assert_eq!(static_arguments.len(), 1);
+                    assert_node!(parser.tree, static_arguments[0], Argument::Error);
                 });
             });
         });

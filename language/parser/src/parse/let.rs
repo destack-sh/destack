@@ -4,7 +4,7 @@ use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
     Asynchrony, DeclarationDescriptor, Declarator, Expression, Keyword, LetKind, LocalNodeId,
-    Mutability, Pattern, TokenType,
+    Mutability, NodeType, Pattern, TokenType,
 };
 use destack_source::NodeSpanType;
 
@@ -402,7 +402,8 @@ impl Parser {
             self.bump(); // eat colon
             self.eat_newlines_maybe()?;
             let type_options = self.options.not_in_position().in_type();
-            let ty = self.eat_expression(type_options)?;
+            let ty =
+                self.eat_type_expression_or_recover_missing(type_options, NodeType::Declarator)?;
             (Some(ty), Some(self.get_span_from(&type_start)))
         } else {
             (None, None)
@@ -416,7 +417,7 @@ impl Parser {
             self.bump(); // eat assign
             self.eat_newlines_maybe()?;
             let value_options = self.options.not_in_position().not_in_sequence_expression();
-            Some(self.eat_expression(value_options)?)
+            Some(self.eat_expression_or_recover_missing(value_options, NodeType::Declarator)?)
         } else if require_value {
             return Err(ParseError::expected(self.peek()?.span, TokenType::Assign));
         } else {
@@ -566,6 +567,71 @@ const constants:
                 assert_node!(parser.tree, ty_id, Expression::Binary { operator, .. } => {
                     assert_eq!(*operator, BinaryOperator::ElementwiseAnd);
                 });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_let_recovers_missing_type_annotation_value() {
+        let mut test = TestParser::new("const value: ");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression(parser.options).unwrap();
+
+        // const value:
+        assert_node!(parser.tree, expr_id, Expression::Let { declarators, .. } => {
+            assert_eq!(declarators.len(), 1);
+            assert_node!(parser.tree, declarators[0], Declarator { pattern, ty, value } => {
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
+                    assert_string!(parser, *name, "value");
+                });
+
+                let ty = ty.expect("expected recovered type");
+                assert_node!(parser.tree, ty, Expression::Missing);
+                assert!(value.is_none());
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_let_recovers_missing_type_before_initializer() {
+        let mut test = TestParser::new("const value: = 1");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression(parser.options).unwrap();
+
+        // const value: = 1
+        assert_node!(parser.tree, expr_id, Expression::Let { declarators, .. } => {
+            assert_eq!(declarators.len(), 1);
+            assert_node!(parser.tree, declarators[0], Declarator { pattern, ty, value } => {
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
+                    assert_string!(parser, *name, "value");
+                });
+
+                let ty = ty.expect("expected recovered type");
+                assert_node!(parser.tree, ty, Expression::Missing);
+
+                let value = value.expect("expected initializer");
+                assert_node!(parser.tree, value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_let_recovers_missing_initializer_value() {
+        let mut test = TestParser::new("const value = ");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression(parser.options).unwrap();
+
+        // const value =
+        assert_node!(parser.tree, expr_id, Expression::Let { declarators, .. } => {
+            assert_eq!(declarators.len(), 1);
+            assert_node!(parser.tree, declarators[0], Declarator { pattern, ty, value } => {
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
+                    assert_string!(parser, *name, "value");
+                });
+
+                assert!(ty.is_none());
+                let value = value.expect("expected recovered value");
+                assert_node!(parser.tree, value, Expression::Missing);
             });
         });
     }

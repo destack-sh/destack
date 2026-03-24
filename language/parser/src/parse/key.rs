@@ -359,15 +359,17 @@ impl Parser {
     #[inline]
     pub fn get_string_literal_str(&self, token: TokenSpan) -> &str {
         let token_str = self.get_token_str(token);
+
+        // keep the literal content stable even when the closing quote is missing
+        if let Some(content) = token_str.strip_prefix('"') {
+            return content.strip_suffix('"').unwrap_or(content);
+        }
+
+        if let Some(content) = token_str.strip_prefix('\'') {
+            return content.strip_suffix('\'').unwrap_or(content);
+        }
+
         token_str
-            .strip_prefix('"')
-            .and_then(|s| s.strip_suffix('"'))
-            .or_else(|| {
-                token_str
-                    .strip_prefix('\'')
-                    .and_then(|s| s.strip_suffix('\''))
-            })
-            .unwrap_or(token_str)
     }
 
     /// Peek a next string literal.

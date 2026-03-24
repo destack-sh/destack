@@ -4,7 +4,7 @@ use crate::{ParseError, ParseResult, Parser};
 use destack_ast::{
     Argument, Declaration, DeclarationDescriptor, DependencyItem, DependencyKind, DependencyMode,
     Expression, ImportAliasTarget, ImportSource, ImportTarget, Keyword, LiteralType, LocalNodeId,
-    Name, TokenType,
+    Name, NodeType, ScalarLiteral, TokenType,
 };
 use destack_core::StringId;
 use destack_source::{NodeSpanType, Span};
@@ -244,7 +244,7 @@ impl Parser {
         // keep static string targets interned when no annotations are attached
         let target_has_annotations = !self.tree.get_annotations(target_expression.id).is_empty();
         let target = match self.tree.get(target_expression) {
-            Expression::ScalarLiteral(destack_ast::ScalarLiteral::String(target))
+            Expression::ScalarLiteral(ScalarLiteral::String(target))
                 if !target_has_annotations && !self.token_stream.has_comment_trivia_tokens() =>
             {
                 ImportTarget::String(*target)
@@ -604,7 +604,7 @@ impl Parser {
             let value =
                 self.eat_expression(self.options.not_in_position().not_in_sequence_expression())?;
             let item = self.insert_node(
-                DependencyItem {
+                DependencyItem::Item {
                     mode: DependencyMode::Default,
                     kind: Some(DependencyKind::Value),
                     name: None,
@@ -642,7 +642,7 @@ impl Parser {
             let value =
                 self.eat_expression(self.options.not_in_position().not_in_sequence_expression())?;
             let item = self.insert_node(
-                DependencyItem {
+                DependencyItem::Item {
                     mode: DependencyMode::Namespace,
                     kind: Some(DependencyKind::Value),
                     name: None,
@@ -683,7 +683,7 @@ impl Parser {
             self.eat_newlines_maybe()?;
             let (target, target_span) = self.eat_dependency_target_with_span()?;
             let arguments = self.eat_dependency_arguments_maybe()?;
-            let item = DependencyItem {
+            let item = DependencyItem::Item {
                 mode: DependencyMode::Namespace,
                 kind: None,
                 name: None,
@@ -739,7 +739,12 @@ impl Parser {
         if target.is_none() {
             for item_id in &items {
                 let item = self.tree.get(*item_id);
-                if item.mode == DependencyMode::Default && item.name.is_none() {
+                if let DependencyItem::Item {
+                    mode: DependencyMode::Default,
+                    name: None,
+                    ..
+                } = item
+                {
                     let span = self
                         .tree
                         .get_main_span(*item_id)
@@ -830,8 +835,42 @@ impl Parser {
     /// "foo/bar:something"
     /// ```
     fn eat_dependency_target_with_span(&mut self) -> ParseResult<(StringId, destack_source::Span)> {
-        let (string_id, span) = self.eat_string_literal_with_span()?;
-        Ok((string_id, span))
+        let token = *self.peek_token(TokenType::Literal)?;
+
+        // keep import/export target recovery alive for unterminated string paths
+        if !matches!(
+            token.token.literal,
+            Some(LiteralType::String {
+                has_invalid_escape: false,
+                ..
+            })
+        ) {
+            return Err(ParseError::expected(token.span, TokenType::Literal));
+        }
+
+        let content = self.get_string_literal_str(token).to_owned();
+        let string_id = self.strings.intern(&content);
+        self.bump();
+
+        Ok((string_id, token.span))
+    }
+
+    /// Eat one dependency items block close token or recover one missing `}`.
+    fn eat_dependency_items_block_close_or_recover_missing(&mut self) -> ParseResult<()> {
+        if self.peek_is(TokenType::CloseBrace) {
+            self.bump();
+            return Ok(());
+        }
+
+        let token_type = self.peek_token_type();
+        let is_recoverable_boundary =
+            self.is_keyword(Keyword::From) || Self::is_any_stop_token(token_type);
+
+        self.recover_missing_token_here(
+            TokenType::CloseBrace,
+            NodeType::DependencyItem,
+            is_recoverable_boundary,
+        )
     }
 
     /// Eat a dependency items block.
@@ -879,7 +918,7 @@ impl Parser {
                 self.eat_newlines_maybe()?;
             }
 
-            let item = DependencyItem {
+            let item = DependencyItem::Item {
                 mode: DependencyMode::Default,
                 kind: None,
                 name: None,
@@ -901,7 +940,7 @@ impl Parser {
             } else {
                 self.eat_identifier_with_span()?
             };
-            let item = DependencyItem {
+            let item = DependencyItem::Item {
                 mode: DependencyMode::Namespace,
                 kind: None,
                 name: None,
@@ -917,24 +956,55 @@ impl Parser {
         if items.is_empty() || self.peek_is(TokenType::OpenBrace) {
             self.eat_token(TokenType::OpenBrace)?;
             self.eat_newlines_maybe()?;
+
             while !self.peek_is(TokenType::CloseBrace) {
-                let item = self.eat_dependency_item(allow_type_modifier, allow_literal_alias)?;
+                let item_start = self.mark_span();
+
+                let item = match self.eat_dependency_item(allow_type_modifier, allow_literal_alias)
+                {
+                    Ok(item) => item,
+                    Err(error) => {
+                        self.try_recover_in_item_list(
+                            &item_start,
+                            TokenType::CloseBrace,
+                            Some(error),
+                        )?;
+
+                        self.insert_node(DependencyItem::Error, self.get_span_from(&item_start))
+                    }
+                };
 
                 items.push(item);
 
                 self.eat_newlines_maybe()?;
+
                 if self.peek_is(TokenType::CloseBrace) {
                     break;
                 }
+
                 if self.peek_comma_is() {
                     self.eat_item_stop_with_newlines()?;
+
+                    // recover a missing close brace before the clause boundary
+                    if self.is_keyword(Keyword::From)
+                        || Self::is_any_stop_token(self.peek_token_type())
+                    {
+                        break;
+                    }
+
                     continue;
-                } else {
-                    return Err(ParseError::unexpected(self.peek()?.span));
                 }
+
+                if self.is_keyword(Keyword::From) || Self::is_any_stop_token(self.peek_token_type())
+                {
+                    break;
+                }
+
+                return Err(ParseError::unexpected(self.peek()?.span));
             }
+
             self.eat_newlines_maybe()?;
-            self.eat_token(TokenType::CloseBrace)?;
+            self.eat_dependency_items_block_close_or_recover_missing()?;
         }
 
         Ok(items)
@@ -989,7 +1059,7 @@ impl Parser {
 
             // item
             let item = self.insert_node(
-                DependencyItem {
+                DependencyItem::Item {
                     mode: DependencyMode::Default,
                     kind,
                     name: None,
@@ -1027,7 +1097,7 @@ impl Parser {
 
             // item
             let item = self.insert_node(
-                DependencyItem {
+                DependencyItem::Item {
                     mode: DependencyMode::Item,
                     kind,
                     name: Some(name),
@@ -1169,7 +1239,7 @@ mod tests {
             assert_eq!(*source, ImportSource::ImportStatement);
             assert_eq!(*kind, DependencyKind::Value);
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem { mode, name: None, alias: Some(alias),.. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Item { mode, name: None, alias: Some(alias),.. } => {
                 assert_eq!(*mode, DependencyMode::Default);
                 assert_string!(parser, *alias, "os");
             });
@@ -1210,12 +1280,12 @@ mod tests {
             assert_eq!(*source, ImportSource::ImportStatement);
             assert_eq!(*kind, DependencyKind::Value);
             assert_eq!(items.len(), 2);
-            assert_node!(parser.tree, items[0], DependencyItem { kind, name: Some(name), alias, .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Item { kind, name: Some(name), alias, .. } => {
                 assert_eq!(*kind, None);
                 assert_string!(parser, name.string(), "Vector2");
                 assert!(alias.is_none());
             });
-            assert_node!(parser.tree, items[1], DependencyItem { kind, name: Some(name), alias: Some(alias),.. } => {
+            assert_node!(parser.tree, items[1], DependencyItem::Item { kind, name: Some(name), alias: Some(alias),.. } => {
                 assert_eq!(*kind, None);
                 assert_string!(parser, name.string(), "Vector3");
                 assert_string!(parser, *alias, "V3");
@@ -1235,7 +1305,7 @@ mod tests {
             assert_eq!(*source, ImportSource::ImportStatement);
             assert_eq!(*kind, DependencyKind::Value);
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem { mode, name: None, alias: Some(alias), .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Item { mode, name: None, alias: Some(alias), .. } => {
                 assert_eq!(*mode, DependencyMode::Namespace);
                 assert_string!(parser, *alias, "geom");
             });
@@ -1254,7 +1324,7 @@ mod tests {
             assert_eq!(*source, ImportSource::ImportStatement);
             assert_eq!(*kind, DependencyKind::Value);
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem { mode, kind, name: Some(name), alias, .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Item { mode, kind, name: Some(name), alias, .. } => {
                 assert_eq!(*mode, DependencyMode::Item);
                 assert_eq!(*kind, None);
                 assert_string!(parser, name.string(), "A");
@@ -1278,7 +1348,7 @@ from 'foo'",
             assert_eq!(*source, ImportSource::ImportStatement);
             assert_eq!(*kind, DependencyKind::Value);
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem { mode, kind, name: None, alias: Some(alias), .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Item { mode, kind, name: None, alias: Some(alias), .. } => {
                 assert_eq!(*mode, DependencyMode::Default);
                 assert_eq!(*kind, None);
                 assert_string!(parser, *alias, "HeaderNavigationButton");
@@ -1304,13 +1374,13 @@ from 'foo'",
             assert_eq!(items.len(), 2);
 
             // default binding
-            assert_node!(parser.tree, items[0], DependencyItem { mode, kind: None, name: None, alias: Some(alias), .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Item { mode, kind: None, name: None, alias: Some(alias), .. } => {
                 assert_eq!(*mode, DependencyMode::Default);
                 assert_string!(parser, *alias, "Default");
             });
 
             // type named binding
-            assert_node!(parser.tree, items[1], DependencyItem { mode, kind, name: Some(name), alias, .. } => {
+            assert_node!(parser.tree, items[1], DependencyItem::Item { mode, kind, name: Some(name), alias, .. } => {
                 assert_eq!(*mode, DependencyMode::Item);
                 assert_eq!(*kind, Some(DependencyKind::Type));
                 assert_string!(parser, name.string(), "Item");
@@ -1336,7 +1406,7 @@ from 'foo'",
             assert_eq!(*source, ImportSource::ImportStatement);
             assert_eq!(*kind, DependencyKind::Value);
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem { mode, kind: None, name: None, alias: Some(alias), .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Item { mode, kind: None, name: None, alias: Some(alias), .. } => {
                 assert_eq!(*mode, DependencyMode::Default);
                 assert_string!(parser, *alias, "BreakoutRooms");
             });
@@ -1358,7 +1428,7 @@ from 'foo'",
             assert_eq!(*source, ImportSource::ImportStatement);
             assert_eq!(*kind, DependencyKind::Value);
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem { mode, kind, name: Some(name), alias, .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Item { mode, kind, name: Some(name), alias, .. } => {
                 assert_eq!(*mode, DependencyMode::Item);
                 assert_eq!(*kind, None);
                 assert_string!(parser, name.string(), "goBack");
@@ -1388,12 +1458,12 @@ import {
             assert_import_target_string(&parser, target, "./lib/object.ng");
 
             assert_eq!(items.len(), 2);
-            assert_node!(parser.tree, items[0], DependencyItem { kind, name: Some(name), alias,.. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Item { kind, name: Some(name), alias,.. } => {
                 assert_eq!(*kind, None);
                 assert_string!(parser, name.string(), "StructuredObject");
                 assert!(alias.is_none());
             });
-            assert_node!(parser.tree, items[1], DependencyItem { kind, name: Some(name), alias,.. } => {
+            assert_node!(parser.tree, items[1], DependencyItem::Item { kind, name: Some(name), alias,.. } => {
                 assert_eq!(*kind, Some(DependencyKind::Type));
                 assert_string!(parser, name.string(), "StructuredObjectOptions");
                 assert!(alias.is_none());
@@ -1412,12 +1482,12 @@ import {
             assert_eq!(*kind, DependencyKind::Value);
             assert_eq!(items.len(), 2);
             // Default
-            assert_node!(parser.tree, items[0], DependencyItem { mode, kind: None, name: None, alias: Some(alias),.. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Item { mode, kind: None, name: None, alias: Some(alias),.. } => {
                 assert_eq!(*mode, DependencyMode::Default);
                 assert_string!(parser, *alias, "Default");
             });
             // { type Item }
-            assert_node!(parser.tree, items[1], DependencyItem { mode, kind, name: Some(name), alias: None,.. } => {
+            assert_node!(parser.tree, items[1], DependencyItem::Item { mode, kind, name: Some(name), alias: None,.. } => {
                 assert_eq!(*mode, DependencyMode::Item);
                 assert_eq!(*kind, Some(DependencyKind::Type));
                 assert_string!(parser, name.string(), "Item");
@@ -1436,7 +1506,7 @@ import {
 
         assert_node!(parser.tree, import_id, Expression::Import { items, .. } => {
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem { kind, name: Some(name), alias, .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Item { kind, name: Some(name), alias, .. } => {
                 assert_eq!(*kind, None);
                 assert_string!(parser, name.string(), "type");
                 assert!(alias.is_none());
@@ -1453,7 +1523,7 @@ import {
         assert_node!(parser.tree, import_id, Expression::Import { items, target, .. } => {
             assert_eq!(items.len(), 1);
             assert_import_target_string(&parser, target, "./a");
-            assert_node!(parser.tree, items[0], DependencyItem { mode, name: None, alias: Some(alias), .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Item { mode, name: None, alias: Some(alias), .. } => {
                 assert_eq!(*mode, DependencyMode::Default);
                 assert_string!(parser, *alias, "type");
             });
@@ -1482,7 +1552,7 @@ import {
         assert_node!(parser.tree, import_id, Expression::Import { items, target, .. } => {
             assert_eq!(items.len(), 1);
             assert_import_target_string(&parser, target, "foo");
-            assert_node!(parser.tree, items[0], DependencyItem { name: Some(name), alias: Some(alias), .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Item { name: Some(name), alias: Some(alias), .. } => {
                 assert_string!(parser, name.string(), "a");
                 assert_string!(parser, *alias, "b");
             });
@@ -1522,7 +1592,7 @@ import {
         assert_node!(parser.tree, import_id, Expression::Import { items, target, .. } => {
             assert_eq!(items.len(), 1);
             assert_import_target_string(&parser, target, "foo");
-            assert_node!(parser.tree, items[0], DependencyItem { kind, name: Some(name), alias: Some(alias), .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Item { kind, name: Some(name), alias: Some(alias), .. } => {
                 assert_eq!(*kind, Some(DependencyKind::Type));
                 assert!(matches!(name, Name::String(_)));
                 assert_string!(parser, name.string(), "string");
@@ -1540,7 +1610,7 @@ import {
 
         assert_node!(parser.tree, import_id, Expression::Import { items, .. } => {
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem { kind, name: Some(name), alias: Some(alias), .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Item { kind, name: Some(name), alias: Some(alias), .. } => {
                 assert_eq!(*kind, None);
                 assert_string!(parser, name.string(), "type");
                 assert_string!(parser, *alias, "as");
@@ -1557,7 +1627,7 @@ import {
 
         assert_node!(parser.tree, import_id, Expression::Import { items, .. } => {
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem { kind, name: Some(name), alias, .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Item { kind, name: Some(name), alias, .. } => {
                 assert_eq!(*kind, Some(DependencyKind::Type));
                 assert_string!(parser, name.string(), "as");
                 assert!(alias.is_none());
@@ -1566,11 +1636,125 @@ import {
     }
 
     #[test]
-    fn test_parse_import_type_in_import_type_error() {
-        // reject type modifiers inside import type blocks
+    fn test_parse_import_type_in_import_type_recovers_error_item() {
+        // preserve one broken item inside import type blocks
         let mut test = TestParser::new("import type { type Foo } from 'foo'");
         let mut parser = test.prepare();
-        assert!(parser.eat_import().is_err());
+        let import_id = parser.eat_import().unwrap();
+
+        assert_node!(parser.tree, import_id, Expression::Import { kind, items, target, .. } => {
+            assert_eq!(*kind, DependencyKind::Type);
+            assert_eq!(items.len(), 1);
+            assert_import_target_string(&parser, target, "foo");
+            assert_node!(parser.tree, items[0], DependencyItem::Error);
+        });
+    }
+
+    #[test]
+    fn test_parse_import_block_recovers_broken_alias_item() {
+        // preserve valid siblings after one broken import item
+        let mut test = TestParser::new("import { Foo as, Bar } from 'foo'");
+        let mut parser = test.prepare();
+        let import_id = parser.eat_import().unwrap();
+
+        assert_node!(parser.tree, import_id, Expression::Import { items, target, .. } => {
+            assert_eq!(items.len(), 2);
+            assert_import_target_string(&parser, target, "foo");
+            assert_node!(parser.tree, items[0], DependencyItem::Error);
+            assert_node!(parser.tree, items[1], DependencyItem::Item { mode, kind, name: Some(name), alias, .. } => {
+                assert_eq!(*mode, DependencyMode::Item);
+                assert_eq!(*kind, None);
+                assert_string!(parser, name.string(), "Bar");
+                assert!(alias.is_none());
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_import_block_recovers_missing_close_before_from() {
+        // preserve the import clause when `}` is omitted before from
+        let mut test = TestParser::new("import { Foo from 'foo'");
+        let mut parser = test.prepare();
+        let import_id = parser.eat_import().unwrap();
+
+        assert_node!(parser.tree, import_id, Expression::Import { items, target, .. } => {
+            assert_eq!(items.len(), 1);
+            assert_import_target_string(&parser, target, "foo");
+            assert_node!(parser.tree, items[0], DependencyItem::Item { mode, kind, name: Some(name), alias, .. } => {
+                assert_eq!(*mode, DependencyMode::Item);
+                assert_eq!(*kind, None);
+                assert_string!(parser, name.string(), "Foo");
+                assert!(alias.is_none());
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_import_block_keeps_statement_owner_in_missing_close_gap() {
+        // keep the import expression enclosing the whitespace gap before `from`
+        let source = "import { Widget,  from \"./types.ds\";";
+        let cursor = source.find("  from").unwrap() as u32 + 1;
+        let mut test = TestParser::new(source);
+        let mut parser = test.prepare();
+        let roots = parser.parse();
+        let root_id = roots[0];
+
+        assert_node!(parser.tree, root_id, Expression::Statement(import_id) => {
+            assert_node!(parser.tree, *import_id, Expression::Import { items, target, .. } => {
+                assert_eq!(items.len(), 1);
+                assert_import_target_string(&parser, target, "./types.ds");
+                assert_node!(parser.tree, items[0], DependencyItem::Item { name: Some(name), .. } => {
+                    assert_string!(parser, name.string(), "Widget");
+                });
+            });
+        });
+
+        let enclosing = parser.tree.source_map.get_enclosing_spans(cursor, cursor);
+        assert!(enclosing.iter().any(|span| span.idx == root_id.id));
+    }
+
+    #[test]
+    fn test_parse_import_keeps_target_main_span_for_unterminated_path() {
+        // keep the import expression and target main span around the trailing path byte
+        let source = "import { } from \"./u";
+        let cursor = source.len() as u32;
+        let probe = cursor.saturating_sub(1);
+        let mut test = TestParser::new(source);
+        let mut parser = test.prepare();
+        let roots = parser.parse();
+        let root_id = roots[0];
+
+        assert_node!(parser.tree, root_id, Expression::Statement(import_id) => {
+            assert_node!(parser.tree, *import_id, Expression::Import { target, .. } => {
+                assert_import_target_string(&parser, target, "./u");
+            });
+
+            let enclosing = parser.tree.source_map.get_enclosing_spans(probe, probe);
+            assert!(enclosing.iter().any(|span| span.idx == import_id.id));
+
+            let main_span = parser.tree.source_map.get_main(import_id.id).unwrap();
+            assert!(main_span.contains(probe));
+        });
+    }
+
+    #[test]
+    fn test_parse_export_block_recovers_broken_alias_item() {
+        // preserve valid siblings after one broken export item
+        let mut test = TestParser::new("export { Foo as, Bar } from 'foo'");
+        let mut parser = test.prepare();
+        let export_id = parser.eat_export().unwrap();
+
+        assert_node!(parser.tree, export_id, Expression::Export { items, target: Some(target), .. } => {
+            assert_eq!(items.len(), 2);
+            assert_string!(parser, *target, "foo");
+            assert_node!(parser.tree, items[0], DependencyItem::Error);
+            assert_node!(parser.tree, items[1], DependencyItem::Item { mode, kind, name: Some(name), alias, .. } => {
+                assert_eq!(*mode, DependencyMode::Item);
+                assert_eq!(*kind, None);
+                assert_string!(parser, name.string(), "Bar");
+                assert!(alias.is_none());
+            });
+        });
     }
 
     #[test]
@@ -1582,7 +1766,7 @@ import {
 
         assert_node!(parser.tree, export_id, Expression::Export { items, .. } => {
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem { kind, name: Some(name), alias, .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Item { kind, name: Some(name), alias, .. } => {
                 assert_eq!(*kind, None);
                 assert_string!(parser, name.string(), "type");
                 assert!(alias.is_none());
@@ -1615,7 +1799,7 @@ import {
         assert_node!(parser.tree, export_id, Expression::Export { target: Some(target), items, .. } => {
             assert_string!(parser, *target, "foo");
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem { mode, kind: None, name: Some(name), alias: Some(alias), .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Item { mode, kind: None, name: Some(name), alias: Some(alias), .. } => {
                 assert_eq!(*mode, DependencyMode::Item);
                 assert_string!(parser, name.string(), "bar");
                 assert_string!(parser, *alias, "baz");
@@ -1635,7 +1819,7 @@ import {
         assert_node!(parser.tree, import_id, Expression::Import { target, items, .. } => {
             assert_import_target_string(&parser, target, "foo");
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem { mode, kind: None, name: Some(name), alias: Some(alias), .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Item { mode, kind: None, name: Some(name), alias: Some(alias), .. } => {
                 assert_eq!(*mode, DependencyMode::Item);
                 assert_string!(parser, name.string(), "bar");
                 assert_string!(parser, *alias, "baz");
@@ -1655,12 +1839,12 @@ import {
             assert_eq!(*kind, DependencyKind::Value);
             assert_eq!(items.len(), 2);
             // default: a
-            assert_node!(parser.tree, items[0], DependencyItem { mode, kind: None, name: None, alias: Some(alias),.. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Item { mode, kind: None, name: None, alias: Some(alias),.. } => {
                 assert_eq!(*mode, DependencyMode::Default);
                 assert_string!(parser, *alias, "a");
             });
             // namespace: * as b
-            assert_node!(parser.tree, items[1], DependencyItem { mode, kind: None, name: None, alias: Some(alias),.. } => {
+            assert_node!(parser.tree, items[1], DependencyItem::Item { mode, kind: None, name: None, alias: Some(alias),.. } => {
                 assert_eq!(*mode, DependencyMode::Namespace);
                 assert_string!(parser, *alias, "b");
             });
@@ -1831,14 +2015,14 @@ export type { CreateUIMessage, UIMessage }
             assert!(target.is_none());
             assert_eq!(items.len(), 2);
             // CreateUIMessage
-            assert_node!(parser.tree, items[0], DependencyItem { mode, kind, name: Some(name), alias,.. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Item { mode, kind, name: Some(name), alias,.. } => {
                 assert_eq!(*mode, DependencyMode::Item);
                 assert_eq!(*kind, None);
                 assert_string!(parser, name.string(), "CreateUIMessage");
                 assert!(alias.is_none());
             });
             // UIMessage
-            assert_node!(parser.tree, items[1], DependencyItem { mode, kind, name: Some(name), alias,.. } => {
+            assert_node!(parser.tree, items[1], DependencyItem::Item { mode, kind, name: Some(name), alias,.. } => {
                 assert_eq!(*mode, DependencyMode::Item);
                 assert_eq!(*kind, None);
                 assert_string!(parser, name.string(), "UIMessage");
@@ -1857,7 +2041,7 @@ export type { CreateUIMessage, UIMessage }
         assert_node!(parser.tree, export_id, Expression::Export { kind, target: Some(target), items, .. } => {
             assert_eq!(*kind, DependencyKind::Value);
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem { mode, kind, name: Some(name), alias, .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Item { mode, kind, name: Some(name), alias, .. } => {
                 assert_eq!(*mode, DependencyMode::Item);
                 assert_eq!(*kind, None);
                 assert_string!(parser, name.string(), "A");
@@ -1877,7 +2061,7 @@ export type { CreateUIMessage, UIMessage }
         assert_node!(parser.tree, export_id, Expression::Export { kind, target: Some(target), items, .. } => {
             assert_eq!(*kind, DependencyKind::Value);
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem { mode, name: None, alias: None, .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Item { mode, name: None, alias: None, .. } => {
                 assert_eq!(*mode, DependencyMode::Namespace);
             });
             assert_string!(parser, *target, "foo");
@@ -1892,7 +2076,7 @@ export type { CreateUIMessage, UIMessage }
         assert_node!(parser.tree, export_id, Expression::Export { kind, target: Some(target), items, .. } => {
             assert_eq!(*kind, DependencyKind::Value);
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem { mode, name: None, alias: None, .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Item { mode, name: None, alias: None, .. } => {
                 assert_eq!(*mode, DependencyMode::Namespace);
             });
             assert_string!(parser, *target, "foo");
@@ -1907,7 +2091,7 @@ export type { CreateUIMessage, UIMessage }
         assert_node!(parser.tree, export_id, Expression::Export { kind, target: Some(target), items, .. } => {
             assert_eq!(*kind, DependencyKind::Type);
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem { mode, name: None, alias: None, .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Item { mode, name: None, alias: None, .. } => {
                 assert_eq!(*mode, DependencyMode::Namespace);
             });
             assert_string!(parser, *target, "foo");
@@ -1922,7 +2106,7 @@ export type { CreateUIMessage, UIMessage }
         assert_node!(parser.tree, export_id, Expression::Export { kind, target: Some(target), items, .. } => {
             assert_eq!(*kind, DependencyKind::Type);
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem { mode, name: None, alias: Some(alias), .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Item { mode, name: None, alias: Some(alias), .. } => {
                 assert_eq!(*mode, DependencyMode::Namespace);
                 assert_string!(parser, *alias, "ns2");
             });
@@ -1938,7 +2122,7 @@ export type { CreateUIMessage, UIMessage }
         assert_node!(parser.tree, export_id, Expression::Export { kind, target: Some(target), items, .. } => {
             assert_eq!(*kind, DependencyKind::Value);
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem { mode, kind, name: Some(name), alias: None, .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Item { mode, kind, name: Some(name), alias: None, .. } => {
                 assert_eq!(*mode, DependencyMode::Item);
                 assert_eq!(*kind, Some(DependencyKind::Type));
                 assert_string!(parser, name.string(), "Options");
@@ -1955,7 +2139,7 @@ export type { CreateUIMessage, UIMessage }
         assert_node!(parser.tree, export_id, Expression::Export { kind, target: Some(target), items, .. } => {
             assert_eq!(*kind, DependencyKind::Type);
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem { mode, kind, name: Some(name), alias: None, .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Item { mode, kind, name: Some(name), alias: None, .. } => {
                 assert_eq!(*mode, DependencyMode::Item);
                 assert_eq!(*kind, None);
                 assert_string!(parser, name.string(), "Options");
@@ -1972,7 +2156,7 @@ export type { CreateUIMessage, UIMessage }
         assert_node!(parser.tree, export_id, Expression::Export { kind, target: Some(target), items, .. } => {
             assert_eq!(*kind, DependencyKind::Value);
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem { mode, name: None, alias: Some(alias), .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Item { mode, name: None, alias: Some(alias), .. } => {
                 assert_eq!(*mode, DependencyMode::Namespace);
                 assert_string!(parser, *alias, "foo");
             });
@@ -2146,7 +2330,7 @@ export as namespace Foo"#,
         assert_node!(parser.tree, export_id, Expression::Export { kind, target: None, items, .. } => {
             assert_eq!(*kind, DependencyKind::Value);
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem { mode, name: None, alias: None, value: Some(value), .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Item { mode, name: None, alias: None, value: Some(value), .. } => {
                 assert_eq!(*mode, DependencyMode::Namespace);
                 assert_expression_path!(parser, parser.tree.get(*value), "foo");
             });
@@ -2161,7 +2345,7 @@ export as namespace Foo"#,
         assert_node!(parser.tree, export_id, Expression::Export { kind, target: None, items, .. } => {
             assert_eq!(*kind, DependencyKind::Value);
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem { mode, name: None, alias: None, value: Some(value), .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Item { mode, name: None, alias: None, value: Some(value), .. } => {
                 assert_eq!(*mode, DependencyMode::Default);
                 assert_expression_path!(parser, parser.tree.get(*value), "foo");
             });
@@ -2177,7 +2361,7 @@ export as namespace Foo"#,
             assert_eq!(*kind, DependencyKind::Value);
             assert_string!(parser, *target, "foo");
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem { mode, name: None, alias, .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Item { mode, name: None, alias, .. } => {
                 assert_eq!(*mode, DependencyMode::Default);
                 assert!(alias.is_none());
             });
@@ -2194,18 +2378,18 @@ export as namespace Foo"#,
             assert_string!(parser, *target, "foo");
             assert_eq!(items.len(), 3);
             // default as bar
-            assert_node!(parser.tree, items[0], DependencyItem { mode, name: None, alias: Some(alias), .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Item { mode, name: None, alias: Some(alias), .. } => {
                 assert_eq!(*mode, DependencyMode::Default);
                 assert_string!(parser, *alias, "bar");
             });
             // baz as baz
-            assert_node!(parser.tree, items[1], DependencyItem { mode, name: Some(name), alias: Some(alias), .. } => {
+            assert_node!(parser.tree, items[1], DependencyItem::Item { mode, name: Some(name), alias: Some(alias), .. } => {
                 assert_eq!(*mode, DependencyMode::Item);
                 assert_string!(parser, name.string(), "baz");
                 assert_string!(parser, *alias, "baz");
             });
             // biz
-            assert_node!(parser.tree, items[2], DependencyItem { mode, name: Some(name), alias, .. } => {
+            assert_node!(parser.tree, items[2], DependencyItem::Item { mode, name: Some(name), alias, .. } => {
                 assert_eq!(*mode, DependencyMode::Item);
                 assert_string!(parser, name.string(), "biz");
                 assert!(alias.is_none());
@@ -2223,12 +2407,12 @@ export as namespace Foo"#,
             assert_string!(parser, *target, "foo");
             assert_eq!(items.len(), 2);
             // default as bar
-            assert_node!(parser.tree, items[0], DependencyItem { mode, name: None, alias: Some(alias), .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Item { mode, name: None, alias: Some(alias), .. } => {
                 assert_eq!(*mode, DependencyMode::Default);
                 assert_string!(parser, *alias, "bar");
             });
             // default as baz
-            assert_node!(parser.tree, items[1], DependencyItem { mode, name: None, alias: Some(alias), .. } => {
+            assert_node!(parser.tree, items[1], DependencyItem::Item { mode, name: None, alias: Some(alias), .. } => {
                 assert_eq!(*mode, DependencyMode::Default);
                 assert_string!(parser, *alias, "baz");
             });
@@ -2270,7 +2454,7 @@ export as namespace Foo"#,
             assert_eq!(*kind, DependencyKind::Value);
             assert!(target.is_none());
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem { mode, kind, name: Some(name), alias, .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Item { mode, kind, name: Some(name), alias, .. } => {
                 assert_eq!(*mode, DependencyMode::Item);
                 assert_eq!(*kind, None);
                 assert_string!(parser, name.string(), "if");
@@ -2290,7 +2474,7 @@ export as namespace Foo"#,
             assert_eq!(*kind, DependencyKind::Value);
             assert!(target.is_none());
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem { mode, kind, name: Some(name), alias: Some(alias), .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Item { mode, kind, name: Some(name), alias: Some(alias), .. } => {
                 assert_eq!(*mode, DependencyMode::Item);
                 assert_eq!(*kind, None);
                 assert_string!(parser, name.string(), "if");
@@ -2310,7 +2494,7 @@ export as namespace Foo"#,
             assert_eq!(*kind, DependencyKind::Value);
             assert!(target.is_none());
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem { mode, kind, name: Some(name), alias: Some(alias), .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Item { mode, kind, name: Some(name), alias: Some(alias), .. } => {
                 assert_eq!(*mode, DependencyMode::Item);
                 assert_eq!(*kind, None);
                 assert_string!(parser, name.string(), "viteLegacyPluginCjs");
@@ -2335,7 +2519,7 @@ export as namespace Foo"#,
             assert_eq!(items.len(), 3);
 
             // true alias
-            assert_node!(parser.tree, items[0], DependencyItem { mode, kind, name: Some(name), alias: Some(alias), .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Item { mode, kind, name: Some(name), alias: Some(alias), .. } => {
                 assert_eq!(*mode, DependencyMode::Item);
                 assert_eq!(*kind, None);
                 assert_string!(parser, name.string(), "true_instance");
@@ -2343,7 +2527,7 @@ export as namespace Foo"#,
             });
 
             // false alias
-            assert_node!(parser.tree, items[1], DependencyItem { mode, kind, name: Some(name), alias: Some(alias), .. } => {
+            assert_node!(parser.tree, items[1], DependencyItem::Item { mode, kind, name: Some(name), alias: Some(alias), .. } => {
                 assert_eq!(*mode, DependencyMode::Item);
                 assert_eq!(*kind, None);
                 assert_string!(parser, name.string(), "false_instance");
@@ -2351,7 +2535,7 @@ export as namespace Foo"#,
             });
 
             // null alias
-            assert_node!(parser.tree, items[2], DependencyItem { mode, kind, name: Some(name), alias: Some(alias), .. } => {
+            assert_node!(parser.tree, items[2], DependencyItem::Item { mode, kind, name: Some(name), alias: Some(alias), .. } => {
                 assert_eq!(*mode, DependencyMode::Item);
                 assert_eq!(*kind, None);
                 assert_string!(parser, name.string(), "null_instance");
@@ -2371,7 +2555,7 @@ export as namespace Foo"#,
             assert_eq!(*kind, DependencyKind::Value);
             assert!(target.is_none());
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem { mode, kind, name: Some(name), alias, .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Item { mode, kind, name: Some(name), alias, .. } => {
                 assert_eq!(*mode, DependencyMode::Item);
                 assert_eq!(*kind, None);
                 assert_string!(parser, name.string(), "as");
@@ -2391,7 +2575,7 @@ export as namespace Foo"#,
             assert_eq!(*kind, DependencyKind::Value);
             assert!(target.is_none());
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem { mode, kind, name: Some(name), alias, .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Item { mode, kind, name: Some(name), alias, .. } => {
                 assert_eq!(*mode, DependencyMode::Item);
                 assert_eq!(*kind, None);
                 assert_string!(parser, name.string(), "type");
@@ -2412,7 +2596,7 @@ export as namespace Foo"#,
             assert_eq!(*kind, DependencyKind::Value);
             assert!(target.is_none());
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem { mode, kind, name: Some(name), alias: Some(alias), .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Item { mode, kind, name: Some(name), alias: Some(alias), .. } => {
                 assert_eq!(*mode, DependencyMode::Item);
                 assert_eq!(*kind, None);
                 assert_string!(parser, name.string(), "type");
@@ -2433,7 +2617,7 @@ export as namespace Foo"#,
             assert_eq!(*kind, DependencyKind::Value);
             assert!(target.is_none());
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem { mode, kind, name: Some(name), alias: Some(alias), .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Item { mode, kind, name: Some(name), alias: Some(alias), .. } => {
                 assert_eq!(*mode, DependencyMode::Item);
                 assert_eq!(*kind, Some(DependencyKind::Type));
                 assert_string!(parser, name.string(), "as");
