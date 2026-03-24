@@ -95,11 +95,6 @@ impl<'a, 'b> ArrayConstructorVisitor<'a, 'b> {
             return;
         }
 
-        // skip single non-spread arguments to match source semantics
-        if call_like_has_single_non_spread_argument(self.ctx.tree, call_like) {
-            return;
-        }
-
         // honor per node severity
         let severity = self.ctx.get_effective_severity(self.meta, expression_id);
         if !severity.is_enabled() {
@@ -195,19 +190,6 @@ impl<'a, 'b> ArrayConstructorVisitor<'a, 'b> {
     }
 }
 
-/// Return true when one call-like expression has exactly one non-spread argument.
-fn call_like_has_single_non_spread_argument(
-    tree: &dir::NodeTree,
-    call_like: CallLikeExpressionInfo<'_>,
-) -> bool {
-    if call_like.dynamic_arguments.len() != 1 {
-        return false;
-    }
-
-    let argument = tree.get(call_like.dynamic_arguments[0]);
-    !matches!(argument, dir::Argument::Spread { .. })
-}
-
 impl NodeVisitor for ArrayConstructorVisitor<'_, '_> {
     /// Return visitor options.
     fn options(&self) -> &NodeVisitorOptions {
@@ -257,7 +239,9 @@ let items = Array(1, 2);
 let items = new Array(1);
 "#,
         );
-        test.result(result).assert_no_lint("no-array-constructor");
+        test.result(result)
+            .assert_lint("no-array-constructor")
+            .assert_has_no_fix("no-array-constructor");
     }
 
     #[test]
@@ -376,15 +360,17 @@ let items = [];
     }
 
     #[test]
-    fn test_allows_array_constructor_single_argument() {
+    fn test_flags_array_constructor_single_argument() {
         let test = TestProgram::for_rule_with_prelude(NoArrayConstructor);
         let result = test.lint_dir(
-            "no_array_constructor/test_allows_array_constructor_single_argument.ds",
+            "no_array_constructor/test_flags_array_constructor_single_argument.ds",
             r#"
 let items = Array(3);
 "#,
         );
-        test.result(result).assert_no_lint("no-array-constructor");
+        test.result(result)
+            .assert_lint("no-array-constructor")
+            .assert_has_no_fix("no-array-constructor");
     }
 
     #[test]

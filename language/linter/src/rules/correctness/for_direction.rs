@@ -146,6 +146,7 @@ fn increment_with_expected_direction(
     expected_direction: Direction,
 ) -> Option<String> {
     // inspect the increment expression shape
+    let increment_id = expression_unwrap_parenthesized_syntax(ctx.tree, increment_id);
     let increment = ctx.tree.get(increment_id);
 
     // render a direction corrected update form
@@ -187,12 +188,6 @@ fn increment_with_expected_direction(
             let right_text = ctx.get_span_text(ctx.tree.get_span(*right));
 
             Some(format!("{left_text} {replacement_operator} {right_text}"))
-        }
-        ast::Expression::Parenthesized { expression } => {
-            // preserve parenthesized wrapper around rewritten update
-            let inner = increment_with_expected_direction(ctx, *expression, expected_direction)?;
-
-            Some(format!("({inner})"))
         }
         _ => None,
     }
@@ -600,12 +595,35 @@ for (let i = 0; i < 10; i += -1) {
         let result = test.lint_ast(
             "for_direction/test_detects_folded_negative_step_add_assign.ds",
             r#"
-for (let i = 0; i < 10; i += (2 - 3)) {
+for (let i = 0; i < 10; i += 2 - 3) {
     console.log(i);
 }
 "#,
         );
         test.result(result).assert_lint("for-direction");
+    }
+
+    #[test]
+    fn test_fix_drops_parenthesized_update_wrapper() {
+        let test = TestProgram::for_rule_without_prelude(ForDirection);
+        let result = test.lint_ast(
+            "for_direction/test_fix_drops_parenthesized_update_wrapper.ds",
+            r#"
+for (let i = 0; i < 10; (i--)) {
+    console.log(i);
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("for-direction")
+            .assert_has_fix("for-direction")
+            .assert_unsafe_fixed(
+                r#"
+for (let i = 0; i < 10; i++) {
+    console.log(i);
+}
+"#,
+            );
     }
 
     #[test]

@@ -112,15 +112,12 @@ fn make_neg_zero_fix(
     let other_span = ctx.tree.get_span(other_id);
     let other_text = ctx.get_span_text(other_span);
 
-    // only fix equality operators: relational comparisons do not have a meaningful fix
+    // only strict equality operators are semantics preserving here
     let replacement = match operator {
-        ast::BinaryOperator::Equal | ast::BinaryOperator::EqualStrict => {
-            format!("Object.is({other_text}, -0)")
-        }
-        ast::BinaryOperator::NotEqual | ast::BinaryOperator::NotEqualStrict => {
-            format!("!Object.is({other_text}, -0)")
-        }
-        // relational operators: no fix
+        ast::BinaryOperator::EqualStrict => format!("Object.is({other_text}, -0)"),
+        ast::BinaryOperator::NotEqualStrict => format!("!Object.is({other_text}, -0)"),
+
+        // loose equality and relational operators: no fix
         _ => return None,
     };
 
@@ -215,6 +212,38 @@ x != -0;
 "#,
         );
         test.result(result).assert_lint("no-compare-neg-zero");
+    }
+
+    #[test]
+    fn test_does_not_fix_loose_equal() {
+        let test = TestProgram::for_rule_without_prelude(NoCompareNegZero);
+        let result = test.lint_ast(
+            "no_compare_neg_zero/test_does_not_fix_loose_equal.ds",
+            r#"
+let x = 0;
+if (x == -0) {
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-compare-neg-zero")
+            .assert_has_no_fix("no-compare-neg-zero");
+    }
+
+    #[test]
+    fn test_does_not_fix_loose_not_equal() {
+        let test = TestProgram::for_rule_without_prelude(NoCompareNegZero);
+        let result = test.lint_ast(
+            "no_compare_neg_zero/test_does_not_fix_loose_not_equal.ds",
+            r#"
+let x = 0;
+if (x != -0) {
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-compare-neg-zero")
+            .assert_has_no_fix("no-compare-neg-zero");
     }
 
     #[test]

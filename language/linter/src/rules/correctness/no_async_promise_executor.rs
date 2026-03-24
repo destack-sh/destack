@@ -159,10 +159,31 @@ fn async_promise_executor_fix(
         return None;
     }
 
+    // remove one redundant parenthesized wrapper when the rewritten executor
+    // already has the arrow function's own parameter parentheses
+    let replacement_span = if let Some(parent) = ctx.tree.get_parent(expression_id.id)
+        && parent.ty == dir::NodeType::Expression
+    {
+        let parent_id = parent.into_typed::<dir::Expression>();
+        let parent_expression = ctx.tree.get(parent_id);
+        if matches!(
+            parent_expression,
+            dir::Expression::Parenthesized {
+                expression
+            } if *expression == expression_id
+        ) {
+            ctx.get_span(parent_id)
+        } else {
+            expression_span
+        }
+    } else {
+        expression_span
+    };
+
     // build replacement edit
     let edits = ctx
         .edit_builder()
-        .replace(expression_span, rewritten)
+        .replace(replacement_span, rewritten)
         .into_edits();
 
     // return unsafe rewrite fix
@@ -306,9 +327,9 @@ let task = new Promise((async (resolve, reject) => {
             .assert_lint("no-async-promise-executor")
             .assert_unsafe_fixed(
                 r#"
-let task = new Promise(((resolve, reject) => {
+let task = new Promise((resolve, reject) => {
     resolve(1);
-}));
+});
 "#,
             );
     }

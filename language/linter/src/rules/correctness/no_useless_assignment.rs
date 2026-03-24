@@ -5,9 +5,8 @@ use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
     collect_expression_read_symbol_usage, collect_pattern_value_binding_symbols,
-    statement_expression_span,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow assignments that are immediately overwritten.
@@ -21,7 +20,7 @@ declare_lint! {
         level = Dir,
         requires_all = [],
         requires_any = [],
-        fixable = Sometimes,
+        fixable = No,
         recommended = Always,
         stability = Stable
     )]
@@ -176,7 +175,7 @@ impl<'a, 'b> UselessAssignmentVisitor<'a, 'b> {
 
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
-        let mut diagnostic = LintDiagnostic::new(
+        let diagnostic = LintDiagnostic::new(
             NO_USELESS_ASSIGNMENT.id,
             NO_USELESS_ASSIGNMENT.code,
             NO_USELESS_ASSIGNMENT.category,
@@ -186,13 +185,6 @@ impl<'a, 'b> UselessAssignmentVisitor<'a, 'b> {
             span,
         )
         .with_label("this value is never used");
-
-        // compute fixes only when requested by the runner
-        if self.ctx.include_fixes
-            && let Some(fix) = useless_assignment_fix(self.ctx, expression_id)
-        {
-            diagnostic = diagnostic.with_fix(fix);
-        }
 
         self.ctx.report(diagnostic);
     }
@@ -239,22 +231,6 @@ fn expression_stops_execution(expression: &dir::Expression) -> bool {
             | dir::Expression::Break { .. }
             | dir::Expression::Continue { .. }
     )
-}
-
-/// Build an unsafe fix by removing one overwritten assignment.
-fn useless_assignment_fix(
-    ctx: &LintModuleDirContext<'_>,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-) -> Option<LintFix> {
-    let expression = ctx.tree.get(expression_id);
-    if !matches!(expression, dir::Expression::Assign { .. }) {
-        return None;
-    }
-
-    // remove the full statement that contains this overwritten assignment
-    let statement_span = statement_expression_span(ctx, expression_id)?;
-    let edits = ctx.edit_builder().delete(statement_span).into_edits();
-    Some(LintFix::r#unsafe("Remove overwritten assignment").with_edits(edits))
 }
 
 /// Collect read symbols in one expression subtree.
@@ -329,16 +305,7 @@ function test(): void {
         );
         test.result(result)
             .assert_lint("no-useless-assignment")
-            .assert_unsafe_fixed(
-                r#"
-function test(): void {
-    let x: int32;
-
-    x = 2;
-    console.log(x);
-}
-"#,
-            );
+            .assert_has_no_fix("no-useless-assignment");
     }
 
     /// Allow assignment followed by use.
@@ -392,16 +359,31 @@ function test(): void {
         );
         test.result(result)
             .assert_lint("no-useless-assignment")
-            .assert_unsafe_fixed(
-                r#"
+            .assert_has_no_fix("no-useless-assignment");
+    }
+
+    /// Keep side effecting overwritten assignments diagnostic only.
+    #[test]
+    fn test_flags_side_effecting_overwritten_assignment_without_fix() {
+        let test = TestProgram::for_rule_without_prelude(NoUselessAssignment);
+        let result = test.lint_dir(
+            "no_useless_assignment/test_flags_side_effecting_overwritten_assignment_without_fix.ds",
+            r#"
+function read(): int32 {
+    return 1;
+}
+
 function test(): void {
     let value: int32;
-
+    value = read();
     value = 2;
-    return value;
+    return;
 }
 "#,
-            );
+        );
+        test.result(result)
+            .assert_lint("no-useless-assignment")
+            .assert_has_no_fix("no-useless-assignment");
     }
 
     /// Allow assignment used in a conditional expression before overwrite.

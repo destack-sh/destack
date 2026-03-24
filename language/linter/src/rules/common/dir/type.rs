@@ -569,6 +569,7 @@ fn evaluate_terminal_boolean_type_query(
             }),
             dir::Type::Function { .. } => true,
             dir::Type::Object { .. } => false,
+            dir::Type::Error => true,
             _ => false,
         },
         TypeBooleanQuery::AsyncFunction => match ty {

@@ -77,10 +77,31 @@ impl<'a, 'b> UnnecessaryConditionVisitor<'a, 'b> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         context_label: &'static str,
     ) {
-        let Some(type_id) = self.ctx.expression_type_id(expression_id) else {
-            return;
+        let expression = self.ctx.tree.get(expression_id);
+
+        // preserve condition semantics for explicit negation
+        let (diagnostic_id, truthiness) = if let dir::Expression::Unary {
+            operator: dir::UnaryOperator::Not,
+            right,
+        } = expression
+        {
+            let Some(type_id) = self.ctx.expression_type_id(*right) else {
+                return;
+            };
+            let truthiness = type_truthiness(self.ctx.types, &self.ctx.program.strings, type_id);
+            let truthiness = match truthiness {
+                TypeTruthiness::AlwaysTruthy => TypeTruthiness::AlwaysFalsy,
+                TypeTruthiness::AlwaysFalsy => TypeTruthiness::AlwaysTruthy,
+                TypeTruthiness::Unknown => TypeTruthiness::Unknown,
+            };
+            (expression_id, truthiness)
+        } else {
+            let Some(type_id) = self.ctx.expression_type_id(expression_id) else {
+                return;
+            };
+            let truthiness = type_truthiness(self.ctx.types, &self.ctx.program.strings, type_id);
+            (expression_id, truthiness)
         };
-        let truthiness = type_truthiness(self.ctx.types, &self.ctx.program.strings, type_id);
 
         // resolve values for this check
         let (message, label) = match truthiness {
@@ -102,7 +123,7 @@ impl<'a, 'b> UnnecessaryConditionVisitor<'a, 'b> {
         }
 
         // resolve diagnostic span
-        let span = self.ctx.get_span(expression_id);
+        let span = self.ctx.get_span(diagnostic_id);
         self.ctx.report(
             LintDiagnostic::new(
                 NO_UNNECESSARY_CONDITION.id,
@@ -352,6 +373,21 @@ if (value) {
             .assert_no_lint("no-unnecessary-condition");
     }
 
+    /// Flag negated conditions with fixed truthiness.
+    #[test]
+    fn test_flags_negated_fixed_condition() {
+        let test = TestProgram::for_rule_without_prelude(NoUnnecessaryCondition);
+        let result = test.lint_dir(
+            "no_unnecessary_condition/test_flags_negated_fixed_condition.ts",
+            r#"
+let value: { x: number } = { x: 1 };
+if (!value) {
+}
+"#,
+        );
+        test.result(result).assert_lint("no-unnecessary-condition");
+    }
+
     /// Allow maybe-nullish union conditions.
     #[test]
     fn test_allows_maybe_nullish_condition() {
@@ -361,6 +397,22 @@ if (value) {
             r#"
 let value: string | null = "ready";
 if (value) {
+}
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("no-unnecessary-condition");
+    }
+
+    /// Allow negated conditions with unknown truthiness.
+    #[test]
+    fn test_allows_negated_unknown_condition() {
+        let test = TestProgram::for_rule_without_prelude(NoUnnecessaryCondition);
+        let result = test.lint_dir(
+            "no_unnecessary_condition/test_allows_negated_unknown_condition.ts",
+            r#"
+let value: boolean = true;
+if (!value) {
 }
 "#,
         );

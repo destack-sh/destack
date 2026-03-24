@@ -201,7 +201,6 @@ fn expression_constant_truthiness(
         | ast::Expression::ObjectExpression { .. }
         | ast::Expression::New { .. }
         | ast::Expression::Declaration(_)
-        | ast::Expression::Path { .. }
         | ast::Expression::This
         | ast::Expression::Super => Some(true),
         _ => None,
@@ -531,5 +530,19 @@ compute() || compute();
         );
         test.result(result)
             .assert_lint("no-constant-binary-expression");
+    }
+
+    #[test]
+    fn test_allows_logical_or_with_variable_left() {
+        let test = TestProgram::for_rule_without_prelude(NoConstantBinaryExpression);
+        let result = test.lint_ast(
+            "no_constant_binary_expression/test_allows_logical_or_with_variable_left.ds",
+            r#"
+let value = maybe();
+value || fallback;
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("no-constant-binary-expression");
     }
 }
