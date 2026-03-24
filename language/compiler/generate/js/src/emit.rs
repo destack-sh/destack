@@ -1,4 +1,5 @@
 use destack_artifact::Ast;
+use destack_core::StringPool;
 use destack_dir as dir;
 use destack_dir::{SymbolTable, TypeTable};
 use destack_workspace::{Module, Target};
@@ -21,13 +22,23 @@ pub struct ModuleEmitOutput {
 pub fn emit_module(
     module: &Module,
     ast: &Ast,
+    source_strings: &StringPool,
     dir_tree: &dir::NodeTree,
     dir_roots: &Vec<dir::LocalNodeId<dir::Expression>>,
     symbols: &SymbolTable,
     types: &TypeTable,
     target: &Target,
 ) -> CodegenJsResult<ModuleEmitOutput> {
-    let mut lowerer = ModuleLowerer::new(module, ast, dir_tree, dir_roots, symbols, types, target);
+    let mut lowerer = ModuleLowerer::new(
+        module,
+        ast,
+        source_strings,
+        dir_tree,
+        dir_roots,
+        symbols,
+        types,
+        target,
+    );
     lowerer.lower_module()?;
 
     Ok(ModuleEmitOutput {

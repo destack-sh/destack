@@ -34,8 +34,10 @@ impl ModuleLowerer<'_> {
 
         let expression = self.dir_tree.get(expression_id);
 
-        // report unresolved warning
-        if !expression.is_resolved() {
+        // report unresolved nodes unless the target intentionally keeps them external
+        if !expression.is_resolved()
+            && !self.allows_unresolved_external_dependency_expression(expression)
+        {
             self.error(CodegenJsError::UnresolvedNode {
                 node: expression_id.into_global_any(self.module.id),
                 message: Some(expression.kind_name().to_string()),
@@ -89,7 +91,7 @@ impl ModuleLowerer<'_> {
                 if *source == dir::DependencySource::ImportCall {
                     let target_expression = match target {
                         dir::ImportTarget::String(target) => {
-                            let target = self.strings.intern_from(&self.ast.strings, *target);
+                            let target = self.strings.intern_from(self.source_strings, *target);
                             self.tree.insert_from_source(
                                 Expression::ScalarLiteral {
                                     value: crate::ScalarLiteral::String(target),
@@ -152,7 +154,7 @@ impl ModuleLowerer<'_> {
                 } else {
                     let target = match target {
                         dir::ImportTarget::String(target) => {
-                            self.strings.intern_from(&self.ast.strings, *target)
+                            self.strings.intern_from(self.source_strings, *target)
                         }
                         dir::ImportTarget::Expression { .. } => {
                             return Err(CodegenJsError::UnsupportedConstruct {
@@ -194,7 +196,7 @@ impl ModuleLowerer<'_> {
             } => {
                 // resolved import calls keep expression semantics
                 if *source == dir::DependencySource::ImportCall {
-                    let target = self.strings.intern_from(&self.ast.strings, *target);
+                    let target = self.strings.intern_from(self.source_strings, *target);
                     let target_expression = self.tree.insert_from_source(
                         Expression::ScalarLiteral {
                             value: crate::ScalarLiteral::String(target),
@@ -242,7 +244,7 @@ impl ModuleLowerer<'_> {
                         )
                         .into_any()
                 } else {
-                    let target = self.strings.intern_from(&self.ast.strings, *target);
+                    let target = self.strings.intern_from(self.source_strings, *target);
                     let items = self.lower_dependency_items(*kind, items.as_slice())?;
                     let arguments = arguments
                         .as_ref()
@@ -272,7 +274,7 @@ impl ModuleLowerer<'_> {
                 items,
                 arguments: _,
             } => {
-                let target = self.strings.intern_from(&self.ast.strings, *target);
+                let target = self.strings.intern_from(self.source_strings, *target);
                 let items = self.lower_dependency_items(*kind, items.as_slice())?;
                 let kind = self.lower_dependency_kind(*kind);
                 let statement = Statement::Export {
@@ -292,7 +294,7 @@ impl ModuleLowerer<'_> {
                 items,
                 arguments: _,
             } => {
-                let target = self.strings.intern_from(&self.ast.strings, *target);
+                let target = self.strings.intern_from(self.source_strings, *target);
                 let items = self.lower_dependency_items(*kind, items.as_slice())?;
                 let kind = self.lower_dependency_kind(*kind);
                 let statement = Statement::Export {
@@ -453,7 +455,7 @@ impl ModuleLowerer<'_> {
                     .into_any()
             }
             dir::Expression::PrivateIdentifier { name } => {
-                let name = self.strings.intern_from(&self.ast.strings, *name);
+                let name = self.strings.intern_from(self.source_strings, *name);
                 let expression = Expression::PrivateIdentifier { name };
                 self.tree
                     .insert_from_source(expression, self.module.id, expression_id)
@@ -601,7 +603,7 @@ impl ModuleLowerer<'_> {
                         message: Some("missing member name".to_string()),
                     });
                 };
-                let name = self.strings.intern_from(&self.ast.strings, name);
+                let name = self.strings.intern_from(self.source_strings, name);
                 let static_arguments = static_arguments
                     .as_ref()
                     .map(|arguments| {
@@ -634,7 +636,7 @@ impl ModuleLowerer<'_> {
                         message: Some("missing private member name".to_string()),
                     });
                 };
-                let name = self.strings.intern_from(&self.ast.strings, name);
+                let name = self.strings.intern_from(self.source_strings, name);
                 let static_arguments = static_arguments
                     .as_ref()
                     .map(|arguments| {
@@ -776,7 +778,7 @@ impl ModuleLowerer<'_> {
                 body,
                 symbol: _,
             } => {
-                let label = self.strings.intern_from(&self.ast.strings, *label);
+                let label = self.strings.intern_from(self.source_strings, *label);
                 // TODO #Broken: handle expressions lowering into non-statements (like labelled blocks?)
                 let body_id = self
                     .lower_expression(*body)

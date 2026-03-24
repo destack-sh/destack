@@ -1,8 +1,9 @@
 #[cfg(feature = "native-codegen")]
-mod cranelift;
+mod binary;
 mod error;
-mod js;
 mod process;
+mod script;
+mod target;
 mod warning;
 
 pub use error::*;

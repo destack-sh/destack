@@ -1,51 +1,53 @@
 use crate::{Compiler, GenerateError, GenerateResult, GenerateWarning};
+
 use destack_artifact::{ArtifactKey, ModuleArtifact};
 use destack_codegen_js::{CodegenJsError, CodegenJsWarning};
 use destack_source::ModuleId;
-use destack_workspace::{ProfileId, Target};
+use destack_workspace::{ProfileId, Target, TargetId};
 
 impl Compiler {
-    /// Generate JS/TS code for a module.
-    pub(super) fn generate_js(
+    /// Generate one script module artifact.
+    pub(super) fn generate_script_module_artifact(
         &self,
         module_id: ModuleId,
         target: &Target,
         profile: ProfileId,
     ) -> GenerateResult<()> {
-        // require module to be elaborated
+        // require the elaborated module state
         self.require_dir_elaborated(module_id, profile)?;
 
-        // generate artifact
-        let (artifact, warnings, errors) = destack_codegen_js::generate_artifact(
+        // generate one script artifact through the current backend
+        let (artifact, warnings, errors) = destack_codegen_js::ScriptArtifactGenerator::new(
             self.program.clone(),
             self.artifacts.clone(),
             module_id,
             target,
             profile,
         )
-        .map_err(|e| Self::map_js_error(module_id, profile, e))?;
+        .generate()
+        .map_err(|error| Self::map_script_generate_error(module_id, profile, error))?;
         let module = self.program.modules.get(module_id);
-        let target_id = destack_workspace::TargetId::new(module.package_id, &target.name);
+        let target_id = TargetId::new(module.package_id, &target.name);
         self.artifacts.publish(
             ArtifactKey::module_artifact(module_id, target_id),
             ModuleArtifact::Script(artifact),
         );
 
-        // map warnings/errors
+        // map backend diagnostics into compiler diagnostics
         for warning in warnings {
-            let warning = Self::map_js_warning(module_id, profile, warning);
+            let warning = Self::map_script_generate_warning(module_id, profile, warning);
             self.warning(warning);
         }
         for error in errors {
-            let error = Self::map_js_error(module_id, profile, error);
+            let error = Self::map_script_generate_error(module_id, profile, error);
             self.error(error);
         }
 
         Ok(())
     }
 
-    /// Map a JS error to a compiler error.
-    fn map_js_error(
+    /// Map one script backend error to a compiler error.
+    fn map_script_generate_error(
         module_id: ModuleId,
         profile: ProfileId,
         error: CodegenJsError,
@@ -80,8 +82,8 @@ impl Compiler {
         }
     }
 
-    /// Map a JS warning to a compiler warning.
-    fn map_js_warning(
+    /// Map one script backend warning to a compiler warning.
+    fn map_script_generate_warning(
         module_id: ModuleId,
         profile: ProfileId,
         warning: CodegenJsWarning,

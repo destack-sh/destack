@@ -21,6 +21,8 @@ pub struct ModuleLowerer<'a> {
     pub(crate) module: &'a Module,
     /// The source module AST.
     pub(crate) ast: &'a Ast,
+    /// The source string pool for bound DIR nodes.
+    pub(crate) source_strings: &'a StringPool,
 
     /// The DIR roots.
     pub(crate) dir_roots: &'a Vec<dir::LocalNodeId<dir::Expression>>,
@@ -46,10 +48,50 @@ pub struct ModuleLowerer<'a> {
 }
 
 impl<'a> ModuleLowerer<'a> {
+    /// Return whether one specifier is package-like instead of local.
+    pub(crate) fn is_package_dependency_specifier(specifier: &str) -> bool {
+        !specifier.starts_with('.') && !specifier.starts_with('/') && !specifier.contains(':')
+    }
+
+    /// Return whether the active target externalizes a dependency specifier.
+    pub(crate) fn target_externalizes_dependency_specifier(&self, specifier: &str) -> bool {
+        let dependency = &self.target.bundle.dependency;
+
+        dependency
+            .external
+            .iter()
+            .any(|candidate| candidate == specifier)
+            || dependency
+                .never_bundle
+                .iter()
+                .any(|candidate| candidate == specifier)
+    }
+
+    /// Return whether one unresolved dependency expression should remain external.
+    pub(crate) fn allows_unresolved_external_dependency_expression(
+        &self,
+        expression: &dir::Expression,
+    ) -> bool {
+        let specifier = match expression {
+            dir::Expression::UnresolvedImport {
+                target: dir::ImportTarget::String(target),
+                ..
+            }
+            | dir::Expression::UnresolvedReExport { target, .. } => {
+                self.source_strings.get(*target)
+            }
+            _ => return false,
+        };
+
+        Self::is_package_dependency_specifier(&specifier)
+            && self.target_externalizes_dependency_specifier(&specifier)
+    }
+
     /// Create a new module lowerer.
     pub fn new(
         module: &'a Module,
         ast: &'a Ast,
+        source_strings: &'a StringPool,
         dir_tree: &'a dir::NodeTree,
         dir_roots: &'a Vec<dir::LocalNodeId<dir::Expression>>,
         symbols: &'a SymbolTable,
@@ -59,6 +101,7 @@ impl<'a> ModuleLowerer<'a> {
         Self {
             module,
             ast,
+            source_strings,
             dir_tree,
             dir_roots,
             symbols,

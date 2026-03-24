@@ -5,8 +5,8 @@ use destack_dir as dir;
 impl ModuleLowerer<'_> {
     /// Lower a string to a name.
     pub fn lower_string_to_name(&mut self, string_id: StringId) -> Name {
-        let string_id = self.strings.intern_from(&self.ast.strings, string_id);
-        let string = self.ast.strings.get(string_id);
+        let string = self.source_strings.get(string_id);
+        let string_id = self.strings.intern(&string);
         if is_identifier(string.as_ref()) {
             Name::Identifier(string_id)
         } else {
@@ -16,7 +16,7 @@ impl ModuleLowerer<'_> {
 
     /// Lower a name from DIR into JS AST.
     pub fn lower_name(&mut self, name: dir::Name) -> Name {
-        let name_id = self.strings.intern_from(&self.ast.strings, name.string());
+        let name_id = self.strings.intern_from(self.source_strings, name.string());
         match name {
             dir::Name::Identifier(_) => Name::Identifier(name_id),
             dir::Name::String(_) => Name::String(name_id),
@@ -32,7 +32,7 @@ impl ModuleLowerer<'_> {
                 Key::Name(name)
             }
             dir::DynamicKey::Private(name) => {
-                let name = self.strings.intern_from(&self.ast.strings, name);
+                let name = self.strings.intern_from(self.source_strings, name);
                 Key::Private(name)
             }
             dir::DynamicKey::Number(name) => {

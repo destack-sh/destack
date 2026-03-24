@@ -86,13 +86,14 @@ impl Compiler {
         let entries = match artifact.as_ref() {
             ModuleArtifact::Script(script) => {
                 let module = self.program.modules.get(module_id);
-                destack_codegen_js::render_artifact(
+                destack_codegen_js::ScriptArtifactRenderer::new(
                     module.as_ref(),
                     script,
                     &target,
                     &package_dir,
                     root_dir.as_deref(),
                 )
+                .render_output_files()
                 .map_err(|error| EmitError::Internal {
                     message: format!("failed to render script artifact: {error:?}"),
                 })?

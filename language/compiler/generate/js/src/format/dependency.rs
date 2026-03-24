@@ -102,7 +102,9 @@ pub(crate) fn format_import_binding<'ast>(
     if !items.is_empty() {
         write!(f, [space(), Keyword::From, space()])?;
     }
-    write!(f, [target])?;
+
+    let literal = ScalarLiteral::String(target);
+    format_scalar_literal(&literal, f)?;
 
     Ok(())
 }
@@ -142,7 +144,10 @@ pub(crate) fn format_export_binding<'ast>(
 
     // from target
     if let Some(target) = target {
-        write!(f, [space(), Keyword::From, space(), target])?;
+        write!(f, [space(), Keyword::From, space()])?;
+
+        let literal = ScalarLiteral::String(target);
+        format_scalar_literal(&literal, f)?;
     }
 
     Ok(())

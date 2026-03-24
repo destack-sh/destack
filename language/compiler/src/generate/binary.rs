@@ -1,4 +1,5 @@
 use crate::{Compiler, GenerateError, GenerateResult, GenerateWarning};
+
 use destack_artifact::{ArtifactKey, ModuleArtifact};
 use destack_codegen_native::{CodegenCraneliftError, CodegenCraneliftWarning};
 use destack_dir::{AnchoredGlobalNodeId, LocalNodeIdAny};
@@ -6,49 +7,51 @@ use destack_source::ModuleId;
 use destack_workspace::{ProfileId, Target, TargetId};
 
 impl Compiler {
-    /// Generate native/WASM code for a module using Cranelift.
-    pub(super) fn generate_cranelift(
+    /// Generate one binary module artifact through the native backend.
+    pub(super) fn generate_binary_module_artifact(
         &self,
         module_id: ModuleId,
         target: &Target,
         profile: ProfileId,
     ) -> GenerateResult<()> {
-        // construct target id from module's package
+        // construct target identity from the module package
         let module = self.program.modules.get(module_id);
         let package_id = module.package_id;
         let target_id = TargetId::new(package_id, &target.name);
 
-        // require module to be optimized
+        // require the optimized MIR state
         self.require_mir_optimized(module_id, profile, &target_id)?;
 
-        // generate artifact
-        let (artifact, warnings, errors) = destack_codegen_native::generate_artifact(
+        // generate one binary artifact through the current backend
+        let (artifact, warnings, errors) = destack_codegen_native::BinaryArtifactGenerator::new(
             self.program.clone(),
             self.artifacts.clone(),
             module_id,
             target,
         )
-        .map_err(|e| self.map_cranelift_error(module_id, &target.name, profile, e))?;
+        .generate()
+        .map_err(|error| self.map_binary_generate_error(module_id, &target.name, profile, error))?;
         self.artifacts.publish(
             ArtifactKey::module_artifact(module_id, target_id.clone()),
             ModuleArtifact::Binary(artifact),
         );
 
-        // map warnings/errors
+        // map backend diagnostics into compiler diagnostics
         for warning in warnings {
-            let warning = self.map_cranelift_warning(module_id, &target.name, profile, warning);
+            let warning =
+                self.map_binary_generate_warning(module_id, &target.name, profile, warning);
             self.warning(warning);
         }
         for error in errors {
-            let error = self.map_cranelift_error(module_id, &target.name, profile, error);
+            let error = self.map_binary_generate_error(module_id, &target.name, profile, error);
             self.error(error);
         }
 
         Ok(())
     }
 
-    /// Map a Cranelift error to a compiler error.
-    fn map_cranelift_error(
+    /// Map one binary backend error to a compiler error.
+    fn map_binary_generate_error(
         &self,
         module_id: ModuleId,
         target_name: &str,
@@ -95,8 +98,8 @@ impl Compiler {
         }
     }
 
-    /// Map a Cranelift warning to a compiler warning.
-    fn map_cranelift_warning(
+    /// Map one binary backend warning to a compiler warning.
+    fn map_binary_generate_warning(
         &self,
         module_id: ModuleId,
         target_name: &str,
@@ -113,8 +116,7 @@ impl Compiler {
         }
     }
 
-    /// Look up source DIR node from MIR node via source tracking.
-    /// Returns None if MIR node is synthesized (no source).
+    /// Look up the source DIR node from MIR source tracking.
     fn get_dir_node_id(
         &self,
         module_id: ModuleId,
