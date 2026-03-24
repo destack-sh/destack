@@ -416,7 +416,7 @@ impl Hash for TargetBundle {
 impl From<&TargetBundleJson> for TargetBundle {
     fn from(json: &TargetBundleJson) -> Self {
         Self {
-            mode: BundleMode::SingleFile,
+            mode: json.mode.unwrap_or_default(),
             preserve_modules: json.preserve_modules,
             inline_dynamic_imports: json.inline_dynamic_imports,
             preserve_modules_root: json.preserve_modules_root.as_ref().map(PathBuf::from),
@@ -805,6 +805,8 @@ impl From<&TargetBundleMinifyJson> for TargetBundleMinify {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct TargetBundleJson {
+    /// Assembly mode for this script target.
+    pub mode: Option<BundleMode>,
     /// Whether to preserve one emitted module file per reachable module.
     #[serde(default)]
     pub preserve_modules: bool,

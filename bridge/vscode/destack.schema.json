@@ -5418,6 +5418,17 @@
       "description": "Target scoped bundling options in `destack.json`.",
       "type": "object",
       "properties": {
+        "mode": {
+          "description": "Assembly mode for this script target.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BundleMode"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "preserveModules": {
           "description": "Whether to preserve one emitted module file per reachable module.",
           "type": "boolean",
@@ -5519,6 +5530,26 @@
           ]
         }
       }
+    },
+    "BundleMode": {
+      "description": "Assembly mode for one script target.",
+      "oneOf": [
+        {
+          "description": "Assemble one entry rooted bundle.",
+          "type": "string",
+          "const": "singleFile"
+        },
+        {
+          "description": "Preserve one emitted module file per reachable module.",
+          "type": "string",
+          "const": "preserveModules"
+        },
+        {
+          "description": "Assemble one chunk graph with multiple linked outputs.",
+          "type": "string",
+          "const": "chunked"
+        }
+      ]
     },
     "TargetBundleDepsJson": {
       "description": "Bundler dependency and resolution options in `destack.json`.",
