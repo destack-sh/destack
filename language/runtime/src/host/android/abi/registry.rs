@@ -58,7 +58,6 @@ pub(crate) fn register_android_bindings(
 }
 
 /// Remove one runtime-scoped Android bindings payload.
-#[cfg(any(test, target_os = "android"))]
 pub(crate) fn unregister_android_bindings(session_handle: HostSessionHandle) {
     // remove one runtime-scoped bindings payload when present
     let mut registry = android_bindings_registry().write();
