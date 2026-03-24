@@ -10,7 +10,7 @@ use std::time::Duration;
 use destack_artifact::{
     ArtifactKey, CacheStore, DirAnalyzed, DirBase, DirDeclared, DirElaborated, DirInterface,
     DirPatched, DirPrepared, DirResolved, DiskCacheStore, EmitFormat, ExportedSymbolTable,
-    MemoryCacheStore,
+    MemoryCacheStore, ModuleArtifact, PackageOutput,
 };
 use destack_ast::NodeParentIndex;
 use destack_core::ImmutableStringPool;
@@ -183,6 +183,15 @@ pub struct TestProgram {
     pub dumper_options: DumperOptions,
     /// Optional override for the default profile in tests.
     pub default_profile_override: Option<ProfileId>,
+}
+
+/// One exact diagnostic expectation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExpectedDiagnostic {
+    /// The stable diagnostic code.
+    pub code: String,
+    /// The diagnostic message.
+    pub message: String,
 }
 
 /// Resolve a root expression id, unwrapping statement wrappers.
@@ -1626,6 +1635,27 @@ impl TestProgram {
         }
     }
 
+    /// Check that exactly the given diagnostics are present.
+    pub fn check_exact_diagnostics(&self, expected: &[ExpectedDiagnostic]) {
+        let diagnostics = self.program.diagnostics.collect();
+        let actual = diagnostics
+            .iter()
+            .into_iter()
+            .map(|diagnostic| ExpectedDiagnostic {
+                code: diagnostic.code.clone(),
+                message: diagnostic.message.clone(),
+            })
+            .collect::<Vec<_>>();
+
+        if actual != expected {
+            let expected = Self::format_expected_diagnostics(expected);
+            let actual = Self::format_expected_diagnostics(&actual);
+
+            print_diff(&expected, &actual, &DiffOptions::new());
+            panic!("diagnostic mismatch");
+        }
+    }
+
     /// Check that a diagnostic with the given code is present.
     pub fn check_has_diagnostic(&self, code: &str) {
         let diagnostics = self.program.diagnostics.collect();
@@ -1667,6 +1697,15 @@ impl TestProgram {
             print_diagnostics(&self.program.files, &diagnostics, options);
             panic!("unexpected diagnostic with code '{code}'");
         }
+    }
+
+    /// Format expected diagnostics for stable diff output.
+    fn format_expected_diagnostics(diagnostics: &[ExpectedDiagnostic]) -> String {
+        diagnostics
+            .iter()
+            .map(|diagnostic| format!("{}: {}", diagnostic.code, diagnostic.message))
+            .collect::<Vec<_>>()
+            .join("\n")
     }
 
     /// Unbind a module's DIR back to AST and format it to a string.
@@ -1748,6 +1787,38 @@ impl TestProgram {
         MirFormatOptions::default()
             .with_type_aliases(true)
             .with_local_names(true)
+    }
+
+    /// Return the linked package output for one package target.
+    pub fn package_output(&self, package_id: PackageId, target: &str) -> PackageOutput {
+        let target_id = TargetId::new(package_id, target);
+
+        self.compiler
+            .artifacts
+            .package_output(package_id, &target_id)
+            .unwrap_or_else(|| panic!("missing package output for target '{target}'"))
+            .as_ref()
+            .clone()
+    }
+
+    /// Return the generated module artifact for one target.
+    pub fn module_artifact(&self, module_id: ModuleId, target: &str) -> ModuleArtifact {
+        let module = self.program.modules.get(module_id);
+        let target_id = TargetId::new(module.package_id, target);
+
+        self.compiler
+            .artifacts
+            .module_artifact(module_id, &target_id)
+            .unwrap_or_else(|| panic!("missing module artifact for target '{target}'"))
+            .as_ref()
+            .clone()
+    }
+
+    /// Return the linked package output for the package containing one module.
+    pub fn package_output_for_module(&self, module_id: ModuleId, target: &str) -> PackageOutput {
+        let module = self.program.modules.get(module_id);
+
+        self.package_output(module.package_id, target)
     }
 
     /// Normalize expected MIR text for comparison.

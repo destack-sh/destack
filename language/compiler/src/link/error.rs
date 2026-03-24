@@ -3,7 +3,7 @@ use crate::{
     TaskError,
 };
 use destack_compiler_macros::DefineError;
-use destack_source::PackageId;
+use destack_source::{PackageId, Span};
 use destack_workspace::{Program, TargetId};
 
 /// Errors during the link phase.
@@ -38,6 +38,7 @@ pub enum LinkError {
     /// Invalid target configuration.
     #[error(code = "EK101", message = "invalid target: {target}: {message}")]
     InvalidTarget {
+        span: Span,
         package: PackageId,
         target: TargetId,
         message: String,

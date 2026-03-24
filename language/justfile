@@ -262,6 +262,10 @@ test-smoke:
 test-emit:
     just _run-destack-test emit
 
+# refresh emit snapshots from actual outputs
+test-emit-update:
+    just _run-destack-test emit --update-snapshots
+
 # run all conformance tests
 test-conformance:
     just test-conformance-ecma
