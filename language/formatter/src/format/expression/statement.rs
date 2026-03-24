@@ -23,6 +23,30 @@ use destack_fir::format::{Buffer, Format, FormatError};
 use destack_fir::write;
 use destack_workspace::ImportSortOrder;
 
+/// Return one dependency item's mode when it is valid.
+fn dependency_item_mode(item: &DependencyItem) -> Option<DependencyMode> {
+    match item {
+        DependencyItem::Item { mode, .. } => Some(*mode),
+        DependencyItem::Error => None,
+    }
+}
+
+/// Return one dependency item's alias when it is valid.
+fn dependency_item_alias(item: &DependencyItem) -> Option<StringId> {
+    match item {
+        DependencyItem::Item { alias, .. } => *alias,
+        DependencyItem::Error => None,
+    }
+}
+
+/// Return one dependency item's value when it is valid.
+fn dependency_item_value(item: &DependencyItem) -> Option<LocalNodeId<Expression>> {
+    match item {
+        DependencyItem::Item { value, .. } => *value,
+        DependencyItem::Error => None,
+    }
+}
+
 /// Format `with { ... }` arguments for import and export statements.
 fn format_dependency_with_arguments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -293,11 +317,12 @@ pub(crate) fn format_import_expression<'ast>(
         }
 
         // import equals requires a default alias
-        let alias = items.first().and_then(|item| tree.get(*item).alias).ok_or(
-            FormatError::SyntaxError {
+        let alias = items
+            .first()
+            .and_then(|item| dependency_item_alias(tree.get(*item)))
+            .ok_or(FormatError::SyntaxError {
                 message: "import equals requires an alias",
-            },
-        )?;
+            })?;
         write!(
             f,
             [
@@ -325,33 +350,44 @@ pub(crate) fn format_import_expression<'ast>(
     let first_item = items.first().map(|item| tree.get(*item));
 
     // namespace import
-    if items.len() == 1 && first_item.is_some_and(|item| item.mode == DependencyMode::Namespace) {
+    if items.len() == 1
+        && first_item
+            .is_some_and(|item| dependency_item_mode(item) == Some(DependencyMode::Namespace))
+    {
         let Some(first_item) = first_item else {
             return Err(FormatError::SyntaxError {
                 message: "namespace import requires at least one dependency item",
             });
         };
 
+        let namespace_alias =
+            dependency_item_alias(first_item).ok_or(FormatError::SyntaxError {
+                message: "namespace import requires an alias",
+            })?;
+
         write!(
             f,
-            [token("*"), space(), Keyword::As, space(), first_item.alias]
+            [token("*"), space(), Keyword::As, space(), namespace_alias]
         )?;
     }
     // default + named imports
     else if let Some(first_item) = first_item
-        && first_item.mode == DependencyMode::Default
+        && dependency_item_mode(first_item) == Some(DependencyMode::Default)
     {
-        let default_alias = first_item.alias.ok_or(FormatError::SyntaxError {
+        let default_alias = dependency_item_alias(first_item).ok_or(FormatError::SyntaxError {
             message: "default import requires an alias",
         })?;
         let rest_items = &items[1..];
         write!(f, [default_alias])?;
 
-        if rest_items.len() == 1 && tree.get(rest_items[0]).mode == DependencyMode::Namespace {
+        if rest_items.len() == 1
+            && dependency_item_mode(tree.get(rest_items[0])) == Some(DependencyMode::Namespace)
+        {
             let namespace_item = tree.get(rest_items[0]);
-            let namespace_alias = namespace_item.alias.ok_or(FormatError::SyntaxError {
-                message: "namespace import requires an alias",
-            })?;
+            let namespace_alias =
+                dependency_item_alias(namespace_item).ok_or(FormatError::SyntaxError {
+                    message: "namespace import requires an alias",
+                })?;
             write!(
                 f,
                 [
@@ -414,15 +450,17 @@ pub(crate) fn format_export_expression<'ast>(
 
     // default export with value: export default <value>
     if items.len() == 1
-        && first_item
-            .is_some_and(|item| item.mode == DependencyMode::Default && item.value.is_some())
+        && first_item.is_some_and(|item| {
+            dependency_item_mode(item) == Some(DependencyMode::Default)
+                && dependency_item_value(item).is_some()
+        })
     {
         let Some(first_item) = first_item else {
             return Err(FormatError::SyntaxError {
                 message: "default export requires at least one dependency item",
             });
         };
-        let Some(value) = first_item.value else {
+        let Some(value) = dependency_item_value(first_item) else {
             return Err(FormatError::SyntaxError {
                 message: "default export requires a dependency value",
             });
@@ -431,7 +469,8 @@ pub(crate) fn format_export_expression<'ast>(
     }
     // namespace export: export * as X, export = X
     else if items.len() == 1
-        && first_item.is_some_and(|item| item.mode == DependencyMode::Namespace)
+        && first_item
+            .is_some_and(|item| dependency_item_mode(item) == Some(DependencyMode::Namespace))
     {
         let Some(first_item) = first_item else {
             return Err(FormatError::SyntaxError {
@@ -439,8 +478,8 @@ pub(crate) fn format_export_expression<'ast>(
             });
         };
 
-        if first_item.value.is_some() && target.is_none() {
-            let Some(value) = first_item.value else {
+        if dependency_item_value(first_item).is_some() && target.is_none() {
+            let Some(value) = dependency_item_value(first_item) else {
                 return Err(FormatError::SyntaxError {
                     message: "namespace export assignment requires a dependency value",
                 });
@@ -448,25 +487,26 @@ pub(crate) fn format_export_expression<'ast>(
             write!(f, [token("="), space(), value])?;
         } else {
             write!(f, [token("*")])?;
-            if let Some(alias) = first_item.alias {
+            if let Some(alias) = dependency_item_alias(first_item) {
                 write!(f, [space(), Keyword::As, space(), alias])?;
             }
         }
     }
     // named exports
     else if let Some(first_item) = first_item
-        && first_item.mode == DependencyMode::Default
+        && dependency_item_mode(first_item) == Some(DependencyMode::Default)
         && items.len() == 2
         && target.is_some()
-        && tree.get(items[1]).mode == DependencyMode::Namespace
+        && dependency_item_mode(tree.get(items[1])) == Some(DependencyMode::Namespace)
     {
-        let default_alias = first_item.alias.ok_or(FormatError::SyntaxError {
+        let default_alias = dependency_item_alias(first_item).ok_or(FormatError::SyntaxError {
             message: "default re-export requires an alias",
         })?;
         let namespace_item = tree.get(items[1]);
-        let namespace_alias = namespace_item.alias.ok_or(FormatError::SyntaxError {
-            message: "namespace re-export requires an alias",
-        })?;
+        let namespace_alias =
+            dependency_item_alias(namespace_item).ok_or(FormatError::SyntaxError {
+                message: "namespace re-export requires an alias",
+            })?;
 
         write!(
             f,
@@ -552,13 +592,12 @@ fn format_export_import_equals(
         }
     };
 
-    let alias =
-        items
-            .first()
-            .and_then(|item| tree.get(*item).alias)
-            .ok_or(FormatError::SyntaxError {
-                message: "import equals requires an alias",
-            })?;
+    let alias = items
+        .first()
+        .and_then(|item| dependency_item_alias(tree.get(*item)))
+        .ok_or(FormatError::SyntaxError {
+            message: "import equals requires an alias",
+        })?;
 
     write!(f, [export, space(), Keyword::Import, space()])?;
     if *kind == DependencyKind::Type {

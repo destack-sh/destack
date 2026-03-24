@@ -450,6 +450,9 @@ pub(crate) fn format_operator_expression<'ast>(
         // stub: placeholder for annotation only files
         Expression::Stub => {}
 
+        // missing: preserve the surrounding syntax hole
+        Expression::Missing => {}
+
         // error
         Expression::Error => {
             write!(f, [token("/* ERROR */")])?;

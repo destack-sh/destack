@@ -166,24 +166,38 @@ pub(crate) fn chain_expression_from_node(
             name,
             static_arguments,
             ..
-        } => ChainExpression::Member {
-            node_id: expression_id,
-            segment: *name,
-            static_arguments: static_arguments.clone(),
-            emit_prefix_annotations: true,
-            emit_postfix_annotations: true,
-        },
+        } => {
+            let Some(name) = *name else {
+                return Err(FormatError::SyntaxError {
+                    message: "missing member name in chain expression",
+                });
+            };
+            ChainExpression::Member {
+                node_id: expression_id,
+                segment: name,
+                static_arguments: static_arguments.clone(),
+                emit_prefix_annotations: true,
+                emit_postfix_annotations: true,
+            }
+        }
         Expression::PrivateMember {
             name,
             static_arguments,
             ..
-        } => ChainExpression::Member {
-            node_id: expression_id,
-            segment: *name,
-            static_arguments: static_arguments.clone(),
-            emit_prefix_annotations: true,
-            emit_postfix_annotations: true,
-        },
+        } => {
+            let Some(name) = *name else {
+                return Err(FormatError::SyntaxError {
+                    message: "missing private member name in chain expression",
+                });
+            };
+            ChainExpression::Member {
+                node_id: expression_id,
+                segment: name,
+                static_arguments: static_arguments.clone(),
+                emit_prefix_annotations: true,
+                emit_postfix_annotations: true,
+            }
+        }
         Expression::Call {
             position,
             static_arguments,
