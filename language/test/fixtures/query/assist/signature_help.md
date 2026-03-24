@@ -40,6 +40,26 @@ active_signature=0 active_parameter=1
 signature[0] label=add(x: int32, y: int32): int32 documentation=<none> parameters=x: int32|y: int32 param_docs=<none>|<none>
 ```
 
+### Keep signature help working after bare new recovery statements
+
+Signature help should still resolve later valid calls after one bare `new` recovery statement.
+
+```ds
+function add(x: int32, y: int32): int32 {
+    return x + y;
+}
+
+function main() {
+    new
+    const result = add(1, $0);
+}
+```
+
+```query signature_help $0
+active_signature=0 active_parameter=1
+signature[0] label=add(x: int32, y: int32): int32 documentation=<none> parameters=x: int32|y: int32 param_docs=<none>|<none>
+```
+
 ### Track active parameter after trailing comma
 
 Signature help should keep the last parameter active after a trailing comma.
@@ -242,4 +262,42 @@ function main(): void {
 
 ```query signature_help broken
 <none>
+```
+
+### Keep signature help working after malformed function declarations
+
+Signature help should still resolve later valid calls in damaged files.
+
+```ds
+function broken(
+
+function add(x: int32, y: int32): int32 {
+    return x + y;
+}
+
+const result = add(1, $0);
+```
+
+```query signature_help $0
+active_signature=0 active_parameter=1
+signature[0] label=add(x: int32, y: int32): int32 documentation=<none> parameters=x: int32|y: int32 param_docs=<none>|<none>
+```
+
+### Keep signature help working after malformed call statements
+
+Signature help should still resolve later valid calls after one malformed call statement.
+
+```ds
+broken(,
+
+function add(x: int32, y: int32): int32 {
+    return x + y;
+}
+
+const result = add(1, $0);
+```
+
+```query signature_help $0
+active_signature=0 active_parameter=1
+signature[0] label=add(x: int32, y: int32): int32 documentation=<none> parameters=x: int32|y: int32 param_docs=<none>|<none>
 ```

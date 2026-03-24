@@ -166,3 +166,42 @@ export function broken( {}
 ```query workspace_symbols stable
 stable(function) file=damaged.ds range=1:1-1:34
 ```
+
+### Keep later recoverable symbols after malformed declarations
+
+Workspace symbol search should still return later declarations that survive recovery.
+
+```ds:damaged_later.ds
+export function broken( {}
+export function stableLater(): void {}
+```
+
+```query workspace_symbols stableLater
+stableLater(function) file=damaged_later.ds range=2:1-2:39
+```
+
+### Keep later recoverable symbols after malformed call statements
+
+Workspace symbol search should still return later declarations that survive one malformed call statement.
+
+```ds:damaged_call.ds
+broken(,
+export function stableLater(): void {}
+```
+
+```query workspace_symbols stableLater
+stableLater(function) file=damaged_call.ds range=2:1-2:39
+```
+
+### Keep later recoverable symbols after bare new recovery statements
+
+Workspace symbol search should still return later declarations that survive one bare `new` recovery statement.
+
+```ds:damaged_new.ds
+new
+export function stableLater(): void {}
+```
+
+```query workspace_symbols stableLater
+stableLater(function) file=damaged_new.ds range=2:1-2:39
+```

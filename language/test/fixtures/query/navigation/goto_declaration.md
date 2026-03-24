@@ -270,6 +270,60 @@ decl:import_build_value
 
 ## Damaged Syntax
 
+### Keep declarations working after malformed function declarations
+
+Goto declaration should still work for later declarations after one malformed function head.
+
+```ds
+export function broken( {}
+
+export function stableLater(): void {}
+//              ^^^^^^^^^^^ decl:stableLater
+
+stableLater();
+// ^^^^^^^^^^^ use:stableLater
+```
+
+```query goto_declaration use:stableLater
+decl:stableLater
+```
+
+### Keep declarations working after malformed call statements
+
+Goto declaration should still work for later declarations after one malformed call statement.
+
+```ds
+broken(,
+
+export function stableLater(): void {}
+//              ^^^^^^^^^^^ decl:stableLater
+
+stableLater();
+// ^^^^^^^^^^^ use:stableLater
+```
+
+```query goto_declaration use:stableLater
+decl:stableLater
+```
+
+### Keep declarations working after bare new recovery statements
+
+Goto declaration should still work for later declarations after one bare `new` recovery statement.
+
+```ds
+new
+
+export function stableLater(): void {}
+//              ^^^^^^^^^^^ decl:stableLater
+
+stableLater();
+// ^^^^^^^^^^^ use:stableLater
+```
+
+```query goto_declaration use:stableLater
+decl:stableLater
+```
+
 ### Return no declaration for malformed unresolved member access
 
 Goto declaration should return no result when the cursor is on malformed unresolved syntax.

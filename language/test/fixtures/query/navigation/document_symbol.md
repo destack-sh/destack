@@ -218,3 +218,66 @@ Drawable(interface) range=7:1-9:2 selection=7:11-7:19
   draw(method) range=8:5-8:17 selection=8:5-8:9
 UserId(type_parameter) range=11:1-11:21 selection=11:6-11:12
 ```
+
+## Damaged Syntax
+
+### Keep later symbols after malformed function declarations
+
+Document symbols should still include later declarations after one malformed function head.
+
+```ds
+export function broken( {}
+
+export function stableLater(): void {}
+
+class StableBox {
+    value: int32
+}
+```
+
+```query document_symbols $0
+broken(function) range=1:1-3:1 selection=1:17-1:23
+stableLater(function) range=3:1-3:39 selection=3:17-3:28
+StableBox(class) range=5:1-7:2 selection=5:7-5:16
+  value(field) range=6:5-6:17 selection=6:5-6:10
+```
+
+### Keep later symbols after malformed call statements
+
+Document symbols should still include later declarations after one malformed call statement.
+
+```ds
+broken(,
+
+export function stableLater(): void {}
+
+class StableBox {
+    value: int32
+}
+```
+
+```query document_symbols $0
+stableLater(function) range=3:1-3:39 selection=3:17-3:28
+StableBox(class) range=5:1-7:2 selection=5:7-5:16
+  value(field) range=6:5-6:17 selection=6:5-6:10
+```
+
+### Keep later symbols after bare new recovery statements
+
+Document symbols should still include later declarations after one bare `new` recovery statement.
+
+```ds
+new
+
+export function stableLater(): void {}
+
+class StableBox {
+    value: int32
+}
+```
+
+```query document_symbols $0
+stableLater(function) range=3:1-3:39 selection=3:17-3:28
+StableBox(class) range=5:1-7:2 selection=5:7-5:16
+  value(field) range=6:5-6:17 selection=6:5-6:10
+```

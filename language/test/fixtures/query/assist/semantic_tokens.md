@@ -256,6 +256,40 @@ void: type
 foo: function
 ```
 
+### Keep semantic tokens after malformed call statements
+
+Semantic tokens should still include later valid declarations and references after one malformed call statement.
+
+```ds
+broken(,
+
+function greet(): void {}
+greet();
+```
+
+```query semantic_tokens $0
+greet: function [declaration]
+void: type
+greet: function
+```
+
+### Keep semantic tokens after bare new recovery statements
+
+Semantic tokens should still include later valid declarations and references after one bare `new` recovery statement.
+
+```ds
+new
+
+function greet(): void {}
+greet();
+```
+
+```query semantic_tokens $0
+greet: function [declaration]
+void: type
+greet: function
+```
+
 ### Class references
 
 References to classes should be highlighted as classes.

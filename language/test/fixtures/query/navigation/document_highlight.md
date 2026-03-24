@@ -119,3 +119,64 @@ When highlighting `value` inside `test`, only the inner definition and use shoul
 main.ds:4:11-4:16 kind=write
 main.ds:5:12-5:17 kind=read
 ```
+
+## Damaged Syntax
+
+### Highlight later symbols after malformed function declarations
+
+Document highlight should still work for later valid symbols in damaged files.
+
+```ds
+function broken(
+
+const value = 1;
+//    ^^^^^ def:value
+
+function read(): int32 {
+    return value;
+//         ^^^^^ use:value
+}
+```
+
+```query document_highlight def:value
+main.ds:3:7-3:12 kind=write
+main.ds:6:12-6:17 kind=read
+```
+
+### Highlight later function symbols after malformed call statements
+
+Document highlight should still work for later valid function symbols after one malformed call statement.
+
+```ds
+broken(,
+
+function stableLater(): void {}
+//       ^^^^^^^^^^^ def:stableLater
+
+stableLater();
+//^^^^^^^^^^^ use:stableLater
+```
+
+```query document_highlight def:stableLater
+main.ds:3:10-3:21 kind=write
+main.ds:5:1-5:12 kind=read
+```
+
+### Highlight later function symbols after bare new recovery statements
+
+Document highlight should still work for later valid function symbols after one bare `new` recovery statement.
+
+```ds
+new
+
+function stableLater(): void {}
+//       ^^^^^^^^^^^ def:stableLater
+
+stableLater();
+//^^^^^^^^^^^ use:stableLater
+```
+
+```query document_highlight def:stableLater
+main.ds:3:10-3:21 kind=write
+main.ds:5:1-5:12 kind=read
+```

@@ -517,6 +517,73 @@ function main(): void {
 
 ## Damaged Syntax
 
+### Prepare rename on valid symbols in damaged files
+
+Prepare rename should still work for valid symbols in files with neighboring malformed syntax.
+
+```ds
+function main(): void {
+    const value = 1;
+//        ^^^^^ target:value
+    missingValue.
+}
+```
+
+```query prepare_rename target:value
+value
+```
+
+### Prepare rename after malformed function declarations
+
+Prepare rename should still work for later declarations after one malformed function head.
+
+```ds
+export function broken( {}
+
+export function stableLater(): void {}
+//              ^^^^^^^^^^^ target:stableLater
+
+stableLater();
+```
+
+```query prepare_rename target:stableLater
+stableLater
+```
+
+### Prepare rename after malformed call statements
+
+Prepare rename should still work for later declarations after one malformed call statement.
+
+```ds
+broken(,
+
+export function stableLater(): void {}
+//              ^^^^^^^^^^^ target:stableLater
+
+stableLater();
+```
+
+```query prepare_rename target:stableLater
+stableLater
+```
+
+### Prepare rename after bare new recovery statements
+
+Prepare rename should still work for later declarations after one bare `new` recovery statement.
+
+```ds
+new
+
+export function stableLater(): void {}
+//              ^^^^^^^^^^^ target:stableLater
+
+stableLater();
+```
+
+```query prepare_rename target:stableLater
+stableLater
+```
+
 ### Prepare rename on malformed unresolved member access
 
 Prepare rename should return no result when the cursor is on malformed unresolved syntax.

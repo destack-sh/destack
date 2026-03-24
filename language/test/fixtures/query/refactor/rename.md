@@ -1393,6 +1393,105 @@ const current = 1;
 
 ## Damaged Syntax
 
+### Rename valid symbols in damaged files
+
+Rename should still work for valid symbols in files with neighboring malformed syntax.
+
+```ds
+function main(): void {
+    const value = 1;
+//        ^^^^^ target:value
+    value;
+    missingValue.
+}
+```
+
+```query rename target:value "nextValue"
+```
+
+```expected:main
+function main(): void {
+    const nextValue = 1;
+    nextValue;
+    missingValue.
+}
+```
+
+### Rename valid symbols after malformed function declarations
+
+Rename should still work for later declarations after one malformed function head.
+
+```ds
+export function broken( {}
+
+export function stableLater(): void {}
+//              ^^^^^^^^^^^ target:stableLater
+
+stableLater();
+//^^^^^^^^^^^ use:stableLater
+```
+
+```query rename target:stableLater "renamedLater"
+```
+
+```expected:main
+export function broken( {}
+
+export function renamedLater(): void {}
+
+renamedLater();
+```
+
+### Rename valid symbols after malformed call statements
+
+Rename should still work for later declarations after one malformed call statement.
+
+```ds
+broken(,
+
+export function stableLater(): void {}
+//              ^^^^^^^^^^^ target:stableLater
+
+stableLater();
+//^^^^^^^^^^^ use:stableLater
+```
+
+```query rename target:stableLater "renamedLater"
+```
+
+```expected:main
+broken(,
+
+export function renamedLater(): void {}
+
+renamedLater();
+```
+
+### Rename valid symbols after bare new recovery statements
+
+Rename should still work for later declarations after one bare `new` recovery statement.
+
+```ds
+new
+
+export function stableLater(): void {}
+//              ^^^^^^^^^^^ target:stableLater
+
+stableLater();
+//^^^^^^^^^^^ use:stableLater
+```
+
+```query rename target:stableLater "renamedLater"
+```
+
+```expected:main
+new
+
+export function renamedLater(): void {}
+
+renamedLater();
+```
+
 ### Reject rename on malformed unresolved member access
 
 Rename should fail when the cursor target is malformed unresolved syntax.
