@@ -6,15 +6,15 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
-    expression_is_global_qualified_member, expression_target_symbol, expression_type_map,
-    expression_unwrap_parenthesized, is_strict_boolean_type,
+    expression_is_global_qualified_member, expression_parent_id, expression_target_symbol,
+    expression_unwrap_parenthesized, source_text_contains_comment_token,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
-    /// Disallow redundant boolean casts.
+    /// Disallow unnecessary boolean casts.
     ///
-    /// Casting values already typed as boolean adds noise and does not
+    /// Boolean casts inside boolean contexts add noise and do not
     /// change behavior.
     #[lint(
         id = "no-extra-boolean-cast",
@@ -23,12 +23,12 @@ declare_lint! {
         level = Dir,
         requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Boolean)],
         requires_any = [],
-        fixable = Always,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
     pub NoExtraBooleanCast,
-    "Disallow redundant boolean casts"
+    "Disallow unnecessary boolean casts"
 }
 
 impl LintRule for NoExtraBooleanCast {
@@ -102,31 +102,24 @@ impl<'a, 'b> NoExtraBooleanCastVisitor<'a, 'b> {
             return;
         }
 
-        // build a safe source replacement from the original expression
         let span = self.ctx.get_span(expression_id);
-        let replacement_span = self.ctx.get_span(replacement_id);
-        let replacement_text = self.ctx.get_span_text(replacement_span).to_string();
-        let edits = self
-            .ctx
-            .edit_builder()
-            .replace(span, replacement_text)
-            .into_edits();
-        let fix = LintFix::safe("Remove redundant boolean cast").with_edits(edits);
+        let mut diagnostic = LintDiagnostic::new(
+            NO_EXTRA_BOOLEAN_CAST.id,
+            NO_EXTRA_BOOLEAN_CAST.code,
+            NO_EXTRA_BOOLEAN_CAST.category,
+            severity,
+            message,
+            self.ctx.module.file_id,
+            span,
+        )
+        .with_label(label);
 
-        // report the redundant cast with an auto fix
-        self.ctx.report(
-            LintDiagnostic::new(
-                NO_EXTRA_BOOLEAN_CAST.id,
-                NO_EXTRA_BOOLEAN_CAST.code,
-                NO_EXTRA_BOOLEAN_CAST.category,
-                severity,
-                message,
-                self.ctx.module.file_id,
-                span,
-            )
-            .with_label(label)
-            .with_fix(fix),
-        );
+        if let Some(fix) = build_no_extra_boolean_cast_fix(self.ctx, expression_id, replacement_id)
+        {
+            diagnostic = diagnostic.with_fix(fix);
+        }
+
+        self.ctx.report(diagnostic);
     }
 
     /// Return true when the expression resolves to the built in Boolean constructor.
@@ -145,27 +138,8 @@ impl<'a, 'b> NoExtraBooleanCastVisitor<'a, 'b> {
         )
     }
 
-    /// Return true when the expression type is strictly boolean.
-    fn expression_is_strict_boolean(
-        &self,
-        expression_id: dir::LocalNodeId<dir::Expression>,
-    ) -> bool {
-        expression_type_map(
-            &self.ctx.program,
-            &self.ctx.artifacts,
-            self.ctx.profile_id,
-            self.ctx.module_id(),
-            self.ctx.tree,
-            self.ctx.symbols,
-            self.ctx.types,
-            expression_id,
-            is_strict_boolean_type,
-        )
-        .unwrap_or(false)
-    }
-
-    /// Check `Boolean(value)` calls for redundant casts.
-    fn check_boolean_constructor_call(
+    /// Check `Boolean(value)` and `new Boolean(value)` calls.
+    fn check_boolean_cast(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         callee_id: dir::LocalNodeId<dir::Expression>,
@@ -179,17 +153,16 @@ impl<'a, 'b> NoExtraBooleanCastVisitor<'a, 'b> {
             return;
         }
 
-        let argument = self.ctx.tree.get(dynamic_arguments[0]);
-        let argument_value = argument.value();
-        if !self.expression_is_strict_boolean(argument_value) {
+        if !self.expression_is_in_flagged_context(expression_id) {
             return;
         }
 
+        let argument = self.ctx.tree.get(dynamic_arguments[0]);
         self.report(
             expression_id,
-            argument_value,
+            argument.value(),
             "redundant Boolean() cast",
-            "this value is already boolean",
+            "this cast is redundant in a boolean context",
         );
     }
 
@@ -209,7 +182,7 @@ impl<'a, 'b> NoExtraBooleanCastVisitor<'a, 'b> {
             return;
         };
 
-        if !self.expression_is_strict_boolean(*inner_right) {
+        if !self.expression_is_in_flagged_context(expression_id) {
             return;
         }
 
@@ -217,8 +190,131 @@ impl<'a, 'b> NoExtraBooleanCastVisitor<'a, 'b> {
             expression_id,
             *inner_right,
             "redundant double negation",
-            "this value is already boolean",
+            "this cast is redundant in a boolean context",
         );
+    }
+
+    /// Return true when one expression is in a flagged boolean context.
+    fn expression_is_in_flagged_context(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> bool {
+        let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
+        self.expression_is_in_flagged_context_inner(
+            expression_id,
+            self.ctx
+                .options
+                .no_extra_boolean_cast_enforce_for_inner_expressions,
+        )
+    }
+
+    /// Return true when one expression is in a flagged boolean context.
+    fn expression_is_in_flagged_context_inner(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        enforce_inner: bool,
+    ) -> bool {
+        let Some(parent_id) = expression_parent_id(self.ctx.tree, expression_id) else {
+            return false;
+        };
+        let parent_expression = self.ctx.tree.get(parent_id);
+
+        // parenthesized wrappers
+        if matches!(parent_expression, dir::Expression::Parenthesized { .. }) {
+            return self.expression_is_in_flagged_context_inner(parent_id, enforce_inner);
+        }
+
+        // direct boolean contexts
+        match parent_expression {
+            dir::Expression::Call {
+                left,
+                dynamic_arguments,
+                ..
+            }
+            | dir::Expression::New {
+                left,
+                dynamic_arguments,
+                ..
+            } => {
+                if dynamic_arguments.first().is_some_and(|argument_id| {
+                    self.ctx.tree.get(*argument_id).value() == expression_id
+                }) && self.is_boolean_reference(*left)
+                {
+                    return true;
+                }
+            }
+            dir::Expression::Unary {
+                operator: UnaryOperator::Not,
+                right,
+            } => {
+                if *right == expression_id {
+                    return true;
+                }
+            }
+            dir::Expression::If {
+                condition: dir::IfCondition::Expression { condition },
+                ..
+            } => {
+                if *condition == expression_id {
+                    return true;
+                }
+            }
+            dir::Expression::For { condition, .. } => {
+                if *condition == Some(expression_id) {
+                    return true;
+                }
+            }
+            dir::Expression::Loop { condition, .. } => {
+                if *condition == Some(expression_id) {
+                    return true;
+                }
+            }
+            _ => {}
+        }
+
+        if !enforce_inner {
+            return false;
+        }
+
+        // nested inner expressions
+        match parent_expression {
+            dir::Expression::Binary {
+                operator: dir::BinaryOperator::And | dir::BinaryOperator::Or,
+                left,
+                right,
+            } => {
+                if *left == expression_id || *right == expression_id {
+                    return self.expression_is_in_flagged_context_inner(parent_id, true);
+                }
+            }
+            dir::Expression::Binary {
+                operator: dir::BinaryOperator::Coalesce,
+                right,
+                ..
+            } => {
+                if *right == expression_id {
+                    return self.expression_is_in_flagged_context_inner(parent_id, true);
+                }
+            }
+            dir::Expression::If {
+                kind: dir::IfKind::Ternary,
+                then_expression,
+                else_expression,
+                ..
+            } => {
+                if *then_expression == expression_id || *else_expression == Some(expression_id) {
+                    return self.expression_is_in_flagged_context_inner(parent_id, true);
+                }
+            }
+            dir::Expression::SequenceExpression { expressions } => {
+                if expressions.last().copied() == Some(expression_id) {
+                    return self.expression_is_in_flagged_context_inner(parent_id, true);
+                }
+            }
+            _ => {}
+        }
+
+        false
     }
 }
 
@@ -233,17 +329,27 @@ impl NodeVisitor for NoExtraBooleanCastVisitor<'_, '_> {
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
-        // check Boolean(value) casts
+        // Boolean(value)
         if let dir::Expression::Call {
             left,
             dynamic_arguments,
             ..
         } = expression
         {
-            self.check_boolean_constructor_call(id, *left, dynamic_arguments);
+            self.check_boolean_cast(id, *left, dynamic_arguments);
         }
 
-        // check !!value casts
+        // new Boolean(value)
+        if let dir::Expression::New {
+            left,
+            dynamic_arguments,
+            ..
+        } = expression
+        {
+            self.check_boolean_cast(id, *left, dynamic_arguments);
+        }
+
+        // !!value
         if let dir::Expression::Unary {
             operator: UnaryOperator::Not,
             right,
@@ -252,8 +358,79 @@ impl NodeVisitor for NoExtraBooleanCastVisitor<'_, '_> {
             self.check_double_negation(id, *right);
         }
 
-        // walk expression children
         walk_expression(self, tree, id, expression);
+    }
+}
+
+/// Build a safe fix for one redundant boolean cast.
+fn build_no_extra_boolean_cast_fix(
+    ctx: &LintModuleDirContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+    replacement_id: dir::LocalNodeId<dir::Expression>,
+) -> Option<LintFix> {
+    let span = ctx.get_span(expression_id);
+    let replacement_span = ctx.get_span(replacement_id);
+    if source_text_contains_comment_token(ctx.get_span_text(span))
+        || source_text_contains_comment_token(ctx.get_span_text(replacement_span))
+    {
+        return None;
+    }
+
+    let mut replacement_text = ctx.get_span_text(replacement_span).to_string();
+    if replacement_needs_parentheses(ctx.tree, expression_id, replacement_id) {
+        replacement_text = format!("({replacement_text})");
+    }
+
+    let edits = ctx
+        .edit_builder()
+        .replace(span, replacement_text)
+        .into_edits();
+    Some(LintFix::safe("Remove redundant boolean cast").with_edits(edits))
+}
+
+/// Return true when one replacement expression needs protective parentheses.
+fn replacement_needs_parentheses(
+    tree: &dir::NodeTree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+    replacement_id: dir::LocalNodeId<dir::Expression>,
+) -> bool {
+    let replacement_id = expression_unwrap_parenthesized(tree, replacement_id);
+    let replacement_expression = tree.get(replacement_id);
+    let Some(parent_id) = expression_parent_id(tree, expression_id) else {
+        return false;
+    };
+    let parent_expression = tree.get(parent_id);
+
+    match parent_expression {
+        dir::Expression::Unary {
+            operator: UnaryOperator::Not,
+            right,
+        } if *right == expression_id => matches!(
+            replacement_expression,
+            dir::Expression::Binary { .. }
+                | dir::Expression::Assign { .. }
+                | dir::Expression::AssignBinary { .. }
+                | dir::Expression::If {
+                    kind: dir::IfKind::Ternary,
+                    ..
+                }
+                | dir::Expression::SequenceExpression { .. }
+        ),
+        dir::Expression::Call {
+            dynamic_arguments, ..
+        }
+        | dir::Expression::New {
+            dynamic_arguments, ..
+        } if dynamic_arguments
+            .first()
+            .is_some_and(|argument_id| tree.get(*argument_id).value() == expression_id) =>
+        {
+            matches!(
+                replacement_expression,
+                dir::Expression::SequenceExpression { .. }
+            )
+        }
+        _ => false,
     }
 }
 

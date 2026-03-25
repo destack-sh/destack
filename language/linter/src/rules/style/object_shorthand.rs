@@ -1,5 +1,6 @@
-use destack_ast::{self as ast, Key, Name};
-use destack_workspace::LintSeverity;
+use destack_ast::{self as ast, Declaration, FunctionKind, FunctionMode, Key, Name};
+use destack_workspace::{LintSeverity, ObjectShorthandMode};
+use regex::Regex;
 
 use crate::rules::common::span_has_comment_trivia;
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
@@ -7,8 +8,7 @@ use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 declare_lint! {
     /// Prefer object shorthand syntax.
     ///
-    /// Use `{ x }` instead of `{ x: x }` when the property name matches
-    /// the variable name.
+    /// Require or disallow method and property shorthand syntax for object literals.
     #[lint(
         id = "object-shorthand",
         code = "LY027",
@@ -25,74 +25,507 @@ declare_lint! {
 }
 
 impl LintRule for ObjectShorthand {
+    /// Return lint metadata.
     fn meta(&self) -> &'static crate::LintMeta {
         ObjectShorthand::meta()
     }
 
+    /// Check object literal properties for shorthand style.
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
+        let methods_ignore_pattern = ctx
+            .options
+            .object_shorthand_methods_ignore_pattern
+            .as_deref()
+            .and_then(|pattern| Regex::new(pattern).ok());
 
-        for node_id in ctx.tree.iter_nodes::<ast::Property>() {
-            let property = ctx.tree.get(node_id);
+        let object_expression_ids: Vec<_> = ctx
+            .tree
+            .iter_nodes::<ast::Expression>()
+            .filter(|expression_id| {
+                matches!(
+                    ctx.tree.get(*expression_id),
+                    ast::Expression::ObjectExpression { .. }
+                )
+            })
+            .collect();
 
-            // look for Property::Field with explicit key and value
-            let ast::Property::Field {
-                key: Some(Key::Name(Name::Identifier(key_name))),
-                value: Some(value_id),
-                ..
-            } = property
+        for expression_id in object_expression_ids {
+            let ast::Expression::ObjectExpression { properties, .. } = ctx.tree.get(expression_id)
             else {
                 continue;
             };
 
-            // check if value is a simple path with same name
-            let value_expr = ctx.tree.get(*value_id);
-            let ast::Expression::Path { path, .. } = value_expr else {
-                continue;
-            };
+            check_object_expression(
+                ctx,
+                meta,
+                expression_id,
+                properties,
+                methods_ignore_pattern.as_ref(),
+            );
+        }
+    }
+}
 
-            // single-segment path
-            if path.segments.len() != 1 {
-                continue;
+/// Classification of one property for shorthand policy checks.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PropertyClassification {
+    /// Property or method already uses shorthand.
+    Shorthand,
+    /// Property or method could use shorthand.
+    Longform,
+    /// Property does not participate in shorthand policy.
+    Neutral,
+}
+
+/// Check one object expression against the configured shorthand mode.
+fn check_object_expression(
+    ctx: &mut LintAstContext<'_>,
+    meta: &crate::LintMeta,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+    properties: &[ast::LocalNodeId<ast::Property>],
+    methods_ignore_pattern: Option<&Regex>,
+) {
+    match ctx.options.object_shorthand_mode {
+        ObjectShorthandMode::Always => {
+            for property_id in properties {
+                report_longform_property_if_needed(
+                    ctx,
+                    meta,
+                    *property_id,
+                    true,
+                    true,
+                    methods_ignore_pattern,
+                );
+            }
+        }
+        ObjectShorthandMode::Methods => {
+            for property_id in properties {
+                report_longform_property_if_needed(
+                    ctx,
+                    meta,
+                    *property_id,
+                    true,
+                    false,
+                    methods_ignore_pattern,
+                );
+            }
+        }
+        ObjectShorthandMode::Properties => {
+            for property_id in properties {
+                report_longform_property_if_needed(
+                    ctx,
+                    meta,
+                    *property_id,
+                    false,
+                    true,
+                    methods_ignore_pattern,
+                );
+            }
+        }
+        ObjectShorthandMode::Never => {
+            for property_id in properties {
+                report_shorthand_property_if_needed(ctx, meta, *property_id);
+            }
+        }
+        ObjectShorthandMode::Consistent => {
+            if object_expression_has_mixed_shorthand(ctx, properties, methods_ignore_pattern, false)
+            {
+                report_object_mix(ctx, meta, expression_id);
+            }
+        }
+        ObjectShorthandMode::ConsistentAsNeeded => {
+            if object_expression_has_mixed_shorthand(ctx, properties, methods_ignore_pattern, false)
+            {
+                report_object_mix(ctx, meta, expression_id);
+                return;
             }
 
-            // compare segment names
-            let value_name = path.segments[0];
-            if *key_name == value_name {
-                let severity = ctx.get_effective_severity(meta, node_id);
-                if !severity.is_enabled() {
-                    continue;
-                }
-
-                let key_str = ctx.strings.get(*key_name);
-                let property_span = ctx.tree.get_span(node_id);
-
-                let mut diagnostic = LintDiagnostic::new(
-                    OBJECT_SHORTHAND.id,
-                    OBJECT_SHORTHAND.code,
-                    OBJECT_SHORTHAND.category,
-                    severity,
-                    format!("property `{}` can use shorthand syntax", key_str.as_ref()),
-                    ctx.module.file_id,
-                    property_span,
-                )
-                .with_label("use shorthand `{ x }` instead of `{ x: x }`");
-
-                // keep comment sensitive fields out of autofix paths
-                if ctx.compute_fixes && !span_has_comment_trivia(ctx.tree, property_span) {
-                    let replacement = key_str.as_ref().to_string();
-                    let edits = ctx
-                        .edit_builder()
-                        .replace(property_span, replacement)
-                        .into_edits();
-                    let fix = LintFix::safe("Use shorthand syntax").with_edits(edits);
-                    diagnostic = diagnostic.with_fix(fix);
-                }
-
-                ctx.report(diagnostic);
+            if object_expression_needs_all_shorthand(ctx, properties, methods_ignore_pattern) {
+                report_object_all_shorthand(ctx, meta, expression_id);
             }
         }
     }
+}
+
+/// Report one longform property or method that should be shorthand.
+fn report_longform_property_if_needed(
+    ctx: &mut LintAstContext<'_>,
+    meta: &crate::LintMeta,
+    property_id: ast::LocalNodeId<ast::Property>,
+    include_methods: bool,
+    include_properties: bool,
+    methods_ignore_pattern: Option<&Regex>,
+) {
+    let property = ctx.tree.get(property_id);
+
+    if include_properties && let Some(property_name) = redundant_property_name(ctx, property) {
+        let severity = ctx.get_effective_severity(meta, property_id);
+        if !severity.is_enabled() {
+            return;
+        }
+
+        let property_span = ctx.tree.get_span(property_id);
+        let mut diagnostic = LintDiagnostic::new(
+            OBJECT_SHORTHAND.id,
+            OBJECT_SHORTHAND.code,
+            OBJECT_SHORTHAND.category,
+            severity,
+            format!("property `{property_name}` can use shorthand syntax"),
+            ctx.module.file_id,
+            property_span,
+        )
+        .with_label("use shorthand `{ x }` instead of `{ x: x }`");
+
+        if ctx.compute_fixes && !span_has_comment_trivia(ctx.tree, property_span) {
+            let edits = ctx
+                .edit_builder()
+                .replace(property_span, property_name.clone())
+                .into_edits();
+            let fix = LintFix::safe("Use property shorthand").with_edits(edits);
+            diagnostic = diagnostic.with_fix(fix);
+        }
+
+        ctx.report(diagnostic);
+        return;
+    }
+
+    if include_methods
+        && let Some(method_name) = redundant_method_name(ctx, property, methods_ignore_pattern)
+    {
+        let severity = ctx.get_effective_severity(meta, property_id);
+        if !severity.is_enabled() {
+            return;
+        }
+
+        let property_span = ctx.tree.get_span(property_id);
+        ctx.report(
+            LintDiagnostic::new(
+                OBJECT_SHORTHAND.id,
+                OBJECT_SHORTHAND.code,
+                OBJECT_SHORTHAND.category,
+                severity,
+                format!("method `{method_name}` can use shorthand syntax"),
+                ctx.module.file_id,
+                property_span,
+            )
+            .with_label("use shorthand method syntax"),
+        );
+    }
+}
+
+/// Report one shorthand property or method that should be longform.
+fn report_shorthand_property_if_needed(
+    ctx: &mut LintAstContext<'_>,
+    meta: &crate::LintMeta,
+    property_id: ast::LocalNodeId<ast::Property>,
+) {
+    let property = ctx.tree.get(property_id);
+    let Some(property_name) = shorthand_name(ctx, property) else {
+        return;
+    };
+
+    let severity = ctx.get_effective_severity(meta, property_id);
+    if !severity.is_enabled() {
+        return;
+    }
+
+    let property_span = ctx.tree.get_span(property_id);
+    let mut diagnostic = LintDiagnostic::new(
+        OBJECT_SHORTHAND.id,
+        OBJECT_SHORTHAND.code,
+        OBJECT_SHORTHAND.category,
+        severity,
+        format!("property `{property_name}` should use longform syntax"),
+        ctx.module.file_id,
+        property_span,
+    )
+    .with_label("use longform property syntax");
+
+    if let ast::Property::Field {
+        key: Some(_),
+        value: None,
+        default: None,
+        ..
+    } = property
+        && ctx.compute_fixes
+        && !span_has_comment_trivia(ctx.tree, property_span)
+    {
+        let replacement = format!("{property_name}: {property_name}");
+        let edits = ctx
+            .edit_builder()
+            .replace(property_span, replacement)
+            .into_edits();
+        let fix = LintFix::safe("Use longform property syntax").with_edits(edits);
+        diagnostic = diagnostic.with_fix(fix);
+    }
+
+    ctx.report(diagnostic);
+}
+
+/// Report one mixed shorthand object literal.
+fn report_object_mix(
+    ctx: &mut LintAstContext<'_>,
+    meta: &crate::LintMeta,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) {
+    let severity = ctx.get_effective_severity(meta, expression_id);
+    if !severity.is_enabled() {
+        return;
+    }
+
+    let span = ctx.tree.get_span(expression_id);
+    ctx.report(
+        LintDiagnostic::new(
+            OBJECT_SHORTHAND.id,
+            OBJECT_SHORTHAND.code,
+            OBJECT_SHORTHAND.category,
+            severity,
+            "unexpected mix of shorthand and non-shorthand properties",
+            ctx.module.file_id,
+            span,
+        )
+        .with_label("use one shorthand style consistently within this object"),
+    );
+}
+
+/// Report one object literal where every eligible property should be shorthand.
+fn report_object_all_shorthand(
+    ctx: &mut LintAstContext<'_>,
+    meta: &crate::LintMeta,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) {
+    let severity = ctx.get_effective_severity(meta, expression_id);
+    if !severity.is_enabled() {
+        return;
+    }
+
+    let span = ctx.tree.get_span(expression_id);
+    ctx.report(
+        LintDiagnostic::new(
+            OBJECT_SHORTHAND.id,
+            OBJECT_SHORTHAND.code,
+            OBJECT_SHORTHAND.category,
+            severity,
+            "expected shorthand for all properties",
+            ctx.module.file_id,
+            span,
+        )
+        .with_label("all eligible properties in this object can use shorthand"),
+    );
+}
+
+/// Return true when the object mixes shorthand and longform members.
+fn object_expression_has_mixed_shorthand(
+    ctx: &LintAstContext<'_>,
+    properties: &[ast::LocalNodeId<ast::Property>],
+    methods_ignore_pattern: Option<&Regex>,
+    require_all_redundant: bool,
+) -> bool {
+    let mut has_shorthand = false;
+    let mut has_longform = false;
+
+    for property_id in properties {
+        match classify_property(ctx, ctx.tree.get(*property_id), methods_ignore_pattern) {
+            PropertyClassification::Shorthand => has_shorthand = true,
+            PropertyClassification::Longform => has_longform = true,
+            PropertyClassification::Neutral => {}
+        }
+    }
+
+    if has_shorthand && has_longform {
+        return true;
+    }
+
+    has_longform && require_all_redundant
+}
+
+/// Return true when every shorthand-capable property is longform and reducible.
+fn object_expression_needs_all_shorthand(
+    ctx: &LintAstContext<'_>,
+    properties: &[ast::LocalNodeId<ast::Property>],
+    methods_ignore_pattern: Option<&Regex>,
+) -> bool {
+    let mut saw_candidate = false;
+
+    for property_id in properties {
+        match classify_property(ctx, ctx.tree.get(*property_id), methods_ignore_pattern) {
+            PropertyClassification::Shorthand => return false,
+            PropertyClassification::Longform => saw_candidate = true,
+            PropertyClassification::Neutral => return false,
+        }
+    }
+
+    saw_candidate
+}
+
+/// Classify one property for object-level shorthand policy checks.
+fn classify_property(
+    ctx: &LintAstContext<'_>,
+    property: &ast::Property,
+    methods_ignore_pattern: Option<&Regex>,
+) -> PropertyClassification {
+    if shorthand_name(ctx, property).is_some() {
+        return PropertyClassification::Shorthand;
+    }
+
+    if redundant_property_name(ctx, property).is_some()
+        || redundant_method_name(ctx, property, methods_ignore_pattern).is_some()
+    {
+        return PropertyClassification::Longform;
+    }
+
+    PropertyClassification::Neutral
+}
+
+/// Return one shorthand property or method name.
+fn shorthand_name(ctx: &LintAstContext<'_>, property: &ast::Property) -> Option<String> {
+    match property {
+        ast::Property::Field {
+            key: Some(key),
+            value: None,
+            default: None,
+            ..
+        } => property_key_shorthand_name(ctx, key),
+        ast::Property::Method {
+            key: Some(key),
+            signature,
+            ..
+        } if !matches!(
+            signature.mode,
+            Some(FunctionMode::Getter | FunctionMode::Setter)
+        ) =>
+        {
+            property_key_shorthand_name(ctx, key)
+        }
+        _ => None,
+    }
+}
+
+/// Return one longform property name when it can be reduced to shorthand.
+fn redundant_property_name(ctx: &LintAstContext<'_>, property: &ast::Property) -> Option<String> {
+    let ast::Property::Field {
+        key: Some(key),
+        value: Some(value_id),
+        default: None,
+        ..
+    } = property
+    else {
+        return None;
+    };
+
+    let property_name = property_key_redundant_name(ctx, key)?;
+    let ast::Expression::Path { path, .. } = ctx.tree.get(*value_id) else {
+        return None;
+    };
+    if path.segments.len() != 1 {
+        return None;
+    }
+
+    (ctx.strings.get(path.segments[0]) == &property_name).then_some(property_name)
+}
+
+/// Return one longform method name when it can be reduced to shorthand.
+fn redundant_method_name(
+    ctx: &LintAstContext<'_>,
+    property: &ast::Property,
+    methods_ignore_pattern: Option<&Regex>,
+) -> Option<String> {
+    let ast::Property::Field {
+        key: Some(key),
+        value: Some(value_id),
+        default: None,
+        ..
+    } = property
+    else {
+        return None;
+    };
+
+    let method_name = property_key_redundant_name(ctx, key)?;
+    if ctx.options.object_shorthand_ignore_constructors && is_constructor_name(&method_name) {
+        return None;
+    }
+    if methods_ignore_pattern.is_some_and(|pattern| pattern.is_match(&method_name)) {
+        return None;
+    }
+
+    let ast::Expression::Declaration(declaration) = ctx.tree.get(*value_id) else {
+        return None;
+    };
+    let Declaration::Function {
+        descriptor,
+        signature,
+        body,
+    } = ctx.tree.get(*declaration)
+    else {
+        return None;
+    };
+    if descriptor.name.is_some() {
+        return None;
+    }
+    if matches!(
+        signature.mode,
+        Some(FunctionMode::Getter | FunctionMode::Setter)
+    ) {
+        return None;
+    }
+    if ctx.options.object_shorthand_avoid_explicit_return_arrows
+        && signature.kind == FunctionKind::Lambda
+        && body
+            .is_some_and(|body_id| !matches!(ctx.tree.get(body_id), ast::Expression::Block { .. }))
+    {
+        return None;
+    }
+
+    Some(method_name)
+}
+
+/// Return one key name string for shorthand-compatible keys.
+fn property_key_shorthand_name(ctx: &LintAstContext<'_>, key: &Key) -> Option<String> {
+    match key {
+        Key::Name(Name::Identifier(name)) => Some(ctx.strings.get(*name).to_string()),
+        _ => None,
+    }
+}
+
+/// Return one key name string for reducible longform keys.
+fn property_key_redundant_name(ctx: &LintAstContext<'_>, key: &Key) -> Option<String> {
+    match key {
+        Key::Name(Name::Identifier(name)) => Some(ctx.strings.get(*name).to_string()),
+        Key::Name(Name::String(name)) if !ctx.options.object_shorthand_avoid_quotes => {
+            let name = ctx.strings.get(*name).to_string();
+            is_identifier_like(&name).then_some(name)
+        }
+        _ => None,
+    }
+}
+
+/// Return true when one property name looks like a constructor.
+fn is_constructor_name(name: &str) -> bool {
+    let Some(first_character) = name
+        .chars()
+        .find(|character| !matches!(character, '_' | '$') && !character.is_ascii_digit())
+    else {
+        return false;
+    };
+
+    first_character.is_ascii_uppercase()
+}
+
+/// Return true when one string can be written as an identifier.
+fn is_identifier_like(name: &str) -> bool {
+    let mut characters = name.chars();
+    let Some(first_character) = characters.next() else {
+        return false;
+    };
+
+    if !(first_character == '_' || first_character == '$' || first_character.is_ascii_alphabetic())
+    {
+        return false;
+    }
+
+    characters
+        .all(|character| character == '_' || character == '$' || character.is_ascii_alphanumeric())
 }
 
 #[cfg(test)]
@@ -100,6 +533,7 @@ mod tests {
     use super::*;
     use crate::linter::TestProgram;
 
+    /// Flag redundant property shorthand candidates.
     #[test]
     fn test_detects_redundant_property() {
         let test = TestProgram::for_rule_without_prelude(ObjectShorthand);
@@ -113,6 +547,7 @@ const obj = { x: x }
         test.result(result).assert_lint("object-shorthand");
     }
 
+    /// Allow shorthand properties.
     #[test]
     fn test_allows_shorthand() {
         let test = TestProgram::for_rule_without_prelude(ObjectShorthand);
@@ -126,6 +561,7 @@ const obj = { x }
         test.result(result).assert_no_lint("object-shorthand");
     }
 
+    /// Allow unrelated property values.
     #[test]
     fn test_allows_different_names() {
         let test = TestProgram::for_rule_without_prelude(ObjectShorthand);
@@ -160,6 +596,7 @@ const obj = { x };
             );
     }
 
+    /// Avoid fixes through comment trivia.
     #[test]
     fn test_no_fix_when_property_contains_comment_trivia() {
         let test = TestProgram::for_rule_without_prelude(ObjectShorthand);
@@ -176,11 +613,6 @@ const obj = {
             .assert_lint("object-shorthand")
             .assert_has_no_fix("object-shorthand");
     }
-}
-    /// Flag redundant property shorthand candidates.
-    /// Allow shorthand properties.
-    /// Allow unrelated property values.
-    /// Avoid fixes through comment trivia.
 
     /// Respect the quoted-key exemption.
     #[test]
@@ -290,3 +722,4 @@ const obj = { x: x, y: y }
         );
         test.result(result).assert_lint("object-shorthand");
     }
+}

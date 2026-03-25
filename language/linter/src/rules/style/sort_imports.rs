@@ -1,36 +1,14 @@
-use destack_ast::{self as ast, DependencyItem, Expression};
+use destack_ast::{self as ast, DependencyItem, DependencyMode, Expression, ImportSource};
 use destack_source::Span;
-use destack_workspace::LintSeverity;
+use destack_workspace::{LintSeverity, SortImportsMemberSyntax};
 
-use crate::rules::common::{
-    ImportDeclarationKey, categorize_import, sort_import_declaration_indices,
-};
+use crate::rules::common::source_text_contains_comment_token;
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
 
 declare_lint! {
     /// Enforce sorted import declarations.
     ///
-    /// This rule enforces two kinds of sorting:
-    ///
-    /// 1. **Member sorting**: imported names within each import should be sorted
-    ///    alphabetically (e.g., `{ a, b, z }` not `{ z, a, b }`)
-    ///
-    /// 2. **Declaration grouping**: imports should be grouped by type and sorted
-    ///    alphabetically within each group:
-    ///    - External packages (e.g., `"react"`, `"lodash"`)
-    ///    - Internal/aliased paths (e.g., `"@/utils"`, `"~/lib"`)
-    ///    - Parent imports (e.g., `"../utils"`)
-    ///    - Sibling imports (e.g., `"./local"`)
-    ///
-    /// ```
-    /// // bad
-    /// import { z, a } from "./local"
-    /// import { foo } from "external"
-    ///
-    /// // good
-    /// import { foo } from "external"
-    /// import { a, z } from "./local"
-    /// ```
+    /// Enforce sorted import declarations within modules.
     #[lint(
         id = "sort-imports",
         code = "LY064",
@@ -46,22 +24,16 @@ declare_lint! {
     "Enforce sorted import declarations"
 }
 
-/// A top-level import declaration with source metadata.
+/// One top-level import declaration.
 #[derive(Debug, Clone)]
 struct ImportInfo {
-    /// The root expression ID (statement or import) for diagnostics.
+    /// The root expression span for declaration ordering diagnostics.
     root_expression_id: ast::LocalNodeId<Expression>,
-    /// The import expression ID for member lookup.
+    /// The import expression id.
     import_expression_id: ast::LocalNodeId<Expression>,
-    /// The source span for this declaration.
+    /// The declaration span.
     span: Span,
-    /// The import target path.
-    target: String,
-    /// Whether this is a side-effect-only import.
-    is_side_effect: bool,
-    /// The declaration source text.
-    text: String,
-    /// The imported dependency items.
+    /// The import items.
     items: Vec<ast::LocalNodeId<DependencyItem>>,
 }
 
@@ -71,81 +43,41 @@ impl LintRule for SortImports {
         SortImports::meta()
     }
 
+    /// Check top-level import declarations.
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
-        let imports = collect_top_level_imports(ctx);
+        let imports = collect_imports(ctx);
 
-        // check member sorting within each import declaration
-        for import in &imports {
-            check_member_sorting(ctx, meta, import);
+        if !ctx.options.sort_imports_ignore_declaration_sort {
+            check_declaration_sorting(ctx, meta, &imports);
         }
 
-        // check declaration ordering with shared canonical import sort order
-        check_declaration_sorting(ctx, meta, &imports);
+        if !ctx.options.sort_imports_ignore_member_sort {
+            for import in &imports {
+                check_member_sorting(ctx, meta, import);
+            }
+        }
     }
 }
 
-/// Collect contiguous top-level import declarations.
-fn collect_top_level_imports(ctx: &LintAstContext<'_>) -> Vec<ImportInfo> {
+/// Collect all top-level import declarations in source order.
+fn collect_imports(ctx: &LintAstContext<'_>) -> Vec<ImportInfo> {
     let mut imports = Vec::new();
 
-    // inspect candidate syntax nodes
     for root_expression_id in ctx.roots {
-        let root_expression = ctx.tree.get(*root_expression_id);
-        let import_expression = match root_expression {
-            Expression::Import {
-                source: ast::ImportSource::ImportStatement | ast::ImportSource::ImportEquals,
-                ..
-            } => Some(*root_expression_id),
-            Expression::Statement(inner_expression_id) => {
-                let inner_expression = ctx.tree.get(*inner_expression_id);
-                if matches!(
-                    inner_expression,
-                    Expression::Import {
-                        source: ast::ImportSource::ImportStatement
-                            | ast::ImportSource::ImportEquals,
-                        ..
-                    }
-                ) {
-                    Some(*inner_expression_id)
-                } else {
-                    None
-                }
-            }
-            _ => None,
-        };
-
-        // require optional structure
-        let Some(import_expression_id) = import_expression else {
-            if !imports.is_empty() {
-                break;
-            }
-            continue;
-        };
-
-        // resolve import expression
-        let import_expression = ctx.tree.get(import_expression_id);
-        let Expression::Import {
-            target: ast::ImportTarget::String(target),
-            items,
-            ..
-        } = import_expression
+        let Some(import_expression_id) = top_level_import_expression_id(ctx, *root_expression_id)
         else {
             continue;
         };
 
-        // resolve diagnostic span
-        let span = ctx.tree.get_span(*root_expression_id);
-        let text = ctx.get_span_text(span).trim_end().to_string();
-        let target = ctx.strings.get(*target).to_string();
+        let Expression::Import { items, .. } = ctx.tree.get(import_expression_id) else {
+            continue;
+        };
 
         imports.push(ImportInfo {
             root_expression_id: *root_expression_id,
             import_expression_id,
-            span,
-            target,
-            is_side_effect: items.is_empty(),
-            text,
+            span: ctx.tree.get_span(*root_expression_id),
             items: items.clone(),
         });
     }
@@ -153,115 +85,160 @@ fn collect_top_level_imports(ctx: &LintAstContext<'_>) -> Vec<ImportInfo> {
     imports
 }
 
-/// Check that imported members within an import are in canonical order.
-fn check_member_sorting(
-    ctx: &mut LintAstContext<'_>,
-    meta: &'static LintMeta,
-    import: &ImportInfo,
-) {
-    if import.items.len() < 2 {
-        return;
+/// Return one top-level import expression id when the root is an import.
+fn top_level_import_expression_id(
+    ctx: &LintAstContext<'_>,
+    root_expression_id: ast::LocalNodeId<Expression>,
+) -> Option<ast::LocalNodeId<Expression>> {
+    match ctx.tree.get(root_expression_id) {
+        Expression::Import {
+            source: ImportSource::ImportStatement | ImportSource::ImportEquals,
+            ..
+        } => Some(root_expression_id),
+        Expression::Statement(statement_expression_id)
+            if matches!(
+                ctx.tree.get(*statement_expression_id),
+                Expression::Import {
+                    source: ImportSource::ImportStatement | ImportSource::ImportEquals,
+                    ..
+                }
+            ) =>
+        {
+            Some(*statement_expression_id)
+        }
+        _ => None,
     }
-
-    // build canonical member order
-    let mut sorted_items = import.items.clone();
-    sorted_items.sort_by(|left_id, right_id| compare_dependency_items(ctx, *left_id, *right_id));
-    if sorted_items == import.items {
-        return;
-    }
-
-    // report only the first mismatch in this declaration
-    let mismatch_position = import
-        .items
-        .iter()
-        .zip(sorted_items.iter())
-        .position(|(left, right)| left != right);
-    let Some(mismatch_position) = mismatch_position else {
-        return;
-    };
-
-    // resolve mismatch item id
-    let mismatch_item_id = import.items[mismatch_position];
-    let expected_item_id = sorted_items[mismatch_position];
-    let mismatch_name = dependency_item_sort_name(ctx, mismatch_item_id);
-    let expected_name = dependency_item_sort_name(ctx, expected_item_id);
-
-    // resolve effective lint severity
-    let severity = ctx.get_effective_severity(meta, import.import_expression_id);
-    if !severity.is_enabled() {
-        return;
-    }
-
-    ctx.report(
-        LintDiagnostic::new(
-            SORT_IMPORTS.id,
-            SORT_IMPORTS.code,
-            SORT_IMPORTS.category,
-            severity,
-            format!("member `{mismatch_name}` should come before `{expected_name}`"),
-            ctx.module.file_id,
-            ctx.tree.get_span(mismatch_item_id),
-        )
-        .with_label("import members should be in canonical order"),
-    );
 }
 
-/// Check declaration ordering and report one canonical-order diagnostic.
+/// Check declaration ordering against the configured syntax ordering.
 fn check_declaration_sorting(
     ctx: &mut LintAstContext<'_>,
     meta: &'static LintMeta,
     imports: &[ImportInfo],
 ) {
-    if imports.len() < 2 {
+    let mut previous_import: Option<&ImportInfo> = None;
+
+    for import in imports {
+        if previous_import.is_some()
+            && ctx.options.sort_imports_allow_separated_groups
+            && imports_are_separated_group(ctx, previous_import.unwrap().span, import.span)
+        {
+            previous_import = None;
+        }
+
+        let Some(previous) = previous_import else {
+            previous_import = Some(import);
+            continue;
+        };
+
+        let current_group = member_syntax_group(ctx, import);
+        let previous_group = member_syntax_group(ctx, previous);
+        let current_group_index = member_syntax_group_index(ctx, current_group);
+        let previous_group_index = member_syntax_group_index(ctx, previous_group);
+
+        if current_group_index < previous_group_index {
+            let severity = ctx.get_effective_severity(meta, import.root_expression_id);
+            if severity.is_enabled() {
+                ctx.report(
+                    LintDiagnostic::new(
+                        SORT_IMPORTS.id,
+                        SORT_IMPORTS.code,
+                        SORT_IMPORTS.category,
+                        severity,
+                        format!(
+                            "expected `{}` syntax before `{}` syntax",
+                            sort_member_syntax_label(current_group),
+                            sort_member_syntax_label(previous_group),
+                        ),
+                        ctx.module.file_id,
+                        import.span,
+                    )
+                    .with_label("import declarations are out of syntax order"),
+                );
+            }
+        } else if current_group_index == previous_group_index {
+            let Some(current_name) = first_local_member_name(ctx, import) else {
+                previous_import = Some(import);
+                continue;
+            };
+            let Some(previous_name) = first_local_member_name(ctx, previous) else {
+                previous_import = Some(import);
+                continue;
+            };
+
+            if normalize_import_name(ctx, &current_name)
+                < normalize_import_name(ctx, &previous_name)
+            {
+                let severity = ctx.get_effective_severity(meta, import.root_expression_id);
+                if severity.is_enabled() {
+                    ctx.report(
+                        LintDiagnostic::new(
+                            SORT_IMPORTS.id,
+                            SORT_IMPORTS.code,
+                            SORT_IMPORTS.category,
+                            severity,
+                            "imports should be sorted alphabetically",
+                            ctx.module.file_id,
+                            import.span,
+                        )
+                        .with_label("this import should come earlier"),
+                    );
+                }
+            }
+        }
+
+        previous_import = Some(import);
+    }
+}
+
+/// Check named import member sorting within one declaration.
+fn check_member_sorting(
+    ctx: &mut LintAstContext<'_>,
+    meta: &'static LintMeta,
+    import: &ImportInfo,
+) {
+    let named_items = named_import_items(ctx, import);
+    if named_items.len() < 2 {
         return;
     }
 
-    // build shared declaration sort keys
-    let declaration_keys: Vec<_> = imports
-        .iter()
-        .map(|import| ImportDeclarationKey {
-            target: import.target.as_str(),
-            is_side_effect: import.is_side_effect,
-        })
-        .collect();
-    let order = sort_import_declaration_indices(&declaration_keys);
+    let mut sorted_items = named_items.clone();
+    sorted_items.sort_by(|left_id, right_id| {
+        normalized_dependency_item_name(ctx, *left_id)
+            .cmp(&normalized_dependency_item_name(ctx, *right_id))
+    });
+    if sorted_items == named_items {
+        return;
+    }
 
-    // exit early when declarations are already in canonical order
-    let mismatch_position = order
+    let Some(mismatch_index) = named_items
         .iter()
-        .copied()
-        .enumerate()
-        .find_map(|(position, import_index)| (position != import_index).then_some(position));
-    let Some(mismatch_position) = mismatch_position else {
+        .zip(sorted_items.iter())
+        .position(|(left, right)| left != right)
+    else {
         return;
     };
 
-    // compare the current import with the expected import at this position
-    let import = &imports[mismatch_position];
-    let expected = &imports[order[mismatch_position]];
-    let severity = ctx.get_effective_severity(meta, import.root_expression_id);
+    let mismatch_item_id = named_items[mismatch_index];
+    let severity = ctx.get_effective_severity(meta, import.import_expression_id);
     if !severity.is_enabled() {
         return;
     }
 
-    // build one declaration ordering diagnostic
+    let mismatch_name = dependency_item_name(ctx, mismatch_item_id);
     let mut diagnostic = LintDiagnostic::new(
         SORT_IMPORTS.id,
         SORT_IMPORTS.code,
         SORT_IMPORTS.category,
         severity,
-        format!(
-            "import `{}` should come before `{}`",
-            expected.target, import.target
-        ),
+        format!("member `{mismatch_name}` should be sorted alphabetically"),
         ctx.module.file_id,
-        import.span,
+        ctx.tree.get_span(mismatch_item_id),
     )
-    .with_label("import declarations are not in canonical order");
+    .with_label("import members should be sorted alphabetically");
 
-    // add a module level declaration reorder fix when enabled
     if ctx.compute_fixes
-        && let Some(fix) = build_declaration_fix(ctx, imports, &order)
+        && let Some(fix) = build_member_sort_fix(ctx, &named_items)
     {
         diagnostic = diagnostic.with_fix(fix);
     }
@@ -269,117 +246,186 @@ fn check_declaration_sorting(
     ctx.report(diagnostic);
 }
 
-/// Build a declaration reorder fix for the contiguous top-level import block.
-fn build_declaration_fix(
+/// Build one named-member sorting fix when the specifier region is comment free.
+fn build_member_sort_fix(
     ctx: &LintAstContext<'_>,
-    imports: &[ImportInfo],
-    order: &[usize],
+    named_items: &[ast::LocalNodeId<DependencyItem>],
 ) -> Option<LintFix> {
-    let first = imports.first()?;
-    let last = imports.last()?;
-    let block_span = Span::new(ctx.module.file_id, first.span.start, last.span.end);
-
-    // rebuild declarations in canonical order and preserve group spacing
-    let mut replacement = String::new();
-    for (position, import_index) in order.iter().copied().enumerate() {
-        let import = &imports[import_index];
-
-        // keep each import separated by at least one newline
-        if !replacement.is_empty() {
-            replacement.push('\n');
-        }
-        replacement.push_str(&import.text);
-
-        // insert one extra blank line between import groups
-        if let Some(next_index) = order.get(position + 1).copied() {
-            let next_import = &imports[next_index];
-            let needs_blank = !next_import.is_side_effect
-                && (import.is_side_effect
-                    || categorize_import(import.target.as_str())
-                        != categorize_import(next_import.target.as_str()));
-            if needs_blank {
-                replacement.push('\n');
-            }
-        }
-    }
-
-    // skip no op edits
-    if ctx.get_span_text(block_span) == replacement {
+    let first_item_id = *named_items.first()?;
+    let last_item_id = *named_items.last()?;
+    let first_span = ctx.tree.get_span(first_item_id);
+    let last_span = ctx.tree.get_span(last_item_id);
+    let region_span = Span::new(ctx.module.file_id, first_span.start, last_span.end);
+    let region_text = ctx.get_span_text(region_span);
+    if region_text.contains("//") || region_text.contains("/*") {
         return None;
     }
 
-    // replace the contiguous import block with canonical ordering
+    let mut sorted_items = named_items.to_vec();
+    sorted_items.sort_by(|left_id, right_id| {
+        normalized_dependency_item_name(ctx, *left_id)
+            .cmp(&normalized_dependency_item_name(ctx, *right_id))
+    });
+
+    let mut replacement = String::new();
+    for (index, item_id) in sorted_items.iter().enumerate() {
+        replacement.push_str(ctx.get_span_text(ctx.tree.get_span(*item_id)));
+
+        if let Some(current_original_id) = named_items.get(index)
+            && let Some(next_original_id) = named_items.get(index + 1)
+        {
+            let current_span = ctx.tree.get_span(*current_original_id);
+            let next_span = ctx.tree.get_span(*next_original_id);
+            replacement.push_str(ctx.get_span_text(Span::new(
+                ctx.module.file_id,
+                current_span.end,
+                next_span.start,
+            )));
+        }
+    }
+
     let edits = ctx
         .edit_builder()
-        .replace(block_span, replacement)
+        .replace(region_span, replacement)
         .into_edits();
-    Some(LintFix::safe("Organize import declarations").with_edits(edits))
+    Some(LintFix::safe("Sort import members").with_edits(edits))
 }
 
-/// Resolve a stable sort key name for a dependency item.
-fn dependency_item_sort_name(
+/// Return the named import items that participate in member sorting.
+fn named_import_items(
+    ctx: &LintAstContext<'_>,
+    import: &ImportInfo,
+) -> Vec<ast::LocalNodeId<DependencyItem>> {
+    import
+        .items
+        .iter()
+        .copied()
+        .filter(|item_id| {
+            matches!(
+                ctx.tree.get(*item_id),
+                DependencyItem::Item {
+                    mode: DependencyMode::Item,
+                    ..
+                }
+            )
+        })
+        .collect()
+}
+
+/// Return the member syntax group for one import declaration.
+fn member_syntax_group(ctx: &LintAstContext<'_>, import: &ImportInfo) -> SortImportsMemberSyntax {
+    if import.items.is_empty() {
+        return SortImportsMemberSyntax::None;
+    }
+
+    if let Some(first_item_id) = import.items.first()
+        && item_mode(ctx, *first_item_id) == Some(DependencyMode::Namespace)
+    {
+        return SortImportsMemberSyntax::All;
+    }
+
+    if import.items.len() == 1 {
+        return SortImportsMemberSyntax::Single;
+    }
+
+    SortImportsMemberSyntax::Multiple
+}
+
+/// Return the dependency mode for one import item.
+fn item_mode(
+    ctx: &LintAstContext<'_>,
+    item_id: ast::LocalNodeId<DependencyItem>,
+) -> Option<DependencyMode> {
+    match ctx.tree.get(item_id) {
+        DependencyItem::Item { mode, .. } => Some(*mode),
+        DependencyItem::Error => None,
+    }
+}
+
+/// Return the configured syntax-group index for one import declaration.
+fn member_syntax_group_index(ctx: &LintAstContext<'_>, group: SortImportsMemberSyntax) -> usize {
+    ctx.options
+        .sort_imports_member_syntax_sort_order
+        .iter()
+        .position(|candidate| *candidate == group)
+        .unwrap_or(usize::MAX)
+}
+
+/// Return the display label for one member syntax group.
+fn sort_member_syntax_label(group: SortImportsMemberSyntax) -> &'static str {
+    match group {
+        SortImportsMemberSyntax::None => "none",
+        SortImportsMemberSyntax::All => "all",
+        SortImportsMemberSyntax::Multiple => "multiple",
+        SortImportsMemberSyntax::Single => "single",
+    }
+}
+
+/// Return the first local member name for declaration sorting.
+fn first_local_member_name(ctx: &LintAstContext<'_>, import: &ImportInfo) -> Option<String> {
+    let first_item_id = *import.items.first()?;
+    Some(dependency_item_name(ctx, first_item_id))
+}
+
+/// Return one normalized dependency item name for ordering.
+fn normalized_dependency_item_name(
     ctx: &LintAstContext<'_>,
     item_id: ast::LocalNodeId<DependencyItem>,
 ) -> String {
-    let item = ctx.tree.get(item_id);
-    // prefer alias names because that is what downstream code references
-    if let ast::DependencyItem::Item {
-        alias: Some(alias), ..
-    } = item
-    {
-        return ctx.strings.get(*alias).to_string();
-    }
-
-    // otherwise use the imported member name
-    if let ast::DependencyItem::Item {
-        name: Some(name), ..
-    } = item
-    {
-        return ctx.strings.get(name.string()).to_string();
-    }
-
-    "default".to_string()
+    normalize_import_name(ctx, &dependency_item_name(ctx, item_id))
 }
 
-/// Compare dependency items using canonical import member ordering.
-fn compare_dependency_items(
+/// Return one dependency item local name.
+fn dependency_item_name(
     ctx: &LintAstContext<'_>,
-    left_id: ast::LocalNodeId<DependencyItem>,
-    right_id: ast::LocalNodeId<DependencyItem>,
-) -> std::cmp::Ordering {
-    let left_item = ctx.tree.get(left_id);
-    let right_item = ctx.tree.get(right_id);
+    item_id: ast::LocalNodeId<DependencyItem>,
+) -> String {
+    match ctx.tree.get(item_id) {
+        DependencyItem::Item {
+            alias: Some(alias), ..
+        } => ctx.strings.get(*alias).to_string(),
+        DependencyItem::Item {
+            name: Some(name), ..
+        } => ctx.strings.get(name.string()).to_string(),
+        DependencyItem::Item { .. } => "default".to_string(),
+        DependencyItem::Error => String::new(),
+    }
+}
 
-    // place type imports before value imports
-    let left_is_type = matches!(
-        left_item,
-        ast::DependencyItem::Item {
-            kind: Some(ast::DependencyKind::Type),
-            ..
-        }
-    );
-    let right_is_type = matches!(
-        right_item,
-        ast::DependencyItem::Item {
-            kind: Some(ast::DependencyKind::Type),
-            ..
-        }
-    );
-    match (left_is_type, right_is_type) {
-        (true, false) => return std::cmp::Ordering::Less,
-        (false, true) => return std::cmp::Ordering::Greater,
-        _ => {}
+/// Normalize one import ordering name based on the case policy.
+fn normalize_import_name(ctx: &LintAstContext<'_>, name: &str) -> String {
+    if ctx.options.sort_imports_ignore_case {
+        return name.to_ascii_lowercase();
     }
 
-    // compare by case insensitive key and keep deterministic case order
-    let left_name = dependency_item_sort_name(ctx, left_id);
-    let right_name = dependency_item_sort_name(ctx, right_id);
-    let left_lower = left_name.to_ascii_lowercase();
-    let right_lower = right_name.to_ascii_lowercase();
-    match left_lower.cmp(&right_lower) {
-        std::cmp::Ordering::Equal => left_name.cmp(&right_name),
-        ordering => ordering,
+    name.to_string()
+}
+
+/// Return true when two imports belong to separated declaration groups.
+fn imports_are_separated_group(
+    ctx: &LintAstContext<'_>,
+    left_span: Span,
+    right_span: Span,
+) -> bool {
+    if left_span.file != right_span.file || left_span.end >= right_span.start {
+        return false;
     }
+
+    let between_text = ctx.get_span_text(Span::new(
+        ctx.module.file_id,
+        left_span.end,
+        right_span.start,
+    ));
+
+    if between_text.bytes().filter(|byte| *byte == b'\n').count() > 1 {
+        return true;
+    }
+
+    if source_text_contains_comment_token(between_text) {
+        return true;
+    }
+
+    !between_text.trim().is_empty()
 }
 
 #[cfg(test)]
@@ -387,79 +433,7 @@ mod tests {
     use super::*;
     use crate::linter::TestProgram;
 
-    /// Detect unsorted import members.
-    #[test]
-    fn test_unsorted_members_detected() {
-        let test = TestProgram::for_rule_without_prelude(SortImports);
-        let result = test.lint_ast(
-            "sort_imports/test_unsorted_members_detected.ds",
-            r#"
-import { z, a, m } from "utils"
-"#,
-        );
-        test.result(result).assert_lint("sort-imports");
-    }
-
-    /// Allow already sorted import members.
-    #[test]
-    fn test_sorted_members_allowed() {
-        let test = TestProgram::for_rule_without_prelude(SortImports);
-        let result = test.lint_ast(
-            "sort_imports/test_sorted_members_allowed.ds",
-            r#"
-import { a, m, z } from "utils"
-"#,
-        );
-        test.result(result).assert_no_lint("sort-imports");
-    }
-
-    /// Sort member names case-insensitively.
-    #[test]
-    fn test_member_sorting_case_insensitive() {
-        let test = TestProgram::for_rule_without_prelude(SortImports);
-        let result = test.lint_ast(
-            "sort_imports/test_member_sorting_case_insensitive.ds",
-            r#"
-import { Alpha, beta, Gamma } from "utils"
-"#,
-        );
-        test.result(result).assert_no_lint("sort-imports");
-    }
-
-    /// Allow single-member imports.
-    #[test]
-    fn test_single_member_allowed() {
-        let test = TestProgram::for_rule_without_prelude(SortImports);
-        let result = test.lint_ast(
-            "sort_imports/test_single_member_allowed.ds",
-            r#"
-import { foo } from "utils"
-"#,
-        );
-        test.result(result).assert_lint("sort-imports");
-    }
-
-    /// Require external imports before sibling imports.
-    #[test]
-    fn test_external_before_sibling_required() {
-        let test = TestProgram::for_rule_without_prelude(SortImports);
-        let result = test.lint_ast(
-            "sort_imports/test_external_before_sibling_required.ds",
-            r#"
-import { local } from "./local"
-import { external } from "external"
-"#,
-        );
-        test.result(result)
-            .assert_lint("sort-imports")
-            .assert_safe_fixed(
-                r#"
-import { a, z } from "foo";
-"#,
-            );
-    }
-
-    /// Allow declarations in canonical group order.
+    /// Flag out of order named import members.
     #[test]
     fn test_flags_unsorted_import_members() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
@@ -469,7 +443,7 @@ import { a, z } from "foo";
 import { z, a } from "foo"
 "#,
         );
-        test.result(result).assert_no_lint("sort-imports");
+        test.result(result).assert_lint("sort-imports");
     }
 
     /// Fix out of order named import members.
@@ -482,7 +456,13 @@ import { z, a } from "foo"
 import { z, a } from "foo"
 "#,
         );
-        test.result(result).assert_lint("sort-imports");
+        test.result(result)
+            .assert_lint("sort-imports")
+            .assert_safe_fixed(
+                r#"
+import { a, z } from "foo";
+"#,
+            );
     }
 
     /// Flag declaration ordering by default syntax order.
@@ -496,7 +476,7 @@ import item from "foo"
 import "bar"
 "#,
         );
-        test.result(result).assert_no_lint("sort-imports");
+        test.result(result).assert_lint("sort-imports");
     }
 
     /// Allow separated groups when configured.
@@ -530,7 +510,7 @@ import item from "foo"
 import "bar"
 "#,
         );
-        test.result(result).assert_lint("sort-imports");
+        test.result(result).assert_no_lint("sort-imports");
     }
 
     /// Allow statement-separated groups when configured.

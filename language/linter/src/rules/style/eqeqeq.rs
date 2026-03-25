@@ -1,6 +1,7 @@
 use destack_ast::{self as ast, BinaryOperator, Expression, ScalarLiteral, TypeLiteral};
-use destack_workspace::LintSeverity;
+use destack_workspace::{EqeqeqMode, EqeqeqNullPolicy, LintSeverity};
 
+use crate::rules::common::source_text_contains_comment_token;
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
@@ -29,6 +30,12 @@ impl LintRule for Eqeqeq {
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
+        let mode = ctx.options.eqeqeq_mode;
+        let null_policy = if mode == EqeqeqMode::Always {
+            ctx.options.eqeqeq_null
+        } else {
+            EqeqeqNullPolicy::Ignore
+        };
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expr = ctx.tree.get(node_id);
@@ -42,16 +49,89 @@ impl LintRule for Eqeqeq {
                 continue;
             };
 
-            let (message, label, strict_op) = match operator {
-                BinaryOperator::Equal => {
-                    ("use `===` instead of `==`", "prefer strict equality", "===")
+            let left_expression = ctx.tree.get(*left);
+            let right_expression = ctx.tree.get(*right);
+            let is_null_check = expression_is_null_literal(left_expression)
+                || expression_is_null_literal(right_expression);
+
+            // loose operators
+            if matches!(operator, BinaryOperator::Equal | BinaryOperator::NotEqual) {
+                if loose_equality_is_allowed(mode, null_policy, left_expression, right_expression) {
+                    continue;
                 }
-                BinaryOperator::NotEqual => (
-                    "use `!==` instead of `!=`",
-                    "prefer strict inequality",
-                    "!==",
+
+                let (message, label, strict_op) = match operator {
+                    BinaryOperator::Equal => {
+                        ("use `===` instead of `==`", "prefer strict equality", "===")
+                    }
+                    BinaryOperator::NotEqual => (
+                        "use `!==` instead of `!=`",
+                        "prefer strict inequality",
+                        "!==",
+                    ),
+                    _ => unreachable!(),
+                };
+
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
+                let expression_span = ctx.tree.get_span(node_id);
+                let mut diagnostic = LintDiagnostic::new(
+                    EQEQEQ.id,
+                    EQEQEQ.code,
+                    EQEQEQ.category,
+                    severity,
+                    message,
+                    ctx.module.file_id,
+                    expression_span,
+                )
+                .with_label(label);
+
+                // only apply autofix where operator replacement is semantics preserving
+                if ctx.compute_fixes
+                    && equality_operator_fix_is_safe(left_expression, right_expression)
+                    && !source_text_contains_comment_token(ctx.get_span_text(expression_span))
+                {
+                    let left_text = ctx.get_span_text(ctx.tree.get_span(*left));
+                    let right_text = ctx.get_span_text(ctx.tree.get_span(*right));
+                    let replacement = format!("{left_text} {strict_op} {right_text}");
+                    let edits = ctx
+                        .edit_builder()
+                        .replace(expression_span, replacement)
+                        .into_edits();
+                    let fix =
+                        LintFix::safe(format!("Replace with `{strict_op}`")).with_edits(edits);
+                    diagnostic = diagnostic.with_fix(fix);
+                }
+
+                ctx.report(diagnostic);
+                continue;
+            }
+
+            // strict null operators with `null: never`
+            if !matches!(
+                operator,
+                BinaryOperator::EqualStrict | BinaryOperator::NotEqualStrict
+            ) {
+                continue;
+            }
+
+            if null_policy != EqeqeqNullPolicy::Never || !is_null_check {
+                continue;
+            }
+
+            let (message, label) = match operator {
+                BinaryOperator::EqualStrict => (
+                    "use `==` instead of `===` for null checks",
+                    "prefer loose null equality",
                 ),
-                _ => continue,
+                BinaryOperator::NotEqualStrict => (
+                    "use `!=` instead of `!==` for null checks",
+                    "prefer loose null inequality",
+                ),
+                _ => unreachable!(),
             };
 
             let severity = ctx.get_effective_severity(meta, node_id);
@@ -59,36 +139,43 @@ impl LintRule for Eqeqeq {
                 continue;
             }
 
-            let expression_span = ctx.tree.get_span(node_id);
-            let left_expression = ctx.tree.get(*left);
-            let right_expression = ctx.tree.get(*right);
+            ctx.report(
+                LintDiagnostic::new(
+                    EQEQEQ.id,
+                    EQEQEQ.code,
+                    EQEQEQ.category,
+                    severity,
+                    message,
+                    ctx.module.file_id,
+                    ctx.tree.get_span(node_id),
+                )
+                .with_label(label),
+            );
+        }
+    }
+}
 
-            let mut diagnostic = LintDiagnostic::new(
-                EQEQEQ.id,
-                EQEQEQ.code,
-                EQEQEQ.category,
-                severity,
-                message,
-                ctx.module.file_id,
-                expression_span,
-            )
-            .with_label(label);
-
-            // only apply autofix where operator replacement is semantics preserving
-            if ctx.compute_fixes && equality_operator_fix_is_safe(left_expression, right_expression)
-            {
-                let left_text = ctx.get_span_text(ctx.tree.get_span(*left));
-                let right_text = ctx.get_span_text(ctx.tree.get_span(*right));
-                let replacement = format!("{left_text} {strict_op} {right_text}");
-                let edits = ctx
-                    .edit_builder()
-                    .replace(expression_span, replacement)
-                    .into_edits();
-                let fix = LintFix::safe(format!("Replace with `{strict_op}`")).with_edits(edits);
-                diagnostic = diagnostic.with_fix(fix);
-            }
-
-            ctx.report(diagnostic);
+/// Return true when a loose equality operator is allowed by the active mode.
+fn loose_equality_is_allowed(
+    mode: EqeqeqMode,
+    null_policy: EqeqeqNullPolicy,
+    left: &Expression,
+    right: &Expression,
+) -> bool {
+    match mode {
+        EqeqeqMode::Always => {
+            (expression_is_null_literal(left) || expression_is_null_literal(right))
+                && null_policy != EqeqeqNullPolicy::Always
+        }
+        EqeqeqMode::Smart => {
+            expression_is_typeof(left)
+                || expression_is_typeof(right)
+                || expressions_have_same_literal_kind(left, right)
+                || expression_is_null_literal(left)
+                || expression_is_null_literal(right)
+        }
+        EqeqeqMode::AllowNull => {
+            expression_is_null_literal(left) || expression_is_null_literal(right)
         }
     }
 }
@@ -98,6 +185,11 @@ fn equality_operator_fix_is_safe(left: &Expression, right: &Expression) -> bool 
     expression_is_typeof(left)
         || expression_is_typeof(right)
         || expressions_have_same_literal_kind(left, right)
+}
+
+/// Return true when the expression is a null literal.
+fn expression_is_null_literal(expression: &Expression) -> bool {
+    matches!(expression, Expression::TypeLiteral(TypeLiteral::Null))
 }
 
 /// Return true when one expression is a `typeof` unary expression.
@@ -274,7 +366,6 @@ if (1 === 2) { x() }
 "#,
         );
     }
-}
 
     #[test]
     fn test_has_no_fix_when_comparison_contains_comment() {
@@ -347,3 +438,4 @@ if (value == null) { x() }
         );
         test.result(result).assert_no_lint("eqeqeq");
     }
+}

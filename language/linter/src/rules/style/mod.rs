@@ -19,7 +19,6 @@ mod no_duplicate_type_constituents;
 mod no_else_return;
 mod no_empty_interface;
 mod no_extra_boolean_cast;
-mod no_implicit_coercion;
 mod no_lonely_if;
 mod no_negated_condition;
 mod no_nested_template_literal;
@@ -97,7 +96,6 @@ pub use no_duplicate_type_constituents::*;
 pub use no_else_return::*;
 pub use no_empty_interface::*;
 pub use no_extra_boolean_cast::*;
-pub use no_implicit_coercion::*;
 pub use no_lonely_if::*;
 pub use no_negated_condition::*;
 pub use no_nested_template_literal::*;
@@ -176,7 +174,6 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoElseReturn),
         boxed(NoEmptyInterface),
         boxed(NoExtraBooleanCast),
-        boxed(NoImplicitCoercion),
         boxed(NoLonelyIf),
         boxed(NoNegatedCondition),
         boxed(NoNestedTemplateLiteral),

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use destack_ast::{self as ast, BindingAnchor, Declaration, FunctionMode, Key, Member};
-use destack_workspace::LintSeverity;
+use destack_workspace::{GroupedAccessorPairsOrder, LintSeverity};
 
 use crate::rules::common::{expression_structural_signature, span_has_comment_trivia};
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
@@ -53,14 +53,25 @@ impl LintRule for GroupedAccessorPairs {
         for node_id in ctx.tree.iter_nodes::<ast::Declaration>() {
             let declaration = ctx.tree.get(node_id);
             let members = match declaration {
-                Declaration::Class { members, .. }
-                | Declaration::Struct { members, .. }
+                Declaration::Class { members, .. } => members,
+                Declaration::Struct { members, .. }
                 | Declaration::Interface { members, .. }
-                | Declaration::Extension { members, .. } => members,
+                | Declaration::Extension { members, .. } => {
+                    if !ctx.options.grouped_accessor_pairs_enforce_for_types {
+                        continue;
+                    }
+
+                    members
+                }
                 _ => continue,
             };
 
-            check_members_for_ungrouped_accessors(ctx, meta, members);
+            check_members_for_ungrouped_accessors(
+                ctx,
+                meta,
+                members,
+                ctx.options.grouped_accessor_pairs_order,
+            );
         }
 
         // also check object expressions
@@ -71,7 +82,12 @@ impl LintRule for GroupedAccessorPairs {
                 continue;
             };
 
-            check_properties_for_ungrouped_accessors(ctx, meta, properties);
+            check_properties_for_ungrouped_accessors(
+                ctx,
+                meta,
+                properties,
+                ctx.options.grouped_accessor_pairs_order,
+            );
         }
     }
 }
@@ -138,6 +154,7 @@ fn check_members_for_ungrouped_accessors(
     ctx: &mut LintAstContext<'_>,
     meta: &'static crate::LintMeta,
     members: &[ast::LocalNodeId<Member>],
+    order: GroupedAccessorPairsOrder,
 ) {
     // collect getter and setter indices per owner partition and key
     let mut accessor_indices: HashMap<(AccessorOwner, AccessorKey), AccessorIndices> =
@@ -183,7 +200,8 @@ fn check_members_for_ungrouped_accessors(
         let setter_idx = indices.setters[0];
 
         let diff = getter_idx.abs_diff(setter_idx);
-        if diff != 1 {
+        let order_violation = accessor_order_violation(order, getter_idx, setter_idx);
+        if diff != 1 || order_violation {
             let later_idx = getter_idx.max(setter_idx);
             let later_member_id = members[later_idx];
             let severity = ctx.get_effective_severity(meta, later_member_id);
@@ -198,18 +216,26 @@ fn check_members_for_ungrouped_accessors(
                 AccessorKey::Computed(_) => "<computed>".to_string(),
             };
 
+            let (message, label) = if diff != 1 {
+                (
+                    format!("getter and setter for `{accessor_name}` are not adjacent"),
+                    "move to be adjacent to its counterpart",
+                )
+            } else {
+                accessor_order_message(order, &accessor_name)
+            };
             let mut diagnostic = LintDiagnostic::new(
                 GROUPED_ACCESSOR_PAIRS.id,
                 GROUPED_ACCESSOR_PAIRS.code,
                 GROUPED_ACCESSOR_PAIRS.category,
                 severity,
-                format!("getter and setter for `{accessor_name}` are not adjacent"),
+                message,
                 ctx.module.file_id,
                 ctx.tree.get_span(later_member_id),
             )
-            .with_label("move to be adjacent to its counterpart");
+            .with_label(label);
 
-            if ctx.compute_fixes && !has_reported_reorder_fix {
+            if ctx.compute_fixes && diff != 1 && !has_reported_reorder_fix {
                 if let Some(fix) = grouped_member_accessor_fix(ctx, members, getter_idx, setter_idx)
                 {
                     diagnostic = diagnostic.with_fix(fix);
@@ -227,6 +253,7 @@ fn check_properties_for_ungrouped_accessors(
     ctx: &mut LintAstContext<'_>,
     meta: &'static crate::LintMeta,
     properties: &[ast::LocalNodeId<ast::Property>],
+    order: GroupedAccessorPairsOrder,
 ) {
     // collect getter and setter indices per key
     let mut accessor_indices: HashMap<AccessorKey, AccessorIndices> = HashMap::new();
@@ -270,7 +297,8 @@ fn check_properties_for_ungrouped_accessors(
         let setter_idx = indices.setters[0];
 
         let diff = getter_idx.abs_diff(setter_idx);
-        if diff != 1 {
+        let order_violation = accessor_order_violation(order, getter_idx, setter_idx);
+        if diff != 1 || order_violation {
             let later_idx = getter_idx.max(setter_idx);
             let later_prop_id = properties[later_idx];
             let severity = ctx.get_effective_severity(meta, later_prop_id);
@@ -285,18 +313,26 @@ fn check_properties_for_ungrouped_accessors(
                 AccessorKey::Computed(_) => "<computed>".to_string(),
             };
 
+            let (message, label) = if diff != 1 {
+                (
+                    format!("getter and setter for `{accessor_name}` are not adjacent"),
+                    "move to be adjacent to its counterpart",
+                )
+            } else {
+                accessor_order_message(order, &accessor_name)
+            };
             let mut diagnostic = LintDiagnostic::new(
                 GROUPED_ACCESSOR_PAIRS.id,
                 GROUPED_ACCESSOR_PAIRS.code,
                 GROUPED_ACCESSOR_PAIRS.category,
                 severity,
-                format!("getter and setter for `{accessor_name}` are not adjacent"),
+                message,
                 ctx.module.file_id,
                 ctx.tree.get_span(later_prop_id),
             )
-            .with_label("move to be adjacent to its counterpart");
+            .with_label(label);
 
-            if ctx.compute_fixes && !has_reported_reorder_fix {
+            if ctx.compute_fixes && diff != 1 && !has_reported_reorder_fix {
                 if let Some(fix) =
                     grouped_property_accessor_fix(ctx, properties, getter_idx, setter_idx)
                 {
@@ -307,6 +343,39 @@ fn check_properties_for_ungrouped_accessors(
 
             ctx.report(diagnostic);
         }
+    }
+}
+
+/// Return true when one adjacent accessor pair violates the configured order.
+fn accessor_order_violation(
+    order: GroupedAccessorPairsOrder,
+    getter_index: usize,
+    setter_index: usize,
+) -> bool {
+    match order {
+        GroupedAccessorPairsOrder::AnyOrder => false,
+        GroupedAccessorPairsOrder::GetBeforeSet => getter_index > setter_index,
+        GroupedAccessorPairsOrder::SetBeforeGet => setter_index > getter_index,
+    }
+}
+
+/// Return the strict-order diagnostic message and label.
+fn accessor_order_message(
+    order: GroupedAccessorPairsOrder,
+    accessor_name: &str,
+) -> (String, &'static str) {
+    match order {
+        GroupedAccessorPairsOrder::AnyOrder => {
+            unreachable!("order diagnostics require a strict accessor order")
+        }
+        GroupedAccessorPairsOrder::GetBeforeSet => (
+            format!("getter for `{accessor_name}` should come before setter"),
+            "place the getter before the setter",
+        ),
+        GroupedAccessorPairsOrder::SetBeforeGet => (
+            format!("setter for `{accessor_name}` should come before getter"),
+            "place the setter before the getter",
+        ),
     }
 }
 
@@ -447,6 +516,24 @@ class Example {
     }
 
     #[test]
+    fn test_reports_setter_then_getter_when_get_before_set_is_required() {
+        let test =
+            TestProgram::for_rule_without_prelude(GroupedAccessorPairs).with_options(|options| {
+                options.grouped_accessor_pairs_order = GroupedAccessorPairsOrder::GetBeforeSet;
+            });
+        let result = test.lint_ast(
+            "grouped_accessor_pairs/test_reports_setter_then_getter_when_get_before_set_is_required.ds",
+            r#"
+class Example {
+    set foo(v) { this._foo = v }
+    get foo() { return this._foo }
+}
+"#,
+        );
+        test.result(result).assert_lint("grouped-accessor-pairs");
+    }
+
+    #[test]
     fn test_non_adjacent_accessors_detected() {
         let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
         let result = test.lint_ast(
@@ -515,24 +602,6 @@ class Example {
             "grouped_accessor_pairs/test_only_setter_allowed.ds",
             r#"
 class Example {
-    #[test]
-    fn test_reports_setter_then_getter_when_get_before_set_is_required() {
-        let test =
-            TestProgram::for_rule_without_prelude(GroupedAccessorPairs).with_options(|options| {
-                options.grouped_accessor_pairs_order = GroupedAccessorPairsOrder::GetBeforeSet;
-            });
-        let result = test.lint_ast(
-            "grouped_accessor_pairs/test_reports_setter_then_getter_when_get_before_set_is_required.ds",
-            r#"
-class Example {
-    set foo(v) { this._foo = v }
-    get foo() { return this._foo }
-}
-"#,
-        );
-        test.result(result).assert_lint("grouped-accessor-pairs");
-    }
-
     set foo(v) { this._foo = v }
     bar: int32 = 1
 }
@@ -607,9 +676,47 @@ class Example {
 
     #[test]
     fn test_struct_accessors_non_adjacent_detected() {
-        let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
+        let test =
+            TestProgram::for_rule_without_prelude(GroupedAccessorPairs).with_options(|options| {
+                options.grouped_accessor_pairs_enforce_for_types = true;
+            });
         let result = test.lint_ast(
             "grouped_accessor_pairs/test_struct_accessors_non_adjacent_detected.ds",
+            r#"
+struct Example {
+    get foo() { this._foo }
+    bar: int32
+    set foo(v) { this._foo = v }
+}
+"#,
+        );
+        test.result(result).assert_lint("grouped-accessor-pairs");
+    }
+
+    #[test]
+    fn test_ignores_struct_accessors_by_default() {
+        let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
+        let result = test.lint_ast(
+            "grouped_accessor_pairs/test_ignores_struct_accessors_by_default.ds",
+            r#"
+struct Example {
+    get foo() { this._foo }
+    bar: int32
+    set foo(v) { this._foo = v }
+}
+"#,
+        );
+        test.result(result).assert_no_lint("grouped-accessor-pairs");
+    }
+
+    #[test]
+    fn test_checks_struct_accessors_when_enabled() {
+        let test =
+            TestProgram::for_rule_without_prelude(GroupedAccessorPairs).with_options(|options| {
+                options.grouped_accessor_pairs_enforce_for_types = true;
+            });
+        let result = test.lint_ast(
+            "grouped_accessor_pairs/test_checks_struct_accessors_when_enabled.ds",
             r#"
 struct Example {
     get foo() { this._foo }
@@ -655,10 +762,7 @@ const value = {
 
     #[test]
     fn test_no_fix_when_member_range_contains_comments() {
-        let test =
-            TestProgram::for_rule_without_prelude(GroupedAccessorPairs).with_options(|options| {
-                options.grouped_accessor_pairs_enforce_for_types = true;
-            });
+        let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
         let result = test.lint_ast(
             "grouped_accessor_pairs/test_no_fix_when_member_range_contains_comments.ds",
             r#"
@@ -675,38 +779,3 @@ class Example {
             .assert_has_no_fix("grouped-accessor-pairs");
     }
 }
-    #[test]
-    fn test_ignores_struct_accessors_by_default() {
-        let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
-        let result = test.lint_ast(
-            "grouped_accessor_pairs/test_ignores_struct_accessors_by_default.ds",
-            r#"
-struct Example {
-    get foo() { this._foo }
-    bar: int32
-    set foo(v) { this._foo = v }
-}
-"#,
-        );
-        test.result(result).assert_no_lint("grouped-accessor-pairs");
-    }
-
-    #[test]
-    fn test_checks_struct_accessors_when_enabled() {
-        let test =
-            TestProgram::for_rule_without_prelude(GroupedAccessorPairs).with_options(|options| {
-                options.grouped_accessor_pairs_enforce_for_types = true;
-            });
-        let result = test.lint_ast(
-            "grouped_accessor_pairs/test_checks_struct_accessors_when_enabled.ds",
-            r#"
-struct Example {
-    get foo() { this._foo }
-    bar: int32
-    set foo(v) { this._foo = v }
-}
-"#,
-        );
-        test.result(result).assert_lint("grouped-accessor-pairs");
-    }
-

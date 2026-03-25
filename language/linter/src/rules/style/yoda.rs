@@ -1,7 +1,11 @@
-use destack_ast::{self as ast, BinaryOperator, Expression};
-use destack_workspace::LintSeverity;
+use destack_ast::{self as ast, BinaryOperator, Expression, UnaryOperator};
+use destack_workspace::{LintSeverity, YodaMode};
 
-use crate::rules::common::{expression_is_literal, is_comparison_operator};
+use crate::rules::common::{
+    expression_is_equal, expression_is_literal, expression_outer_parenthesized_syntax,
+    expression_static_string_literal_syntax, expression_unwrap_parenthesized_syntax,
+    is_comparison_operator, source_text_contains_comment_token,
+};
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
@@ -17,7 +21,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = Always,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -32,6 +36,7 @@ impl LintRule for Yoda {
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
+        let mode = ctx.options.yoda_mode;
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
@@ -49,21 +54,60 @@ impl LintRule for Yoda {
                 continue;
             }
 
-            // check for yoda condition: literal on left, non-literal on right
+            // honor the equality-only option
+            if ctx.options.yoda_only_equality && !is_equality_operator(operator) {
+                continue;
+            }
+
+            // honor the range exception option
+            if ctx.options.yoda_except_range && expression_is_part_of_range_test(ctx, node_id) {
+                continue;
+            }
+
+            // check literal placement against the configured mode
             let left_expression = ctx.tree.get(*left);
             let right_expression = ctx.tree.get(*right);
-            if expression_is_literal(left_expression) && !expression_is_literal(right_expression) {
-                let severity = ctx.get_effective_severity(meta, node_id);
-                if !severity.is_enabled() {
-                    continue;
-                }
+            let left_is_literal = expression_looks_like_literal(ctx, *left, left_expression);
+            let right_is_literal = expression_looks_like_literal(ctx, *right, right_expression);
+            let expected_literal_on_left = mode == YodaMode::Always;
+            let needs_report = if expected_literal_on_left {
+                right_is_literal && !left_is_literal
+            } else {
+                left_is_literal && !right_is_literal
+            };
+            if !needs_report {
+                continue;
+            }
 
-                // make fix: flip comparison
-                let expression_span = ctx.tree.get_span(node_id);
-                let left_span = ctx.tree.get_span(*left);
-                let right_span = ctx.tree.get_span(*right);
-                let left_text = ctx.get_span_text(left_span);
-                let right_text = ctx.get_span_text(right_span);
+            let severity = ctx.get_effective_severity(meta, node_id);
+            if !severity.is_enabled() {
+                continue;
+            }
+
+            // make fix: flip comparison
+            let expression_span = ctx.tree.get_span(node_id);
+            let left_span = ctx.tree.get_span(*left);
+            let right_span = ctx.tree.get_span(*right);
+            let left_text = ctx.get_span_text(left_span);
+            let right_text = ctx.get_span_text(right_span);
+            let expected_side = if expected_literal_on_left {
+                "left"
+            } else {
+                "right"
+            };
+
+            let mut diagnostic = LintDiagnostic::new(
+                YODA.id,
+                YODA.code,
+                YODA.category,
+                severity,
+                format!("expected literal to be on the {expected_side} side of comparison"),
+                ctx.module.file_id,
+                expression_span,
+            )
+            .with_label(format!("move the literal to the {expected_side} side"));
+
+            if !source_text_contains_comment_token(ctx.get_span_text(expression_span)) {
                 let flipped_op = flip_operator(operator);
                 let replacement = format!("{right_text} {flipped_op} {left_text}");
                 let edits = ctx
@@ -71,23 +115,23 @@ impl LintRule for Yoda {
                     .replace(expression_span, replacement)
                     .into_edits();
                 let fix = LintFix::safe("Flip comparison").with_edits(edits);
-
-                ctx.report(
-                    LintDiagnostic::new(
-                        YODA.id,
-                        YODA.code,
-                        YODA.category,
-                        severity,
-                        "unexpected literal on the left side of comparison",
-                        ctx.module.file_id,
-                        expression_span,
-                    )
-                    .with_label("move the literal to the right side")
-                    .with_fix(fix),
-                );
+                diagnostic = diagnostic.with_fix(fix);
             }
+
+            ctx.report(diagnostic);
         }
     }
+}
+
+/// Return true when the comparison operator is equality based.
+fn is_equality_operator(operator: &BinaryOperator) -> bool {
+    matches!(
+        operator,
+        BinaryOperator::Equal
+            | BinaryOperator::NotEqual
+            | BinaryOperator::EqualStrict
+            | BinaryOperator::NotEqualStrict
+    )
 }
 
 /// Flip a comparison operator for yoda fix (e.g., < becomes >).
@@ -103,6 +147,107 @@ fn flip_operator(operator: &BinaryOperator) -> &'static str {
         BinaryOperator::GreaterThanOrEqual => "<=",
         _ => unreachable!("only called for comparison operators"),
     }
+}
+
+/// Return true when one expression should be treated like a literal for yoda checks.
+fn expression_looks_like_literal(
+    ctx: &LintAstContext<'_>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+    expression: &Expression,
+) -> bool {
+    if expression_is_literal(expression) {
+        return true;
+    }
+
+    if expression_static_string_literal_syntax(ctx.tree, expression_id).is_some() {
+        return true;
+    }
+
+    matches!(
+        expression,
+        Expression::Unary {
+            operator: UnaryOperator::Negate | UnaryOperator::WrappingNegate,
+            right,
+        } if matches!(
+            ctx.tree.get(*right),
+            Expression::ScalarLiteral(ast::ScalarLiteral::Integer(_))
+                | Expression::ScalarLiteral(ast::ScalarLiteral::Float(_))
+                | Expression::ScalarLiteral(ast::ScalarLiteral::Bigint(_))
+        )
+    )
+}
+
+/// Return true when a comparison participates in a range-test logical expression.
+fn expression_is_part_of_range_test(
+    ctx: &LintAstContext<'_>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    let expression_id = expression_outer_parenthesized_syntax(ctx.tree, ctx.parents, expression_id);
+    let Some(parent_id) = ctx.parents.get(expression_id) else {
+        return false;
+    };
+    if ctx.tree.get_node_type(parent_id) != ast::NodeType::Expression {
+        return false;
+    }
+
+    let parent_expression_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
+    let parent_expression = ctx.tree.get(parent_expression_id);
+    let Expression::Binary {
+        left,
+        operator,
+        right,
+    } = parent_expression
+    else {
+        return false;
+    };
+    if !matches!(operator, BinaryOperator::And | BinaryOperator::Or) {
+        return false;
+    }
+
+    let left_id = expression_unwrap_parenthesized_syntax(ctx.tree, *left);
+    let right_id = expression_unwrap_parenthesized_syntax(ctx.tree, *right);
+    let left_expression = ctx.tree.get(left_id);
+    let right_expression = ctx.tree.get(right_id);
+    let (
+        Expression::Binary {
+            left: left_left,
+            operator: left_operator,
+            right: left_right,
+        },
+        Expression::Binary {
+            left: right_left,
+            operator: right_operator,
+            right: right_right,
+        },
+    ) = (left_expression, right_expression)
+    else {
+        return false;
+    };
+    if !is_range_operator(left_operator) || !is_range_operator(right_operator) {
+        return false;
+    }
+
+    let left_left = expression_unwrap_parenthesized_syntax(ctx.tree, *left_left);
+    let left_right = expression_unwrap_parenthesized_syntax(ctx.tree, *left_right);
+    let right_left = expression_unwrap_parenthesized_syntax(ctx.tree, *right_left);
+    let right_right = expression_unwrap_parenthesized_syntax(ctx.tree, *right_right);
+
+    let is_between_range = expression_is_equal(ctx, left_right, right_left)
+        && expression_looks_like_literal(ctx, left_left, ctx.tree.get(left_left))
+        && expression_looks_like_literal(ctx, right_right, ctx.tree.get(right_right));
+    let is_outside_range = expression_is_equal(ctx, left_left, right_right)
+        && expression_looks_like_literal(ctx, left_right, ctx.tree.get(left_right))
+        && expression_looks_like_literal(ctx, right_left, ctx.tree.get(right_left));
+
+    is_between_range || is_outside_range
+}
+
+/// Return true when the operator can participate in a range test.
+fn is_range_operator(operator: &BinaryOperator) -> bool {
+    matches!(
+        operator,
+        BinaryOperator::LessThan | BinaryOperator::LessThanOrEqual
+    )
 }
 
 #[cfg(test)]
@@ -237,6 +382,22 @@ if (x === 5) { y() }
     }
 
     #[test]
+    fn test_has_no_fix_when_comparison_contains_comment() {
+        let test = TestProgram::for_rule_without_prelude(Yoda);
+        let result = test.lint_ast(
+            "yoda/test_has_no_fix_when_comparison_contains_comment.ds",
+            r#"
+if (1 /* keep */ === value) {
+    ok()
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("yoda")
+            .assert_has_no_fix("yoda");
+    }
+
+    #[test]
     fn test_fix_yoda_less_than() {
         let test = TestProgram::for_rule_without_prelude(Yoda);
         let result = test.lint_ast(
@@ -267,23 +428,6 @@ if (x <= 10) { y() }
 "#,
         );
     }
-}
-    #[test]
-    fn test_has_no_fix_when_comparison_contains_comment() {
-        let test = TestProgram::for_rule_without_prelude(Yoda);
-        let result = test.lint_ast(
-            "yoda/test_has_no_fix_when_comparison_contains_comment.ds",
-            r#"
-if (1 /* keep */ === value) {
-    ok()
-}
-"#,
-        );
-        test.result(result)
-            .assert_lint("yoda")
-            .assert_has_no_fix("yoda");
-    }
-
 
     #[test]
     fn test_allows_non_yoda_in_always_mode() {
@@ -325,3 +469,4 @@ if (10 < x) { y() }
         );
         test.result(result).assert_no_lint("yoda");
     }
+}

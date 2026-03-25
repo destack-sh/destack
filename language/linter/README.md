@@ -241,8 +241,8 @@ Subjective preferences for consistent coding style.
 | `LY006` | `consistent-type-definitions`        | TS-ESLint  | AST   | ✓      | Sometimes       | Unsafe     | Enforce type definitions to use either `interface` or `type`        |
 | `LY007` | `consistent-type-imports`            | TS-ESLint  | DIR   | ✓      | Sometimes       | Safe       | Enforce consistent usage of type imports                            |
 | `LY008` | `default-param-last`                 | ESLint     | AST   | ✓      | Sometimes       | Unsafe     | Enforce default parameters to be last                               |
-| `LY009` | `dot-notation`                       | ESLint     | AST   | ✓      | Always          | Safe       | Enforce dot notation whenever possible                              |
-| `LY010` | `eqeqeq`                             | ESLint     | AST   | ✓      | Always          | Safe       | Require `===` and `!==`                                             |
+| `LY009` | `dot-notation`                       | ESLint     | AST   | ✓      | Sometimes       | Safe       | Enforce dot notation whenever possible                              |
+| `LY010` | `eqeqeq`                             | ESLint     | AST   | ✓      | Sometimes       | Safe       | Require `===` and `!==`                                             |
 | `LY011` | `explicit-function-return-type`      | TS-ESLint  | AST   | ✓      | Sometimes       | Safe       | Require explicit return types on functions                          |
 | `LY012` | `filename-case`                      | Unicorn    | AST   | ✓      | No              | None       | Enforce a case style for filenames                                  |
 | `LY013` | `grouped-accessor-pairs`             | ESLint     | AST   | ✓      | Sometimes       | Unsafe     | Require grouped accessor pairs in object literals and classes       |
@@ -250,25 +250,24 @@ Subjective preferences for consistent coding style.
 | `LY015` | `no-collapsible-if`                  | Unicorn    | AST   | ✓      | Always          | Safe       | Suggest merging nested if statements without else                   |
 | `LY016` | `no-duplicate-string`                | SonarQube  | AST   | ✓      | No              | None       | Disallow the same string literal appearing many times               |
 | `LY072` | `no-duplicate-type-constituents`     | TS-ESLint  | DIR   | ✓      | Sometimes       | Safe       | Disallow duplicate constituents in union/intersection types         |
-| `LY017` | `no-else-return`                     | ESLint     | AST   | ✓      | Always          | Safe       | Disallow else blocks after return statements                        |
+| `LY017` | `no-else-return`                     | ESLint     | AST   | ✓      | Sometimes       | Safe       | Disallow else blocks after return statements                        |
 | `LY018` | `no-empty-interface`                 | TS-ESLint  | DIR   | ✓      | Always          | Safe       | Disallow empty interfaces                                           |
-| `LY067` | `no-extra-boolean-cast`              | ESLint     | DIR   | ✓      | Always          | Safe       | Disallow unnecessary boolean casts                                  |
-| `LY073` | `no-implicit-coercion`               | ESLint     | DIR   | ✓      | No              | None       | Disallow shorthand type conversions                                 |
+| `LY067` | `no-extra-boolean-cast`              | ESLint     | DIR   | ✓      | Sometimes       | Safe       | Disallow unnecessary boolean casts                                  |
 | `LY019` | `no-lonely-if`                       | ESLint     | AST   | ✓      | Always          | Safe       | Disallow if statements as the only statement in else blocks         |
 | `LY020` | `no-negated-condition`               | ESLint     | AST   | ✓      | Always          | Safe       | Disallow negated conditions with else branches                      |
 | `LY074` | `no-redundant-type-constituents`     | TS-ESLint  | DIR   | ✓      | Sometimes       | Safe       | Disallow type constituents made redundant by others                 |
 | `LY021` | `no-nested-template-literal`         | SonarQube  | AST   | ✓      | No              | None       | Disallow template literals nested inside template literals          |
 | `LY022` | `no-nested-ternary`                  | ESLint     | AST   | ✓      | Sometimes       | Unsafe     | Disallow nested ternary expressions                                 |
 | `LY023` | `no-object-constructor`              | ESLint     | DIR   | ✓      | Sometimes       | Safe       | Disallow `new Object()`                                             |
-| `LY025` | `no-unneeded-ternary`                | ESLint     | AST   | ✓      | Always          | Safe       | Disallow ternary operators when simpler alternatives exist          |
+| `LY025` | `no-unneeded-ternary`                | ESLint     | AST   | ✓      | Sometimes       | Safe       | Disallow ternary operators when simpler alternatives exist          |
 | `LY068` | `no-unnecessary-template-expression` | TS-ESLint  | DIR   | ✓      | Always          | Safe       | Disallow unnecessary template literal expressions                   |
 | `LY024` | `no-unnecessary-lambda`              | ErrorProne | DIR   | ✓      | Always          | Safe       | Disallow lambdas that only wrap a direct function call              |
 | `LY026` | `no-var`                             | ESLint     | AST   | ✓      | Always          | Safe       | Require `let` or `const` instead of `var`                           |
-| `LY027` | `object-shorthand`                   | ESLint     | AST   | ✓      | Always          | Safe       | Require or disallow method and property shorthand syntax            |
-| `LY028` | `operator-assignment`                | ESLint     | AST   | ✓      | Always          | Safe       | Require or disallow assignment operator shorthand                   |
+| `LY027` | `object-shorthand`                   | ESLint     | AST   | ✓      | Sometimes       | Safe       | Require or disallow method and property shorthand syntax            |
+| `LY028` | `operator-assignment`                | ESLint     | AST   | ✓      | Sometimes       | Safe       | Require or disallow assignment operator shorthand                   |
 | `LY033` | `prefer-arrow-callback`              | ESLint     | DIR   | ✓      | Always          | Safe       | Require arrow functions as callbacks                                |
 | `LY034` | `prefer-as-const`                    | TS-ESLint  | AST   | ✓      | Sometimes       | Safe       | Prefer `as const` over literal type assertions                      |
-| `LY035` | `prefer-const`                       | ESLint     | DIR   | ✓      | Always          | Safe       | Require `const` declarations for never-reassigned variables         |
+| `LY035` | `prefer-const`                       | ESLint     | DIR   | ✓      | Sometimes       | Safe       | Require `const` declarations for never-reassigned variables         |
 | `LY036` | `prefer-exponentiation-operator`     | ESLint     | DIR   | ✓      | Sometimes       | Safe       | Prefer `**` over `Math.pow()`                                       |
 | `LY037` | `prefer-expression`                  | Destack    | AST   | ✓      | Sometimes       | Safe       | Prefer expression syntax for assignments                            |
 | `LY039` | `prefer-fragment-shorthand`          | Destack    | AST   | ✓      | Always          | Safe       | Prefer `<>` shorthand over `<Fragment>`                             |
@@ -301,7 +300,7 @@ Subjective preferences for consistent coding style.
 | `LY081` | `restrict-template-expressions`      | TS-ESLint  | DIR   | ✓      | No              | None       | Require template expressions to be strings or numbers               |
 | `LY064` | `sort-imports`                       | ESLint     | AST   | ✓      | Sometimes       | Safe       | Enforce sorted import declarations                                  |
 | `LY065` | `symbol-description`                 | ESLint     | DIR   | ✓      | Always          | Suggestion | Require symbol descriptions                                         |
-| `LY066` | `yoda`                               | ESLint     | AST   | ✓      | Always          | Safe       | Disallow Yoda conditions                                            |
+| `LY066` | `yoda`                               | ESLint     | AST   | ✓      | Sometimes       | Safe       | Disallow Yoda conditions                                            |
 | `LY032` | `prefer-array-some`                  | Unicorn    | DIR   | ✓      | Sometimes       | Safe       | Prefer `some()` over `filter().length` or `findIndex()` comparisons |
 | `LY029` | `prefer-array-filter`                | Destack    | DIR   | ✓      | Sometimes       | Unsafe     | Suggest `.filter()` over `forEach` with conditional push            |
 | `LY030` | `prefer-array-find`                  | Unicorn    | DIR   | ✓      | Sometimes       | Safe       | Suggest `.find()` over `.filter()[0]`                               |

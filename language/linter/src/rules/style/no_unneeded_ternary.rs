@@ -1,7 +1,9 @@
 use destack_ast::{self as ast, ScalarLiteral};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expression_negated_source_text;
+use crate::rules::common::{
+    expression_is_equal, expression_negated_source_text, source_text_contains_comment_token,
+};
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
@@ -16,7 +18,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = Always,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -53,6 +55,7 @@ impl LintRule for NoUnneededTernary {
             let expression_span = ctx.tree.get_span(node_id);
             let condition_span = ctx.tree.get_span(condition_id);
             let condition_text = ctx.get_span_text(condition_span);
+            let can_fix = !source_text_contains_comment_token(ctx.get_span_text(expression_span));
 
             // check for x ? true : false -> x
             if is_boolean_literal(then_expr, true) && is_boolean_literal(else_expr, false) {
@@ -62,25 +65,27 @@ impl LintRule for NoUnneededTernary {
                 }
 
                 // make fix: replace `x ? true : false` with `x`
-                let edits = ctx
-                    .edit_builder()
-                    .replace(expression_span, condition_text)
-                    .into_edits();
-                let fix = LintFix::safe("Simplify to condition").with_edits(edits);
+                let mut diagnostic = LintDiagnostic::new(
+                    NO_UNNEEDED_TERNARY.id,
+                    NO_UNNEEDED_TERNARY.code,
+                    NO_UNNEEDED_TERNARY.category,
+                    severity,
+                    "unnecessary ternary `x ? true : false`",
+                    ctx.module.file_id,
+                    expression_span,
+                )
+                .with_label("use the condition directly");
 
-                ctx.report(
-                    LintDiagnostic::new(
-                        NO_UNNEEDED_TERNARY.id,
-                        NO_UNNEEDED_TERNARY.code,
-                        NO_UNNEEDED_TERNARY.category,
-                        severity,
-                        "unnecessary ternary `x ? true : false`",
-                        ctx.module.file_id,
-                        expression_span,
-                    )
-                    .with_label("use the condition directly")
-                    .with_fix(fix),
-                );
+                if can_fix {
+                    let edits = ctx
+                        .edit_builder()
+                        .replace(expression_span, condition_text)
+                        .into_edits();
+                    let fix = LintFix::safe("Simplify to condition").with_edits(edits);
+                    diagnostic = diagnostic.with_fix(fix);
+                }
+
+                ctx.report(diagnostic);
             }
             // check for x ? false : true -> !x
             else if is_boolean_literal(then_expr, false) && is_boolean_literal(else_expr, true) {
@@ -90,26 +95,62 @@ impl LintRule for NoUnneededTernary {
                 }
 
                 // make fix: replace `x ? false : true` with `!x`
-                let replacement = expression_negated_source_text(ctx, condition_id);
-                let edits = ctx
-                    .edit_builder()
-                    .replace(expression_span, replacement)
-                    .into_edits();
-                let fix = LintFix::safe("Simplify to negated condition").with_edits(edits);
+                let mut diagnostic = LintDiagnostic::new(
+                    NO_UNNEEDED_TERNARY.id,
+                    NO_UNNEEDED_TERNARY.code,
+                    NO_UNNEEDED_TERNARY.category,
+                    severity,
+                    "unnecessary ternary `x ? false : true`",
+                    ctx.module.file_id,
+                    expression_span,
+                )
+                .with_label("use `!x` instead");
 
-                ctx.report(
-                    LintDiagnostic::new(
-                        NO_UNNEEDED_TERNARY.id,
-                        NO_UNNEEDED_TERNARY.code,
-                        NO_UNNEEDED_TERNARY.category,
-                        severity,
-                        "unnecessary ternary `x ? false : true`",
-                        ctx.module.file_id,
-                        expression_span,
-                    )
-                    .with_label("use `!x` instead")
-                    .with_fix(fix),
-                );
+                if can_fix {
+                    let replacement = expression_negated_source_text(ctx, condition_id);
+                    let edits = ctx
+                        .edit_builder()
+                        .replace(expression_span, replacement)
+                        .into_edits();
+                    let fix = LintFix::safe("Simplify to negated condition").with_edits(edits);
+                    diagnostic = diagnostic.with_fix(fix);
+                }
+
+                ctx.report(diagnostic);
+            }
+            // check for x ? x : y -> x || y when default-assignment simplification is enabled
+            else if !ctx.options.no_unneeded_ternary_default_assignment
+                && expression_is_equal(ctx, condition_id, *then_expression)
+            {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
+                let alternate_span = ctx.tree.get_span(*else_expression);
+                let alternate_text = ctx.get_span_text(alternate_span);
+                let mut diagnostic = LintDiagnostic::new(
+                    NO_UNNEEDED_TERNARY.id,
+                    NO_UNNEEDED_TERNARY.code,
+                    NO_UNNEEDED_TERNARY.category,
+                    severity,
+                    "unnecessary ternary default assignment",
+                    ctx.module.file_id,
+                    expression_span,
+                )
+                .with_label("use `||` default assignment instead");
+
+                if can_fix {
+                    let replacement = format!("{condition_text} || {alternate_text}");
+                    let edits = ctx
+                        .edit_builder()
+                        .replace(expression_span, replacement)
+                        .into_edits();
+                    let fix = LintFix::safe("Simplify to default assignment").with_edits(edits);
+                    diagnostic = diagnostic.with_fix(fix);
+                }
+
+                ctx.report(diagnostic);
             }
         }
     }
@@ -195,6 +236,20 @@ const result = x;
     }
 
     #[test]
+    fn test_has_no_fix_when_expression_contains_comment() {
+        let test = TestProgram::for_rule_without_prelude(NoUnneededTernary);
+        let result = test.lint_ast(
+            "no_unneeded_ternary/test_has_no_fix_when_expression_contains_comment.ds",
+            r#"
+const result = x ? /* keep */ true : false
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-unneeded-ternary")
+            .assert_has_no_fix("no-unneeded-ternary");
+    }
+
+    #[test]
     fn test_fix_false_true() {
         let test = TestProgram::for_rule_without_prelude(NoUnneededTernary);
         let result = test.lint_ast(
@@ -229,24 +284,6 @@ const result = !(a && b);
 "#,
             );
     }
-}
-    #[test]
-    fn test_has_no_fix_when_expression_contains_comment() {
-        let test = TestProgram::for_rule_without_prelude(NoUnneededTernary);
-        let result = test.lint_ast(
-            "no_unneeded_ternary/test_has_no_fix_when_expression_contains_comment.ds",
-            r#"
-const result = x ? /* keep */ true : false
-"#,
-        );
-        test.result(result)
-            .assert_lint("no-unneeded-ternary")
-            .assert_has_no_fix("no-unneeded-ternary");
-    }
-
-"#,
-            );
-    }
 
     #[test]
     fn test_allows_default_assignment_ternary_by_default() {
@@ -275,3 +312,7 @@ const result = value ? value : fallback
             .assert_safe_fixed(
                 r#"
 const result = value || fallback;
+"#,
+            );
+    }
+}

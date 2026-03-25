@@ -4,8 +4,9 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
-    expression_method_call, expression_target_symbol, expression_type_map,
-    is_definitely_non_error_value_type, symbol_matches_or_canonical,
+    collect_local_symbol_direct_reference_expression_ids, expression_method_call,
+    expression_target_symbol, expression_type_map, is_definitely_non_error_value_type,
+    parameter_binding_name_and_symbol, symbol_matches_or_canonical,
 };
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -38,60 +39,163 @@ impl LintRule for PreferPromiseRejectErrors {
     /// Check module DIR nodes for Promise.reject calls with non-Error payloads.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
-        let reject_name = ctx.program.strings.intern("reject");
-        let ok_name = ctx.program.strings.intern("ok");
-        let err_name = ctx.program.strings.intern("err");
-        let promise_symbol = ctx.well_known_symbol(WellKnownSymbol::Promise);
-        let error_symbol = ctx.get_language_symbol(LanguageSymbol::Error);
-        let result_symbol = ctx.get_language_symbol(LanguageSymbol::Result);
+        let mut visitor = PromiseRejectVisitor::new(ctx, meta);
+        visitor.run();
+    }
+}
 
-        for (expression_id, expression) in ctx.tree.iter_nodes_of_type::<dir::Expression>() {
+/// Node visitor that flags non-Error Promise rejection payloads.
+struct PromiseRejectVisitor<'a, 'b> {
+    /// The lint context.
+    ctx: &'a mut LintModuleDirContext<'b>,
+    /// The lint metadata.
+    meta: &'a LintMeta,
+    /// The interned `reject` name.
+    reject_name: destack_core::StringId,
+    /// The interned `ok` name.
+    ok_name: destack_core::StringId,
+    /// The interned `err` name.
+    err_name: destack_core::StringId,
+    /// The well known Promise symbol.
+    promise_symbol: dir::GlobalSymbolId,
+    /// The built in Error symbol when available.
+    error_symbol: Option<dir::GlobalSymbolId>,
+    /// The built in Result symbol when available.
+    result_symbol: Option<dir::GlobalSymbolId>,
+}
+
+impl<'a, 'b> PromiseRejectVisitor<'a, 'b> {
+    /// Build a visitor for Promise rejection checks.
+    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+        Self {
+            reject_name: ctx.program.strings.intern("reject"),
+            ok_name: ctx.program.strings.intern("ok"),
+            err_name: ctx.program.strings.intern("err"),
+            promise_symbol: ctx.well_known_symbol(WellKnownSymbol::Promise),
+            error_symbol: ctx.get_language_symbol(LanguageSymbol::Error),
+            result_symbol: ctx.get_language_symbol(LanguageSymbol::Result),
+            ctx,
+            meta,
+        }
+    }
+
+    /// Walk the module expressions.
+    fn run(&mut self) {
+        let expression_ids = self.ctx.tree.iter_node_ids_of_type::<dir::Expression>();
+
+        for expression_id in expression_ids {
+            self.check_expression(expression_id);
+        }
+    }
+
+    /// Check one expression for Promise rejection patterns.
+    fn check_expression(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) {
+        let expression = self.ctx.tree.get(expression_id);
+
+        // direct Promise.reject(...)
+        if let dir::Expression::Call {
+            dynamic_arguments, ..
+        } = expression
+            && let Some(method_call) = expression_method_call(self.ctx.tree, expression_id)
+            && method_call.method_name == self.reject_name
+            && is_promise_receiver(self.ctx, method_call.receiver_id, self.promise_symbol)
+        {
+            self.check_reject_payload(expression_id, dynamic_arguments);
+        }
+
+        // executor reject(...)
+        if let dir::Expression::New {
+            left,
+            dynamic_arguments,
+            ..
+        } = expression
+            && expression_target_symbol(self.ctx.tree, *left) == Some(self.promise_symbol)
+        {
+            self.check_executor_reject_calls(dynamic_arguments);
+        }
+    }
+
+    /// Check one reject-like call payload.
+    fn check_reject_payload(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+    ) {
+        if !reject_payload_is_obviously_non_error(
+            self.ctx,
+            value_id_from_arguments(self.ctx.tree, dynamic_arguments),
+            self.ok_name,
+            self.err_name,
+            dynamic_arguments,
+            self.error_symbol,
+            self.result_symbol,
+        ) {
+            return;
+        }
+
+        let severity = self.ctx.get_effective_severity(self.meta, expression_id);
+        if !severity.is_enabled() {
+            return;
+        }
+
+        let span = self.ctx.get_span(expression_id);
+        self.ctx.report(
+            LintDiagnostic::new(
+                PREFER_PROMISE_REJECT_ERRORS.id,
+                PREFER_PROMISE_REJECT_ERRORS.code,
+                PREFER_PROMISE_REJECT_ERRORS.category,
+                severity,
+                "prefer rejecting with Error objects",
+                self.ctx.module.file_id,
+                span,
+            )
+            .with_label("pass an Error instance to Promise rejection"),
+        );
+    }
+
+    /// Check reject(...) calls inside one Promise executor.
+    fn check_executor_reject_calls(
+        &mut self,
+        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+    ) {
+        let Some(executor_id) = value_id_from_arguments(self.ctx.tree, dynamic_arguments) else {
+            return;
+        };
+        let Some(executor_declaration_id) = executor_declaration(self.ctx, executor_id) else {
+            return;
+        };
+        let Some(reject_symbol) = executor_reject_symbol(self.ctx, executor_declaration_id) else {
+            return;
+        };
+
+        let reject_references = collect_local_symbol_direct_reference_expression_ids(
+            self.ctx.module.id,
+            self.ctx.tree,
+            reject_symbol,
+        );
+        for reference_id in reject_references {
+            let Some(parent) = self.ctx.tree.get_parent(reference_id.id) else {
+                continue;
+            };
+            if parent.ty != dir::NodeType::Expression {
+                continue;
+            }
+
+            let parent_id = parent.into_typed::<dir::Expression>();
+            let parent_expression = self.ctx.tree.get(parent_id);
             let dir::Expression::Call {
-                dynamic_arguments, ..
-            } = expression
+                left,
+                dynamic_arguments,
+                ..
+            } = parent_expression
             else {
                 continue;
             };
-            let Some(method_call) = expression_method_call(ctx.tree, expression_id) else {
-                continue;
-            };
-
-            if method_call.method_name != reject_name {
-                continue;
-            }
-            if !is_promise_receiver(ctx, method_call.receiver_id, promise_symbol) {
-                continue;
-            }
-            if !reject_payload_is_obviously_non_error(
-                ctx,
-                value_id_from_arguments(ctx.tree, dynamic_arguments),
-                ok_name,
-                err_name,
-                dynamic_arguments,
-                error_symbol,
-                result_symbol,
-            ) {
+            if *left != reference_id {
                 continue;
             }
 
-            let severity = ctx.get_effective_severity(meta, expression_id);
-            if !severity.is_enabled() {
-                continue;
-            }
-
-            let span = ctx.get_span(expression_id);
-            ctx.report(
-                LintDiagnostic::new(
-                    PREFER_PROMISE_REJECT_ERRORS.id,
-                    PREFER_PROMISE_REJECT_ERRORS.code,
-                    PREFER_PROMISE_REJECT_ERRORS.category,
-                    severity,
-                    "prefer rejecting with Error objects",
-                    ctx.module.file_id,
-                    span,
-                )
-                .with_label("pass an Error instance to Promise.reject"),
-            );
+            self.check_reject_payload(parent_id, dynamic_arguments);
         }
     }
 }
@@ -128,7 +232,7 @@ fn reject_payload_is_obviously_non_error(
     result_symbol: Option<dir::GlobalSymbolId>,
 ) -> bool {
     if dynamic_arguments.is_empty() {
-        return true;
+        return !ctx.options.prefer_promise_reject_errors_allow_empty_reject;
     }
 
     let Some(value_id) = value_id else {
@@ -173,6 +277,56 @@ fn value_id_from_arguments(
     };
 
     Some(*value)
+}
+
+/// Resolve one Promise executor declaration from an inline or local callable reference.
+fn executor_declaration(
+    ctx: &LintModuleDirContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> Option<dir::LocalNodeId<dir::Declaration>> {
+    let expression = ctx.tree.get(expression_id);
+
+    // inline callables
+    if let dir::Expression::Declaration { declaration } = expression {
+        return Some(*declaration);
+    }
+
+    // local callable references
+    let target_symbol = expression_target_symbol(ctx.tree, expression_id)?;
+    if target_symbol.module_id != ctx.module.id {
+        return None;
+    }
+
+    let symbol_entry = ctx.symbols.get_symbol(target_symbol.local_id);
+    let primary_declaration = symbol_entry.primary_declaration?;
+    if primary_declaration.module_id != ctx.module.id {
+        return None;
+    }
+    if primary_declaration.local_id.ty != dir::NodeType::Declaration {
+        return None;
+    }
+
+    Some(primary_declaration.into_local_typed())
+}
+
+/// Resolve the reject parameter symbol from one Promise executor declaration.
+fn executor_reject_symbol(
+    ctx: &LintModuleDirContext<'_>,
+    declaration_id: dir::LocalNodeId<dir::Declaration>,
+) -> Option<dir::LocalSymbolId> {
+    let declaration = ctx.tree.get(declaration_id);
+    let dir::Declaration::Function {
+        signature,
+        body: Some(_),
+        ..
+    } = declaration
+    else {
+        return None;
+    };
+
+    let reject_parameter_id = *signature.dynamic_parameters.get(1)?;
+    let (_, reject_symbol) = parameter_binding_name_and_symbol(ctx.tree, reject_parameter_id)?;
+    Some(reject_symbol)
 }
 
 /// Return true when the expression is `Result.ok(...)` or `Result.err(...)`.
@@ -256,6 +410,71 @@ Promise.reject();
         );
         test.result(result)
             .assert_lint("prefer-promise-reject-errors");
+    }
+
+    /// Allow Promise.reject without argument when configured.
+    #[test]
+    fn test_allows_promise_reject_without_argument_when_enabled() {
+        let test = TestProgram::for_rule_with_prelude(PreferPromiseRejectErrors)
+            .with_options(|options| options.prefer_promise_reject_errors_allow_empty_reject = true);
+        let result = test.lint_dir(
+            "prefer_promise_reject_errors/test_allows_promise_reject_without_argument_when_enabled.ds",
+            r#"
+Promise.reject();
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("prefer-promise-reject-errors");
+    }
+
+    /// Flag executor reject calls with primitive payloads.
+    #[test]
+    fn test_flags_executor_reject_string_literal() {
+        let test = TestProgram::for_rule_with_prelude(PreferPromiseRejectErrors);
+        let result = test.lint_dir(
+            "prefer_promise_reject_errors/test_flags_executor_reject_string_literal.ds",
+            r#"
+let task = new Promise((resolve, reject) => {
+    reject("oops");
+});
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-promise-reject-errors");
+    }
+
+    /// Allow executor reject without argument when configured.
+    #[test]
+    fn test_allows_executor_reject_without_argument_when_enabled() {
+        let test = TestProgram::for_rule_with_prelude(PreferPromiseRejectErrors)
+            .with_options(|options| options.prefer_promise_reject_errors_allow_empty_reject = true);
+        let result = test.lint_dir(
+            "prefer_promise_reject_errors/test_allows_executor_reject_without_argument_when_enabled.ds",
+            r#"
+let task = new Promise((resolve, reject) => {
+    reject();
+});
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("prefer-promise-reject-errors");
+    }
+
+    /// Ignore shadowed reject bindings inside Promise executors.
+    #[test]
+    fn test_ignores_shadowed_executor_reject_binding() {
+        let test = TestProgram::for_rule_with_prelude(PreferPromiseRejectErrors);
+        let result = test.lint_dir(
+            "prefer_promise_reject_errors/test_ignores_shadowed_executor_reject_binding.ds",
+            r#"
+let task = new Promise((resolve, reject) => {
+    let reject = (value: string) => value;
+    reject("oops");
+});
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("prefer-promise-reject-errors");
     }
 
     /// Flag Promise.reject with primitive typed variables.
@@ -406,68 +625,3 @@ Promise.reject(value);
             .assert_no_lint("prefer-promise-reject-errors");
     }
 }
-    /// Allow Promise.reject without argument when configured.
-    #[test]
-    fn test_allows_promise_reject_without_argument_when_enabled() {
-        let test = TestProgram::for_rule_with_prelude(PreferPromiseRejectErrors)
-            .with_options(|options| options.prefer_promise_reject_errors_allow_empty_reject = true);
-        let result = test.lint_dir(
-            "prefer_promise_reject_errors/test_allows_promise_reject_without_argument_when_enabled.ds",
-            r#"
-Promise.reject();
-"#,
-        );
-        test.result(result)
-            .assert_no_lint("prefer-promise-reject-errors");
-    }
-
-    /// Flag executor reject calls with primitive payloads.
-    #[test]
-    fn test_flags_executor_reject_string_literal() {
-        let test = TestProgram::for_rule_with_prelude(PreferPromiseRejectErrors);
-        let result = test.lint_dir(
-            "prefer_promise_reject_errors/test_flags_executor_reject_string_literal.ds",
-            r#"
-let task = new Promise((resolve, reject) => {
-    reject("oops");
-});
-"#,
-        );
-        test.result(result)
-            .assert_lint("prefer-promise-reject-errors");
-    }
-
-    /// Allow executor reject without argument when configured.
-    #[test]
-    fn test_allows_executor_reject_without_argument_when_enabled() {
-        let test = TestProgram::for_rule_with_prelude(PreferPromiseRejectErrors)
-            .with_options(|options| options.prefer_promise_reject_errors_allow_empty_reject = true);
-        let result = test.lint_dir(
-            "prefer_promise_reject_errors/test_allows_executor_reject_without_argument_when_enabled.ds",
-            r#"
-let task = new Promise((resolve, reject) => {
-    reject();
-});
-"#,
-        );
-        test.result(result)
-            .assert_no_lint("prefer-promise-reject-errors");
-    }
-
-    /// Ignore shadowed reject bindings inside Promise executors.
-    #[test]
-    fn test_ignores_shadowed_executor_reject_binding() {
-        let test = TestProgram::for_rule_with_prelude(PreferPromiseRejectErrors);
-        let result = test.lint_dir(
-            "prefer_promise_reject_errors/test_ignores_shadowed_executor_reject_binding.ds",
-            r#"
-let task = new Promise((resolve, reject) => {
-    let reject = (value: string) => value;
-    reject("oops");
-});
-"#,
-        );
-        test.result(result)
-            .assert_no_lint("prefer-promise-reject-errors");
-    }
-
