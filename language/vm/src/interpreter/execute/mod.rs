@@ -1,3 +1,25 @@
-pub(super) mod call;
-pub(super) mod instruction;
+mod aggregate;
+mod arithmetic;
+mod call;
+mod cast;
+mod control;
+mod core;
+mod dispatch;
+pub(crate) mod instruction;
 mod intrinsic;
+mod memory;
+pub(crate) mod operator;
+mod run;
+mod tensor;
+mod vector;
+
+pub(crate) use aggregate::*;
+pub(crate) use arithmetic::*;
+pub(crate) use call::*;
+pub(crate) use cast::*;
+pub(crate) use control::*;
+pub(crate) use core::*;
+pub(crate) use dispatch::*;
+pub(crate) use memory::*;
+pub(crate) use tensor::*;
+pub(crate) use vector::*;

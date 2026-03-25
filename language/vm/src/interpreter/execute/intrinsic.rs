@@ -3,13 +3,13 @@ use destack_mir as mir;
 use crate::diagnostic::{Error, RuntimeResult};
 use destack_heap::{Value, ValueTag};
 
-use super::super::state::InterpreterContext;
+use super::super::state::ExecutionState;
 use super::instruction;
 
 #[allow(clippy::too_many_arguments)]
-impl<'a> InterpreterContext<'a> {
+impl ExecutionState<'_, '_> {
     /// Execute an intrinsic with already-resolved argument values.
-    /// Used by the threaded interpreter where values are pre-resolved.
+    /// Used by the interpreter where values are pre-resolved.
     pub(crate) fn execute_intrinsic_resolved(
         &mut self,
         intrinsic: mir::Intrinsic,
@@ -1147,7 +1147,7 @@ impl<'a> InterpreterContext<'a> {
             }));
         };
 
-        let tree = &self.isolate.image.tree;
+        let tree = self.tree();
         let byte_len = instruction::raw_type_size(tree, raw_pointee)
             .map_err(|error| self.make_error(error))?;
         let bytes = self
@@ -1195,7 +1195,7 @@ impl<'a> InterpreterContext<'a> {
             }));
         };
 
-        let tree = &self.isolate.image.tree;
+        let tree = self.tree();
         let bytes = instruction::encode_raw_value(tree, raw_pointee, value)
             .map_err(|error| self.make_error(error))?;
         let byte_len = self

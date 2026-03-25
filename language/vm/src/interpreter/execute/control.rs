@@ -1,13 +1,14 @@
 use super::*;
+use crate::telemetry::stat_inc;
 
 /// Handle assume (optimizer hint).
 pub(crate) fn handle_assume(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::Assume { condition: _ } = &block[pc].data else {
+    let InstructionData::Assume = &block[pc].data else {
         unreachable!()
     };
 
@@ -18,14 +19,14 @@ pub(crate) fn handle_assume(
 }
 /// Handle return (exits tail-call chain).
 pub(crate) fn handle_return(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
-    let ThreadedInstructionData::Return { value } = &block[pc].data else {
+    let InstructionData::Return { value } = &block[pc].data else {
         unreachable!()
     };
 
@@ -42,14 +43,14 @@ pub(crate) fn handle_return(
 
 /// Handle yield (exits tail-call chain).
 pub(crate) fn handle_yield(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
-    let ThreadedInstructionData::Yield {
+    let InstructionData::Yield {
         value,
         resume_block,
         resume_copies,
@@ -73,14 +74,14 @@ pub(crate) fn handle_yield(
 
 /// Handle unconditional jump (exits tail-call chain).
 pub(crate) fn handle_jump(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
-    let ThreadedInstructionData::Jump { target, copies } = &block[pc].data else {
+    let InstructionData::Jump { target, copies } = &block[pc].data else {
         unreachable!()
     };
 
@@ -93,14 +94,14 @@ pub(crate) fn handle_jump(
 
 /// Handle conditional branch (exits tail-call chain).
 pub(crate) fn handle_branch(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
-    let ThreadedInstructionData::Branch {
+    let InstructionData::Branch {
         condition,
         then_target,
         then_copies,
@@ -117,7 +118,7 @@ pub(crate) fn handle_branch(
 
     // update branch statistics
     if state.collect_stats {
-        stat_inc!(state.interpreter.engine.statistics, branches);
+        stat_inc!(state.engine.statistics, branches);
     }
 
     // handle truthy branch
@@ -140,14 +141,14 @@ pub(crate) fn handle_branch(
 
 /// Handle boolean branch (exits tail-call chain).
 pub(crate) fn handle_branch_bool(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
-    let ThreadedInstructionData::Branch {
+    let InstructionData::Branch {
         condition,
         then_target,
         then_copies,
@@ -164,7 +165,7 @@ pub(crate) fn handle_branch_bool(
 
     // update branch statistics
     if state.collect_stats {
-        stat_inc!(state.interpreter.engine.statistics, branches);
+        stat_inc!(state.engine.statistics, branches);
     }
 
     // handle truthy branch
@@ -188,14 +189,14 @@ pub(crate) fn handle_branch_bool(
 /// Handle fused compare-and-branch for signed integers (most common).
 #[inline(always)]
 pub(crate) fn handle_compare_and_branch_int(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
-    let ThreadedInstructionData::CompareAndBranch {
+    let InstructionData::CompareAndBranch {
         left,
         right,
         operator,
@@ -225,7 +226,7 @@ pub(crate) fn handle_compare_and_branch_int(
 
     // update branch statistics
     if state.collect_stats {
-        stat_inc!(state.interpreter.engine.statistics, branches);
+        stat_inc!(state.engine.statistics, branches);
     }
 
     // branch based on comparison result
@@ -245,14 +246,14 @@ pub(crate) fn handle_compare_and_branch_int(
 /// Handle fused compare-and-branch for unsigned integers.
 #[inline(always)]
 pub(crate) fn handle_compare_and_branch_uint(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
-    let ThreadedInstructionData::CompareAndBranch {
+    let InstructionData::CompareAndBranch {
         left,
         right,
         operator,
@@ -280,7 +281,7 @@ pub(crate) fn handle_compare_and_branch_uint(
 
     // update branch statistics
     if state.collect_stats {
-        stat_inc!(state.interpreter.engine.statistics, branches);
+        stat_inc!(state.engine.statistics, branches);
     }
 
     // branch based on comparison result
@@ -300,14 +301,14 @@ pub(crate) fn handle_compare_and_branch_uint(
 /// Handle fused compare-and-branch for floats.
 #[inline(always)]
 pub(crate) fn handle_compare_and_branch_float(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
-    let ThreadedInstructionData::CompareAndBranch {
+    let InstructionData::CompareAndBranch {
         left,
         right,
         operator,
@@ -337,7 +338,7 @@ pub(crate) fn handle_compare_and_branch_float(
 
     // update branch statistics
     if state.collect_stats {
-        stat_inc!(state.interpreter.engine.statistics, branches);
+        stat_inc!(state.engine.statistics, branches);
     }
 
     // branch based on comparison result
@@ -356,14 +357,14 @@ pub(crate) fn handle_compare_and_branch_float(
 
 /// Handle fused compare-and-branch (generic fallback).
 pub(crate) fn handle_compare_and_branch(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
-    let ThreadedInstructionData::CompareAndBranch {
+    let InstructionData::CompareAndBranch {
         left,
         right,
         operator,
@@ -406,7 +407,7 @@ pub(crate) fn handle_compare_and_branch(
 
     // update branch statistics
     if state.collect_stats {
-        stat_inc!(state.interpreter.engine.statistics, branches);
+        stat_inc!(state.engine.statistics, branches);
     }
 
     // branch based on comparison result
@@ -426,14 +427,14 @@ pub(crate) fn handle_compare_and_branch(
 /// Handle fused compare-and-branch with constant right operand for signed integers.
 #[inline(always)]
 pub(crate) fn handle_compare_and_branch_const_int(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
-    let ThreadedInstructionData::CompareAndBranchConst {
+    let InstructionData::CompareAndBranchConst {
         left,
         right_const,
         operator,
@@ -463,7 +464,7 @@ pub(crate) fn handle_compare_and_branch_const_int(
 
     // update branch statistics
     if state.collect_stats {
-        stat_inc!(state.interpreter.engine.statistics, branches);
+        stat_inc!(state.engine.statistics, branches);
     }
 
     // branch based on comparison result
@@ -483,14 +484,14 @@ pub(crate) fn handle_compare_and_branch_const_int(
 /// Handle fused compare-and-branch with constant right operand for unsigned integers.
 #[inline(always)]
 pub(crate) fn handle_compare_and_branch_const_uint(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
-    let ThreadedInstructionData::CompareAndBranchConst {
+    let InstructionData::CompareAndBranchConst {
         left,
         right_const,
         operator,
@@ -518,7 +519,7 @@ pub(crate) fn handle_compare_and_branch_const_uint(
 
     // update branch statistics
     if state.collect_stats {
-        stat_inc!(state.interpreter.engine.statistics, branches);
+        stat_inc!(state.engine.statistics, branches);
     }
 
     // branch based on comparison result
@@ -538,14 +539,14 @@ pub(crate) fn handle_compare_and_branch_const_uint(
 /// Handle fused compare-and-branch with constant right operand for floats.
 #[inline(always)]
 pub(crate) fn handle_compare_and_branch_const_float(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
-    let ThreadedInstructionData::CompareAndBranchConst {
+    let InstructionData::CompareAndBranchConst {
         left,
         right_const,
         operator,
@@ -575,7 +576,7 @@ pub(crate) fn handle_compare_and_branch_const_float(
 
     // update branch statistics
     if state.collect_stats {
-        stat_inc!(state.interpreter.engine.statistics, branches);
+        stat_inc!(state.engine.statistics, branches);
     }
 
     // branch based on comparison result
@@ -594,14 +595,14 @@ pub(crate) fn handle_compare_and_branch_const_float(
 
 /// Handle fused compare-and-branch with constant right operand (generic fallback).
 pub(crate) fn handle_compare_and_branch_const(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
-    let ThreadedInstructionData::CompareAndBranchConst {
+    let InstructionData::CompareAndBranchConst {
         left,
         right_const,
         operator,
@@ -643,7 +644,7 @@ pub(crate) fn handle_compare_and_branch_const(
 
     // update branch statistics
     if state.collect_stats {
-        stat_inc!(state.interpreter.engine.statistics, branches);
+        stat_inc!(state.engine.statistics, branches);
     }
 
     // branch based on comparison result
@@ -662,14 +663,14 @@ pub(crate) fn handle_compare_and_branch_const(
 
 /// Handle switch (exits tail-call chain).
 pub(crate) fn handle_switch(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
-    let ThreadedInstructionData::Switch {
+    let InstructionData::Switch {
         value,
         cases,
         default_target,
@@ -685,7 +686,7 @@ pub(crate) fn handle_switch(
 
     // update branch statistics
     if state.collect_stats {
-        stat_inc!(state.interpreter.engine.statistics, branches);
+        stat_inc!(state.engine.statistics, branches);
     }
 
     // find matching case
@@ -710,14 +711,14 @@ pub(crate) fn handle_switch(
 
 /// Handle switch via dense jump table (exits tail-call chain).
 pub(crate) fn handle_switch_table(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
-    let ThreadedInstructionData::SwitchTable {
+    let InstructionData::SwitchTable {
         value,
         min,
         table,
@@ -734,7 +735,7 @@ pub(crate) fn handle_switch_table(
 
     // update branch statistics
     if state.collect_stats {
-        stat_inc!(state.interpreter.engine.statistics, branches);
+        stat_inc!(state.engine.statistics, branches);
     }
 
     // resolve jump table entry
@@ -762,14 +763,14 @@ pub(crate) fn handle_switch_table(
 
 /// Handle integer switch (exits tail-call chain).
 pub(crate) fn handle_switch_int(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
-    let ThreadedInstructionData::Switch {
+    let InstructionData::Switch {
         value,
         cases,
         default_target,
@@ -785,7 +786,7 @@ pub(crate) fn handle_switch_int(
 
     // update branch statistics
     if state.collect_stats {
-        stat_inc!(state.interpreter.engine.statistics, branches);
+        stat_inc!(state.engine.statistics, branches);
     }
 
     // find matching case
@@ -810,14 +811,14 @@ pub(crate) fn handle_switch_int(
 
 /// Handle integer switch via dense jump table (exits tail-call chain).
 pub(crate) fn handle_switch_table_int(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
-    let ThreadedInstructionData::SwitchTable {
+    let InstructionData::SwitchTable {
         value,
         min,
         table,
@@ -834,7 +835,7 @@ pub(crate) fn handle_switch_table_int(
 
     // update branch statistics
     if state.collect_stats {
-        stat_inc!(state.interpreter.engine.statistics, branches);
+        stat_inc!(state.engine.statistics, branches);
     }
 
     // resolve jump table entry
@@ -862,13 +863,13 @@ pub(crate) fn handle_switch_table_int(
 
 /// Handle unreachable (errors).
 pub(crate) fn handle_trap(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     state.maybe_profile_instruction(&block[pc]);
 
-    let ThreadedInstructionData::Trap { kind, payload } = &block[pc].data else {
+    let InstructionData::Trap { kind, payload } = &block[pc].data else {
         unreachable!()
     };
 
@@ -885,10 +886,8 @@ pub(crate) fn handle_trap(
 
             let payload = state.get(*payload);
             let message = match state
-                .interpreter
-                .isolate
                 .string_interner
-                .string_value(state.interpreter.heap_ref(), payload)
+                .string_value(state.heap_ref(), payload)
             {
                 Ok(message) => message,
                 Err(error) => return ControlFlow::Error(error),
@@ -901,8 +900,8 @@ pub(crate) fn handle_trap(
 
 /// Handle unreachable (errors).
 pub(crate) fn handle_unreachable(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     state.maybe_profile_instruction(&block[pc]);

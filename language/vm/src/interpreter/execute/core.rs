@@ -1,55 +1,46 @@
 #![allow(elided_lifetimes_in_paths)]
 
-use std::ptr::NonNull;
+pub(crate) use std::ptr::NonNull;
 
-use destack_mir as mir;
-use smallvec::SmallVec;
+pub(crate) use destack_mir as mir;
+pub(crate) use smallvec::SmallVec;
 
-use crate::diagnostic::Error;
-use destack_heap::{
+pub(crate) use crate::diagnostic::Error;
+pub(crate) use destack_heap::{
     LocalPointer, ManagedReference, RawPointer, ReferenceAddressSpace, ReferenceMeta, StackPointer,
     Value, ValueTag,
 };
 
-use super::decode::{
-    ArgumentRange, ConstValue, ControlFlow, CopyRange, INVALID_FUNCTION_INDEX, INVALID_VALUE_ID,
-    ThreadedFunction, ThreadedInstruction, ThreadedInstructionData, ThreadedState,
-    UNKNOWN_FIELD_COUNT, UNKNOWN_SLOT_COUNT, is_invalid_value, operator,
+pub(crate) use super::super::state::{Frame, resize_and_clear_stack};
+pub(crate) use super::run::copy_values_with_plan;
+pub(crate) use super::{instruction, next};
+pub(crate) use crate::executable::{
+    ArgumentRange, ConstValue, ControlFlow, CopyRange, Function, FunctionTarget,
+    INVALID_FUNCTION_INDEX, INVALID_VALUE_ID, Instruction, InstructionData, UNKNOWN_FIELD_COUNT,
+    UNKNOWN_SLOT_COUNT, is_invalid_value,
 };
-use super::execute::call::copy_values_with_plan;
-use super::execute::instruction;
-use super::state::{Frame, resize_and_clear_stack};
-use crate::telemetry::stat_inc;
+pub(crate) use crate::interpreter::ExecutionState;
 
 // dispatch slot indices
-const VTABLE_FIELD_INDEX: u32 = 0;
-const INTERFACE_ITAB_FIELD_INDEX: u32 = 1;
-
-// helper macro: do work, then become next handler
-macro_rules! next {
-    ($state:expr, $block:expr, $pc:expr) => {{
-        $state.maybe_profile_instruction(&$block[$pc]);
-        let next_pc = $pc + 1;
-        become ($block[next_pc].handler)($state, $block, next_pc)
-    }};
-}
+pub(crate) const VTABLE_FIELD_INDEX: u32 = 0;
+pub(crate) const INTERFACE_ITAB_FIELD_INDEX: u32 = 1;
 
 /// Build a global id from a raw value.
 #[inline]
-fn global_id(raw: u32) -> mir::LocalNodeId<mir::Global> {
+pub(crate) fn global_id(raw: u32) -> mir::LocalNodeId<mir::Global> {
     mir::LocalNodeId::new(raw)
 }
 
 /// Build a type id from a raw value.
 #[inline]
-fn type_id(raw: u32) -> mir::LocalNodeId<mir::Type> {
+pub(crate) fn type_id(raw: u32) -> mir::LocalNodeId<mir::Type> {
     mir::LocalNodeId::new(raw)
 }
 
 /// Collect argument values into a smallvec.
 #[inline]
-fn collect_values(
-    state: &mut ThreadedState<'_, '_>,
+pub(crate) fn collect_values(
+    state: &mut ExecutionState<'_, '_>,
     arguments: ArgumentRange,
 ) -> SmallVec<[Value; 16]> {
     // load argument slice
@@ -66,8 +57,39 @@ fn collect_values(
     args
 }
 
+/// Handle intrinsic call.
+pub(crate) fn handle_intrinsic(
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let InstructionData::Intrinsic {
+        dest,
+        intrinsic,
+        arguments,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // resolve arguments
+    let args = collect_values(state, *arguments);
+
+    // execute intrinsic
+    match state.execute_intrinsic(*intrinsic, args.as_slice()) {
+        Ok(result) => {
+            if !is_invalid_value(*dest) {
+                state.set(*dest, result);
+            }
+            next!(state, block, pc)
+        }
+        Err(error) => ControlFlow::Error(error.error),
+    }
+}
+
 /// Format a reference kind label for diagnostics.
-fn reference_label(reference: ReferenceMeta) -> String {
+pub(crate) fn reference_label(reference: ReferenceMeta) -> String {
     match reference.kind() {
         Some(kind) => {
             let address_space = reference.address_space();
@@ -82,19 +104,12 @@ fn reference_label(reference: ReferenceMeta) -> String {
 }
 
 /// Validate reference kind against the pointer storage.
-fn check_reference_kind(
-    state: &ThreadedState<'_, '_>,
+pub(crate) fn check_reference_kind(
+    state: &ExecutionState<'_, '_>,
     reference: ReferenceMeta,
     pointer: Value,
 ) -> Result<(), Error> {
-    if !state
-        .interpreter
-        .isolate
-        .image
-        .options
-        .checks
-        .enforce_reference_kinds
-    {
+    if !state.options().checks.enforce_reference_kinds {
         return Ok(());
     }
 
@@ -123,7 +138,7 @@ fn check_reference_kind(
 }
 
 /// Map a runtime value to an unsigned index.
-fn value_to_u64(value: Value) -> Result<u64, Error> {
+pub(crate) fn value_to_u64(value: Value) -> Result<u64, Error> {
     // decode integer values
     match value.tag() {
         ValueTag::Int => {
@@ -145,7 +160,7 @@ fn value_to_u64(value: Value) -> Result<u64, Error> {
 }
 
 /// Map a runtime value to a usize index.
-fn value_to_usize(value: Value) -> Result<usize, Error> {
+pub(crate) fn value_to_usize(value: Value) -> Result<usize, Error> {
     // convert to u64 first
     let index = value_to_u64(value)?;
     usize::try_from(index).map_err(|_| Error::TypeMismatch {
@@ -155,10 +170,10 @@ fn value_to_usize(value: Value) -> Result<usize, Error> {
 }
 
 /// Load aggregate slots for an aggregate value.
-fn aggregate_slots<'a>(
-    state: &'a ThreadedState<'_, '_>,
+pub(crate) fn aggregate_slots<'a>(
+    state: &'a ExecutionState<'_, '_>,
     value: Value,
-) -> Result<super::state::AggregateSlots<'a>, Error> {
+) -> Result<super::super::state::AggregateSlots<'a>, Error> {
     // require aggregate payload
     let handle = value
         .as_managed_reference()
@@ -176,28 +191,31 @@ fn aggregate_slots<'a>(
         .packed_values_to_vec(handle)
         .ok_or(Error::InvalidManagedReference)?;
 
-    Ok(super::state::AggregateSlots::owned(slots))
+    Ok(super::super::state::AggregateSlots::owned(slots))
 }
 
 /// Load aggregate slots and copy them into a Vec.
-fn aggregate_slots_vec(state: &ThreadedState<'_, '_>, value: Value) -> Result<Vec<Value>, Error> {
+pub(crate) fn aggregate_slots_vec(
+    state: &ExecutionState<'_, '_>,
+    value: Value,
+) -> Result<Vec<Value>, Error> {
     let slots = aggregate_slots(state, value)?;
     Ok(slots.to_vec())
 }
 
 /// Tensor layout information for flattened storage.
 #[derive(Debug, Clone)]
-struct TensorLayoutInfo {
+pub(crate) struct TensorLayoutInfo {
     /// The static tensor shape.
-    shape: Vec<u64>,
+    pub(crate) shape: Vec<u64>,
     /// The per-dimension strides in element units.
-    strides: Vec<u64>,
+    pub(crate) strides: Vec<u64>,
     /// The total storage length in element slots.
-    storage_len: usize,
+    pub(crate) storage_len: usize,
 }
 
 /// Convert tensor dimensions to a static shape.
-fn static_shape(shape: &[mir::TensorDimension]) -> Result<Vec<u64>, Error> {
+pub(crate) fn static_shape(shape: &[mir::TensorDimension]) -> Result<Vec<u64>, Error> {
     // reject dynamic shapes for the interpreter
     let mut dims = Vec::with_capacity(shape.len());
     for dim in shape {
@@ -215,7 +233,7 @@ fn static_shape(shape: &[mir::TensorDimension]) -> Result<Vec<u64>, Error> {
 }
 
 /// Convert tensor strides to a static list.
-fn static_strides(strides: &[mir::TensorDimension]) -> Result<Vec<u64>, Error> {
+pub(crate) fn static_strides(strides: &[mir::TensorDimension]) -> Result<Vec<u64>, Error> {
     // reject dynamic strides for the interpreter
     let mut values = Vec::with_capacity(strides.len());
     for dim in strides {
@@ -233,7 +251,7 @@ fn static_strides(strides: &[mir::TensorDimension]) -> Result<Vec<u64>, Error> {
 }
 
 /// Compute row-major strides for a shape.
-fn row_major_strides(shape: &[u64]) -> Vec<u64> {
+pub(crate) fn row_major_strides(shape: &[u64]) -> Vec<u64> {
     // compute row-major strides
     let mut strides = vec![1; shape.len()];
     let mut stride = 1u64;
@@ -245,7 +263,7 @@ fn row_major_strides(shape: &[u64]) -> Vec<u64> {
 }
 
 /// Compute column-major strides for a shape.
-fn column_major_strides(shape: &[u64]) -> Vec<u64> {
+pub(crate) fn column_major_strides(shape: &[u64]) -> Vec<u64> {
     // compute column-major strides
     let mut strides = vec![1; shape.len()];
     let mut stride = 1u64;
@@ -257,7 +275,7 @@ fn column_major_strides(shape: &[u64]) -> Vec<u64> {
 }
 
 /// Compute the storage length for a shape and stride list.
-fn tensor_storage_len(shape: &[u64], strides: &[u64]) -> Result<usize, Error> {
+pub(crate) fn tensor_storage_len(shape: &[u64], strides: &[u64]) -> Result<usize, Error> {
     // empty shape stores a single scalar
     if shape.is_empty() {
         return Ok(1);
@@ -282,7 +300,7 @@ fn tensor_storage_len(shape: &[u64], strides: &[u64]) -> Result<usize, Error> {
 }
 
 /// Resolve tensor layout information from a tensor type.
-fn tensor_layout_info(
+pub(crate) fn tensor_layout_info(
     tree: &mir::NodeTree,
     ty: mir::LocalNodeId<mir::Type>,
 ) -> Result<TensorLayoutInfo, Error> {
@@ -319,7 +337,11 @@ fn tensor_layout_info(
 }
 
 /// Compute the linear index for a multi-dimensional index.
-fn tensor_linear_index(indices: &[u64], shape: &[u64], strides: &[u64]) -> Result<usize, Error> {
+pub(crate) fn tensor_linear_index(
+    indices: &[u64],
+    shape: &[u64],
+    strides: &[u64],
+) -> Result<usize, Error> {
     // validate index length
     if indices.len() != shape.len() || shape.len() != strides.len() {
         return Err(Error::TypeMismatch {
@@ -352,7 +374,7 @@ fn tensor_linear_index(indices: &[u64], shape: &[u64], strides: &[u64]) -> Resul
 }
 
 /// Iterate over all indices in a tensor shape.
-fn for_each_index<F: FnMut(&[u64])>(shape: &[u64], mut f: F) {
+pub(crate) fn for_each_index<F: FnMut(&[u64])>(shape: &[u64], mut f: F) {
     // handle scalar or empty shapes
     if shape.is_empty() {
         f(&[]);
@@ -384,7 +406,7 @@ fn for_each_index<F: FnMut(&[u64])>(shape: &[u64], mut f: F) {
 }
 
 /// Offset a pointer by an element index.
-fn offset_pointer(value: Value, offset: usize, length: usize) -> Result<Value, Error> {
+pub(crate) fn offset_pointer(value: Value, offset: usize, length: usize) -> Result<Value, Error> {
     // validate bounds
     if offset >= length {
         return Err(Error::IndexOutOfBounds {
@@ -466,7 +488,7 @@ fn offset_pointer(value: Value, offset: usize, length: usize) -> Result<Value, E
 
 /// Reduction operators for vector/tensor reductions.
 #[derive(Clone, Copy, Debug)]
-enum ReduceOperator {
+pub(crate) enum ReduceOperator {
     Add,
     Multiply,
     Min,
@@ -492,7 +514,7 @@ impl From<mir::VectorReduceOperator> for ReduceOperator {
 
 /// Scalar type information for numeric conversions.
 #[derive(Clone, Copy, Debug)]
-enum ScalarTypeInfo {
+pub(crate) enum ScalarTypeInfo {
     /// Signed or unsigned integers with a bit width.
     Int {
         /// The bit width.
@@ -511,7 +533,7 @@ enum ScalarTypeInfo {
 
 /// Conversion modes for vector or tensor element conversions.
 #[derive(Clone, Copy, Debug)]
-enum ScalarConvertMode {
+pub(crate) enum ScalarConvertMode {
     /// Require an exact conversion without rounding or saturation.
     Exact,
     /// Round to nearest, ties to even.
@@ -553,7 +575,7 @@ impl From<mir::TensorConvertMode> for ScalarConvertMode {
 }
 
 /// Resolve scalar type information from a MIR type.
-fn scalar_type_info(
+pub(crate) fn scalar_type_info(
     tree: &mir::NodeTree,
     ty: mir::LocalNodeId<mir::Type>,
 ) -> Result<ScalarTypeInfo, Error> {
@@ -573,7 +595,7 @@ fn scalar_type_info(
 }
 
 /// Convert a scalar value between numeric types.
-fn convert_scalar_value(
+pub(crate) fn convert_scalar_value(
     value: Value,
     source: ScalarTypeInfo,
     dest: ScalarTypeInfo,
@@ -622,7 +644,7 @@ fn convert_scalar_value(
 }
 
 /// Convert an integer value to another integer type.
-fn convert_int_to_int(
+pub(crate) fn convert_int_to_int(
     value: Value,
     source_width: u16,
     source_signed: bool,
@@ -699,7 +721,7 @@ fn convert_int_to_int(
 }
 
 /// Convert an integer value to a float.
-fn convert_int_to_float(
+pub(crate) fn convert_int_to_float(
     value: Value,
     source_width: u16,
     source_signed: bool,
@@ -770,7 +792,7 @@ fn convert_int_to_float(
 }
 
 /// Convert a float value to an integer.
-fn convert_float_to_int(
+pub(crate) fn convert_float_to_int(
     value: Value,
     source_width: u16,
     dest_width: u16,
@@ -840,7 +862,7 @@ fn convert_float_to_int(
 }
 
 /// Convert a float value to another float type.
-fn convert_float_to_float(
+pub(crate) fn convert_float_to_float(
     value: Value,
     source_width: u16,
     dest_width: u16,
@@ -895,7 +917,7 @@ enum IntValue {
 }
 
 /// Compute signed integer bounds for a width.
-fn signed_bounds(width: u16) -> (i64, i64) {
+pub(crate) fn signed_bounds(width: u16) -> (i64, i64) {
     // handle full-width values
     if width >= 64 {
         return (i64::MIN, i64::MAX);
@@ -909,7 +931,7 @@ fn signed_bounds(width: u16) -> (i64, i64) {
 }
 
 /// Convert a bit width to a u8, erroring on overflow.
-fn width_u8(width: u16) -> Result<u8, Error> {
+pub(crate) fn width_u8(width: u16) -> Result<u8, Error> {
     // convert width and reject oversized values
     u8::try_from(width).map_err(|_| Error::TypeMismatch {
         expected: "width <= 255".to_string(),
@@ -918,7 +940,7 @@ fn width_u8(width: u16) -> Result<u8, Error> {
 }
 
 /// Compute the unsigned max for a width.
-fn unsigned_max(width: u16) -> u64 {
+pub(crate) fn unsigned_max(width: u16) -> u64 {
     // handle full-width values
     if width >= 64 {
         return u64::MAX;
@@ -929,7 +951,7 @@ fn unsigned_max(width: u16) -> u64 {
 }
 
 /// Apply saturating or exact behavior for signed conversions.
-fn clamp_or_error_signed(
+pub(crate) fn clamp_or_error_signed(
     value: i128,
     min: i64,
     max: i64,
@@ -952,7 +974,11 @@ fn clamp_or_error_signed(
 }
 
 /// Apply saturating or exact behavior for unsigned conversions.
-fn clamp_or_error_unsigned(value: i128, max: u64, mode: ScalarConvertMode) -> Result<u64, Error> {
+pub(crate) fn clamp_or_error_unsigned(
+    value: i128,
+    max: u64,
+    mode: ScalarConvertMode,
+) -> Result<u64, Error> {
     // accept values in range
     if value >= 0 && value <= i128::from(max) {
         return Ok(value as u64);
@@ -984,7 +1010,11 @@ impl From<mir::TensorReduceOperator> for ReduceOperator {
 }
 
 /// Apply a reduction operator to two values.
-fn apply_reduce_operator(op: ReduceOperator, a: Value, b: Value) -> Result<Value, Error> {
+pub(crate) fn apply_reduce_operator(
+    op: ReduceOperator,
+    a: Value,
+    b: Value,
+) -> Result<Value, Error> {
     let (a_tag, b_tag) = (a.tag(), b.tag());
     match op {
         ReduceOperator::Add => match (a_tag, b_tag) {
@@ -1154,19 +1184,12 @@ fn apply_reduce_operator(op: ReduceOperator, a: Value, b: Value) -> Result<Value
 }
 
 /// Validate reference address space against the pointer storage.
-fn check_reference_address_space(
-    state: &ThreadedState<'_, '_>,
+pub(crate) fn check_reference_address_space(
+    state: &ExecutionState<'_, '_>,
     reference: ReferenceMeta,
     pointer: Value,
 ) -> Result<(), Error> {
-    if !state
-        .interpreter
-        .isolate
-        .image
-        .options
-        .checks
-        .enforce_reference_kinds
-    {
+    if !state.options().checks.enforce_reference_kinds {
         return Ok(());
     }
 
@@ -1218,18 +1241,11 @@ fn check_reference_address_space(
 }
 
 /// Validate reference mutability for stores.
-fn check_reference_mutability(
-    state: &ThreadedState<'_, '_>,
+pub(crate) fn check_reference_mutability(
+    state: &ExecutionState<'_, '_>,
     reference: ReferenceMeta,
 ) -> Result<(), Error> {
-    if !state
-        .interpreter
-        .isolate
-        .image
-        .options
-        .checks
-        .enforce_reference_mutability
-    {
+    if !state.options().checks.enforce_reference_mutability {
         return Ok(());
     }
 
@@ -1245,23 +1261,3 @@ fn check_reference_mutability(
 
     Ok(())
 }
-
-mod aggregate;
-mod call;
-mod cast;
-mod control;
-mod dispatch;
-mod intrinsic;
-mod memory;
-mod tensor;
-mod vector;
-
-pub(crate) use aggregate::*;
-pub(crate) use call::*;
-pub(crate) use cast::*;
-pub(crate) use control::*;
-pub(crate) use dispatch::*;
-pub(crate) use intrinsic::*;
-pub(crate) use memory::*;
-pub(crate) use tensor::*;
-pub(crate) use vector::*;

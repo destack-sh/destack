@@ -1,23 +1,44 @@
+use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use destack_core::{Capture, CaptureMode, ImmutableStringPool, SnapshotCodec};
 use destack_mir as mir;
 
-use super::{ExternalCallContext, ExternalHandler, IsolateState, StringRef};
+use super::{
+    ExternalCallContext, ExternalFn, ExternalFnPtr, ExternalHandler, GlobalStorage, StringInterner,
+    StringRef,
+};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
+use crate::executable::{Executable, FunctionTable};
 use crate::execute::{Continuation, ExecutionOutcome, ExecutionOutput};
-use crate::interpreter::{Interpreter, InterpreterContext};
+use crate::interpreter::Interpreter;
 use crate::options::IsolateOptions;
 use crate::snapshot::{ContinuationImage, IsolateImage, IsolateSnapshot};
 use destack_heap::{
     GcStats, Heap, ManagedReference, MemoryContext, SharedPointer, SharedSpace, Value,
 };
 
+// isolate id generator for continuation validation
+static ISOLATE_ID_COUNTER: AtomicU64 = AtomicU64::new(1);
+
 /// VM isolate with globals and execution state.
 pub struct Isolate {
-    /// Shared isolate state for all engines.
-    state: IsolateState,
+    /// Unique id used to validate continuation ownership.
+    isolate_id: u64,
+    /// Immutable executable shared by this isolate.
+    executable: Arc<Executable>,
+    /// Configuration options for this isolate.
+    options: IsolateOptions,
+    /// String interner for literal storage.
+    string_interner: StringInterner,
+    /// Global variable storage.
+    globals: GlobalStorage,
+    /// External function handlers.
+    externals: HashMap<String, ExternalFn>,
+    /// Cached external handlers by function id.
+    externals_by_id: Vec<Option<ExternalFnPtr>>,
     /// Interpreter engine backing this isolate.
     interpreter: Interpreter,
 }
@@ -25,7 +46,11 @@ pub struct Isolate {
 impl fmt::Debug for Isolate {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Isolate")
-            .field("state", &self.state)
+            .field("executable", &self.executable)
+            .field("string_interner", &self.string_interner)
+            .field("globals", &format!("<{} globals>", self.globals.len()))
+            .field("externals", &format!("<{} handlers>", self.externals.len()))
+            .field("options", &self.options)
             .finish_non_exhaustive()
     }
 }
@@ -33,12 +58,23 @@ impl fmt::Debug for Isolate {
 impl Isolate {
     /// Create a new isolate from one shared immutable image.
     pub fn new(image: Arc<IsolateImage>) -> RuntimeResult<Self> {
-        let mut state = IsolateState::new(image.clone());
-        state.string_interner.restore_image(&image.string_interner);
-        state.globals = image.globals.clone();
-        let interpreter = Interpreter::from_image(&state, &image.interpreter)?;
+        let executable = Arc::new(Executable::new(image.tree.clone(), image.strings.clone()));
+        let mut isolate = Self {
+            isolate_id: image.isolate_id,
+            executable,
+            options: image.options.clone(),
+            string_interner: StringInterner::new(),
+            globals: image.globals.clone(),
+            externals: HashMap::new(),
+            externals_by_id: Vec::new(),
+            interpreter: Interpreter::new(),
+        };
+        isolate
+            .string_interner
+            .restore_image(&image.string_interner);
+        isolate.interpreter = Interpreter::from_image(isolate.functions(), &image.interpreter)?;
 
-        Ok(Self { state, interpreter })
+        Ok(isolate)
     }
 
     /// Build a new isolate with default options.
@@ -52,41 +88,45 @@ impl Isolate {
         strings: ImmutableStringPool,
         options: IsolateOptions,
     ) -> RuntimeResult<Self> {
-        let image = Arc::new(IsolateImage {
-            tree,
-            strings,
-            options,
-            isolate_id: 0,
-            string_interner: Default::default(),
-            globals: super::GlobalStorage::new(),
-            interpreter: Default::default(),
-        });
+        let executable = Arc::new(Executable::new(tree, strings));
+        let isolate_id = ISOLATE_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
 
-        Self::new(image)
+        Ok(Self {
+            isolate_id,
+            executable,
+            options,
+            string_interner: StringInterner::new(),
+            globals: GlobalStorage::new(),
+            externals: HashMap::new(),
+            externals_by_id: Vec::new(),
+            interpreter: Interpreter::new(),
+        })
     }
 
     /// Initialize isolate globals against one explicit heap.
     pub fn initialize(&mut self, memory: &mut MemoryContext<'_>) -> RuntimeResult<()> {
         // initialize globals and interned literals
-        self.with_interpreter(memory, |context| context.initialize_globals())
+        self.interpreter.initialize_globals(
+            self.executable.as_ref(),
+            &mut self.string_interner,
+            &mut self.globals,
+            memory.reborrow(),
+        )
     }
 
     /// Get the isolate options.
     pub fn options(&self) -> &IsolateOptions {
-        &self.state.image.options
+        &self.options
     }
 
     /// Get mutable isolate options.
     pub fn options_mut(&mut self) -> &mut IsolateOptions {
-        &mut Arc::make_mut(&mut self.state.image).options
+        &mut self.options
     }
 
     /// Set whether to collect execution statistics.
     pub fn set_collect_stats(&mut self, collect: bool) {
-        Arc::make_mut(&mut self.state.image)
-            .options
-            .telemetry
-            .collect_stats = collect;
+        self.options.telemetry.collect_stats = collect;
     }
 
     /// Enable instruction profiling with the given sampling interval.
@@ -115,7 +155,8 @@ impl Isolate {
 
     /// Register a VM binding handler.
     pub fn register_vm_binding(&mut self, name: &str, handler: impl ExternalHandler + 'static) {
-        self.state.register_vm_binding(name, handler);
+        self.externals.insert(name.to_string(), Box::new(handler));
+        self.rebuild_external_cache();
     }
 
     /// Run a callback with a runtime context for this isolate.
@@ -124,13 +165,13 @@ impl Isolate {
         F: for<'ctx> FnOnce(&mut ExternalCallContext<'ctx>) -> R,
     {
         let memory = memory.reborrow();
-        let mut context = ExternalCallContext::new(&mut self.state, memory);
+        let mut context = ExternalCallContext::new(&mut self.string_interner, memory);
         run(&mut context)
     }
 
     /// Intern a UTF-8 string and return the managed string value.
     pub fn intern_string(&mut self, heap: &mut Heap, value: &str) -> Value {
-        self.state.intern_string_literal(heap, value)
+        self.string_interner.intern_string_literal(heap, value)
     }
 
     /// Allocate a shared heap byte region and return its pointer.
@@ -149,16 +190,11 @@ impl Isolate {
         &self,
         name: &str,
     ) -> Result<mir::LocalNodeId<mir::Function>, RuntimeError> {
-        let func_id = self
-            .state
-            .function_name_map
-            .get(name)
-            .copied()
-            .ok_or_else(|| {
-                self.make_error(Error::ExternalFunctionNotFound {
-                    name: name.to_string(),
-                })
-            })?;
+        let func_id = self.lookup_function_id(name).ok_or_else(|| {
+            self.make_error(Error::ExternalFunctionNotFound {
+                name: name.to_string(),
+            })
+        })?;
 
         Ok(func_id)
     }
@@ -170,9 +206,18 @@ impl Isolate {
         name: &str,
         arguments: &[Value],
     ) -> RuntimeResult<ExecutionOutput> {
-        self.with_interpreter(memory, |context| {
-            context.run_function_by_name(name, arguments)
-        })
+        self.interpreter.run_function_by_name(
+            self.isolate_id,
+            self.executable.as_ref(),
+            &self.options,
+            &mut self.string_interner,
+            &mut self.globals,
+            &self.externals,
+            &mut self.externals_by_id,
+            memory,
+            name,
+            arguments,
+        )
     }
 
     /// Run a function by name and allow yielding.
@@ -182,9 +227,18 @@ impl Isolate {
         name: &str,
         arguments: &[Value],
     ) -> RuntimeResult<ExecutionOutcome> {
-        self.with_interpreter(memory, |context| {
-            context.run_function_by_name_yielding(name, arguments)
-        })
+        self.interpreter.run_function_by_name_yielding(
+            self.isolate_id,
+            self.executable.as_ref(),
+            &self.options,
+            &mut self.string_interner,
+            &mut self.globals,
+            &self.externals,
+            &mut self.externals_by_id,
+            memory,
+            name,
+            arguments,
+        )
     }
 
     /// Run a function by id and return its output.
@@ -194,7 +248,18 @@ impl Isolate {
         func_id: mir::LocalNodeId<mir::Function>,
         arguments: &[Value],
     ) -> RuntimeResult<ExecutionOutput> {
-        self.with_interpreter(memory, |context| context.run_function(func_id, arguments))
+        self.interpreter.run_function(
+            self.isolate_id,
+            self.executable.as_ref(),
+            &self.options,
+            &mut self.string_interner,
+            &mut self.globals,
+            &self.externals,
+            &mut self.externals_by_id,
+            memory,
+            func_id,
+            arguments,
+        )
     }
 
     /// Run a function by id and allow yielding.
@@ -204,9 +269,18 @@ impl Isolate {
         func_id: mir::LocalNodeId<mir::Function>,
         arguments: &[Value],
     ) -> RuntimeResult<ExecutionOutcome> {
-        self.with_interpreter(memory, |context| {
-            context.run_function_yielding(func_id, arguments)
-        })
+        self.interpreter.run_function_yielding(
+            self.isolate_id,
+            self.executable.as_ref(),
+            &self.options,
+            &mut self.string_interner,
+            &mut self.globals,
+            &self.externals,
+            &mut self.externals_by_id,
+            memory,
+            func_id,
+            arguments,
+        )
     }
 
     /// Resume a previously yielded coroutine.
@@ -216,7 +290,18 @@ impl Isolate {
         continuation: Continuation,
         resume_value: Value,
     ) -> RuntimeResult<ExecutionOutcome> {
-        self.with_interpreter(memory, |context| context.resume(continuation, resume_value))
+        self.interpreter.resume(
+            self.isolate_id,
+            self.executable.as_ref(),
+            &self.options,
+            &mut self.string_interner,
+            &mut self.globals,
+            &self.externals,
+            &mut self.externals_by_id,
+            memory,
+            continuation,
+            resume_value,
+        )
     }
 
     /// Capture one continuation as one immutable image.
@@ -229,27 +314,36 @@ impl Isolate {
         &self,
         image: &ContinuationImage,
     ) -> RuntimeResult<Continuation> {
-        Continuation::from_image(image, &self.interpreter.state.threaded_functions)
+        Continuation::from_image(image, self.functions())
     }
 
     /// Allocate an aggregate on the heap and return it as a Value.
     pub fn allocate_aggregate(&mut self, heap: &mut Heap, values: Vec<Value>) -> Value {
-        self.state.allocate_aggregate(heap, values)
+        let handle = heap
+            .allocate_packed_values(values)
+            .unwrap_or_else(|error| panic!("{error}"));
+        Value::aggregate(handle)
     }
 
     /// Allocate a 2-element aggregate on the heap.
     pub fn allocate_pair(&mut self, heap: &mut Heap, first: Value, second: Value) -> Value {
-        self.state.allocate_pair(heap, first, second)
+        let handle = heap
+            .allocate_packed_pair(first, second)
+            .unwrap_or_else(|error| panic!("{error}"));
+        Value::aggregate(handle)
     }
 
     /// Allocate a 1-element aggregate on the heap.
     pub fn allocate_single(&mut self, heap: &mut Heap, value: Value) -> Value {
-        self.state.allocate_single(heap, value)
+        let handle = heap
+            .allocate_packed_single(value)
+            .unwrap_or_else(|error| panic!("{error}"));
+        Value::aggregate(handle)
     }
 
     /// Read a UTF-8 string value from the heap.
     pub fn string_value(&self, heap: &Heap, value: Value) -> Result<String, Error> {
-        self.state.string_value(heap, value)
+        self.string_interner.string_value(heap, value)
     }
 
     /// Read a UTF-8 string view from the heap.
@@ -258,7 +352,7 @@ impl Isolate {
         heap: &'a Heap,
         value: Value,
     ) -> Result<StringRef<'a>, Error> {
-        self.state.string_value_ref(heap, value)
+        self.string_interner.string_value_ref(heap, value)
     }
 
     /// Read a UTF-8 string from a managed handle.
@@ -267,13 +361,17 @@ impl Isolate {
         heap: &Heap,
         handle: ManagedReference,
     ) -> Result<String, Error> {
-        self.state.string_value_for_handle(heap, handle)
+        self.string_interner.string_value_for_handle(heap, handle)
     }
 
     /// Collect garbage from managed heap.
     pub fn collect_garbage(&mut self, heap: &mut Heap, shared: &mut SharedSpace) -> GcStats {
         let mut memory = MemoryContext::new(heap, shared);
-        self.with_interpreter(&mut memory, |context| context.collect_garbage())
+        self.interpreter.collect_garbage(
+            &mut self.string_interner,
+            &self.globals,
+            memory.reborrow(),
+        )
     }
 
     /// Collect garbage with extra roots from continuations.
@@ -284,23 +382,26 @@ impl Isolate {
         continuations: &[Continuation],
     ) -> GcStats {
         let mut memory = MemoryContext::new(heap, shared);
-        self.with_interpreter(&mut memory, |context| {
-            context.collect_garbage_with_continuations(continuations)
-        })
+        self.interpreter.collect_garbage_with_continuations(
+            &mut self.string_interner,
+            &self.globals,
+            memory.reborrow(),
+            continuations,
+        )
     }
 
     /// Capture one immutable VM image.
     pub fn image(&mut self) -> RuntimeResult<IsolateImage> {
         // capture the mutable isolate state
-        let string_interner = self.state.string_interner.image();
-        let globals = self.state.globals.clone();
+        let string_interner = self.string_interner.image();
+        let globals = self.globals.clone();
         let interpreter = self.interpreter.image();
 
         Ok(IsolateImage {
-            tree: self.state.image.tree.clone(),
-            strings: self.state.image.strings.clone(),
-            options: self.state.image.options.clone(),
-            isolate_id: self.state.isolate_id,
+            tree: self.executable.tree.clone(),
+            strings: self.executable.strings.clone(),
+            options: self.options.clone(),
+            isolate_id: self.isolate_id,
             string_interner,
             globals,
             interpreter,
@@ -309,25 +410,18 @@ impl Isolate {
 
     /// Restore this isolate from one immutable VM image.
     pub fn restore_image(&mut self, heap: &mut Heap, image: &IsolateImage) -> RuntimeResult<()> {
-        let stored_image = Arc::make_mut(&mut self.state.image);
-        stored_image.tree = image.tree.clone();
-        stored_image.strings = image.strings.clone();
-        stored_image.options = image.options.clone();
-        stored_image.isolate_id = image.isolate_id;
-        stored_image.string_interner = image.string_interner.clone();
-        stored_image.globals = image.globals.clone();
-        stored_image.interpreter = image.interpreter.clone();
+        self.executable = Arc::new(Executable::new(image.tree.clone(), image.strings.clone()));
+        self.options = image.options.clone();
 
         // restore isolate-owned mutable state first
-        self.state.isolate_id = image.isolate_id;
-        self.state
-            .string_interner
-            .restore_image(&image.string_interner);
-        self.state.globals = image.globals.clone();
+        self.isolate_id = image.isolate_id;
+        self.string_interner.restore_image(&image.string_interner);
+        self.globals = image.globals.clone();
+        self.rebuild_external_cache();
 
         // rebuild interpreter state over the restored isolate
         let _ = heap;
-        self.interpreter = Interpreter::from_image(&self.state, &image.interpreter)?;
+        self.interpreter = Interpreter::from_image(self.functions(), &image.interpreter)?;
 
         Ok(())
     }
@@ -348,17 +442,6 @@ impl Isolate {
         self.restore_image(heap, &snapshot.image)
     }
 
-    // interpret a closure with access to the interpreter context
-    fn with_interpreter<R>(
-        &mut self,
-        memory: &mut MemoryContext<'_>,
-        f: impl FnOnce(&mut InterpreterContext<'_>) -> R,
-    ) -> R {
-        let memory = memory.reborrow();
-        let mut context = self.interpreter.context(&mut self.state, memory);
-        f(&mut context)
-    }
-
     // build a runtime error with the current call stack
     fn make_error(&self, error: Error) -> RuntimeError {
         RuntimeError::new(error).with_call_stack(self.get_call_stack_info())
@@ -370,8 +453,8 @@ impl Isolate {
             .call_stack()
             .iter()
             .map(|f| {
-                let func = self.state.image.tree.get(f.function);
-                let name = self.state.image.strings.get(func.name).to_string();
+                let func = self.executable.tree.get(f.function);
+                let name = self.executable.strings.get(func.name).to_string();
                 crate::diagnostic::FrameInfo {
                     function: f.function,
                     block: f.current_block,
@@ -379,6 +462,34 @@ impl Isolate {
                 }
             })
             .collect()
+    }
+
+    /// Resolve a function id by name from the executable.
+    pub(crate) fn lookup_function_id(&self, name: &str) -> Option<mir::LocalNodeId<mir::Function>> {
+        self.executable.function_id_by_name.get(name).copied()
+    }
+
+    /// Borrow the lowered function table.
+    pub(crate) fn functions(&self) -> &FunctionTable {
+        &self.executable.functions
+    }
+
+    /// Rebuild the executable keyed external handler cache.
+    pub(crate) fn rebuild_external_cache(&mut self) {
+        self.externals_by_id.clear();
+
+        for (name, handler) in &self.externals {
+            let Some(func_id) = self.executable.function_id_by_name.get(name).copied() else {
+                continue;
+            };
+
+            let index = func_id.id as usize;
+            if self.externals_by_id.len() <= index {
+                self.externals_by_id.resize(index + 1, None);
+            }
+
+            self.externals_by_id[index] = Some(ExternalFnPtr::from(handler.as_ref()));
+        }
     }
 }
 

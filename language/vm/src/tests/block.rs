@@ -309,7 +309,7 @@ block0(v0: i32):
     // run tail call with depth beyond the test stack limit
     let output = run_mir_ok(mir, "entry", &[Value::int32(200)]);
     assert_eq!(output.value, Value::int32(200));
-    assert_eq!(output.statistics.max_stack_depth, 1);
+    assert_eq!(output.stats.max_stack_depth, 1);
 }
 
 /// Tail call indirect reuses the current frame without growing the stack.
@@ -357,7 +357,7 @@ block0(v0: i32, v1: fn(i32, i32) -> i32):
         .expect("execution failed");
 
     assert_eq!(result.value, Value::int32(200));
-    assert_eq!(result.statistics.max_stack_depth, 1);
+    assert_eq!(result.stats.max_stack_depth, 1);
 }
 
 /// Block parameters are correctly passed via jump.

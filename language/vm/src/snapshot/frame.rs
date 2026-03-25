@@ -11,7 +11,7 @@ pub struct FrameImage {
     pub entry_block: mir::LocalNodeId<mir::Block>,
     /// The current block being executed.
     pub current_block: mir::LocalNodeId<mir::Block>,
-    /// The threaded block index in the function.
+    /// The block index in the function.
     pub block_index: usize,
     /// The program counter within the current block.
     pub resume_pc: usize,

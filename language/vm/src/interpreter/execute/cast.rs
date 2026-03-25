@@ -2,12 +2,12 @@ use super::*;
 
 /// Handle cast operation.
 pub(crate) fn handle_cast(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::Cast {
+    let InstructionData::Cast {
         dest,
         op,
         arg,
@@ -22,12 +22,7 @@ pub(crate) fn handle_cast(
 
     // execute cast
     let cast_type = type_id(*to_type);
-    let result = match operator::execute_cast(
-        &state.interpreter.isolate.image.tree,
-        *op,
-        argument,
-        cast_type,
-    ) {
+    let result = match operator::execute_cast(state.tree(), *op, argument, cast_type) {
         Ok(value) => value,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -41,12 +36,12 @@ pub(crate) fn handle_cast(
 
 /// Handle select operation.
 pub(crate) fn handle_select(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::Select {
+    let InstructionData::Select {
         dest,
         condition,
         then_value,

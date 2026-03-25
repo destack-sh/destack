@@ -1,26 +1,17 @@
 use destack_vm::{
-    Frame, ManagedReference, RawPointer, StackPointer, ThreadedBlock, ThreadedFunction,
-    ThreadedInstruction, ThreadedState, Value,
+    Continuation, Executable, Frame, Interpreter, Isolate, ManagedReference, RawPointer,
+    StackPointer, Value,
 };
 
 fn main() {
+    println!("Executable: {} bytes", std::mem::size_of::<Executable>());
+    println!("Isolate: {} bytes", std::mem::size_of::<Isolate>());
+    println!("Interpreter: {} bytes", std::mem::size_of::<Interpreter>());
+    println!(
+        "Continuation: {} bytes",
+        std::mem::size_of::<Continuation>()
+    );
     println!("Frame: {} bytes", std::mem::size_of::<Frame>());
-    println!(
-        "ThreadedBlock: {} bytes",
-        std::mem::size_of::<ThreadedBlock>()
-    );
-    println!(
-        "ThreadedFunction: {} bytes",
-        std::mem::size_of::<ThreadedFunction>()
-    );
-    println!(
-        "ThreadedInstruction: {} bytes",
-        std::mem::size_of::<ThreadedInstruction>()
-    );
-    println!(
-        "ThreadedState: {} bytes",
-        std::mem::size_of::<ThreadedState<'_, '_>>()
-    );
 
     println!("Value: {} bytes", std::mem::size_of::<Value>());
     println!(
