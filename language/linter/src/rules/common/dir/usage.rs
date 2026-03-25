@@ -272,7 +272,7 @@ impl NodeVisitor for ReadSymbolCollector {
 }
 
 /// Return true when one expression reference is consumed in a read context.
-fn expression_reference_is_read(
+pub fn expression_reference_is_read(
     tree: &dir::NodeTree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
