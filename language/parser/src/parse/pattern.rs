@@ -179,7 +179,7 @@ impl Parser {
             }
             // path or identifier
             else {
-                let (path, first_span, last_span) = self
+                let (path, segment_spans, last_span) = self
                     .eat_path_with_endpoint_spans()
                     .for_node_type(NodeType::Pattern)?;
                 // tuple with path
@@ -196,7 +196,7 @@ impl Parser {
                         },
                         self.get_span_from(&start),
                     );
-                    self.set_path_expression_spans(expression_id, first_span, last_span);
+                    self.set_path_expression_spans(expression_id, &segment_spans);
                     let pattern = Pattern::TaggedTuple {
                         ty: expression_id,
                         fields,
@@ -218,7 +218,7 @@ impl Parser {
                         },
                         self.get_span_from(&start),
                     );
-                    self.set_path_expression_spans(ty_id, first_span, last_span);
+                    self.set_path_expression_spans(ty_id, &segment_spans);
                     let pattern = Pattern::TaggedObject { ty: ty_id, fields };
                     self.eat_token(TokenType::CloseBrace)?;
                     self.insert_node(pattern, self.get_span_from(&start))
@@ -232,7 +232,7 @@ impl Parser {
                         },
                         self.get_span_from(&start),
                     );
-                    self.set_path_expression_spans(expression_id, first_span, last_span);
+                    self.set_path_expression_spans(expression_id, &segment_spans);
                     self.insert_node(
                         Pattern::Expression {
                             value: expression_id,
