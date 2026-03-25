@@ -1,6 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::expression_starts_nested_declaration_scope;
 use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
 
 declare_lint! {
@@ -74,6 +75,11 @@ fn is_nested_in_switch(
     while let Some(parent_raw_id) = ctx.parents.get_by_id(current) {
         let parent_type = ctx.tree.get_node_type(parent_raw_id);
 
+        // stop at method and static-block owners
+        if matches!(parent_type, ast::NodeType::Member | ast::NodeType::Property) {
+            return false;
+        }
+
         // skip non-expression nodes
         if parent_type != ast::NodeType::Expression {
             current = parent_raw_id;
@@ -82,6 +88,11 @@ fn is_nested_in_switch(
 
         let parent_id = ast::LocalNodeId::<ast::Expression>::new(parent_raw_id);
         let parent = ctx.tree.get(parent_id);
+
+        // stop once a nested declaration introduces a new callable scope
+        if expression_starts_nested_declaration_scope(parent) {
+            return false;
+        }
 
         // check if parent is a switch statement
         if let ast::Expression::Match { kind, .. } = parent

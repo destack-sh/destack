@@ -32,19 +32,58 @@ impl LintRule for NoUnusedExpressions {
         // resolve lint metadata
         let meta = self.meta();
 
-        // inspect module root statement candidates
-        for statement_expression_id in ctx.roots {
-            check_statement_candidate(ctx, meta, *statement_expression_id);
-        }
-
-        // inspect statement candidates inside each block body
-        for block_id in ctx.tree.iter_nodes::<ast::Block>() {
-            let block = ctx.tree.get(block_id);
-            for statement_expression_id in &block.expressions {
-                check_statement_candidate(ctx, meta, *statement_expression_id);
-            }
+        // inspect every statement-expression candidate in the module
+        for statement_expression_id in collect_statement_expression_ids(ctx) {
+            check_statement_candidate(ctx, meta, statement_expression_id);
         }
     }
+}
+
+/// One owner of a statement-expression list.
+#[derive(Debug, Copy, Clone)]
+enum StatementListOwner {
+    /// Module root expressions.
+    Module,
+    /// Block body expressions.
+    Block(ast::LocalNodeId<ast::Block>),
+    /// Namespace or global declaration expressions.
+    Declaration(ast::LocalNodeId<ast::Declaration>),
+}
+
+/// Collect every statement-expression candidate in one module.
+fn collect_statement_expression_ids(
+    ctx: &LintAstContext<'_>,
+) -> Vec<ast::LocalNodeId<ast::Expression>> {
+    let mut statement_expression_ids = Vec::new();
+
+    // module roots
+    for statement_expression_id in ctx.roots {
+        statement_expression_ids.push(*statement_expression_id);
+    }
+
+    // block statement lists
+    for block_id in ctx.tree.iter_nodes::<ast::Block>() {
+        let block = ctx.tree.get(block_id);
+        for statement_expression_id in &block.expressions {
+            statement_expression_ids.push(*statement_expression_id);
+        }
+    }
+
+    // namespace and global statement lists
+    for declaration_id in ctx.tree.iter_nodes::<ast::Declaration>() {
+        let declaration = ctx.tree.get(declaration_id);
+        let (ast::Declaration::Global { expressions, .. }
+        | ast::Declaration::Namespace { expressions, .. }) = declaration
+        else {
+            continue;
+        };
+
+        for statement_expression_id in expressions {
+            statement_expression_ids.push(*statement_expression_id);
+        }
+    }
+
+    statement_expression_ids
 }
 
 /// Check one root or block expression as a statement candidate.
@@ -114,33 +153,28 @@ fn expression_statement_is_directive(
     statement_expression_id: ast::LocalNodeId<ast::Expression>,
     inner_expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
-    // directives are string literals only
-    let inner_expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, inner_expression_id);
-    let inner_expression = ctx.tree.get(inner_expression_id);
-    if !matches!(
-        inner_expression,
-        ast::Expression::ScalarLiteral(ast::ScalarLiteral::String(_))
-    ) {
+    // allow strict parity callers to disable directive handling
+    if !ctx.options.no_unused_expressions_ignore_directives {
         return false;
     }
 
-    // allow directives at module scope
-    if let Some(statement_index) = expression_index_in_slice(ctx.roots, statement_expression_id) {
-        return expression_prefix_is_all_directives(ctx, &ctx.roots[..statement_index]);
+    // directives are string literals only
+    if !expression_is_string_literal_statement(ctx, inner_expression_id) {
+        return false;
     }
 
-    // allow directives in function and method block bodies
-    let Some((block_id, statement_index)) =
-        enclosing_block_statement_index(ctx, statement_expression_id)
+    // resolve the surrounding statement list and its prefix
+    let Some((owner, statement_index)) =
+        statement_list_owner_and_index(ctx, statement_expression_id)
     else {
         return false;
     };
-    if !block_is_directive_capable(ctx, block_id) {
+    if !statement_list_owner_is_directive_capable(ctx, owner) {
         return false;
     }
 
-    let block = ctx.tree.get(block_id);
-    expression_prefix_is_all_directives(ctx, &block.expressions[..statement_index])
+    let expressions = statement_list_owner_expressions(ctx, owner);
+    expression_prefix_is_all_directives(ctx, &expressions[..statement_index])
 }
 
 /// Return true when all statement expressions in one prefix are directive literals.
@@ -153,17 +187,88 @@ fn expression_prefix_is_all_directives(
         let Some(inner_expression_id) = statement_expression_inner_id(ctx, *expression_id) else {
             return false;
         };
-        let inner_expression_id =
-            expression_unwrap_parenthesized_syntax(ctx.tree, inner_expression_id);
-        matches!(
-            ctx.tree.get(inner_expression_id),
-            ast::Expression::ScalarLiteral(ast::ScalarLiteral::String(_))
-        )
+
+        expression_is_string_literal_statement(ctx, inner_expression_id)
     })
 }
 
+/// Return true when one expression is a string literal statement payload.
+fn expression_is_string_literal_statement(
+    ctx: &LintAstContext<'_>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    let expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, expression_id);
+    matches!(
+        ctx.tree.get(expression_id),
+        ast::Expression::ScalarLiteral(ast::ScalarLiteral::String(_))
+    )
+}
+
+/// Return the surrounding statement list owner and one statement index.
+fn statement_list_owner_and_index(
+    ctx: &LintAstContext<'_>,
+    statement_expression_id: ast::LocalNodeId<ast::Expression>,
+) -> Option<(StatementListOwner, usize)> {
+    // module roots
+    if let Some(statement_index) = expression_index_in_slice(ctx.roots, statement_expression_id) {
+        return Some((StatementListOwner::Module, statement_index));
+    }
+
+    // block bodies
+    if let Some((block_id, statement_index)) =
+        block_statement_list_index(ctx, statement_expression_id)
+    {
+        return Some((StatementListOwner::Block(block_id), statement_index));
+    }
+
+    // namespace and global bodies
+    if let Some((declaration_id, statement_index)) =
+        declaration_statement_list_index(ctx, statement_expression_id)
+    {
+        return Some((
+            StatementListOwner::Declaration(declaration_id),
+            statement_index,
+        ));
+    }
+
+    None
+}
+
+/// Return the expression slice for one statement list owner.
+fn statement_list_owner_expressions<'a>(
+    ctx: &'a LintAstContext<'a>,
+    owner: StatementListOwner,
+) -> &'a [ast::LocalNodeId<ast::Expression>] {
+    match owner {
+        StatementListOwner::Module => &ctx.roots,
+        StatementListOwner::Block(block_id) => &ctx.tree.get(block_id).expressions,
+        StatementListOwner::Declaration(declaration_id) => {
+            let declaration = ctx.tree.get(declaration_id);
+            match declaration {
+                ast::Declaration::Global { expressions, .. }
+                | ast::Declaration::Namespace { expressions, .. } => expressions.as_slice(),
+                _ => &[],
+            }
+        }
+    }
+}
+
+/// Return true when one statement list owner can host directives.
+fn statement_list_owner_is_directive_capable(
+    ctx: &LintAstContext<'_>,
+    owner: StatementListOwner,
+) -> bool {
+    match owner {
+        StatementListOwner::Module => true,
+        StatementListOwner::Block(block_id) => {
+            block_statement_list_is_directive_capable(ctx, block_id)
+        }
+        StatementListOwner::Declaration(_) => true,
+    }
+}
+
 /// Return block id and statement index when one statement belongs to one block body.
-fn enclosing_block_statement_index(
+fn block_statement_list_index(
     ctx: &LintAstContext<'_>,
     statement_expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<(ast::LocalNodeId<ast::Block>, usize)> {
@@ -179,8 +284,31 @@ fn enclosing_block_statement_index(
     Some((block_id, statement_index))
 }
 
+/// Return declaration id and statement index when one statement belongs to one declaration body.
+fn declaration_statement_list_index(
+    ctx: &LintAstContext<'_>,
+    statement_expression_id: ast::LocalNodeId<ast::Expression>,
+) -> Option<(ast::LocalNodeId<ast::Declaration>, usize)> {
+    // require a declaration parent for namespace and global bodies
+    let declaration_id = ctx.parents.get(statement_expression_id)?;
+    if ctx.tree.get_node_type(declaration_id) != ast::NodeType::Declaration {
+        return None;
+    }
+
+    let declaration_id = ast::LocalNodeId::<ast::Declaration>::new(declaration_id);
+    let declaration = ctx.tree.get(declaration_id);
+    let expressions = match declaration {
+        ast::Declaration::Global { expressions, .. }
+        | ast::Declaration::Namespace { expressions, .. } => expressions.as_slice(),
+        _ => return None,
+    };
+    let statement_index = expression_index_in_slice(expressions, statement_expression_id)?;
+
+    Some((declaration_id, statement_index))
+}
+
 /// Return true when one block can host a directive prologue.
-fn block_is_directive_capable(
+fn block_statement_list_is_directive_capable(
     ctx: &LintAstContext<'_>,
     block_id: ast::LocalNodeId<ast::Block>,
 ) -> bool {
@@ -250,47 +378,104 @@ fn expression_is_disallowed_in_statement(
     ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
-    // normalize parenthesized wrappers first
-    let expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, expression_id);
+    // normalize transparent wrappers first
+    let expression_id = statement_expression_subject_id(ctx, expression_id);
     let expression = ctx.tree.get(expression_id);
 
-    // recursion wrappers around expression statements
-    if let ast::Expression::Statement(inner_expression_id) = expression {
-        return expression_is_disallowed_in_statement(ctx, *inner_expression_id);
-    }
-    if let ast::Expression::Must { left, .. } | ast::Expression::Maybe { left, .. } = expression {
-        return expression_is_disallowed_in_statement(ctx, *left);
-    }
-    if let ast::Expression::Instantiation { left, .. } = expression {
-        return expression_is_disallowed_in_statement(ctx, *left);
-    }
-    if let ast::Expression::TypeUnary { right, .. } = expression {
-        return expression_is_disallowed_in_statement(ctx, *right);
-    }
-    if let ast::Expression::ReferenceOf { right, .. }
-    | ast::Expression::ValueOf { right, .. }
-    | ast::Expression::PointerOf { right, .. } = expression
-    {
-        return expression_is_disallowed_in_statement(ctx, *right);
+    // handle the option-sensitive upstream special cases first
+    if let Some(is_disallowed) = expression_disallowed_by_rule_options(ctx, expression) {
+        return is_disallowed;
     }
 
-    // eslint semantics: delete and void are allowed statements
-    if let ast::Expression::Delete { .. } = expression {
+    // handle the obvious effectful statement families
+    if expression_is_known_effectful_statement(expression) {
         return false;
     }
-    if let ast::Expression::Unary { operator, .. } = expression {
-        return !matches!(
+
+    // handle the obvious pure statement families
+    if expression_is_known_pure_statement(expression) {
+        return true;
+    }
+
+    // fall back to semantic side-effect analysis for the rest
+    !expression_has_side_effects(ctx, expression_id)
+}
+
+/// Return the effective subject expression for statement classification.
+fn statement_expression_subject_id(
+    ctx: &LintAstContext<'_>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> ast::LocalNodeId<ast::Expression> {
+    let mut current_expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, expression_id);
+
+    loop {
+        let current_expression = ctx.tree.get(current_expression_id);
+        match current_expression {
+            ast::Expression::Statement(inner_expression_id) => {
+                current_expression_id =
+                    expression_unwrap_parenthesized_syntax(ctx.tree, *inner_expression_id);
+            }
+            ast::Expression::Must { left, .. } | ast::Expression::Maybe { left, .. } => {
+                current_expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, *left);
+            }
+            ast::Expression::Instantiation { left, .. } => {
+                current_expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, *left);
+            }
+            ast::Expression::TypeUnary { right, .. }
+            | ast::Expression::ReferenceOf { right, .. }
+            | ast::Expression::ValueOf { right, .. }
+            | ast::Expression::PointerOf { right, .. } => {
+                current_expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, *right);
+            }
+            _ => return current_expression_id,
+        }
+    }
+}
+
+/// Return one option-sensitive classification result when the rule has a special case.
+fn expression_disallowed_by_rule_options(
+    ctx: &LintAstContext<'_>,
+    expression: &ast::Expression,
+) -> Option<bool> {
+    match expression {
+        ast::Expression::Delete { .. } => Some(false),
+        ast::Expression::TaggedTemplateExpression { .. } => {
+            Some(!ctx.options.no_unused_expressions_allow_tagged_templates)
+        }
+        ast::Expression::TreeExpression { .. } => {
+            Some(ctx.options.no_unused_expressions_enforce_for_jsx)
+        }
+        ast::Expression::If {
+            kind: ast::IfKind::Ternary,
+            then_expression,
+            else_expression: Some(else_expression),
+            ..
+        } if ctx.options.no_unused_expressions_allow_ternary => Some(
+            expression_is_disallowed_in_statement(ctx, *then_expression)
+                || expression_is_disallowed_in_statement(ctx, *else_expression),
+        ),
+        ast::Expression::Binary {
+            operator, right, ..
+        } if ctx.options.no_unused_expressions_allow_short_circuit
+            && matches!(operator, ast::BinaryOperator::And | ast::BinaryOperator::Or) =>
+        {
+            Some(expression_is_disallowed_in_statement(ctx, *right))
+        }
+        ast::Expression::Unary { operator, .. } => Some(!matches!(
             operator,
             UnaryOperator::PreIncrement
                 | UnaryOperator::PostIncrement
                 | UnaryOperator::PreDecrement
                 | UnaryOperator::PostDecrement
                 | UnaryOperator::Void
-        );
+        )),
+        _ => None,
     }
+}
 
-    // known side effectful expression statements
-    if matches!(
+/// Return true when one expression family is obviously effectful in statement position.
+fn expression_is_known_effectful_statement(expression: &ast::Expression) -> bool {
+    matches!(
         expression,
         ast::Expression::Call { .. }
             | ast::Expression::Assign { .. }
@@ -320,12 +505,12 @@ fn expression_is_disallowed_in_statement(
             | ast::Expression::Debugger
             | ast::Expression::Error
             | ast::Expression::Stub
-    ) {
-        return false;
-    }
+    )
+}
 
-    // known disallowed pure expression statement families
-    if matches!(
+/// Return true when one expression family is obviously pure in statement position.
+fn expression_is_known_pure_statement(expression: &ast::Expression) -> bool {
+    matches!(
         expression,
         ast::Expression::Path { .. }
             | ast::Expression::Member { .. }
@@ -345,19 +530,12 @@ fn expression_is_disallowed_in_statement(
             | ast::Expression::ArrayExpression { .. }
             | ast::Expression::TupleExpression { .. }
             | ast::Expression::ObjectExpression { .. }
-            | ast::Expression::TreeExpression { .. }
             | ast::Expression::SequenceExpression { .. }
             | ast::Expression::TemplateExpression { .. }
-            | ast::Expression::TaggedTemplateExpression { .. }
             | ast::Expression::PrivateIdentifier { .. }
             | ast::Expression::This
             | ast::Expression::Super
-    ) {
-        return true;
-    }
-
-    // fallback for unknown shapes: flag when side effects are absent
-    !expression_has_side_effects(ctx, expression_id)
+    )
 }
 
 /// Return index of one expression id in one expression slice.

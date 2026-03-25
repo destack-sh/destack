@@ -2,10 +2,11 @@ use destack_ast::{
     self as ast, Expression, LocalNodeId, NodeTree, NodeVisitor, NodeVisitorOptions,
     walk_expression, walk_member, walk_property,
 };
+use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    CallableOwnerId, expression_starts_nested_declaration_scope,
+    CallableOwnerId, callable_owner_span, expression_starts_nested_declaration_scope,
     expression_unwrap_statement_syntax, for_each_callable_signature,
 };
 use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
@@ -39,6 +40,7 @@ impl LintRule for MaxStatements {
         // resolve lint metadata and threshold
         let meta = self.meta();
         let max_statements = ctx.options.max_statements;
+        let mut pending_top_level_violations = Vec::new();
 
         // check all callable owners that have a body expression
         for_each_callable_signature(ctx.tree, |owner_id, _signature, body_id| {
@@ -50,6 +52,14 @@ impl LintRule for MaxStatements {
             // count statements in this callable body, excluding nested callables
             let statement_count = count_callable_statements(ctx.tree, body_id);
             if statement_count <= max_statements {
+                return;
+            }
+
+            // mirror eslint here: defer a single top-level function violation
+            if ctx.options.max_statements_ignore_top_level_functions
+                && callable_owner_is_top_level_function(ctx.tree, owner_id)
+            {
+                pending_top_level_violations.push((owner_id, body_id, statement_count));
                 return;
             }
 
@@ -91,7 +101,110 @@ impl LintRule for MaxStatements {
                 );
             }
         });
+
+        // eslint ignores exactly one top-level function, not every top-level function
+        if pending_top_level_violations.len() == 1 {
+            return;
+        }
+
+        for (owner_id, body_id, statement_count) in pending_top_level_violations {
+            match owner_id {
+                CallableOwnerId::Declaration(declaration_id) => {
+                    report_statement_limit_violation(
+                        ctx,
+                        meta,
+                        declaration_id,
+                        body_id,
+                        statement_count,
+                        max_statements,
+                    );
+                }
+                CallableOwnerId::Member(member_id) => {
+                    report_statement_limit_violation(
+                        ctx,
+                        meta,
+                        member_id,
+                        body_id,
+                        statement_count,
+                        max_statements,
+                    );
+                }
+                CallableOwnerId::Property(property_id) => {
+                    report_statement_limit_violation(
+                        ctx,
+                        meta,
+                        property_id,
+                        body_id,
+                        statement_count,
+                        max_statements,
+                    );
+                }
+            }
+        }
     }
+}
+
+/// Return true when one callable owner is a top-level function.
+fn callable_owner_is_top_level_function(tree: &NodeTree, owner_id: CallableOwnerId) -> bool {
+    let owner_span = callable_owner_span(tree, owner_id);
+    !callable_is_nested_in_enclosing_scope(tree, owner_span)
+}
+
+/// Return true when one callable span is nested inside another callable-like scope.
+fn callable_is_nested_in_enclosing_scope(tree: &NodeTree, owner_span: Span) -> bool {
+    // nested function declarations
+    for enclosing_declaration_id in tree.iter_nodes::<ast::Declaration>() {
+        let enclosing_declaration = tree.get(enclosing_declaration_id);
+        if !matches!(enclosing_declaration, ast::Declaration::Function { .. }) {
+            continue;
+        }
+
+        let enclosing_span = tree.get_span(enclosing_declaration_id);
+        if span_strictly_contains(enclosing_span, owner_span) {
+            return true;
+        }
+    }
+
+    // class methods and static or comptime blocks
+    for member_id in tree.iter_nodes::<ast::Member>() {
+        let member = tree.get(member_id);
+        if !matches!(
+            member,
+            ast::Member::Method { .. }
+                | ast::Member::StaticBlock { .. }
+                | ast::Member::ComptimeBlock { .. }
+        ) {
+            continue;
+        }
+
+        let enclosing_span = tree.get_span(member_id);
+        if span_strictly_contains(enclosing_span, owner_span) {
+            return true;
+        }
+    }
+
+    // object methods
+    for property_id in tree.iter_nodes::<ast::Property>() {
+        let property = tree.get(property_id);
+        if !matches!(property, ast::Property::Method { .. }) {
+            continue;
+        }
+
+        let enclosing_span = tree.get_span(property_id);
+        if span_strictly_contains(enclosing_span, owner_span) {
+            return true;
+        }
+    }
+
+    false
+}
+
+/// Return true when one span strictly contains another span.
+fn span_strictly_contains(outer: Span, inner: Span) -> bool {
+    outer.file == inner.file
+        && outer.start <= inner.start
+        && inner.end <= outer.end
+        && outer != inner
 }
 
 /// Count statements for one callable body while skipping nested callable scopes.

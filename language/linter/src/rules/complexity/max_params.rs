@@ -1,5 +1,5 @@
 use destack_ast as ast;
-use destack_workspace::LintSeverity;
+use destack_workspace::{LintSeverity, MaxParamsCountThis};
 
 use crate::rules::common::{
     CallableOwnerId, ThisParameterCount, for_each_callable_signature,
@@ -36,15 +36,17 @@ impl LintRule for MaxParams {
         // resolve lint metadata and threshold
         let meta = self.meta();
         let max_params = ctx.options.max_params;
+        let this_parameter_count = match ctx.options.max_params_count_this {
+            MaxParamsCountThis::Never => ThisParameterCount::Never,
+            MaxParamsCountThis::ExceptVoid => ThisParameterCount::ExceptVoid,
+            MaxParamsCountThis::Always => ThisParameterCount::Always,
+        };
 
         // check all callable signatures in declarations, methods, and properties
         for_each_callable_signature(ctx.tree, |owner_id, signature, _body| {
-            // match eslint max-params default this counting: except-void
-            let parameter_count = function_signature_parameter_count(
-                ctx.tree,
-                signature,
-                ThisParameterCount::ExceptVoid,
-            );
+            // keep this-parameter counting aligned with the configured option
+            let parameter_count =
+                function_signature_parameter_count(ctx.tree, signature, this_parameter_count);
             if parameter_count <= max_params {
                 return;
             }

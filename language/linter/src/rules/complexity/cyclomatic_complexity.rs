@@ -3,7 +3,7 @@ use destack_ast::{
     MatchKind, NodeTree, NodeVisitor, NodeVisitorOptions, PatternField, walk_expression,
     walk_parameter, walk_pattern_field,
 };
-use destack_workspace::LintSeverity;
+use destack_workspace::{CyclomaticComplexityVariant, LintSeverity};
 
 use crate::rules::common::{
     expression_starts_nested_declaration_scope, parameter_default_expression_id,
@@ -48,6 +48,7 @@ impl LintRule for CyclomaticComplexity {
         // resolve one shared max-threshold and lint meta
         let meta = self.meta();
         let max_complexity = ctx.options.max_cyclomatic_complexity;
+        let variant = ctx.options.cyclomatic_complexity_variant;
 
         // check function declarations
         for declaration_id in ctx.tree.iter_nodes::<ast::Declaration>() {
@@ -69,6 +70,29 @@ impl LintRule for CyclomaticComplexity {
                 *body_id,
                 Some(signature),
                 max_complexity,
+                variant,
+            );
+        }
+
+        // check class field initializers as implicit function bodies
+        for member_id in ctx.tree.iter_nodes::<ast::Member>() {
+            let member = ctx.tree.get(member_id);
+            let ast::Member::Field {
+                default: Some(body_id),
+                ..
+            } = member
+            else {
+                continue;
+            };
+
+            report_body_complexity(
+                ctx,
+                meta,
+                member_id,
+                *body_id,
+                None,
+                max_complexity,
+                variant,
             );
         }
 
@@ -85,7 +109,15 @@ impl LintRule for CyclomaticComplexity {
                 _ => continue,
             };
 
-            report_body_complexity(ctx, meta, member_id, body_id, signature, max_complexity);
+            report_body_complexity(
+                ctx,
+                meta,
+                member_id,
+                body_id,
+                signature,
+                max_complexity,
+                variant,
+            );
         }
     }
 }
@@ -98,12 +130,14 @@ fn report_body_complexity<T: ast::Node>(
     body_expression_id: LocalNodeId<Expression>,
     signature: Option<&FunctionSignature>,
     max_complexity: usize,
+    variant: CyclomaticComplexityVariant,
 ) {
     // calculate body complexity from one root expression
     let mut visitor = ComplexityVisitor {
         options: NodeVisitorOptions::default(),
         complexity: 1,
         root_expression_id: body_expression_id,
+        variant,
     };
 
     // account for parameter defaults as assignment-pattern branches
@@ -154,6 +188,8 @@ struct ComplexityVisitor {
     complexity: usize,
     /// Root body expression for this callable.
     root_expression_id: LocalNodeId<Expression>,
+    /// Switch counting variant.
+    variant: CyclomaticComplexityVariant,
 }
 
 impl NodeVisitor for ComplexityVisitor {
@@ -184,7 +220,7 @@ impl NodeVisitor for ComplexityVisitor {
                 self.complexity += 1;
             }
             Expression::Match { kind, cases, .. } => {
-                self.complexity += match_case_complexity(tree, *kind, cases);
+                self.complexity += match_case_complexity(tree, *kind, cases, self.variant);
             }
             Expression::Try {
                 catch_expression, ..
