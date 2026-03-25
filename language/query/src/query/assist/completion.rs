@@ -8,13 +8,12 @@ use destack_dir::{self as dir, FloatType, IntType, SymbolSpace, SymbolType};
 use destack_source::{Edit, FileId, FileType, ModuleId, PackageId, PathExt, Uri};
 use serde::{Deserialize, Serialize};
 
-use super::context::{CompletionContext, ContextResult, detect_completion_context};
 use crate::common::{
-    ImportEditMode, MemberInfo, MemberKind, MemberName, build_import_display_path,
-    build_import_edits_with_mode, doc_text_for_symbol, dynamic_parameter_names,
-    get_canonical_symbol, get_module_by_file_id, matches_import_clause_space_filter,
-    matches_symbol_space_filter, module_name_from_path, owned_scope_for_symbol,
-    path_component_count, path_distance, program_for_file, query_context,
+    CompletionContext, ContextResult, ImportEditMode, MemberInfo, MemberKind, MemberName,
+    build_import_display_path, build_import_edits_with_mode, current_initializer_binding_names,
+    detect_completion_context, doc_text_for_symbol, dynamic_parameter_names, get_canonical_symbol,
+    get_module_by_file_id, matches_import_clause_space_filter, matches_symbol_space_filter,
+    module_name_from_path, path_component_count, path_distance, program_for_file, query_context,
     resolve_extension_members_for_symbol, resolve_reference_members, resolve_type_members,
     score_completion, search_importable_symbols_for_program, visible_symbols,
 };
@@ -614,6 +613,7 @@ fn complete_auto_imports_with_visibility(
     space_filter: Option<SymbolSpace>,
     scope_id: Option<dir::LocalScopeId>,
     scope_mark: Option<dir::LocalScopeMark>,
+    excluded_labels: &HashSet<String>,
     allow_short_prefix: bool,
 ) -> Vec<Completion> {
     // build auto import completions
@@ -625,6 +625,11 @@ fn complete_auto_imports_with_visibility(
         collect_visible_names(session, file_id, scope_id, scope_mark, space_filter)
     {
         completions.retain(|item| !visible_names.contains(item.label.as_str()));
+    }
+
+    // exclude names that are currently being introduced by one initializer
+    if !excluded_labels.is_empty() {
+        completions.retain(|item| !excluded_labels.contains(&item.label));
     }
 
     completions
@@ -867,6 +872,11 @@ pub fn completions(
 ) -> Vec<Completion> {
     // detect completion context
     let ContextResult { context, token } = detect_completion_context(session, file, offset);
+    let excluded_labels = if context_uses_initializer_exclusions(&context) {
+        completion_excluded_labels(session, file, offset)
+    } else {
+        HashSet::new()
+    };
     let prefix = token.as_ref().map(|t| t.text.as_str()).unwrap_or("");
     let allow_short_prefix = matches!(trigger, CompletionTrigger::Invoked);
 
@@ -886,7 +896,14 @@ pub fn completions(
         CompletionContext::ValuePosition {
             scope_id,
             scope_mark,
-        } => complete_values(session, file, *scope_id, *scope_mark, false),
+        } => complete_values(
+            session,
+            file,
+            *scope_id,
+            *scope_mark,
+            &excluded_labels,
+            false,
+        ),
 
         CompletionContext::StatementPosition {
             scope_id,
@@ -896,11 +913,12 @@ pub fn completions(
             file,
             *scope_id,
             *scope_mark,
+            &excluded_labels,
             matches!(trigger, CompletionTrigger::Invoked),
         ),
 
         CompletionContext::ObjectLiteral {
-            expected_type,
+            contextual_type,
             existing_fields,
             scope_id,
             scope_mark,
@@ -908,23 +926,38 @@ pub fn completions(
         } => complete_object_literal(
             session,
             file,
-            *expected_type,
+            *contextual_type,
             existing_fields,
             *scope_id,
             *scope_mark,
+            &excluded_labels,
         ),
         CompletionContext::ObjectLiteralValue {
             scope_id,
             scope_mark,
-        } => complete_values(session, file, *scope_id, *scope_mark, false),
+        } => complete_values(
+            session,
+            file,
+            *scope_id,
+            *scope_mark,
+            &excluded_labels,
+            false,
+        ),
         CompletionContext::CallArgument {
             scope_id,
             scope_mark,
-        } => complete_values(session, file, *scope_id, *scope_mark, false),
+        } => complete_values(
+            session,
+            file,
+            *scope_id,
+            *scope_mark,
+            &excluded_labels,
+            false,
+        ),
         CompletionContext::NewExpression {
             scope_id,
             scope_mark,
-        } => complete_new_expression(session, file, *scope_id, *scope_mark),
+        } => complete_new_expression(session, file, *scope_id, *scope_mark, &excluded_labels),
 
         CompletionContext::ImportPath { partial_path } => {
             complete_import_paths(session, file, partial_path)
@@ -954,6 +987,7 @@ pub fn completions(
             Some(space_filter),
             scope_id,
             scope_mark,
+            &excluded_labels,
             allow_short_prefix,
         );
 
@@ -967,6 +1001,36 @@ pub fn completions(
 
     // apply fuzzy matching to filter and rank results
     filter_and_rank_completions(results, token.as_ref())
+}
+
+/// Check whether a completion context should exclude initializer bindings.
+fn context_uses_initializer_exclusions(context: &CompletionContext) -> bool {
+    matches!(
+        context,
+        CompletionContext::ValuePosition { .. }
+            | CompletionContext::StatementPosition { .. }
+            | CompletionContext::ObjectLiteral { .. }
+            | CompletionContext::ObjectLiteralValue { .. }
+            | CompletionContext::CallArgument { .. }
+            | CompletionContext::NewExpression { .. }
+    )
+}
+
+/// Collect completion labels excluded at one cursor offset.
+fn completion_excluded_labels(session: &Session, file: FileId, offset: u32) -> HashSet<String> {
+    let Some(module) = get_module_by_file_id(session, file) else {
+        return HashSet::new();
+    };
+    let module = module.as_ref();
+    let Some(ctx) = query_context(session, module) else {
+        return HashSet::new();
+    };
+
+    // exclude bindings from their own initializer completions
+    current_initializer_binding_names(&ctx, offset)
+        .into_iter()
+        .map(|name| ctx.ast.strings.get(name).to_string())
+        .collect()
 }
 
 /// Complete members of a type (after `.`).
@@ -1028,77 +1092,8 @@ fn complete_members(
         }
     }
 
-    // declaration-directed path
+    // extension members for the receiver symbol
     if let Some(symbol_id) = receiver_symbol {
-        let symbol_module = session.modules.get(symbol_id.module_id);
-        let symbol_module = symbol_module.as_ref();
-        let Some(symbol_ctx) = query_context(session, symbol_module) else {
-            return Vec::new();
-        };
-        let mut scoped_results = {
-            let symbols = symbol_ctx.symbols();
-            let types = symbol_ctx.types();
-            let receiver_symbol = symbols.get_symbol(symbol_id.local_id);
-            let is_enum_receiver = receiver_symbol.ty == SymbolType::Enum;
-            let mut scoped_results = Vec::new();
-
-            // get the scope owned by this symbol (for types like struct/class)
-            if let Some(owned_scope_id) = owned_scope_for_symbol(symbols, symbol_id.local_id) {
-                let scope = symbols.get_scope_by_id(owned_scope_id);
-
-                // add all named symbols in the scope as member completions
-                for (key, member_id) in symbols.active_named_symbols(scope) {
-                    if let dir::StaticKey::Name(name_id) = key {
-                        let member_symbol = symbols.get_symbol(member_id);
-                        let name = session.strings.get(name_id).to_string();
-                        let kind = if is_enum_receiver {
-                            CompletionKind::EnumMember
-                        } else {
-                            CompletionKind::from(member_symbol.ty)
-                        };
-
-                        let mut completion =
-                            Completion::new(name, kind).with_sort_order(SORT_LOCAL_SYMBOL);
-                        let member_symbol_id = dir::GlobalSymbolId {
-                            module_id: symbol_id.module_id,
-                            local_id: member_id,
-                        };
-
-                        // add type detail from primary declaration
-                        let declaration = member_symbol.primary_declaration;
-                        if let Some(declaration) = declaration {
-                            let type_id = types.get_declared_or_inferred_type_id(declaration);
-                            if let Some(type_id) = type_id {
-                                let type_text = format_local_type(
-                                    type_id,
-                                    &ctx.artifacts,
-                                    types,
-                                    &session.modules,
-                                    &session.strings,
-                                );
-                                completion = completion.with_detail(type_text);
-                            }
-                        }
-
-                        // fall back to generic detail for functions
-                        if completion.detail.is_none() && member_symbol.ty == SymbolType::Function {
-                            completion = completion.with_detail("method");
-                        }
-
-                        // attach declaration documentation for the member symbol
-                        completion =
-                            attach_completion_documentation(session, completion, member_symbol_id);
-
-                        scoped_results.push(completion);
-                    }
-                }
-            }
-
-            scoped_results
-        };
-        results.append(&mut scoped_results);
-
-        // merge extension members for this symbol
         let extension_members =
             resolve_extension_members_for_symbol(session, symbol_id, current_module_id);
         let mut seen_names: HashSet<String> = results
@@ -1128,17 +1123,18 @@ fn complete_members(
 fn complete_object_literal(
     session: &Session,
     file: FileId,
-    expected_type: Option<dir::LocalTypeId>,
+    contextual_type: Option<dir::LocalTypeId>,
     existing_fields: &[String],
     scope_id: Option<dir::LocalScopeId>,
     scope_mark: Option<dir::LocalScopeMark>,
+    excluded_labels: &HashSet<String>,
 ) -> Vec<Completion> {
     // prepare the completion buffer and scope name tracking
     let mut results = Vec::new();
     let mut seen_names = HashSet::new();
 
-    // if we have an expected type, suggest its fields
-    if let Some(type_id) = expected_type {
+    // if we have one contextual type, suggest its fields
+    if let Some(type_id) = contextual_type {
         let Some(module) = get_module_by_file_id(session, file) else {
             return results;
         };
@@ -1209,6 +1205,11 @@ fn complete_object_literal(
             };
 
             let name = session.strings.get(name_id).to_string();
+
+            // exclude bindings that are still being introduced here
+            if excluded_labels.contains(&name) {
+                continue;
+            }
 
             // dedupe against names already emitted from expected type fields
             if !seen_names.insert(name.clone()) {
@@ -1434,6 +1435,7 @@ fn complete_values(
     file: FileId,
     scope_id: Option<dir::LocalScopeId>,
     scope_mark: Option<dir::LocalScopeMark>,
+    excluded_labels: &HashSet<String>,
     include_keywords: bool,
 ) -> Vec<Completion> {
     // get module AST/DIR
@@ -1465,6 +1467,10 @@ fn complete_values(
             };
 
             let name = session.strings.get(name_id).to_string();
+            if excluded_labels.contains(&name) {
+                continue;
+            }
+
             if !seen_names.insert(name.clone()) {
                 continue;
             }
@@ -1517,6 +1523,7 @@ fn complete_new_expression(
     file: FileId,
     scope_id: Option<dir::LocalScopeId>,
     scope_mark: Option<dir::LocalScopeMark>,
+    excluded_labels: &HashSet<String>,
 ) -> Vec<Completion> {
     // resolve the module and query context
     let Some(module) = get_module_by_file_id(session, file) else {
@@ -1548,6 +1555,10 @@ fn complete_new_expression(
 
             // skip duplicate names
             let name = session.strings.get(name_id).to_string();
+            if excluded_labels.contains(&name) {
+                continue;
+            }
+
             if !seen.insert(name.clone()) {
                 continue;
             }
@@ -1580,6 +1591,10 @@ fn complete_new_expression(
                 continue;
             };
             let name = session.strings.get(name_id).to_string();
+            if excluded_labels.contains(&name) {
+                continue;
+            }
+
             if !seen.insert(name.clone()) {
                 continue;
             }
@@ -1594,29 +1609,6 @@ fn complete_new_expression(
             let completion = attach_completion_documentation(session, completion, symbol_id);
 
             results.push(completion);
-        }
-    }
-
-    // source-driven support for incomplete new expressions
-    if results.is_empty() {
-        let mut seen = HashSet::new();
-        for declaration_id in ctx.ast_context().tree().iter_nodes::<ast::Declaration>() {
-            let declaration = ctx.ast_context().tree().get(declaration_id);
-            let kind = match declaration {
-                ast::Declaration::Class { .. } => CompletionKind::Class,
-                ast::Declaration::Struct { .. } => CompletionKind::Struct,
-                _ => continue,
-            };
-
-            let Some(name) = declaration.name() else {
-                continue;
-            };
-            let name = ctx.ast_context().strings().get(name.string()).to_string();
-            if !seen.insert(name.clone()) {
-                continue;
-            }
-
-            results.push(Completion::new(name, kind).with_sort_order(SORT_LOCAL_SYMBOL));
         }
     }
 

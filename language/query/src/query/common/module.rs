@@ -87,69 +87,39 @@ pub fn get_module_exports_maybe(
     session: &Session,
     module_id: ModuleId,
 ) -> Option<Vec<ExportedSymbol>> {
-    // get module AST and DIR
+    // get module AST and resolved DIR
     let module = session.modules.get(module_id);
     let module = module.as_ref();
     let ctx = query_context(session, module)?;
     let module_path = module_path_for_import(module);
-    let symbols = ctx.symbols();
 
     // initialize export collection
     let mut exports = Vec::new();
 
-    // prefer the resolved export table when it has entries
+    // collect exported symbols from the resolved export table
     let exported_symbols = &ctx.dir_resolved().exported_symbols;
+    for ((space, key), export) in exported_symbols.iter() {
+        let StaticKey::Name(string_id) = *key else {
+            continue;
+        };
 
-    if !exported_symbols.is_empty() {
-        // collect exported symbols from the export table
-        for ((space, key), export) in exported_symbols.iter() {
-            let StaticKey::Name(string_id) = *key else {
-                continue;
-            };
+        let Some(target_symbol) = export.target.resolved() else {
+            continue;
+        };
 
-            let Some(target_symbol) = export.target.resolved() else {
-                continue;
-            };
+        let Some(kind) = resolve_export_symbol_type(session, target_symbol) else {
+            continue;
+        };
 
-            let name = session.strings.get(string_id).to_string();
-            let kind =
-                resolve_export_symbol_type(session, target_symbol).unwrap_or(SymbolType::Void);
-
-            exports.push(ExportedSymbol {
-                name,
-                kind,
-                space: *space,
-                module_id,
-                local_id: target_symbol.local_id,
-                module_path: module_path.clone(),
-            });
-        }
-    } else {
-        // collect exported symbols from local symbol metadata
-        for (idx, symbol) in symbols.symbols().enumerate() {
-            // skip non exported symbols
-            if symbol.export.is_none() {
-                continue;
-            }
-
-            // resolve the symbol name
-            let Some(string_id) = symbol.name() else {
-                continue;
-            };
-
-            let name = session.strings.get(string_id).to_string();
-            let local_id = dir::LocalSymbolId::new_typed(idx as u32, symbol.ty);
-
-            // record the export entry
-            exports.push(ExportedSymbol {
-                name,
-                kind: symbol.ty,
-                space: symbol.space,
-                module_id,
-                local_id,
-                module_path: module_path.clone(),
-            });
-        }
+        let name = session.strings.get(string_id).to_string();
+        exports.push(ExportedSymbol {
+            name,
+            kind,
+            space: *space,
+            module_id,
+            local_id: target_symbol.local_id,
+            module_path: module_path.clone(),
+        });
     }
 
     // return the collected exports

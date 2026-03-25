@@ -2,11 +2,11 @@ use destack_ast::StringPool;
 use destack_dir as dir;
 use destack_dir::{
     Declaration, DynamicKey, GlobalSymbolId, LocalSymbolId, LocalTypeId, Member, ScalarLiteral,
-    StaticKey, SymbolSpace, SymbolTable, SymbolType, Type, TypeTable, WellKnownSymbol,
+    StaticKey, SymbolTable, SymbolType, Type, TypeTable, WellKnownSymbol,
 };
 use destack_source::ModuleId;
 
-use super::{for_each_visible_extension, owned_scope_for_symbol, query_context};
+use super::{for_each_visible_extension, query_context};
 use destack_workspace::Session;
 
 /// Maximum recursion depth for type member resolution.
@@ -343,7 +343,7 @@ pub(crate) fn resolve_reference_members(
     members
 }
 
-/// Resolve members from a local symbol by finding its instance type or owned scope.
+/// Resolve members from a local symbol by using its recorded instance type.
 fn resolve_local_symbol_members(
     symbol_id: LocalSymbolId,
     types: &TypeTable,
@@ -425,52 +425,6 @@ fn resolve_local_symbol_members(
         }
     }
 
-    // secondary path: use the owned scope when no instance type exists
-    let Some(owned_scope_id) = owned_scope_for_symbol(symbols, symbol_id) else {
-        return members;
-    };
-
-    let scope = symbols.get_scope_by_id(owned_scope_id);
-
-    // collect named members from the scope
-    for (key, member_id) in symbols.active_named_symbols(scope) {
-        let member_symbol = symbols.get_symbol(member_id);
-
-        // only include value space symbols (methods, fields)
-        if member_symbol.space != SymbolSpace::Value
-            && member_symbol.space != SymbolSpace::TypeValue
-        {
-            continue;
-        }
-
-        // determine member kind based on parent type and member type
-        let kind = if is_enum {
-            MemberKind::EnumMember
-        } else if member_symbol.ty == SymbolType::Function {
-            MemberKind::Method
-        } else {
-            MemberKind::Field
-        };
-
-        // get type from primary declaration
-        let type_id = member_symbol
-            .primary_declaration
-            .and_then(|decl| types.get_declared_or_inferred_type_id(decl));
-
-        members.push(MemberInfo {
-            name: static_key_to_member_name(&key, strings),
-            type_id,
-            kind,
-            is_optional: false, // would need to check declaration
-            is_readonly: false, // would need to check declaration
-            symbol_id: Some(GlobalSymbolId {
-                module_id,
-                local_id: member_id,
-            }),
-        });
-    }
-
-    // return the collected members
     members
 }
 

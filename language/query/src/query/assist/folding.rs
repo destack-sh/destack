@@ -137,7 +137,7 @@ fn folding_ranges_with_dir(session: &Session, file: FileId) -> Option<Vec<Foldin
         }
 
         // collect folding ranges for comment blocks
-        add_comment_folding_ranges(&mut ranges, &ctx.ast_context().side_tokens(), &source_file);
+        add_comment_folding_ranges(&mut ranges, ctx.ast_context().side_tokens(), &source_file);
 
         // sort ranges by start and end line
         ranges.sort_by_key(|range| (range.start_line, range.end_line));

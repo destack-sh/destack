@@ -1,27 +1,25 @@
+use std::collections::HashSet;
+
 use destack_core::StringId;
 use destack_dir::{
     Declaration, DependencyItem, DependencyMode, DynamicKey, EnumField, Expression, GlobalSymbolId,
     LocalNodeIdAny, LocalSymbolId, Member, NodeType, Parameter, Pattern, PatternField, SymbolSpace,
+    SymbolType,
 };
 use destack_source::{FileId, ModuleId, NodeSpanType, Span};
 use {destack_ast as ast, destack_dir as dir};
 
-use super::resolve::{
-    expression_is_type_position, global_symbol, resolve_expression_binding_symbol,
-    resolve_expression_symbol, resolve_namespace_path_receiver_symbol,
-    resolve_namespace_receiver_symbol, symbol_matches_space,
-};
+use super::expression::{expression_is_type_position, resolve_expression_symbol};
+use super::namespace::{resolve_namespace_receiver_symbol, resolve_path_segment_symbol};
 use super::{
     AstContext, DirResolvedContext, QueryContext, get_dir_node_main_span, get_dir_node_span,
     get_module_by_file_id, get_node_tree_main_span, get_node_tree_span, token_at_offset,
     token_span_at_offset, with_ast_and_dir_resolved_context_for_module,
+    with_dir_resolved_context_for_module,
 };
 use destack_workspace::Session;
 
-pub(crate) use super::resolve::{
-    matches_symbol_space_filter, owned_scope_for_symbol, resolve_member_access_symbol,
-    resolve_nominal_symbol_from_type_expression,
-};
+pub(crate) use super::nominal::resolve_member_access_symbol;
 
 /// Result of finding a symbol at an offset.
 #[derive(Debug, Clone)]
@@ -32,6 +30,87 @@ pub struct SymbolAtOffset {
     pub node_id: LocalNodeIdAny,
     /// The span of the reference.
     pub span: Span,
+}
+
+/// Check whether a symbol type participates in the type namespace.
+pub(crate) fn is_type_symbol(symbol_type: SymbolType) -> bool {
+    matches!(
+        symbol_type,
+        SymbolType::Class
+            | SymbolType::Struct
+            | SymbolType::Interface
+            | SymbolType::Enum
+            | SymbolType::TypeAlias
+            | SymbolType::Newtype
+    )
+}
+
+/// Check whether a symbol matches a requested symbol space filter.
+pub(crate) fn matches_symbol_space_filter(
+    symbol_type: SymbolType,
+    symbol_space: SymbolSpace,
+    filter: Option<SymbolSpace>,
+) -> bool {
+    let Some(filter) = filter else {
+        return true;
+    };
+
+    match filter {
+        SymbolSpace::Type => match symbol_space {
+            SymbolSpace::Type => true,
+            SymbolSpace::TypeValue => true,
+            _ => is_type_symbol(symbol_type),
+        },
+        SymbolSpace::Value => {
+            symbol_space == SymbolSpace::Value || symbol_space == SymbolSpace::TypeValue
+        }
+        SymbolSpace::TypeValue => symbol_space == SymbolSpace::TypeValue,
+        SymbolSpace::Label => symbol_space == SymbolSpace::Label,
+    }
+}
+
+/// Check whether a symbol matches an explicit import-clause space filter.
+pub(crate) fn matches_import_clause_space_filter(
+    symbol_type: SymbolType,
+    symbol_space: SymbolSpace,
+    filter: Option<SymbolSpace>,
+) -> bool {
+    let Some(filter) = filter else {
+        return true;
+    };
+
+    match filter {
+        SymbolSpace::Type => symbol_space == SymbolSpace::Type || is_type_symbol(symbol_type),
+        _ => matches_symbol_space_filter(symbol_type, symbol_space, Some(filter)),
+    }
+}
+
+/// Build a global symbol id from a module and local symbol id.
+pub(crate) fn global_symbol(module_id: ModuleId, local_id: LocalSymbolId) -> GlobalSymbolId {
+    GlobalSymbolId {
+        module_id,
+        local_id,
+    }
+}
+
+/// Check whether a symbol resolves in the requested symbol space.
+pub(crate) fn symbol_matches_space(
+    session: &Session,
+    symbol_id: GlobalSymbolId,
+    space: SymbolSpace,
+) -> bool {
+    let module = session.modules.get(symbol_id.module_id);
+    let module = module.as_ref();
+    with_dir_resolved_context_for_module(session, module, |ctx| {
+        if symbol_id.local_id.id >= ctx.symbols().symbol_count() {
+            return false;
+        }
+
+        let symbols = ctx.symbols();
+        let symbol = symbols.get_symbol(symbol_id.local_id);
+        matches_symbol_space_filter(symbol.ty, symbol.space, Some(space))
+    })
+    .unwrap_or(false)
 }
 
 /// Resolve the semantic target symbol used by semantic navigation queries.
@@ -63,7 +142,7 @@ pub(crate) fn semantic_target_symbol_at_offset(
 
 /// Resolve the member target for a receiver position inside one member access.
 fn member_access_target_symbol_at_offset(
-    session: &Session,
+    _session: &Session,
     ctx: &QueryContext<'_>,
     expression_id: dir::LocalNodeId<Expression>,
     offset: u32,
@@ -72,12 +151,11 @@ fn member_access_target_symbol_at_offset(
     let expression = dir_tree.get::<Expression>(expression_id);
 
     // prefer the current member expression when the cursor is on its receiver
-    if let Expression::Member { left, name, .. } = expression
+    if let Expression::Member { .. } = expression
         && let Some(name_span) = get_member_access_name_span(ctx, expression_id)
         && offset < name_span.start
     {
-        let name = (*name)?;
-        return resolve_member_access_symbol(session, ctx, expression_id, *left, name);
+        return resolve_member_access_symbol(ctx, expression_id);
     }
 
     // otherwise lift the current expression into its enclosing member receiver slot
@@ -88,7 +166,7 @@ fn member_access_target_symbol_at_offset(
 
     let parent_expression_id = parent.try_into().ok()?;
     let parent_expression = dir_tree.get::<Expression>(parent_expression_id);
-    let Expression::Member { left, name, .. } = parent_expression else {
+    let Expression::Member { left, .. } = parent_expression else {
         return None;
     };
     if *left != expression_id {
@@ -100,8 +178,7 @@ fn member_access_target_symbol_at_offset(
         return None;
     }
 
-    let name = (*name)?;
-    resolve_member_access_symbol(session, ctx, parent_expression_id, *left, name)
+    resolve_member_access_symbol(ctx, parent_expression_id)
 }
 
 /// Resolve the local binding symbol used by declaration style queries.
@@ -120,11 +197,9 @@ pub(crate) fn binding_symbol_at_offset(
     let module = module.as_ref();
     let ctx = crate::query_context(session, module)?;
 
-    // preserve namespace path receivers as their local binding symbols
-    if let Some(span) = get_namespace_path_receiver_span(session, &ctx, expression_id)
-        && span.contains(offset)
-    {
-        return resolve_namespace_path_receiver_symbol(&ctx, expression_id);
+    // preserve plain path segments as their local binding symbols
+    if let Some(result) = path_segment_symbol_at_offset(session, &ctx, expression_id, offset) {
+        return Some(result.symbol_id);
     }
 
     // preserve namespace member receivers as their local binding symbols
@@ -135,7 +210,7 @@ pub(crate) fn binding_symbol_at_offset(
         return resolve_namespace_receiver_symbol(&ctx, *left);
     }
 
-    resolve_expression_binding_symbol(&ctx, expression_id)
+    resolve_expression_symbol(&ctx, expression_id)
 }
 
 /// Find the symbol referenced at a given offset.
@@ -357,28 +432,24 @@ fn find_symbol_at_offset_impl(
                         (*left).into(),
                     ) && offset >= left_span.start
                         && offset <= left_span.end
+                        && let Some(target_symbol) = resolve_namespace_receiver_symbol(&ctx, *left)
                     {
-                        if let Some(target_symbol) = resolve_namespace_receiver_symbol(&ctx, *left)
-                        {
-                            return Some(SymbolAtOffset {
-                                symbol_id: target_symbol,
-                                node_id: (*left).into(),
-                                span: left_span,
-                            });
-                        }
+                        return Some(SymbolAtOffset {
+                            symbol_id: target_symbol,
+                            node_id: (*left).into(),
+                            span: left_span,
+                        });
                     }
                 }
 
-                // resolve namespace path receivers before falling back to full path targets
-                if let Some(result) =
-                    namespace_path_receiver_symbol_at_offset(session, &ctx, expr_id, offset)
+                // resolve plain path segments before falling back to full path targets
+                if let Some(result) = path_segment_symbol_at_offset(session, &ctx, expr_id, offset)
                 {
                     return Some(result);
                 }
 
                 if !skip_expression_target_symbol
-                    && let Some(target_symbol) = resolve_expression_binding_symbol(&ctx, expr_id)
-                        .or_else(|| resolve_expression_symbol(&ctx, expr_id))
+                    && let Some(target_symbol) = resolve_expression_symbol(&ctx, expr_id)
                 {
                     let span = get_dir_node_main_span(
                         ctx.ast_context(),
@@ -632,8 +703,9 @@ fn find_symbol_at_offset_impl(
                     .get_side_span_by_id(ast_node_id, NodeSpanType::Main)
                     .map(|span| Span::new(ctx.file_id, span.start, span.end))
                     && offset_matches_symbol_span(offset, alias_side_span)
-                    && let Some(symbol_id) =
-                        resolve_dependency_item_symbol(session, &ctx, item, false)
+                    && let Some(symbol_id) = item
+                        .symbol()
+                        .map(|symbol_id| global_symbol(ctx.module_id, symbol_id))
                 {
                     return Some(SymbolAtOffset {
                         symbol_id,
@@ -648,8 +720,7 @@ fn find_symbol_at_offset_impl(
                     .get_side_span_by_id(ast_node_id, NodeSpanType::Type)
                     .map(|span| Span::new(ctx.file_id, span.start, span.end))
                     && offset_matches_symbol_span(offset, name_side_span)
-                    && let Some(symbol_id) =
-                        resolve_dependency_item_symbol(session, &ctx, item, true)
+                    && let Some(symbol_id) = item.target_symbol()
                 {
                     return Some(SymbolAtOffset {
                         symbol_id,
@@ -658,7 +729,9 @@ fn find_symbol_at_offset_impl(
                     });
                 }
 
-                let Some(symbol_id) = resolve_dependency_item_symbol(session, &ctx, item, false)
+                let Some(symbol_id) = item
+                    .symbol()
+                    .map(|symbol_id| global_symbol(ctx.module_id, symbol_id))
                 else {
                     continue;
                 };
@@ -700,24 +773,34 @@ fn find_symbol_at_offset_impl(
     None
 }
 
-/// Resolve a namespace path receiver symbol when the cursor is on the leading segment.
-fn namespace_path_receiver_symbol_at_offset(
-    session: &Session,
+/// Resolve one plain path segment symbol when the cursor is on that segment.
+fn path_segment_symbol_at_offset(
+    _session: &Session,
     ctx: &QueryContext<'_>,
     expression_id: dir::LocalNodeId<Expression>,
     offset: u32,
 ) -> Option<SymbolAtOffset> {
-    let symbol_id = resolve_namespace_path_receiver_symbol(ctx, expression_id)?;
-    let span = get_namespace_path_receiver_span(session, ctx, expression_id)?;
-    if !offset_matches_symbol_span(offset, span) {
-        return None;
+    let segment_count = path_segment_count(ctx.tree().get::<Expression>(expression_id))?;
+
+    // choose the exact path segment under the cursor
+    for segment_index in 0..segment_count {
+        let segment_index =
+            u16::try_from(segment_index).expect("path segment offset index overflow");
+
+        let span = get_path_segment_span(ctx, expression_id, segment_index)?;
+        if !offset_matches_symbol_span(offset, span) {
+            continue;
+        }
+
+        let symbol_id = resolve_path_segment_symbol(ctx, expression_id, segment_index)?;
+        return Some(SymbolAtOffset {
+            symbol_id,
+            node_id: expression_id.into(),
+            span,
+        });
     }
 
-    Some(SymbolAtOffset {
-        symbol_id,
-        node_id: expression_id.into(),
-        span,
-    })
+    None
 }
 
 /// Resolve one symbol from a type-position expression that covers the cursor.
@@ -752,12 +835,8 @@ fn type_expression_symbol_at_offset(
 
         let expression = dir_tree.get::<Expression>(expression_id);
         let symbol_id = match expression {
-            Expression::Member { left, name, .. } => {
-                let name = (*name)?;
-                resolve_member_access_symbol(session, ctx, expression_id, *left, name)
-            }
-            _ => resolve_expression_binding_symbol(ctx, expression_id)
-                .or_else(|| resolve_expression_symbol(ctx, expression_id)),
+            Expression::Member { .. } => resolve_member_access_symbol(ctx, expression_id),
+            _ => resolve_expression_symbol(ctx, expression_id),
         }?;
 
         let span = match expression {
@@ -777,11 +856,11 @@ fn type_expression_symbol_at_offset(
     None
 }
 
-/// Resolve the first identifier span inside a multi segment path expression.
-pub(crate) fn get_namespace_path_receiver_span(
-    session: &Session,
+/// Resolve one path segment span inside a plain multi segment path expression.
+pub(crate) fn get_path_segment_span(
     ctx: &QueryContext<'_>,
     expression_id: dir::LocalNodeId<Expression>,
+    segment_index: u16,
 ) -> Option<Span> {
     let expression = ctx.tree().get::<Expression>(expression_id);
     let path = match expression {
@@ -792,73 +871,30 @@ pub(crate) fn get_namespace_path_receiver_span(
         _ => return None,
     };
 
-    if path.segments.len() < 2 {
+    if usize::from(segment_index) >= path.segments.len() {
         return None;
     }
 
-    let expression_span = get_dir_node_span(
-        ctx.ast_context(),
-        ctx.dir_analyzed_context(),
-        expression_id.into(),
-    )
-    .or_else(|| {
-        get_dir_node_main_span(
-            ctx.ast_context(),
-            ctx.dir_analyzed_context(),
-            expression_id.into(),
-        )
-    })?;
+    let source_id = ctx.tree().get_source(expression_id.id);
+    let span = ctx
+        .ast_context()
+        .tree()
+        .get_side_span_by_id(source_id, NodeSpanType::Segment(segment_index))?;
 
-    first_identifier_span_in_expression(session, ctx, expression_span)
+    Some(Span::new(ctx.file_id, span.start, span.end))
 }
 
-/// Resolve the first identifier token span inside an expression span.
-fn first_identifier_span_in_expression(
-    _session: &Session,
-    ctx: &QueryContext<'_>,
-    expression_span: Span,
-) -> Option<Span> {
-    let ast = ctx.ast_context();
+/// Return the number of segments in one plain path expression.
+fn path_segment_count(expression: &Expression) -> Option<usize> {
+    let path = match expression {
+        Expression::UnresolvedPath { path, .. }
+        | Expression::LocalReference { path, .. }
+        | Expression::ModuleReference { path, .. }
+        | Expression::GlobalReference { path, .. } => path,
+        _ => return None,
+    };
 
-    for token in ast.tokens() {
-        if token.span.file != ctx.file_id {
-            continue;
-        }
-        if token.token.ty != ast::TokenType::Identifier {
-            continue;
-        }
-        if token.span.start < expression_span.start || token.span.end > expression_span.end {
-            continue;
-        }
-
-        return Some(token.span);
-    }
-
-    None
-}
-
-/// Resolve a dependency item symbol for either local alias or imported name contexts.
-fn resolve_dependency_item_symbol(
-    _session: &Session,
-    ctx: &QueryContext<'_>,
-    item: &DependencyItem,
-    prefer_target_symbol: bool,
-) -> Option<GlobalSymbolId> {
-    // prefer direct target symbols when requested
-    if prefer_target_symbol && let Some(target_symbol) = item.target_symbol() {
-        return Some(target_symbol);
-    }
-
-    // resolve local symbols before target symbols for local alias contexts
-    if let Some(local_symbol) = item.symbol() {
-        return Some(global_symbol(ctx.module_id, local_symbol));
-    }
-    if let Some(target_symbol) = item.target_symbol() {
-        return Some(target_symbol);
-    }
-
-    // unresolved dependency items are treated as not-ready
-    None
+    (path.segments.len() > 1).then_some(path.segments.len())
 }
 
 /// Resolve a declaration symbol from a declaration modifier keyword.
@@ -1130,7 +1166,7 @@ fn member_symbol_at_offset(
     ctx: &QueryContext<'_>,
     expr_id: dir::LocalNodeId<Expression>,
     node_id: LocalNodeIdAny,
-    left: dir::LocalNodeId<Expression>,
+    _left: dir::LocalNodeId<Expression>,
     name: StringId,
     offset: u32,
 ) -> Option<SymbolAtOffset> {
@@ -1142,7 +1178,7 @@ fn member_symbol_at_offset(
     if let Some(token_span) = token_span {
         let token_name = source_file.span_str(token_span);
         if member_name == token_name {
-            let symbol_id = resolve_member_access_symbol(session, ctx, expr_id, left, name)?;
+            let symbol_id = resolve_member_access_symbol(ctx, expr_id)?;
 
             return Some(SymbolAtOffset {
                 symbol_id,
@@ -1164,7 +1200,7 @@ fn member_symbol_at_offset(
     }
 
     // resolve the member symbol id
-    let symbol_id = resolve_member_access_symbol(session, ctx, expr_id, left, name)?;
+    let symbol_id = resolve_member_access_symbol(ctx, expr_id)?;
 
     // return the resolved member symbol at the cursor
     Some(SymbolAtOffset {
@@ -1286,6 +1322,52 @@ pub fn get_canonical_symbol(session: &Session, symbol_id: GlobalSymbolId) -> Glo
 
     // return the original symbol id
     symbol_id
+}
+
+/// Check whether one symbol still refers to one target for reference queries.
+pub(crate) fn symbol_matches_reference_target(
+    session: &Session,
+    symbol_id: GlobalSymbolId,
+    target_symbol_id: GlobalSymbolId,
+) -> bool {
+    // accept direct identity first
+    if symbol_id == target_symbol_id {
+        return true;
+    }
+
+    // prefer canonical identity when it matches
+    if get_canonical_symbol(session, symbol_id) == target_symbol_id {
+        return true;
+    }
+
+    // follow explicit target edges for nominal imports that keep their own canonical symbol
+    let mut current_symbol = symbol_id;
+    let mut visited = HashSet::new();
+    while visited.insert(current_symbol) {
+        let module = session.modules.get(current_symbol.module_id);
+        let module = module.as_ref();
+        let Some(ctx) = crate::query_context(session, module) else {
+            return false;
+        };
+
+        let symbols = ctx.symbols();
+        let symbol = symbols.get_symbol(current_symbol.local_id);
+        let Some(target_symbol) = symbol.target_symbol else {
+            return false;
+        };
+
+        if target_symbol == target_symbol_id {
+            return true;
+        }
+
+        if get_canonical_symbol(session, target_symbol) == target_symbol_id {
+            return true;
+        }
+
+        current_symbol = target_symbol;
+    }
+
+    false
 }
 
 /// Resolve a symbol name string when possible.
@@ -1436,7 +1518,7 @@ pub(crate) fn collect_default_import_alias_symbols_for_export(
 
         let symbols_in_module = ctx.symbols();
         for symbol_index in 0..symbols_in_module.symbol_count() {
-            let local_symbol_id = LocalSymbolId::new(symbol_index as u32);
+            let local_symbol_id = LocalSymbolId::new(symbol_index);
             let symbol_id = dir::GlobalSymbolId::new(ctx.module_id, local_symbol_id);
             if symbol_id == canonical_id {
                 continue;
@@ -1552,7 +1634,6 @@ fn get_symbol_span_with(
     session: &Session,
     symbol_id: GlobalSymbolId,
     span_for_declaration: impl Fn(AstContext<'_>, &dir::NodeTree, LocalNodeIdAny) -> Option<Span> + Copy,
-    prefer_precise_member_name: bool,
 ) -> Option<Span> {
     with_resolved_symbol_context(session, symbol_id.module_id, |ast, resolved| {
         // read the symbol and follow the canonical chain
@@ -1575,42 +1656,23 @@ fn get_symbol_span_with(
             }
         };
         if canonical_id.module_id != symbol_id.module_id {
-            return get_symbol_span_with(
-                session,
-                canonical_id,
-                span_for_declaration,
-                prefer_precise_member_name,
-            );
+            return get_symbol_span_with(session, canonical_id, span_for_declaration);
         }
 
         // extract the desired span from the declaration node
         if let Some(declaration) = declaration {
-            if prefer_precise_member_name
-                && let Some(span) = precise_member_name_span_for_declaration(
-                    session,
-                    ast,
-                    resolved.tree(),
-                    declaration.local_id,
-                )
-            {
-                return Some(span);
-            }
-
             return span_for_declaration(ast, resolved.tree(), declaration.local_id);
         }
 
         // follow target symbols when the canonical symbol is an alias
         if let Some(target) = target_symbol {
-            return get_symbol_span_with(
-                session,
-                target,
-                span_for_declaration,
-                prefer_precise_member_name,
-            );
+            return get_symbol_span_with(session, target, span_for_declaration);
         }
 
-        // fall back to default or export assignment spans when present
-        fallback_export_span(ast, resolved, canonical_id, span_for_declaration)
+        let _ = ast;
+        let _ = canonical_id;
+
+        None
     })?
 }
 
@@ -1630,7 +1692,7 @@ fn with_resolved_symbol_context<T>(
 ///
 /// Returns the span of the symbol's primary declaration identifier.
 pub fn get_symbol_definition_span(session: &Session, symbol_id: GlobalSymbolId) -> Option<Span> {
-    get_symbol_span_with(session, symbol_id, get_node_tree_main_span, true)
+    get_symbol_span_with(session, symbol_id, get_node_tree_main_span)
 }
 
 /// Get the local definition span of a symbol without canonical expansion.
@@ -1648,21 +1710,15 @@ pub(crate) fn get_symbol_local_definition_span(
 
         // prefer the main declaration span and then full declaration span
         if let Some(declaration) = declaration {
-            if let Some(span) = precise_member_name_span_for_declaration(
-                session,
-                ast,
-                resolved.tree(),
-                declaration.local_id,
-            ) {
-                return Some(span);
-            }
-
             return get_node_tree_main_span(ast, resolved.tree(), declaration.local_id)
                 .or_else(|| get_node_tree_span(ast, resolved.tree(), declaration.local_id));
         }
 
-        // fall back to local export assignment style spans
-        fallback_export_span(ast, resolved, symbol_id, get_node_tree_main_span)
+        let _ = ast;
+        let _ = resolved;
+        let _ = symbol_id;
+
+        None
     })?
 }
 
@@ -1691,7 +1747,7 @@ pub(crate) fn type_definition_span_for_symbol(
             .is_some_and(|declaration| declaration.local_id.ty == NodeType::DependencyItem)
         {
             let target_symbol = dependency_item_target_symbol(session, resolved, symbol_id)?;
-            return get_symbol_span_with(session, target_symbol, get_node_tree_main_span, true);
+            return get_symbol_span_with(session, target_symbol, get_node_tree_main_span);
         }
 
         if !is_type_symbol {
@@ -1699,7 +1755,7 @@ pub(crate) fn type_definition_span_for_symbol(
         }
 
         // resolve the definition span for the type symbol
-        get_symbol_span_with(session, symbol_id, get_node_tree_main_span, true)
+        get_symbol_span_with(session, symbol_id, get_node_tree_main_span)
     })?
 }
 
@@ -1723,15 +1779,7 @@ fn dependency_item_target_symbol(
     let item_id = declaration.local_id.try_into().ok()?;
     let dir_tree = resolved.tree();
     let item = dir_tree.get::<DependencyItem>(item_id);
-    let target_symbol = item.target_symbol().or_else(|| {
-        let symbols = resolved.symbols();
-        let symbol = symbols.get_symbol(symbol_id.local_id);
-        symbol.target_symbol.or_else(|| {
-            symbol
-                .canonical_symbol
-                .filter(|canonical| *canonical != symbol_id)
-        })
-    })?;
+    let target_symbol = item.target_symbol()?;
 
     // require the target to participate in the type namespace
     if !symbol_matches_space(session, target_symbol, SymbolSpace::Type) {
@@ -1743,89 +1791,5 @@ fn dependency_item_target_symbol(
 
 /// Get the full declaration span of a symbol.
 pub fn get_symbol_declaration_span(session: &Session, symbol_id: GlobalSymbolId) -> Option<Span> {
-    get_symbol_span_with(session, symbol_id, get_node_tree_span, false)
-}
-
-/// Resolve the precise token span for a member declaration name.
-fn precise_member_name_span_for_declaration(
-    session: &Session,
-    ast: AstContext<'_>,
-    dir_tree: &dir::NodeTree,
-    declaration: LocalNodeIdAny,
-) -> Option<Span> {
-    if declaration.ty != NodeType::Member {
-        return None;
-    }
-
-    let member_id = declaration.try_into().ok()?;
-    let member = dir_tree.get::<Member>(member_id);
-    let expected_name = match member {
-        Member::Type { name, .. } | Member::ComptimeConst { name, .. } => {
-            session.strings.get(*name).to_string()
-        }
-        Member::Field { key, .. } | Member::Method { key, .. } => {
-            member_key_name(session, key.as_ref()?)?
-        }
-        _ => return None,
-    };
-
-    let declaration_span = get_node_tree_span(ast, dir_tree, declaration)?;
-    let source_file = session.files.get(ast.file_id);
-    for token in ast.tokens() {
-        if token.span.file != ast.file_id {
-            continue;
-        }
-
-        if token.span.start < declaration_span.start || token.span.end > declaration_span.end {
-            continue;
-        }
-
-        if token.token.ty != ast::TokenType::Identifier {
-            continue;
-        }
-
-        if source_file.span_str(token.span) == expected_name {
-            return Some(token.span);
-        }
-    }
-
-    None
-}
-
-/// Resolve fallback spans for default and export-assignment symbols.
-fn fallback_export_span(
-    ast: AstContext<'_>,
-    resolved: DirResolvedContext<'_>,
-    symbol_id: GlobalSymbolId,
-    span_for_declaration: impl Fn(AstContext<'_>, &dir::NodeTree, LocalNodeIdAny) -> Option<Span> + Copy,
-) -> Option<Span> {
-    // handle export assignment symbols
-    let is_export_assignment = symbol_id.local_id == resolved.dir.export_assignment_symbol;
-    if is_export_assignment {
-        let item_id = resolved.dir.export_assignment;
-        if let Some(item_id) = item_id {
-            return span_for_declaration(ast, resolved.tree(), item_id.into());
-        }
-    }
-
-    // skip when the symbol is not the default export
-    if symbol_id.local_id != resolved.dir.default_symbol {
-        return None;
-    }
-
-    // scan dependency items for default exports
-    let dir_tree = resolved.tree();
-    for item_id in dir_tree.iter_node_ids_of_type::<DependencyItem>() {
-        let DependencyItem::Value { mode, .. } = dir_tree.get(item_id) else {
-            continue;
-        };
-
-        if *mode != DependencyMode::Default {
-            continue;
-        }
-
-        return span_for_declaration(ast, resolved.tree(), item_id.into());
-    }
-
-    None
+    get_symbol_span_with(session, symbol_id, get_node_tree_span)
 }
