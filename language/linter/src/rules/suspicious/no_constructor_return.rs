@@ -110,7 +110,9 @@ fn no_constructor_return_fix(
     }
 
     // preserve evaluation order, then return bare
-    let replacement = format!("{{ ({value_text}); return; }}");
+    let replacement_value =
+        statement_safe_return_value_text(ctx, *value_expression_id, return_expression, value_text);
+    let replacement = format!("{{ {replacement_value}; return; }}");
     let edits = ctx
         .edit_builder()
         .replace(ctx.get_span(return_expression_id), replacement)
@@ -376,7 +378,7 @@ class Foo {
     constructor(shouldReturn: boolean) {
         if (shouldReturn) {
             {
-                (makeValue());
+                makeValue();
                 return;
             }
         }

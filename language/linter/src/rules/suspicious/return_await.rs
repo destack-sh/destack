@@ -266,7 +266,7 @@ fn check_return_value_expression(
                 .edit_builder()
                 .replace(ctx.get_span(await_expression_id), awaited_text)
                 .into_edits();
-            let fix = LintFix::safe("Remove await from non-promise return").with_edits(edits);
+            let fix = LintFix::suggestion("Remove await from non-promise return").with_edits(edits);
             diagnostic = diagnostic.with_fix(fix);
         }
 
@@ -308,7 +308,7 @@ fn check_return_value_expression(
                 .edit_builder()
                 .replace(return_value_span, replacement)
                 .into_edits();
-            let fix = LintFix::r#unsafe("Add await to returned promise").with_edits(edits);
+            let fix = LintFix::suggestion("Add await to returned promise").with_edits(edits);
             diagnostic = diagnostic.with_fix(fix);
         }
 
@@ -341,7 +341,7 @@ fn check_return_value_expression(
                 .edit_builder()
                 .replace(await_span, awaited_text)
                 .into_edits();
-            let fix = LintFix::safe("Remove redundant await in return").with_edits(edits);
+            let fix = LintFix::suggestion("Remove redundant await in return").with_edits(edits);
             diagnostic = diagnostic.with_fix(fix);
         }
 
@@ -563,7 +563,7 @@ async function fetchValue(): Promise<int32> {
         test.result(result)
             .assert_lint("return-await")
             .assert_has_fix("return-await")
-            .assert_safe_fixed(
+            .assert_suggested_fixed(
                 r#"
 async function load(): Promise<int32> {
     return fetchValue();
@@ -677,7 +677,7 @@ async function fetchValue(): Promise<int32> {
         test.result(result)
             .assert_lint("return-await")
             .assert_has_fix("return-await")
-            .assert_safe_fixed(
+            .assert_suggested_fixed(
                 r#"
 async function load(): Promise<int32> {
     return (fetchValue());
@@ -802,7 +802,7 @@ async function load(): Promise<int32> {
         );
         test.result(result)
             .assert_lint("return-await")
-            .assert_safe_fixed(
+            .assert_suggested_fixed(
                 r#"
 async function load(): Promise<int32> {
     return 1;

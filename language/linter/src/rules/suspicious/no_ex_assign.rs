@@ -1,7 +1,9 @@
 use destack_ast::{self as ast, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expression_is_unqualified_path_name;
+use crate::rules::common::{
+    expression_is_unqualified_path_name, expression_subtree_mentions_identifier_name,
+};
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
@@ -167,7 +169,7 @@ fn no_ex_assign_fix(
     }
 
     let catch_name_text = ctx.strings.get(catch_name).to_string();
-    let replacement_name = unique_catch_alias_name(ctx, &catch_name_text);
+    let replacement_name = unique_catch_alias_name(ctx, catch_expression_id, &catch_name_text);
     let replacement_text = format!("let {replacement_name} = {right_text}");
     let edits = ctx
         .edit_builder()
@@ -204,11 +206,15 @@ fn catch_name_is_used_after(
     false
 }
 
-/// Build a file local unique alias for one catch variable.
-fn unique_catch_alias_name(ctx: &LintAstContext<'_>, catch_name: &str) -> String {
+/// Build a catch-local unique alias for one catch variable.
+fn unique_catch_alias_name(
+    ctx: &LintAstContext<'_>,
+    catch_expression_id: ast::LocalNodeId<ast::Expression>,
+    catch_name: &str,
+) -> String {
     let base_name = format!("{catch_name}Reassigned");
     let base_name_id = ctx.strings.intern(&base_name);
-    if !identifier_name_exists_in_ast(ctx, base_name_id) {
+    if !expression_subtree_mentions_identifier_name(ctx.tree, catch_expression_id, base_name_id) {
         return base_name;
     }
 
@@ -216,7 +222,8 @@ fn unique_catch_alias_name(ctx: &LintAstContext<'_>, catch_name: &str) -> String
     loop {
         let candidate = format!("{base_name}{suffix}");
         let candidate_id = ctx.strings.intern(&candidate);
-        if !identifier_name_exists_in_ast(ctx, candidate_id) {
+        if !expression_subtree_mentions_identifier_name(ctx.tree, catch_expression_id, candidate_id)
+        {
             return candidate;
         }
         suffix += 1;
@@ -224,30 +231,6 @@ fn unique_catch_alias_name(ctx: &LintAstContext<'_>, catch_name: &str) -> String
             return base_name;
         }
     }
-}
-
-/// Return true when one identifier name appears in bindings or path references.
-fn identifier_name_exists_in_ast(ctx: &LintAstContext<'_>, name_id: ast::StringId) -> bool {
-    for pattern_id in ctx.tree.iter_nodes::<ast::Pattern>() {
-        let pattern = ctx.tree.get(pattern_id);
-        if let ast::Pattern::Binding { name, .. } = pattern
-            && *name == name_id
-        {
-            return true;
-        }
-    }
-
-    for expression_id in ctx.tree.iter_nodes::<ast::Expression>() {
-        let expression = ctx.tree.get(expression_id);
-        if let ast::Expression::Path { path, .. } = expression
-            && path.segments.len() == 1
-            && path.segments[0] == name_id
-        {
-            return true;
-        }
-    }
-
-    false
 }
 
 /// Collect assignment expressions that reassign one catch binding.
@@ -520,6 +503,36 @@ try {
 } catch (e) {
     let eReassigned = currentError();
     let eReassigned2 = computeError();
+}
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_keeps_base_alias_name_when_outer_name_is_unrelated() {
+        let test = TestProgram::for_rule_without_prelude(NoExAssign);
+        let diagnostics = test.lint_ast(
+            "no_ex_assign/test_fix_keeps_base_alias_name_when_outer_name_is_unrelated.ds",
+            r#"
+let eReassigned = previousError();
+
+try {
+    riskyOperation();
+} catch e {
+    e = computeError();
+}
+"#,
+        );
+        test.result(diagnostics)
+            .assert_lint("no-ex-assign")
+            .assert_unsafe_fixed(
+                r#"
+let eReassigned = previousError();
+
+try {
+    riskyOperation();
+} catch (e) {
+    let eReassigned = computeError();
 }
 "#,
             );

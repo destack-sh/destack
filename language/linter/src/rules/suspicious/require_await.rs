@@ -593,7 +593,7 @@ fn require_await_fix(ctx: &LintModuleDirContext<'_>, callable_span: Span) -> Opt
         .edit_builder()
         .replace(callable_span, replacement)
         .into_edits();
-    Some(LintFix::r#unsafe("Remove async keyword").with_edits(edits))
+    Some(LintFix::suggestion("Remove async keyword").with_edits(edits))
 }
 
 #[cfg(test)]
@@ -657,7 +657,7 @@ async function foo() {
         );
         test.result(result)
             .assert_lint("require-await")
-            .assert_unsafe_fixed(
+            .assert_suggested_fixed(
                 r#"
 function foo() {
     return 42;

@@ -1,7 +1,9 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::span_has_comment_trivia;
+use crate::rules::common::{
+    CallableOwnerId, callable_owner_span, for_each_callable_signature, span_has_comment_trivia,
+};
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
@@ -16,7 +18,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = Always,
+        fixable = Sometimes,
         recommended = Always,
         stability = Stable
     )]
@@ -32,48 +34,63 @@ impl LintRule for NoUselessReturn {
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
-        for node_id in ctx.tree.iter_nodes::<ast::Declaration>() {
-            let ast::Declaration::Function { body, .. } = ctx.tree.get(node_id) else {
-                continue;
+        // inspect all callable bodies consistently
+        for_each_callable_signature(ctx.tree, |owner_id, _signature, body_expression_id| {
+            let Some(body_id) = body_expression_id else {
+                return;
             };
 
-            let Some(body_id) = body else {
-                continue;
-            };
-
-            // check if the last statement is a bare return
-            if let Some(return_id) = get_trailing_bare_return(ctx, *body_id) {
-                let severity = ctx.get_effective_severity(meta, return_id);
-                if !severity.is_enabled() {
-                    continue;
-                }
-
-                let return_span = ctx.tree.get_span(return_id);
-                let mut diagnostic = LintDiagnostic::new(
-                    NO_USELESS_RETURN.id,
-                    NO_USELESS_RETURN.code,
-                    NO_USELESS_RETURN.category,
-                    severity,
-                    "useless return statement",
-                    ctx.module.file_id,
-                    return_span,
-                )
-                .with_label("this return is unnecessary");
-
-                // keep source parity: avoid deleting commented returns
-                if ctx.compute_fixes
-                    && !span_has_comment_trivia(ctx.tree, return_span)
-                    && !return_has_trailing_comment(ctx, return_span)
-                {
-                    let edits = ctx.edit_builder().delete(return_span).into_edits();
-                    let fix = LintFix::safe("Remove useless return").with_edits(edits);
-                    diagnostic = diagnostic.with_fix(fix);
-                }
-
-                ctx.report(diagnostic);
-            }
-        }
+            report_trailing_bare_return(ctx, meta, owner_id, body_id);
+        });
     }
+}
+
+/// Report one redundant trailing bare return inside a callable body.
+fn report_trailing_bare_return(
+    ctx: &mut LintAstContext<'_>,
+    meta: &'static crate::LintMeta,
+    owner_id: CallableOwnerId,
+    body_expression_id: ast::LocalNodeId<ast::Expression>,
+) {
+    // keep only bare returns at the end of the callable body
+    let Some(return_id) = get_trailing_bare_return(ctx, body_expression_id) else {
+        return;
+    };
+
+    let severity = match owner_id {
+        CallableOwnerId::Declaration(declaration_id) => {
+            ctx.get_effective_severity(meta, declaration_id)
+        }
+        CallableOwnerId::Member(member_id) => ctx.get_effective_severity(meta, member_id),
+        CallableOwnerId::Property(property_id) => ctx.get_effective_severity(meta, property_id),
+    };
+    if !severity.is_enabled() {
+        return;
+    }
+
+    let return_span = ctx.tree.get_span(return_id);
+    let mut diagnostic = LintDiagnostic::new(
+        NO_USELESS_RETURN.id,
+        NO_USELESS_RETURN.code,
+        NO_USELESS_RETURN.category,
+        severity,
+        "useless return statement",
+        ctx.module.file_id,
+        callable_owner_span(ctx.tree, owner_id),
+    )
+    .with_label("this return is unnecessary");
+
+    // keep source parity: avoid deleting commented returns
+    if ctx.compute_fixes
+        && !span_has_comment_trivia(ctx.tree, return_span)
+        && !return_has_trailing_comment(ctx, return_span)
+    {
+        let edits = ctx.edit_builder().delete(return_span).into_edits();
+        let fix = LintFix::safe("Remove useless return").with_edits(edits);
+        diagnostic = diagnostic.with_fix(fix);
+    }
+
+    ctx.report(diagnostic);
 }
 
 /// Return true when source text has a trailing comment after one return span.
@@ -221,5 +238,39 @@ function foo() {
         test.result(result)
             .assert_lint("no-useless-return")
             .assert_has_no_fix("no-useless-return");
+    }
+
+    #[test]
+    fn test_detects_bare_return_at_end_of_method() {
+        let test = TestProgram::for_rule_without_prelude(NoUselessReturn);
+        let result = test.lint_ast(
+            "no_useless_return/test_detects_bare_return_at_end_of_method.ds",
+            r#"
+class Foo {
+    run() {
+        bar()
+        return
+    }
+}
+"#,
+        );
+        test.result(result).assert_lint("no-useless-return");
+    }
+
+    #[test]
+    fn test_detects_bare_return_at_end_of_object_method() {
+        let test = TestProgram::for_rule_without_prelude(NoUselessReturn);
+        let result = test.lint_ast(
+            "no_useless_return/test_detects_bare_return_at_end_of_object_method.ds",
+            r#"
+const service = {
+    run() {
+        bar()
+        return
+    }
+}
+"#,
+        );
+        test.result(result).assert_lint("no-useless-return");
     }
 }

@@ -196,7 +196,7 @@ fn confusing_operator_fix(
         .edit_builder()
         .replace(left_span, replacement)
         .into_edits();
-    Some(LintFix::safe("Wrap left operand in parentheses").with_edits(edits))
+    Some(LintFix::suggestion("Wrap left operand in parentheses").with_edits(edits))
 }
 
 /// Report one optional chain confusion diagnostic for `foo!?.bar` forms.
@@ -436,7 +436,7 @@ if (a + b! == c) {
         );
         test.result(result)
             .assert_lint("no-confusing-non-null-assertion")
-            .assert_safe_fixed(
+            .assert_suggested_fixed(
                 r#"
 if ((a + b!) == c) {
     x()
@@ -456,7 +456,7 @@ a! = b
         );
         test.result(result)
             .assert_lint("no-confusing-non-null-assertion")
-            .assert_unsafe_fixed(
+            .assert_suggested_fixed(
                 r#"
 a = b;
 "#,

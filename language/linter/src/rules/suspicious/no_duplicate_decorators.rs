@@ -75,7 +75,8 @@ impl LintRule for NoDuplicateDecorators {
                     .with_label("this decorator is already applied with identical arguments");
                     if ctx.compute_fixes && !span_has_comment_trivia(ctx.tree, span) {
                         let fix_span = duplicate_decorator_fix_span(ctx, span);
-                        let fix = LintFix::safe("Remove duplicate decorator").delete(fix_span);
+                        let fix =
+                            LintFix::suggestion("Remove duplicate decorator").delete(fix_span);
                         diagnostic = diagnostic.with_fix(fix);
                     }
 
@@ -255,7 +256,7 @@ function foo() {}
         test.result(result)
             .assert_lint("no-duplicate-decorators")
             .assert_has_fix("no-duplicate-decorators")
-            .assert_safe_fixed(
+            .assert_suggested_fixed(
                 r#"
 @inline
 function foo() {}

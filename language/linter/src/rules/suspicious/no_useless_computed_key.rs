@@ -2,14 +2,14 @@ use destack_ast as ast;
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::span_has_comment_trivia;
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow unnecessary computed property keys in objects.
     ///
-    /// Using a computed key with a static string literal is unnecessary when the
-    /// string is a valid identifier. For example, `{["x"]: 1}` can be written as
-    /// `{x: 1}`.
+    /// Using a computed key with a static string or number literal is unnecessary
+    /// when direct property key syntax preserves the same behavior.
     #[lint(
         id = "no-useless-computed-key",
         code = "LU036",
@@ -17,7 +17,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = Always,
+        fixable = Sometimes,
         recommended = Always,
         stability = Stable
     )]
@@ -70,6 +70,7 @@ impl LintRule for NoUselessComputedKey {
 
             if ctx.compute_fixes
                 && let Some(key_span) = computed_key_bracket_span(ctx, *expr_id)
+                && !span_has_comment_trivia(ctx.tree, key_span)
             {
                 let edits = ctx
                     .edit_builder()
@@ -283,5 +284,19 @@ const obj = { ["foo"]: 1 }
 const obj = { "foo": 1 };
 "#,
             );
+    }
+
+    #[test]
+    fn test_has_no_fix_when_computed_key_contains_comment() {
+        let test = TestProgram::for_rule_without_prelude(NoUselessComputedKey);
+        let result = test.lint_ast(
+            "no_useless_computed_key/test_has_no_fix_when_computed_key_contains_comment.ds",
+            r#"
+const obj = { [/* keep */ "foo"]: 1 }
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-useless-computed-key")
+            .assert_has_no_fix("no-useless-computed-key");
     }
 }

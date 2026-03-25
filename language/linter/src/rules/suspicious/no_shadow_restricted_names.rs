@@ -5,7 +5,9 @@ use destack_builtin::LanguageSymbol;
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expression_is_unqualified_path_name;
+use crate::rules::common::{
+    expression_is_unqualified_path_name, is_simple_identifier, subtree_mentions_identifier_name,
+};
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
@@ -114,8 +116,7 @@ impl LintRule for NoShadowRestrictedNames {
             )
             .with_label(format!("'{name_str}' is a restricted name"));
             if ctx.compute_fixes
-                && let Some(fix) =
-                    no_shadow_restricted_names_fix(ctx, ctx.tree.get_span(node_id), name)
+                && let Some(fix) = no_shadow_restricted_names_fix_for_pattern(ctx, node_id, name)
             {
                 diagnostic = diagnostic.with_fix(fix);
             }
@@ -186,8 +187,7 @@ impl LintRule for NoShadowRestrictedNames {
             )
             .with_label(format!("'{name_str}' is a restricted name"));
             if ctx.compute_fixes
-                && let Some(fix) =
-                    no_shadow_restricted_names_fix(ctx, ctx.tree.get_span(node_id), name)
+                && let Some(fix) = no_shadow_restricted_names_fix_for_parameter(ctx, node_id, name)
             {
                 diagnostic = diagnostic.with_fix(fix);
             }
@@ -197,9 +197,28 @@ impl LintRule for NoShadowRestrictedNames {
     }
 }
 
-/// Build one suggestion rename fix when declaration is file-local and unreferenced.
+/// Build one suggestion rename fix for one pattern binding.
+fn no_shadow_restricted_names_fix_for_pattern(
+    ctx: &LintAstContext<'_>,
+    pattern_id: ast::LocalNodeId<ast::Pattern>,
+    name: ast::StringId,
+) -> Option<LintFix> {
+    no_shadow_restricted_names_fix(ctx, pattern_id.id, ctx.tree.get_span(pattern_id), name)
+}
+
+/// Build one suggestion rename fix for one parameter binding.
+fn no_shadow_restricted_names_fix_for_parameter(
+    ctx: &LintAstContext<'_>,
+    parameter_id: ast::LocalNodeId<ast::Parameter>,
+    name: ast::StringId,
+) -> Option<LintFix> {
+    no_shadow_restricted_names_fix(ctx, parameter_id.id, ctx.tree.get_span(parameter_id), name)
+}
+
+/// Build one suggestion rename fix when declaration is scope-local and unreferenced.
 fn no_shadow_restricted_names_fix(
     ctx: &LintAstContext<'_>,
+    node_id: u32,
     declaration_span: Span,
     name: ast::StringId,
 ) -> Option<LintFix> {
@@ -208,13 +227,16 @@ fn no_shadow_restricted_names_fix(
         return None;
     }
 
+    // resolve the relevant declaration scope once
+    let scope_root = identifier_scope_root(ctx, node_id);
+
     // keep declaration-only bindings to avoid unresolved references
-    if has_unqualified_path_reference(ctx, name) {
+    if scope_has_unqualified_path_reference(ctx, scope_root, name) {
         return None;
     }
 
-    let name_span = find_unique_identifier_span_in_span(ctx, declaration_span, &name_text)?;
-    let replacement_name = restricted_name_replacement(ctx, &name_text);
+    let name_span = exact_identifier_span(ctx, declaration_span, &name_text)?;
+    let replacement_name = restricted_name_replacement(ctx, scope_root, &name_text)?;
     let edits = ctx
         .edit_builder()
         .replace(name_span, replacement_name.clone())
@@ -225,87 +247,171 @@ fn no_shadow_restricted_names_fix(
     )
 }
 
-/// Build one replacement name for restricted identifiers.
-fn restricted_name_replacement(ctx: &LintAstContext<'_>, name: &str) -> String {
+/// Build one replacement name for restricted identifiers in the local declaration scope.
+fn restricted_name_replacement(
+    ctx: &LintAstContext<'_>,
+    scope_root: IdentifierScopeRoot,
+    name: &str,
+) -> Option<String> {
     let base_name = format!("{name}Local");
     let base_name_id = ctx.strings.intern(&base_name);
-    if !identifier_name_exists_in_ast(ctx, base_name_id) {
-        return base_name;
+    if !scope_mentions_identifier_name(ctx, scope_root, base_name_id) {
+        return Some(base_name);
     }
 
     let mut suffix = 2_u32;
     loop {
         let candidate = format!("{name}Local{suffix}");
         let candidate_id = ctx.strings.intern(&candidate);
-        if !identifier_name_exists_in_ast(ctx, candidate_id) {
-            return candidate;
+        if !scope_mentions_identifier_name(ctx, scope_root, candidate_id) {
+            return Some(candidate);
         }
         suffix += 1;
         if suffix > 1024 {
-            return base_name;
+            return Some(base_name);
         }
     }
 }
 
-/// Return true when one unqualified path references this identifier.
-fn has_unqualified_path_reference(ctx: &LintAstContext<'_>, name: ast::StringId) -> bool {
-    for expression_id in ctx.tree.iter_nodes::<ast::Expression>() {
-        if expression_is_unqualified_path_name(ctx.tree, expression_id, name) {
-            return true;
-        }
-    }
-
-    false
+/// One declaration scope root used for local rename suggestions.
+#[derive(Clone, Copy, Debug)]
+enum IdentifierScopeRoot {
+    /// The whole module scope.
+    Module,
+    /// One AST subtree root that establishes a declaration scope.
+    Node(ast::NodeType, u32),
 }
 
-/// Return true when this identifier name is already present in declarations or paths.
-fn identifier_name_exists_in_ast(ctx: &LintAstContext<'_>, name: ast::StringId) -> bool {
-    for pattern_id in ctx.tree.iter_nodes::<ast::Pattern>() {
-        let pattern = ctx.tree.get(pattern_id);
-        if let ast::Pattern::Binding {
-            name: binding_name, ..
-        } = pattern
-            && *binding_name == name
-        {
-            return true;
-        }
-    }
+/// Return the nearest declaration-scope subtree root for one identifier node.
+fn identifier_scope_root(ctx: &LintAstContext<'_>, node_id: u32) -> IdentifierScopeRoot {
+    let mut current_id = node_id;
 
-    for parameter_id in ctx.tree.iter_nodes::<ast::Parameter>() {
-        let parameter = ctx.tree.get(parameter_id);
-        match parameter {
-            ast::Parameter::Named {
-                name: parameter_name,
-                ..
+    loop {
+        let Some(parent_id) = ctx.parents.get_by_id(current_id) else {
+            return IdentifierScopeRoot::Module;
+        };
+        let parent_type = ctx.tree.get_node_type(parent_id);
+
+        // block bodies establish the local declaration scope
+        if parent_type == ast::NodeType::Block {
+            return IdentifierScopeRoot::Node(parent_type, parent_id);
+        }
+
+        // callable owners establish parameter and method scopes
+        if parent_type == ast::NodeType::Declaration {
+            let declaration = ctx
+                .tree
+                .get(ast::LocalNodeId::<ast::Declaration>::new(parent_id));
+            if matches!(declaration, ast::Declaration::Function { .. }) {
+                return IdentifierScopeRoot::Node(parent_type, parent_id);
             }
-            | ast::Parameter::VariadicNamed {
-                name: parameter_name,
-                ..
-            } if *parameter_name == name => {
-                return true;
+        }
+        if parent_type == ast::NodeType::Member {
+            let member = ctx
+                .tree
+                .get(ast::LocalNodeId::<ast::Member>::new(parent_id));
+            if matches!(member, ast::Member::Method { .. }) {
+                return IdentifierScopeRoot::Node(parent_type, parent_id);
             }
-            _ => {}
+        }
+        if parent_type == ast::NodeType::Property {
+            let property = ctx
+                .tree
+                .get(ast::LocalNodeId::<ast::Property>::new(parent_id));
+            if matches!(property, ast::Property::Method { .. }) {
+                return IdentifierScopeRoot::Node(parent_type, parent_id);
+            }
+        }
+
+        current_id = parent_id;
+    }
+}
+
+/// Return true when one scope subtree mentions one identifier name.
+fn scope_mentions_identifier_name(
+    ctx: &LintAstContext<'_>,
+    scope_root: IdentifierScopeRoot,
+    name: ast::StringId,
+) -> bool {
+    match scope_root {
+        IdentifierScopeRoot::Module => ctx.roots.iter().copied().any(|root_id| {
+            subtree_mentions_identifier_name(ctx.tree, ast::NodeType::Expression, root_id.id, name)
+        }),
+        IdentifierScopeRoot::Node(node_type, node_id) => {
+            subtree_mentions_identifier_name(ctx.tree, node_type, node_id, name)
+        }
+    }
+}
+
+/// Return true when one scope subtree contains one unqualified path reference.
+fn scope_has_unqualified_path_reference(
+    ctx: &LintAstContext<'_>,
+    scope_root: IdentifierScopeRoot,
+    name: ast::StringId,
+) -> bool {
+    let mut visitor = ScopeReferenceSearchVisitor {
+        options: ast::NodeVisitorOptions::default(),
+        name,
+        found_reference: false,
+    };
+
+    match scope_root {
+        IdentifierScopeRoot::Module => {
+            for root_id in ctx.roots.iter().copied() {
+                if visitor.found_reference {
+                    break;
+                }
+
+                ast::walk_any(
+                    &mut visitor,
+                    ctx.tree,
+                    ast::NodeType::Expression,
+                    root_id.id,
+                );
+            }
+        }
+        IdentifierScopeRoot::Node(node_type, node_id) => {
+            ast::walk_any(&mut visitor, ctx.tree, node_type, node_id);
         }
     }
 
-    for declaration_id in ctx.tree.iter_nodes::<ast::Declaration>() {
-        let declaration = ctx.tree.get(declaration_id);
-        if declaration
-            .descriptor()
-            .name
-            .is_some_and(|declaration_name| declaration_name.string() == name)
-        {
-            return true;
-        }
+    visitor.found_reference
+}
+
+/// Visitor that finds one unqualified path reference in a scope subtree.
+struct ScopeReferenceSearchVisitor {
+    /// Visitor options.
+    options: ast::NodeVisitorOptions,
+    /// The target identifier name.
+    name: ast::StringId,
+    /// Whether a matching reference has been found.
+    found_reference: bool,
+}
+
+impl ast::NodeVisitor for ScopeReferenceSearchVisitor {
+    fn options(&self) -> &ast::NodeVisitorOptions {
+        &self.options
     }
 
-    for expression_id in ctx.tree.iter_nodes::<ast::Expression>() {
-        if expression_is_unqualified_path_name(ctx.tree, expression_id, name) {
-            return true;
+    fn visit_expression(
+        &mut self,
+        tree: &ast::NodeTree,
+        expression_id: ast::LocalNodeId<ast::Expression>,
+        expression: &ast::Expression,
+    ) {
+        // stop once one reference has been found
+        if self.found_reference {
+            return;
         }
-    }
 
-    false
+        // match direct unqualified path references only
+        if expression_is_unqualified_path_name(tree, expression_id, self.name) {
+            self.found_reference = true;
+            return;
+        }
+
+        ast::walk_expression(self, tree, expression_id, expression);
+    }
 }
 
 /// Return true when one `undefined` binding follows ESLint safe-shadow semantics.
@@ -365,58 +471,20 @@ fn identifier_has_write_usage(ctx: &LintAstContext<'_>, name: ast::StringId) -> 
     false
 }
 
-/// Return one unique identifier span in a declaration span.
-fn find_unique_identifier_span_in_span(
+/// Return the declaration span when it is exactly the identifier token.
+fn exact_identifier_span(
     ctx: &LintAstContext<'_>,
     search_span: Span,
     identifier: &str,
 ) -> Option<Span> {
     let source_text = ctx.get_span_text(search_span);
-    let mut matches = Vec::new();
-    let mut offset = 0usize;
-    while let Some(found) = source_text[offset..].find(identifier) {
-        let start = offset + found;
-        let end = start + identifier.len();
-        if is_identifier_boundary(source_text, start, end) {
-            matches.push((start, end));
-        }
-        offset = end;
+    if source_text == identifier {
+        return Some(search_span);
     }
 
-    if matches.len() != 1 {
-        return None;
-    }
-    let (start, end) = matches[0];
-    Some(Span::new(
-        search_span.file,
-        search_span.start + start as u32,
-        search_span.start + end as u32,
-    ))
+    None
 }
 
-/// Return true for identifier boundary positions.
-fn is_identifier_boundary(source_text: &str, start: usize, end: usize) -> bool {
-    let left = source_text[..start].chars().next_back();
-    let right = source_text[end..].chars().next();
-    !left.is_some_and(is_identifier_char) && !right.is_some_and(is_identifier_char)
-}
-
-/// Return true for identifier chars.
-fn is_identifier_char(ch: char) -> bool {
-    ch.is_ascii_alphanumeric() || ch == '_' || ch == '$'
-}
-
-/// Return true when one text is a simple identifier.
-fn is_simple_identifier(text: &str) -> bool {
-    let mut chars = text.chars();
-    let Some(first) = chars.next() else {
-        return false;
-    };
-    if !(first.is_ascii_alphabetic() || first == '_' || first == '$') {
-        return false;
-    }
-    chars.all(is_identifier_char)
-}
 
 #[cfg(test)]
 mod tests {

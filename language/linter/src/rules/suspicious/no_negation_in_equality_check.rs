@@ -1,6 +1,9 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::{
+    expression_can_start_expression_statement, expression_is_direct_statement,
+};
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
 
 declare_lint! {
@@ -15,7 +18,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = Always,
+        fixable = Sometimes,
         recommended = Always,
         stability = Stable
     )]
@@ -81,7 +84,7 @@ impl LintRule for NoNegationInEqualityCheck {
             let right_span = ctx.tree.get_span(*right);
             let mut right_text = ctx.get_span_text(right_span).to_string();
             let unary_argument_span = ctx.tree.get_span(*unary_argument_id);
-            let mut unary_argument_text = ctx.get_span_text(unary_argument_span).to_string();
+            let unary_argument_text = ctx.get_span_text(unary_argument_span).to_string();
             let expression_span = ctx.tree.get_span(node_id);
             let mut diagnostic = LintDiagnostic::new(
                 NO_NEGATION_IN_EQUALITY_CHECK.id,
@@ -96,24 +99,23 @@ impl LintRule for NoNegationInEqualityCheck {
 
             // attach a fix when text extraction is stable
             if ctx.compute_fixes && !unary_argument_text.trim().is_empty() {
-                // guard token boundaries when removing the leading unary not
-                if needs_leading_fix_space(ctx, expression_span.start) {
-                    unary_argument_text = format!(" {unary_argument_text}");
-                }
-
                 // rewrite as direct comparison with the inverted operator
+                let unary_argument_text = unary_argument_text.trim_start();
                 right_text = right_text.trim_start().to_string();
-                let replacement = format!(
-                    "{unary_argument_text} {} {right_text}",
-                    equality_operator_text(fixed_operator)
-                );
-                let edits = ctx
-                    .edit_builder()
-                    .replace(expression_span, replacement)
-                    .into_edits();
-                let fix =
-                    LintFix::safe("Invert equality and remove leading negation").with_edits(edits);
-                diagnostic = diagnostic.with_fix(fix);
+                let unary_argument = ctx.tree.get(*unary_argument_id);
+                if !expression_starts_unsafe_statement(ctx, node_id, unary_argument) {
+                    let replacement = format!(
+                        "{unary_argument_text} {} {right_text}",
+                        equality_operator_text(fixed_operator)
+                    );
+                    let edits = ctx
+                        .edit_builder()
+                        .replace(expression_span, replacement)
+                        .into_edits();
+                    let fix = LintFix::suggestion("Invert equality and remove leading negation")
+                        .with_edits(edits);
+                    diagnostic = diagnostic.with_fix(fix);
+                }
             }
 
             ctx.report(diagnostic);
@@ -132,16 +134,17 @@ fn inverted_equality_operator(operator: ast::BinaryOperator) -> Option<ast::Bina
     }
 }
 
-/// Return true when one replacement needs a leading space for lexical safety.
-fn needs_leading_fix_space(ctx: &LintAstContext<'_>, start: u32) -> bool {
-    if start == 0 {
+/// Return true when one fixed replacement would start an unsafe expression statement.
+fn expression_starts_unsafe_statement(
+    ctx: &LintAstContext<'_>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+    unary_argument: &ast::Expression,
+) -> bool {
+    if !expression_is_direct_statement(ctx.tree, ctx.parents, expression_id) {
         return false;
     }
 
-    // preserve token separation when the previous character is identifier like
-    let source = ctx.source_text().as_bytes();
-    let previous_byte = source[(start - 1) as usize];
-    previous_byte.is_ascii_alphanumeric() || previous_byte == b'_' || previous_byte == b'$'
+    !expression_can_start_expression_statement(unary_argument)
 }
 
 /// Return source text for equality operators handled by this lint.
@@ -250,7 +253,7 @@ const x = !a == b
         );
         test.result(result)
             .assert_lint("no-negation-in-equality-check")
-            .assert_safe_fixed(
+            .assert_suggested_fixed(
                 r#"
 const x = a != b;
 "#,
@@ -282,7 +285,7 @@ const x = !a === !b
         test.result(result)
             .assert_lint("no-negation-in-equality-check")
             .assert_lint_count("no-negation-in-equality-check", 1)
-            .assert_safe_fixed(
+            .assert_suggested_fixed(
                 r#"
 const x = a !== !b;
 "#,
@@ -300,5 +303,20 @@ const x = !a != b
         );
         test.result(result)
             .assert_lint("no-negation-in-equality-check");
+    }
+
+    #[test]
+    fn test_no_fix_for_asi_hazardous_statement_start() {
+        let test = TestProgram::for_rule_without_prelude(NoNegationInEqualityCheck);
+        let result = test.lint_ast(
+            "no_negation_in_equality_check/test_no_fix_for_asi_hazardous_statement_start.ds",
+            r#"
+foo
+!(a) === b
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-negation-in-equality-check")
+            .assert_has_no_fix("no-negation-in-equality-check");
     }
 }
