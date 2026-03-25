@@ -190,7 +190,6 @@ Patterns that may expose the application to attacks.
 | `LS008` | `no-script-url` | ESLint | AST | ✓ | No | None | Disallow `javascript:` URLs |
 | `LS009` | `no-secrets` | Biome | AST | ✓ | No | None | Disallow hardcoded secrets and credentials |
 | `LS010` | `no-tainted-sink` | Destack | DIR | ✓ | No | None | Disallow passing tainted values into security sinks |
-| `LS011` | `no-weak-crypto` | Semgrep | DIR | ✓ | No | None | Disallow weak cryptographic algorithms |
 
 ## Performance (P)
 
