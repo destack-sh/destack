@@ -297,3 +297,58 @@ let x = obj["foo"];
         test.result(result).assert_no_lint("no-prototype-pollution");
     }
 }
+"#,
+        );
+        test.result(result).assert_no_lint("no-prototype-pollution");
+    }
+
+    /// Allow ordinary string index access to a property named prototype.
+    #[test]
+    fn test_allows_non_object_prototype_index_access() {
+        let test = TestProgram::for_rule_with_prelude(NoPrototypePollution);
+        let result = test.lint_dir(
+            "no_prototype_pollution/test_allows_non_object_prototype_index_access.ds",
+            r#"
+let obj = {};
+let x = obj["prototype"];
+"#,
+        );
+        test.result(result).assert_no_lint("no-prototype-pollution");
+    }
+
+    /// Allow safe Object.prototype helper access patterns.
+    #[test]
+    fn test_allows_safe_object_prototype_read() {
+        let test = TestProgram::for_rule_with_prelude(NoPrototypePollution);
+        let result = test.lint_dir(
+            "no_prototype_pollution/test_allows_safe_object_prototype_read.ds",
+            r#"
+let obj = {};
+let key = "name";
+let has = Object.prototype.hasOwnProperty.call(obj, key);
+"#,
+        );
+        test.result(result).assert_no_lint("no-prototype-pollution");
+    }
+
+    /// Flag direct Object["prototype"] assignment.
+    #[test]
+    fn test_flags_object_prototype_index_assignment() {
+        let test = TestProgram::for_rule_with_prelude(NoPrototypePollution);
+        let result = test.lint_dir(
+            "no_prototype_pollution/test_flags_object_prototype_index_assignment.ds",
+            r#"
+Object["prototype"] = {};
+"#,
+        );
+        test.result(result).assert_lint("no-prototype-pollution");
+    }
+
+    /// Allow string index reads of Object prototype.
+    #[test]
+    fn test_allows_object_prototype_index_access() {
+        let test = TestProgram::for_rule_with_prelude(NoPrototypePollution);
+        let result = test.lint_dir(
+            "no_prototype_pollution/test_allows_object_prototype_index_access.ds",
+            r#"
+let x = Object["prototype"];

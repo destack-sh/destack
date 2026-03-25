@@ -260,6 +260,34 @@ let regex = new RegExp("^" + input + "$");
 "#,
         );
         test.result(result).assert_lint("no-regex-injection");
+    /// Flag global qualified RegExp constructor calls.
+    #[test]
+    fn test_flags_global_regexp_call_with_variable() {
+        let test = TestProgram::for_rule_with_prelude(NoRegexInjection);
+        let result = test.lint_dir(
+            "no_regex_injection/test_flags_global_regexp_call_with_variable.ds",
+            r#"
+let pattern = getUserInput();
+let regex = globalThis.RegExp(pattern);
+"#,
+        );
+        test.result(result).assert_lint("no-regex-injection");
+    }
+
+    /// Flag computed global qualified RegExp constructor calls.
+    #[test]
+    fn test_flags_computed_global_regexp_call_with_variable() {
+        let test = TestProgram::for_rule_with_prelude(NoRegexInjection);
+        let result = test.lint_dir(
+            "no_regex_injection/test_flags_computed_global_regexp_call_with_variable.ds",
+            r#"
+let pattern = getUserInput();
+let regex = globalThis["RegExp"](pattern);
+"#,
+        );
+        test.result(result).assert_lint("no-regex-injection");
+    }
+
     }
 
     /// Allow new RegExp with a string literal pattern.

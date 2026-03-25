@@ -374,3 +374,17 @@ setTimeout("return " + expression, 10);
         test.result(result).assert_lint("no-implied-eval");
     }
 }
+"#,
+        );
+        test.result(result).assert_lint("no-implied-eval");
+    }
+
+    /// Report timer calls with string typed variables.
+    #[test]
+    fn test_flags_string_typed_timer_argument() {
+        let test = TestProgram::for_rule_with_prelude(NoImpliedEval);
+        let result = test.lint_dir(
+            "no_implied_eval/test_flags_string_typed_timer_argument.ds",
+            r#"
+let expression: string = "work()";
+setTimeout(expression, 10);

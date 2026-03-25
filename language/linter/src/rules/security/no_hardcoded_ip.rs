@@ -369,7 +369,7 @@ let version = "1.2.3"
         let result = test.lint_ast(
             "no_hardcoded_ip/test_detects_ipv6_address.ds",
             r#"
-let server = "2001:db8::1"
+let server = "2001:4860:4860::8888"
 "#,
         );
         test.result(result).assert_lint("no-hardcoded-ip");
@@ -385,5 +385,17 @@ let localhost = "::1"
 "#,
         );
         test.result(result).assert_no_lint("no-hardcoded-ip");
+"#,
+        );
+        test.result(result).assert_no_lint("no-hardcoded-ip");
+    }
+
+    #[test]
+    fn test_allows_documentation_ipv6_address() {
+        let test = TestProgram::for_rule_without_prelude(NoHardcodedIp);
+        let result = test.lint_ast(
+            "no_hardcoded_ip/test_allows_documentation_ipv6_address.ds",
+            r#"
+let server = "2001:db8::1"
     }
 }

@@ -827,6 +827,16 @@ mod tests {
 
     #[test]
     fn test_allows_low_entropy_strings() {
+    #[test]
+    fn test_detects_hardcoded_acronym_api_key_by_name() {
+        let test = TestProgram::for_rule_without_prelude(NoSecrets);
+        let result = test.lint_ast(
+            "no_secrets/test_detects_hardcoded_acronym_api_key_by_name.ts",
+            r#"const APIKey = "some_long_api_key_value";"#,
+        );
+        test.result(result).assert_lint("no-secrets");
+    }
+
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
         // repetitive string has low entropy
         let result = test.lint_ast(
@@ -840,6 +850,18 @@ mod tests {
 
     #[test]
     fn test_entropy_calculation() {
+    #[test]
+    fn test_allows_high_entropy_string_with_higher_threshold() {
+        let test = TestProgram::for_rule_without_prelude(NoSecrets).with_options(|options| {
+            options.no_secrets_entropy_threshold = 50;
+        });
+        let result = test.lint_ast(
+            "no_secrets/test_allows_high_entropy_string_with_higher_threshold.ts",
+            r#"const config = "Kj8mNpQrStUvWxYz1234AbCdEfGhIjKl";"#,
+        );
+        test.result(result).assert_no_lint("no-secrets");
+    }
+
         // single character repeated: entropy = 0
         assert!(calculate_entropy("aaaa") < 0.1);
 
@@ -860,3 +882,13 @@ mod tests {
         assert!(english_entropy > 2.0 && english_entropy < 4.5);
     }
 }
+    #[test]
+    fn test_allows_secretary_name() {
+        let test = TestProgram::for_rule_without_prelude(NoSecrets);
+        let result = test.lint_ast(
+            "no_secrets/test_allows_secretary_name.ts",
+            r#"const secretary = "monthly_schedule";"#,
+        );
+        test.result(result).assert_no_lint("no-secrets");
+    }
+

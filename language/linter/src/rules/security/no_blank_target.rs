@@ -243,7 +243,7 @@ let link = <a href="https://example.com" target="_blank">Click</a>
             .assert_lint("no-blank-target")
             .assert_safe_fixed(
                 r#"
-let link = <a href="https://example.com" target="_blank" rel="noopener noreferrer">Click</a>;
+let link = <a href="https://example.com" target="_blank" rel="noopener">Click</a>;
 "#,
             );
     }
@@ -295,7 +295,11 @@ let link = <a href="https://example.com" target="_blank" rel="nofollow">Click</a
         );
         test.result(result)
             .assert_lint("no-blank-target")
-            .assert_has_no_fix("no-blank-target");
+            .assert_safe_fixed(
+                r#"
+let link = <a href="https://example.com" target="_blank" rel="noopener nofollow">Click</a>;
+"#,
+            );
     }
 
     #[test]
@@ -368,5 +372,99 @@ let link = <a href="https://example.com" target="_blank" rel="noopenernoreferrer
 "#,
         );
         test.result(result).assert_lint("no-blank-target");
+    }
+
+    #[test]
+    fn test_allows_blank_target_with_case_insensitive_rel_token() {
+        let test = TestProgram::for_rule_without_prelude(NoBlankTarget);
+        let result = test.lint_ast(
+            "no_blank_target/test_allows_blank_target_with_case_insensitive_rel_token.ds",
+            r#"
+let link = <a href="https://example.com" target="_blank" rel="NoOpener">Click</a>
+"#,
+        );
+        test.result(result).assert_no_lint("no-blank-target");
+    }
+
+    #[test]
+    fn test_detects_case_insensitive_blank_target() {
+        let test = TestProgram::for_rule_without_prelude(NoBlankTarget);
+        let result = test.lint_ast(
+            "no_blank_target/test_detects_case_insensitive_blank_target.ds",
+            r#"
+let link = <a href="https://example.com" target="_BLANK">Click</a>
+"#,
+        );
+        test.result(result).assert_lint("no-blank-target");
+    }
+
+    #[test]
+    fn test_allows_blank_target_with_spread_props_without_explicit_rel() {
+        let test = TestProgram::for_rule_without_prelude(NoBlankTarget);
+        let result = test.lint_ast(
+            "no_blank_target/test_allows_blank_target_with_spread_props_without_explicit_rel.ds",
+            r#"
+let link = <a href="https://example.com" target="_blank" {...props}>Click</a>
+"#,
+        );
+        test.result(result).assert_no_lint("no-blank-target");
+    }
+
+    #[test]
+    fn test_flags_blank_target_with_leading_spread_props_without_rel() {
+        let test = TestProgram::for_rule_without_prelude(NoBlankTarget);
+        let result = test.lint_ast(
+            "no_blank_target/test_flags_blank_target_with_leading_spread_props_without_rel.ds",
+            r#"
+let link = <a {...props} href="https://example.com" target="_blank">Click</a>
+"#,
+        );
+        test.result(result).assert_lint("no-blank-target");
+    }
+
+    #[test]
+    fn test_allows_blank_target_with_trailing_spread_after_rel() {
+        let test = TestProgram::for_rule_without_prelude(NoBlankTarget);
+        let result = test.lint_ast(
+            "no_blank_target/test_allows_blank_target_with_trailing_spread_after_rel.ds",
+            r#"
+let link = <a href="https://example.com" target="_blank" rel="nofollow" {...props}>Click</a>
+"#,
+        );
+        test.result(result).assert_no_lint("no-blank-target");
+    }
+
+    #[test]
+    fn test_allows_blank_target_for_allowed_domain() {
+        let test = TestProgram::for_rule_without_prelude(NoBlankTarget).with_options(|options| {
+            options.no_blank_target_allow_domains = vec!["https://example.com".to_string()];
+        });
+        let result = test.lint_ast(
+            "no_blank_target/test_allows_blank_target_for_allowed_domain.ds",
+            r#"
+let link = <a href="https://example.com/path" target="_blank">Click</a>
+"#,
+        );
+        test.result(result).assert_no_lint("no-blank-target");
+    }
+
+    #[test]
+    fn test_flags_noreferrer_when_no_referrer_is_disabled() {
+        let test = TestProgram::for_rule_without_prelude(NoBlankTarget).with_options(|options| {
+            options.no_blank_target_allow_no_referrer = false;
+        });
+        let result = test.lint_ast(
+            "no_blank_target/test_flags_noreferrer_when_no_referrer_is_disabled.ds",
+            r#"
+let link = <a href="https://example.com" target="_blank" rel="noreferrer">Click</a>
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-blank-target")
+            .assert_safe_fixed(
+                r#"
+let link = <a href="https://example.com" target="_blank" rel="noopener noreferrer">Click</a>;
+"#,
+            );
     }
 }
