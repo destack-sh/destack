@@ -1855,6 +1855,14 @@ impl Compiler {
                     expected_object_ty_id,
                 )?;
 
+                // record the contextual object type for query consumers
+                if let Some(expected_object_ty_id) = expected_object_ty_id {
+                    ctx.types.set_contextual_object_type_for_node(
+                        expression_id.into_global_any(ctx.module.id),
+                        expected_object_ty_id,
+                    );
+                }
+
                 // infer object literal shapes and fields
                 let (literal_fields, shapes, spread_override) = self.infer_object_literal_shapes(
                     &mut ctx.reborrow(),
@@ -2250,6 +2258,15 @@ impl Compiler {
                 &options,
             )?
         };
+
+        // record the contextual object type for query consumers
+        if let Some(expected_object_ty_id) = expected_object_ty_id {
+            ctx.types.set_contextual_object_type_for_node(
+                expression_id.into_global_any(ctx.module.id),
+                expected_object_ty_id,
+            );
+        }
+
         let (literal_fields, shapes, spread_override) = self.infer_object_literal_shapes(
             &mut ctx.reborrow(),
             properties,

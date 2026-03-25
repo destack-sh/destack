@@ -1,6 +1,7 @@
 use super::*;
 use crate::analyze::common::{CanonicalSymbolMode, InferContext};
 use destack_dir::{FunctionKind, Property};
+use destack_source::SourcePartKey;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -421,6 +422,12 @@ impl Compiler {
             }
         }
 
+        // record the lookup ready receiver type for query consumers
+        ctx.types.set_member_receiver_type_for_node(
+            receiver_id.into_global_any(ctx.module.id),
+            receiver_ty_id,
+        );
+
         let receiver_ty = ctx.types.get_type(receiver_ty_id).clone();
         // classify receiver semantics once for member lookup and diagnostic deferral
         let receiver_context = self.query_member_receiver_context_for_expression(
@@ -575,6 +582,41 @@ impl Compiler {
             .get_declared_or_inferred_type_id(primary_declaration))
     }
 
+    /// Resolve one query-facing member target from dynamic dispatch candidates.
+    fn resolve_dynamic_member_target_symbol(
+        &self,
+        ctx: &InferContext<'_>,
+        candidates: &[MemberResolutionCandidate],
+    ) -> Option<GlobalSymbolId> {
+        // collapse direct duplicates before following canonical identity
+        let first_symbol = candidates.first()?.symbol;
+        if candidates
+            .iter()
+            .all(|candidate| candidate.symbol == first_symbol)
+        {
+            return Some(first_symbol);
+        }
+
+        // only publish one canonical target when all dynamic candidates share it
+        let first_canonical = self.canonical_symbol_id(
+            ctx.module_symbol_view(),
+            first_symbol,
+            CanonicalSymbolMode::FollowAliases,
+        );
+        let all_same_canonical = candidates.iter().skip(1).all(|candidate| {
+            self.canonical_symbol_id(
+                ctx.module_symbol_view(),
+                candidate.symbol,
+                CanonicalSymbolMode::FollowAliases,
+            ) == first_canonical
+        });
+        if all_same_canonical {
+            return Some(first_canonical);
+        }
+
+        None
+    }
+
     /// Resolve member lookup state for a prepared receiver.
     fn resolve_member_access_lookup(
         &self,
@@ -624,7 +666,7 @@ impl Compiler {
             });
         }
 
-        // resolve static member symbol from dispatch mode
+        // resolve the selected member symbol for static dispatch paths
         let member_symbol = match &resolution {
             MemberResolution::Static { symbol } => Some(*symbol),
             _ => None,
@@ -648,6 +690,24 @@ impl Compiler {
             &member_key,
             member_symbol,
         )?;
+
+        // publish the selected member target for query consumers
+        let query_member_symbol = match &resolution {
+            MemberResolution::Static { .. } => member_symbol,
+            MemberResolution::Dynamic { candidates } => {
+                self.resolve_dynamic_member_target_symbol(ctx, candidates)
+            }
+            _ => None,
+        };
+        if let Some(query_member_symbol) = query_member_symbol {
+            let source_id = ctx.tree.get_source(expression_id.id);
+            let span_type = Expression::member_source_part(ctx.tree, expression_id);
+            ctx.types.set_symbol_target_for_source_part(
+                SourcePartKey::new(source_id, span_type),
+                query_member_symbol,
+            );
+        }
+
         if let Some(member_symbol) = member_symbol {
             self.extend_owner_substitutions_from_inherited(
                 &mut ctx.type_context_reborrow(),

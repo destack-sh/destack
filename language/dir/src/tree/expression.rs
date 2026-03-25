@@ -5,12 +5,13 @@ use crate::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, Block, CastOperator, CastSource,
     Declaration, DeclarationDescriptor, Declarator, DependencyItem, DependencyKind,
     DependencySource, GlobalSymbolId, ImportTarget, LocalNodeId, LocalScopeId, LocalSymbolId,
-    LocalTypeId, MatchCase, MatchKind, MatchSource, ModuleTarget, Mutability, Node, NodeType,
-    OwnershipCastOperator, OwnershipCastSource, Path, Pattern, Property, ScalarLiteral,
+    LocalTypeId, MatchCase, MatchKind, MatchSource, ModuleTarget, Mutability, Node, NodeTree,
+    NodeType, OwnershipCastOperator, OwnershipCastSource, Path, Pattern, Property, ScalarLiteral,
     StaticArgument, StaticProperty, SymbolSpaceOrder, TemplateLiteral, TypeBinaryOperator,
     TypeLiteral, TypeMappedModifiers, TypePredicateSubject, TypeUnaryOperator, UnaryOperator,
     VarianceBound,
 };
+use destack_source::NodeSpanType;
 
 /// An Expression is a generic container for all constructs.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -618,6 +619,47 @@ impl Expression {
                 static_arguments, ..
             } => Some(static_arguments.as_slice()),
             _ => None,
+        }
+    }
+
+    /// Resolve the source span kind that identifies this member name token.
+    pub fn member_source_part(
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) -> NodeSpanType {
+        let source_id = tree.get_source(expression_id.id);
+        let mut segment_index = 0u16;
+        let mut current_id = expression_id;
+
+        // walk left through one lowered member chain
+        loop {
+            let current_expression = tree.get::<Expression>(current_id);
+
+            // count each synthetic member hop that still belongs to the same source node
+            if let Expression::Member { left, .. } = current_expression
+                && tree.get_source(left.id) == source_id
+            {
+                current_id = *left;
+                segment_index = segment_index
+                    .checked_add(1)
+                    .expect("member source part segment index overflow");
+                continue;
+            }
+
+            break;
+        }
+
+        // use indexed path segments for lowered qualified paths
+        match tree.get::<Expression>(current_id) {
+            Expression::LocalReference { path, .. }
+            | Expression::ModuleReference { path, .. }
+            | Expression::GlobalReference { path, .. }
+                if tree.get_source(current_id.id) == source_id
+                    && usize::from(segment_index) < path.segments.len() =>
+            {
+                NodeSpanType::Segment(segment_index)
+            }
+            _ => NodeSpanType::Main,
         }
     }
 }

@@ -12,6 +12,7 @@ use indexmap::IndexMap;
 use std::collections::VecDeque;
 use std::sync::Arc;
 
+use crate::resolve::binding::ResolvedPathSymbolTargets;
 use crate::resolve::binding::cache::ResolveScopeIndexCache;
 use crate::{ArtifactRequirementError, Compiler, ResolveError, ResolveResult};
 
@@ -144,7 +145,7 @@ impl Compiler {
         space_order: SymbolSpaceOrder,
         mut scope_cache: Option<&mut ResolveScopeIndexCache>,
         tree: &mut NodeTree,
-    ) -> ResolveResult<Option<Expression>> {
+    ) -> ResolveResult<Option<(Expression, ResolvedPathSymbolTargets)>> {
         // load the cached table for this module
         let cache = self.global_symbol_table_for_module(module.id, profile_id)?;
 
@@ -193,6 +194,8 @@ impl Compiler {
         let Some(target_symbol) = target_symbol else {
             return Ok(None);
         };
+        let mut receiver_targets = ResolvedPathSymbolTargets::new();
+        receiver_targets.push(target_symbol);
 
         // ensure the target module is prepared before reading its symbols
         self.require_dir_prepared_if_other(module.id, target_symbol.module_id, profile_id)
@@ -207,11 +210,14 @@ impl Compiler {
 
         // return the global reference when the path is a single segment
         if path.segments.len() == 1 {
-            return Ok(Some(Expression::GlobalReference {
-                path: path.clone(),
-                static_arguments,
-                target_symbol,
-            }));
+            return Ok(Some((
+                Expression::GlobalReference {
+                    path: path.clone(),
+                    static_arguments,
+                    target_symbol,
+                },
+                receiver_targets,
+            )));
         }
 
         // load the target module symbols for namespace resolution
@@ -238,15 +244,18 @@ impl Compiler {
                 scope_cache,
             ) {
                 // resolve namespace members directly when the local scope has the full path
-                Ok((resolved_id, None)) => {
-                    return Ok(Some(Expression::GlobalReference {
-                        path: path.clone(),
-                        static_arguments,
-                        target_symbol: resolved_id,
-                    }));
+                Ok((resolved_id, None, resolved_targets)) => {
+                    return Ok(Some((
+                        Expression::GlobalReference {
+                            path: path.clone(),
+                            static_arguments,
+                            target_symbol: resolved_id,
+                        },
+                        resolved_targets,
+                    )));
                 }
                 // build a member chain when only a path prefix resolved
-                Ok((resolved_id, Some(remaining))) => {
+                Ok((resolved_id, Some(remaining), resolved_targets)) => {
                     // if local namespace lookup consumed no member segments, retry via module exports
                     if remaining.segments.len() == remaining_path.segments.len()
                         && let Some((export_symbol, export_remaining)) = self
@@ -260,11 +269,14 @@ impl Compiler {
                         let resolved_path =
                             path.slice(0..path.segments.len() - export_remaining.segments.len());
                         if export_remaining.segments.is_empty() {
-                            return Ok(Some(Expression::GlobalReference {
-                                path: resolved_path,
-                                static_arguments,
-                                target_symbol: export_symbol,
-                            }));
+                            return Ok(Some((
+                                Expression::GlobalReference {
+                                    path: resolved_path,
+                                    static_arguments,
+                                    target_symbol: export_symbol,
+                                },
+                                receiver_targets.clone(),
+                            )));
                         }
 
                         let root_expr = Expression::GlobalReference {
@@ -272,12 +284,15 @@ impl Compiler {
                             static_arguments: None,
                             target_symbol: export_symbol,
                         };
-                        return Ok(Some(self.build_member_chain(
-                            expression_id,
-                            root_expr,
-                            &export_remaining,
-                            static_arguments,
-                            tree,
+                        return Ok(Some((
+                            self.build_member_chain(
+                                expression_id,
+                                root_expr,
+                                &export_remaining,
+                                static_arguments,
+                                tree,
+                            ),
+                            receiver_targets.clone(),
                         )));
                     }
                     // build regular global reference member chain
@@ -289,12 +304,15 @@ impl Compiler {
                             static_arguments: None,
                             target_symbol: resolved_id,
                         };
-                        return Ok(Some(self.build_member_chain(
-                            expression_id,
-                            root_expr,
-                            &remaining,
-                            static_arguments,
-                            tree,
+                        return Ok(Some((
+                            self.build_member_chain(
+                                expression_id,
+                                root_expr,
+                                &remaining,
+                                static_arguments,
+                                tree,
+                            ),
+                            resolved_targets,
                         )));
                     }
                 }
@@ -311,11 +329,14 @@ impl Compiler {
                         let resolved_path =
                             path.slice(0..path.segments.len() - remaining.segments.len());
                         if remaining.segments.is_empty() {
-                            return Ok(Some(Expression::GlobalReference {
-                                path: resolved_path,
-                                static_arguments,
-                                target_symbol: resolved_id,
-                            }));
+                            return Ok(Some((
+                                Expression::GlobalReference {
+                                    path: resolved_path,
+                                    static_arguments,
+                                    target_symbol: resolved_id,
+                                },
+                                receiver_targets.clone(),
+                            )));
                         }
 
                         let root_expr = Expression::GlobalReference {
@@ -323,12 +344,15 @@ impl Compiler {
                             static_arguments: None,
                             target_symbol: resolved_id,
                         };
-                        return Ok(Some(self.build_member_chain(
-                            expression_id,
-                            root_expr,
-                            &remaining,
-                            static_arguments,
-                            tree,
+                        return Ok(Some((
+                            self.build_member_chain(
+                                expression_id,
+                                root_expr,
+                                &remaining,
+                                static_arguments,
+                                tree,
+                            ),
+                            receiver_targets.clone(),
                         )));
                     }
 
@@ -347,12 +371,15 @@ impl Compiler {
             static_arguments: None,
             target_symbol,
         };
-        Ok(Some(self.build_member_chain(
-            expression_id,
-            root_expr,
-            &path.slice(1..),
-            static_arguments,
-            tree,
+        Ok(Some((
+            self.build_member_chain(
+                expression_id,
+                root_expr,
+                &path.slice(1..),
+                static_arguments,
+                tree,
+            ),
+            receiver_targets,
         )))
     }
 

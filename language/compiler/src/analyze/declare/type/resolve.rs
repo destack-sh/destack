@@ -7,12 +7,12 @@ use crate::analyze::{AssociatedProjectionSelection, StaticMemberSymbolKind};
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
-    DependencyItem, DependencyMode, Expression, GlobalSymbolId, LocalNodeId, LocalNodeIdAny,
-    LocalTypeId, NodeTree, NodeType, NormalizationMode, ScalarLiteral, StaticArgument,
-    StaticExpression, StaticKey, StaticParameterKind, SymbolKind, SymbolSpace, SymbolSpaceOrder,
-    Type, TypeLiteral, TypeTable, TypeUnaryOperator, are_types_equal,
+    DependencyItem, Expression, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree,
+    NodeType, NormalizationMode, ScalarLiteral, StaticArgument, StaticExpression, StaticKey,
+    StaticParameterKind, SymbolKind, SymbolSpace, Type, TypeLiteral, TypeTable, TypeUnaryOperator,
+    are_types_equal,
 };
-use destack_source::ModuleId;
+use destack_source::{ModuleId, SourcePartKey};
 use destack_workspace::Module;
 use std::collections::HashSet;
 
@@ -1010,41 +1010,10 @@ impl Compiler {
             return None;
         }
 
-        // select dependency mode and target module
+        // require a dependency item the import helpers understand
         let dependency_id = primary_declaration.local_id.into_typed::<DependencyItem>();
         let dependency = ctx.tree.get(dependency_id);
-        let (mode, target_module) = match dependency {
-            DependencyItem::Remote {
-                mode,
-                target_module,
-                ..
-            } => (*mode, Some(*target_module)),
-            DependencyItem::UnresolvedRemote {
-                mode,
-                target_module,
-                ..
-            } => (*mode, *target_module),
-            _ => (DependencyMode::Item, None),
-        };
-
-        // only namespace imports can project members
-        if mode != DependencyMode::Namespace {
-            return None;
-        }
-
-        // select type space first, then value space
-        let target_module = target_module?;
-        let target_module = target_module.ty.or(target_module.value)?;
-        self.resolve_export_symbol_for_target(
-            ctx.module.id,
-            expression_id.into_global_any(ctx.module.id),
-            target_module,
-            ctx.profile,
-            SymbolSpaceOrder::TypeThenValue,
-            member_key,
-        )
-        .ok()
-        .flatten()
+        self.resolve_imported_namespace_member_symbol(ctx, expression_id, dependency, member_key)
     }
 
     /// Select a type member symbol for one member expression.
@@ -1064,6 +1033,13 @@ impl Compiler {
             left,
             member_key,
         ) {
+            let source_id = ctx.tree.get_source(expression_id.id);
+            let span_type = Expression::member_source_part(ctx.tree, expression_id);
+            ctx.types.set_symbol_target_for_source_part(
+                SourcePartKey::new(source_id, span_type),
+                namespace_symbol,
+            );
+
             return Ok(Some(TypeMemberResolution::Namespace {
                 target_symbol: namespace_symbol,
             }));
@@ -1087,6 +1063,13 @@ impl Compiler {
                 validate_static_argument_bounds,
                 enforce_implicit_managed,
             )? {
+                let source_id = ctx.tree.get_source(expression_id.id);
+                let span_type = Expression::member_source_part(ctx.tree, expression_id);
+                ctx.types.set_symbol_target_for_source_part(
+                    SourcePartKey::new(source_id, span_type),
+                    enum_member_symbol,
+                );
+
                 return Ok(Some(TypeMemberResolution::Namespace {
                     target_symbol: enum_member_symbol,
                 }));
@@ -1110,6 +1093,13 @@ impl Compiler {
                     )
                     .map_err(AnalyzeError::from)?;
                 if is_enum_field {
+                    let source_id = ctx.tree.get_source(expression_id.id);
+                    let span_type = Expression::member_source_part(ctx.tree, expression_id);
+                    ctx.types.set_symbol_target_for_source_part(
+                        SourcePartKey::new(source_id, span_type),
+                        projected_symbol,
+                    );
+
                     return Ok(Some(TypeMemberResolution::Namespace {
                         target_symbol: projected_symbol,
                     }));
@@ -1127,11 +1117,27 @@ impl Compiler {
         match selection_kind {
             Some(StaticMemberSymbolKind::AssociatedType)
             | Some(StaticMemberSymbolKind::AssociatedComptimeConst) => {
+                let source_id = ctx.tree.get_source(expression_id.id);
+                let span_type = Expression::member_source_part(ctx.tree, expression_id);
+                ctx.types.set_symbol_target_for_source_part(
+                    SourcePartKey::new(source_id, span_type),
+                    selection.target_symbol,
+                );
+
                 Ok(Some(TypeMemberResolution::Associated(selection)))
             }
-            Some(StaticMemberSymbolKind::EnumField) => Ok(Some(TypeMemberResolution::Namespace {
-                target_symbol: selection.target_symbol,
-            })),
+            Some(StaticMemberSymbolKind::EnumField) => {
+                let source_id = ctx.tree.get_source(expression_id.id);
+                let span_type = Expression::member_source_part(ctx.tree, expression_id);
+                ctx.types.set_symbol_target_for_source_part(
+                    SourcePartKey::new(source_id, span_type),
+                    selection.target_symbol,
+                );
+
+                Ok(Some(TypeMemberResolution::Namespace {
+                    target_symbol: selection.target_symbol,
+                }))
+            }
             _ => Ok(None),
         }
     }

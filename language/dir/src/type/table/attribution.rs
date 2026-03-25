@@ -3,6 +3,8 @@ use std::collections::HashSet;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
+use destack_source::SourcePartKey;
+
 use crate::{
     Addressability, EnumBackingType, EnumFieldValue, GlobalNodeIdAny, GlobalSymbolId, LocalTypeId,
     StaticExpression, SymbolTable, Type,
@@ -28,6 +30,12 @@ pub struct AttributionTable {
     pub(crate) declared_type_by_node_id: IndexMap<GlobalNodeIdAny, LocalTypeId>,
     /// The inferred type by node id.
     pub(crate) inferred_type_by_node_id: IndexMap<GlobalNodeIdAny, LocalTypeId>,
+    /// The symbol target by typed source part.
+    pub(crate) symbol_target_by_source_part: IndexMap<SourcePartKey, GlobalSymbolId>,
+    /// The normalized member receiver type by node id.
+    pub(crate) member_receiver_type_by_node_id: IndexMap<GlobalNodeIdAny, LocalTypeId>,
+    /// The contextual object type by node id.
+    pub(crate) contextual_object_type_by_node_id: IndexMap<GlobalNodeIdAny, LocalTypeId>,
     /// The signature type by node id (separate from declared types).
     pub(crate) signature_type_by_node_id: IndexMap<GlobalNodeIdAny, LocalTypeId>,
     /// The addressability by node id.
@@ -49,10 +57,8 @@ pub struct AttributionTable {
     /// The resolved enum field values by enum field symbol.
     pub(crate) enum_field_value_by_symbol_id: IndexMap<GlobalSymbolId, EnumFieldValue>,
     /// Symbols that still violate associated requirement implementation contracts.
-    #[serde(default)]
     pub(crate) symbols_with_unimplemented_associated_requirements: HashSet<GlobalSymbolId>,
     /// Associated comptime member symbols whose declared value depends on projection syntax.
-    #[serde(default)]
     pub(crate) symbols_with_associated_comptime_projection_dependencies: HashSet<GlobalSymbolId>,
 }
 
@@ -62,6 +68,9 @@ impl AttributionTable {
         Self {
             declared_type_by_node_id: IndexMap::new(),
             inferred_type_by_node_id: IndexMap::new(),
+            symbol_target_by_source_part: IndexMap::new(),
+            member_receiver_type_by_node_id: IndexMap::new(),
+            contextual_object_type_by_node_id: IndexMap::new(),
             signature_type_by_node_id: IndexMap::new(),
             addressability_by_node_id: IndexMap::new(),
             runtime_check_kind_by_node_id: IndexMap::new(),
@@ -144,6 +153,28 @@ impl TypeTable {
         self.attribution.inferred_type_by_node_id.clear();
     }
 
+    /// Set the symbol target for one source part.
+    pub fn set_symbol_target_for_source_part(
+        &mut self,
+        source_part: SourcePartKey,
+        symbol_id: GlobalSymbolId,
+    ) {
+        self.attribution
+            .symbol_target_by_source_part
+            .insert(source_part, symbol_id);
+    }
+
+    /// Get the symbol target for one source part.
+    pub fn get_symbol_target_for_source_part(
+        &self,
+        source_part: SourcePartKey,
+    ) -> Option<GlobalSymbolId> {
+        self.attribution
+            .symbol_target_by_source_part
+            .get(&source_part)
+            .copied()
+    }
+
     /// Clear cached expression addressability metadata.
     pub fn clear_addressability(&mut self) {
         self.attribution.addressability_by_node_id.clear();
@@ -188,6 +219,46 @@ impl TypeTable {
     ) -> Option<LocalTypeId> {
         self.get_declared_type_id(node_id)
             .or_else(|| self.get_inferred_type_id(node_id))
+    }
+
+    /// Set the normalized member receiver type for a node.
+    pub fn set_member_receiver_type_for_node(&mut self, node_id: GlobalNodeIdAny, ty: LocalTypeId) {
+        self.attribution
+            .member_receiver_type_by_node_id
+            .insert(node_id, ty);
+    }
+
+    /// Get the normalized member receiver type id for a node.
+    pub fn get_member_receiver_type_id_for_node(
+        &self,
+        node_id: GlobalNodeIdAny,
+    ) -> Option<LocalTypeId> {
+        self.attribution
+            .member_receiver_type_by_node_id
+            .get(&node_id)
+            .copied()
+    }
+
+    /// Set the contextual object type for a node.
+    pub fn set_contextual_object_type_for_node(
+        &mut self,
+        node_id: GlobalNodeIdAny,
+        ty: LocalTypeId,
+    ) {
+        self.attribution
+            .contextual_object_type_by_node_id
+            .insert(node_id, ty);
+    }
+
+    /// Get the contextual object type id for a node.
+    pub fn get_contextual_object_type_id_for_node(
+        &self,
+        node_id: GlobalNodeIdAny,
+    ) -> Option<LocalTypeId> {
+        self.attribution
+            .contextual_object_type_by_node_id
+            .get(&node_id)
+            .copied()
     }
 
     /// Set the signature type for a declaration or member node.
@@ -235,7 +306,7 @@ impl TypeTable {
     }
 
     /// Copy node-local analysis data from a source node to a target node.
-    /// Copies declared types, inferred types, signature types, addressability, instances, and resolutions.
+    /// Copies recorded type, span-adjacent, and resolution metadata.
     pub fn copy_node_analysis(&mut self, source: GlobalNodeIdAny, target: GlobalNodeIdAny) {
         // declared type
         if let Some(declared_type) = self
@@ -259,6 +330,30 @@ impl TypeTable {
             self.attribution
                 .inferred_type_by_node_id
                 .insert(target, inferred_type);
+        }
+
+        // member receiver type
+        if let Some(member_receiver_type) = self
+            .attribution
+            .member_receiver_type_by_node_id
+            .get(&source)
+            .copied()
+        {
+            self.attribution
+                .member_receiver_type_by_node_id
+                .insert(target, member_receiver_type);
+        }
+
+        // contextual object type
+        if let Some(contextual_object_type) = self
+            .attribution
+            .contextual_object_type_by_node_id
+            .get(&source)
+            .copied()
+        {
+            self.attribution
+                .contextual_object_type_by_node_id
+                .insert(target, contextual_object_type);
         }
 
         // signature type

@@ -80,6 +80,7 @@ impl Compiler {
         let prepared = self.require_artifact_dir_prepared(module_id, profile)?;
         let mut tree = prepared.tree.as_ref().clone();
         let mut symbols = prepared.symbols.as_ref().clone();
+        let mut types = prepared.types.as_ref().clone();
         let mut export_assignment = prepared.export_assignment;
         let mut namespace_exports = Vec::new();
         let mut module_binding_exports = prepared.module_binding_exports.as_ref().clone();
@@ -121,6 +122,7 @@ impl Compiler {
                 prepared.as_ref(),
                 &mut tree,
                 &mut symbols,
+                &mut types,
                 &mut export_assignment,
                 &mut namespace_exports,
                 &mut module_binding_exports,
@@ -135,6 +137,7 @@ impl Compiler {
             prepared.as_ref(),
             tree,
             symbols,
+            types,
             export_assignment,
             namespace_exports,
             module_binding_exports,
