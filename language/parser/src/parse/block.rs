@@ -915,22 +915,17 @@ impl Parser {
             YieldCardinality::Scalar
         };
 
-        // value (optional, like return/throw)
-        // yield without value is valid: `function* a() { yield }`
-        let value_id = if self.has_more_tokens() && !operand_is_omitted {
-            let value_id = self.eat_expression_not_in_position()?;
-            Some(value_id)
+        // generator yield keeps one committed missing operand when the value is absent
+        let value_id = if self.has_more_tokens()
+            && !operand_is_omitted
+            && !Self::is_expression_slot_boundary_token(self.peek_token_type())
+        {
+            Some(self.eat_expression_not_in_position()?)
+        } else if cardinality == YieldCardinality::Generator {
+            Some(self.recover_missing_expression_here(NodeType::Expression))
         } else {
             None
         };
-
-        // `yield*` always requires an operand
-        if cardinality == YieldCardinality::Generator && value_id.is_none() {
-            return Err(ParseError::unexpected_for(
-                self.get_span_from(&start),
-                NodeType::Expression,
-            ));
-        }
 
         // yield
         let yield_id = self.insert_node(
@@ -972,13 +967,13 @@ impl Parser {
 
         // value
         let cursor = self.scanner_cursor_from(self.pos_index());
-        if cursor.starts_after_statement_boundary() {
-            return Err(ParseError::unexpected_for(
-                self.get_span_from(&start),
-                NodeType::Expression,
-            ));
-        }
-        let value_id = self.eat_expression_not_in_position()?;
+        let value_id = if cursor.starts_after_statement_boundary()
+            || Self::is_expression_slot_boundary_token(self.peek_token_type())
+        {
+            self.recover_missing_expression_here(NodeType::Expression)
+        } else {
+            self.eat_expression_not_in_position()?
+        };
 
         // throw
         let throw_id = self.insert_node(
@@ -1021,8 +1016,8 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        BlockContext, CommentStyle, Declaration, Expression, IfKind, LetKind, ScalarLiteral,
-        TokenType, TypeBinaryOperator, YieldCardinality,
+        BlockContext, CommentStyle, Declaration, Expression, IfKind, LetKind, NodeType,
+        ScalarLiteral, TokenType, TypeBinaryOperator, YieldCardinality,
     };
     use destack_source::LanguageType;
 
@@ -1351,11 +1346,16 @@ mod tests {
         // source: yield*
         let mut test = TestParser::new("yield*");
         let mut parser = test.prepare();
+        let yield_id = parser.eat_yield().unwrap();
 
-        let error = parser.eat_yield().unwrap_err();
+        // diagnostics
+        test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
 
         // yield*
-        assert_eq!(parser.get_span_str(error.leaf_span()), "yield*");
+        assert_node!(parser.tree, yield_id, Expression::Yield { cardinality, value } => {
+            assert_eq!(*cardinality, YieldCardinality::Generator);
+            assert_node!(parser.tree, value.expect("expected missing generator operand"), Expression::Missing);
+        });
     }
 
     /// `yield\n*a` should NOT be parsed as `yield* a` due to ASI restricted production.
@@ -1434,10 +1434,15 @@ mod tests {
         // source: throw /*\n*/ e
         let mut test = TestParser::new_with_options("throw /*\n*/ e", LanguageType::JavaScript);
         let mut parser = test.prepare();
-        let error = parser.eat_throw().unwrap_err();
+        let throw_id = parser.eat_throw().unwrap();
 
-        // throw ... (restricted production failure span starts at throw)
-        assert_eq!(error.leaf_span().start, 0);
+        // diagnostics
+        test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "e")]);
+
+        // throw /*\n*/
+        assert_node!(parser.tree, throw_id, Expression::Throw { value } => {
+            assert_node!(parser.tree, *value, Expression::Missing);
+        });
 
         // e
         assert!(parser.peek_is(TokenType::Identifier));
@@ -1450,13 +1455,97 @@ mod tests {
         let mut test =
             TestParser::new_with_options("throw /* \u{2028} */ e", LanguageType::JavaScript);
         let mut parser = test.prepare();
-        let error = parser.eat_throw().unwrap_err();
+        let throw_id = parser.eat_throw().unwrap();
 
-        // throw ... (restricted production failure span starts at throw)
-        assert_eq!(error.leaf_span().start, 0);
+        // diagnostics
+        test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "e")]);
+
+        // throw /* \u{2028} */
+        assert_node!(parser.tree, throw_id, Expression::Throw { value } => {
+            assert_node!(parser.tree, *value, Expression::Missing);
+        });
 
         // e
         assert!(parser.peek_is(TokenType::Identifier));
+    }
+
+    #[test]
+    fn test_parse_throw_without_value_recovers_missing_expression() {
+        let mut test = TestParser::new("throw");
+        let mut parser = test.prepare();
+        let throw_id = parser.eat_throw().unwrap();
+
+        // diagnostics
+        test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
+
+        // throw
+        assert_node!(parser.tree, throw_id, Expression::Throw { value } => {
+            assert_node!(parser.tree, *value, Expression::Missing);
+        });
+    }
+
+    #[test]
+    fn test_parse_throw_without_value_before_newline_keeps_following_statement_shape() {
+        let mut test = TestParser::new(
+            r#"
+throw
+next()
+"#,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        // diagnostics
+        test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "\n")]);
+
+        // statements
+        assert_eq!(expressions.len(), 2);
+
+        // throw
+        assert_node!(parser.tree, expressions[0], Expression::Statement(throw_id) => {
+            assert_node!(parser.tree, *throw_id, Expression::Throw { value } => {
+                assert_node!(parser.tree, *value, Expression::Missing);
+            });
+        });
+
+        // next()
+        assert_node!(parser.tree, expressions[1], Expression::Statement(call_id) => {
+            assert_node!(parser.tree, *call_id, Expression::Call { left, static_arguments, dynamic_arguments, .. } => {
+                assert_expression_path!(parser, parser.tree.get(*left), "next");
+                assert!(static_arguments.is_none());
+                assert!(dynamic_arguments.is_empty());
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_throw_without_value_before_newline_keeps_following_const_shape() {
+        let mut test = TestParser::new(
+            r#"
+throw
+const value = 1
+"#,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        // diagnostics
+        test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "\n")]);
+
+        // statements
+        assert_eq!(expressions.len(), 2);
+
+        // throw
+        assert_node!(parser.tree, expressions[0], Expression::Statement(throw_id) => {
+            assert_node!(parser.tree, *throw_id, Expression::Throw { value } => {
+                assert_node!(parser.tree, *value, Expression::Missing);
+            });
+        });
+
+        // const value = 1
+        assert_node!(parser.tree, expressions[1], Expression::Let { declarators, .. } => {
+            assert_eq!(declarators.len(), 1);
+        });
     }
 
     #[test]
@@ -1759,6 +1848,134 @@ mod tests {
         assert!(annotations.is_empty());
         assert_eq!(parser.tree.comment_trivia().len(), 1);
         crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "return-tail");
+    }
+
+    #[test]
+    fn test_parse_new_without_receiver_as_statement_recovers_missing_constructor() {
+        let mut test = TestParser::new("new");
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        // diagnostics
+        test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
+
+        // top level statements
+        assert_eq!(expressions.len(), 1);
+
+        // new
+        let statement_id = expressions[0];
+        assert_node!(parser.tree, statement_id, Expression::Statement(new_id) => {
+            assert_node!(parser.tree, *new_id, Expression::New { left, static_arguments, dynamic_arguments } => {
+                // missing constructor
+                assert_node!(parser.tree, *left, Expression::Missing);
+
+                // no static arguments
+                assert!(static_arguments.is_none());
+
+                // no dynamic arguments
+                assert!(dynamic_arguments.is_empty());
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_new_without_receiver_before_newline_recovers_missing_constructor() {
+        let mut test = TestParser::new(
+            r#"
+new
+"#,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        // diagnostics
+        test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "\n")]);
+
+        // top level statements
+        assert_eq!(expressions.len(), 1);
+
+        // new
+        let statement_id = expressions[0];
+        assert_node!(parser.tree, statement_id, Expression::Statement(new_id) => {
+            assert_node!(parser.tree, *new_id, Expression::New { left, static_arguments, dynamic_arguments } => {
+                // missing constructor
+                assert_node!(parser.tree, *left, Expression::Missing);
+
+                // no static arguments
+                assert!(static_arguments.is_none());
+
+                // no dynamic arguments
+                assert!(dynamic_arguments.is_empty());
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_new_without_receiver_before_following_call_keeps_statement_shape() {
+        let mut test = TestParser::new(
+            r#"
+new
+next()
+"#,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        // diagnostics
+        test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "\n")]);
+
+        // statements
+        assert_eq!(expressions.len(), 2);
+
+        // new
+        assert_node!(parser.tree, expressions[0], Expression::Statement(new_id) => {
+            assert_node!(parser.tree, *new_id, Expression::New { left, static_arguments, dynamic_arguments } => {
+                assert_node!(parser.tree, *left, Expression::Missing);
+                assert!(static_arguments.is_none());
+                assert!(dynamic_arguments.is_empty());
+            });
+        });
+
+        // next()
+        assert_node!(parser.tree, expressions[1], Expression::Statement(call_id) => {
+            assert_node!(parser.tree, *call_id, Expression::Call { left, static_arguments, dynamic_arguments, .. } => {
+                assert_expression_path!(parser, parser.tree.get(*left), "next");
+                assert!(static_arguments.is_none());
+                assert!(dynamic_arguments.is_empty());
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_new_without_receiver_before_following_const_keeps_statement_shape() {
+        let mut test = TestParser::new(
+            r#"
+new
+const value = 1
+"#,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        // diagnostics
+        test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "\n")]);
+
+        // statements
+        assert_eq!(expressions.len(), 2);
+
+        // new
+        assert_node!(parser.tree, expressions[0], Expression::Statement(new_id) => {
+            assert_node!(parser.tree, *new_id, Expression::New { left, static_arguments, dynamic_arguments } => {
+                assert_node!(parser.tree, *left, Expression::Missing);
+                assert!(static_arguments.is_none());
+                assert!(dynamic_arguments.is_empty());
+            });
+        });
+
+        // const value = 1
+        assert_node!(parser.tree, expressions[1], Expression::Let { declarators, .. } => {
+            assert_eq!(declarators.len(), 1);
+        });
     }
 
     #[test]
