@@ -14,8 +14,8 @@ use crate::host::{
 use crate::platform::ResourceId;
 use crate::platform::time::TimerClock;
 use crate::runtime::engine::{
-    Engine, EngineContinuation, EngineContinuationImage, EngineImage, EngineOutcome, EngineOutput,
-    EngineSnapshot, Entry, EntryReference, NativeContinuation,
+    Engine, EngineContinuation, EngineContinuationImage, EngineImage, EngineSnapshot, Entry, Entry,
+    ExecutionOutcome, ExecutionOutput, NativeContinuation,
 };
 use crate::runtime::poller::{
     HostPoller, HostPollerFlags, PlatformHandle, PlatformInterest, PollerEvent, PollerEventFlags,
@@ -115,8 +115,8 @@ impl Engine for TestEngine {
         _memory: &mut heap::MemoryContext<'_>,
         _entry: &Entry,
         _args: &[heap::Value],
-    ) -> RuntimeResult<EngineOutcome> {
-        Ok(EngineOutcome::Completed {
+    ) -> RuntimeResult<ExecutionOutcome<EngineContinuation>> {
+        Ok(ExecutionOutcome::Completed {
             output: void_output(),
         })
     }
@@ -125,10 +125,10 @@ impl Engine for TestEngine {
     fn run_replayable_entry(
         &mut self,
         _memory: &mut heap::MemoryContext<'_>,
-        _entry: &EntryReference,
+        _entry: &Entry,
         _args: &[heap::Value],
-    ) -> RuntimeResult<EngineOutcome> {
-        Ok(EngineOutcome::Completed {
+    ) -> RuntimeResult<ExecutionOutcome<EngineContinuation>> {
+        Ok(ExecutionOutcome::Completed {
             output: void_output(),
         })
     }
@@ -139,19 +139,21 @@ impl Engine for TestEngine {
         _memory: &mut heap::MemoryContext<'_>,
         _continuation: EngineContinuation,
         _value: heap::Value,
-    ) -> RuntimeResult<EngineOutcome> {
+    ) -> RuntimeResult<ExecutionOutcome<EngineContinuation>> {
         // return one yielded continuation on the first resume
         if self.resume_calls == 0 {
             self.resume_calls += 1;
-            return Ok(EngineOutcome::Yielded {
-                continuation: EngineContinuation::Native(NativeContinuation::new(2)),
-                value: heap::Value::VOID,
+            return Ok(ExecutionOutcome::Yielded {
+                yielded: destack_engine::ExecutionYield {
+                    continuation: EngineContinuation::Native(NativeContinuation::new(2)),
+                    value: heap::Value::VOID,
+                },
             });
         }
 
         // complete all later resumes
         self.resume_calls += 1;
-        Ok(EngineOutcome::Completed {
+        Ok(ExecutionOutcome::Completed {
             output: void_output(),
         })
     }
@@ -236,10 +238,10 @@ impl Engine for AllocatingEngine {
         memory: &mut heap::MemoryContext<'_>,
         _entry: &Entry,
         _args: &[heap::Value],
-    ) -> RuntimeResult<EngineOutcome> {
+    ) -> RuntimeResult<ExecutionOutcome<EngineContinuation>> {
         self.allocate(memory.heap())?;
 
-        Ok(EngineOutcome::Completed {
+        Ok(ExecutionOutcome::Completed {
             output: void_output(),
         })
     }
@@ -248,12 +250,12 @@ impl Engine for AllocatingEngine {
     fn run_replayable_entry(
         &mut self,
         memory: &mut heap::MemoryContext<'_>,
-        _entry: &EntryReference,
+        _entry: &Entry,
         _args: &[heap::Value],
-    ) -> RuntimeResult<EngineOutcome> {
+    ) -> RuntimeResult<ExecutionOutcome<EngineContinuation>> {
         self.allocate(memory.heap())?;
 
-        Ok(EngineOutcome::Completed {
+        Ok(ExecutionOutcome::Completed {
             output: void_output(),
         })
     }
@@ -264,10 +266,10 @@ impl Engine for AllocatingEngine {
         memory: &mut heap::MemoryContext<'_>,
         _continuation: EngineContinuation,
         _value: heap::Value,
-    ) -> RuntimeResult<EngineOutcome> {
+    ) -> RuntimeResult<ExecutionOutcome<EngineContinuation>> {
         self.allocate(memory.heap())?;
 
-        Ok(EngineOutcome::Completed {
+        Ok(ExecutionOutcome::Completed {
             output: void_output(),
         })
     }
@@ -870,16 +872,16 @@ impl TestRuntime {
     }
 
     /// Run one synthetic entrypoint and return the engine output.
-    pub(super) fn run_entrypoint(&mut self) -> RuntimeResult<EngineOutput> {
+    pub(super) fn run_entrypoint(&mut self) -> RuntimeResult<ExecutionOutput> {
         self.agent
-            .run_entrypoint(&self.world, &self.host, &Entry::vm("test.entry"), &[])
+            .run_entrypoint(&self.world, &self.host, &Entry::new("test.entry"), &[])
     }
 
     /// Run until one task completes.
     pub(super) fn run_loop_until_task_complete(
         &mut self,
         task_id: u64,
-    ) -> RuntimeResult<EngineOutput> {
+    ) -> RuntimeResult<ExecutionOutput> {
         self.agent
             .run_loop_until_task_complete(&self.world, &self.host, TaskId::new(task_id))
     }
@@ -889,7 +891,7 @@ impl TestRuntime {
         &mut self,
         task_id: u64,
         timeout_nanos: Option<u64>,
-    ) -> RuntimeResult<Option<EngineOutput>> {
+    ) -> RuntimeResult<Option<ExecutionOutput>> {
         self.agent.run_loop_until_task_complete_with_timeout(
             &self.world,
             &self.host,
@@ -1134,8 +1136,8 @@ fn agent_for_options_with_engine_and_host_clock_source(
 }
 
 /// Build one void runtime output.
-fn void_output() -> EngineOutput {
-    EngineOutput {
+fn void_output() -> ExecutionOutput {
+    ExecutionOutput {
         value: heap::Value::VOID,
         stats: Default::default(),
         managed_allocation_count: 0,

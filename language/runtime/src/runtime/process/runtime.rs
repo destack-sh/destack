@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::HostSession;
-use crate::runtime::engine::{Engine, EngineOutput, Entry, EntryReference};
+use crate::runtime::engine::{Engine, Entry, ExecutionOutput};
 use crate::runtime::poller::HostPoller;
 use crate::runtime::scheduler::Timer;
 use crate::runtime::time::WorldInstant;
@@ -235,7 +235,7 @@ impl Runtime {
         world: &World,
         entry: &Entry,
         args: &[heap::Value],
-    ) -> RuntimeResult<EngineOutput> {
+    ) -> RuntimeResult<ExecutionOutput> {
         self.run_entrypoint_for_agent(world, self.primary_agent_id, entry, args)
     }
 
@@ -246,7 +246,7 @@ impl Runtime {
         agent_id: AgentId,
         entry: &Entry,
         args: &[heap::Value],
-    ) -> RuntimeResult<EngineOutput> {
+    ) -> RuntimeResult<ExecutionOutput> {
         let host = &self.host;
         let poller = &mut self.poller;
         let agent = self
@@ -267,9 +267,9 @@ impl Runtime {
         &mut self,
         world: &World,
         agent_id: AgentId,
-        entry: &EntryReference,
+        entry: &Entry,
         args: &[heap::Value],
-    ) -> RuntimeResult<EngineOutput> {
+    ) -> RuntimeResult<ExecutionOutput> {
         let host = &self.host;
         let poller = &mut self.poller;
         let agent = self

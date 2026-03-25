@@ -6,7 +6,7 @@ use destack_heap as heap;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::HostEvent;
-use crate::runtime::engine::{Engine, EngineOutput, Entry, EntryReference};
+use crate::runtime::engine::{Engine, Entry, ExecutionOutput};
 use crate::runtime::poller::PollerEvent;
 use crate::runtime::trace::Outcome;
 use crate::runtime::{Agent, AgentId, AgentImage, Runtime, RuntimeImage};
@@ -140,10 +140,10 @@ impl World {
         runtime_id: RuntimeId,
         entry: &Entry,
         args: &[heap::Value],
-    ) -> RuntimeResult<EngineOutput> {
+    ) -> RuntimeResult<ExecutionOutput> {
         let input = Input::RunEntrypoint {
             runtime_id,
-            entry: entry.entry_reference(),
+            entry: entry.clone(),
             args: args.to_vec(),
         };
         let input = self.resolve_input(input)?;
@@ -227,7 +227,7 @@ impl World {
         runtime_id: RuntimeId,
         entry: &Entry,
         args: &[heap::Value],
-    ) -> RuntimeResult<EngineOutput> {
+    ) -> RuntimeResult<ExecutionOutput> {
         let _activity = self.enter_activity()?;
         let mut runtimes = self.runtimes.borrow_mut();
         let runtime = runtimes.get_mut(&runtime_id).ok_or_else(|| {
@@ -244,9 +244,9 @@ impl World {
     pub(crate) fn run_replayable_entrypoint_inner(
         &self,
         runtime_id: RuntimeId,
-        entry: &EntryReference,
+        entry: &Entry,
         args: &[heap::Value],
-    ) -> RuntimeResult<EngineOutput> {
+    ) -> RuntimeResult<ExecutionOutput> {
         let _activity = self.enter_activity()?;
         let mut runtimes = self.runtimes.borrow_mut();
         let runtime = runtimes.get_mut(&runtime_id).ok_or_else(|| {

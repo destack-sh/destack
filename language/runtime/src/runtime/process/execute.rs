@@ -2,9 +2,7 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::HostSession;
 use crate::platform::resource;
 use crate::runtime::DropReason;
-use crate::runtime::engine::{
-    EngineContinuation, EngineOutcome, EngineOutput, Entry, EntryReference,
-};
+use crate::runtime::engine::{EngineContinuation, Entry, ExecutionOutcome, ExecutionOutput};
 use crate::runtime::poller::HostPoller;
 use crate::runtime::scheduler::{
     Microtask, Runnable, Task, TaskId, TaskStatus, Timer, TimerHandle,
@@ -28,7 +26,7 @@ impl Agent {
         host: &HostSession,
         entry: &Entry,
         args: &[heap::Value],
-    ) -> RuntimeResult<EngineOutput> {
+    ) -> RuntimeResult<ExecutionOutput> {
         let mut poller: Option<Box<dyn HostPoller>> = None;
         self.run_entrypoint_with_host_and_poller(world, host, entry, args, &mut poller)
     }
@@ -41,7 +39,7 @@ impl Agent {
         entry: &Entry,
         args: &[heap::Value],
         poller: &mut Option<Box<dyn HostPoller>>,
-    ) -> RuntimeResult<EngineOutput> {
+    ) -> RuntimeResult<ExecutionOutput> {
         let agent_ptr = self as *const Agent;
         let event_loop = self.event_loop.as_ref() as *const _;
         let host_ptr = host as *const HostSession;
@@ -66,14 +64,11 @@ impl Agent {
 
         // handle the entry outcome
         let output = match outcome {
-            EngineOutcome::Completed { output } => Ok(output),
-            EngineOutcome::Yielded {
-                continuation,
-                value,
-            } => {
+            ExecutionOutcome::Completed { output } => Ok(output),
+            ExecutionOutcome::Yielded { yielded } => {
                 // enqueue the yielded continuation
                 let task_id = self.event_loop.next_task_id();
-                self.enqueue_task(world, task_id, continuation, value)?;
+                self.enqueue_task(world, task_id, yielded.continuation, yielded.value)?;
 
                 let output = self.run_until_task_complete(world, host, task_id, None, poller)?;
                 output.ok_or_else(|| {
@@ -93,10 +88,10 @@ impl Agent {
         &mut self,
         world: &World,
         host: &HostSession,
-        entry: &EntryReference,
+        entry: &Entry,
         args: &[heap::Value],
         poller: &mut Option<Box<dyn HostPoller>>,
-    ) -> RuntimeResult<EngineOutput> {
+    ) -> RuntimeResult<ExecutionOutput> {
         let agent_ptr = self as *const Agent;
         let event_loop = self.event_loop.as_ref() as *const _;
         let host_ptr = host as *const HostSession;
@@ -121,13 +116,10 @@ impl Agent {
 
         // handle the entry outcome
         let output = match outcome {
-            EngineOutcome::Completed { output } => Ok(output),
-            EngineOutcome::Yielded {
-                continuation,
-                value,
-            } => {
+            ExecutionOutcome::Completed { output } => Ok(output),
+            ExecutionOutcome::Yielded { yielded } => {
                 let task_id = self.event_loop.next_task_id();
-                self.enqueue_task(world, task_id, continuation, value)?;
+                self.enqueue_task(world, task_id, yielded.continuation, yielded.value)?;
 
                 let output = self.run_until_task_complete(world, host, task_id, None, poller)?;
                 output.ok_or_else(|| {
@@ -148,7 +140,7 @@ impl Agent {
         world: &World,
         host: &HostSession,
         target_task: TaskId,
-    ) -> RuntimeResult<EngineOutput> {
+    ) -> RuntimeResult<ExecutionOutput> {
         let mut poller: Option<Box<dyn HostPoller>> = None;
         self.run_loop_until_task_complete_with_host_and_poller(
             world,
@@ -165,7 +157,7 @@ impl Agent {
         host: &HostSession,
         target_task: TaskId,
         poller: &mut Option<Box<dyn HostPoller>>,
-    ) -> RuntimeResult<EngineOutput> {
+    ) -> RuntimeResult<ExecutionOutput> {
         let output = self.run_until_task_complete(world, host, target_task, None, poller)?;
         output.ok_or_else(|| {
             RuntimeError::EventLoopIdle {
@@ -182,7 +174,7 @@ impl Agent {
         host: &HostSession,
         target_task: TaskId,
         timeout_nanos: Option<u64>,
-    ) -> RuntimeResult<Option<EngineOutput>> {
+    ) -> RuntimeResult<Option<ExecutionOutput>> {
         let mut poller: Option<Box<dyn HostPoller>> = None;
         self.run_until_task_complete(world, host, target_task, timeout_nanos, &mut poller)
     }
@@ -195,7 +187,7 @@ impl Agent {
         target_task: TaskId,
         timeout_nanos: Option<u64>,
         poller: &mut Option<Box<dyn HostPoller>>,
-    ) -> RuntimeResult<Option<EngineOutput>> {
+    ) -> RuntimeResult<Option<ExecutionOutput>> {
         // capture one monotonic start timestamp for timeout accounting
         let start_mono_nanos = world.mono_nanos();
 
@@ -270,7 +262,7 @@ impl Agent {
         world: &World,
         host: &HostSession,
         target_task: Option<TaskId>,
-    ) -> RuntimeResult<(bool, Option<EngineOutput>)> {
+    ) -> RuntimeResult<(bool, Option<ExecutionOutput>)> {
         let agent_ptr = self as *const Agent;
         let event_loop = self.event_loop.as_ref() as *const _;
         let host_ptr = host as *const HostSession;
@@ -441,7 +433,7 @@ impl Agent {
         world: &World,
         task: Task,
         target_task: Option<TaskId>,
-    ) -> RuntimeResult<Option<EngineOutput>> {
+    ) -> RuntimeResult<Option<ExecutionOutput>> {
         self.hooks.on_scheduler_dequeue(world);
         self.execute_task(world, task, target_task)
     }
@@ -452,7 +444,7 @@ impl Agent {
         world: &World,
         mut task: Task,
         target_task: Option<TaskId>,
-    ) -> RuntimeResult<Option<EngineOutput>> {
+    ) -> RuntimeResult<Option<ExecutionOutput>> {
         // run the task runnable
         task.status = TaskStatus::Waiting;
         let _guard = enter_event_loop_scope(EventLoopScope::for_task(task.id));
@@ -460,18 +452,15 @@ impl Agent {
 
         // handle the task outcome
         match outcome {
-            EngineOutcome::Completed { output } => {
+            ExecutionOutcome::Completed { output } => {
                 task.status = TaskStatus::Completed;
                 if target_task == Some(task.id) {
                     return Ok(Some(output));
                 }
             }
-            EngineOutcome::Yielded {
-                continuation,
-                value,
-            } => {
+            ExecutionOutcome::Yielded { yielded } => {
                 task.status = TaskStatus::Waiting;
-                self.enqueue_task(world, task.id, continuation, value)?;
+                self.enqueue_task(world, task.id, yielded.continuation, yielded.value)?;
             }
         }
 
@@ -514,8 +503,8 @@ impl Agent {
 
         // ensure microtasks run to completion
         match outcome {
-            EngineOutcome::Completed { .. } => Ok(()),
-            EngineOutcome::Yielded { .. } => Err(RuntimeError::Internal {
+            ExecutionOutcome::Completed { .. } => Ok(()),
+            ExecutionOutcome::Yielded { .. } => Err(RuntimeError::Internal {
                 message: "microtask yielded while running to completion".to_string(),
             }
             .boxed()),
@@ -565,7 +554,7 @@ impl Agent {
         world: &World,
         runnable: EngineContinuation,
         resume_value: heap::Value,
-    ) -> RuntimeResult<EngineOutcome> {
+    ) -> RuntimeResult<ExecutionOutcome<EngineContinuation>> {
         let mut shared = world.shared.borrow_mut();
         let mut memory = heap::MemoryContext::with_shared_limits(
             &mut self.heap,

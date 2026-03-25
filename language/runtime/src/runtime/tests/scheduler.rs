@@ -9,8 +9,8 @@ use crate::host::{HostEventKind, HostLifecycleState, HostSession};
 use crate::platform::ResourceId;
 use crate::platform::time::TimerClock;
 use crate::runtime::engine::{
-    Engine, EngineContinuation, EngineContinuationImage, EngineImage, EngineOutcome, EngineOutput,
-    EngineSnapshot, Entry, EntryReference, NativeContinuation,
+    Engine, EngineContinuation, EngineContinuationImage, EngineImage, EngineSnapshot, Entry, Entry,
+    ExecutionOutcome, ExecutionOutput, NativeContinuation,
 };
 use crate::runtime::poller::{
     PollerEvent, PollerEventFlags, PollerEventMask, PollerEventPayload, PollerEventSource,
@@ -42,9 +42,9 @@ impl Engine for CompleteEngine {
         _memory: &mut heap::MemoryContext<'_>,
         _entry: &Entry,
         _args: &[heap::Value],
-    ) -> RuntimeResult<EngineOutcome> {
-        Ok(EngineOutcome::Completed {
-            output: EngineOutput {
+    ) -> RuntimeResult<ExecutionOutcome<EngineContinuation>> {
+        Ok(ExecutionOutcome::Completed {
+            output: ExecutionOutput {
                 value: heap::Value::VOID,
                 stats: Default::default(),
                 managed_allocation_count: 0,
@@ -57,11 +57,11 @@ impl Engine for CompleteEngine {
     fn run_replayable_entry(
         &mut self,
         _memory: &mut heap::MemoryContext<'_>,
-        _entry: &EntryReference,
+        _entry: &Entry,
         _args: &[heap::Value],
-    ) -> RuntimeResult<EngineOutcome> {
-        Ok(EngineOutcome::Completed {
-            output: EngineOutput {
+    ) -> RuntimeResult<ExecutionOutcome<EngineContinuation>> {
+        Ok(ExecutionOutcome::Completed {
+            output: ExecutionOutput {
                 value: heap::Value::VOID,
                 stats: Default::default(),
                 managed_allocation_count: 0,
@@ -76,15 +76,15 @@ impl Engine for CompleteEngine {
         _memory: &mut heap::MemoryContext<'_>,
         continuation: EngineContinuation,
         _value: heap::Value,
-    ) -> RuntimeResult<EngineOutcome> {
+    ) -> RuntimeResult<ExecutionOutcome<EngineContinuation>> {
         // record native continuation ids for ordering assertions
         if let EngineContinuation::Native(continuation) = continuation {
             self.resumed_native_ids.push(continuation.get());
         }
 
         self.resume_calls = self.resume_calls.saturating_add(1);
-        Ok(EngineOutcome::Completed {
-            output: EngineOutput {
+        Ok(ExecutionOutcome::Completed {
+            output: ExecutionOutput {
                 value: heap::Value::VOID,
                 stats: Default::default(),
                 managed_allocation_count: 0,

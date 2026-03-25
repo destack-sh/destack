@@ -13,9 +13,9 @@ mod status;
 pub(crate) use crate::host::abi::core::{HostSessionHandle, HostStatus};
 pub(crate) use adapter::HostAdapter;
 pub use adapter::HostPollOutcome;
-pub(crate) use destack_artifact::Platform;
 #[cfg(any(test, feature = "execution"))]
 pub(crate) use adapter::without_native_ingress;
+pub(crate) use destack_artifact::Platform;
 pub use event::{
     HostBackgroundEvent, HostDocumentEvent, HostEvent, HostEventKind, HostIntentEvent,
     HostIntentPayload, HostInterruptionEvent, HostLifecycleEvent, HostLifecycleSourceKind,

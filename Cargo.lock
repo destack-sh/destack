@@ -1499,6 +1499,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "destack_engine"
+version = "0.55.4"
+dependencies = [
+ "destack_heap",
+ "serde",
+]
+
+[[package]]
 name = "destack_fir"
 version = "0.55.4"
 dependencies = [
@@ -1748,6 +1756,7 @@ dependencies = [
  "destack_compiler",
  "destack_core",
  "destack_dir",
+ "destack_engine",
  "destack_fir",
  "destack_heap",
  "destack_mir",
@@ -1905,6 +1914,7 @@ dependencies = [
  "clap",
  "criterion",
  "destack_core",
+ "destack_engine",
  "destack_heap",
  "destack_mir",
  "destack_source",
