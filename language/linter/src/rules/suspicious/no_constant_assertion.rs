@@ -242,7 +242,7 @@ const value = 1
         );
         test.result(result)
             .assert_lint("no-constant-assertion")
-            .assert_safe_fixed(
+            .assert_suggested_fixed(
                 r#"
 const value = 1;
 "#,
@@ -299,7 +299,7 @@ run()
         );
         test.result(result)
             .assert_lint("no-constant-assertion")
-            .assert_safe_fixed(
+            .assert_suggested_fixed(
                 r#"
 run();
 "#,

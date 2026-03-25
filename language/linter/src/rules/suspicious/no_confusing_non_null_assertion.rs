@@ -179,7 +179,8 @@ fn confusing_operator_fix(
     if matches!(kind, ConfusingOperatorKind::Assign) {
         let bang_span = expression_trailing_bang_span(ctx, left_expression_id)?;
         return Some(
-            LintFix::r#unsafe("Remove non-null assertion from assignment target").delete(bang_span),
+            LintFix::suggestion("Remove non-null assertion from assignment target")
+                .delete(bang_span),
         );
     }
 

@@ -279,7 +279,7 @@ function foo() {}
         test.result(result)
             .assert_lint_count("no-duplicate-decorators", 2)
             .assert_has_fix("no-duplicate-decorators")
-            .assert_safe_fixed(
+            .assert_suggested_fixed(
                 r#"
 @inline
 @deprecated
