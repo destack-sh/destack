@@ -1,8 +1,11 @@
+use std::str::FromStr;
+
 use destack_ast::{self as ast, Expression, ScalarLiteral, is_identifier};
 use destack_source::Span;
 use destack_workspace::LintSeverity;
+use regex::Regex;
 
-use crate::rules::common::span_has_comment_trivia;
+use crate::rules::common::{expression_static_string_literal_syntax, span_has_comment_trivia};
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
@@ -32,6 +35,14 @@ impl LintRule for DotNotation {
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
+        let allow_pattern = ctx
+            .options
+            .dot_notation_allow_pattern
+            .as_deref()
+            .map(|pattern| {
+                Regex::new(pattern)
+                    .expect("validated config invariant: dot-notation allow pattern compiles")
+            });
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expr = ctx.tree.get(node_id);
@@ -46,58 +57,79 @@ impl LintRule for DotNotation {
                 continue;
             };
 
-            let index_expr = ctx.tree.get(*index_id);
-
-            // check if index is a string literal
-            let Expression::ScalarLiteral(ScalarLiteral::String(string_id)) = index_expr else {
+            let Some(string_id) = expression_static_string_literal_syntax(ctx.tree, *index_id)
+            else {
                 continue;
             };
 
-            let property_name = ctx.strings.get(*string_id);
+            let property_name = ctx.strings.get(string_id);
             let name_str = property_name.as_ref();
 
-            // check if string is a valid identifier
-            if is_identifier(name_str) {
-                let severity = ctx.get_effective_severity(meta, node_id);
-                if !severity.is_enabled() {
-                    continue;
-                }
-                let expression_span = ctx.tree.get_span(node_id);
-                let left_span = ctx.tree.get_span(*left);
-                let bracket_span =
-                    Span::new(expression_span.file, left_span.end, expression_span.end);
-                let mut diagnostic = LintDiagnostic::new(
-                    DOT_NOTATION.id,
-                    DOT_NOTATION.code,
-                    DOT_NOTATION.category,
-                    severity,
-                    format!("use `.{name_str}` instead of `[\"{name_str}\"]`"),
-                    ctx.module.file_id,
-                    expression_span,
-                )
-                .with_label("prefer dot notation");
-
-                // skip fixes with trivia in brackets
-                if ctx.compute_fixes && !span_has_comment_trivia(ctx.tree, bracket_span) {
-                    let left_expression = ctx.tree.get(*left);
-                    let dot_prefix = if is_numeric_literal_expression(left_expression) {
-                        " ."
-                    } else {
-                        "."
-                    };
-                    let replacement = format!("{dot_prefix}{name_str}");
-                    let edits = ctx
-                        .edit_builder()
-                        .replace(bracket_span, replacement)
-                        .into_edits();
-                    let fix = LintFix::safe("Convert to dot notation").with_edits(edits);
-                    diagnostic = diagnostic.with_fix(fix);
-                }
-
-                ctx.report(diagnostic);
+            if !property_name_prefers_dot_notation(ctx, &allow_pattern, name_str) {
+                continue;
             }
+
+            let severity = ctx.get_effective_severity(meta, node_id);
+            if !severity.is_enabled() {
+                continue;
+            }
+
+            let expression_span = ctx.tree.get_span(node_id);
+            let left_span = ctx.tree.get_span(*left);
+            let bracket_span = Span::new(expression_span.file, left_span.end, expression_span.end);
+            let mut diagnostic = LintDiagnostic::new(
+                DOT_NOTATION.id,
+                DOT_NOTATION.code,
+                DOT_NOTATION.category,
+                severity,
+                format!("use `.{name_str}` instead of `[\"{name_str}\"]`"),
+                ctx.module.file_id,
+                expression_span,
+            )
+            .with_label("prefer dot notation");
+
+            if ctx.compute_fixes && !span_has_comment_trivia(ctx.tree, bracket_span) {
+                let left_expression = ctx.tree.get(*left);
+                let dot_prefix = if is_numeric_literal_expression(left_expression) {
+                    " ."
+                } else {
+                    "."
+                };
+                let replacement = format!("{dot_prefix}{name_str}");
+                let edits = ctx
+                    .edit_builder()
+                    .replace(bracket_span, replacement)
+                    .into_edits();
+                let fix = LintFix::safe("Convert to dot notation").with_edits(edits);
+                diagnostic = diagnostic.with_fix(fix);
+            }
+
+            ctx.report(diagnostic);
         }
     }
+}
+
+/// Return true when one property name should prefer dot notation.
+fn property_name_prefers_dot_notation(
+    ctx: &LintAstContext<'_>,
+    allow_pattern: &Option<Regex>,
+    name: &str,
+) -> bool {
+    if !is_identifier(name) {
+        return false;
+    }
+
+    if ctx.options.dot_notation_allow_keywords && ast::Keyword::from_str(name).is_ok() {
+        return false;
+    }
+
+    if let Some(allow_pattern) = allow_pattern
+        && allow_pattern.is_match(name)
+    {
+        return false;
+    }
+
+    true
 }
 
 /// Return true when the expression is one numeric literal.
@@ -241,10 +273,6 @@ const x = 1 .toString;
 "#,
             );
     }
-}
-"#,
-            );
-    }
 
     #[test]
     fn test_allows_keyword_property_when_keywords_are_allowed() {
@@ -300,3 +328,7 @@ const x = obj[`foo`]
             .assert_safe_fixed(
                 r#"
 const x = obj.foo;
+"#,
+            );
+    }
+}

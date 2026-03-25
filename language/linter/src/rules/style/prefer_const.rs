@@ -5,10 +5,12 @@ use destack_dir::{
     NodeVisitorOptions, walk_expression,
 };
 use destack_source::ModuleId;
-use destack_workspace::LintSeverity;
+use destack_workspace::{LintSeverity, PreferConstDestructuring};
 
 use crate::rules::common::{
-    collect_pattern_value_binding_symbols, expression_assignment_target, expression_target_symbol,
+    collect_local_symbol_direct_reference_expression_ids, collect_pattern_value_binding_symbols,
+    expression_assignment_target, expression_is_standalone_statement, expression_reference_is_read,
+    statement_expression_ancestor,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -24,7 +26,7 @@ declare_lint! {
         level = Dir,
         requires_all = [],
         requires_any = [],
-        fixable = Always,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -49,47 +51,69 @@ impl LintRule for PreferConst {
             return;
         }
 
-        // collect reassignments for the declared symbols
-        let mut scanner = ReassignmentScanner::new(ctx, &let_declarations);
-        scanner.run();
-        let assigned_symbols = scanner.assigned_symbols;
-
-        // report declarations when all bound symbols stay immutable
+        // report declarations when one or more bound symbols stay immutable
         for declaration in let_declarations {
-            if declaration
-                .symbols
-                .iter()
-                .any(|symbol_id| assigned_symbols.contains(symbol_id))
-            {
+            let mut eligible_symbols = Vec::new();
+
+            // collect eligible symbols group by group
+            for group in &declaration.binding_groups {
+                let group_eligible_symbols = group
+                    .symbols
+                    .iter()
+                    .copied()
+                    .filter(|symbol_id| symbol_should_be_const(ctx, &declaration, *symbol_id))
+                    .collect::<Vec<_>>();
+                let requires_all_symbols = group.is_destructuring
+                    && ctx.options.prefer_const_destructuring == PreferConstDestructuring::All;
+                if requires_all_symbols && group_eligible_symbols.len() != group.symbols.len() {
+                    continue;
+                }
+
+                eligible_symbols.extend(group_eligible_symbols);
+            }
+            if eligible_symbols.is_empty() {
                 continue;
             }
 
-            // honor per node severity
-            let severity = ctx.get_effective_severity(meta, declaration.expression_id);
-            if !severity.is_enabled() {
-                continue;
+            let can_fix_declaration = eligible_symbols.len() == declaration.symbols.len()
+                && declaration
+                    .symbols
+                    .iter()
+                    .all(|symbol_id| declaration.initialized_symbols.contains(symbol_id));
+
+            for symbol_id in eligible_symbols {
+                let severity = ctx.get_effective_severity(meta, declaration.expression_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
+                let span = ctx.get_span(declaration.expression_id);
+                let symbol_name = ctx
+                    .symbols
+                    .get_symbol(symbol_id.local_id)
+                    .name()
+                    .map(|name| ctx.program.strings.get(name).to_string())
+                    .unwrap_or_else(|| "binding".to_string());
+                let mut diagnostic = LintDiagnostic::new(
+                    PREFER_CONST.id,
+                    PREFER_CONST.code,
+                    PREFER_CONST.category,
+                    severity,
+                    format!("`{symbol_name}` is never reassigned, use const instead"),
+                    ctx.module.file_id,
+                    span,
+                )
+                .with_label("this binding can be const");
+
+                if can_fix_declaration
+                    && ctx.include_fixes
+                    && let Some(fix) = build_prefer_const_fix(ctx, declaration.expression_id)
+                {
+                    diagnostic = diagnostic.with_fix(fix);
+                }
+
+                ctx.report(diagnostic);
             }
-
-            let span = ctx.get_span(declaration.expression_id);
-            let mut diagnostic = LintDiagnostic::new(
-                PREFER_CONST.id,
-                PREFER_CONST.code,
-                PREFER_CONST.category,
-                severity,
-                "use const instead of let",
-                ctx.module.file_id,
-                span,
-            )
-            .with_label("this variable is never reassigned");
-
-            // rewrite mutable declarations to const when possible
-            if ctx.include_fixes
-                && let Some(fix) = build_prefer_const_fix(ctx, declaration.expression_id)
-            {
-                diagnostic = diagnostic.with_fix(fix);
-            }
-
-            ctx.report(diagnostic);
         }
     }
 }
@@ -98,8 +122,20 @@ impl LintRule for PreferConst {
 struct LetDeclaration {
     /// The declaration expression id.
     expression_id: LocalNodeId<dir::Expression>,
+    /// All binding groups declared in the expression.
+    binding_groups: Vec<BindingGroup>,
     /// All value symbols declared in the expression.
     symbols: Vec<GlobalSymbolId>,
+    /// The symbols initialized at the declaration site.
+    initialized_symbols: HashSet<GlobalSymbolId>,
+}
+
+/// One binding group within a mutable declaration.
+struct BindingGroup {
+    /// The declared symbols in the group.
+    symbols: Vec<GlobalSymbolId>,
+    /// Whether the group is a destructuring pattern.
+    is_destructuring: bool,
 }
 
 /// Build a safe rewrite from `let` or `var` to `const`.
@@ -107,21 +143,35 @@ fn build_prefer_const_fix(
     ctx: &LintModuleDirContext<'_>,
     expression_id: LocalNodeId<dir::Expression>,
 ) -> Option<LintFix> {
-    let span = ctx.get_span(expression_id);
-    let expression_text = ctx.get_span_text(span);
-    let replacement = replace_binding_keyword_with_const(expression_text)?;
-    let edits = ctx.edit_builder().replace(span, replacement).into_edits();
+    let statement_id = statement_expression_ancestor(ctx.tree, expression_id)?;
+    let statement_span = ctx.get_span(statement_id);
+    let statement_text = ctx.get_span_text(statement_span);
+    if statement_text.contains('{') || statement_text.contains('[') {
+        return None;
+    }
+
+    let keyword = binding_keyword(statement_text)?;
+    let keyword_offset = statement_text.find(keyword)? as u32;
+    let replacement_span = destack_source::Span::new(
+        statement_span.file,
+        statement_span.start + keyword_offset,
+        statement_span.start + keyword_offset + keyword.len() as u32,
+    );
+    let edits = ctx
+        .edit_builder()
+        .replace(replacement_span, "const")
+        .into_edits();
     Some(LintFix::safe("Replace with const declaration").with_edits(edits))
 }
 
-/// Replace the leading mutable declaration keyword with `const`.
-fn replace_binding_keyword_with_const(expression_text: &str) -> Option<String> {
-    if let Some(rest) = expression_text.strip_prefix("let") {
-        return Some(format!("const{rest}"));
+/// Return the leading mutable declaration keyword.
+fn binding_keyword(expression_text: &str) -> Option<&'static str> {
+    if expression_text.starts_with("let") {
+        return Some("let");
     }
 
-    if let Some(rest) = expression_text.strip_prefix("var") {
-        return Some(format!("const{rest}"));
+    if expression_text.starts_with("var") {
+        return Some("var");
     }
 
     None
@@ -189,14 +239,36 @@ impl NodeVisitor for LetDeclarationCollector<'_, '_> {
         {
             // collect value symbols from all declarator patterns
             let mut declaration_symbols = HashSet::new();
+            let mut initialized_symbols = HashSet::new();
+            let mut binding_groups = Vec::new();
             for declarator_id in declarators {
                 let declarator = tree.get(*declarator_id);
+                let mut declarator_symbols = HashSet::new();
                 collect_pattern_value_binding_symbols(
                     tree,
                     self.ctx.symbols,
                     declarator.pattern,
-                    &mut declaration_symbols,
+                    &mut declarator_symbols,
                 );
+                if declarator.value.is_some() {
+                    initialized_symbols.extend(
+                        declarator_symbols
+                            .iter()
+                            .copied()
+                            .map(|local_symbol| self.to_global(local_symbol)),
+                    );
+                }
+                if !declarator_symbols.is_empty() {
+                    binding_groups.push(BindingGroup {
+                        symbols: declarator_symbols
+                            .iter()
+                            .copied()
+                            .map(|local_symbol| self.to_global(local_symbol))
+                            .collect(),
+                        is_destructuring: pattern_is_destructuring(tree, declarator.pattern),
+                    });
+                }
+                declaration_symbols.extend(declarator_symbols);
             }
 
             if !declaration_symbols.is_empty() {
@@ -206,7 +278,9 @@ impl NodeVisitor for LetDeclarationCollector<'_, '_> {
                     .collect();
                 self.let_declarations.push(LetDeclaration {
                     expression_id: id,
+                    binding_groups,
                     symbols,
+                    initialized_symbols,
                 });
             }
         }
@@ -216,74 +290,154 @@ impl NodeVisitor for LetDeclarationCollector<'_, '_> {
     }
 }
 
-/// Scanner for reassignments to specific symbols.
-struct ReassignmentScanner<'a, 'b> {
-    /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
-    /// Symbols to look for reassignments to.
-    target_symbols: HashSet<GlobalSymbolId>,
-    /// Symbols that have been reassigned.
-    assigned_symbols: HashSet<GlobalSymbolId>,
-    /// The visitor options.
-    options: NodeVisitorOptions,
+/// Return true when one bound symbol should use const.
+fn symbol_should_be_const(
+    ctx: &LintModuleDirContext<'_>,
+    declaration: &LetDeclaration,
+    symbol_id: GlobalSymbolId,
+) -> bool {
+    if declaration.initialized_symbols.contains(&symbol_id) {
+        return !symbol_has_write_references(ctx, symbol_id);
+    }
+
+    symbol_has_single_const_eligible_assignment(ctx, declaration.expression_id, symbol_id)
 }
 
-impl<'a, 'b> ReassignmentScanner<'a, 'b> {
-    /// Build a scanner for reassignments to specific symbols.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, let_declarations: &[LetDeclaration]) -> Self {
-        let target_symbols = let_declarations
-            .iter()
-            .flat_map(|declaration| declaration.symbols.iter().copied())
-            .collect();
+/// Return true when one symbol has write references after its declaration.
+fn symbol_has_write_references(ctx: &LintModuleDirContext<'_>, symbol_id: GlobalSymbolId) -> bool {
+    let reference_ids = collect_local_symbol_direct_reference_expression_ids(
+        ctx.module_id(),
+        ctx.tree,
+        symbol_id.local_id,
+    );
 
-        Self {
-            ctx,
-            target_symbols,
-            assigned_symbols: HashSet::new(),
-            options: NodeVisitorOptions::default(),
-        }
-    }
+    reference_ids
+        .into_iter()
+        .any(|reference_id| reference_write_kind(ctx.tree, reference_id).is_some())
+}
 
-    /// Walk the DIR tree roots.
-    fn run(&mut self) {
-        let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+/// Return true when one symbol has exactly one const-eligible assignment.
+fn symbol_has_single_const_eligible_assignment(
+    ctx: &LintModuleDirContext<'_>,
+    declaration_expression_id: LocalNodeId<dir::Expression>,
+    symbol_id: GlobalSymbolId,
+) -> bool {
+    let reference_ids = collect_local_symbol_direct_reference_expression_ids(
+        ctx.module_id(),
+        ctx.tree,
+        symbol_id.local_id,
+    );
+    let mut assignment_expression_id = None;
+    let mut is_read_before_assignment = false;
 
-        for root_id in roots {
-            let expression = tree.get(root_id);
-            self.visit_expression(tree, root_id, expression);
-        }
-    }
-
-    /// Check if the assignment target is a tracked symbol.
-    fn check_assignment_target(&mut self, target_id: LocalNodeId<dir::Expression>) {
-        if let Some(symbol) = expression_target_symbol(self.ctx.tree, target_id)
-            && self.target_symbols.contains(&symbol)
+    for reference_id in reference_ids {
+        if assignment_expression_id.is_none()
+            && expression_reference_is_read(ctx.tree, reference_id)
         {
-            self.assigned_symbols.insert(symbol);
+            is_read_before_assignment = true;
         }
+
+        match reference_write_kind(ctx.tree, reference_id) {
+            Some(ReferenceWriteKind::SimpleAssign(parent_id)) => {
+                if assignment_expression_id.is_some() {
+                    return false;
+                }
+                assignment_expression_id = Some(parent_id);
+            }
+            Some(ReferenceWriteKind::OtherWrite) => {
+                return false;
+            }
+            None => {}
+        }
+    }
+
+    let Some(assignment_expression_id) = assignment_expression_id else {
+        return false;
+    };
+    if ctx.options.prefer_const_ignore_read_before_assign && is_read_before_assignment {
+        return false;
+    }
+
+    assignment_can_become_const_declaration(
+        ctx,
+        declaration_expression_id,
+        assignment_expression_id,
+    )
+}
+
+/// One write shape for a symbol reference.
+enum ReferenceWriteKind {
+    /// A plain assignment like `x = value`.
+    SimpleAssign(LocalNodeId<dir::Expression>),
+    /// Any other write that cannot become a const declaration.
+    OtherWrite,
+}
+
+/// Return the write kind for one symbol reference.
+fn reference_write_kind(
+    tree: &dir::NodeTree,
+    reference_id: LocalNodeId<dir::Expression>,
+) -> Option<ReferenceWriteKind> {
+    let parent = tree.get_parent(reference_id.id)?;
+    if parent.ty != dir::NodeType::Expression {
+        return None;
+    }
+
+    let parent_id = parent.into_typed::<dir::Expression>();
+    let parent_expression = tree.get(parent_id);
+    let target_id = expression_assignment_target(parent_expression)?;
+    if target_id != reference_id {
+        return None;
+    }
+
+    match parent_expression {
+        dir::Expression::Assign { .. } => Some(ReferenceWriteKind::SimpleAssign(parent_id)),
+        dir::Expression::AssignBinary { .. } | dir::Expression::Unary { .. } => {
+            Some(ReferenceWriteKind::OtherWrite)
+        }
+        _ => None,
     }
 }
 
-impl NodeVisitor for ReassignmentScanner<'_, '_> {
-    fn options(&self) -> &NodeVisitorOptions {
-        &self.options
+/// Return true when one assignment can become a const declaration.
+fn assignment_can_become_const_declaration(
+    ctx: &LintModuleDirContext<'_>,
+    declaration_expression_id: LocalNodeId<dir::Expression>,
+    assignment_expression_id: LocalNodeId<dir::Expression>,
+) -> bool {
+    if !expression_is_standalone_statement(ctx.tree, assignment_expression_id) {
+        return false;
     }
 
-    fn visit_expression(
-        &mut self,
-        tree: &dir::NodeTree,
-        id: LocalNodeId<dir::Expression>,
-        expression: &dir::Expression,
-    ) {
-        // record assignment targets for tracked symbols
-        if let Some(target_id) = expression_assignment_target(expression) {
-            self.check_assignment_target(target_id);
-        }
-
-        // walk expression children
-        walk_expression(self, tree, id, expression);
+    let (declaration_scope_id, _, _) = ctx.symbols.get_scope(declaration_expression_id, ctx.tree);
+    let (assignment_scope_id, _, _) = ctx.symbols.get_scope(assignment_expression_id, ctx.tree);
+    if declaration_scope_id != assignment_scope_id {
+        return false;
     }
+
+    let Some(statement_expression_id) =
+        statement_expression_ancestor(ctx.tree, assignment_expression_id)
+    else {
+        return false;
+    };
+    let Some(parent) = ctx.tree.get_parent(statement_expression_id.id) else {
+        return true;
+    };
+
+    matches!(parent.ty, dir::NodeType::Block)
+}
+
+/// Return true when one pattern is a destructuring pattern.
+fn pattern_is_destructuring(tree: &dir::NodeTree, pattern_id: LocalNodeId<dir::Pattern>) -> bool {
+    !matches!(
+        tree.get(pattern_id),
+        dir::Pattern::Wildcard
+            | dir::Pattern::Must(_)
+            | dir::Pattern::ReferenceOf { .. }
+            | dir::Pattern::ValueOf { .. }
+            | dir::Pattern::Binding { .. }
+            | dir::Pattern::Expression { .. }
+    )
 }
 
 #[cfg(test)]

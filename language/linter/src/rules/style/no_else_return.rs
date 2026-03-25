@@ -2,7 +2,7 @@ use destack_ast::{self as ast, Block};
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expression_is_else_if_branch;
+use crate::rules::common::{expression_is_else_if_branch, source_text_contains_comment_token};
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
@@ -17,7 +17,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = Always,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -45,13 +45,15 @@ impl LintRule for NoElseReturn {
                 continue;
             };
 
-            // skip else if chain members for default eslint parity
-            if expression_is_else_if_branch(ctx.tree, ctx.parents, node_id) {
+            // skip else if chain members when the option allows them
+            if ctx.options.no_else_return_allow_else_if
+                && expression_is_else_if_branch(ctx.tree, ctx.parents, node_id)
+            {
                 continue;
             }
 
-            // align with eslint: skip else if chains by default
-            if expression_is_else_if(ctx, *else_id) {
+            // skip else if alternates when the option allows them
+            if ctx.options.no_else_return_allow_else_if && expression_is_else_if(ctx, *else_id) {
                 continue;
             }
 
@@ -112,6 +114,11 @@ fn no_else_return_fix(
     let ast::Expression::Block(else_block_id) = ctx.tree.get(else_expression_id) else {
         return None;
     };
+
+    // avoid dropping comment text that lives inside the else block
+    if source_text_contains_comment_token(ctx.get_span_text(ctx.tree.get_span(*else_block_id))) {
+        return None;
+    }
 
     // avoid lexical binding collisions from lifted else block bindings
     if block_contains_binding_declaration(ctx, *else_block_id) {
@@ -225,13 +232,6 @@ function foo(x: boolean) {
     }
 
     #[test]
-    fn test_allows_no_else() {
-        let test = TestProgram::for_rule_without_prelude(NoElseReturn);
-        let result = test.lint_ast(
-            "no_else_return/test_allows_no_else.ds",
-            r#"
-function foo(x: boolean) {
-    #[test]
     fn test_has_no_fix_when_else_block_contains_comment() {
         let test = TestProgram::for_rule_without_prelude(NoElseReturn);
         let result = test.lint_ast(
@@ -252,6 +252,13 @@ function foo(x: boolean) {
             .assert_has_no_fix("no-else-return");
     }
 
+    #[test]
+    fn test_allows_no_else() {
+        let test = TestProgram::for_rule_without_prelude(NoElseReturn);
+        let result = test.lint_ast(
+            "no_else_return/test_allows_no_else.ds",
+            r#"
+function foo(x: boolean) {
     if (x) {
         return 1
     }
@@ -280,13 +287,6 @@ function foo(x: boolean) {
         test.result(result).assert_no_lint("no-else-return");
     }
 
-    #[test]
-    fn test_fix_else_after_return() {
-        let test = TestProgram::for_rule_without_prelude(NoElseReturn);
-        let result = test.lint_ast(
-            "no_else_return/test_fix_else_after_return.ds",
-            r#"
-function foo(x: bool): int32 {
     #[test]
     fn test_allows_else_if_by_default() {
         let test = TestProgram::for_rule_without_prelude(NoElseReturn);
@@ -328,6 +328,13 @@ function foo(x: boolean, y: boolean) {
         test.result(result).assert_lint("no-else-return");
     }
 
+    #[test]
+    fn test_fix_else_after_return() {
+        let test = TestProgram::for_rule_without_prelude(NoElseReturn);
+        let result = test.lint_ast(
+            "no_else_return/test_fix_else_after_return.ds",
+            r#"
+function foo(x: bool): int32 {
     if (x) {
         return 1
     } else {

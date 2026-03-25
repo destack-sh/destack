@@ -1,5 +1,5 @@
 use destack_ast::{self as ast, AssignOperator, BinaryOperator, ScalarLiteral};
-use destack_workspace::LintSeverity;
+use destack_workspace::{LintSeverity, OperatorAssignmentMode};
 
 use crate::rules::common::{
     expression_is_equal, expression_unwrap_parenthesized_syntax, span_has_comment_trivia,
@@ -43,6 +43,11 @@ impl LintRule for OperatorAssignment {
             else {
                 continue;
             };
+
+            if ctx.options.operator_assignment_mode == OperatorAssignmentMode::Never {
+                self.check_disallowed_shorthand_assignment(ctx, meta, node_id, *left, *operator);
+                continue;
+            }
 
             // only plain assignments can be replaced with shorthand
             if *operator != AssignOperator::Assign {
@@ -135,6 +140,47 @@ impl LintRule for OperatorAssignment {
     }
 }
 
+impl OperatorAssignment {
+    /// Report shorthand assignment operators when the mode disallows them.
+    fn check_disallowed_shorthand_assignment(
+        &self,
+        ctx: &mut LintAstContext<'_>,
+        meta: &'static crate::LintMeta,
+        node_id: ast::LocalNodeId<ast::Expression>,
+        left_id: ast::LocalNodeId<ast::Expression>,
+        operator: AssignOperator,
+    ) {
+        let Some(binary_text) = expanded_assignment_operator_text(operator) else {
+            return;
+        };
+
+        let severity = ctx.get_effective_severity(meta, node_id);
+        if !severity.is_enabled() {
+            return;
+        }
+
+        let expression_span = ctx.tree.get_span(node_id);
+        let left_text = ctx.get_span_text(ctx.tree.get_span(left_id));
+        ctx.report(
+            LintDiagnostic::new(
+                OPERATOR_ASSIGNMENT.id,
+                OPERATOR_ASSIGNMENT.code,
+                OPERATOR_ASSIGNMENT.category,
+                severity,
+                format!(
+                    "unexpected shorthand assignment `{}`",
+                    assignment_operator_text(operator)
+                ),
+                ctx.module.file_id,
+                expression_span,
+            )
+            .with_label(format!(
+                "use `{left_text} = {left_text} {binary_text} …` instead"
+            )),
+        );
+    }
+}
+
 /// Describe one shorthand assignment mapping.
 struct ShorthandAssignment {
     /// The replacement assignment token text.
@@ -174,6 +220,68 @@ fn shorthand_assignment_operator(operator: BinaryOperator) -> Option<ShorthandAs
         assignment_text: mapping.0,
         is_commutative: mapping.1,
     })
+}
+
+/// Return the assignment token text for one shorthand assignment operator.
+fn assignment_operator_text(operator: AssignOperator) -> &'static str {
+    match operator {
+        AssignOperator::Assign => "=",
+        AssignOperator::MultiplyAssign => "*=",
+        AssignOperator::WrappingMultiplyAssign => "*%=",
+        AssignOperator::SaturatingMultiplyAssign => "*|=",
+        AssignOperator::ExponentAssign => "**=",
+        AssignOperator::WrappingExponentAssign => "**%=",
+        AssignOperator::SaturatingExponentAssign => "**|=",
+        AssignOperator::DivideAssign => "/=",
+        AssignOperator::RemainderAssign => "%=",
+        AssignOperator::AddAssign => "+=",
+        AssignOperator::WrappingAddAssign => "+%=",
+        AssignOperator::SaturatingAddAssign => "+|=",
+        AssignOperator::SubtractAssign => "-=",
+        AssignOperator::WrappingSubtractAssign => "-%=",
+        AssignOperator::SaturatingSubtractAssign => "-|=",
+        AssignOperator::ShiftLeftAssign => "<<=",
+        AssignOperator::SaturatingShiftLeftAssign => "<<|=",
+        AssignOperator::ShiftRightAssign => ">>=",
+        AssignOperator::UnsignedShiftRightAssign => ">>>=",
+        AssignOperator::ElementwiseAndAssign => "&=",
+        AssignOperator::ElementwiseXorAssign => "^=",
+        AssignOperator::ElementwiseOrAssign => "|=",
+        AssignOperator::AndAssign => "&&=",
+        AssignOperator::OrAssign => "||=",
+        AssignOperator::CoalesceAssign => "??=",
+    }
+}
+
+/// Return the expanded binary operator text for one shorthand assignment operator.
+fn expanded_assignment_operator_text(operator: AssignOperator) -> Option<&'static str> {
+    match operator {
+        AssignOperator::Assign => None,
+        AssignOperator::MultiplyAssign => Some("*"),
+        AssignOperator::WrappingMultiplyAssign => Some("*%"),
+        AssignOperator::SaturatingMultiplyAssign => Some("*|"),
+        AssignOperator::ExponentAssign => Some("**"),
+        AssignOperator::WrappingExponentAssign => Some("**%"),
+        AssignOperator::SaturatingExponentAssign => Some("**|"),
+        AssignOperator::DivideAssign => Some("/"),
+        AssignOperator::RemainderAssign => Some("%"),
+        AssignOperator::AddAssign => Some("+"),
+        AssignOperator::WrappingAddAssign => Some("+%"),
+        AssignOperator::SaturatingAddAssign => Some("+|"),
+        AssignOperator::SubtractAssign => Some("-"),
+        AssignOperator::WrappingSubtractAssign => Some("-%"),
+        AssignOperator::SaturatingSubtractAssign => Some("-|"),
+        AssignOperator::ShiftLeftAssign => Some("<<"),
+        AssignOperator::SaturatingShiftLeftAssign => Some("<<|"),
+        AssignOperator::ShiftRightAssign => Some(">>"),
+        AssignOperator::UnsignedShiftRightAssign => Some(">>>"),
+        AssignOperator::ElementwiseAndAssign => Some("&"),
+        AssignOperator::ElementwiseXorAssign => Some("^"),
+        AssignOperator::ElementwiseOrAssign => Some("|"),
+        AssignOperator::AndAssign | AssignOperator::OrAssign | AssignOperator::CoalesceAssign => {
+            None
+        }
+    }
 }
 
 /// Return true when one assignment target can be safely auto fixed.
@@ -367,7 +475,6 @@ x = x /* keep */ + y
             .assert_lint("operator-assignment")
             .assert_has_no_fix("operator-assignment");
     }
-}
 
     #[test]
     fn test_reports_shorthand_assignment_when_mode_is_never() {
@@ -400,3 +507,4 @@ x &&= y
         );
         test.result(result).assert_no_lint("operator-assignment");
     }
+}
