@@ -695,14 +695,16 @@ impl Parser {
             }
             // new expression
             Keyword::New if !self.options.is_in_type() => {
-                // require a valid new expression start
-                let can_start_new_expression = matches!(
-                    next_token_type,
-                    TokenType::Identifier
-                        | TokenType::OpenParenthesis
-                        | TokenType::OpenBrace
-                        | TokenType::LessThan
-                );
+                // allow one committed or recoverable constructor slot
+                let can_start_new_expression =
+                    matches!(
+                        next_token_type,
+                        TokenType::Identifier
+                            | TokenType::OpenParenthesis
+                            | TokenType::OpenBrace
+                            | TokenType::LessThan
+                            | TokenType::Newline
+                    ) || Self::is_expression_slot_boundary_token(next_token_type);
                 if can_start_new_expression {
                     // parse new expression
                     let _timing = self.timing_scope(tags::PARSE_KEYWORD_EXPRESSION);
