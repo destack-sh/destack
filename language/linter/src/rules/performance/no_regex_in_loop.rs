@@ -353,6 +353,38 @@ while (i < 10) {
         test.result(result).assert_lint("no-regex-in-loop");
     }
 
+    /// Flag global qualified RegExp calls inside loops.
+    #[test]
+    fn test_flags_global_regexp_call_in_loop() {
+        let test = TestProgram::for_rule_with_prelude(NoRegexInLoop);
+        let result = test.lint_dir(
+            "no_regex_in_loop/test_flags_global_regexp_call_in_loop.ds",
+            r#"
+for (const pattern of ["a", "b"]) {
+    let re = globalThis.RegExp(pattern);
+    console.log(re.test("abc"));
+}
+"#,
+        );
+        test.result(result).assert_lint("no-regex-in-loop");
+    }
+
+    /// Flag computed global qualified RegExp calls inside loops.
+    #[test]
+    fn test_flags_computed_global_regexp_call_in_loop() {
+        let test = TestProgram::for_rule_with_prelude(NoRegexInLoop);
+        let result = test.lint_dir(
+            "no_regex_in_loop/test_flags_computed_global_regexp_call_in_loop.ds",
+            r#"
+for (const pattern of ["a", "b"]) {
+    let re = globalThis["RegExp"](pattern);
+    console.log(re.test("abc"));
+}
+"#,
+        );
+        test.result(result).assert_lint("no-regex-in-loop");
+    }
+
     /// Allow new RegExp outside loops.
     #[test]
     fn test_allows_regexp_outside_loop() {
@@ -396,6 +428,23 @@ for (const item of ["a", "b", "c"]) {
 let re = RegExp("test");
 for (const item of [1, 2, 3]) {
     console.log(re.test(item));
+}
+"#,
+        );
+        test.result(result).assert_no_lint("no-regex-in-loop");
+    }
+
+    /// Allow RegExp construction inside functions declared within loops.
+    #[test]
+    fn test_allows_nested_function_inside_loop() {
+        let test = TestProgram::for_rule_with_prelude(NoRegexInLoop);
+        let result = test.lint_dir(
+            "no_regex_in_loop/test_allows_nested_function_inside_loop.ds",
+            r#"
+for (const pattern of ["a", "b"]) {
+    function build() {
+        return new RegExp(pattern);
+    }
 }
 "#,
         );

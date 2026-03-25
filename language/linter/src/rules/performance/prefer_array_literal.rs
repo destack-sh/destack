@@ -420,6 +420,21 @@ let items: string[] = ["hello"];
             );
     }
 
+    /// Allow arrays whose empty state is observed before the pushes.
+    #[test]
+    fn test_allows_plain_value_use_before_pushes() {
+        let test = TestProgram::for_rule_without_prelude(PreferArrayLiteral);
+        let result = test.lint_dir(
+            "prefer_array_literal/test_allows_plain_value_use_before_pushes.ds",
+            r#"
+let items: number[] = [];
+consume(items);
+items.push(1);
+"#,
+        );
+        test.result(result).assert_no_lint("prefer-array-literal");
+    }
+
     /// Allow array literal.
     #[test]
     fn test_allows_array_literal() {

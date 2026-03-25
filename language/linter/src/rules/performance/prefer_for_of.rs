@@ -528,8 +528,35 @@ for (let i = 0; i < items.length; i += 1) {
             .assert_unsafe_fixed(
                 r#"
 let items = [1, 2, 3];
-for (const item of items) {
-    console.log(item);
+for (const itemElement of items) {
+    console.log(itemElement);
+}
+"#,
+            );
+    }
+
+    /// Keep the fix stable when `item` is already used in scope.
+    #[test]
+    fn test_fix_uses_fresh_binding_name_on_collision() {
+        let test = TestProgram::for_rule_with_prelude(PreferForOf);
+        let result = test.lint_dir(
+            "prefer_for_of/test_fix_uses_fresh_binding_name_on_collision.ds",
+            r#"
+let itemElement = 0;
+let items = [1, 2, 3];
+for (let i = 0; i < items.length; i++) {
+    console.log(items[i]);
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-for-of")
+            .assert_unsafe_fixed(
+                r#"
+let itemElement = 0;
+let items = [1, 2, 3];
+for (const itemElement2 of items) {
+    console.log(itemElement2);
 }
 "#,
             );
