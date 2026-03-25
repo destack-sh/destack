@@ -31,26 +31,8 @@ The big advantage of modeling the runtime against a single World concept is that
 
 ## Host
 
-The hosts are the operating systems and deployment targets, like Linux, iOS, macOS, Android, and Windows.
-Each host has its own capabilities, lifecycle constraints, framework ownership rules, and thread-affinity requirements.
-
-The basic bridge is `HostAdapter`.
-One `HostAdapter` represents one process-global host integration family.
-One `HostSession` represents one runtime session attached to that host integration.
-
-The direction of control stays explicit:
-- host shells push ingress into the runtime
-- the runtime submits explicit requests to the host shell
-
-The narrow envelope types at that seam are `HostEvent` for ingress and `HostRequest` plus `HostRequestOutcome` for outbound host work.
-Android ingress is pumped through the Android looper.
-Apple ingress is pumped through the CoreFoundation run loop, and UI-affine work uses the process main context helpers.
-
-At the architectural level, the split is:
-- the runtime owns semantics, request intent, policy, and replay or simulation concerns
-- the renderer owns rendering, input routing, accessibility publication, and presentation semantics above raw host bindings
-- the host shell owns native framework entrypoints, lifecycle attachment, callback registration, and thread-affinity reality
-- the transport and ABI layer owns handles, codecs, and callback trampolines, but not policy
+The hosts are the underlying operating systems (ish) and deployment targets, like Linux, iOS, macOS, Android, and Windows.
+Each host brings its own capabilities, lifecycle constraints, framework ownership rules, and thread-affinity requirements, and we model them via a single `HostAdapter` interface over a per-`Runtime` shared `HostSession`.
 
 ## Platform
 
