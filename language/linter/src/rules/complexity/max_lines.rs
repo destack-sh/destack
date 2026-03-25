@@ -1,6 +1,6 @@
-use destack_source::Span;
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::count_file_lines;
 use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
 
 declare_lint! {
@@ -54,7 +54,7 @@ impl LintRule for MaxLines {
         }
 
         // report at file start for one file level diagnostic
-        let span = Span::new(ctx.module.file_id, 0, 0);
+        let span = destack_source::Span::new(ctx.module.file_id, 0, 0);
         ctx.report(
             LintDiagnostic::new(
                 MAX_LINES.id,
@@ -68,92 +68,6 @@ impl LintRule for MaxLines {
             .with_label("consider splitting into smaller modules"),
         );
     }
-}
-
-/// Count file lines with optional comment and blank line skipping.
-fn count_file_lines(
-    file: &destack_source::File,
-    skip_comments: bool,
-    skip_blank_lines: bool,
-) -> usize {
-    // initialize line counters and comment state
-    let total_lines = file.line_count() as usize;
-    let mut counted_lines = 0usize;
-    let mut in_block_comment = false;
-
-    // scan each source line with trailing empty line normalization
-    for line_index in 0..total_lines {
-        let Some(line_text) = file.get_line_str(line_index as u32) else {
-            continue;
-        };
-
-        // ignore one synthetic trailing empty line for newline terminated files
-        if line_index + 1 == total_lines && line_text.is_empty() {
-            continue;
-        }
-
-        // skip full-line comments when configured
-        if skip_comments && !line_has_code_outside_comments(line_text, &mut in_block_comment) {
-            continue;
-        }
-
-        // skip blank lines when configured
-        if skip_blank_lines && line_text.trim().is_empty() {
-            continue;
-        }
-
-        counted_lines += 1;
-    }
-
-    counted_lines
-}
-
-/// Return true when one line contains non-comment code.
-fn line_has_code_outside_comments(line_text: &str, in_block_comment: &mut bool) -> bool {
-    // track whether this line contains any code token
-    let mut has_code = false;
-    let bytes = line_text.as_bytes();
-    let mut index = 0usize;
-
-    // scan one line while tracking block comment state
-    while index < bytes.len() {
-        // consume an active block comment until close token or line end
-        if *in_block_comment {
-            let Some(close_offset) = line_text[index..].find("*/") else {
-                return has_code;
-            };
-
-            index += close_offset + 2;
-            *in_block_comment = false;
-            continue;
-        }
-
-        // skip leading and interstitial whitespace
-        while index < bytes.len() && bytes[index].is_ascii_whitespace() {
-            index += 1;
-        }
-        if index >= bytes.len() {
-            break;
-        }
-
-        // stop at one line comment marker
-        if line_text[index..].starts_with("//") {
-            break;
-        }
-
-        // start block comment mode when block opener is found
-        if line_text[index..].starts_with("/*") {
-            *in_block_comment = true;
-            index += 2;
-            continue;
-        }
-
-        // mark code and continue scanning to track trailing block comments
-        has_code = true;
-        index += 1;
-    }
-
-    has_code
 }
 
 #[cfg(test)]
