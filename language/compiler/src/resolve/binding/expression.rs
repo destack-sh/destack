@@ -2,7 +2,9 @@ use destack_dir::{
     DependencySource, Expression, LocalNodeId, LocalScopeId, LocalSymbolId, NodeTree, NodeType,
     SymbolTable, TypeTable, UnaryOperator,
 };
+use destack_source::{NodeSpanType, SourcePartKey};
 
+use crate::resolve::binding::ResolvedPathSymbolTargets;
 use crate::resolve::binding::cache::{ResolveExpressionCache, ResolvePathCacheKey};
 use crate::resolve::dependency::loader::LoaderAttribute;
 use crate::{Compiler, ResolveError, ResolveResult};
@@ -66,7 +68,7 @@ impl Compiler {
         profile: ProfileId,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
-        _types: &TypeTable,
+        types: &mut TypeTable,
         imported_modules: &mut ImportedModuleTable,
         namespace_symbol: LocalSymbolId,
         namespace_scope: LocalScopeId,
@@ -207,7 +209,7 @@ impl Compiler {
 
                     // prefer cached scope root resolution for single segment paths
                     if let Some(cached) = cache.path_root(cache_key) {
-                        Ok(cached)
+                        Ok((cached, ResolvedPathSymbolTargets::new()))
                     } else {
                         let resolved = self.resolve_absolute_path(
                             module,
@@ -228,7 +230,7 @@ impl Compiler {
                         );
 
                         // cache successful path root resolutions
-                        if let Ok(expression) = &resolved {
+                        if let Ok((expression, _)) = &resolved {
                             cache.insert_path_root(cache_key, expression.clone());
                         }
 
@@ -256,7 +258,21 @@ impl Compiler {
 
                 // keep unresolved identifiers only for runtime typeof missing symbol probes
                 match resolve_result {
-                    Ok(resolved_expression) => resolved_expression,
+                    Ok((resolved_expression, segment_targets)) => {
+                        // record resolved path segment targets for query consumers
+                        let source_id = tree.get_source(expression_id.id);
+                        for (index, target_symbol) in segment_targets.into_iter().enumerate() {
+                            let segment_index =
+                                u16::try_from(index).expect("path segment target index overflow");
+
+                            types.set_symbol_target_for_source_part(
+                                SourcePartKey::new(source_id, NodeSpanType::Segment(segment_index)),
+                                target_symbol,
+                            );
+                        }
+
+                        resolved_expression
+                    }
                     Err(ResolveError::MissingSymbol { .. }) if is_runtime_typeof_operand => {
                         return Ok(());
                     }

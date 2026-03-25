@@ -540,6 +540,7 @@ mod tests {
             &prepared,
             prepared.tree.as_ref().clone(),
             prepared.symbols.as_ref().clone(),
+            prepared.types.as_ref().clone(),
             None,
             Vec::new(),
             ModuleBindingExportTable::default(),

@@ -16,7 +16,7 @@ impl Compiler {
         profile: ProfileId,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
-        types: &TypeTable,
+        types: &mut TypeTable,
         imported_modules: &mut ImportedModuleTable,
         namespace_symbol: destack_dir::LocalSymbolId,
         namespace_scope: destack_dir::LocalScopeId,

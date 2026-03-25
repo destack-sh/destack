@@ -1015,7 +1015,6 @@ impl Compiler {
         };
 
         // prefer one member-kind class when the owner has ambiguous same-name members
-        let mut preserve_concrete_symbol = false;
         if let Some(preferred_kind) = preferred_kind
             && let Some(preferred_symbol) = self.query_direct_member_symbol_for_key_and_kind(
                 &*ctx,
@@ -1025,20 +1024,7 @@ impl Compiler {
             )?
         {
             projected_symbol = preferred_symbol;
-            preserve_concrete_symbol = true;
         }
-
-        let projected_symbol = if preserve_concrete_symbol {
-            projected_symbol
-        } else {
-            let projected_symbol = self.canonical_symbol_id(
-                ctx.module_symbol_view(),
-                projected_symbol,
-                CanonicalSymbolMode::FollowAliases,
-            );
-            self.declaration_symbol_id(ctx.module_symbol_view(), projected_symbol)
-                .unwrap_or(projected_symbol)
-        };
 
         Ok(Some(AssociatedProjectionSelection {
             target_symbol: projected_symbol,

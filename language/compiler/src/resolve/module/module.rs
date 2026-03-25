@@ -7,7 +7,7 @@ use destack_artifact::{
 };
 use destack_dir::{
     Declaration, DependencyItem, DependencyKind, Expression, GlobalSymbolId, LocalNodeId,
-    LocalScopeId, NamespaceExport, NodeTree, SymbolSpace, SymbolTable,
+    LocalScopeId, NamespaceExport, NodeTree, SymbolSpace, SymbolTable, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 use rustc_hash::FxHashMap;
@@ -92,6 +92,7 @@ impl Compiler {
         prepared: &DirPrepared,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
+        types: &mut TypeTable,
         imported_modules: &mut ImportedModuleTable,
         exported_symbols: &mut ExportedSymbolTable,
         expression_ids: &[LocalNodeId<Expression>],
@@ -110,7 +111,7 @@ impl Compiler {
                     profile,
                     tree,
                     symbols,
-                    &prepared.types,
+                    types,
                     imported_modules,
                     prepared.namespace_symbol,
                     prepared.namespace_scope,
@@ -137,6 +138,7 @@ impl Compiler {
         prepared: &DirPrepared,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
+        types: &mut TypeTable,
         export_assignment: &mut Option<LocalNodeId<DependencyItem>>,
         namespace_exports: &mut Vec<NamespaceExport>,
         module_binding_exports: &mut ModuleBindingExportTable,
@@ -173,6 +175,7 @@ impl Compiler {
                     prepared,
                     tree,
                     symbols,
+                    types,
                     imported_modules,
                     exported_symbols,
                     &worklist.dependency_expression_ids,
@@ -207,6 +210,7 @@ impl Compiler {
                     prepared,
                     tree,
                     symbols,
+                    types,
                     imported_modules,
                     exported_symbols,
                     &worklist.resolve_expression_ids,
@@ -231,7 +235,7 @@ impl Compiler {
                         profile,
                         tree,
                         symbols,
-                        &prepared.types,
+                        types,
                         imported_modules,
                         prepared.namespace_symbol,
                         prepared.namespace_scope,
