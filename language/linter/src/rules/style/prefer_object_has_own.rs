@@ -5,7 +5,7 @@ use destack_workspace::LintSeverity;
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
     expression_is_global_qualified_member, expression_target_symbol,
-    expression_unwrap_parenthesized,
+    expression_unwrap_parenthesized, positional_argument_value,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -262,21 +262,6 @@ impl<'a, 'b> PreferObjectHasOwnVisitor<'a, 'b> {
 
         Some(LintFix::safe("Use Object.hasOwn()").with_edits(edits))
     }
-}
-
-/// Return one positional argument value by index.
-fn positional_argument_value(
-    tree: &dir::NodeTree,
-    arguments: &[dir::LocalNodeId<dir::Argument>],
-    index: usize,
-) -> Option<dir::LocalNodeId<dir::Expression>> {
-    let argument_id = arguments.get(index)?;
-    let argument = tree.get(*argument_id);
-    let dir::Argument::Positional { value, .. } = argument else {
-        return None;
-    };
-
-    Some(*value)
 }
 
 /// Return the first positional value from an array expression argument list.

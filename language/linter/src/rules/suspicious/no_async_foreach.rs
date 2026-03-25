@@ -3,7 +3,7 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol,
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
-use crate::rules::common::{is_array_type, is_async_function_type};
+use crate::rules::common::{is_array_type, is_async_function_type, strip_dot_member_suffix};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -272,12 +272,6 @@ impl<'a, 'b> AsyncForeachVisitor<'a, 'b> {
             .into_edits();
         Some(LintFix::r#unsafe("Rewrite async forEach callback as for-of loop").with_edits(edits))
     }
-}
-
-/// Strip one `.member` suffix from member expression text.
-fn strip_dot_member_suffix<'a>(text: &'a str, member: &str) -> Option<&'a str> {
-    let suffix = format!(".{member}");
-    text.strip_suffix(&suffix).map(str::trim_end)
 }
 
 impl NodeVisitor for AsyncForeachVisitor<'_, '_> {

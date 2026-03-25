@@ -1,6 +1,7 @@
 use destack_ast::{self as ast, Block, Declaration, Expression, FunctionKind};
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::source_text_contains_comment_token;
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
@@ -76,7 +77,7 @@ impl LintRule for PreferImplicitReturn {
             if matches!(return_value, Expression::ObjectExpression { .. }) {
                 replacement = format!("({replacement})");
             }
-            let maybe_fix = if contains_comment_token(body_text) {
+            let maybe_fix = if source_text_contains_comment_token(body_text) {
                 None
             } else {
                 let edits = ctx
@@ -105,11 +106,6 @@ impl LintRule for PreferImplicitReturn {
             ctx.report(diagnostic);
         }
     }
-}
-
-/// Return true when one block text may contain comments.
-fn contains_comment_token(text: &str) -> bool {
-    text.contains("//") || text.contains("/*")
 }
 
 /// Return the value expression id when a block has one `return value` statement.
