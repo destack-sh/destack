@@ -19,6 +19,11 @@ pub fn first_alphabetic_character(text: &str) -> Option<char> {
     text.chars().find(|character| character.is_alphabetic())
 }
 
+/// Return true when one source text may contain line or block comments.
+pub fn source_text_contains_comment_token(text: &str) -> bool {
+    text.contains("//") || text.contains("/*")
+}
+
 /// Return true when one comment is a separator line.
 pub fn is_separator_comment(text: &str) -> bool {
     let trimmed = text.trim();

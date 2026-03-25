@@ -172,6 +172,44 @@ pub fn expression_statement_span(
     Some(tree.get_span(statement_expression_id))
 }
 
+/// Return true when one expression is the direct child of a statement wrapper.
+pub fn expression_is_direct_statement(
+    tree: &ast::NodeTree,
+    parents: &ast::NodeParentIndex,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    let Some(parent_id) = parents.get(expression_id) else {
+        return false;
+    };
+    if tree.get_node_type(parent_id) != ast::NodeType::Expression {
+        return false;
+    }
+
+    let parent_expression_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
+    let parent_expression = tree.get(parent_expression_id);
+    matches!(parent_expression, ast::Expression::Statement(inner) if *inner == expression_id)
+}
+
+/// Return true when one expression can safely start an expression statement.
+pub fn expression_can_start_expression_statement(expression: &ast::Expression) -> bool {
+    matches!(
+        expression,
+        ast::Expression::Path { .. }
+            | ast::Expression::Member { .. }
+            | ast::Expression::Index { .. }
+            | ast::Expression::Call { .. }
+            | ast::Expression::New { .. }
+            | ast::Expression::Await { .. }
+            | ast::Expression::Unary { .. }
+            | ast::Expression::Maybe { .. }
+            | ast::Expression::Must { .. }
+            | ast::Expression::ScalarLiteral(_)
+            | ast::Expression::TypeLiteral(_)
+            | ast::Expression::TemplateExpression { .. }
+            | ast::Expression::TaggedTemplateExpression { .. }
+    )
+}
+
 /// Return the trailing non null assertion span when one expression text ends with `!`.
 pub fn expression_trailing_bang_span(
     ctx: &LintAstContext<'_>,
@@ -219,23 +257,8 @@ pub fn expression_negated_source_text(
 
 /// Return true when one expression needs parentheses under prefix `!`.
 fn expression_needs_parentheses_for_prefix_not(expression: &ast::Expression) -> bool {
-    !matches!(
-        expression,
-        ast::Expression::Path { .. }
-            | ast::Expression::Member { .. }
-            | ast::Expression::Index { .. }
-            | ast::Expression::Call { .. }
-            | ast::Expression::New { .. }
-            | ast::Expression::Await { .. }
-            | ast::Expression::Unary { .. }
-            | ast::Expression::Maybe { .. }
-            | ast::Expression::Must { .. }
-            | ast::Expression::ScalarLiteral(_)
-            | ast::Expression::TypeLiteral(_)
-            | ast::Expression::TemplateExpression { .. }
-            | ast::Expression::TaggedTemplateExpression { .. }
-            | ast::Expression::Parenthesized { .. }
-    )
+    !expression_can_start_expression_statement(expression)
+        && !matches!(expression, ast::Expression::Parenthesized { .. })
 }
 
 /// Return true when one expression starts a nested declaration scope.
@@ -257,6 +280,33 @@ pub fn expression_contains_assignment(
     visitor.visit_expression(tree, expression_id, expression);
 
     visitor.found_assignment
+}
+
+/// Return true when one expression subtree mentions this identifier name.
+pub fn expression_subtree_mentions_identifier_name(
+    tree: &ast::NodeTree,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+    name: ast::StringId,
+) -> bool {
+    subtree_mentions_identifier_name(tree, ast::NodeType::Expression, expression_id.id, name)
+}
+
+/// Return true when one AST subtree mentions this identifier name.
+pub fn subtree_mentions_identifier_name(
+    tree: &ast::NodeTree,
+    node_type: ast::NodeType,
+    node_id: u32,
+    name: ast::StringId,
+) -> bool {
+    // walk only the relevant subtree
+    let mut visitor = IdentifierNameSearchVisitor {
+        options: ast::NodeVisitorOptions::default(),
+        name,
+        found_name: false,
+    };
+    ast::walk_any(&mut visitor, tree, node_type, node_id);
+
+    visitor.found_name
 }
 
 /// Return true when one expression is the target of optional chaining.
@@ -545,6 +595,114 @@ impl ast::NodeVisitor for AssignmentSearchVisitor {
         }
 
         ast::walk_expression(self, tree, expression_id, expression);
+    }
+}
+
+/// Visitor that tracks whether one expression subtree mentions a name.
+struct IdentifierNameSearchVisitor {
+    /// Visitor options.
+    options: ast::NodeVisitorOptions,
+    /// The target identifier name.
+    name: ast::StringId,
+    /// Whether a matching mention has been found.
+    found_name: bool,
+}
+
+impl ast::NodeVisitor for IdentifierNameSearchVisitor {
+    fn options(&self) -> &ast::NodeVisitorOptions {
+        &self.options
+    }
+
+    fn visit_expression(
+        &mut self,
+        tree: &ast::NodeTree,
+        expression_id: ast::LocalNodeId<ast::Expression>,
+        expression: &ast::Expression,
+    ) {
+        // stop once the target name has been found
+        if self.found_name {
+            return;
+        }
+
+        // match direct unqualified paths
+        if expression_is_unqualified_path_name(tree, expression_id, self.name) {
+            self.found_name = true;
+            return;
+        }
+
+        ast::walk_expression(self, tree, expression_id, expression);
+    }
+
+    fn visit_declaration(
+        &mut self,
+        tree: &ast::NodeTree,
+        declaration_id: ast::LocalNodeId<ast::Declaration>,
+        declaration: &ast::Declaration,
+    ) {
+        // stop once the target name has been found
+        if self.found_name {
+            return;
+        }
+
+        // match declared names before descending
+        if declaration
+            .descriptor()
+            .name
+            .is_some_and(|declaration_name| declaration_name.string() == self.name)
+        {
+            self.found_name = true;
+            return;
+        }
+
+        ast::walk_declaration(self, tree, declaration_id, declaration);
+    }
+
+    fn visit_parameter(
+        &mut self,
+        tree: &ast::NodeTree,
+        parameter_id: ast::LocalNodeId<ast::Parameter>,
+        parameter: &ast::Parameter,
+    ) {
+        // stop once the target name has been found
+        if self.found_name {
+            return;
+        }
+
+        // match named parameters before descending
+        let parameter_name = match parameter {
+            ast::Parameter::Named { name, .. } | ast::Parameter::VariadicNamed { name, .. } => {
+                Some(*name)
+            }
+            _ => None,
+        };
+        if parameter_name == Some(self.name) {
+            self.found_name = true;
+            return;
+        }
+
+        ast::walk_parameter(self, tree, parameter_id, parameter);
+    }
+
+    fn visit_pattern(
+        &mut self,
+        tree: &ast::NodeTree,
+        pattern_id: ast::LocalNodeId<ast::Pattern>,
+        pattern: &ast::Pattern,
+    ) {
+        // stop once the target name has been found
+        if self.found_name {
+            return;
+        }
+
+        // match binding patterns before descending
+        if let ast::Pattern::Binding { name, .. } = pattern
+            && *name == self.name
+        {
+            self.found_name = true;
+            return;
+        }
+
+        ast::walk_pattern(self, tree, pattern_id, pattern);
     }
 }
 

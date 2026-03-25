@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::rename_local_symbol_fix;
+use crate::rules::common::{is_simple_identifier, rename_local_symbol_fix};
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -221,17 +221,6 @@ fn scope_subtree_contains_name(
     false
 }
 
-/// Return true when one text is a simple identifier.
-fn is_simple_identifier(text: &str) -> bool {
-    let mut chars = text.chars();
-    let Some(first) = chars.next() else {
-        return false;
-    };
-    if !(first.is_ascii_alphabetic() || first == '_' || first == '$') {
-        return false;
-    }
-    chars.all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == '$')
-}
 
 /// Collect parameter symbol usage while tracking recursive call argument context.
 struct RecursiveParameterUseVisitor<'a> {

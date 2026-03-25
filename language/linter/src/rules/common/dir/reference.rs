@@ -281,6 +281,21 @@ pub fn expression_regex_literal(
     Some((*content, *flags))
 }
 
+/// Return one positional argument value by index.
+pub fn positional_argument_value(
+    tree: &dir::NodeTree,
+    arguments: &[dir::LocalNodeId<dir::Argument>],
+    index: usize,
+) -> Option<dir::LocalNodeId<dir::Expression>> {
+    let argument_id = *arguments.get(index)?;
+    let argument = tree.get(argument_id);
+    let dir::Argument::Positional { value, .. } = argument else {
+        return None;
+    };
+
+    Some(*value)
+}
+
 /// Return one static property access pair as `(left, property_name)`.
 pub fn expression_static_property_access(
     tree: &dir::NodeTree,

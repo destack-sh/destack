@@ -1,6 +1,7 @@
 use destack_dir as dir;
 use destack_source::Span;
 
+use crate::rules::common::is_simple_identifier;
 use crate::{LintFix, LintModuleDirContext};
 
 use super::collect_local_symbol_direct_reference_expression_ids;
@@ -367,17 +368,4 @@ fn spans_overlap(spans: &[Span]) -> bool {
     }
 
     false
-}
-
-/// Return true when text is a simple identifier.
-fn is_simple_identifier(text: &str) -> bool {
-    let mut chars = text.chars();
-    let Some(first) = chars.next() else {
-        return false;
-    };
-    if !(first.is_ascii_alphabetic() || first == '_' || first == '$') {
-        return false;
-    }
-
-    chars.all(is_identifier_char)
 }
