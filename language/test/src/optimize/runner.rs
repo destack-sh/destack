@@ -180,12 +180,12 @@ struct PerfReportSample {
     baseline_mir_bytes: u64,
     /// MIR text size delta.
     mir_bytes_delta: i64,
-    /// Threaded instructions executed by the VM.
-    threaded_instructions: u64,
-    /// Baseline threaded instructions executed by the VM.
-    baseline_threaded_instructions: u64,
-    /// Threaded instruction delta.
-    threaded_delta: i64,
+    /// Lowered instructions executed by the VM.
+    lowered_instructions: u64,
+    /// Baseline lowered instructions executed by the VM.
+    baseline_lowered_instructions: u64,
+    /// Lowered instruction delta.
+    lowered_delta: i64,
     /// Pass timing samples when enabled.
     pass_timings: Vec<PerfPassTiming>,
 }
@@ -295,10 +295,10 @@ struct PerfSample {
     mir_bytes: u64,
     /// Baseline MIR text size.
     baseline_mir_bytes: u64,
-    /// Threaded instructions executed by the VM.
-    threaded_instructions: u64,
-    /// Baseline threaded instructions executed by the VM.
-    baseline_threaded_instructions: u64,
+    /// Lowered instructions executed by the VM.
+    lowered_instructions: u64,
+    /// Baseline lowered instructions executed by the VM.
+    baseline_lowered_instructions: u64,
     /// Pass timing samples when enabled.
     pass_timings: Vec<PassTimingEntry>,
 }
@@ -913,8 +913,7 @@ impl Suite for OptimizePerfSuite {
                 };
             }
         };
-        let baseline_threaded_instructions =
-            baseline_output.statistics.threaded_instructions_executed;
+        let baseline_lowered_instructions = baseline_output.stats.lowered_instructions_executed;
 
         // prepare shared configuration
         let package_id = PackageId::from_synthetic_path(&self.root);
@@ -1005,8 +1004,8 @@ impl Suite for OptimizePerfSuite {
                     baseline_mir_instructions,
                     mir_bytes,
                     baseline_mir_bytes,
-                    threaded_instructions: run_output.statistics.threaded_instructions_executed,
-                    baseline_threaded_instructions,
+                    lowered_instructions: run_output.stats.lowered_instructions_executed,
+                    baseline_lowered_instructions,
                     pass_timings: output.pass_timings,
                 };
 
@@ -1187,8 +1186,8 @@ fn build_perf_report(samples: &[PerfSample], options: &OptimizeRunOptions) -> Pe
             let mir_instruction_delta =
                 sample.mir_instructions as i64 - sample.baseline_mir_instructions as i64;
             let mir_bytes_delta = sample.mir_bytes as i64 - sample.baseline_mir_bytes as i64;
-            let threaded_delta =
-                sample.threaded_instructions as i64 - sample.baseline_threaded_instructions as i64;
+            let lowered_delta =
+                sample.lowered_instructions as i64 - sample.baseline_lowered_instructions as i64;
 
             let pass_timings = sample
                 .pass_timings
@@ -1218,9 +1217,9 @@ fn build_perf_report(samples: &[PerfSample], options: &OptimizeRunOptions) -> Pe
                 mir_bytes: sample.mir_bytes,
                 baseline_mir_bytes: sample.baseline_mir_bytes,
                 mir_bytes_delta,
-                threaded_instructions: sample.threaded_instructions,
-                baseline_threaded_instructions: sample.baseline_threaded_instructions,
-                threaded_delta,
+                lowered_instructions: sample.lowered_instructions,
+                baseline_lowered_instructions: sample.baseline_lowered_instructions,
+                lowered_delta,
                 pass_timings,
             }
         })
@@ -1255,11 +1254,11 @@ fn write_perf_report(
 /// Format a perf report as csv.
 fn format_perf_csv(report: &PerfReport) -> String {
     let mut output = String::new();
-    output.push_str("name,variant,level,compile_ms,runtime_median_ms,runtime_mean_ms,runtime_min_ms,runtime_max_ms,baseline_median_ms,baseline_mean_ms,baseline_min_ms,baseline_max_ms,runtime_delta_ms,runtime_speedup,mir_instructions,baseline_mir_instructions,mir_instruction_delta,mir_bytes,baseline_mir_bytes,mir_bytes_delta,threaded_instructions,baseline_threaded_instructions,threaded_delta\n");
+    output.push_str("name,variant,level,compile_ms,runtime_median_ms,runtime_mean_ms,runtime_min_ms,runtime_max_ms,baseline_median_ms,baseline_mean_ms,baseline_min_ms,baseline_max_ms,runtime_delta_ms,runtime_speedup,mir_instructions,baseline_mir_instructions,mir_instruction_delta,mir_bytes,baseline_mir_bytes,mir_bytes_delta,lowered_instructions,baseline_lowered_instructions,lowered_delta\n");
 
     for sample in &report.samples {
         let row = format!(
-            "{name},{variant},{level},{compile_ms:.4},{runtime_median:.4},{runtime_mean:.4},{runtime_min:.4},{runtime_max:.4},{baseline_median:.4},{baseline_mean:.4},{baseline_min:.4},{baseline_max:.4},{runtime_delta:.4},{runtime_speedup:.4},{mir_instr},{baseline_mir_instr},{mir_delta},{mir_bytes},{baseline_mir_bytes},{mir_bytes_delta},{threaded},{baseline_threaded},{threaded_delta}\n",
+            "{name},{variant},{level},{compile_ms:.4},{runtime_median:.4},{runtime_mean:.4},{runtime_min:.4},{runtime_max:.4},{baseline_median:.4},{baseline_mean:.4},{baseline_min:.4},{baseline_max:.4},{runtime_delta:.4},{runtime_speedup:.4},{mir_instr},{baseline_mir_instr},{mir_delta},{mir_bytes},{baseline_mir_bytes},{mir_bytes_delta},{lowered},{baseline_lowered},{lowered_delta}\n",
             name = csv_escape(&sample.name),
             variant = csv_escape(&sample.variant),
             level = csv_escape(&sample.level),
@@ -1280,9 +1279,9 @@ fn format_perf_csv(report: &PerfReport) -> String {
             mir_bytes = sample.mir_bytes,
             baseline_mir_bytes = sample.baseline_mir_bytes,
             mir_bytes_delta = sample.mir_bytes_delta,
-            threaded = sample.threaded_instructions,
-            baseline_threaded = sample.baseline_threaded_instructions,
-            threaded_delta = sample.threaded_delta,
+            lowered = sample.lowered_instructions,
+            baseline_lowered = sample.baseline_lowered_instructions,
+            lowered_delta = sample.lowered_delta,
         );
         output.push_str(&row);
     }
@@ -1313,7 +1312,7 @@ fn print_perf_table(samples: &[PerfSample]) {
         "Speedup".to_string(),
         "MIR".to_string(),
         "Bytes".to_string(),
-        "Threaded".to_string(),
+        "Lowered".to_string(),
     ]);
     let header = PerfTableRow::new(header_cells);
     rows.push(header);
@@ -1345,7 +1344,7 @@ fn print_perf_table(samples: &[PerfSample]) {
             format!("{runtime_speedup:.2}x"),
             sample.mir_instructions.to_string(),
             sample.mir_bytes.to_string(),
-            sample.threaded_instructions.to_string(),
+            sample.lowered_instructions.to_string(),
         ]);
         let row = PerfTableRow::new(cells);
         rows.push(row);
@@ -1454,8 +1453,8 @@ fn print_perf_ab_table(samples: &[PerfSample]) {
 
         let mir_delta = sample_b.mir_instructions as i64 - sample_a.mir_instructions as i64;
         let bytes_delta = sample_b.mir_bytes as i64 - sample_a.mir_bytes as i64;
-        let threaded_delta =
-            sample_b.threaded_instructions as i64 - sample_a.threaded_instructions as i64;
+        let lowered_delta =
+            sample_b.lowered_instructions as i64 - sample_a.lowered_instructions as i64;
 
         let row = PerfTableRow::new(vec![
             name,
@@ -1469,7 +1468,7 @@ fn print_perf_ab_table(samples: &[PerfSample]) {
             format!("{:+.2}", compile_delta),
             format!("{:+}", mir_delta),
             format!("{:+}", bytes_delta),
-            format!("{:+}", threaded_delta),
+            format!("{:+}", lowered_delta),
         ]);
         rows.push(row);
     }
