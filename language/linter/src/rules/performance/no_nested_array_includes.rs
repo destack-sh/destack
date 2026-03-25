@@ -426,4 +426,22 @@ for (const item of items) {
         test.result(result)
             .assert_no_lint("no-nested-array-includes");
     }
+
+    /// Allow includes inside functions declared within loops.
+    #[test]
+    fn test_allows_nested_function_inside_loop() {
+        let test = TestProgram::for_rule_without_prelude(NoNestedArrayIncludes);
+        let result = test.lint_dir(
+            "no_nested_array_includes/test_allows_nested_function_inside_loop.ds",
+            r#"
+for (const item of items) {
+    function check(other) {
+        return values.includes(other);
+    }
+}
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("no-nested-array-includes");
+    }
 }

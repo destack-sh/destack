@@ -562,4 +562,23 @@ for (const item of items) {
         test.result(result)
             .assert_no_lint("no-string-concat-in-loop");
     }
+
+    /// Allow concatenation inside functions declared within loops.
+    #[test]
+    fn test_allows_nested_function_inside_loop() {
+        let test = TestProgram::for_rule_without_prelude(NoStringConcatInLoop);
+        let result = test.lint_dir(
+            "no_string_concat_in_loop/test_allows_nested_function_inside_loop.ds",
+            r#"
+let suffix = "b";
+for (const item of items) {
+    function build(prefix) {
+        return prefix + suffix;
+    }
+}
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("no-string-concat-in-loop");
+    }
 }

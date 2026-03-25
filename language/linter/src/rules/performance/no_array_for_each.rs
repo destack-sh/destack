@@ -376,4 +376,31 @@ items.forEach(logItem);
             .assert_lint("no-array-for-each")
             .assert_has_no_fix("no-array-for-each");
     }
+
+    /// Keep the fix valid when the callback parameter name already exists in scope.
+    #[test]
+    fn test_fix_uses_fresh_binding_name_on_collision() {
+        let test = TestProgram::for_rule_without_prelude(NoArrayForEach);
+        let result = test.lint_dir(
+            "no_array_for_each/test_fix_uses_fresh_binding_name_on_collision.ds",
+            r#"
+let item = 0;
+let items = [1, 2, 3];
+items.forEach((item) => {
+    console.log(item);
+});
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-array-for-each")
+            .assert_unsafe_fixed(
+                r#"
+let item = 0;
+let items = [1, 2, 3];
+for (const itemElement of items) {
+    console.log(itemElement);
+}
+"#,
+            );
+    }
 }

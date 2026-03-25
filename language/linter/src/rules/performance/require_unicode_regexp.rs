@@ -380,7 +380,9 @@ let re = /foo/giu
 let re = /foo/v
 "#,
         );
-        test.result(result).assert_no_lint("require-unicode-regexp");
+        test.result(result)
+            .assert_lint("require-unicode-regexp")
+            .assert_has_no_fix("require-unicode-regexp");
     }
 
     #[test]
@@ -446,6 +448,59 @@ let re = globalThis.RegExp("foo");
             .assert_safe_fixed(
                 r#"
 let re = globalThis.RegExp("foo", "u");
+"#,
+            );
+    }
+
+    #[test]
+    fn test_allows_regex_with_v_flag_when_configured() {
+        let test =
+            TestProgram::for_rule_without_prelude(RequireUnicodeRegexp).with_options(|options| {
+                options.require_unicode_regexp_require_flag = UnicodeRegexpRequireFlag::V
+            });
+        let result = test.lint_ast(
+            "require_unicode_regexp/test_allows_regex_with_v_flag_when_configured.ds",
+            r#"
+let re = /foo/v
+"#,
+        );
+        test.result(result).assert_no_lint("require-unicode-regexp");
+    }
+
+    #[test]
+    fn test_detects_regex_with_u_flag_when_v_is_configured() {
+        let test =
+            TestProgram::for_rule_without_prelude(RequireUnicodeRegexp).with_options(|options| {
+                options.require_unicode_regexp_require_flag = UnicodeRegexpRequireFlag::V
+            });
+        let result = test.lint_ast(
+            "require_unicode_regexp/test_detects_regex_with_u_flag_when_v_is_configured.ds",
+            r#"
+let re = /foo/u
+"#,
+        );
+        test.result(result)
+            .assert_lint("require-unicode-regexp")
+            .assert_has_no_fix("require-unicode-regexp");
+    }
+
+    #[test]
+    fn test_fix_adds_v_flag_when_configured() {
+        let test =
+            TestProgram::for_rule_without_prelude(RequireUnicodeRegexp).with_options(|options| {
+                options.require_unicode_regexp_require_flag = UnicodeRegexpRequireFlag::V
+            });
+        let result = test.lint_ast(
+            "require_unicode_regexp/test_fix_adds_v_flag_when_configured.ds",
+            r#"
+let re = RegExp("foo")
+"#,
+        );
+        test.result(result)
+            .assert_lint("require-unicode-regexp")
+            .assert_safe_fixed(
+                r#"
+let re = RegExp("foo", "v");
 "#,
             );
     }
