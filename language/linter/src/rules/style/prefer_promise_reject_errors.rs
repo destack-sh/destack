@@ -406,3 +406,68 @@ Promise.reject(value);
             .assert_no_lint("prefer-promise-reject-errors");
     }
 }
+    /// Allow Promise.reject without argument when configured.
+    #[test]
+    fn test_allows_promise_reject_without_argument_when_enabled() {
+        let test = TestProgram::for_rule_with_prelude(PreferPromiseRejectErrors)
+            .with_options(|options| options.prefer_promise_reject_errors_allow_empty_reject = true);
+        let result = test.lint_dir(
+            "prefer_promise_reject_errors/test_allows_promise_reject_without_argument_when_enabled.ds",
+            r#"
+Promise.reject();
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("prefer-promise-reject-errors");
+    }
+
+    /// Flag executor reject calls with primitive payloads.
+    #[test]
+    fn test_flags_executor_reject_string_literal() {
+        let test = TestProgram::for_rule_with_prelude(PreferPromiseRejectErrors);
+        let result = test.lint_dir(
+            "prefer_promise_reject_errors/test_flags_executor_reject_string_literal.ds",
+            r#"
+let task = new Promise((resolve, reject) => {
+    reject("oops");
+});
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-promise-reject-errors");
+    }
+
+    /// Allow executor reject without argument when configured.
+    #[test]
+    fn test_allows_executor_reject_without_argument_when_enabled() {
+        let test = TestProgram::for_rule_with_prelude(PreferPromiseRejectErrors)
+            .with_options(|options| options.prefer_promise_reject_errors_allow_empty_reject = true);
+        let result = test.lint_dir(
+            "prefer_promise_reject_errors/test_allows_executor_reject_without_argument_when_enabled.ds",
+            r#"
+let task = new Promise((resolve, reject) => {
+    reject();
+});
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("prefer-promise-reject-errors");
+    }
+
+    /// Ignore shadowed reject bindings inside Promise executors.
+    #[test]
+    fn test_ignores_shadowed_executor_reject_binding() {
+        let test = TestProgram::for_rule_with_prelude(PreferPromiseRejectErrors);
+        let result = test.lint_dir(
+            "prefer_promise_reject_errors/test_ignores_shadowed_executor_reject_binding.ds",
+            r#"
+let task = new Promise((resolve, reject) => {
+    let reject = (value: string) => value;
+    reject("oops");
+});
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("prefer-promise-reject-errors");
+    }
+

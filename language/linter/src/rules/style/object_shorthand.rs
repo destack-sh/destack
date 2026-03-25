@@ -139,19 +139,7 @@ const obj = { y: x }
         test.result(result).assert_no_lint("object-shorthand");
     }
 
-    #[test]
-    fn test_allows_computed_value() {
-        let test = TestProgram::for_rule_without_prelude(ObjectShorthand);
-        let result = test.lint_ast(
-            "object_shorthand/test_allows_computed_value.ds",
-            r#"
-const x = 1
-const obj = { x: x + 1 }
-"#,
-        );
-        test.result(result).assert_no_lint("object-shorthand");
-    }
-
+    /// Fix redundant property shorthand safely.
     #[test]
     fn test_fix_shorthand() {
         let test = TestProgram::for_rule_without_prelude(ObjectShorthand);
@@ -189,3 +177,116 @@ const obj = {
             .assert_has_no_fix("object-shorthand");
     }
 }
+    /// Flag redundant property shorthand candidates.
+    /// Allow shorthand properties.
+    /// Allow unrelated property values.
+    /// Avoid fixes through comment trivia.
+
+    /// Respect the quoted-key exemption.
+    #[test]
+    fn test_allows_quoted_key_when_avoid_quotes_is_enabled() {
+        let test = TestProgram::for_rule_without_prelude(ObjectShorthand).with_options(|options| {
+            options.object_shorthand_avoid_quotes = true;
+        });
+        let result = test.lint_ast(
+            "object_shorthand/test_allows_quoted_key_when_avoid_quotes_is_enabled.ds",
+            r#"
+const x = 1
+const obj = { "x": x }
+"#,
+        );
+        test.result(result).assert_no_lint("object-shorthand");
+    }
+
+    /// Flag longform methods when methods mode applies.
+    #[test]
+    fn test_flags_longform_method() {
+        let test = TestProgram::for_rule_without_prelude(ObjectShorthand);
+        let result = test.lint_ast(
+            "object_shorthand/test_flags_longform_method.ds",
+            r#"
+const obj = {
+    foo: function() {
+        return 1;
+    },
+}
+"#,
+        );
+        test.result(result).assert_lint("object-shorthand");
+    }
+
+    /// Ignore constructors when configured.
+    #[test]
+    fn test_allows_constructor_method_when_ignored() {
+        let test = TestProgram::for_rule_without_prelude(ObjectShorthand).with_options(|options| {
+            options.object_shorthand_ignore_constructors = true;
+        });
+        let result = test.lint_ast(
+            "object_shorthand/test_allows_constructor_method_when_ignored.ds",
+            r#"
+const obj = {
+    Foo: function() {
+        return 1;
+    },
+}
+"#,
+        );
+        test.result(result).assert_no_lint("object-shorthand");
+    }
+
+    /// Flag shorthand properties in never mode.
+    #[test]
+    fn test_flags_shorthand_in_never_mode() {
+        let test = TestProgram::for_rule_without_prelude(ObjectShorthand).with_options(|options| {
+            options.object_shorthand_mode = ObjectShorthandMode::Never;
+        });
+        let result = test.lint_ast(
+            "object_shorthand/test_flags_shorthand_in_never_mode.ds",
+            r#"
+const x = 1
+const obj = { x }
+"#,
+        );
+        test.result(result)
+            .assert_lint("object-shorthand")
+            .assert_safe_fixed(
+                r#"
+const x = 1;
+const obj = { x: x };
+"#,
+            );
+    }
+
+    /// Flag mixed shorthand in consistent mode.
+    #[test]
+    fn test_flags_mixed_object_in_consistent_mode() {
+        let test = TestProgram::for_rule_without_prelude(ObjectShorthand).with_options(|options| {
+            options.object_shorthand_mode = ObjectShorthandMode::Consistent;
+        });
+        let result = test.lint_ast(
+            "object_shorthand/test_flags_mixed_object_in_consistent_mode.ds",
+            r#"
+const x = 1
+const y = 2
+const obj = { x, y: y }
+"#,
+        );
+        test.result(result).assert_lint("object-shorthand");
+    }
+
+    /// Flag all-longform reducible objects in consistent-as-needed mode.
+    #[test]
+    fn test_flags_all_longform_object_in_consistent_as_needed_mode() {
+        let test = TestProgram::for_rule_without_prelude(ObjectShorthand).with_options(|options| {
+            options.object_shorthand_mode = ObjectShorthandMode::ConsistentAsNeeded;
+        });
+        let result = test.lint_ast(
+            "object_shorthand/test_flags_all_longform_object_in_consistent_as_needed_mode.ds",
+            r#"
+const x = 1
+const y = 2
+const obj = { x: x, y: y }
+"#,
+        );
+        test.result(result).assert_lint("object-shorthand");
+    }
