@@ -1,8 +1,9 @@
 use destack_mir as mir;
 
-use super::super::execute::instruction;
 use crate::diagnostic::Error;
 use destack_heap::{Value, ValueTag};
+
+use super::instruction;
 
 /// Execute a binary operation.
 #[inline(always)]

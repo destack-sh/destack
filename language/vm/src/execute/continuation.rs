@@ -1,7 +1,8 @@
 use destack_mir as mir;
 
 use crate::diagnostic::RuntimeResult;
-use crate::interpreter::{CopyRange, Frame, ThreadedFunctionTable};
+use crate::executable::{CopyRange, FunctionTable};
+use crate::interpreter::Frame;
 use crate::snapshot::{ContinuationImage, YieldStateImage};
 #[cfg(feature = "stats")]
 use crate::telemetry::InstructionProfile;
@@ -13,7 +14,7 @@ use destack_heap::{ManagedReference, Value};
 pub(crate) struct YieldState {
     /// Frame index to resume execution in.
     pub frame_index: usize,
-    /// Resume block index in the threaded function.
+    /// Resume block index in the current function.
     pub resume_block: u32,
     /// Copy plan for resume arguments.
     pub resume_copies: CopyRange,
@@ -105,13 +106,13 @@ impl Continuation {
     /// Rebuild one continuation from an immutable image.
     pub(crate) fn from_image(
         image: &ContinuationImage,
-        threaded_functions: &ThreadedFunctionTable,
+        functions: &FunctionTable,
     ) -> RuntimeResult<Self> {
         // rebuild the captured stack state
         let call_stack = image
             .call_stack
             .iter()
-            .map(|frame| Frame::from_image(frame, threaded_functions))
+            .map(|frame| Frame::from_image(frame, functions))
             .collect::<RuntimeResult<Vec<_>>>()?;
         let value_stack = image.value_stack.clone();
         let local_stack = image.local_stack.clone();

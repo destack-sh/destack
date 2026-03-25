@@ -4,7 +4,7 @@ use std::ptr::NonNull;
 use crate::diagnostic::Error;
 use destack_heap::{MemoryContext, RawPointer, SharedPointer, Value, ValueTag};
 
-use super::IsolateState;
+use super::{StringHandle, StringInterner, StringRef};
 
 /// Handler invoked by the VM when calling an external function.
 pub trait ExternalHandler:
@@ -25,16 +25,22 @@ pub(crate) type ExternalFnPtr = NonNull<dyn ExternalHandler>;
 
 /// Runtime call context with restricted access to isolate state.
 pub struct ExternalCallContext<'ctx> {
-    /// The isolate state backing this external call.
-    state: &'ctx mut IsolateState,
+    /// The string interner backing this external call.
+    string_interner: &'ctx mut StringInterner,
     /// The execution memory backing this external call.
     memory: MemoryContext<'ctx>,
 }
 
 impl<'ctx> ExternalCallContext<'ctx> {
-    /// Wrap an isolate state for external calls.
-    pub(crate) fn new(state: &'ctx mut IsolateState, memory: MemoryContext<'ctx>) -> Self {
-        Self { state, memory }
+    /// Wrap the isolate string interner for external calls.
+    pub(crate) fn new(
+        string_interner: &'ctx mut StringInterner,
+        memory: MemoryContext<'ctx>,
+    ) -> Self {
+        Self {
+            string_interner,
+            memory,
+        }
     }
 
     /// Borrow the local heap.
@@ -54,59 +60,61 @@ impl<'ctx> ExternalCallContext<'ctx> {
 
     /// Intern a UTF-8 string and return the managed string value.
     pub fn intern_string(&mut self, value: &str) -> Result<Value, Error> {
-        let state = &mut *self.state;
         let heap = self.memory.heap();
-        state.try_intern_string_literal(heap, value)
+        self.string_interner.try_intern_string_literal(heap, value)
     }
 
     /// Intern a UTF-8 string and return the managed string handle.
-    pub fn string_handle(&mut self, value: &str) -> Result<super::StringHandle, Error> {
+    pub fn string_handle(&mut self, value: &str) -> Result<StringHandle, Error> {
         let value = self.intern_string(value)?;
 
-        Ok(super::StringHandle::new(value))
+        Ok(StringHandle::new(value))
     }
 
     /// Read a UTF-8 string value from the heap.
     pub fn string_value(&self, value: Value) -> Result<String, Error> {
-        self.state.string_value(self.heap_ref(), value)
+        self.string_interner.string_value(self.heap_ref(), value)
     }
 
     /// Read a UTF-8 string view from the heap.
-    pub fn string_value_ref(&self, value: Value) -> Result<super::StringRef<'_>, Error> {
-        self.state.string_value_ref(self.heap_ref(), value)
+    pub fn string_value_ref(&self, value: Value) -> Result<StringRef<'_>, Error> {
+        self.string_interner
+            .string_value_ref(self.heap_ref(), value)
     }
 
     /// Read a UTF-8 string view from the heap using a string handle.
-    pub fn string_ref(&self, value: super::StringHandle) -> Result<super::StringRef<'_>, Error> {
-        self.state.string_value_ref(self.heap_ref(), value.value())
+    pub fn string_ref(&self, value: StringHandle) -> Result<StringRef<'_>, Error> {
+        self.string_interner
+            .string_value_ref(self.heap_ref(), value.value())
     }
 
     /// Allocate an aggregate on the heap and return it as a Value.
     pub fn allocate_aggregate(&mut self, values: Vec<Value>) -> Result<Value, Error> {
-        let state = &mut *self.state;
         let heap = self.memory.heap();
-        state.try_allocate_aggregate(heap, values)
+        let handle = heap.allocate_packed_values(values).map_err(Error::from)?;
+        Ok(Value::aggregate(handle))
     }
 
     /// Allocate a 2-element aggregate on the heap.
     pub fn allocate_pair(&mut self, first: Value, second: Value) -> Result<Value, Error> {
-        let state = &mut *self.state;
         let heap = self.memory.heap();
-        state.try_allocate_pair(heap, first, second)
+        let handle = heap
+            .allocate_packed_pair(first, second)
+            .map_err(Error::from)?;
+        Ok(Value::aggregate(handle))
     }
 
     /// Allocate a 1-element aggregate on the heap.
     pub fn allocate_single(&mut self, value: Value) -> Result<Value, Error> {
-        let state = &mut *self.state;
         let heap = self.memory.heap();
-        state.try_allocate_single(heap, value)
+        let handle = heap.allocate_packed_single(value).map_err(Error::from)?;
+        Ok(Value::aggregate(handle))
     }
 
     /// Allocate a raw heap byte buffer and return its pointer.
     pub fn allocate_raw_bytes(&mut self, bytes: &[u8]) -> Result<RawPointer, Error> {
-        let state = &mut *self.state;
         let heap = self.memory.heap();
-        state.try_allocate_raw_bytes(heap, bytes)
+        heap.allocate_raw_bytes(bytes).map_err(Error::from)
     }
 
     /// Allocate one raw packed-value buffer and return its pointer.
@@ -240,7 +248,7 @@ impl<'ctx> ExternalCallContext<'ctx> {
 impl fmt::Debug for ExternalCallContext<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ExternalCallContext")
-            .field("state", &"<isolate>")
+            .field("string_interner", &"<isolate>")
             .finish()
     }
 }

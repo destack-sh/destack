@@ -1,18 +1,18 @@
 use super::*;
 use crate::diagnostic::Error;
+use crate::telemetry::stat_inc;
 
 /// Handle field get.
 pub(crate) fn handle_field_get(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::FieldGet {
+    let InstructionData::FieldGet {
         dest,
         aggregate,
         index,
-        field_count: _,
     } = &block[pc].data
     else {
         unreachable!()
@@ -37,16 +37,15 @@ pub(crate) fn handle_field_get(
 /// Handle field get for small inline aggregates (≤2 fields).
 #[inline(always)]
 pub(crate) fn handle_field_get_inline(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::FieldGet {
+    let InstructionData::FieldGet {
         dest,
         aggregate,
         index,
-        field_count: _,
     } = &block[pc].data
     else {
         unreachable!()
@@ -85,12 +84,12 @@ pub(crate) fn handle_field_get_inline(
 /// Handle field store on small managed aggregates (≤2 fields, inline storage).
 #[inline(always)]
 pub(crate) fn handle_field_store_inline(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::FieldStore {
+    let InstructionData::FieldStore {
         aggregate,
         index,
         value,
@@ -105,7 +104,7 @@ pub(crate) fn handle_field_store_inline(
 
     // track stores
     if state.collect_stats {
-        stat_inc!(state.interpreter.engine.statistics, stores);
+        stat_inc!(state.engine.statistics, stores);
     }
 
     // load aggregate and extract managed reference
@@ -139,12 +138,12 @@ pub(crate) fn handle_field_store_inline(
 
 /// Handle field addr.
 pub(crate) fn handle_field_addr(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::FieldAddr {
+    let InstructionData::FieldAddr {
         dest,
         aggregate,
         index,
@@ -184,12 +183,12 @@ pub(crate) fn handle_field_addr(
 
 /// Handle field addr on aggregate values.
 pub(crate) fn handle_field_addr_aggregate(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::FieldAddr {
+    let InstructionData::FieldAddr {
         dest,
         aggregate,
         index,
@@ -241,12 +240,12 @@ pub(crate) fn handle_field_addr_aggregate(
 
 /// Handle field addr on managed references.
 pub(crate) fn handle_field_addr_managed(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::FieldAddr {
+    let InstructionData::FieldAddr {
         dest,
         aggregate,
         index,
@@ -297,12 +296,12 @@ pub(crate) fn handle_field_addr_managed(
 
 /// Handle field addr on raw pointers.
 pub(crate) fn handle_field_addr_raw(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::FieldAddr {
+    let InstructionData::FieldAddr {
         dest,
         aggregate,
         index,
@@ -351,12 +350,12 @@ pub(crate) fn handle_field_addr_raw(
 
 /// Handle field addr on stack pointers.
 pub(crate) fn handle_field_addr_stack(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::FieldAddr {
+    let InstructionData::FieldAddr {
         dest,
         aggregate,
         index,
@@ -401,12 +400,12 @@ pub(crate) fn handle_field_addr_stack(
 
 /// Handle field addr on global pointers.
 pub(crate) fn handle_field_addr_global(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::FieldAddr {
+    let InstructionData::FieldAddr {
         dest,
         aggregate,
         index,
@@ -451,12 +450,12 @@ pub(crate) fn handle_field_addr_global(
 
 /// Handle field load.
 pub(crate) fn handle_field_load(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::FieldLoad {
+    let InstructionData::FieldLoad {
         dest,
         aggregate,
         index,
@@ -493,12 +492,12 @@ pub(crate) fn handle_field_load(
 
 /// Handle field load on aggregate values.
 pub(crate) fn handle_field_load_aggregate(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::FieldLoad {
+    let InstructionData::FieldLoad {
         dest,
         aggregate,
         index,
@@ -535,12 +534,12 @@ pub(crate) fn handle_field_load_aggregate(
 
 /// Handle field load on managed references.
 pub(crate) fn handle_field_load_managed(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::FieldLoad {
+    let InstructionData::FieldLoad {
         dest,
         aggregate,
         index,
@@ -582,12 +581,12 @@ pub(crate) fn handle_field_load_managed(
 
 /// Handle field load on raw pointers.
 pub(crate) fn handle_field_load_raw(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::FieldLoad {
+    let InstructionData::FieldLoad {
         dest,
         aggregate,
         index,
@@ -627,12 +626,12 @@ pub(crate) fn handle_field_load_raw(
 
 /// Handle field load on stack pointers.
 pub(crate) fn handle_field_load_stack(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::FieldLoad {
+    let InstructionData::FieldLoad {
         dest,
         aggregate,
         index,
@@ -668,12 +667,12 @@ pub(crate) fn handle_field_load_stack(
 
 /// Handle field load on global pointers.
 pub(crate) fn handle_field_load_global(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::FieldLoad {
+    let InstructionData::FieldLoad {
         dest,
         aggregate,
         index,
@@ -709,12 +708,12 @@ pub(crate) fn handle_field_load_global(
 
 /// Handle field set.
 pub(crate) fn handle_field_set(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::FieldSet {
+    let InstructionData::FieldSet {
         dest,
         aggregate,
         index,
@@ -743,12 +742,12 @@ pub(crate) fn handle_field_set(
 
 /// Handle field store.
 pub(crate) fn handle_field_store(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::FieldStore {
+    let InstructionData::FieldStore {
         aggregate,
         index,
         value,
@@ -791,12 +790,12 @@ pub(crate) fn handle_field_store(
 
 /// Handle field store on aggregate values.
 pub(crate) fn handle_field_store_aggregate(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::FieldStore {
+    let InstructionData::FieldStore {
         aggregate,
         index,
         value,
@@ -838,12 +837,12 @@ pub(crate) fn handle_field_store_aggregate(
 
 /// Handle field store on managed references.
 pub(crate) fn handle_field_store_managed(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::FieldStore {
+    let InstructionData::FieldStore {
         aggregate,
         index,
         value,
@@ -889,12 +888,12 @@ pub(crate) fn handle_field_store_managed(
 
 /// Handle field store on raw pointers.
 pub(crate) fn handle_field_store_raw(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::FieldStore {
+    let InstructionData::FieldStore {
         aggregate,
         index,
         value,
@@ -939,12 +938,12 @@ pub(crate) fn handle_field_store_raw(
 
 /// Handle field store on stack pointers.
 pub(crate) fn handle_field_store_stack(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::FieldStore {
+    let InstructionData::FieldStore {
         aggregate,
         index,
         value,
@@ -989,12 +988,12 @@ pub(crate) fn handle_field_store_stack(
 
 /// Handle field store on global pointers.
 pub(crate) fn handle_field_store_global(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::FieldStore {
+    let InstructionData::FieldStore {
         aggregate,
         index,
         value,
@@ -1040,12 +1039,12 @@ pub(crate) fn handle_field_store_global(
 
 /// Handle element get.
 pub(crate) fn handle_element_get(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::ElementGet { dest, array, index } = &block[pc].data else {
+    let InstructionData::ElementGet { dest, array, index } = &block[pc].data else {
         unreachable!()
     };
 
@@ -1069,12 +1068,12 @@ pub(crate) fn handle_element_get(
 
 /// Handle element addr.
 pub(crate) fn handle_element_addr(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::ElementAddr {
+    let InstructionData::ElementAddr {
         dest,
         array,
         index,
@@ -1116,12 +1115,12 @@ pub(crate) fn handle_element_addr(
 
 /// Handle element addr on aggregate values.
 pub(crate) fn handle_element_addr_aggregate(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::ElementAddr {
+    let InstructionData::ElementAddr {
         dest,
         array,
         index,
@@ -1179,12 +1178,12 @@ pub(crate) fn handle_element_addr_aggregate(
 
 /// Handle element addr on managed references.
 pub(crate) fn handle_element_addr_managed(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::ElementAddr {
+    let InstructionData::ElementAddr {
         dest,
         array,
         index,
@@ -1241,12 +1240,12 @@ pub(crate) fn handle_element_addr_managed(
 
 /// Handle element addr on raw pointers.
 pub(crate) fn handle_element_addr_raw(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::ElementAddr {
+    let InstructionData::ElementAddr {
         dest,
         array,
         index,
@@ -1297,12 +1296,12 @@ pub(crate) fn handle_element_addr_raw(
 
 /// Handle element addr on stack pointers.
 pub(crate) fn handle_element_addr_stack(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::ElementAddr {
+    let InstructionData::ElementAddr {
         dest,
         array,
         index,
@@ -1349,12 +1348,12 @@ pub(crate) fn handle_element_addr_stack(
 
 /// Handle element addr on global pointers.
 pub(crate) fn handle_element_addr_global(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::ElementAddr {
+    let InstructionData::ElementAddr {
         dest,
         array,
         index,
@@ -1401,12 +1400,12 @@ pub(crate) fn handle_element_addr_global(
 
 /// Handle element load.
 pub(crate) fn handle_element_load(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::ElementLoad {
+    let InstructionData::ElementLoad {
         dest,
         array,
         index,
@@ -1445,12 +1444,12 @@ pub(crate) fn handle_element_load(
 
 /// Handle element load on aggregate values.
 pub(crate) fn handle_element_load_aggregate(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::ElementLoad {
+    let InstructionData::ElementLoad {
         dest,
         array,
         index,
@@ -1489,12 +1488,12 @@ pub(crate) fn handle_element_load_aggregate(
 
 /// Handle element load on managed references.
 pub(crate) fn handle_element_load_managed(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::ElementLoad {
+    let InstructionData::ElementLoad {
         dest,
         array,
         index,
@@ -1542,12 +1541,12 @@ pub(crate) fn handle_element_load_managed(
 
 /// Handle element load on raw pointers.
 pub(crate) fn handle_element_load_raw(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::ElementLoad {
+    let InstructionData::ElementLoad {
         dest,
         array,
         index,
@@ -1589,12 +1588,12 @@ pub(crate) fn handle_element_load_raw(
 
 /// Handle element load on stack pointers.
 pub(crate) fn handle_element_load_stack(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::ElementLoad {
+    let InstructionData::ElementLoad {
         dest,
         array,
         index,
@@ -1632,12 +1631,12 @@ pub(crate) fn handle_element_load_stack(
 
 /// Handle element load on global pointers.
 pub(crate) fn handle_element_load_global(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::ElementLoad {
+    let InstructionData::ElementLoad {
         dest,
         array,
         index,
@@ -1675,12 +1674,12 @@ pub(crate) fn handle_element_load_global(
 
 /// Handle element set.
 pub(crate) fn handle_element_set(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::ElementSet {
+    let InstructionData::ElementSet {
         dest,
         array,
         index,
@@ -1711,12 +1710,12 @@ pub(crate) fn handle_element_set(
 
 /// Handle element store.
 pub(crate) fn handle_element_store(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::ElementStore {
+    let InstructionData::ElementStore {
         array,
         index,
         value,
@@ -1764,12 +1763,12 @@ pub(crate) fn handle_element_store(
 
 /// Handle element store on aggregate values.
 pub(crate) fn handle_element_store_aggregate(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::ElementStore {
+    let InstructionData::ElementStore {
         array,
         index,
         value,
@@ -1817,12 +1816,12 @@ pub(crate) fn handle_element_store_aggregate(
 // vector operations
 /// Handle element store on managed references.
 pub(crate) fn handle_element_store_managed(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::ElementStore {
+    let InstructionData::ElementStore {
         array,
         index,
         value,
@@ -1878,12 +1877,12 @@ pub(crate) fn handle_element_store_managed(
 
 /// Handle element store on raw pointers.
 pub(crate) fn handle_element_store_raw(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::ElementStore {
+    let InstructionData::ElementStore {
         array,
         index,
         value,
@@ -1933,12 +1932,12 @@ pub(crate) fn handle_element_store_raw(
 
 /// Handle element store on stack pointers.
 pub(crate) fn handle_element_store_stack(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::ElementStore {
+    let InstructionData::ElementStore {
         array,
         index,
         value,
@@ -1985,12 +1984,12 @@ pub(crate) fn handle_element_store_stack(
 
 /// Handle element store on global pointers.
 pub(crate) fn handle_element_store_global(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::ElementStore {
+    let InstructionData::ElementStore {
         array,
         index,
         value,
@@ -2038,12 +2037,12 @@ pub(crate) fn handle_element_store_global(
 
 /// Handle aggregate construction.
 pub(crate) fn handle_aggregate(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::Aggregate { dest, elements } = &block[pc].data else {
+    let InstructionData::Aggregate { dest, elements } = &block[pc].data else {
         unreachable!()
     };
 

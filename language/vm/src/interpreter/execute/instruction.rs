@@ -1,11 +1,12 @@
 use crate::diagnostic::Error;
+use crate::executable::{UNKNOWN_ARRAY_LENGTH, UNKNOWN_FIELD_COUNT};
 use destack_heap::{
     GlobalPointer, Heap, LocalPointer, ManagedReference, RawPointer, ReferenceMap, ReferenceMeta,
     SharedPointer, StackPointer, StringLayout, Value, ValueTag,
 };
 use destack_mir as mir;
 
-use super::super::decode::{ThreadedState, UNKNOWN_ARRAY_LENGTH, UNKNOWN_FIELD_COUNT};
+use super::super::state::ExecutionState;
 use crate::telemetry::stat_inc;
 
 const POINTER_BASE_MASK: u64 = 0xFFFF_FFFF;
@@ -179,13 +180,13 @@ fn string_field_offset(index: u32) -> Result<usize, Error> {
 /// Load a value from a pointer with one optional raw pointee type.
 #[inline(always)]
 pub(crate) fn load_from_pointer_with_raw_pointee(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     ptr: Value,
     raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
 ) -> Result<Value, Error> {
     // track pointer loads
     if state.collect_stats {
-        stat_inc!(state.interpreter.engine.statistics, loads);
+        stat_inc!(state.engine.statistics, loads);
     }
 
     // resolve pointer kind and load
@@ -225,14 +226,14 @@ pub(crate) fn load_from_pointer_with_raw_pointee(
 /// Store a value to a pointer with one optional raw pointee type.
 #[inline(always)]
 pub(crate) fn store_to_pointer_with_raw_pointee(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     ptr: Value,
     raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
     val: Value,
 ) -> Result<(), Error> {
     // track pointer stores
     if state.collect_stats {
-        stat_inc!(state.interpreter.engine.statistics, stores);
+        stat_inc!(state.engine.statistics, stores);
     }
 
     // resolve pointer kind and store
@@ -261,7 +262,7 @@ pub(crate) fn store_to_pointer_with_raw_pointee(
         }
         ValueTag::GlobalPointer => {
             let global = ptr.as_global_pointer().unwrap();
-            let global_def = state.interpreter.isolate.image.tree.get(global.id);
+            let global_def = state.tree().get(global.id);
             if !global_def.is_mutable() {
                 return Err(Error::ImmutableGlobalWrite { global: global.id });
             }
@@ -276,7 +277,7 @@ pub(crate) fn store_to_pointer_with_raw_pointee(
 /// Load a typed value from a managed reference.
 #[inline(always)]
 pub(crate) fn load_from_managed_reference_typed(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     ptr: Value,
     pointee: mir::LocalNodeId<mir::Type>,
 ) -> Result<Value, Error> {
@@ -301,7 +302,7 @@ pub(crate) fn load_from_managed_reference_typed(
         return load_heap_slot(state, handle, slot_offset);
     }
 
-    let byte_len = managed_type_size(&state.interpreter.isolate.image.tree, pointee)?;
+    let byte_len = managed_type_size(state.tree(), pointee)?;
     let bytes = heap
         .managed_bytes(handle)
         .ok_or(Error::InvalidManagedReference)?;
@@ -317,7 +318,7 @@ pub(crate) fn load_from_managed_reference_typed(
 /// Load a value from a stack pointer.
 #[inline(always)]
 pub(crate) fn load_from_stack_pointer(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     ptr: Value,
 ) -> Result<Value, Error> {
     // validate pointer tag
@@ -335,7 +336,7 @@ pub(crate) fn load_from_stack_pointer(
 /// Load a value from a local pointer.
 #[inline(always)]
 pub(crate) fn load_from_local_pointer(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     ptr: Value,
 ) -> Result<Value, Error> {
     // validate pointer tag
@@ -353,7 +354,7 @@ pub(crate) fn load_from_local_pointer(
 /// Load a value from a global pointer.
 #[inline(always)]
 pub(crate) fn load_from_global_pointer(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     ptr: Value,
 ) -> Result<Value, Error> {
     // validate pointer tag
@@ -371,7 +372,7 @@ pub(crate) fn load_from_global_pointer(
 /// Store a typed value through a managed reference.
 #[inline(always)]
 pub(crate) fn store_to_managed_reference_typed(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     ptr: Value,
     pointee: mir::LocalNodeId<mir::Type>,
     val: Value,
@@ -430,7 +431,7 @@ pub(crate) fn store_to_managed_reference_typed(
 /// Store a value through a stack pointer.
 #[inline(always)]
 pub(crate) fn store_to_stack_pointer(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     ptr: Value,
     val: Value,
 ) -> Result<(), Error> {
@@ -449,7 +450,7 @@ pub(crate) fn store_to_stack_pointer(
 /// Store a value through a local pointer.
 #[inline(always)]
 pub(crate) fn store_to_local_pointer(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     ptr: Value,
     val: Value,
 ) -> Result<(), Error> {
@@ -468,7 +469,7 @@ pub(crate) fn store_to_local_pointer(
 /// Store a value through a global pointer.
 #[inline(always)]
 pub(crate) fn store_to_global_pointer(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     ptr: Value,
     val: Value,
 ) -> Result<(), Error> {
@@ -481,7 +482,7 @@ pub(crate) fn store_to_global_pointer(
 
     // resolve pointer
     let global = ptr.as_global_pointer().unwrap();
-    let global_def = state.interpreter.isolate.image.tree.get(global.id);
+    let global_def = state.tree().get(global.id);
     if !global_def.is_mutable() {
         return Err(Error::ImmutableGlobalWrite { global: global.id });
     }
@@ -491,7 +492,7 @@ pub(crate) fn store_to_global_pointer(
 /// Validate a field index against a known field count.
 #[inline(always)]
 fn check_field_index(
-    state: &ThreadedState<'_, '_>,
+    state: &ExecutionState<'_, '_>,
     index: u32,
     field_count: u32,
 ) -> Result<(), Error> {
@@ -519,7 +520,7 @@ fn check_field_index(
 /// Validate an array index against a known length.
 #[inline(always)]
 fn check_array_index(
-    state: &ThreadedState<'_, '_>,
+    state: &ExecutionState<'_, '_>,
     index: u64,
     array_length: u64,
 ) -> Result<(), Error> {
@@ -866,7 +867,7 @@ fn managed_element_info(
 
 /// Read one raw byte window into an owned buffer.
 fn read_raw_bytes(
-    state: &ThreadedState<'_, '_>,
+    state: &ExecutionState<'_, '_>,
     pointer: RawPointer,
     byte_offset: usize,
     byte_len: usize,
@@ -895,7 +896,7 @@ fn read_raw_bytes(
 
 /// Write one raw byte window from the given buffer.
 fn write_raw_bytes(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     pointer: RawPointer,
     byte_offset: usize,
     bytes: &[u8],
@@ -1004,11 +1005,11 @@ pub(crate) fn decode_raw_value(
 
 /// Decode one storage byte window into a VM value.
 pub(crate) fn decode_storage_value(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     ty: mir::LocalNodeId<mir::Type>,
     bytes: &[u8],
 ) -> Result<Value, Error> {
-    match state.interpreter.isolate.image.tree.get(ty).clone() {
+    match state.tree().get(ty).clone() {
         mir::Type::Newtype { inner, .. } => decode_storage_value(state, inner, bytes),
         mir::Type::Array { .. }
         | mir::Type::Tuple { .. }
@@ -1016,7 +1017,7 @@ pub(crate) fn decode_storage_value(
         | mir::Type::FunctionValue { .. }
         | mir::Type::Vector { .. }
         | mir::Type::Tensor { .. } => {
-            let tree = &state.interpreter.isolate.image.tree;
+            let tree = state.tree();
             let component_count = aggregate_component_count(tree, ty)?;
             let component_specs = (0..component_count)
                 .map(|index| {
@@ -1055,7 +1056,7 @@ pub(crate) fn decode_storage_value(
 
             Ok(allocate_aggregate_value(state, values))
         }
-        _ => decode_raw_value(&state.interpreter.isolate.image.tree, ty, bytes),
+        _ => decode_raw_value(state.tree(), ty, bytes),
     }
 }
 
@@ -1182,11 +1183,11 @@ pub(crate) fn encode_raw_value(
 
 /// Encode one VM value into storage bytes for the given type.
 pub(crate) fn encode_storage_value(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     ty: mir::LocalNodeId<mir::Type>,
     value: Value,
 ) -> Result<Vec<u8>, Error> {
-    match state.interpreter.isolate.image.tree.get(ty).clone() {
+    match state.tree().get(ty).clone() {
         mir::Type::Newtype { inner, .. } => encode_storage_value(state, inner, value),
         mir::Type::Array { .. }
         | mir::Type::Tuple { .. }
@@ -1194,7 +1195,7 @@ pub(crate) fn encode_storage_value(
         | mir::Type::FunctionValue { .. }
         | mir::Type::Vector { .. }
         | mir::Type::Tensor { .. } => {
-            let tree = &state.interpreter.isolate.image.tree;
+            let tree = state.tree();
             let component_count = aggregate_component_count(tree, ty)?;
             let component_values = aggregate_component_values(state, value, component_count)?;
             let byte_len = raw_type_size(tree, ty)?;
@@ -1233,7 +1234,7 @@ pub(crate) fn encode_storage_value(
 
             Ok(bytes)
         }
-        _ => encode_raw_value(&state.interpreter.isolate.image.tree, ty, value),
+        _ => encode_raw_value(state.tree(), ty, value),
     }
 }
 
@@ -1403,7 +1404,7 @@ fn compute_tensor_element_count(
 
 /// Read one aggregate value into semantic component values.
 fn aggregate_component_values(
-    state: &ThreadedState<'_, '_>,
+    state: &ExecutionState<'_, '_>,
     value: Value,
     expected_count: usize,
 ) -> Result<Vec<Value>, Error> {
@@ -1431,7 +1432,7 @@ fn aggregate_component_values(
 }
 
 /// Allocate one aggregate value from semantic components.
-fn allocate_aggregate_value(state: &mut ThreadedState<'_, '_>, values: Vec<Value>) -> Value {
+fn allocate_aggregate_value(state: &mut ExecutionState<'_, '_>, values: Vec<Value>) -> Value {
     match values.as_slice() {
         [value] => state.allocate_single(*value),
         [first, second] => state.allocate_pair(*first, *second),
@@ -1441,7 +1442,7 @@ fn allocate_aggregate_value(state: &mut ThreadedState<'_, '_>, values: Vec<Value
 
 /// Load one typed value from raw heap bytes.
 pub(crate) fn load_from_raw_pointer_typed(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     ptr: Value,
     pointee: mir::LocalNodeId<mir::Type>,
 ) -> Result<Value, Error> {
@@ -1456,14 +1457,14 @@ pub(crate) fn load_from_raw_pointer_typed(
         return Err(Error::NullPointerDereference);
     }
 
-    let byte_len = raw_type_size(&state.interpreter.isolate.image.tree, pointee)?;
+    let byte_len = raw_type_size(state.tree(), pointee)?;
     let bytes = read_raw_bytes(state, pointer, 0, byte_len)?;
     decode_storage_value(state, pointee, &bytes)
 }
 
 /// Store one typed value into raw heap bytes.
 pub(crate) fn store_to_raw_pointer_typed(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     ptr: Value,
     pointee: mir::LocalNodeId<mir::Type>,
     value: Value,
@@ -1486,7 +1487,7 @@ pub(crate) fn store_to_raw_pointer_typed(
 /// Get the address of a field from an aggregate or pointer.
 #[inline(always)]
 pub(crate) fn field_addr(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     aggregate: Value,
     index: u32,
     field_count: u32,
@@ -1547,7 +1548,7 @@ pub(crate) fn field_addr(
 /// Get the address of a field from a managed reference.
 #[inline(always)]
 pub(crate) fn field_addr_managed(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     handle: ManagedReference,
     pointee: mir::LocalNodeId<mir::Type>,
     index: u32,
@@ -1575,8 +1576,7 @@ pub(crate) fn field_addr_managed(
         return Err(Error::NullPointerDereference);
     }
 
-    let (_, field_offset) =
-        managed_field_info(&state.interpreter.isolate.image.tree, pointee, index)?;
+    let (_, field_offset) = managed_field_info(state.tree(), pointee, index)?;
     let byte_offset =
         handle
             .byte_offset()
@@ -1594,7 +1594,7 @@ pub(crate) fn field_addr_managed(
 /// Get the address of a field from a raw pointer.
 #[inline(always)]
 pub(crate) fn field_addr_raw(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     pointer: RawPointer,
     pointee: mir::LocalNodeId<mir::Type>,
     index: u32,
@@ -1609,7 +1609,7 @@ pub(crate) fn field_addr_raw(
     }
 
     // resolve byte offset
-    let (_, field_offset) = raw_field_info(&state.interpreter.isolate.image.tree, pointee, index)?;
+    let (_, field_offset) = raw_field_info(state.tree(), pointee, index)?;
     let byte_offset =
         pointer
             .byte_offset()
@@ -1627,7 +1627,7 @@ pub(crate) fn field_addr_raw(
 /// Get the address of a field from a stack pointer.
 #[inline(always)]
 pub(crate) fn field_addr_stack(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     pointer: StackPointer,
     index: u32,
     field_count: u32,
@@ -1647,7 +1647,7 @@ pub(crate) fn field_addr_stack(
 /// Get the address of a field from a local pointer.
 #[inline(always)]
 pub(crate) fn field_addr_local(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     pointer: LocalPointer,
     index: u32,
     field_count: u32,
@@ -1662,7 +1662,7 @@ pub(crate) fn field_addr_local(
 /// Get the address of a field from a global pointer.
 #[inline(always)]
 pub(crate) fn field_addr_global(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     pointer: GlobalPointer,
     index: u32,
     field_count: u32,
@@ -1672,8 +1672,6 @@ pub(crate) fn field_addr_global(
 
     // load the global value
     let value = state
-        .interpreter
-        .isolate
         .globals
         .get(pointer.id)
         .copied()
@@ -1701,7 +1699,7 @@ pub(crate) fn field_addr_global(
 /// Get the address of an element from an array or pointer.
 #[inline(always)]
 pub(crate) fn element_addr(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     array: Value,
     index: u64,
     array_length: u64,
@@ -1751,7 +1749,7 @@ pub(crate) fn element_addr(
 /// Get the address of an element from a managed reference.
 #[inline(always)]
 pub(crate) fn element_addr_managed(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     handle: ManagedReference,
     pointee: mir::LocalNodeId<mir::Type>,
     index: u64,
@@ -1779,7 +1777,7 @@ pub(crate) fn element_addr_managed(
         return Err(Error::NullPointerDereference);
     }
 
-    let (_, element_stride) = managed_element_info(&state.interpreter.isolate.image.tree, pointee)?;
+    let (_, element_stride) = managed_element_info(state.tree(), pointee)?;
     let element_offset = usize::try_from(index)
         .ok()
         .and_then(|index| index.checked_mul(element_stride))
@@ -1804,7 +1802,7 @@ pub(crate) fn element_addr_managed(
 /// Get the address of an element from a raw pointer.
 #[inline(always)]
 pub(crate) fn element_addr_raw(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     pointer: RawPointer,
     pointee: mir::LocalNodeId<mir::Type>,
     index: u64,
@@ -1819,7 +1817,7 @@ pub(crate) fn element_addr_raw(
     }
 
     // resolve byte offset
-    let (_, element_stride) = raw_element_info(&state.interpreter.isolate.image.tree, pointee)?;
+    let (_, element_stride) = raw_element_info(state.tree(), pointee)?;
     let element_offset = usize::try_from(index)
         .ok()
         .and_then(|index| index.checked_mul(element_stride))
@@ -1844,7 +1842,7 @@ pub(crate) fn element_addr_raw(
 /// Get the address of an element from a stack pointer.
 #[inline(always)]
 pub(crate) fn element_addr_stack(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     pointer: StackPointer,
     index: u64,
     array_length: u64,
@@ -1864,7 +1862,7 @@ pub(crate) fn element_addr_stack(
 /// Get the address of an element from a local pointer.
 #[inline(always)]
 pub(crate) fn element_addr_local(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     pointer: LocalPointer,
     index: u64,
     array_length: u64,
@@ -1879,7 +1877,7 @@ pub(crate) fn element_addr_local(
 /// Get the address of an element from a global pointer.
 #[inline(always)]
 pub(crate) fn element_addr_global(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     pointer: GlobalPointer,
     index: u64,
     array_length: u64,
@@ -1898,7 +1896,7 @@ pub(crate) fn element_addr_global(
 /// Load a field from a managed heap allocation.
 #[inline(always)]
 pub(crate) fn load_field_managed(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     handle: ManagedReference,
     pointee: mir::LocalNodeId<mir::Type>,
     index: u32,
@@ -1906,7 +1904,7 @@ pub(crate) fn load_field_managed(
 ) -> Result<Value, Error> {
     // track pointer loads
     if state.collect_stats {
-        stat_inc!(state.interpreter.engine.statistics, loads);
+        stat_inc!(state.engine.statistics, loads);
     }
 
     let heap = state.heap_ref();
@@ -1938,9 +1936,8 @@ pub(crate) fn load_field_managed(
         return Err(Error::NullPointerDereference);
     }
 
-    let (field_type, field_offset) =
-        managed_field_info(&state.interpreter.isolate.image.tree, pointee, index)?;
-    let byte_len = managed_type_size(&state.interpreter.isolate.image.tree, field_type)?;
+    let (field_type, field_offset) = managed_field_info(state.tree(), pointee, index)?;
+    let byte_len = managed_type_size(state.tree(), field_type)?;
     let bytes = heap
         .managed_bytes(handle)
         .ok_or(Error::InvalidManagedReference)?;
@@ -1962,7 +1959,7 @@ pub(crate) fn load_field_managed(
 /// Store a field into a managed heap allocation.
 #[inline(always)]
 pub(crate) fn store_field_managed(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     handle: ManagedReference,
     pointee: mir::LocalNodeId<mir::Type>,
     index: u32,
@@ -1971,11 +1968,11 @@ pub(crate) fn store_field_managed(
 ) -> Result<(), Error> {
     let bounds_checks = state.bounds_checks;
     let null_checks = state.null_checks;
-    let tree = &state.interpreter.isolate.image.tree;
+    let tree = state.tree();
 
     // track pointer stores
     if state.collect_stats {
-        stat_inc!(state.interpreter.engine.statistics, stores);
+        stat_inc!(state.engine.statistics, stores);
     }
 
     let is_value_array = {
@@ -2048,7 +2045,7 @@ pub(crate) fn store_field_managed(
 /// Load a field from a raw heap allocation.
 #[inline(always)]
 pub(crate) fn load_field_raw(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     pointer: RawPointer,
     pointee: mir::LocalNodeId<mir::Type>,
     index: u32,
@@ -2056,7 +2053,7 @@ pub(crate) fn load_field_raw(
 ) -> Result<Value, Error> {
     // track pointer loads
     if state.collect_stats {
-        stat_inc!(state.interpreter.engine.statistics, loads);
+        stat_inc!(state.engine.statistics, loads);
     }
 
     // validate field index when known
@@ -2067,8 +2064,7 @@ pub(crate) fn load_field_raw(
         return Err(Error::NullPointerDereference);
     }
 
-    let (field_type, field_offset) =
-        raw_field_info(&state.interpreter.isolate.image.tree, pointee, index)?;
+    let (field_type, field_offset) = raw_field_info(state.tree(), pointee, index)?;
     let byte_offset =
         pointer
             .byte_offset()
@@ -2087,7 +2083,7 @@ pub(crate) fn load_field_raw(
 /// Store a field into a raw heap allocation.
 #[inline(always)]
 pub(crate) fn store_field_raw(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     pointer: RawPointer,
     pointee: mir::LocalNodeId<mir::Type>,
     index: u32,
@@ -2096,7 +2092,7 @@ pub(crate) fn store_field_raw(
 ) -> Result<(), Error> {
     // track pointer stores
     if state.collect_stats {
-        stat_inc!(state.interpreter.engine.statistics, stores);
+        stat_inc!(state.engine.statistics, stores);
     }
 
     // validate field index when known
@@ -2107,8 +2103,7 @@ pub(crate) fn store_field_raw(
         return Err(Error::NullPointerDereference);
     }
 
-    let (field_type, field_offset) =
-        raw_field_info(&state.interpreter.isolate.image.tree, pointee, index)?;
+    let (field_type, field_offset) = raw_field_info(state.tree(), pointee, index)?;
     let byte_offset =
         pointer
             .byte_offset()
@@ -2127,14 +2122,14 @@ pub(crate) fn store_field_raw(
 /// Load a field from a stack allocation.
 #[inline(always)]
 pub(crate) fn load_field_stack(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     pointer: StackPointer,
     index: u32,
     field_count: u32,
 ) -> Result<Value, Error> {
     // track pointer loads
     if state.collect_stats {
-        stat_inc!(state.interpreter.engine.statistics, loads);
+        stat_inc!(state.engine.statistics, loads);
     }
 
     // validate field index when known
@@ -2205,7 +2200,7 @@ pub(crate) fn load_field_stack(
 /// Store a field into a stack allocation.
 #[inline(always)]
 pub(crate) fn store_field_stack(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     pointer: StackPointer,
     index: u32,
     field_count: u32,
@@ -2216,7 +2211,7 @@ pub(crate) fn store_field_stack(
 
     // track pointer stores
     if state.collect_stats {
-        stat_inc!(state.interpreter.engine.statistics, stores);
+        stat_inc!(state.engine.statistics, stores);
     }
 
     // validate field index when known
@@ -2286,14 +2281,14 @@ pub(crate) fn store_field_stack(
 /// Load a field from a global allocation.
 #[inline(always)]
 pub(crate) fn load_field_global(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     pointer: GlobalPointer,
     index: u32,
     field_count: u32,
 ) -> Result<Value, Error> {
     // track pointer loads
     if state.collect_stats {
-        stat_inc!(state.interpreter.engine.statistics, loads);
+        stat_inc!(state.engine.statistics, loads);
     }
 
     // validate field index when known
@@ -2301,8 +2296,6 @@ pub(crate) fn load_field_global(
 
     // load the global value
     let value = state
-        .interpreter
-        .isolate
         .globals
         .get(pointer.id)
         .copied()
@@ -2390,7 +2383,7 @@ pub(crate) fn load_field_global(
 /// Store a field into a global allocation.
 #[inline(always)]
 pub(crate) fn store_field_global(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     pointer: GlobalPointer,
     index: u32,
     field_count: u32,
@@ -2401,7 +2394,7 @@ pub(crate) fn store_field_global(
 
     // track pointer stores
     if state.collect_stats {
-        stat_inc!(state.interpreter.engine.statistics, stores);
+        stat_inc!(state.engine.statistics, stores);
     }
 
     // validate field index when known
@@ -2409,8 +2402,6 @@ pub(crate) fn store_field_global(
 
     // load the global value
     let current = state
-        .interpreter
-        .isolate
         .globals
         .get(pointer.id)
         .copied()
@@ -2489,14 +2480,14 @@ pub(crate) fn store_field_global(
         }
     }
 
-    state.interpreter.isolate.globals.set(pointer.id, current);
+    state.globals.set(pointer.id, current);
     Ok(())
 }
 
 /// Load an element from a managed heap allocation.
 #[inline(always)]
 pub(crate) fn load_element_managed(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     handle: ManagedReference,
     pointee: mir::LocalNodeId<mir::Type>,
     index: u64,
@@ -2504,7 +2495,7 @@ pub(crate) fn load_element_managed(
 ) -> Result<Value, Error> {
     // track pointer loads
     if state.collect_stats {
-        stat_inc!(state.interpreter.engine.statistics, loads);
+        stat_inc!(state.engine.statistics, loads);
     }
 
     let heap = state.heap_ref();
@@ -2535,8 +2526,7 @@ pub(crate) fn load_element_managed(
         return Err(Error::NullPointerDereference);
     }
 
-    let (element_type, element_stride) =
-        managed_element_info(&state.interpreter.isolate.image.tree, pointee)?;
+    let (element_type, element_stride) = managed_element_info(state.tree(), pointee)?;
     let element_offset = usize::try_from(index)
         .ok()
         .and_then(|index| index.checked_mul(element_stride))
@@ -2544,7 +2534,7 @@ pub(crate) fn load_element_managed(
             index,
             length: array_length,
         })?;
-    let byte_len = managed_type_size(&state.interpreter.isolate.image.tree, element_type)?;
+    let byte_len = managed_type_size(state.tree(), element_type)?;
     let bytes = heap
         .managed_bytes(handle)
         .ok_or(Error::InvalidManagedReference)?;
@@ -2567,7 +2557,7 @@ pub(crate) fn load_element_managed(
 /// Store an element into a managed heap allocation.
 #[inline(always)]
 pub(crate) fn store_element_managed(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     handle: ManagedReference,
     pointee: mir::LocalNodeId<mir::Type>,
     index: u64,
@@ -2576,11 +2566,11 @@ pub(crate) fn store_element_managed(
 ) -> Result<(), Error> {
     let bounds_checks = state.bounds_checks;
     let null_checks = state.null_checks;
-    let tree = &state.interpreter.isolate.image.tree;
+    let tree = state.tree();
 
     // track pointer stores
     if state.collect_stats {
-        stat_inc!(state.interpreter.engine.statistics, stores);
+        stat_inc!(state.engine.statistics, stores);
     }
 
     let is_value_array = {
@@ -2660,7 +2650,7 @@ pub(crate) fn store_element_managed(
 /// Load an element from a raw heap allocation.
 #[inline(always)]
 pub(crate) fn load_element_raw(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     pointer: RawPointer,
     pointee: mir::LocalNodeId<mir::Type>,
     index: u64,
@@ -2668,7 +2658,7 @@ pub(crate) fn load_element_raw(
 ) -> Result<Value, Error> {
     // track pointer loads
     if state.collect_stats {
-        stat_inc!(state.interpreter.engine.statistics, loads);
+        stat_inc!(state.engine.statistics, loads);
     }
 
     // validate array index when known
@@ -2679,8 +2669,7 @@ pub(crate) fn load_element_raw(
         return Err(Error::NullPointerDereference);
     }
 
-    let (element_type, element_stride) =
-        raw_element_info(&state.interpreter.isolate.image.tree, pointee)?;
+    let (element_type, element_stride) = raw_element_info(state.tree(), pointee)?;
     let element_offset = usize::try_from(index)
         .ok()
         .and_then(|index| index.checked_mul(element_stride))
@@ -2706,7 +2695,7 @@ pub(crate) fn load_element_raw(
 /// Store an element into a raw heap allocation.
 #[inline(always)]
 pub(crate) fn store_element_raw(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     pointer: RawPointer,
     pointee: mir::LocalNodeId<mir::Type>,
     index: u64,
@@ -2715,7 +2704,7 @@ pub(crate) fn store_element_raw(
 ) -> Result<(), Error> {
     // track pointer stores
     if state.collect_stats {
-        stat_inc!(state.interpreter.engine.statistics, stores);
+        stat_inc!(state.engine.statistics, stores);
     }
 
     // validate array index when known
@@ -2726,8 +2715,7 @@ pub(crate) fn store_element_raw(
         return Err(Error::NullPointerDereference);
     }
 
-    let (element_type, element_stride) =
-        raw_element_info(&state.interpreter.isolate.image.tree, pointee)?;
+    let (element_type, element_stride) = raw_element_info(state.tree(), pointee)?;
     let element_offset = usize::try_from(index)
         .ok()
         .and_then(|index| index.checked_mul(element_stride))
@@ -2753,14 +2741,14 @@ pub(crate) fn store_element_raw(
 /// Load an element from a stack allocation.
 #[inline(always)]
 pub(crate) fn load_element_stack(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     pointer: StackPointer,
     index: u64,
     array_length: u64,
 ) -> Result<Value, Error> {
     // track pointer loads
     if state.collect_stats {
-        stat_inc!(state.interpreter.engine.statistics, loads);
+        stat_inc!(state.engine.statistics, loads);
     }
 
     // validate array index when known
@@ -2829,7 +2817,7 @@ pub(crate) fn load_element_stack(
 /// Store an element into a stack allocation.
 #[inline(always)]
 pub(crate) fn store_element_stack(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     pointer: StackPointer,
     index: u64,
     array_length: u64,
@@ -2840,7 +2828,7 @@ pub(crate) fn store_element_stack(
 
     // track pointer stores
     if state.collect_stats {
-        stat_inc!(state.interpreter.engine.statistics, stores);
+        stat_inc!(state.engine.statistics, stores);
     }
 
     // validate array index when known
@@ -2907,14 +2895,14 @@ pub(crate) fn store_element_stack(
 /// Load an element from a global allocation.
 #[inline(always)]
 pub(crate) fn load_element_global(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     pointer: GlobalPointer,
     index: u64,
     array_length: u64,
 ) -> Result<Value, Error> {
     // track pointer loads
     if state.collect_stats {
-        stat_inc!(state.interpreter.engine.statistics, loads);
+        stat_inc!(state.engine.statistics, loads);
     }
 
     // validate array index when known
@@ -2922,8 +2910,6 @@ pub(crate) fn load_element_global(
 
     // load the global value
     let value = state
-        .interpreter
-        .isolate
         .globals
         .get(pointer.id)
         .copied()
@@ -3000,7 +2986,7 @@ pub(crate) fn load_element_global(
 /// Store an element into a global allocation.
 #[inline(always)]
 pub(crate) fn store_element_global(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     pointer: GlobalPointer,
     index: u64,
     array_length: u64,
@@ -3011,7 +2997,7 @@ pub(crate) fn store_element_global(
 
     // track pointer stores
     if state.collect_stats {
-        stat_inc!(state.interpreter.engine.statistics, stores);
+        stat_inc!(state.engine.statistics, stores);
     }
 
     // validate array index when known
@@ -3019,8 +3005,6 @@ pub(crate) fn store_element_global(
 
     // load the global value
     let current = state
-        .interpreter
-        .isolate
         .globals
         .get(pointer.id)
         .copied()
@@ -3087,14 +3071,14 @@ pub(crate) fn store_element_global(
         }
     }
 
-    state.interpreter.isolate.globals.set(pointer.id, current);
+    state.globals.set(pointer.id, current);
     Ok(())
 }
 
 /// Get a field from an aggregate value.
 #[inline(always)]
 pub(crate) fn get_field(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     agg: Value,
     index: u32,
 ) -> Result<Value, Error> {
@@ -3118,7 +3102,7 @@ pub(crate) fn get_field(
 /// Set a field on an aggregate value.
 #[inline(always)]
 pub(crate) fn set_field(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     agg: Value,
     index: u32,
     val: Value,
@@ -3145,7 +3129,7 @@ pub(crate) fn set_field(
 /// Get an element from an array value.
 #[inline(always)]
 pub(crate) fn get_element(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     arr: Value,
     index: u64,
 ) -> Result<Value, Error> {
@@ -3165,7 +3149,7 @@ pub(crate) fn get_element(
 /// Set an element on an array value.
 #[inline(always)]
 pub(crate) fn set_element(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     arr: Value,
     index: u64,
     val: Value,
@@ -3187,7 +3171,7 @@ pub(crate) fn set_element(
 /// Load a slot from a managed heap allocation.
 #[inline(always)]
 fn load_heap_slot(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     handle: ManagedReference,
     slot_index: usize,
 ) -> Result<Value, Error> {
@@ -3229,7 +3213,7 @@ fn load_heap_slot(
 /// Store a slot into a managed heap allocation.
 #[inline(always)]
 fn store_heap_slot(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     handle: ManagedReference,
     slot_index: usize,
     value: Value,
@@ -3279,13 +3263,11 @@ fn store_heap_slot(
 /// Load from a global pointer, including slot offsets.
 #[inline(always)]
 fn load_global_slot(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     global: GlobalPointer,
 ) -> Result<Value, Error> {
     // read the global value
     let value = state
-        .interpreter
-        .isolate
         .globals
         .get(global.id)
         .copied()
@@ -3315,20 +3297,18 @@ fn load_global_slot(
 /// Store through a global pointer, including slot offsets.
 #[inline(always)]
 fn store_global_slot(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     global: GlobalPointer,
     value: Value,
 ) -> Result<(), Error> {
     // update the global value directly
     if global.slot_offset == 0 {
-        state.interpreter.isolate.globals.set(global.id, value);
+        state.globals.set(global.id, value);
         return Ok(());
     }
 
     // update a slot on the aggregate stored in the global
     let current = state
-        .interpreter
-        .isolate
         .globals
         .get(global.id)
         .copied()
@@ -3343,19 +3323,19 @@ fn store_global_slot(
     let handle = current.as_managed_reference().unwrap();
     if current.tag() == ValueTag::String {
         store_string_field(state.heap(), handle, global.slot_offset as u32, value)?;
-        state.interpreter.isolate.globals.set(global.id, current);
+        state.globals.set(global.id, current);
         return Ok(());
     }
 
     store_heap_slot(state, handle, global.slot_offset, value)?;
-    state.interpreter.isolate.globals.set(global.id, current);
+    state.globals.set(global.id, current);
     Ok(())
 }
 
 /// Get a field from a heap aggregate.
 #[inline(always)]
 fn get_heap_field(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     handle: ManagedReference,
     index: u32,
 ) -> Result<Value, Error> {
@@ -3398,7 +3378,7 @@ fn get_heap_field(
 /// Set a field on a heap aggregate.
 #[inline(always)]
 fn set_heap_field(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     handle: ManagedReference,
     index: u32,
     value: Value,
@@ -3446,7 +3426,7 @@ fn set_heap_field(
 /// Get an element from a heap array aggregate.
 #[inline(always)]
 fn get_heap_element(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     handle: ManagedReference,
     index: u64,
 ) -> Result<Value, Error> {
@@ -3491,7 +3471,7 @@ fn get_heap_element(
 /// Set an element on a heap array aggregate.
 #[inline(always)]
 fn set_heap_element(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     handle: ManagedReference,
     index: u64,
     value: Value,
@@ -3540,7 +3520,7 @@ fn set_heap_element(
 /// Resolve a field slot for a managed heap pointer.
 #[inline(always)]
 fn resolve_heap_field_slot(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     handle: ManagedReference,
     index: u32,
     field_count: u32,
@@ -3591,7 +3571,7 @@ fn resolve_heap_field_slot(
 /// Resolve a field slot for a stack pointer.
 #[inline(always)]
 fn resolve_stack_field_slot(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     pointer: StackPointer,
     index: u32,
     field_count: u32,
@@ -3634,15 +3614,13 @@ fn resolve_stack_field_slot(
 /// Resolve a field slot for a global pointer.
 #[inline(always)]
 fn resolve_global_field_slot(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     global: GlobalPointer,
     index: u32,
     field_count: u32,
 ) -> Result<usize, Error> {
     // load the global value
     let value = state
-        .interpreter
-        .isolate
         .globals
         .get(global.id)
         .copied()
@@ -3693,7 +3671,7 @@ fn resolve_global_field_slot(
 /// Resolve an element slot for a managed heap pointer.
 #[inline(always)]
 fn resolve_heap_element_slot(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     handle: ManagedReference,
     index: u64,
     array_length: u64,
@@ -3744,7 +3722,7 @@ fn resolve_heap_element_slot(
 /// Resolve an element slot for a stack pointer.
 #[inline(always)]
 fn resolve_stack_element_slot(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     pointer: StackPointer,
     index: u64,
     array_length: u64,
@@ -3790,15 +3768,13 @@ fn resolve_stack_element_slot(
 /// Resolve an element slot for a global pointer.
 #[inline(always)]
 fn resolve_global_element_slot(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     global: GlobalPointer,
     index: u64,
     array_length: u64,
 ) -> Result<usize, Error> {
     // load the global value
     let value = state
-        .interpreter
-        .isolate
         .globals
         .get(global.id)
         .copied()
@@ -3852,7 +3828,7 @@ fn resolve_global_element_slot(
 /// Load a slot from a stack allocation.
 #[inline(always)]
 fn load_stack_slot(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     sp: StackPointer,
     slot_index: usize,
 ) -> Result<Value, Error> {
@@ -3889,7 +3865,7 @@ fn load_stack_slot(
 /// Load a local slot from a frame.
 #[inline(always)]
 fn load_local_slot(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     pointer: LocalPointer,
     slot_offset: usize,
 ) -> Result<Value, Error> {
@@ -3908,13 +3884,13 @@ fn load_local_slot(
     let local = mir::LocalNodeId::new(pointer.local as u32);
 
     // read the local slot
-    frame.get_local_or_error(&state.interpreter.engine.local_stack, local)
+    frame.get_local_or_error(&state.engine.local_stack, local)
 }
 
 /// Store a slot into a stack allocation.
 #[inline(always)]
 fn store_stack_slot(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     sp: StackPointer,
     slot_index: usize,
     value: Value,
@@ -3958,7 +3934,7 @@ fn store_stack_slot(
 /// Store a local slot into a frame.
 #[inline(always)]
 fn store_local_slot(
-    state: &mut ThreadedState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     pointer: LocalPointer,
     slot_offset: usize,
     value: Value,
@@ -3988,7 +3964,7 @@ fn store_local_slot(
 
     // write the local slot
     let slot = local_base + local_index;
-    let locals = &mut state.interpreter.engine.local_stack;
+    let locals = &mut state.engine.local_stack;
     let Some(target) = locals.get_mut(slot) else {
         return Err(Error::UndefinedLocal { local });
     };

@@ -2,9 +2,8 @@ use std::ptr::NonNull;
 
 use destack_mir as mir;
 
-use super::super::decode::{INVALID_VALUE_ID, ThreadedBlock, ThreadedFunction};
-use super::interpreter::ThreadedFunctionTable;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
+use crate::executable::{Block, Function, FunctionTable, INVALID_VALUE_ID};
 use crate::snapshot::FrameImage;
 use destack_heap::{ManagedReference, Value, ValueBuffer};
 
@@ -12,42 +11,42 @@ use destack_heap::{ManagedReference, Value, ValueBuffer};
 #[derive(Debug)]
 pub struct Frame {
     /// The function being executed.
-    pub function: mir::LocalNodeId<mir::Function>,
-    /// Pointer to the threaded function for fast dispatch.
-    pub threaded: NonNull<ThreadedFunction>,
-    /// Pointer to the current threaded block.
-    pub block_ptr: NonNull<ThreadedBlock>,
+    pub(crate) function: mir::LocalNodeId<mir::Function>,
+    /// Pointer to the lowered function for fast dispatch.
+    pub(crate) function_ptr: NonNull<Function>,
+    /// Pointer to the current block.
+    pub(crate) block_ptr: NonNull<Block>,
     /// The entry block of the function.
-    pub entry_block: mir::LocalNodeId<mir::Block>,
+    pub(crate) entry_block: mir::LocalNodeId<mir::Block>,
     /// The current block being executed.
-    pub current_block: mir::LocalNodeId<mir::Block>,
-    /// Current threaded block index.
-    pub block_index: usize,
-    /// Program counter within the current threaded block.
-    pub resume_pc: usize,
+    pub(crate) current_block: mir::LocalNodeId<mir::Block>,
+    /// Current block index.
+    pub(crate) block_index: usize,
+    /// Program counter within the current block.
+    pub(crate) resume_pc: usize,
     /// Base offset into the interpreter value stack.
-    pub value_base: usize,
+    pub(crate) value_base: usize,
     /// Count of SSA values in this frame.
-    pub value_count: usize,
+    pub(crate) value_count: usize,
     /// Base offset into the interpreter local stack.
-    pub local_base: usize,
+    pub(crate) local_base: usize,
     /// Count of local variables in this frame.
-    pub local_count: usize,
+    pub(crate) local_count: usize,
     /// Stack-allocated value buffers, freed when the frame pops.
-    pub stack_values: Vec<ValueBuffer>,
+    pub(crate) stack_values: Vec<ValueBuffer>,
     /// Closure environment pointer for this frame.
-    pub closure_env: Value,
+    pub(crate) closure_env: Value,
     /// Return destination for the caller or INVALID_VALUE_ID for none.
-    pub return_destination: mir::Value,
+    pub(crate) return_destination: mir::Value,
 }
 
 impl Frame {
     /// Create a new frame for a function.
     #[allow(clippy::too_many_arguments)]
-    pub fn new(
+    pub(crate) fn new(
         function: mir::LocalNodeId<mir::Function>,
-        threaded: NonNull<ThreadedFunction>,
-        block_ptr: NonNull<ThreadedBlock>,
+        function_ptr: NonNull<Function>,
+        block_ptr: NonNull<Block>,
         entry_block: mir::LocalNodeId<mir::Block>,
         block_index: usize,
         value_base: usize,
@@ -59,7 +58,7 @@ impl Frame {
         // assemble frame state
         Self {
             function,
-            threaded,
+            function_ptr,
             block_ptr,
             entry_block,
             current_block: entry_block,
@@ -73,14 +72,6 @@ impl Frame {
             closure_env,
             return_destination: mir::Value(INVALID_VALUE_ID),
         }
-    }
-
-    /// Get the threaded function for this frame.
-    #[inline]
-    pub fn threaded(&self) -> &ThreadedFunction {
-        // return threaded function
-        // #Safety: threaded pointer is valid for interpreter lifetime
-        unsafe { self.threaded.as_ref() }
     }
 
     /// Get a value from this frame.
@@ -283,7 +274,7 @@ impl Frame {
         // assemble cloned frame
         Self {
             function: self.function,
-            threaded: self.threaded,
+            function_ptr: self.function_ptr,
             block_ptr: self.block_ptr,
             entry_block: self.entry_block,
             current_block: self.current_block,
@@ -318,30 +309,23 @@ impl Frame {
     }
 
     /// Create one frame from an immutable image.
-    pub(crate) fn from_image(
-        image: &FrameImage,
-        threaded_functions: &ThreadedFunctionTable,
-    ) -> RuntimeResult<Self> {
-        // resolve the threaded function for this frame
-        let threaded_index = threaded_functions
-            .index_for(image.function)
-            .ok_or_else(|| {
-                RuntimeError::new(Error::UndefinedFunction {
-                    function: image.function,
-                })
-            })?;
+    pub(crate) fn from_image(image: &FrameImage, functions: &FunctionTable) -> RuntimeResult<Self> {
+        // resolve the lowered function for this frame
+        let function_index = functions.index_for(image.function).ok_or_else(|| {
+            RuntimeError::new(Error::UndefinedFunction {
+                function: image.function,
+            })
+        })?;
 
-        let threaded = threaded_functions
-            .get_ptr_by_index(threaded_index)
-            .ok_or_else(|| {
-                RuntimeError::new(Error::UndefinedFunction {
-                    function: image.function,
-                })
-            })?;
+        let function_ptr = functions.get_ptr_by_index(function_index).ok_or_else(|| {
+            RuntimeError::new(Error::UndefinedFunction {
+                function: image.function,
+            })
+        })?;
 
-        // resolve the current block pointer from the threaded function
-        let threaded_ref = unsafe { threaded.as_ref() };
-        let block = threaded_ref.blocks.get(image.block_index).ok_or_else(|| {
+        // resolve the current block pointer from the lowered function
+        let function_ref = unsafe { function_ptr.as_ref() };
+        let block = function_ref.blocks.get(image.block_index).ok_or_else(|| {
             RuntimeError::new(Error::UndefinedBlock {
                 block: image.current_block,
             })
@@ -356,7 +340,7 @@ impl Frame {
 
         Ok(Self {
             function: image.function,
-            threaded,
+            function_ptr,
             block_ptr: NonNull::from(block),
             entry_block: image.entry_block,
             current_block: image.current_block,

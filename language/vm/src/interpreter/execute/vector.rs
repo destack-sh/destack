@@ -4,12 +4,12 @@ use super::*;
 
 /// Handle vector.splat.
 pub(crate) fn handle_vector_splat(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::VectorSplat { dest, value, lanes } = &block[pc].data else {
+    let InstructionData::VectorSplat { dest, value, lanes } = &block[pc].data else {
         unreachable!()
     };
 
@@ -30,12 +30,12 @@ pub(crate) fn handle_vector_splat(
 
 /// Handle vector.extract.
 pub(crate) fn handle_vector_extract(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::VectorExtract {
+    let InstructionData::VectorExtract {
         dest,
         vector,
         index,
@@ -73,12 +73,12 @@ pub(crate) fn handle_vector_extract(
 
 /// Handle vector.insert.
 pub(crate) fn handle_vector_insert(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::VectorInsert {
+    let InstructionData::VectorInsert {
         dest,
         vector,
         index,
@@ -116,12 +116,12 @@ pub(crate) fn handle_vector_insert(
 
 /// Handle vector.shuffle.
 pub(crate) fn handle_vector_shuffle(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::VectorShuffle {
+    let InstructionData::VectorShuffle {
         dest,
         left,
         right,
@@ -171,11 +171,11 @@ pub(crate) fn handle_vector_shuffle(
 
 /// Handle vector.select.
 pub(crate) fn handle_vector_select(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::VectorSelect {
+    let InstructionData::VectorSelect {
         dest,
         mask,
         then_value,
@@ -229,19 +229,19 @@ pub(crate) fn handle_vector_select(
         output.push(if select { *then_lane } else { *else_lane });
     }
 
-    let result = state.interpreter.allocate_aggregate(output);
+    let result = state.allocate_aggregate(output);
     state.set(*dest, result);
     next!(state, block, pc)
 }
 
 /// Handle vector.reduce.
 pub(crate) fn handle_vector_reduce(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::VectorReduce {
+    let InstructionData::VectorReduce {
         dest,
         operator,
         vector,
@@ -282,12 +282,12 @@ pub(crate) fn handle_vector_reduce(
 
 /// Handle vector.compare.
 pub(crate) fn handle_vector_compare(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::VectorCompare {
+    let InstructionData::VectorCompare {
         dest,
         operator,
         left,
@@ -337,12 +337,12 @@ pub(crate) fn handle_vector_compare(
 
 /// Handle vector.convert.
 pub(crate) fn handle_vector_convert(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::VectorConvert {
+    let InstructionData::VectorConvert {
         dest,
         mode,
         vector,
@@ -354,7 +354,7 @@ pub(crate) fn handle_vector_convert(
     };
 
     // resolve vector element types
-    let source_element = match state.interpreter.isolate.image.tree.get(*source_type) {
+    let source_element = match state.tree().get(*source_type) {
         mir::Type::Vector { element, .. } => *element,
         _ => {
             return ControlFlow::Error(Error::TypeMismatch {
@@ -363,7 +363,7 @@ pub(crate) fn handle_vector_convert(
             });
         }
     };
-    let dest_vector = state.interpreter.isolate.image.tree.get(*dest_type);
+    let dest_vector = state.tree().get(*dest_type);
     let (dest_element, dest_lanes) = match dest_vector {
         mir::Type::Vector { element, lanes, .. } => (*element, *lanes as usize),
         _ => {
@@ -391,13 +391,11 @@ pub(crate) fn handle_vector_convert(
         }
 
         // convert lanes
-        let source_info =
-            match scalar_type_info(&state.interpreter.isolate.image.tree, source_element) {
-                Ok(info) => info,
-                Err(error) => return ControlFlow::Error(error),
-            };
-        let dest_info = match scalar_type_info(&state.interpreter.isolate.image.tree, dest_element)
-        {
+        let source_info = match scalar_type_info(state.tree(), source_element) {
+            Ok(info) => info,
+            Err(error) => return ControlFlow::Error(error),
+        };
+        let dest_info = match scalar_type_info(state.tree(), dest_element) {
             Ok(info) => info,
             Err(error) => return ControlFlow::Error(error),
         };

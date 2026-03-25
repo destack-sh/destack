@@ -20,12 +20,12 @@ fn tensor_element_type(
 
 /// Handle tensor.load.
 pub(crate) fn handle_tensor_load(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::TensorLoad {
+    let InstructionData::TensorLoad {
         dest,
         view,
         indices,
@@ -36,12 +36,11 @@ pub(crate) fn handle_tensor_load(
     };
 
     // resolve layout info
-    let layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *view_type) {
+    let layout = match tensor_layout_info(state.tree(), *view_type) {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
-    let element_type = match tensor_element_type(&state.interpreter.isolate.image.tree, *view_type)
-    {
+    let element_type = match tensor_element_type(state.tree(), *view_type) {
         Ok(element_type) => element_type,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -82,12 +81,12 @@ pub(crate) fn handle_tensor_load(
 
 /// Handle tensor.store.
 pub(crate) fn handle_tensor_store(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::TensorStore {
+    let InstructionData::TensorStore {
         view,
         indices,
         value,
@@ -98,12 +97,11 @@ pub(crate) fn handle_tensor_store(
     };
 
     // resolve layout info
-    let layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *view_type) {
+    let layout = match tensor_layout_info(state.tree(), *view_type) {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
-    let element_type = match tensor_element_type(&state.interpreter.isolate.image.tree, *view_type)
-    {
+    let element_type = match tensor_element_type(state.tree(), *view_type) {
         Ok(element_type) => element_type,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -144,12 +142,12 @@ pub(crate) fn handle_tensor_store(
 
 /// Handle tensor.fill.
 pub(crate) fn handle_tensor_fill(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::TensorFill {
+    let InstructionData::TensorFill {
         view,
         value,
         view_type,
@@ -159,12 +157,11 @@ pub(crate) fn handle_tensor_fill(
     };
 
     // resolve layout info
-    let layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *view_type) {
+    let layout = match tensor_layout_info(state.tree(), *view_type) {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
-    let element_type = match tensor_element_type(&state.interpreter.isolate.image.tree, *view_type)
-    {
+    let element_type = match tensor_element_type(state.tree(), *view_type) {
         Ok(element_type) => element_type,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -193,12 +190,12 @@ pub(crate) fn handle_tensor_fill(
 
 /// Handle tensor.copy.
 pub(crate) fn handle_tensor_copy(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::TensorCopy {
+    let InstructionData::TensorCopy {
         target,
         source,
         target_type,
@@ -209,26 +206,22 @@ pub(crate) fn handle_tensor_copy(
     };
 
     // resolve layouts
-    let target_layout =
-        match tensor_layout_info(&state.interpreter.isolate.image.tree, *target_type) {
-            Ok(layout) => layout,
-            Err(error) => return ControlFlow::Error(error),
-        };
-    let source_layout =
-        match tensor_layout_info(&state.interpreter.isolate.image.tree, *source_type) {
-            Ok(layout) => layout,
-            Err(error) => return ControlFlow::Error(error),
-        };
-    let target_element_type =
-        match tensor_element_type(&state.interpreter.isolate.image.tree, *target_type) {
-            Ok(element_type) => element_type,
-            Err(error) => return ControlFlow::Error(error),
-        };
-    let source_element_type =
-        match tensor_element_type(&state.interpreter.isolate.image.tree, *source_type) {
-            Ok(element_type) => element_type,
-            Err(error) => return ControlFlow::Error(error),
-        };
+    let target_layout = match tensor_layout_info(state.tree(), *target_type) {
+        Ok(layout) => layout,
+        Err(error) => return ControlFlow::Error(error),
+    };
+    let source_layout = match tensor_layout_info(state.tree(), *source_type) {
+        Ok(layout) => layout,
+        Err(error) => return ControlFlow::Error(error),
+    };
+    let target_element_type = match tensor_element_type(state.tree(), *target_type) {
+        Ok(element_type) => element_type,
+        Err(error) => return ControlFlow::Error(error),
+    };
+    let source_element_type = match tensor_element_type(state.tree(), *source_type) {
+        Ok(element_type) => element_type,
+        Err(error) => return ControlFlow::Error(error),
+    };
 
     // validate element counts
     if target_layout.storage_len != source_layout.storage_len {
@@ -277,16 +270,15 @@ pub(crate) fn handle_tensor_copy(
 
 /// Handle tensor.reshape.
 pub(crate) fn handle_tensor_reshape(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::TensorReshape {
+    let InstructionData::TensorReshape {
         dest,
         tensor,
         shape,
-        source_type: _,
         dest_type,
     } = &block[pc].data
     else {
@@ -301,7 +293,7 @@ pub(crate) fn handle_tensor_reshape(
     };
 
     // resolve output layout
-    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *dest_type) {
+    let dest_layout = match tensor_layout_info(state.tree(), *dest_type) {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -345,12 +337,12 @@ pub(crate) fn handle_tensor_reshape(
 
 /// Handle tensor.broadcast.
 pub(crate) fn handle_tensor_broadcast(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::TensorBroadcast {
+    let InstructionData::TensorBroadcast {
         dest,
         tensor,
         dimensions,
@@ -362,12 +354,11 @@ pub(crate) fn handle_tensor_broadcast(
     };
 
     // resolve layouts
-    let source_layout =
-        match tensor_layout_info(&state.interpreter.isolate.image.tree, *source_type) {
-            Ok(layout) => layout,
-            Err(error) => return ControlFlow::Error(error),
-        };
-    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *dest_type) {
+    let source_layout = match tensor_layout_info(state.tree(), *source_type) {
+        Ok(layout) => layout,
+        Err(error) => return ControlFlow::Error(error),
+    };
+    let dest_layout = match tensor_layout_info(state.tree(), *dest_type) {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -432,12 +423,12 @@ pub(crate) fn handle_tensor_broadcast(
 
 /// Handle tensor.transpose.
 pub(crate) fn handle_tensor_transpose(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::TensorTranspose {
+    let InstructionData::TensorTranspose {
         dest,
         tensor,
         permutation,
@@ -449,12 +440,11 @@ pub(crate) fn handle_tensor_transpose(
     };
 
     // resolve layouts
-    let source_layout =
-        match tensor_layout_info(&state.interpreter.isolate.image.tree, *source_type) {
-            Ok(layout) => layout,
-            Err(error) => return ControlFlow::Error(error),
-        };
-    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *dest_type) {
+    let source_layout = match tensor_layout_info(state.tree(), *source_type) {
+        Ok(layout) => layout,
+        Err(error) => return ControlFlow::Error(error),
+    };
+    let dest_layout = match tensor_layout_info(state.tree(), *dest_type) {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -517,12 +507,12 @@ pub(crate) fn handle_tensor_transpose(
 
 /// Handle tensor.slice.
 pub(crate) fn handle_tensor_slice(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::TensorSlice {
+    let InstructionData::TensorSlice {
         dest,
         tensor,
         arguments,
@@ -537,12 +527,11 @@ pub(crate) fn handle_tensor_slice(
     };
 
     // resolve layouts
-    let source_layout =
-        match tensor_layout_info(&state.interpreter.isolate.image.tree, *source_type) {
-            Ok(layout) => layout,
-            Err(error) => return ControlFlow::Error(error),
-        };
-    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *dest_type) {
+    let source_layout = match tensor_layout_info(state.tree(), *source_type) {
+        Ok(layout) => layout,
+        Err(error) => return ControlFlow::Error(error),
+    };
+    let dest_layout = match tensor_layout_info(state.tree(), *dest_type) {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -632,12 +621,12 @@ pub(crate) fn handle_tensor_slice(
 
 /// Handle tensor.pad.
 pub(crate) fn handle_tensor_pad(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::TensorPad {
+    let InstructionData::TensorPad {
         dest,
         tensor,
         arguments,
@@ -653,12 +642,11 @@ pub(crate) fn handle_tensor_pad(
     };
 
     // resolve layouts
-    let source_layout =
-        match tensor_layout_info(&state.interpreter.isolate.image.tree, *source_type) {
-            Ok(layout) => layout,
-            Err(error) => return ControlFlow::Error(error),
-        };
-    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *dest_type) {
+    let source_layout = match tensor_layout_info(state.tree(), *source_type) {
+        Ok(layout) => layout,
+        Err(error) => return ControlFlow::Error(error),
+    };
+    let dest_layout = match tensor_layout_info(state.tree(), *dest_type) {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -768,12 +756,12 @@ pub(crate) fn handle_tensor_pad(
 
 /// Handle tensor.concat.
 pub(crate) fn handle_tensor_concat(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::TensorConcat {
+    let InstructionData::TensorConcat {
         dest,
         tensors,
         tensor_types,
@@ -785,7 +773,7 @@ pub(crate) fn handle_tensor_concat(
     };
 
     // resolve destination layout
-    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *dest_type) {
+    let dest_layout = match tensor_layout_info(state.tree(), *dest_type) {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -804,7 +792,7 @@ pub(crate) fn handle_tensor_concat(
             Ok(slots) => slots,
             Err(error) => return ControlFlow::Error(error),
         };
-        let layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *type_id) {
+        let layout = match tensor_layout_info(state.tree(), *type_id) {
             Ok(layout) => layout,
             Err(error) => return ControlFlow::Error(error),
         };
@@ -876,12 +864,12 @@ pub(crate) fn handle_tensor_concat(
 
 /// Handle tensor.reduce.
 pub(crate) fn handle_tensor_reduce(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::TensorReduce {
+    let InstructionData::TensorReduce {
         dest,
         operator,
         tensor,
@@ -895,12 +883,11 @@ pub(crate) fn handle_tensor_reduce(
     };
 
     // resolve layouts
-    let source_layout =
-        match tensor_layout_info(&state.interpreter.isolate.image.tree, *source_type) {
-            Ok(layout) => layout,
-            Err(error) => return ControlFlow::Error(error),
-        };
-    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *dest_type) {
+    let source_layout = match tensor_layout_info(state.tree(), *source_type) {
+        Ok(layout) => layout,
+        Err(error) => return ControlFlow::Error(error),
+    };
+    let dest_layout = match tensor_layout_info(state.tree(), *dest_type) {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -965,12 +952,12 @@ pub(crate) fn handle_tensor_reduce(
 
 /// Handle tensor.dot.
 pub(crate) fn handle_tensor_dot(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::TensorDot {
+    let InstructionData::TensorDot {
         dest,
         left,
         right,
@@ -984,16 +971,15 @@ pub(crate) fn handle_tensor_dot(
     };
 
     // resolve layouts
-    let left_layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *left_type) {
+    let left_layout = match tensor_layout_info(state.tree(), *left_type) {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
-    let right_layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *right_type)
-    {
+    let right_layout = match tensor_layout_info(state.tree(), *right_type) {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
-    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *dest_type) {
+    let dest_layout = match tensor_layout_info(state.tree(), *dest_type) {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -1129,12 +1115,12 @@ pub(crate) fn handle_tensor_dot(
 
 /// Handle tensor.convolution.
 pub(crate) fn handle_tensor_convolution(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::TensorConvolution {
+    let InstructionData::TensorConvolution {
         dest,
         input,
         kernel,
@@ -1151,17 +1137,15 @@ pub(crate) fn handle_tensor_convolution(
     };
 
     // resolve layouts
-    let input_layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *input_type)
-    {
+    let input_layout = match tensor_layout_info(state.tree(), *input_type) {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
-    let kernel_layout =
-        match tensor_layout_info(&state.interpreter.isolate.image.tree, *kernel_type) {
-            Ok(layout) => layout,
-            Err(error) => return ControlFlow::Error(error),
-        };
-    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *dest_type) {
+    let kernel_layout = match tensor_layout_info(state.tree(), *kernel_type) {
+        Ok(layout) => layout,
+        Err(error) => return ControlFlow::Error(error),
+    };
+    let dest_layout = match tensor_layout_info(state.tree(), *dest_type) {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -1377,12 +1361,12 @@ pub(crate) fn handle_tensor_convolution(
 
 /// Handle tensor.gather.
 pub(crate) fn handle_tensor_gather(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::TensorGather {
+    let InstructionData::TensorGather {
         dest,
         operand,
         indices,
@@ -1397,17 +1381,15 @@ pub(crate) fn handle_tensor_gather(
     };
 
     // resolve layouts
-    let operand_layout =
-        match tensor_layout_info(&state.interpreter.isolate.image.tree, *operand_type) {
-            Ok(layout) => layout,
-            Err(error) => return ControlFlow::Error(error),
-        };
-    let indices_layout =
-        match tensor_layout_info(&state.interpreter.isolate.image.tree, *indices_type) {
-            Ok(layout) => layout,
-            Err(error) => return ControlFlow::Error(error),
-        };
-    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *dest_type) {
+    let operand_layout = match tensor_layout_info(state.tree(), *operand_type) {
+        Ok(layout) => layout,
+        Err(error) => return ControlFlow::Error(error),
+    };
+    let indices_layout = match tensor_layout_info(state.tree(), *indices_type) {
+        Ok(layout) => layout,
+        Err(error) => return ControlFlow::Error(error),
+    };
+    let dest_layout = match tensor_layout_info(state.tree(), *dest_type) {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -1526,12 +1508,12 @@ pub(crate) fn handle_tensor_gather(
 
 /// Handle tensor.scatter.
 pub(crate) fn handle_tensor_scatter(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::TensorScatter {
+    let InstructionData::TensorScatter {
         dest,
         operand,
         indices,
@@ -1548,22 +1530,19 @@ pub(crate) fn handle_tensor_scatter(
     };
 
     // resolve layouts
-    let operand_layout =
-        match tensor_layout_info(&state.interpreter.isolate.image.tree, *operand_type) {
-            Ok(layout) => layout,
-            Err(error) => return ControlFlow::Error(error),
-        };
-    let indices_layout =
-        match tensor_layout_info(&state.interpreter.isolate.image.tree, *indices_type) {
-            Ok(layout) => layout,
-            Err(error) => return ControlFlow::Error(error),
-        };
-    let updates_layout =
-        match tensor_layout_info(&state.interpreter.isolate.image.tree, *updates_type) {
-            Ok(layout) => layout,
-            Err(error) => return ControlFlow::Error(error),
-        };
-    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *dest_type) {
+    let operand_layout = match tensor_layout_info(state.tree(), *operand_type) {
+        Ok(layout) => layout,
+        Err(error) => return ControlFlow::Error(error),
+    };
+    let indices_layout = match tensor_layout_info(state.tree(), *indices_type) {
+        Ok(layout) => layout,
+        Err(error) => return ControlFlow::Error(error),
+    };
+    let updates_layout = match tensor_layout_info(state.tree(), *updates_type) {
+        Ok(layout) => layout,
+        Err(error) => return ControlFlow::Error(error),
+    };
+    let dest_layout = match tensor_layout_info(state.tree(), *dest_type) {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -1691,12 +1670,12 @@ pub(crate) fn handle_tensor_scatter(
 
 /// Handle tensor.convert.
 pub(crate) fn handle_tensor_convert(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::TensorConvert {
+    let InstructionData::TensorConvert {
         dest,
         mode,
         tensor,
@@ -1708,7 +1687,7 @@ pub(crate) fn handle_tensor_convert(
     };
 
     // resolve tensor types
-    let source_type = match state.interpreter.isolate.image.tree.get(*source_type) {
+    let source_type = match state.tree().get(*source_type) {
         mir::Type::Tensor { element, .. } => *element,
         _ => {
             return ControlFlow::Error(Error::TypeMismatch {
@@ -1717,11 +1696,10 @@ pub(crate) fn handle_tensor_convert(
             });
         }
     };
-    let dest_type_info = state.interpreter.isolate.image.tree.get(*dest_type);
+    let dest_type_info = state.tree().get(*dest_type);
     let (dest_element, dest_layout) = match dest_type_info {
         mir::Type::Tensor { element, .. } => {
-            let layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *dest_type)
-            {
+            let layout = match tensor_layout_info(state.tree(), *dest_type) {
                 Ok(layout) => layout,
                 Err(error) => return ControlFlow::Error(error),
             };
@@ -1752,13 +1730,11 @@ pub(crate) fn handle_tensor_convert(
         }
 
         // resolve conversion types
-        let source_info = match scalar_type_info(&state.interpreter.isolate.image.tree, source_type)
-        {
+        let source_info = match scalar_type_info(state.tree(), source_type) {
             Ok(info) => info,
             Err(error) => return ControlFlow::Error(error),
         };
-        let dest_info = match scalar_type_info(&state.interpreter.isolate.image.tree, dest_element)
-        {
+        let dest_info = match scalar_type_info(state.tree(), dest_element) {
             Ok(info) => info,
             Err(error) => return ControlFlow::Error(error),
         };
@@ -1787,12 +1763,12 @@ pub(crate) fn handle_tensor_convert(
 
 /// Handle tensor.compare.
 pub(crate) fn handle_tensor_compare(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::TensorCompare {
+    let InstructionData::TensorCompare {
         dest,
         operator,
         left,
@@ -1806,16 +1782,15 @@ pub(crate) fn handle_tensor_compare(
     };
 
     // resolve layouts
-    let left_layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *left_type) {
+    let left_layout = match tensor_layout_info(state.tree(), *left_type) {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
-    let right_layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *right_type)
-    {
+    let right_layout = match tensor_layout_info(state.tree(), *right_type) {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
-    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *dest_type) {
+    let dest_layout = match tensor_layout_info(state.tree(), *dest_type) {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -1881,11 +1856,11 @@ pub(crate) fn handle_tensor_compare(
 
 /// Handle tensor.select.
 pub(crate) fn handle_tensor_select(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::TensorSelect {
+    let InstructionData::TensorSelect {
         dest,
         mask,
         then_value,
@@ -1896,7 +1871,7 @@ pub(crate) fn handle_tensor_select(
         unreachable!()
     };
 
-    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *dest_type) {
+    let dest_layout = match tensor_layout_info(state.tree(), *dest_type) {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -1948,19 +1923,19 @@ pub(crate) fn handle_tensor_select(
         output.push(if select { *then_slot } else { *else_slot });
     }
 
-    let result = state.interpreter.allocate_aggregate(output);
+    let result = state.allocate_aggregate(output);
     state.set(*dest, result);
     next!(state, block, pc)
 }
 
 /// Handle tensor.cast.
 pub(crate) fn handle_tensor_cast(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::TensorCast { dest, tensor } = &block[pc].data else {
+    let InstructionData::TensorCast { dest, tensor } = &block[pc].data else {
         unreachable!()
     };
 
@@ -1974,12 +1949,12 @@ pub(crate) fn handle_tensor_cast(
 
 /// Handle tensor.view.
 pub(crate) fn handle_tensor_view(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::TensorView {
+    let InstructionData::TensorView {
         dest,
         view,
         arguments,
@@ -1994,12 +1969,11 @@ pub(crate) fn handle_tensor_view(
     };
 
     // resolve layouts
-    let source_layout =
-        match tensor_layout_info(&state.interpreter.isolate.image.tree, *source_type) {
-            Ok(layout) => layout,
-            Err(error) => return ControlFlow::Error(error),
-        };
-    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *dest_type) {
+    let source_layout = match tensor_layout_info(state.tree(), *source_type) {
+        Ok(layout) => layout,
+        Err(error) => return ControlFlow::Error(error),
+    };
+    let dest_layout = match tensor_layout_info(state.tree(), *dest_type) {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };

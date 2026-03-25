@@ -5,6 +5,7 @@
 #![allow(incomplete_features)]
 
 pub mod diagnostic;
+pub mod executable;
 pub mod execute;
 pub mod interpreter;
 pub mod isolate;
@@ -26,6 +27,7 @@ pub use destack_heap::{
 mod tests;
 
 pub use diagnostic::*;
+pub use executable::*;
 pub use interpreter::*;
 pub use isolate::*;
 pub use options::*;

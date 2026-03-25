@@ -10,7 +10,7 @@ use destack_heap::Value;
 pub struct YieldStateImage {
     /// Frame index to resume execution in.
     pub frame_index: usize,
-    /// Resume block index in the threaded function.
+    /// Resume block index in the current function.
     pub resume_block: u32,
     /// Copy-range start offset.
     pub resume_copy_start: u32,

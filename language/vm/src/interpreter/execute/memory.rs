@@ -1,14 +1,15 @@
 use super::*;
+use crate::telemetry::stat_inc;
 
 /// Handle local variable load.
 #[inline(always)]
 pub(crate) fn handle_local_get(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::LocalGet { dest, local } = &block[pc].data else {
+    let InstructionData::LocalGet { dest, local } = &block[pc].data else {
         unreachable!()
     };
 
@@ -25,12 +26,12 @@ pub(crate) fn handle_local_get(
 /// Handle local variable store.
 #[inline(always)]
 pub(crate) fn handle_local_set(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::LocalSet { local, value } = &block[pc].data else {
+    let InstructionData::LocalSet { local, value } = &block[pc].data else {
         unreachable!()
     };
 
@@ -47,12 +48,12 @@ pub(crate) fn handle_local_set(
 /// Handle local address.
 #[inline(always)]
 pub(crate) fn handle_local_addr(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::LocalAddr {
+    let InstructionData::LocalAddr {
         dest,
         local,
         reference,
@@ -79,12 +80,12 @@ pub(crate) fn handle_local_addr(
 
 /// Handle global address.
 pub(crate) fn handle_global_addr(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::GlobalAddr {
+    let InstructionData::GlobalAddr {
         dest,
         global,
         reference,
@@ -109,18 +110,18 @@ pub(crate) fn handle_global_addr(
 
 /// Handle global constant load.
 pub(crate) fn handle_global_const(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::GlobalConst { dest, global } = &block[pc].data else {
+    let InstructionData::GlobalConst { dest, global } = &block[pc].data else {
         unreachable!()
     };
 
     // load global value
     let global_id = global_id(*global);
-    let value = match state.interpreter.isolate.globals.get(global_id).copied() {
+    let value = match state.globals.get(global_id).copied() {
         Some(v) => v,
         None => return ControlFlow::Error(Error::UndefinedGlobal { global: global_id }),
     };
@@ -135,23 +136,23 @@ pub(crate) fn handle_global_const(
 /// Handle fused global address + load.
 #[inline(always)]
 pub(crate) fn handle_global_load(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::GlobalLoad { dest, global } = &block[pc].data else {
+    let InstructionData::GlobalLoad { dest, global } = &block[pc].data else {
         unreachable!()
     };
 
     // track loads
     if state.collect_stats {
-        stat_inc!(state.interpreter.engine.statistics, loads);
+        stat_inc!(state.engine.statistics, loads);
     }
 
     // load global value directly
     let global_id = global_id(*global);
-    let value = match state.interpreter.isolate.globals.get(global_id).copied() {
+    let value = match state.globals.get(global_id).copied() {
         Some(v) => v,
         None => return ControlFlow::Error(Error::UndefinedGlobal { global: global_id }),
     };
@@ -166,12 +167,12 @@ pub(crate) fn handle_global_load(
 /// Handle fused global address + store.
 #[inline(always)]
 pub(crate) fn handle_global_store(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::GlobalStore {
+    let InstructionData::GlobalStore {
         global,
         value,
         reference,
@@ -182,7 +183,7 @@ pub(crate) fn handle_global_store(
 
     // track stores
     if state.collect_stats {
-        stat_inc!(state.interpreter.engine.statistics, stores);
+        stat_inc!(state.engine.statistics, stores);
     }
 
     // load value to store
@@ -195,7 +196,7 @@ pub(crate) fn handle_global_store(
     }
 
     // store to global directly
-    state.interpreter.isolate.globals.set(global_id, val);
+    state.globals.set(global_id, val);
 
     // continue to next instruction
     next!(state, block, pc)
@@ -203,12 +204,12 @@ pub(crate) fn handle_global_store(
 
 /// Handle pointer load.
 pub(crate) fn handle_load(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::Load {
+    let InstructionData::Load {
         dest,
         pointer,
         raw_pointee,
@@ -236,12 +237,12 @@ pub(crate) fn handle_load(
 
 /// Handle pointer store.
 pub(crate) fn handle_store(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::Store {
+    let InstructionData::Store {
         pointer,
         value,
         reference,
@@ -272,12 +273,12 @@ pub(crate) fn handle_store(
 
 /// Handle atomic load.
 pub(crate) fn handle_atomic_load(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::AtomicLoad {
+    let InstructionData::AtomicLoad {
         dest,
         pointer,
         raw_pointee,
@@ -291,7 +292,7 @@ pub(crate) fn handle_atomic_load(
     let pointer = state.get(*pointer);
 
     // execute the load
-    let value = match state.interpreter.execute_atomic_load_value(
+    let value = match state.execute_atomic_load_value(
         pointer,
         *raw_pointee,
         mir::MemoryOrdering::SeqCst,
@@ -312,12 +313,12 @@ pub(crate) fn handle_atomic_load(
 
 /// Handle atomic store.
 pub(crate) fn handle_atomic_store(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::AtomicStore {
+    let InstructionData::AtomicStore {
         pointer,
         value,
         raw_pointee,
@@ -332,7 +333,7 @@ pub(crate) fn handle_atomic_store(
     let value = state.get(*value);
 
     // execute the store
-    if let Err(error) = state.interpreter.execute_atomic_store_value(
+    if let Err(error) = state.execute_atomic_store_value(
         pointer,
         value,
         *raw_pointee,
@@ -350,12 +351,12 @@ pub(crate) fn handle_atomic_store(
 
 /// Handle atomic compare exchange.
 pub(crate) fn handle_atomic_compare_exchange(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::AtomicCompareExchange {
+    let InstructionData::AtomicCompareExchange {
         dest,
         pointer,
         expected,
@@ -373,7 +374,7 @@ pub(crate) fn handle_atomic_compare_exchange(
     let new_value = state.get(*new_value);
 
     // execute the compare exchange
-    let result = match state.interpreter.execute_atomic_compare_exchange_value(
+    let result = match state.execute_atomic_compare_exchange_value(
         pointer,
         expected,
         new_value,
@@ -397,12 +398,12 @@ pub(crate) fn handle_atomic_compare_exchange(
 
 /// Handle atomic read modify write.
 pub(crate) fn handle_atomic_rmw(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::AtomicRmw {
+    let InstructionData::AtomicRmw {
         dest,
         operator,
         pointer,
@@ -419,7 +420,7 @@ pub(crate) fn handle_atomic_rmw(
     let value = state.get(*value);
 
     // execute the read modify write
-    let result = match state.interpreter.execute_atomic_rmw_value(
+    let result = match state.execute_atomic_rmw_value(
         *operator,
         pointer,
         value,
@@ -442,17 +443,17 @@ pub(crate) fn handle_atomic_rmw(
 
 /// Handle atomic fence.
 pub(crate) fn handle_atomic_fence(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::AtomicFence = &block[pc].data else {
+    let InstructionData::AtomicFence = &block[pc].data else {
         unreachable!()
     };
 
     // execute the fence
-    if let Err(error) = state.interpreter.execute_atomic_fence(
+    if let Err(error) = state.execute_atomic_fence(
         mir::MemoryOrdering::SeqCst,
         mir::AtomicScope::Device,
         mir::MemoryScope::Device,
@@ -467,17 +468,17 @@ pub(crate) fn handle_atomic_fence(
 
 /// Handle a synchronization barrier.
 pub(crate) fn handle_barrier(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::Barrier = &block[pc].data else {
+    let InstructionData::Barrier = &block[pc].data else {
         unreachable!()
     };
 
     // execute the barrier
-    if let Err(error) = state.interpreter.execute_barrier(
+    if let Err(error) = state.execute_barrier(
         mir::AtomicScope::Device,
         mir::MemoryScope::Device,
         mir::MemorySemantics::default(),
@@ -492,12 +493,12 @@ pub(crate) fn handle_barrier(
 /// Handle managed reference load.
 #[inline(always)]
 pub(crate) fn handle_load_managed(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::Load {
+    let InstructionData::Load {
         dest,
         pointer,
         managed_pointee,
@@ -530,12 +531,12 @@ pub(crate) fn handle_load_managed(
 /// Handle raw pointer load.
 #[inline(always)]
 pub(crate) fn handle_load_raw(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::Load {
+    let InstructionData::Load {
         dest,
         pointer,
         raw_pointee,
@@ -567,12 +568,12 @@ pub(crate) fn handle_load_raw(
 /// Handle stack pointer load.
 #[inline(always)]
 pub(crate) fn handle_load_stack(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::Load {
+    let InstructionData::Load {
         dest,
         pointer,
         raw_pointee: _,
@@ -601,12 +602,12 @@ pub(crate) fn handle_load_stack(
 /// Handle local pointer load.
 #[inline(always)]
 pub(crate) fn handle_load_local(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::Load {
+    let InstructionData::Load {
         dest,
         pointer,
         raw_pointee: _,
@@ -635,12 +636,12 @@ pub(crate) fn handle_load_local(
 /// Handle global pointer load.
 #[inline(always)]
 pub(crate) fn handle_load_global(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::Load {
+    let InstructionData::Load {
         dest,
         pointer,
         raw_pointee: _,
@@ -669,12 +670,12 @@ pub(crate) fn handle_load_global(
 /// Handle managed reference store.
 #[inline(always)]
 pub(crate) fn handle_store_managed(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::Store {
+    let InstructionData::Store {
         pointer,
         value,
         reference,
@@ -711,12 +712,12 @@ pub(crate) fn handle_store_managed(
 /// Handle raw pointer store.
 #[inline(always)]
 pub(crate) fn handle_store_raw(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::Store {
+    let InstructionData::Store {
         pointer,
         value,
         reference,
@@ -751,12 +752,12 @@ pub(crate) fn handle_store_raw(
 /// Handle stack pointer store.
 #[inline(always)]
 pub(crate) fn handle_store_stack(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::Store {
+    let InstructionData::Store {
         pointer,
         value,
         reference,
@@ -788,12 +789,12 @@ pub(crate) fn handle_store_stack(
 /// Handle local pointer store.
 #[inline(always)]
 pub(crate) fn handle_store_local(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::Store {
+    let InstructionData::Store {
         pointer,
         value,
         reference,
@@ -825,12 +826,12 @@ pub(crate) fn handle_store_local(
 /// Handle global pointer store.
 #[inline(always)]
 pub(crate) fn handle_store_global(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::Store {
+    let InstructionData::Store {
         pointer,
         value,
         reference,
@@ -860,23 +861,16 @@ pub(crate) fn handle_store_global(
 }
 /// Handle managed allocation.
 pub(crate) fn handle_managed_alloc(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let max_managed_allocations = state
-        .interpreter
-        .isolate
-        .image
-        .options
-        .limits
-        .max_managed_allocations;
+    let max_managed_allocations = state.options().limits.max_managed_allocations;
 
     // decode instruction data
-    let ThreadedInstructionData::ManagedAlloc {
+    let InstructionData::ManagedAlloc {
         dest,
         reference,
-        layout: _,
         layout_id,
         byte_len,
         trace,
@@ -899,7 +893,7 @@ pub(crate) fn handle_managed_alloc(
         Err(error) => return ControlFlow::Error(Error::from(error)),
     };
     if state.collect_stats {
-        state.interpreter.engine.statistics.heap_allocations += 1;
+        state.engine.statistics.heap_allocations += 1;
     }
     let value = Value::managed_reference_with_meta(handle, *reference);
 
@@ -916,20 +910,14 @@ pub(crate) fn handle_managed_alloc(
 
 /// Handle managed array allocation.
 pub(crate) fn handle_managed_alloc_array(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let max_managed_allocations = state
-        .interpreter
-        .isolate
-        .image
-        .options
-        .limits
-        .max_managed_allocations;
+    let max_managed_allocations = state.options().limits.max_managed_allocations;
 
     // decode instruction data
-    let ThreadedInstructionData::ManagedAllocArray {
+    let InstructionData::ManagedAllocArray {
         dest,
         length,
         reference,
@@ -945,7 +933,7 @@ pub(crate) fn handle_managed_alloc_array(
 
     // allocate managed array storage
     let handle = {
-        let tree = &state.interpreter.isolate.image.tree;
+        let tree = state.tree();
         let element_byte_len = match instruction::managed_type_size(tree, *element_type) {
             Ok(byte_len) => byte_len,
             Err(error) => return ControlFlow::Error(error),
@@ -967,7 +955,7 @@ pub(crate) fn handle_managed_alloc_array(
         Err(error) => return ControlFlow::Error(Error::from(error)),
     };
     if state.collect_stats {
-        state.interpreter.engine.statistics.heap_allocations += 1;
+        state.engine.statistics.heap_allocations += 1;
     }
     let value = Value::managed_reference_with_meta(handle, *reference);
 
@@ -984,20 +972,14 @@ pub(crate) fn handle_managed_alloc_array(
 
 /// Handle raw allocation.
 pub(crate) fn handle_raw_alloc(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let max_raw_allocations = state
-        .interpreter
-        .isolate
-        .image
-        .options
-        .limits
-        .max_raw_allocations;
+    let max_raw_allocations = state.options().limits.max_raw_allocations;
 
     // decode instruction data
-    let ThreadedInstructionData::RawAlloc {
+    let InstructionData::RawAlloc {
         dest,
         reference,
         byte_len,
@@ -1021,7 +1003,7 @@ pub(crate) fn handle_raw_alloc(
         Err(error) => return ControlFlow::Error(Error::from(error)),
     };
     if state.collect_stats {
-        state.interpreter.engine.statistics.heap_allocations += 1;
+        state.engine.statistics.heap_allocations += 1;
     }
     let value = Value::raw_pointer_with_meta(ptr, *reference);
 
@@ -1038,12 +1020,12 @@ pub(crate) fn handle_raw_alloc(
 
 /// Handle raw free.
 pub(crate) fn handle_raw_free(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::RawFree { pointer } = &block[pc].data else {
+    let InstructionData::RawFree { pointer } = &block[pc].data else {
         unreachable!()
     };
 
@@ -1073,12 +1055,12 @@ pub(crate) fn handle_raw_free(
 /// Handle raw drop (compiler-inserted deallocation at ownership end).
 /// Semantically equivalent to raw_free but signals ownership transfer.
 pub(crate) fn handle_raw_drop(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::RawDrop { value } = &block[pc].data else {
+    let InstructionData::RawDrop { value } = &block[pc].data else {
         unreachable!()
     };
 
@@ -1107,12 +1089,12 @@ pub(crate) fn handle_raw_drop(
 
 /// Handle stack allocation.
 pub(crate) fn handle_stack_alloc(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::StackAlloc {
+    let InstructionData::StackAlloc {
         dest,
         reference,
         slot_count,
@@ -1148,12 +1130,12 @@ pub(crate) fn handle_stack_alloc(
 /// Currently a no-op - stack memory is freed when the frame exits.
 /// Exists for NLL support and potential future optimizations.
 pub(crate) fn handle_stack_drop(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data - validate it's the right instruction
-    let ThreadedInstructionData::StackDrop { value: _ } = &block[pc].data else {
+    let InstructionData::StackDrop = &block[pc].data else {
         unreachable!()
     };
 

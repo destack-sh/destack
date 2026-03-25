@@ -2,12 +2,12 @@ use super::*;
 
 /// Handle constant load.
 pub(crate) fn handle_const(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::Const { dest, value } = &block[pc].data else {
+    let InstructionData::Const { dest, value } = &block[pc].data else {
         unreachable!()
     };
 
@@ -24,12 +24,12 @@ pub(crate) fn handle_const(
 
 /// Handle binary operation.
 pub(crate) fn handle_binary(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::Binary {
+    let InstructionData::Binary {
         dest,
         op,
         left,
@@ -59,12 +59,12 @@ pub(crate) fn handle_binary(
 /// Handle signed integer binary operation.
 #[inline(always)]
 pub(crate) fn handle_binary_int(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::Binary {
+    let InstructionData::Binary {
         dest,
         op,
         left,
@@ -94,12 +94,12 @@ pub(crate) fn handle_binary_int(
 /// Handle unsigned integer binary operation.
 #[inline(always)]
 pub(crate) fn handle_binary_uint(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::Binary {
+    let InstructionData::Binary {
         dest,
         op,
         left,
@@ -129,12 +129,12 @@ pub(crate) fn handle_binary_uint(
 /// Handle float32 binary operation.
 #[inline(always)]
 pub(crate) fn handle_binary_float32(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::Binary {
+    let InstructionData::Binary {
         dest,
         op,
         left,
@@ -164,12 +164,12 @@ pub(crate) fn handle_binary_float32(
 /// Handle float64 binary operation.
 #[inline(always)]
 pub(crate) fn handle_binary_float64(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::Binary {
+    let InstructionData::Binary {
         dest,
         op,
         left,
@@ -198,12 +198,12 @@ pub(crate) fn handle_binary_float64(
 
 /// Handle boolean binary operation.
 pub(crate) fn handle_binary_bool(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::Binary {
+    let InstructionData::Binary {
         dest,
         op,
         left,
@@ -237,11 +237,11 @@ pub(crate) fn handle_binary_bool(
 /// Execute integer addition without operator dispatch.
 #[inline(always)]
 pub(crate) fn handle_add_int(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+    let InstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
         unreachable!()
     };
     let a = state.get(*left).raw_data() as i64;
@@ -254,11 +254,11 @@ pub(crate) fn handle_add_int(
 /// Execute integer subtraction without operator dispatch.
 #[inline(always)]
 pub(crate) fn handle_sub_int(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+    let InstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
         unreachable!()
     };
     let a = state.get(*left).raw_data() as i64;
@@ -271,11 +271,11 @@ pub(crate) fn handle_sub_int(
 /// Execute integer multiplication without operator dispatch.
 #[inline(always)]
 pub(crate) fn handle_mul_int(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+    let InstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
         unreachable!()
     };
     let a = state.get(*left).raw_data() as i64;
@@ -288,11 +288,11 @@ pub(crate) fn handle_mul_int(
 /// Execute integer bitwise AND without operator dispatch.
 #[inline(always)]
 pub(crate) fn handle_and_int(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+    let InstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
         unreachable!()
     };
     let a = state.get(*left).raw_data() as i64;
@@ -305,11 +305,11 @@ pub(crate) fn handle_and_int(
 /// Execute integer bitwise OR without operator dispatch.
 #[inline(always)]
 pub(crate) fn handle_or_int(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+    let InstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
         unreachable!()
     };
     let a = state.get(*left).raw_data() as i64;
@@ -322,11 +322,11 @@ pub(crate) fn handle_or_int(
 /// Execute integer bitwise XOR without operator dispatch.
 #[inline(always)]
 pub(crate) fn handle_xor_int(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+    let InstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
         unreachable!()
     };
     let a = state.get(*left).raw_data() as i64;
@@ -339,11 +339,11 @@ pub(crate) fn handle_xor_int(
 /// Execute shift left without operator dispatch.
 #[inline(always)]
 pub(crate) fn handle_shl_int(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+    let InstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
         unreachable!()
     };
     let a = state.get(*left).raw_data() as i64;
@@ -356,11 +356,11 @@ pub(crate) fn handle_shl_int(
 /// Execute arithmetic shift right without operator dispatch.
 #[inline(always)]
 pub(crate) fn handle_shr_int(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+    let InstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
         unreachable!()
     };
     let a = state.get(*left).raw_data() as i64;
@@ -377,11 +377,11 @@ pub(crate) fn handle_shr_int(
 /// Execute unsigned integer addition without operator dispatch.
 #[inline(always)]
 pub(crate) fn handle_add_uint(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+    let InstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
         unreachable!()
     };
     let a = state.get(*left).raw_data();
@@ -394,11 +394,11 @@ pub(crate) fn handle_add_uint(
 /// Execute unsigned integer subtraction without operator dispatch.
 #[inline(always)]
 pub(crate) fn handle_sub_uint(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+    let InstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
         unreachable!()
     };
     let a = state.get(*left).raw_data();
@@ -411,11 +411,11 @@ pub(crate) fn handle_sub_uint(
 /// Execute unsigned integer multiplication without operator dispatch.
 #[inline(always)]
 pub(crate) fn handle_mul_uint(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+    let InstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
         unreachable!()
     };
     let a = state.get(*left).raw_data();
@@ -428,11 +428,11 @@ pub(crate) fn handle_mul_uint(
 /// Execute unsigned bitwise AND without operator dispatch.
 #[inline(always)]
 pub(crate) fn handle_and_uint(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+    let InstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
         unreachable!()
     };
     let a = state.get(*left).raw_data();
@@ -445,11 +445,11 @@ pub(crate) fn handle_and_uint(
 /// Execute unsigned bitwise OR without operator dispatch.
 #[inline(always)]
 pub(crate) fn handle_or_uint(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+    let InstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
         unreachable!()
     };
     let a = state.get(*left).raw_data();
@@ -462,11 +462,11 @@ pub(crate) fn handle_or_uint(
 /// Execute unsigned bitwise XOR without operator dispatch.
 #[inline(always)]
 pub(crate) fn handle_xor_uint(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+    let InstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
         unreachable!()
     };
     let a = state.get(*left).raw_data();
@@ -479,11 +479,11 @@ pub(crate) fn handle_xor_uint(
 /// Execute unsigned shift left without operator dispatch.
 #[inline(always)]
 pub(crate) fn handle_shl_uint(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+    let InstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
         unreachable!()
     };
     let a = state.get(*left).raw_data();
@@ -496,11 +496,11 @@ pub(crate) fn handle_shl_uint(
 /// Execute logical shift right for unsigned values.
 #[inline(always)]
 pub(crate) fn handle_shr_uint(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+    let InstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
         unreachable!()
     };
     let a = state.get(*left).raw_data();
@@ -517,11 +517,11 @@ pub(crate) fn handle_shr_uint(
 /// Execute integer equality comparison.
 #[inline(always)]
 pub(crate) fn handle_eq_int(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+    let InstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
         unreachable!()
     };
     let a = state.get(*left).raw_data() as i64;
@@ -533,11 +533,11 @@ pub(crate) fn handle_eq_int(
 /// Execute integer inequality comparison.
 #[inline(always)]
 pub(crate) fn handle_ne_int(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+    let InstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
         unreachable!()
     };
     let a = state.get(*left).raw_data() as i64;
@@ -549,11 +549,11 @@ pub(crate) fn handle_ne_int(
 /// Execute signed less than comparison.
 #[inline(always)]
 pub(crate) fn handle_lt_int(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+    let InstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
         unreachable!()
     };
     let a = state.get(*left).raw_data() as i64;
@@ -565,11 +565,11 @@ pub(crate) fn handle_lt_int(
 /// Execute signed less than or equal comparison.
 #[inline(always)]
 pub(crate) fn handle_le_int(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+    let InstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
         unreachable!()
     };
     let a = state.get(*left).raw_data() as i64;
@@ -581,11 +581,11 @@ pub(crate) fn handle_le_int(
 /// Execute signed greater than comparison.
 #[inline(always)]
 pub(crate) fn handle_gt_int(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+    let InstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
         unreachable!()
     };
     let a = state.get(*left).raw_data() as i64;
@@ -597,11 +597,11 @@ pub(crate) fn handle_gt_int(
 /// Execute signed greater than or equal comparison.
 #[inline(always)]
 pub(crate) fn handle_ge_int(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+    let InstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
         unreachable!()
     };
     let a = state.get(*left).raw_data() as i64;
@@ -613,11 +613,11 @@ pub(crate) fn handle_ge_int(
 /// Execute unsigned less than comparison.
 #[inline(always)]
 pub(crate) fn handle_lt_uint(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+    let InstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
         unreachable!()
     };
     let a = state.get(*left).raw_data();
@@ -629,11 +629,11 @@ pub(crate) fn handle_lt_uint(
 /// Execute unsigned less than or equal comparison.
 #[inline(always)]
 pub(crate) fn handle_le_uint(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+    let InstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
         unreachable!()
     };
     let a = state.get(*left).raw_data();
@@ -645,11 +645,11 @@ pub(crate) fn handle_le_uint(
 /// Execute unsigned greater than comparison.
 #[inline(always)]
 pub(crate) fn handle_gt_uint(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+    let InstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
         unreachable!()
     };
     let a = state.get(*left).raw_data();
@@ -661,11 +661,11 @@ pub(crate) fn handle_gt_uint(
 /// Execute unsigned greater than or equal comparison.
 #[inline(always)]
 pub(crate) fn handle_ge_uint(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+    let InstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
         unreachable!()
     };
     let a = state.get(*left).raw_data();
@@ -681,11 +681,11 @@ pub(crate) fn handle_ge_uint(
 /// Execute integer addition with constant right operand.
 #[inline(always)]
 pub(crate) fn handle_add_const_int(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinaryConstRightSpecialized {
+    let InstructionData::BinaryConstRightSpecialized {
         dest,
         left,
         right_const,
@@ -703,11 +703,11 @@ pub(crate) fn handle_add_const_int(
 /// Execute integer subtraction with constant right operand.
 #[inline(always)]
 pub(crate) fn handle_sub_const_int(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinaryConstRightSpecialized {
+    let InstructionData::BinaryConstRightSpecialized {
         dest,
         left,
         right_const,
@@ -725,11 +725,11 @@ pub(crate) fn handle_sub_const_int(
 /// Execute integer multiplication with constant right operand.
 #[inline(always)]
 pub(crate) fn handle_mul_const_int(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinaryConstRightSpecialized {
+    let InstructionData::BinaryConstRightSpecialized {
         dest,
         left,
         right_const,
@@ -747,11 +747,11 @@ pub(crate) fn handle_mul_const_int(
 /// Execute equality comparison with constant right operand.
 #[inline(always)]
 pub(crate) fn handle_eq_const_int(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinaryConstRightSpecialized {
+    let InstructionData::BinaryConstRightSpecialized {
         dest,
         left,
         right_const,
@@ -768,11 +768,11 @@ pub(crate) fn handle_eq_const_int(
 /// Execute inequality comparison with constant right operand.
 #[inline(always)]
 pub(crate) fn handle_ne_const_int(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinaryConstRightSpecialized {
+    let InstructionData::BinaryConstRightSpecialized {
         dest,
         left,
         right_const,
@@ -789,11 +789,11 @@ pub(crate) fn handle_ne_const_int(
 /// Execute signed less than with constant right operand.
 #[inline(always)]
 pub(crate) fn handle_lt_const_int(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinaryConstRightSpecialized {
+    let InstructionData::BinaryConstRightSpecialized {
         dest,
         left,
         right_const,
@@ -810,11 +810,11 @@ pub(crate) fn handle_lt_const_int(
 /// Execute signed less equal with constant right operand.
 #[inline(always)]
 pub(crate) fn handle_le_const_int(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinaryConstRightSpecialized {
+    let InstructionData::BinaryConstRightSpecialized {
         dest,
         left,
         right_const,
@@ -831,11 +831,11 @@ pub(crate) fn handle_le_const_int(
 /// Execute signed greater than with constant right operand.
 #[inline(always)]
 pub(crate) fn handle_gt_const_int(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinaryConstRightSpecialized {
+    let InstructionData::BinaryConstRightSpecialized {
         dest,
         left,
         right_const,
@@ -852,11 +852,11 @@ pub(crate) fn handle_gt_const_int(
 /// Execute signed greater equal with constant right operand.
 #[inline(always)]
 pub(crate) fn handle_ge_const_int(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinaryConstRightSpecialized {
+    let InstructionData::BinaryConstRightSpecialized {
         dest,
         left,
         right_const,
@@ -877,11 +877,11 @@ pub(crate) fn handle_ge_const_int(
 /// Execute unsigned addition with constant right operand.
 #[inline(always)]
 pub(crate) fn handle_add_const_uint(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinaryConstRightSpecialized {
+    let InstructionData::BinaryConstRightSpecialized {
         dest,
         left,
         right_const,
@@ -899,11 +899,11 @@ pub(crate) fn handle_add_const_uint(
 /// Execute unsigned subtraction with constant right operand.
 #[inline(always)]
 pub(crate) fn handle_sub_const_uint(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinaryConstRightSpecialized {
+    let InstructionData::BinaryConstRightSpecialized {
         dest,
         left,
         right_const,
@@ -921,11 +921,11 @@ pub(crate) fn handle_sub_const_uint(
 /// Execute unsigned multiplication with constant right operand.
 #[inline(always)]
 pub(crate) fn handle_mul_const_uint(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinaryConstRightSpecialized {
+    let InstructionData::BinaryConstRightSpecialized {
         dest,
         left,
         right_const,
@@ -943,11 +943,11 @@ pub(crate) fn handle_mul_const_uint(
 /// Execute unsigned less than with constant right operand.
 #[inline(always)]
 pub(crate) fn handle_lt_const_uint(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinaryConstRightSpecialized {
+    let InstructionData::BinaryConstRightSpecialized {
         dest,
         left,
         right_const,
@@ -964,11 +964,11 @@ pub(crate) fn handle_lt_const_uint(
 /// Execute unsigned less equal with constant right operand.
 #[inline(always)]
 pub(crate) fn handle_le_const_uint(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinaryConstRightSpecialized {
+    let InstructionData::BinaryConstRightSpecialized {
         dest,
         left,
         right_const,
@@ -985,11 +985,11 @@ pub(crate) fn handle_le_const_uint(
 /// Execute unsigned greater than with constant right operand.
 #[inline(always)]
 pub(crate) fn handle_gt_const_uint(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinaryConstRightSpecialized {
+    let InstructionData::BinaryConstRightSpecialized {
         dest,
         left,
         right_const,
@@ -1006,11 +1006,11 @@ pub(crate) fn handle_gt_const_uint(
 /// Execute unsigned greater equal with constant right operand.
 #[inline(always)]
 pub(crate) fn handle_ge_const_uint(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinaryConstRightSpecialized {
+    let InstructionData::BinaryConstRightSpecialized {
         dest,
         left,
         right_const,
@@ -1031,11 +1031,11 @@ pub(crate) fn handle_ge_const_uint(
 /// Execute generic binary operation with constant right operand.
 #[inline(always)]
 pub(crate) fn handle_binary_const_right(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinaryConstRight {
+    let InstructionData::BinaryConstRight {
         dest,
         op,
         left,
@@ -1057,11 +1057,11 @@ pub(crate) fn handle_binary_const_right(
 
 /// Execute elementwise binary operation on vector or tensor values.
 pub(crate) fn handle_binary_elementwise(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::BinaryElementwise {
+    let InstructionData::BinaryElementwise {
         dest,
         op,
         left,
@@ -1073,7 +1073,7 @@ pub(crate) fn handle_binary_elementwise(
     };
 
     let result_type_id = *result_type;
-    let result_type = state.interpreter.isolate.image.tree.get(result_type_id);
+    let result_type = state.tree().get(result_type_id);
     match result_type {
         mir::Type::Vector { lanes, .. } => {
             let left_value = state.get(*left);
@@ -1103,16 +1103,15 @@ pub(crate) fn handle_binary_elementwise(
                 output.push(value);
             }
 
-            let result = state.interpreter.allocate_aggregate(output);
+            let result = state.allocate_aggregate(output);
             state.set(*dest, result);
             next!(state, block, pc)
         }
         mir::Type::Tensor { .. } => {
-            let layout =
-                match tensor_layout_info(&state.interpreter.isolate.image.tree, result_type_id) {
-                    Ok(layout) => layout,
-                    Err(error) => return ControlFlow::Error(error),
-                };
+            let layout = match tensor_layout_info(state.tree(), result_type_id) {
+                Ok(layout) => layout,
+                Err(error) => return ControlFlow::Error(error),
+            };
             let left_value = state.get(*left);
             let right_value = state.get(*right);
             let left_slots = match aggregate_slots(state, left_value) {
@@ -1139,7 +1138,7 @@ pub(crate) fn handle_binary_elementwise(
                 output.push(value);
             }
 
-            let result = state.interpreter.allocate_aggregate(output);
+            let result = state.allocate_aggregate(output);
             state.set(*dest, result);
             next!(state, block, pc)
         }
@@ -1149,12 +1148,12 @@ pub(crate) fn handle_binary_elementwise(
 
 /// Handle unary operation.
 pub(crate) fn handle_unary(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::Unary { dest, op, arg } = &block[pc].data else {
+    let InstructionData::Unary { dest, op, arg } = &block[pc].data else {
         unreachable!()
     };
 
@@ -1176,11 +1175,11 @@ pub(crate) fn handle_unary(
 
 /// Execute elementwise unary operation on vector or tensor values.
 pub(crate) fn handle_unary_elementwise(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    let ThreadedInstructionData::UnaryElementwise {
+    let InstructionData::UnaryElementwise {
         dest,
         op,
         arg,
@@ -1191,7 +1190,7 @@ pub(crate) fn handle_unary_elementwise(
     };
 
     let result_type_id = *result_type;
-    let result_type = state.interpreter.isolate.image.tree.get(result_type_id);
+    let result_type = state.tree().get(result_type_id);
     match result_type {
         mir::Type::Vector { lanes, .. } => {
             let argument = state.get(*arg);
@@ -1216,16 +1215,15 @@ pub(crate) fn handle_unary_elementwise(
                 output.push(result);
             }
 
-            let result = state.interpreter.allocate_aggregate(output);
+            let result = state.allocate_aggregate(output);
             state.set(*dest, result);
             next!(state, block, pc)
         }
         mir::Type::Tensor { .. } => {
-            let layout =
-                match tensor_layout_info(&state.interpreter.isolate.image.tree, result_type_id) {
-                    Ok(layout) => layout,
-                    Err(error) => return ControlFlow::Error(error),
-                };
+            let layout = match tensor_layout_info(state.tree(), result_type_id) {
+                Ok(layout) => layout,
+                Err(error) => return ControlFlow::Error(error),
+            };
             let argument = state.get(*arg);
             let slots = match aggregate_slots(state, argument) {
                 Ok(slots) => slots,
@@ -1247,7 +1245,7 @@ pub(crate) fn handle_unary_elementwise(
                 output.push(result);
             }
 
-            let result = state.interpreter.allocate_aggregate(output);
+            let result = state.allocate_aggregate(output);
             state.set(*dest, result);
             next!(state, block, pc)
         }
@@ -1258,12 +1256,12 @@ pub(crate) fn handle_unary_elementwise(
 /// Handle signed integer unary operation.
 #[inline(always)]
 pub(crate) fn handle_unary_int(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::Unary { dest, op, arg } = &block[pc].data else {
+    let InstructionData::Unary { dest, op, arg } = &block[pc].data else {
         unreachable!()
     };
 
@@ -1286,12 +1284,12 @@ pub(crate) fn handle_unary_int(
 /// Handle unsigned integer unary operation.
 #[inline(always)]
 pub(crate) fn handle_unary_uint(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::Unary { dest, op, arg } = &block[pc].data else {
+    let InstructionData::Unary { dest, op, arg } = &block[pc].data else {
         unreachable!()
     };
 
@@ -1314,12 +1312,12 @@ pub(crate) fn handle_unary_uint(
 /// Handle float32 unary operation.
 #[inline(always)]
 pub(crate) fn handle_unary_float32(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::Unary { dest, op, arg } = &block[pc].data else {
+    let InstructionData::Unary { dest, op, arg } = &block[pc].data else {
         unreachable!()
     };
 
@@ -1342,12 +1340,12 @@ pub(crate) fn handle_unary_float32(
 /// Handle float64 unary operation.
 #[inline(always)]
 pub(crate) fn handle_unary_float64(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::Unary { dest, op, arg } = &block[pc].data else {
+    let InstructionData::Unary { dest, op, arg } = &block[pc].data else {
         unreachable!()
     };
 
@@ -1369,12 +1367,12 @@ pub(crate) fn handle_unary_float64(
 
 /// Handle boolean unary operation.
 pub(crate) fn handle_unary_bool(
-    state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::Unary { dest, op, arg } = &block[pc].data else {
+    let InstructionData::Unary { dest, op, arg } = &block[pc].data else {
         unreachable!()
     };
 

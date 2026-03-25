@@ -1,1183 +1,890 @@
-use std::ptr::NonNull;
+use super::*;
 
-use destack_mir as mir;
-use smallvec::SmallVec;
+/// Load a field value from a heap aggregate receiver.
+fn load_receiver_field(
+    state: &mut ExecutionState<'_, '_>,
+    receiver: Value,
+    managed_pointee: Option<mir::LocalNodeId<mir::Type>>,
+    field_index: u32,
+) -> Result<Value, Error> {
+    // resolve based on receiver storage
+    match receiver.tag() {
+        ValueTag::ManagedReference => {
+            let Some(managed_pointee) = managed_pointee else {
+                return Err(Error::InvalidManagedReference);
+            };
 
-use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
-use destack_heap::Value;
+            let handle = receiver.as_managed_reference().unwrap();
+            instruction::load_field_managed(
+                state,
+                handle,
+                managed_pointee,
+                field_index,
+                UNKNOWN_FIELD_COUNT,
+            )
+        }
+        ValueTag::Aggregate | ValueTag::String => {
+            instruction::get_field(state, receiver, field_index)
+        }
+        _ => Err(Error::TypeMismatch {
+            expected: "aggregate".to_string(),
+            actual: format!("{receiver:?}"),
+        }),
+    }
+}
 
-use super::super::decode::{
-    ArgumentRange, ControlFlow, CopyPair, CopyRange, INVALID_FUNCTION_INDEX, INVALID_VALUE_ID,
-    ThreadedState, is_invalid_value,
-};
-use super::super::state::{Frame, InterpreterContext, resize_and_clear_stack};
-use crate::execute::{Continuation, ExecutionOutcome, ExecutionOutput, ExecutionYield, YieldState};
-use crate::isolate::ExternalCallContext;
+/// Resolve the vtable dispatch target for a virtual call.
+fn resolve_virtual_dispatch_target(
+    state: &mut ExecutionState<'_, '_>,
+    receiver: Value,
+    managed_pointee: Option<mir::LocalNodeId<mir::Type>>,
+    slot_id: u32,
+) -> Result<mir::LocalNodeId<mir::Function>, Error> {
+    // load the vtable pointer from the receiver
+    let vtable_value = load_receiver_field(state, receiver, managed_pointee, VTABLE_FIELD_INDEX)?;
 
-// tuning: small contiguous ranges copy faster with a loop
-const CONTIGUOUS_COPY_THRESHOLD: usize = 8;
+    // require a global pointer for the vtable
+    let vtable_pointer = vtable_value
+        .as_global_pointer()
+        .ok_or_else(|| Error::TypeMismatch {
+            expected: "global_pointer".to_string(),
+            actual: format!("{vtable_value:?}"),
+        })?;
 
-/// Copy argument values from one frame into another.
-fn copy_values_between_frames(
-    values: &mut [Value],
-    source_frame: &Frame,
-    dest_frame: &Frame,
-    param_pool: &[mir::Value],
-    params: ArgumentRange,
-    argument_pool: &[mir::Value],
+    // map the vtable global to a vtable id
+    let table_id = state
+        .vtable_for_global(vtable_pointer.id)
+        .ok_or(Error::InvalidInstruction)?;
+
+    // resolve the vtable slot for the virtual call
+    let table = state.tree().dispatch_table.vtable(table_id);
+    let slot = table
+        .entries
+        .get(slot_id as usize)
+        .ok_or(Error::InvalidInstruction)?;
+
+    // require a method slot
+    let mir::VtableEntry::Method { function } = slot else {
+        return Err(Error::InvalidInstruction);
+    };
+
+    Ok(*function)
+}
+
+/// Resolve the itab dispatch target for an interface call.
+fn resolve_interface_dispatch_target(
+    state: &mut ExecutionState<'_, '_>,
+    receiver: Value,
+    managed_pointee: Option<mir::LocalNodeId<mir::Type>>,
+    slot_id: u32,
+) -> Result<mir::LocalNodeId<mir::Function>, Error> {
+    // load the itab id from the interface reference
+    let itab_value =
+        load_receiver_field(state, receiver, managed_pointee, INTERFACE_ITAB_FIELD_INDEX)?;
+
+    // decode the itab id
+    let raw_id = match itab_value.as_uint_with_width() {
+        Some((value, _)) => value,
+        None => match itab_value.as_int_with_width() {
+            Some((value, _)) if value >= 0 => value as u64,
+            _ => {
+                return Err(Error::TypeMismatch {
+                    expected: "itab_id".to_string(),
+                    actual: format!("{itab_value:?}"),
+                });
+            }
+        },
+    };
+    let raw_id = u32::try_from(raw_id).map_err(|_| Error::InvalidInstruction)?;
+    let table_id = mir::ItabId::new(raw_id);
+
+    // resolve the itab slot for the interface call
+    let table = state.tree().dispatch_table.itab(table_id);
+    let slot = table
+        .entries
+        .get(slot_id as usize)
+        .ok_or(Error::InvalidInstruction)?;
+
+    // require an interface method slot
+    let mir::ItabEntry::Method { target_method, .. } = slot else {
+        return Err(Error::InvalidInstruction);
+    };
+
+    Ok(*target_method)
+}
+
+/// Load a function pointer.
+pub(crate) fn handle_function_addr(
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let InstructionData::FunctionAddr { dest, function } = &block[pc].data else {
+        unreachable!()
+    };
+
+    // build function pointer value
+    let function_id = mir::LocalNodeId::new(*function);
+    let value = Value::function_pointer(function_id);
+
+    // store result
+    state.set(*dest, value);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Load the closure environment pointer for the current frame.
+pub(crate) fn handle_function_env(
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let InstructionData::FunctionEnv { dest } = &block[pc].data else {
+        unreachable!()
+    };
+
+    // load current frame closure env
+    let env = state.current_frame_mut().closure_env;
+    if env == Value::VOID {
+        return ControlFlow::Error(Error::InvalidInstruction);
+    }
+
+    // store result
+    state.set(*dest, env);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Enter a call with a resolved target function.
+#[allow(clippy::too_many_arguments)]
+fn call_with_target(
+    state: &mut ExecutionState<'_, '_>,
+    dest: mir::Value,
+    function_id: mir::LocalNodeId<mir::Function>,
+    callee_index: u32,
     arguments: ArgumentRange,
-) {
-    // resolve argument and parameter slices
-    let argument_slice = arguments.slice(argument_pool);
-    let param_slice = params.slice(param_pool);
-
-    // fast path: contiguous params and arguments
-    if let (Some((src_start, src_len)), Some((dest_start, dest_len))) =
-        (arguments.contiguous_range(), params.contiguous_range())
-        && src_len == dest_len
-    {
-        let src_index = source_frame.value_base + src_start as usize;
-        let dest_index = dest_frame.value_base + dest_start as usize;
-
-        // validate bounds in debug builds
-        debug_assert!(
-            (src_start as usize) + src_len <= source_frame.value_count,
-            "ssa value out of bounds: {src_start}"
-        );
-        debug_assert!(
-            (dest_start as usize) + src_len <= dest_frame.value_count,
-            "ssa value out of bounds: {dest_start}"
-        );
-
-        // copy argument range
-        let values_ptr = values.as_mut_ptr();
-        unsafe {
-            if std::ptr::eq(source_frame, dest_frame) {
-                std::ptr::copy(
-                    values_ptr.add(src_index),
-                    values_ptr.add(dest_index),
-                    src_len,
-                );
-            } else {
-                std::ptr::copy_nonoverlapping(
-                    values_ptr.add(src_index),
-                    values_ptr.add(dest_index),
-                    src_len,
-                );
-            }
-        }
-        return;
-    }
-
-    // use raw pointer to avoid repeated bounds checks
-    let values_ptr = values.as_mut_ptr();
-
-    // fast path: arguments cover all parameters
-    if argument_slice.len() >= param_slice.len() {
-        // move arguments into destination parameters
-        for (index, param) in param_slice.iter().enumerate() {
-            // load argument value
-            let argument = argument_slice[index];
-            let arg_index = source_frame.value_base + argument.0 as usize;
-            debug_assert!(
-                (argument.0 as usize) < source_frame.value_count,
-                "ssa value out of bounds: {argument:?}"
-            );
-            let value = unsafe { *values_ptr.add(arg_index) };
-
-            // write parameter value
-            let dest_index = dest_frame.value_base + param.0 as usize;
-            debug_assert!(
-                (param.0 as usize) < dest_frame.value_count,
-                "ssa value out of bounds: {param:?}"
-            );
-            unsafe {
-                *values_ptr.add(dest_index) = value;
-            }
-        }
-        return;
-    }
-
-    // move arguments into destination parameters
-    for (index, param) in param_slice.iter().enumerate() {
-        // load argument value
-        let value = if let Some(argument) = argument_slice.get(index) {
-            let arg_index = source_frame.value_base + argument.0 as usize;
-            debug_assert!(
-                (argument.0 as usize) < source_frame.value_count,
-                "ssa value out of bounds: {argument:?}"
-            );
-            unsafe { *values_ptr.add(arg_index) }
+    env: Option<Value>,
+    copy_plan: Option<CopyRange>,
+    resume_pc: usize,
+    allow_direct: bool,
+) -> ControlFlow {
+    // try direct call dispatch when possible
+    if allow_direct && copy_plan.is_some() {
+        let resolved_target = if callee_index == INVALID_FUNCTION_INDEX {
+            state.functions().resolve(function_id)
         } else {
-            Value::VOID
+            Some(FunctionTarget::Lowered(callee_index))
         };
-
-        // write parameter value
-        let dest_index = dest_frame.value_base + param.0 as usize;
-        debug_assert!(
-            (param.0 as usize) < dest_frame.value_count,
-            "ssa value out of bounds: {param:?}"
-        );
-        unsafe {
-            *values_ptr.add(dest_index) = value;
-        }
-    }
-}
-
-/// Copy values between frames using a precomputed plan.
-pub(crate) fn copy_values_with_plan(
-    values: &mut [Value],
-    source_frame: &Frame,
-    dest_frame: &Frame,
-    copies: CopyRange,
-    copy_pool: &[CopyPair],
-) {
-    // fast path: contiguous copy pairs
-    if let Some((src_start, dest_start, len)) = copies.contiguous_plan() {
-        let src_index = source_frame.value_base + src_start as usize;
-        let dest_index = dest_frame.value_base + dest_start as usize;
-
-        // validate bounds in debug builds
-        debug_assert!(
-            (src_start as usize) + len <= source_frame.value_count,
-            "ssa value out of bounds: {src_start}"
-        );
-        debug_assert!(
-            (dest_start as usize) + len <= dest_frame.value_count,
-            "ssa value out of bounds: {dest_start}"
-        );
-
-        // copy contiguous range
-        let values_ptr = values.as_mut_ptr();
-        unsafe {
-            if std::ptr::eq(source_frame, dest_frame) {
-                std::ptr::copy(values_ptr.add(src_index), values_ptr.add(dest_index), len);
-            } else {
-                std::ptr::copy_nonoverlapping(
-                    values_ptr.add(src_index),
-                    values_ptr.add(dest_index),
-                    len,
-                );
-            }
-        }
-        return;
-    }
-
-    // use raw pointer to avoid repeated bounds checks
-    let values_ptr = values.as_mut_ptr();
-
-    // resolve copy pairs
-    let pairs = copies.slice(copy_pool);
-
-    // move values into destination parameters
-    for pair in pairs {
-        // compute destination index
-        let dest_index = dest_frame.value_base + pair.dest as usize;
-
-        // validate bounds in debug builds
-        debug_assert!(
-            (pair.dest as usize) < dest_frame.value_count,
-            "ssa value out of bounds: {}",
-            pair.dest
-        );
-
-        // load source value
-        let value = if pair.src == INVALID_VALUE_ID {
-            Value::VOID
-        } else {
-            let src_index = source_frame.value_base + pair.src as usize;
-            debug_assert!(
-                (pair.src as usize) < source_frame.value_count,
-                "ssa value out of bounds: {}",
-                pair.src
-            );
-            unsafe { *values_ptr.add(src_index) }
+        let callee_ptr = match resolved_target {
+            Some(FunctionTarget::Lowered(index)) => state.functions().get_ptr_by_index(index),
+            Some(FunctionTarget::Import) | None => None,
         };
+        if let Some(callee_ptr) = callee_ptr {
+            let callee = unsafe { callee_ptr.as_ref() };
 
-        // write parameter value
-        unsafe {
-            *values_ptr.add(dest_index) = value;
-        }
-    }
-}
-
-/// Collect argument values from a frame into a smallvec.
-fn collect_argument_values_range(
-    values: &[Value],
-    frame: &Frame,
-    argument_pool: &[mir::Value],
-    arguments: ArgumentRange,
-) -> SmallVec<[Value; 16]> {
-    // fast path: contiguous argument ids
-    if let Some((start, len)) = arguments.contiguous_range() {
-        debug_assert!(
-            (start as usize) + len <= frame.value_count,
-            "ssa value out of bounds for contiguous args"
-        );
-        let mut args = SmallVec::with_capacity(len);
-        if len <= CONTIGUOUS_COPY_THRESHOLD {
-            let start_index = frame.value_base + start as usize;
-            let values_ptr = values.as_ptr();
-            for offset in 0..len {
-                unsafe {
-                    args.push(*values_ptr.add(start_index + offset));
-                }
+            // check stack overflow
+            if state.engine.call_stack.len() >= state.options().limits.max_stack_depth {
+                return ControlFlow::Error(Error::StackOverflow);
             }
-            return args;
-        }
-        unsafe {
-            args.set_len(len);
-            let src_index = frame.value_base + start as usize;
-            std::ptr::copy_nonoverlapping(values.as_ptr().add(src_index), args.as_mut_ptr(), len);
-        }
-        return args;
-    }
 
-    // resolve argument slice
-    let argument_slice = arguments.slice(argument_pool);
-
-    // allocate argument buffer
-    let mut args = SmallVec::with_capacity(argument_slice.len());
-
-    // resolve argument values
-    for argument in argument_slice {
-        let index = frame.value_base + argument.0 as usize;
-        debug_assert!(
-            (argument.0 as usize) < frame.value_count,
-            "ssa value out of bounds: {argument:?}"
-        );
-        let value = unsafe { *values.get_unchecked(index) };
-        args.push(value);
-    }
-
-    // return arguments
-    args
-}
-
-/// Collect argument values from a copy plan into a smallvec.
-fn collect_argument_values_from_copies(
-    values: &[Value],
-    frame: &Frame,
-    copy_pool: &[CopyPair],
-    copies: CopyRange,
-) -> SmallVec<[Value; 16]> {
-    // fast path: contiguous copy pairs
-    if let Some((src_start, _dest_start, len)) = copies.contiguous_plan() {
-        debug_assert!(
-            (src_start as usize) + len <= frame.value_count,
-            "ssa value out of bounds for contiguous args"
-        );
-        let mut args = SmallVec::with_capacity(len);
-        if len <= CONTIGUOUS_COPY_THRESHOLD {
-            let start_index = frame.value_base + src_start as usize;
-            let values_ptr = values.as_ptr();
-            for offset in 0..len {
-                unsafe {
-                    args.push(*values_ptr.add(start_index + offset));
-                }
-            }
-            return args;
-        }
-        unsafe {
-            args.set_len(len);
-            let src_index = frame.value_base + src_start as usize;
-            std::ptr::copy_nonoverlapping(values.as_ptr().add(src_index), args.as_mut_ptr(), len);
-        }
-        return args;
-    }
-
-    // resolve copy pairs
-    let pairs = copies.slice(copy_pool);
-
-    // allocate argument buffer
-    let mut args = SmallVec::with_capacity(pairs.len());
-
-    // use raw pointer to avoid repeated bounds checks
-    let values_ptr = values.as_ptr();
-
-    // resolve argument values
-    for pair in pairs {
-        // load argument value
-        let value = if pair.src == INVALID_VALUE_ID {
-            Value::VOID
-        } else {
-            let src_index = frame.value_base + pair.src as usize;
-            debug_assert!(
-                (pair.src as usize) < frame.value_count,
-                "ssa value out of bounds: {}",
-                pair.src
-            );
-            unsafe { *values_ptr.add(src_index) }
-        };
-        args.push(value);
-    }
-
-    // return arguments
-    args
-}
-
-/// Bind argument values to parameter slots in a frame.
-fn bind_parameters_from_values(
-    values: &mut [Value],
-    frame: &Frame,
-    param_pool: &[mir::Value],
-    params: ArgumentRange,
-    arguments: &[Value],
-) {
-    // resolve parameter slice
-    let param_slice = params.slice(param_pool);
-
-    // fast path: contiguous params with full argument list
-    if let Some((dest_start, len)) = params.contiguous_range()
-        && len == arguments.len()
-    {
-        let dest_index = frame.value_base + dest_start as usize;
-
-        // validate bounds in debug builds
-        debug_assert!(
-            (dest_start as usize) + len <= frame.value_count,
-            "ssa value out of bounds: {dest_start}"
-        );
-
-        // copy argument values
-        let values_ptr = values.as_mut_ptr();
-        unsafe {
-            std::ptr::copy_nonoverlapping(arguments.as_ptr(), values_ptr.add(dest_index), len);
-        }
-        return;
-    }
-
-    // use raw pointer to avoid repeated bounds checks
-    let values_ptr = values.as_mut_ptr();
-
-    // fast path: arguments cover all parameters
-    if arguments.len() >= param_slice.len() {
-        // write parameter values
-        for (index, param) in param_slice.iter().enumerate() {
-            // load argument value
-            let value = arguments[index];
-
-            // write parameter value
-            let dest_index = frame.value_base + param.0 as usize;
-            debug_assert!(
-                (param.0 as usize) < frame.value_count,
-                "ssa value out of bounds: {param:?}"
-            );
-            unsafe {
-                *values_ptr.add(dest_index) = value;
-            }
-        }
-        return;
-    }
-
-    // write parameter values
-    for (index, param) in param_slice.iter().enumerate() {
-        // load argument value
-        let value = arguments.get(index).copied().unwrap_or(Value::VOID);
-
-        // write parameter value
-        let dest_index = frame.value_base + param.0 as usize;
-        debug_assert!(
-            (param.0 as usize) < frame.value_count,
-            "ssa value out of bounds: {param:?}"
-        );
-        unsafe {
-            *values_ptr.add(dest_index) = value;
-        }
-    }
-}
-
-/// Resolve an argument range into a slice.
-#[inline(always)]
-fn argument_slice(argument_pool: &[mir::Value], arguments: ArgumentRange) -> &[mir::Value] {
-    arguments.slice(argument_pool)
-}
-
-impl<'a> InterpreterContext<'a> {
-    /// Execute a function by name.
-    ///
-    /// Looks up a function in the MIR tree by name and executes it.
-    pub(crate) fn run_function_by_name(
-        &mut self,
-        name: &str,
-        arguments: &[Value],
-    ) -> RuntimeResult<ExecutionOutput> {
-        // execute with yield support
-        let outcome = self.run_function_by_name_yielding(name, arguments)?;
-
-        // reject unexpected yields
-        match outcome {
-            ExecutionOutcome::Completed { output } => Ok(output),
-            ExecutionOutcome::Yielded { .. } => Err(self.make_error(Error::UnexpectedYield)),
-        }
-    }
-
-    /// Execute a function by name with yield support.
-    ///
-    /// Returns a yielded value when the coroutine suspends.
-    pub(crate) fn run_function_by_name_yielding(
-        &mut self,
-        name: &str,
-        arguments: &[Value],
-    ) -> RuntimeResult<ExecutionOutcome> {
-        // resolve function id by name
-        let func_id = self
-            .isolate
-            .function_name_map
-            .get(name)
-            .copied()
-            .ok_or_else(|| {
-                self.make_error(Error::ExternalFunctionNotFound {
-                    name: name.to_string(),
-                })
-            })?;
-
-        // execute function
-        self.run_function_yielding(func_id, arguments)
-    }
-
-    /// Execute a function by id.
-    ///
-    /// Uses direct-threaded dispatch for maximum performance. Functions are
-    /// pre-compiled to threaded form when the interpreter is created.
-    pub(crate) fn run_function(
-        &mut self,
-        func_id: mir::LocalNodeId<mir::Function>,
-        arguments: &[Value],
-    ) -> RuntimeResult<ExecutionOutput> {
-        // execute with yield support
-        let outcome = self.run_function_yielding(func_id, arguments)?;
-
-        // reject unexpected yields
-        match outcome {
-            ExecutionOutcome::Completed { output } => Ok(output),
-            ExecutionOutcome::Yielded { .. } => Err(self.make_error(Error::UnexpectedYield)),
-        }
-    }
-
-    /// Execute a function by id with yield support.
-    ///
-    /// Returns a yielded value when the coroutine suspends.
-    pub(crate) fn run_function_yielding(
-        &mut self,
-        func_id: mir::LocalNodeId<mir::Function>,
-        arguments: &[Value],
-    ) -> RuntimeResult<ExecutionOutcome> {
-        // reset interpreter state for this call
-        self.engine.statistics.reset();
-        self.engine.call_stack.clear();
-        self.engine.value_stack.clear();
-        self.engine.local_stack.clear();
-
-        // load function metadata
-        let function = self.isolate.image.tree.get(func_id);
-
-        // handle imported or external functions
-        if function.is_import() {
-            // resolve external handler
-            let handler = self.external_for_id(func_id)?;
-
-            // execute external handler
-            // safety: handler pointer is stable for interpreter lifetime
-            let handler = unsafe { handler.as_ref() };
-            let value = {
-                let isolate = &mut *self.isolate;
-                let memory = self.memory.reborrow();
-                let mut context = ExternalCallContext::new(isolate, memory);
-                handler(&mut context, arguments)
-            }
-            .map_err(|e| self.make_error(e))?;
-
-            // return external result
-            let outcome = self.finish_execution(value);
-            return Ok(outcome);
-        }
-
-        // execute using threaded dispatch
-        self.execute_threaded(func_id, arguments)
-    }
-
-    /// Resume a previously yielded coroutine.
-    ///
-    /// The resume value is appended after explicit resume arguments.
-    pub(crate) fn resume(
-        &mut self,
-        continuation: Continuation,
-        resume_value: Value,
-    ) -> RuntimeResult<ExecutionOutcome> {
-        // validate continuation ownership
-        if continuation.isolate_id != self.isolate.isolate_id {
-            return Err(self.make_error(Error::InvalidContinuation));
-        }
-
-        // ensure the interpreter is idle
-        if !self.engine.call_stack.is_empty()
-            || !self.engine.value_stack.is_empty()
-            || !self.engine.local_stack.is_empty()
-        {
-            return Err(self.make_error(Error::InvalidContinuation));
-        }
-
-        // restore execution state
-        self.engine.call_stack = continuation.call_stack;
-        self.engine.value_stack = continuation.value_stack;
-        self.engine.local_stack = continuation.local_stack;
-        self.engine.statistics = continuation.statistics;
-        #[cfg(feature = "stats")]
-        {
-            self.engine.instruction_profile = continuation.instruction_profile;
-        }
-
-        // resume from the captured state
-        self.resume_continuation(continuation.yield_state, resume_value)
-    }
-
-    /// Resume execution using a captured yield state.
-    fn resume_continuation(
-        &mut self,
-        yield_state: YieldState,
-        resume_value: Value,
-    ) -> RuntimeResult<ExecutionOutcome> {
-        // load the frame to resume
-        let frame = self
-            .engine
-            .call_stack
-            .get_mut(yield_state.frame_index)
-            .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
-
-        // resolve threaded function and resume block
-        let threaded = unsafe { frame.threaded.as_ref() };
-        let resume_block = threaded
-            .blocks
-            .get(yield_state.resume_block as usize)
-            .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
-
-        // bind resume arguments
-        copy_values_with_plan(
-            &mut self.engine.value_stack,
-            frame,
-            frame,
-            yield_state.resume_copies,
-            threaded.copy_pool.as_slice(),
-        );
-
-        // bind resumed value after explicit arguments
-        if !is_invalid_value(yield_state.resume_value) {
-            frame.set_value(
-                &mut self.engine.value_stack,
-                yield_state.resume_value,
-                resume_value,
-            );
-        }
-
-        // update frame block metadata
-        frame.block_index = yield_state.resume_block as usize;
-        frame.block_ptr = NonNull::from(resume_block);
-        frame.current_block = resume_block.mir_block;
-        frame.resume_pc = 0;
-
-        // continue execution
-        self.execute_threaded_loop()
-    }
-
-    /// Capture execution state into a continuation.
-    fn suspend_continuation(&mut self, yield_state: YieldState) -> Continuation {
-        // move execution stacks into the continuation
-        let call_stack = std::mem::take(&mut self.engine.call_stack);
-        let value_stack = std::mem::take(&mut self.engine.value_stack);
-        let local_stack = std::mem::take(&mut self.engine.local_stack);
-
-        // move execution statistics into the continuation
-        let statistics = std::mem::take(&mut self.engine.statistics);
-
-        // move instruction profile state into the continuation
-        #[cfg(feature = "stats")]
-        let instruction_profile = self.engine.instruction_profile.take();
-
-        Continuation {
-            isolate_id: self.isolate.isolate_id,
-            call_stack,
-            value_stack,
-            local_stack,
-            yield_state,
-            statistics,
-            #[cfg(feature = "stats")]
-            instruction_profile,
-        }
-    }
-
-    /// Assemble a completed execution outcome.
-    fn finish_execution(&mut self, value: Value) -> ExecutionOutcome {
-        // assemble output
-        let output = ExecutionOutput {
-            value,
-            statistics: self.engine.statistics.clone(),
-            managed_allocation_count: self.heap_ref().managed_allocation_count(),
-            raw_allocation_count: self.heap_ref().raw_allocation_count(),
-        };
-
-        // return completed outcome
-        ExecutionOutcome::Completed { output }
-    }
-
-    /// Execute a function using direct-threaded dispatch.
-    ///
-    /// This is the core execution loop. Each iteration executes one basic block,
-    /// with instruction handlers chaining via tail calls within blocks.
-    fn execute_threaded(
-        &mut self,
-        func_id: mir::LocalNodeId<mir::Function>,
-        arguments: &[Value],
-    ) -> RuntimeResult<ExecutionOutcome> {
-        // get pre threaded function
-        let threaded_index = self
-            .engine
-            .threaded_functions
-            .index_for(func_id)
-            .ok_or_else(|| RuntimeError::new(Error::UndefinedFunction { function: func_id }))?;
-        let threaded = self
-            .engine
-            .threaded_functions
-            .get_by_index(threaded_index)
-            .ok_or_else(|| RuntimeError::new(Error::UndefinedFunction { function: func_id }))?;
-
-        // create initial frame
-        let entry_block = &threaded.blocks[threaded.entry as usize];
-        let entry_block_id = entry_block.mir_block;
-        let entry_block_ptr = NonNull::from(entry_block);
-        let value_base = self.engine.value_stack.len();
-        let local_base = self.engine.local_stack.len();
-        self.engine
-            .value_stack
-            .resize(value_base + threaded.value_count, Value::VOID);
-        self.engine
-            .local_stack
-            .resize(local_base + threaded.local_count, Value::VOID);
-        let threaded_ptr = NonNull::from(threaded);
-        let frame = Frame::new(
-            func_id,
-            threaded_ptr,
-            entry_block_ptr,
-            entry_block_id,
-            threaded.entry as usize,
-            value_base,
-            threaded.value_count,
-            local_base,
-            threaded.local_count,
-            Value::VOID,
-        );
-
-        // bind function parameters to SSA values
-        let parameter_slice =
-            argument_slice(threaded.argument_pool.as_slice(), threaded.parameters);
-        for (i, param) in parameter_slice.iter().enumerate() {
-            let value = arguments.get(i).copied().unwrap_or(Value::VOID);
-            frame.set_value(&mut self.engine.value_stack, *param, value);
-        }
-
-        // call stack for nested function calls
-        self.engine.call_stack.push(frame);
-        if self.isolate.image.options.telemetry.collect_stats {
-            self.engine.statistics.max_stack_depth = self
-                .engine
-                .statistics
-                .max_stack_depth
-                .max(self.engine.call_stack.len());
-        }
-
-        // execute until completion or yield
-        self.execute_threaded_loop()
-    }
-
-    /// Continue execution from the current call stack.
-    ///
-    /// Returns when execution completes or yields.
-    fn execute_threaded_loop(&mut self) -> RuntimeResult<ExecutionOutcome> {
-        // cache stats settings
-        let collect_stats = self.isolate.image.options.telemetry.collect_stats;
-        let track_instructions =
-            collect_stats || self.isolate.image.options.limits.max_instructions.is_some();
-
-        // ensure there is an active frame
-        if self.engine.call_stack.is_empty() {
-            return Err(self.make_error(Error::InvalidInstruction));
-        }
-
-        // main execution loop (trampoline pattern)
-        loop {
-            // check step limit
-            if let Some(max) = self.isolate.image.options.limits.max_instructions
-                && self.engine.statistics.threaded_instructions_executed >= max
+            // store return destination and resume pc on caller frame
             {
-                return Err(self.make_error(Error::StepLimitExceeded));
+                let caller = state.current_frame_mut();
+                caller.return_destination = dest;
+                caller.resume_pc = resume_pc;
             }
 
-            // get current frame info
-            let (threaded_ptr, block_ptr, start_pc) = {
-                let frame = self
-                    .engine
-                    .call_stack
-                    .last_mut()
-                    .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-                let pc = frame.resume_pc;
-                frame.resume_pc = 0;
-                (frame.threaded, frame.block_ptr, pc)
+            // allocate new frame for callee
+            let value_base = state.engine.value_stack.len();
+            let local_base = state.engine.local_stack.len();
+            state
+                .engine
+                .value_stack
+                .resize(value_base + callee.value_count, Value::VOID);
+            state
+                .engine
+                .local_stack
+                .resize(local_base + callee.local_count, Value::VOID);
+            let entry_block = &callee.blocks[callee.entry as usize];
+            let entry_block_id = entry_block.mir_block;
+            let entry_block_ptr = NonNull::from(entry_block);
+            let new_frame = Frame::new(
+                function_id,
+                callee_ptr,
+                entry_block_ptr,
+                entry_block_id,
+                callee.entry as usize,
+                value_base,
+                callee.value_count,
+                local_base,
+                callee.local_count,
+                env.unwrap_or(Value::VOID),
+            );
+
+            // bind parameters from caller values
+            let caller_index = state.frame_index;
+            let current_function_ptr = {
+                let frame = state.current_frame_mut();
+                frame.function_ptr
             };
-
-            // resolve threaded function
-            // #Safety: threaded pointer is valid for interpreter lifetime
-            let current_func = unsafe { threaded_ptr.as_ref() };
-
-            // get current block
-            // #Safety: block pointer is valid for interpreter lifetime
-            let block = unsafe { block_ptr.as_ref() };
-            let block_len = block.instructions.len();
-
-            // execute block starting from resume_pc
-            let control = {
-                let frame_index = self.engine.call_stack.len() - 1;
-                let mut state = ThreadedState::new(
-                    self,
-                    frame_index,
-                    current_func.argument_pool.as_slice(),
-                    current_func.switch_case_pool.as_slice(),
-                );
-                (block.instructions[start_pc].handler)(&mut state, &block.instructions, start_pc)
+            let current_func = unsafe { current_function_ptr.as_ref() };
+            let caller_ptr = {
+                let Ok(caller) = state.frame_by_index(caller_index) else {
+                    return ControlFlow::Error(Error::InvalidManagedReference);
+                };
+                caller as *const Frame
             };
-
-            // update statistics
-            if track_instructions {
-                self.engine.statistics.threaded_instructions_executed +=
-                    (block_len - start_pc) as u64;
-            }
-            if collect_stats && start_pc == 0 {
-                // only count MIR instructions on first entry to block (start_pc == 0)
-                // to avoid double-counting when resuming after calls
-                self.engine.statistics.mir_instructions_executed +=
-                    block.mir_instruction_count as u64;
-            }
-
-            // refresh threaded function after handler chain (tail calls can swap frames)
-            let current_func = {
-                let frame = self
-                    .engine
-                    .call_stack
-                    .last()
-                    .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-                unsafe { frame.threaded.as_ref() }
+            let caller = unsafe { &*caller_ptr };
+            let Some(copy_plan) = copy_plan else {
+                return ControlFlow::Error(Error::InvalidInstruction);
             };
+            copy_values_with_plan(
+                &mut state.engine.value_stack,
+                caller,
+                &new_frame,
+                copy_plan,
+                current_func.copy_pool.as_slice(),
+            );
 
-            // handle control flow
-            match control {
-                ControlFlow::Jump {
-                    block: target,
-                    copies,
-                } => {
-                    // bind block parameters for target block
-                    let target_block = &current_func.blocks[target as usize];
-                    let frame = self
-                        .engine
-                        .call_stack
-                        .last()
-                        .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-                    copy_values_with_plan(
-                        &mut self.engine.value_stack,
-                        frame,
-                        frame,
-                        copies,
-                        current_func.copy_pool.as_slice(),
-                    );
+            // push new frame and refresh state
+            state.engine.call_stack.push(new_frame);
+            let new_index = state.engine.call_stack.len() - 1;
+            state.enter_frame(new_index, callee);
 
-                    // update current block
-                    let frame = self
-                        .engine
-                        .call_stack
-                        .last_mut()
-                        .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-                    frame.block_index = target as usize;
-                    frame.block_ptr = NonNull::from(target_block);
-                    frame.current_block = target_block.mir_block;
-                }
-
-                ControlFlow::Call {
-                    function,
-                    callee_index,
-                    destination,
-                    arguments,
-                    env,
-                    copies,
-                    resume_pc,
-                } => {
-                    // resolve target function id
-                    let function_id = mir::LocalNodeId::<mir::Function>::new(function);
-
-                    // check for external or imported function
-                    if callee_index == INVALID_FUNCTION_INDEX
-                        && self.engine.threaded_functions.is_import(function_id)
-                    {
-                        let caller = self
-                            .engine
-                            .call_stack
-                            .last()
-                            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-
-                        // resolve arguments from caller
-                        let args = if let Some(copies) = copies {
-                            collect_argument_values_from_copies(
-                                &self.engine.value_stack,
-                                caller,
-                                current_func.copy_pool.as_slice(),
-                                copies,
-                            )
-                        } else {
-                            collect_argument_values_range(
-                                &self.engine.value_stack,
-                                caller,
-                                current_func.argument_pool.as_slice(),
-                                arguments,
-                            )
-                        };
-
-                        // resolve external handler
-                        let handler = self.external_for_id(function_id)?;
-
-                        // execute external handler
-                        // safety: handler pointer is stable for interpreter lifetime
-                        let handler = unsafe { handler.as_ref() };
-                        let result = {
-                            let isolate = &mut *self.isolate;
-                            let memory = self.memory.reborrow();
-                            let mut context = ExternalCallContext::new(isolate, memory);
-                            handler(&mut context, &args)
-                        }
-                        .map_err(|e| self.make_error(e))?;
-
-                        // store result and continue from resume_pc
-                        let frame = self
-                            .engine
-                            .call_stack
-                            .last_mut()
-                            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-                        if !is_invalid_value(destination) {
-                            frame.set_value(&mut self.engine.value_stack, destination, result);
-                        }
-                        frame.resume_pc = resume_pc;
-                        continue;
-                    }
-
-                    // resolve callee index
-                    let callee_index = if callee_index == INVALID_FUNCTION_INDEX {
-                        self.engine.threaded_functions.index_for(function_id)
-                    } else {
-                        Some(callee_index)
-                    };
-
-                    // get callee's threaded function
-                    let callee_index = callee_index.ok_or_else(|| {
-                        RuntimeError::new(Error::UndefinedFunction {
-                            function: function_id,
-                        })
-                    })?;
-                    let callee = self
-                        .engine
-                        .threaded_functions
-                        .get_by_index(callee_index)
-                        .ok_or_else(|| {
-                            RuntimeError::new(Error::UndefinedFunction {
-                                function: function_id,
-                            })
-                        })?;
-
-                    // check stack overflow
-                    if self.engine.call_stack.len()
-                        >= self.isolate.image.options.limits.max_stack_depth
-                    {
-                        return Err(self.make_error(Error::StackOverflow));
-                    }
-
-                    // store return destination and resume_pc in caller frame
-                    let caller_frame = self
-                        .engine
-                        .call_stack
-                        .last_mut()
-                        .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-                    let caller_info = (caller_frame.value_base, caller_frame.value_count);
-                    caller_frame.return_destination = destination;
-                    caller_frame.resume_pc = resume_pc;
-
-                    // create new frame for callee
-                    let value_base = self.engine.value_stack.len();
-                    let local_base = self.engine.local_stack.len();
-                    self.engine
-                        .value_stack
-                        .resize(value_base + callee.value_count, Value::VOID);
-                    self.engine
-                        .local_stack
-                        .resize(local_base + callee.local_count, Value::VOID);
-                    let entry_block = &callee.blocks[callee.entry as usize];
-                    let entry_block_id = entry_block.mir_block;
-                    let entry_block_ptr = NonNull::from(entry_block);
-                    let callee_ptr = NonNull::from(callee);
-                    let new_frame = Frame::new(
-                        function_id,
-                        callee_ptr,
-                        entry_block_ptr,
-                        entry_block_id,
-                        callee.entry as usize,
-                        value_base,
-                        callee.value_count,
-                        local_base,
-                        callee.local_count,
-                        env.unwrap_or(Value::VOID),
-                    );
-
-                    // bind callee's parameters
-                    let caller = self
-                        .engine
-                        .call_stack
-                        .last()
-                        .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-                    debug_assert!(
-                        caller.value_base == caller_info.0 && caller.value_count == caller_info.1,
-                        "caller frame moved while binding arguments"
-                    );
-                    if let Some(copies) = copies {
-                        // copy with precomputed plan
-                        copy_values_with_plan(
-                            &mut self.engine.value_stack,
-                            caller,
-                            &new_frame,
-                            copies,
-                            current_func.copy_pool.as_slice(),
-                        );
-                    } else {
-                        // copy with parameter slices
-                        copy_values_between_frames(
-                            &mut self.engine.value_stack,
-                            caller,
-                            &new_frame,
-                            callee.argument_pool.as_slice(),
-                            callee.parameters,
-                            current_func.argument_pool.as_slice(),
-                            arguments,
-                        );
-                    }
-                    // push callee frame
-                    self.engine.call_stack.push(new_frame);
-                    if collect_stats {
-                        self.engine.statistics.calls_made += 1;
-                        self.engine.statistics.max_stack_depth = self
-                            .engine
-                            .statistics
-                            .max_stack_depth
-                            .max(self.engine.call_stack.len());
-                    }
-                }
-
-                ControlFlow::TailCall {
-                    function,
-                    callee_index,
-                    arguments,
-                    env,
-                    copies,
-                } => {
-                    // resolve target function id
-                    let function_id = mir::LocalNodeId::<mir::Function>::new(function);
-
-                    // collect argument values from the current frame
-                    let caller = self
-                        .engine
-                        .call_stack
-                        .last()
-                        .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-                    let argument_values = if let Some(copies) = copies {
-                        collect_argument_values_from_copies(
-                            &self.engine.value_stack,
-                            caller,
-                            current_func.copy_pool.as_slice(),
-                            copies,
-                        )
-                    } else {
-                        collect_argument_values_range(
-                            &self.engine.value_stack,
-                            caller,
-                            current_func.argument_pool.as_slice(),
-                            arguments,
-                        )
-                    };
-
-                    // check for external or imported function
-                    if self.engine.threaded_functions.is_import(function_id) {
-                        // resolve external handler
-                        let handler = self.external_for_id(function_id)?;
-
-                        // execute external handler
-                        // safety: handler pointer is stable for interpreter lifetime
-                        let handler = unsafe { handler.as_ref() };
-                        let result = {
-                            let isolate = &mut *self.isolate;
-                            let memory = self.memory.reborrow();
-                            let mut context = ExternalCallContext::new(isolate, memory);
-                            handler(&mut context, &argument_values)
-                        }
-                        .map_err(|e| self.make_error(e))?;
-
-                        // pop completed frame
-                        let frame = self
-                            .engine
-                            .call_stack
-                            .pop()
-                            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-                        self.engine.value_stack.truncate(frame.value_base);
-                        self.engine.local_stack.truncate(frame.local_base);
-
-                        // if stack is empty, execution is complete
-                        if self.engine.call_stack.is_empty() {
-                            return Ok(self.finish_execution(result));
-                        }
-
-                        // store return value in caller's frame
-                        let caller = self
-                            .engine
-                            .call_stack
-                            .last_mut()
-                            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-                        let dest = caller.return_destination;
-                        if !is_invalid_value(dest) {
-                            caller.return_destination = mir::Value(INVALID_VALUE_ID);
-                            caller.set_value(&mut self.engine.value_stack, dest, result);
-                        }
-                        continue;
-                    }
-
-                    // resolve callee index
-                    let callee_index = if callee_index == INVALID_FUNCTION_INDEX {
-                        self.engine.threaded_functions.index_for(function_id)
-                    } else {
-                        Some(callee_index)
-                    };
-
-                    // get callee's threaded function
-                    let callee_index = callee_index.ok_or_else(|| {
-                        RuntimeError::new(Error::UndefinedFunction {
-                            function: function_id,
-                        })
-                    })?;
-                    let callee = self
-                        .engine
-                        .threaded_functions
-                        .get_by_index(callee_index)
-                        .ok_or_else(|| {
-                            RuntimeError::new(Error::UndefinedFunction {
-                                function: function_id,
-                            })
-                        })?;
-
-                    // reuse the current frame for the tail call
-                    let frame = self
-                        .engine
-                        .call_stack
-                        .last_mut()
-                        .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-                    let value_base = frame.value_base;
-                    let local_base = frame.local_base;
-                    let value_end = value_base + callee.value_count;
-                    let local_end = local_base + callee.local_count;
-
-                    // clear frame-local stack allocations
-                    frame.stack_values.clear();
-
-                    // resize stacks to callee requirements
-                    resize_and_clear_stack(&mut self.engine.value_stack, value_base, value_end);
-                    resize_and_clear_stack(&mut self.engine.local_stack, local_base, local_end);
-
-                    // update frame metadata
-                    let entry_block = &callee.blocks[callee.entry as usize];
-                    frame.function = function_id;
-                    frame.threaded = NonNull::from(callee);
-                    frame.block_ptr = NonNull::from(entry_block);
-                    frame.entry_block = entry_block.mir_block;
-                    frame.current_block = entry_block.mir_block;
-                    frame.block_index = callee.entry as usize;
-                    frame.resume_pc = 0;
-                    frame.value_count = callee.value_count;
-                    frame.local_count = callee.local_count;
-                    frame.closure_env = env.unwrap_or(Value::VOID);
-
-                    // bind callee parameters
-                    bind_parameters_from_values(
-                        &mut self.engine.value_stack,
-                        frame,
-                        callee.argument_pool.as_slice(),
-                        callee.parameters,
-                        &argument_values,
-                    );
-
-                    // update statistics
-                    if collect_stats {
-                        self.engine.statistics.calls_made += 1;
-                    }
-                }
-
-                ControlFlow::Yield {
-                    value,
-                    resume_block,
-                    resume_copies,
-                    resume_value,
-                } => {
-                    // capture yield state
-                    let frame_index = self.engine.call_stack.len() - 1;
-                    let yield_state = YieldState {
-                        frame_index,
-                        resume_block,
-                        resume_copies,
-                        resume_value,
-                    };
-
-                    // externalize continuation state
-                    let continuation = self.suspend_continuation(yield_state);
-
-                    // return yielded value
-                    let yielded = ExecutionYield {
-                        value,
-                        continuation,
-                    };
-                    return Ok(ExecutionOutcome::Yielded { yielded });
-                }
-
-                ControlFlow::Return(value) => {
-                    // pop completed frame
-                    let frame = self
-                        .engine
-                        .call_stack
-                        .pop()
-                        .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-                    self.engine.value_stack.truncate(frame.value_base);
-                    self.engine.local_stack.truncate(frame.local_base);
-
-                    // if stack is empty, execution is complete
-                    if self.engine.call_stack.is_empty() {
-                        return Ok(self.finish_execution(value));
-                    }
-
-                    // store return value in caller's frame
-                    let caller = self
-                        .engine
-                        .call_stack
-                        .last_mut()
-                        .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-                    let dest = caller.return_destination;
-                    if !is_invalid_value(dest) {
-                        caller.return_destination = mir::Value(INVALID_VALUE_ID);
-                        caller.set_value(&mut self.engine.value_stack, dest, value);
-                    }
-                }
-
-                ControlFlow::Error(e) => {
-                    // return runtime error
-                    return Err(self.make_error(e));
-                }
-            }
+            // continue at entry block
+            let entry_instructions = entry_block.instructions.as_slice();
+            return dispatch_instruction(state, entry_instructions, 0);
         }
     }
+
+    // return control to trampoline
+    ControlFlow::Call {
+        function: function_id.id,
+        callee_index,
+        destination: dest,
+        arguments,
+        env,
+        copies: copy_plan,
+        resume_pc,
+    }
+}
+
+/// Handle function call (returns to trampoline).
+pub(crate) fn handle_call(
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
+    pc: usize,
+) -> ControlFlow {
+    state.maybe_profile_instruction(&block[pc]);
+
+    // decode instruction data
+    let InstructionData::Call {
+        dest,
+        function,
+        callee_index,
+        arguments,
+        copies,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // resolve target function id
+    let function_id = mir::LocalNodeId::<mir::Function>::new(*function);
+    let copy_plan = Some(*copies);
+
+    // skip fast path when stats or step limits are active
+    let allow_direct = !state.collect_stats && state.options().limits.max_instructions.is_none();
+
+    call_with_target(
+        state,
+        *dest,
+        function_id,
+        *callee_index,
+        *arguments,
+        None,
+        copy_plan,
+        pc + 1,
+        allow_direct,
+    )
+}
+
+/// Handle virtual call (returns to trampoline).
+pub(crate) fn handle_call_virtual(
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
+    pc: usize,
+) -> ControlFlow {
+    state.maybe_profile_instruction(&block[pc]);
+
+    // decode instruction data
+    let InstructionData::CallVirtual {
+        dest,
+        receiver,
+        managed_pointee,
+        slot_id,
+        arguments,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // resolve dynamic target
+    let receiver_value = state.get(*receiver);
+    let function_id =
+        match resolve_virtual_dispatch_target(state, receiver_value, *managed_pointee, *slot_id) {
+            Ok(function_id) => function_id,
+            Err(error) => return ControlFlow::Error(error),
+        };
+
+    // skip fast path when stats or step limits are active
+    let allow_direct = !state.collect_stats && state.options().limits.max_instructions.is_none();
+
+    call_with_target(
+        state,
+        *dest,
+        function_id,
+        INVALID_FUNCTION_INDEX,
+        *arguments,
+        None,
+        None,
+        pc + 1,
+        allow_direct,
+    )
+}
+
+/// Handle interface call (returns to trampoline).
+pub(crate) fn handle_call_interface(
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
+    pc: usize,
+) -> ControlFlow {
+    state.maybe_profile_instruction(&block[pc]);
+
+    // decode instruction data
+    let InstructionData::CallInterface {
+        dest,
+        receiver,
+        managed_pointee,
+        slot_id,
+        arguments,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // resolve dynamic target
+    let receiver_value = state.get(*receiver);
+    let function_id = match resolve_interface_dispatch_target(
+        state,
+        receiver_value,
+        *managed_pointee,
+        *slot_id,
+    ) {
+        Ok(function_id) => function_id,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // skip fast path when stats or step limits are active
+    let allow_direct = !state.collect_stats && state.options().limits.max_instructions.is_none();
+
+    call_with_target(
+        state,
+        *dest,
+        function_id,
+        INVALID_FUNCTION_INDEX,
+        *arguments,
+        None,
+        None,
+        pc + 1,
+        allow_direct,
+    )
+}
+
+/// Handle indirect call (returns to trampoline).
+pub(crate) fn handle_call_indirect(
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
+    pc: usize,
+) -> ControlFlow {
+    state.maybe_profile_instruction(&block[pc]);
+
+    // decode instruction data
+    let InstructionData::CallIndirect {
+        dest,
+        callee,
+        env,
+        arguments,
+        cached_function,
+        cached_index,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load callee value
+    let callee_val = state.get(*callee);
+
+    // extract function pointer
+    let function = match callee_val.as_function_pointer() {
+        Some(f) => f.id,
+        None => {
+            return ControlFlow::Error(Error::TypeMismatch {
+                expected: "function_pointer".to_string(),
+                actual: format!("{callee_val:?}"),
+            });
+        }
+    };
+
+    // reuse cached callee index when possible
+    if cached_function.get() == Some(function) {
+        let cached_index = cached_index.get().unwrap_or(INVALID_FUNCTION_INDEX);
+        return ControlFlow::Call {
+            function,
+            callee_index: cached_index,
+            destination: *dest,
+            arguments: *arguments,
+            env: env.map(|value| state.get(value)),
+            copies: None,
+            resume_pc: pc + 1,
+        };
+    }
+
+    // resolve callee index and update cache
+    let function_id = mir::LocalNodeId::<mir::Function>::new(function);
+    let resolved_index = match state.functions().resolve(function_id) {
+        Some(FunctionTarget::Lowered(index)) => index,
+        Some(FunctionTarget::Import) | None => INVALID_FUNCTION_INDEX,
+    };
+    cached_function.set(Some(function));
+    cached_index.set(Some(resolved_index));
+
+    // return control to trampoline
+    ControlFlow::Call {
+        function,
+        callee_index: resolved_index,
+        destination: *dest,
+        arguments: *arguments,
+        env: env.map(|value| state.get(value)),
+        copies: None,
+        resume_pc: pc + 1,
+    }
+}
+
+/// Enter a tail call by reusing the current frame.
+fn enter_tail_call(
+    state: &mut ExecutionState<'_, '_>,
+    function_id: mir::LocalNodeId<mir::Function>,
+    callee: &Function,
+    argument_values: &[Value],
+    env: Option<Value>,
+) {
+    // resolve frame bounds
+    let (value_base, local_base) = {
+        let frame = state.current_frame_mut();
+        (frame.value_base, frame.local_base)
+    };
+
+    // clear frame local stack allocations
+    state.current_frame_mut().stack_values.clear();
+
+    // resize stacks to callee requirements
+    let value_end = value_base + callee.value_count;
+    let local_end = local_base + callee.local_count;
+    resize_and_clear_stack(&mut state.engine.value_stack, value_base, value_end);
+    resize_and_clear_stack(&mut state.engine.local_stack, local_base, local_end);
+
+    // update frame metadata
+    let entry_block = &callee.blocks[callee.entry as usize];
+    {
+        let frame = state.current_frame_mut();
+        frame.function = function_id;
+        frame.function_ptr = NonNull::from(callee);
+        frame.block_ptr = NonNull::from(entry_block);
+        frame.entry_block = entry_block.mir_block;
+        frame.current_block = entry_block.mir_block;
+        frame.block_index = callee.entry as usize;
+        frame.resume_pc = 0;
+        frame.value_count = callee.value_count;
+        frame.local_count = callee.local_count;
+        frame.closure_env = env.unwrap_or(Value::VOID);
+    }
+
+    // refresh cached pointers for the new function
+    state.refresh_for_function(callee);
+
+    // bind function parameters
+    let parameter_slice = callee.parameters.slice(callee.argument_pool.as_slice());
+    // use direct indexing when arguments cover parameters
+    if argument_values.len() >= parameter_slice.len() {
+        for (index, param) in parameter_slice.iter().enumerate() {
+            let value = argument_values[index];
+            state.set(*param, value);
+        }
+    }
+    // fall back to defaulted arguments
+    else {
+        for (index, param) in parameter_slice.iter().enumerate() {
+            let value = argument_values.get(index).copied().unwrap_or(Value::VOID);
+            state.set(*param, value);
+        }
+    }
+
+    // update statistics
+    if state.collect_stats {
+        state.engine.statistics.calls_made += 1;
+    }
+
+    // keep frame ready for entry execution
+}
+
+/// Handle tail call to function.
+pub(crate) fn handle_tail_call(
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
+    pc: usize,
+) -> ControlFlow {
+    state.maybe_profile_instruction(&block[pc]);
+
+    // decode instruction data
+    let InstructionData::TailCall {
+        function,
+        callee_index,
+        copies,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // resolve callee index
+    let function_id = mir::LocalNodeId::<mir::Function>::new(*function);
+    let resolved_index = if *callee_index == INVALID_FUNCTION_INDEX {
+        match state.functions().resolve(function_id) {
+            Some(FunctionTarget::Lowered(index)) => Some(index),
+            Some(FunctionTarget::Import) | None => None,
+        }
+    } else {
+        Some(*callee_index)
+    };
+
+    // fall back to trampoline for unresolved targets
+    let Some(resolved_index) = resolved_index else {
+        return ControlFlow::TailCall {
+            function: *function,
+            callee_index: *callee_index,
+            arguments: ArgumentRange::empty(),
+            env: None,
+            copies: Some(*copies),
+        };
+    };
+    let Some(callee_ptr) = state.functions().get_ptr_by_index(resolved_index) else {
+        return ControlFlow::TailCall {
+            function: *function,
+            callee_index: *callee_index,
+            arguments: ArgumentRange::empty(),
+            env: None,
+            copies: Some(*copies),
+        };
+    };
+    let callee = unsafe { callee_ptr.as_ref() };
+
+    // collect argument values
+    let argument_values = {
+        let function_ptr = state.current_frame_mut().function_ptr;
+        let current_func = unsafe { function_ptr.as_ref() };
+        let copy_pairs = copies.slice(current_func.copy_pool.as_slice());
+        let mut args: SmallVec<[Value; 16]> = SmallVec::with_capacity(copy_pairs.len());
+
+        for pair in copy_pairs {
+            let value = if pair.src == INVALID_VALUE_ID {
+                Value::VOID
+            } else {
+                let arg_value = mir::Value::new(pair.src);
+                state.get(arg_value)
+            };
+            args.push(value);
+        }
+
+        args
+    };
+
+    // enter tail call fast path
+    enter_tail_call(state, function_id, callee, &argument_values, None);
+
+    // continue at entry block
+    let entry_block_ptr = state.current_frame_mut().block_ptr;
+    let entry_block = unsafe { entry_block_ptr.as_ref() };
+    let entry_instructions = entry_block.instructions.as_slice();
+    become dispatch_instruction(state, entry_instructions, 0)
+}
+
+/// Handle self tail call by reusing the current frame.
+pub(crate) fn handle_tail_call_self(
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
+    pc: usize,
+) -> ControlFlow {
+    state.maybe_profile_instruction(&block[pc]);
+
+    // decode instruction data
+    let InstructionData::TailCallSelf { entry, arguments } = &block[pc].data else {
+        unreachable!()
+    };
+
+    // collect argument values
+    let args = collect_values(state, *arguments);
+
+    if state.collect_stats {
+        state.engine.statistics.calls_made += 1;
+    }
+
+    // resolve current function entry block
+    let (function_ptr, value_base, value_count, local_base, local_count) = {
+        let frame = state.current_frame_mut();
+        (
+            frame.function_ptr,
+            frame.value_base,
+            frame.value_count,
+            frame.local_base,
+            frame.local_count,
+        )
+    };
+    let function = unsafe { function_ptr.as_ref() };
+    let entry_block = &function.blocks[*entry as usize];
+
+    // clear frame-local stack allocations
+    state.current_frame_mut().stack_values.clear();
+
+    // clear value and local slots
+    let value_end = value_base + value_count;
+    state.engine.value_stack[value_base..value_end].fill(Value::VOID);
+    let local_end = local_base + local_count;
+    state.engine.local_stack[local_base..local_end].fill(Value::VOID);
+
+    // update frame to entry block
+    {
+        let frame = state.current_frame_mut();
+        frame.block_index = *entry as usize;
+        frame.block_ptr = NonNull::from(entry_block);
+        frame.entry_block = entry_block.mir_block;
+        frame.current_block = entry_block.mir_block;
+        frame.resume_pc = 0;
+    }
+
+    // bind function parameters
+    let parameter_slice = function.parameters.slice(function.argument_pool.as_slice());
+    // use direct indexing when arguments cover parameters
+    if args.len() >= parameter_slice.len() {
+        for (index, param) in parameter_slice.iter().enumerate() {
+            let value = args[index];
+            state.set(*param, value);
+        }
+    }
+    // fall back to defaulted arguments
+    else {
+        for (index, param) in parameter_slice.iter().enumerate() {
+            let value = args.get(index).copied().unwrap_or(Value::VOID);
+            state.set(*param, value);
+        }
+    }
+
+    // continue at entry block
+    let entry_instructions = entry_block.instructions.as_slice();
+    become dispatch_instruction(state, entry_instructions, 0)
+}
+
+/// Handle virtual tail call (returns to trampoline).
+pub(crate) fn handle_tail_call_virtual(
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
+    pc: usize,
+) -> ControlFlow {
+    state.maybe_profile_instruction(&block[pc]);
+
+    // decode instruction data
+    let InstructionData::TailCallVirtual {
+        receiver,
+        managed_pointee,
+        slot_id,
+        arguments,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // resolve dynamic target
+    let receiver_value = state.get(*receiver);
+    let function_id =
+        match resolve_virtual_dispatch_target(state, receiver_value, *managed_pointee, *slot_id) {
+            Ok(function_id) => function_id,
+            Err(error) => return ControlFlow::Error(error),
+        };
+
+    ControlFlow::TailCall {
+        function: function_id.id,
+        callee_index: INVALID_FUNCTION_INDEX,
+        arguments: *arguments,
+        env: None,
+        copies: None,
+    }
+}
+
+/// Handle interface tail call (returns to trampoline).
+pub(crate) fn handle_tail_call_interface(
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
+    pc: usize,
+) -> ControlFlow {
+    state.maybe_profile_instruction(&block[pc]);
+
+    // decode instruction data
+    let InstructionData::TailCallInterface {
+        receiver,
+        managed_pointee,
+        slot_id,
+        arguments,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // resolve dynamic target
+    let receiver_value = state.get(*receiver);
+    let function_id = match resolve_interface_dispatch_target(
+        state,
+        receiver_value,
+        *managed_pointee,
+        *slot_id,
+    ) {
+        Ok(function_id) => function_id,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    ControlFlow::TailCall {
+        function: function_id.id,
+        callee_index: INVALID_FUNCTION_INDEX,
+        arguments: *arguments,
+        env: None,
+        copies: None,
+    }
+}
+
+/// Handle indirect tail call.
+pub(crate) fn handle_tail_call_indirect(
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
+    pc: usize,
+) -> ControlFlow {
+    state.maybe_profile_instruction(&block[pc]);
+
+    // decode instruction data
+    let InstructionData::TailCallIndirect {
+        callee,
+        env,
+        arguments,
+        cached_function,
+        cached_ptr,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load callee value
+    let callee_val = state.get(*callee);
+
+    // extract function pointer
+    let function = match callee_val.as_function_pointer() {
+        Some(f) => f.id,
+        None => {
+            return ControlFlow::Error(Error::TypeMismatch {
+                expected: "function_pointer".to_string(),
+                actual: format!("{callee_val:?}"),
+            });
+        }
+    };
+
+    // resolve callee id
+    let function_id = mir::LocalNodeId::<mir::Function>::new(function);
+
+    // reuse cached callee pointer when possible
+    if cached_function.get() == Some(function) {
+        if let Some(callee_ptr) = cached_ptr.get() {
+            let callee = unsafe { callee_ptr.as_ref() };
+            let argument_values = collect_values(state, *arguments);
+            enter_tail_call(
+                state,
+                function_id,
+                callee,
+                &argument_values,
+                env.map(|value| state.get(value)),
+            );
+            let entry_block_ptr = state.current_frame_mut().block_ptr;
+            let entry_block = unsafe { entry_block_ptr.as_ref() };
+            let entry_instructions = entry_block.instructions.as_slice();
+            become dispatch_instruction(state, entry_instructions, 0)
+        }
+
+        return ControlFlow::TailCall {
+            function,
+            callee_index: INVALID_FUNCTION_INDEX,
+            arguments: *arguments,
+            env: env.map(|value| state.get(value)),
+            copies: None,
+        };
+    }
+
+    // resolve callee index
+    let resolved_index = match state.functions().resolve(function_id) {
+        Some(FunctionTarget::Lowered(index)) => Some(index),
+        Some(FunctionTarget::Import) | None => None,
+    };
+
+    // fall back to trampoline for unresolved targets
+    let Some(resolved_index) = resolved_index else {
+        cached_function.set(Some(function));
+        cached_ptr.set(None);
+        return ControlFlow::TailCall {
+            function,
+            callee_index: INVALID_FUNCTION_INDEX,
+            arguments: *arguments,
+            env: env.map(|value| state.get(value)),
+            copies: None,
+        };
+    };
+    let Some(callee_ptr) = state.functions().get_ptr_by_index(resolved_index) else {
+        cached_function.set(Some(function));
+        cached_ptr.set(None);
+        return ControlFlow::TailCall {
+            function,
+            callee_index: INVALID_FUNCTION_INDEX,
+            arguments: *arguments,
+            env: env.map(|value| state.get(value)),
+            copies: None,
+        };
+    };
+    cached_function.set(Some(function));
+    cached_ptr.set(Some(callee_ptr));
+    let callee = unsafe { callee_ptr.as_ref() };
+
+    // collect argument values
+    let argument_values = collect_values(state, *arguments);
+
+    // enter tail call fast path
+    enter_tail_call(
+        state,
+        function_id,
+        callee,
+        &argument_values,
+        env.map(|value| state.get(value)),
+    );
+
+    // continue at entry block
+    let entry_block_ptr = state.current_frame_mut().block_ptr;
+    let entry_block = unsafe { entry_block_ptr.as_ref() };
+    let entry_instructions = entry_block.instructions.as_slice();
+    become dispatch_instruction(state, entry_instructions, 0)
 }
