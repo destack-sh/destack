@@ -1,13 +1,161 @@
 use crate::{
-    Attribute, Global, GlobalInitializer, Linkage, LocalNodeId, Mutability, Type, TypeAlias, Value,
+    AllocationMode, Attribute, CallBehavior, Function, Global, GlobalInitializer, Lifetime,
+    Linkage, LocalNodeId, MemoryEffect, Mutability, PointerAttributes, Type, TypeAlias,
 };
 
-use super::constant::parse_string_literal;
 use super::error::{ParseError, ParseResult};
 use super::parser::Parser;
 use super::token::TokenType;
 
 impl<'a> Parser<'a> {
+    /// Parse a module.
+    pub(super) fn parse_module(&mut self) -> ParseResult<()> {
+        // forward declarations
+        self.register_placeholders();
+
+        // items
+        while !self.peek_token(TokenType::End) {
+            let attributes = self.parse_attributes()?;
+
+            // linkage
+            let linkage = if self.peek_token(TokenType::Extern) {
+                self.bump();
+                Linkage::Import
+            } else if self.peek_token(TokenType::Export) {
+                self.bump();
+                Linkage::Export
+            } else {
+                Linkage::Local
+            };
+
+            // item grammar
+            if self.peek_token(TokenType::Type) {
+                if linkage != Linkage::Local {
+                    return Err(ParseError::new(
+                        "type aliases cannot be extern or export",
+                        self.pos(),
+                    ));
+                }
+
+                self.parse_type_alias(attributes)?;
+            } else if self.peek_token(TokenType::Global) {
+                self.parse_global(linkage, attributes)?;
+            } else if self.peek_token(TokenType::Function) {
+                self.parse_function(linkage, attributes)?;
+            } else {
+                return Err(ParseError::new(
+                    "expected 'type', 'function', or 'global'",
+                    self.pos(),
+                ));
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Pre register forward referenced item names.
+    fn register_placeholders(&mut self) {
+        let saved_pos = self.pos;
+
+        // scan the module once for item headers
+        while !self.peek_token(TokenType::End) {
+            self.skip_attribute_tokens();
+
+            // item linkage
+            if self.peek_token(TokenType::Extern) || self.peek_token(TokenType::Export) {
+                self.bump();
+            }
+
+            // function placeholders
+            if self.peek_token(TokenType::Function) {
+                self.bump();
+                if self.peek_token(TokenType::At) {
+                    self.bump();
+
+                    if let Some(name) = self.scan_symbol_name()
+                        && !self.function_map.contains_key(&name)
+                    {
+                        let name_id = self.strings.intern(&name);
+                        let void_type = self.intern_type(Type::Void);
+                        let placeholder = Function {
+                            name: name_id,
+                            parameters: Vec::new(),
+                            parameter_names: Vec::new(),
+                            value_types: Vec::new(),
+                            return_type: void_type,
+                            return_lifetime: Lifetime::Inferred,
+                            memory_effects: MemoryEffect::unknown(),
+                            call_behavior: CallBehavior::unknown(),
+                            alloc_size: None,
+                            parameter_attributes: Vec::new(),
+                            return_attributes: PointerAttributes::default(),
+                            linkage: Linkage::Local,
+                            allocation: AllocationMode::Any,
+                            coroutine: None,
+                            execution_model: None,
+                            execution_stage: None,
+                            workgroup_size: None,
+                            closure_env_type: None,
+                            locals: Vec::new(),
+                            blocks: Vec::new(),
+                            entry: None,
+                            next_value_id: 0,
+                        };
+                        let function_id = self.tree.insert(placeholder);
+                        self.function_map.insert(name, function_id);
+                    }
+                }
+
+                continue;
+            }
+
+            // type placeholders
+            if self.peek_token(TokenType::Type) {
+                self.bump();
+                if self.peek_token(TokenType::At) {
+                    self.bump();
+
+                    if let Some(name) = self.scan_symbol_name()
+                        && !self.type_alias_map.contains_key(&name)
+                    {
+                        let type_id = self.tree.insert_type(Type::Void);
+                        self.type_alias_map.insert(name, type_id);
+                    }
+                }
+
+                continue;
+            }
+
+            // unrelated token
+            self.bump();
+        }
+
+        self.pos = saved_pos;
+    }
+
+    /// Skip attributes during the placeholder pre scan.
+    fn skip_attribute_tokens(&mut self) {
+        while self.peek_token(TokenType::Hash) {
+            self.bump();
+
+            if !self.peek_token(TokenType::OpenBracket) {
+                continue;
+            }
+
+            self.bump();
+            let mut depth = 1usize;
+            while depth > 0 && !self.peek_token(TokenType::End) {
+                if self.peek_token(TokenType::OpenBracket) {
+                    depth += 1;
+                } else if self.peek_token(TokenType::CloseBracket) {
+                    depth = depth.saturating_sub(1);
+                }
+
+                self.bump();
+            }
+        }
+    }
+
     /// Parse a type alias definition.
     pub(super) fn parse_type_alias(
         &mut self,
@@ -18,9 +166,8 @@ impl<'a> Parser<'a> {
         self.eat_token(TokenType::At)?;
 
         // alias name
-        let file_id = self.file_id;
         let (name, name_start) = self.parse_symbol_name()?;
-        let name_span = Self::span_at(file_id, name_start, name.len());
+        let name_span = self.span_at(name_start, name.len());
         if self.type_alias_definitions.contains(&name) {
             return Err(ParseError::invalid(
                 &format!("duplicate type alias '@{name}'"),
@@ -80,9 +227,8 @@ impl<'a> Parser<'a> {
         self.eat_token(TokenType::At)?;
 
         // global name
-        let file_id = self.file_id;
         let (name, name_start) = self.parse_symbol_name()?;
-        let name_span = Self::span_at(file_id, name_start, name.len());
+        let name_span = self.span_at(name_start, name.len());
 
         // type
         self.eat_token(TokenType::Colon)?;
@@ -148,7 +294,7 @@ impl<'a> Parser<'a> {
                 let token = self.eat_token(TokenType::StringLiteral)?;
                 let token_text = token.text.to_string();
                 let token_start = token.start;
-                let value = parse_string_literal(&token_text).ok_or_else(|| {
+                let value = self.parse_string_literal(&token_text).ok_or_else(|| {
                     ParseError::invalid(&format!("string literal '{token_text}'"), token_start)
                 })?;
                 Ok(GlobalInitializer::Bytes(value.into_bytes()))
@@ -158,7 +304,7 @@ impl<'a> Parser<'a> {
                 let token_text = token.text.to_string();
                 let token_start = token.start;
                 self.bump();
-                let value = parse_string_literal(&token_text).ok_or_else(|| {
+                let value = self.parse_string_literal(&token_text).ok_or_else(|| {
                     ParseError::invalid(&format!("string literal '{token_text}'"), token_start)
                 })?;
                 Ok(GlobalInitializer::String(value))
@@ -193,22 +339,6 @@ impl<'a> Parser<'a> {
                 token.ty,
                 token.start,
             )),
-        }
-    }
-
-    /// Record the type for a value in the current function.
-    pub(super) fn record_value_type(&mut self, value: Value, ty: LocalNodeId<Type>) {
-        if let Some(function_id) = self.current_function {
-            let function = self.tree.get_mut(function_id);
-            let existing = function.value_type(value);
-            if let Some(existing) = existing {
-                if existing != ty {
-                    panic!("value {value:?} has mismatched types {existing:?} and {ty:?}");
-                }
-                return;
-            }
-
-            function.set_value_type(value, ty);
         }
     }
 }

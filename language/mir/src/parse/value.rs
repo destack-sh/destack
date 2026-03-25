@@ -32,7 +32,7 @@ impl<'a> Parser<'a> {
             return Err(ParseError::unexpected("value", token.ty, token.start));
         }
         let text = token.text.to_string();
-        let span = Self::span_for_token(self.file_id, token);
+        let span = self.span_for_token(token);
         self.bump();
 
         let idx: u32 = text
@@ -110,7 +110,12 @@ impl<'a> Parser<'a> {
         let mut values = Vec::new();
         let mut env = None;
         loop {
-            if self.peek_env_argument() {
+            let is_env_argument = self.peek_token(TokenType::Identifier)
+                && self.span_str() == "env"
+                && self
+                    .peek_nth_token(1)
+                    .is_some_and(|token| token.ty == TokenType::Equals);
+            if is_env_argument {
                 if env.is_some() {
                     let position = self.pos();
                     return Err(ParseError::invalid("duplicate env argument", position));
@@ -151,20 +156,6 @@ impl<'a> Parser<'a> {
             }
         }
         Ok(values)
-    }
-
-    /// Check if the next argument is an env assignment.
-    fn peek_env_argument(&self) -> bool {
-        let Some(current) = self.peek_nth_token(0) else {
-            return false;
-        };
-        if current.ty != TokenType::Identifier || current.text != "env" {
-            return false;
-        }
-        let Some(next) = self.peek_nth_token(1) else {
-            return false;
-        };
-        next.ty == TokenType::Equals
     }
 
     /// Parse a comma-separated list of typed values.
