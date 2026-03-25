@@ -266,6 +266,40 @@ pub fn expression_starts_nested_declaration_scope(expression: &ast::Expression) 
     matches!(expression, ast::Expression::Declaration(_))
 }
 
+/// Return true when one declaration expression is immediately invoked.
+pub fn expression_is_immediately_invoked(
+    tree: &ast::NodeTree,
+    parents: &ast::NodeParentIndex,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    let mut current_expression_id = expression_id;
+
+    loop {
+        // resolve one expression parent
+        let Some(parent_id) = parents.get(current_expression_id) else {
+            return false;
+        };
+        if tree.get_node_type(parent_id) != ast::NodeType::Expression {
+            return false;
+        }
+
+        // keep climbing through parenthesized wrappers
+        let parent_expression_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
+        let parent_expression = tree.get(parent_expression_id);
+        match parent_expression {
+            ast::Expression::Parenthesized { expression }
+                if *expression == current_expression_id =>
+            {
+                current_expression_id = parent_expression_id;
+            }
+            ast::Expression::Call { left, .. } | ast::Expression::New { left, .. } => {
+                return *left == current_expression_id;
+            }
+            _ => return false,
+        }
+    }
+}
+
 /// Return true when one expression subtree contains an assignment expression.
 pub fn expression_contains_assignment(
     tree: &ast::NodeTree,
