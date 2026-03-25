@@ -397,6 +397,12 @@ pub struct LinterOptions {
     pub no_useless_rename_ignore_export: bool,
     /// Regex characters allowed by `no-useless-escape`.
     pub no_useless_escape_allow_regex_characters: Vec<String>,
+    /// Allow `rel="noreferrer"` without `noopener` in `no-blank-target`.
+    pub no_blank_target_allow_no_referrer: bool,
+    /// Domains allowed to use `target="_blank"` without rel hardening.
+    pub no_blank_target_allow_domains: Vec<String>,
+    /// Entropy threshold in tenths for `no-secrets`.
+    pub no_secrets_entropy_threshold: u32,
 
     // complexity thresholds
     /// Maximum boolean parameters or fields.
@@ -556,6 +562,9 @@ impl Default for LinterOptions {
             no_useless_rename_ignore_import: false,
             no_useless_rename_ignore_export: false,
             no_useless_escape_allow_regex_characters: Vec::new(),
+            no_blank_target_allow_no_referrer: true,
+            no_blank_target_allow_domains: Vec::new(),
+            no_secrets_entropy_threshold: 41,
             // complexity
             max_booleans: 3,
             max_branching_factor: 10,
@@ -898,6 +907,12 @@ pub struct LinterJson {
     pub no_useless_rename_ignore_export: Option<bool>,
     /// Regex characters allowed by `no-useless-escape`.
     pub no_useless_escape_allow_regex_characters: Option<Vec<String>>,
+    /// Allow `rel="noreferrer"` without `noopener` in `no-blank-target`.
+    pub no_blank_target_allow_no_referrer: Option<bool>,
+    /// Domains allowed to use `target="_blank"` without rel hardening.
+    pub no_blank_target_allow_domains: Option<Vec<String>>,
+    /// Entropy threshold in tenths for `no-secrets`.
+    pub no_secrets_entropy_threshold: Option<u32>,
     /// Allow named callbacks in `prefer-arrow-callback`.
     pub allow_named_functions_in_prefer_arrow_callback: Option<bool>,
     /// Allow unbound `this` in `prefer-arrow-callback`.
@@ -1214,6 +1229,15 @@ impl LinterJson {
         {
             options.no_useless_escape_allow_regex_characters =
                 no_useless_escape_allow_regex_characters.clone();
+        }
+        if let Some(no_blank_target_allow_no_referrer) = self.no_blank_target_allow_no_referrer {
+            options.no_blank_target_allow_no_referrer = no_blank_target_allow_no_referrer;
+        }
+        if let Some(ref no_blank_target_allow_domains) = self.no_blank_target_allow_domains {
+            options.no_blank_target_allow_domains = no_blank_target_allow_domains.clone();
+        }
+        if let Some(no_secrets_entropy_threshold) = self.no_secrets_entropy_threshold {
+            options.no_secrets_entropy_threshold = no_secrets_entropy_threshold;
         }
         if let Some(consistent_type_imports_prefer_type_imports) =
             self.consistent_type_imports_prefer_type_imports

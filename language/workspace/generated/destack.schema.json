@@ -3878,6 +3878,73 @@
             }
           ]
         },
+        "ignoredUnusedParameterPrefixes": {
+          "description": "Parameter name prefixes ignored by `no-unused-parameters`.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "noUselessRenameIgnoreDestructuring": {
+          "description": "Ignore destructuring aliases in `no-useless-rename`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noUselessRenameIgnoreImport": {
+          "description": "Ignore import aliases in `no-useless-rename`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noUselessRenameIgnoreExport": {
+          "description": "Ignore export aliases in `no-useless-rename`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noUselessEscapeAllowRegexCharacters": {
+          "description": "Regex characters allowed by `no-useless-escape`.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "noBlankTargetAllowNoReferrer": {
+          "description": "Allow `rel=\"noreferrer\"` without `noopener` in `no-blank-target`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noBlankTargetAllowDomains": {
+          "description": "Domains allowed to use `target=\"_blank\"` without rel hardening.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "noSecretsEntropyThreshold": {
+          "description": "Entropy threshold in tenths for `no-secrets`.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        },
         "allowNamedFunctionsInPreferArrowCallback": {
           "description": "Allow named callbacks in `prefer-arrow-callback`.",
           "type": [
@@ -3894,6 +3961,132 @@
         },
         "noConfusingVoidExpressionIgnoreVoidOperator": {
           "description": "Ignore explicit `void` wrappers in `no-confusing-void-expression`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noConfusingVoidExpressionIgnoreVoidReturningFunctions": {
+          "description": "Ignore returned void expressions inside void-returning functions.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noInnerDeclarationsCheckVarDeclarations": {
+          "description": "Check nested `var` declarations in `no-inner-declarations`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noCondAssignMode": {
+          "description": "Assignment policy for `no-cond-assign`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConditionAssignmentModeJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "noEmptyAllowEmptyCatch": {
+          "description": "Allow empty catch blocks in `no-empty`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noEmptyPatternAllowObjectPatternsAsParameters": {
+          "description": "Allow empty object patterns in parameter position for `no-empty-pattern`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noEmptyFunctionAllow": {
+          "description": "Allowed empty function kinds in `no-empty-function`.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/EmptyFunctionKindJson"
+          }
+        },
+        "noFallthroughAllowEmptyCase": {
+          "description": "Allow empty switch cases in `no-fallthrough`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noFallthroughCommentPattern": {
+          "description": "Regex pattern for intentional `no-fallthrough` comments.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "noFallthroughReportUnusedComment": {
+          "description": "Report unused intentional `no-fallthrough` comments.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "allowVoidDiscard": {
+          "description": "Allow explicit `void` to intentionally discard Promise results.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noPromiseExecutorReturnAllowVoid": {
+          "description": "Allow explicit `void` returns in `no-promise-executor-return`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "checkMisusedPromisesInCallbacks": {
+          "description": "Check callback positions in `no-misused-promises`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "checkMisusedPromisesInConditionals": {
+          "description": "Check conditionals in `no-misused-promises`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "checkMisusedPromisesInSpreads": {
+          "description": "Check spread positions in `no-misused-promises`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "useIsnanEnforceSwitchCase": {
+          "description": "Check switch discriminants and cases in `use-isnan`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "useIsnanEnforceIndexOf": {
+          "description": "Check `indexOf` and `lastIndexOf` calls in `use-isnan`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noSelfAssignCheckProperties": {
+          "description": "Check property assignments in `no-self-assign`.",
           "type": [
             "boolean",
             "null"
@@ -3941,6 +4134,54 @@
             "null"
           ]
         },
+        "allowedBitwiseOperators": {
+          "description": "Bitwise operators allowed by `no-bitwise`.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/BitwiseOperatorJson"
+          }
+        },
+        "allowBitwiseInt32Hint": {
+          "description": "Allow `x | 0` int32 cast hints in `no-bitwise`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "allowedConsoleMethods": {
+          "description": "Console methods allowed by `no-console`.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "ignoreExplicitAnyInRestArgs": {
+          "description": "Ignore explicit `any` in variadic parameter types for `no-explicit-any`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "allowLoopLabels": {
+          "description": "Allow labels on loop statements in `no-labels`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "allowSwitchLabels": {
+          "description": "Allow labels on switch statements in `no-labels`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "allowedMagicNumbers": {
           "description": "Magic numbers to allow.",
           "type": [
@@ -3950,6 +4191,72 @@
           "items": {
             "type": "number",
             "format": "double"
+          }
+        },
+        "checkStrictNullEquality": {
+          "description": "Check strict `=== null` and `!== null` comparisons in `no-null`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "allowNamespaceDeclarations": {
+          "description": "Allow `declare namespace` and `declare module foo {}` in `no-namespace`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "allowNamespaceDefinitionFiles": {
+          "description": "Allow namespace declarations in definition files for `no-namespace`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "allowPlusplusForLoopAfterthoughts": {
+          "description": "Allow `++` and `--` in for-loop afterthoughts for `no-plusplus`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "allowedRequireImportPatterns": {
+          "description": "Allow static require target patterns for `no-require-imports`.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "allowRequireImportAliases": {
+          "description": "Allow `import foo = require(\"foo\")` for `no-require-imports`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "warningCommentLocation": {
+          "description": "Where `no-warning-comments` should match terms.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WarningCommentLocationJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "warningCommentDecoration": {
+          "description": "Decoration characters to ignore at the start of `no-warning-comments`.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
           }
         },
         "restrictedGlobals": {
@@ -4132,6 +4439,176 @@
           "description": "Forbid await in all contexts.",
           "type": "string",
           "const": "never"
+        }
+      ]
+    },
+    "ConditionAssignmentModeJson": {
+      "description": "Condition assignment policy accepted in linter JSON.",
+      "oneOf": [
+        {
+          "description": "Allow assignments only when wrapped in extra parentheses.",
+          "type": "string",
+          "const": "except-parens"
+        },
+        {
+          "description": "Disallow assignments anywhere inside the condition.",
+          "type": "string",
+          "const": "always"
+        }
+      ]
+    },
+    "EmptyFunctionKindJson": {
+      "description": "Empty function kinds accepted in linter JSON.",
+      "oneOf": [
+        {
+          "description": "Regular function declarations and expressions.",
+          "type": "string",
+          "const": "functions"
+        },
+        {
+          "description": "Arrow or lambda functions.",
+          "type": "string",
+          "const": "arrowFunctions"
+        },
+        {
+          "description": "Generator functions.",
+          "type": "string",
+          "const": "generatorFunctions"
+        },
+        {
+          "description": "Ordinary methods.",
+          "type": "string",
+          "const": "methods"
+        },
+        {
+          "description": "Generator methods.",
+          "type": "string",
+          "const": "generatorMethods"
+        },
+        {
+          "description": "Getter methods.",
+          "type": "string",
+          "const": "getters"
+        },
+        {
+          "description": "Setter methods.",
+          "type": "string",
+          "const": "setters"
+        },
+        {
+          "description": "Constructor methods.",
+          "type": "string",
+          "const": "constructors"
+        },
+        {
+          "description": "Async functions.",
+          "type": "string",
+          "const": "asyncFunctions"
+        },
+        {
+          "description": "Async methods.",
+          "type": "string",
+          "const": "asyncMethods"
+        },
+        {
+          "description": "Override methods.",
+          "type": "string",
+          "const": "overrideMethods"
+        }
+      ]
+    },
+    "BitwiseOperatorJson": {
+      "description": "Bitwise operators accepted in linter JSON for the `no-bitwise` rule.",
+      "oneOf": [
+        {
+          "description": "`&`",
+          "type": "string",
+          "const": "&"
+        },
+        {
+          "description": "`^`",
+          "type": "string",
+          "const": "^"
+        },
+        {
+          "description": "`|`",
+          "type": "string",
+          "const": "|"
+        },
+        {
+          "description": "`~`",
+          "type": "string",
+          "const": "~"
+        },
+        {
+          "description": "`<<`",
+          "type": "string",
+          "const": "<<"
+        },
+        {
+          "description": "`<<|`",
+          "type": "string",
+          "const": "<<|"
+        },
+        {
+          "description": "`>>`",
+          "type": "string",
+          "const": ">>"
+        },
+        {
+          "description": "`>>>`",
+          "type": "string",
+          "const": ">>>"
+        },
+        {
+          "description": "`&=`",
+          "type": "string",
+          "const": "&="
+        },
+        {
+          "description": "`^=`",
+          "type": "string",
+          "const": "^="
+        },
+        {
+          "description": "`|=`",
+          "type": "string",
+          "const": "|="
+        },
+        {
+          "description": "`<<=`",
+          "type": "string",
+          "const": "<<="
+        },
+        {
+          "description": "`<<|=`",
+          "type": "string",
+          "const": "<<|="
+        },
+        {
+          "description": "`>>=`",
+          "type": "string",
+          "const": ">>="
+        },
+        {
+          "description": "`>>>=`",
+          "type": "string",
+          "const": ">>>="
+        }
+      ]
+    },
+    "WarningCommentLocationJson": {
+      "description": "Warning comment matching locations accepted in linter JSON.",
+      "oneOf": [
+        {
+          "description": "Match terms only at the logical start of the comment.",
+          "type": "string",
+          "const": "start"
+        },
+        {
+          "description": "Match terms anywhere in the comment body.",
+          "type": "string",
+          "const": "anywhere"
         }
       ]
     },
@@ -7547,7 +8024,7 @@
       ]
     },
     "TargetOutputName": {
-      "description": "Builtin target output surface name.",
+      "description": "Builtin target output name.",
       "oneOf": [
         {
           "description": "Per-module library output.",
@@ -7590,12 +8067,12 @@
           "const": "binary"
         },
         {
-          "description": "Debug symbol or debug sidecar output.",
+          "description": "Debug symbol output.",
           "type": "string",
           "const": "debug"
         },
         {
-          "description": "Additional metadata sidecar output.",
+          "description": "Additional metadata output.",
           "type": "string",
           "const": "metadata"
         }
