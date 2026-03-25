@@ -228,6 +228,28 @@ impl UnicodeRegexpRequireFlag {
     }
 }
 
+/// Switch counting variant for `cyclomatic-complexity`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum CyclomaticComplexityVariant {
+    /// Count each non-default switch case as a branch.
+    #[default]
+    Classic,
+    /// Count each switch as a single branch regardless of case count.
+    Modified,
+}
+
+/// `this` parameter counting policy for `max-params`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum MaxParamsCountThis {
+    /// Never count the `this` parameter.
+    Never,
+    /// Count `this` unless it is explicitly typed as `void`.
+    #[default]
+    ExceptVoid,
+    /// Always count the `this` parameter.
+    Always,
+}
+
 /// Warning comment term matching location for `no-warning-comments`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum WarningCommentLocation {
@@ -435,6 +457,8 @@ pub struct LinterOptions {
     pub max_cognitive_complexity: usize,
     /// Maximum cyclomatic complexity.
     pub max_cyclomatic_complexity: usize,
+    /// Switch counting variant for `cyclomatic-complexity`.
+    pub cyclomatic_complexity_variant: CyclomaticComplexityVariant,
     /// Maximum nesting depth.
     pub max_depth: usize,
     /// Maximum static parameters (generics including const values).
@@ -447,12 +471,22 @@ pub struct LinterOptions {
     pub max_lines_skip_blank_lines: bool,
     /// Maximum lines per function.
     pub max_lines_per_function: usize,
+    /// Ignore full-line comments in `max-lines-per-function`.
+    pub max_lines_per_function_skip_comments: bool,
+    /// Ignore blank lines in `max-lines-per-function`.
+    pub max_lines_per_function_skip_blank_lines: bool,
+    /// Include immediately invoked functions in `max-lines-per-function`.
+    pub max_lines_per_function_include_iifes: bool,
     /// Maximum callback nesting.
     pub max_nested_callbacks: usize,
     /// Maximum function parameters.
     pub max_params: usize,
+    /// Count `this` parameters in `max-params`.
+    pub max_params_count_this: MaxParamsCountThis,
     /// Maximum statements per function.
     pub max_statements: usize,
+    /// Ignore top-level functions in `max-statements`.
+    pub max_statements_ignore_top_level_functions: bool,
     /// Maximum return statements per function.
     pub max_return_statements: usize,
     /// Maximum switch cases per switch statement.
@@ -476,6 +510,16 @@ pub struct LinterOptions {
     pub max_try_block_statements: usize,
     /// Ignore non-declaration chains in `no-multi-assign`.
     pub no_multi_assign_ignore_non_declaration: bool,
+    /// Allow short-circuit expressions in `no-unused-expressions`.
+    pub no_unused_expressions_allow_short_circuit: bool,
+    /// Allow ternary expressions in `no-unused-expressions`.
+    pub no_unused_expressions_allow_ternary: bool,
+    /// Allow tagged templates in `no-unused-expressions`.
+    pub no_unused_expressions_allow_tagged_templates: bool,
+    /// Enforce JSX-like tree expressions in `no-unused-expressions`.
+    pub no_unused_expressions_enforce_for_jsx: bool,
+    /// Ignore directive prologues in `no-unused-expressions`.
+    pub no_unused_expressions_ignore_directives: bool,
 
     // style options
     /// Preferred array type syntax.
@@ -593,15 +637,21 @@ impl Default for LinterOptions {
             max_branching_factor: 10,
             max_cognitive_complexity: 30,
             max_cyclomatic_complexity: 40,
+            cyclomatic_complexity_variant: CyclomaticComplexityVariant::default(),
             max_depth: 4,
             max_static_params: 4,
             max_lines: 500,
             max_lines_skip_comments: false,
             max_lines_skip_blank_lines: false,
             max_lines_per_function: 50,
+            max_lines_per_function_skip_comments: false,
+            max_lines_per_function_skip_blank_lines: false,
+            max_lines_per_function_include_iifes: false,
             max_nested_callbacks: 4,
             max_params: 4,
+            max_params_count_this: MaxParamsCountThis::default(),
             max_statements: 50,
+            max_statements_ignore_top_level_functions: false,
             max_return_statements: 10,
             max_switch_cases: 20,
             max_type_variants: 20,
@@ -613,6 +663,11 @@ impl Default for LinterOptions {
             min_duplicate_code_near_similarity: 100,
             max_try_block_statements: 20,
             no_multi_assign_ignore_non_declaration: false,
+            no_unused_expressions_allow_short_circuit: false,
+            no_unused_expressions_allow_ternary: false,
+            no_unused_expressions_allow_tagged_templates: false,
+            no_unused_expressions_enforce_for_jsx: false,
+            no_unused_expressions_ignore_directives: false,
             // style
             array_type: ArrayTypeStyle::default(),
             type_definition_style: TypeDefinitionStyle::default(),
@@ -874,6 +929,8 @@ pub struct LinterJson {
     pub max_cognitive_complexity: Option<usize>,
     /// Maximum cyclomatic complexity.
     pub max_cyclomatic_complexity: Option<usize>,
+    /// Switch counting variant for `cyclomatic-complexity`.
+    pub cyclomatic_complexity_variant: Option<CyclomaticComplexityVariantJson>,
     /// Maximum nesting depth.
     pub max_depth: Option<usize>,
     /// Maximum lines per file.
@@ -884,12 +941,24 @@ pub struct LinterJson {
     pub max_lines_skip_blank_lines: Option<bool>,
     /// Maximum lines per function.
     pub max_lines_per_function: Option<usize>,
+    /// Ignore full-line comments in `max-lines-per-function`.
+    pub max_lines_per_function_skip_comments: Option<bool>,
+    /// Ignore blank lines in `max-lines-per-function`.
+    pub max_lines_per_function_skip_blank_lines: Option<bool>,
+    /// Include immediately invoked functions in `max-lines-per-function`.
+    pub max_lines_per_function_include_iifes: Option<bool>,
     /// Maximum callback nesting.
     pub max_nested_callbacks: Option<usize>,
     /// Maximum function parameters.
     pub max_params: Option<usize>,
+    /// Legacy alias for void-this counting in `max-params`.
+    pub max_params_count_void_this: Option<bool>,
+    /// Count `this` parameters in `max-params`.
+    pub max_params_count_this: Option<MaxParamsCountThisJson>,
     /// Maximum statements per function.
     pub max_statements: Option<usize>,
+    /// Ignore top-level functions in `max-statements`.
+    pub max_statements_ignore_top_level_functions: Option<bool>,
     /// Maximum return statements per function.
     pub max_return_statements: Option<usize>,
     /// Maximum switch cases per switch statement.
@@ -906,6 +975,16 @@ pub struct LinterJson {
     pub max_try_block_statements: Option<usize>,
     /// Ignore non-declaration chains in `no-multi-assign`.
     pub no_multi_assign_ignore_non_declaration: Option<bool>,
+    /// Allow short-circuit expressions in `no-unused-expressions`.
+    pub no_unused_expressions_allow_short_circuit: Option<bool>,
+    /// Allow ternary expressions in `no-unused-expressions`.
+    pub no_unused_expressions_allow_ternary: Option<bool>,
+    /// Allow tagged templates in `no-unused-expressions`.
+    pub no_unused_expressions_allow_tagged_templates: Option<bool>,
+    /// Enforce JSX-like tree expressions in `no-unused-expressions`.
+    pub no_unused_expressions_enforce_for_jsx: Option<bool>,
+    /// Ignore directive prologues in `no-unused-expressions`.
+    pub no_unused_expressions_ignore_directives: Option<bool>,
 
     // style options
     /// Preferred array type syntax: "array" or "generic".
@@ -1102,6 +1181,9 @@ impl LinterJson {
         if let Some(max_cyclomatic_complexity) = self.max_cyclomatic_complexity {
             options.max_cyclomatic_complexity = max_cyclomatic_complexity;
         }
+        if let Some(cyclomatic_complexity_variant) = self.cyclomatic_complexity_variant {
+            options.cyclomatic_complexity_variant = cyclomatic_complexity_variant.into();
+        }
         if let Some(max_depth) = self.max_depth {
             options.max_depth = max_depth;
         }
@@ -1117,14 +1199,45 @@ impl LinterJson {
         if let Some(max_lines_per_function) = self.max_lines_per_function {
             options.max_lines_per_function = max_lines_per_function;
         }
+        if let Some(max_lines_per_function_skip_comments) =
+            self.max_lines_per_function_skip_comments
+        {
+            options.max_lines_per_function_skip_comments = max_lines_per_function_skip_comments;
+        }
+        if let Some(max_lines_per_function_skip_blank_lines) =
+            self.max_lines_per_function_skip_blank_lines
+        {
+            options.max_lines_per_function_skip_blank_lines =
+                max_lines_per_function_skip_blank_lines;
+        }
+        if let Some(max_lines_per_function_include_iifes) =
+            self.max_lines_per_function_include_iifes
+        {
+            options.max_lines_per_function_include_iifes = max_lines_per_function_include_iifes;
+        }
         if let Some(max_nested_callbacks) = self.max_nested_callbacks {
             options.max_nested_callbacks = max_nested_callbacks;
         }
         if let Some(max_params) = self.max_params {
             options.max_params = max_params;
         }
+        if let Some(max_params_count_this) = self.max_params_count_this {
+            options.max_params_count_this = max_params_count_this.into();
+        } else if let Some(max_params_count_void_this) = self.max_params_count_void_this {
+            options.max_params_count_this = if max_params_count_void_this {
+                MaxParamsCountThis::Always
+            } else {
+                MaxParamsCountThis::ExceptVoid
+            };
+        }
         if let Some(max_statements) = self.max_statements {
             options.max_statements = max_statements;
+        }
+        if let Some(max_statements_ignore_top_level_functions) =
+            self.max_statements_ignore_top_level_functions
+        {
+            options.max_statements_ignore_top_level_functions =
+                max_statements_ignore_top_level_functions;
         }
         if let Some(max_return_statements) = self.max_return_statements {
             options.max_return_statements = max_return_statements;
@@ -1151,6 +1264,33 @@ impl LinterJson {
             self.no_multi_assign_ignore_non_declaration
         {
             options.no_multi_assign_ignore_non_declaration = no_multi_assign_ignore_non_declaration;
+        }
+        if let Some(no_unused_expressions_allow_short_circuit) =
+            self.no_unused_expressions_allow_short_circuit
+        {
+            options.no_unused_expressions_allow_short_circuit =
+                no_unused_expressions_allow_short_circuit;
+        }
+        if let Some(no_unused_expressions_allow_ternary) = self.no_unused_expressions_allow_ternary
+        {
+            options.no_unused_expressions_allow_ternary = no_unused_expressions_allow_ternary;
+        }
+        if let Some(no_unused_expressions_allow_tagged_templates) =
+            self.no_unused_expressions_allow_tagged_templates
+        {
+            options.no_unused_expressions_allow_tagged_templates =
+                no_unused_expressions_allow_tagged_templates;
+        }
+        if let Some(no_unused_expressions_enforce_for_jsx) =
+            self.no_unused_expressions_enforce_for_jsx
+        {
+            options.no_unused_expressions_enforce_for_jsx = no_unused_expressions_enforce_for_jsx;
+        }
+        if let Some(no_unused_expressions_ignore_directives) =
+            self.no_unused_expressions_ignore_directives
+        {
+            options.no_unused_expressions_ignore_directives =
+                no_unused_expressions_ignore_directives;
         }
 
         // style options
@@ -1807,6 +1947,49 @@ impl From<UnicodeRegexpRequireFlagJson> for UnicodeRegexpRequireFlag {
         match value {
             UnicodeRegexpRequireFlagJson::U => UnicodeRegexpRequireFlag::U,
             UnicodeRegexpRequireFlagJson::V => UnicodeRegexpRequireFlag::V,
+        }
+    }
+}
+
+/// Cyclomatic-complexity variant accepted in linter JSON.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum CyclomaticComplexityVariantJson {
+    /// Count each non-default switch case.
+    Classic,
+    /// Count each switch once regardless of case count.
+    Modified,
+}
+
+impl From<CyclomaticComplexityVariantJson> for CyclomaticComplexityVariant {
+    fn from(value: CyclomaticComplexityVariantJson) -> Self {
+        match value {
+            CyclomaticComplexityVariantJson::Classic => CyclomaticComplexityVariant::Classic,
+            CyclomaticComplexityVariantJson::Modified => CyclomaticComplexityVariant::Modified,
+        }
+    }
+}
+
+/// Max-params `this` counting mode accepted in linter JSON.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "kebab-case")]
+pub enum MaxParamsCountThisJson {
+    /// Never count `this`.
+    Never,
+    /// Count `this` unless it is explicitly typed as `void`.
+    ExceptVoid,
+    /// Always count `this`.
+    Always,
+}
+
+impl From<MaxParamsCountThisJson> for MaxParamsCountThis {
+    fn from(value: MaxParamsCountThisJson) -> Self {
+        match value {
+            MaxParamsCountThisJson::Never => MaxParamsCountThis::Never,
+            MaxParamsCountThisJson::ExceptVoid => MaxParamsCountThis::ExceptVoid,
+            MaxParamsCountThisJson::Always => MaxParamsCountThis::Always,
         }
     }
 }
