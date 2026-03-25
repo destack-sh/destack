@@ -1,7 +1,10 @@
 use destack_ast as ast;
-use destack_workspace::LintSeverity;
+use destack_workspace::{EmptyFunctionKind, LintSeverity};
 
-use crate::rules::common::block_is_empty_without_comment;
+use crate::rules::common::{
+    CallableOwnerId, block_is_empty_without_comment, callable_owner_span,
+    for_each_callable_signature,
+};
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
 
 declare_lint! {
@@ -32,31 +35,14 @@ impl LintRule for NoEmptyFunction {
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
-        // inspect function declarations
-        for declaration_id in ctx.tree.iter_nodes::<ast::Declaration>() {
-            let declaration = ctx.tree.get(declaration_id);
-            let ast::Declaration::Function { body, .. } = declaration else {
-                continue;
-            };
-            let Some(body_expression_id) = body else {
-                continue;
+        // inspect all callable signatures consistently
+        for_each_callable_signature(ctx.tree, |owner_id, signature, body_expression_id| {
+            let Some(body_expression_id) = body_expression_id else {
+                return;
             };
 
-            report_empty_function_body(ctx, meta, *body_expression_id);
-        }
-
-        // inspect class and object methods
-        for member_id in ctx.tree.iter_nodes::<ast::Member>() {
-            let member = ctx.tree.get(member_id);
-            let ast::Member::Method { body, .. } = member else {
-                continue;
-            };
-            let Some(body_expression_id) = body else {
-                continue;
-            };
-
-            report_empty_function_body(ctx, meta, *body_expression_id);
-        }
+            report_empty_function_body(ctx, meta, owner_id, signature, body_expression_id);
+        });
     }
 }
 
@@ -64,6 +50,8 @@ impl LintRule for NoEmptyFunction {
 fn report_empty_function_body(
     ctx: &mut LintAstContext<'_>,
     meta: &'static LintMeta,
+    owner_id: CallableOwnerId,
+    signature: &ast::FunctionSignature,
     body_expression_id: ast::LocalNodeId<ast::Expression>,
 ) {
     // require an empty uncommented block body
@@ -71,8 +59,20 @@ fn report_empty_function_body(
         return;
     };
 
+    // honor allowed empty function kinds
+    let function_kind = empty_function_kind(owner_id, signature);
+    if ctx.options.no_empty_function_allow.contains(&function_kind) {
+        return;
+    }
+
     // skip disabled diagnostics
-    let severity = ctx.get_effective_severity(meta, body_expression_id);
+    let severity = match owner_id {
+        CallableOwnerId::Declaration(declaration_id) => {
+            ctx.get_effective_severity(meta, declaration_id)
+        }
+        CallableOwnerId::Member(member_id) => ctx.get_effective_severity(meta, member_id),
+        CallableOwnerId::Property(property_id) => ctx.get_effective_severity(meta, property_id),
+    };
     if !severity.is_enabled() {
         return;
     }
@@ -85,7 +85,7 @@ fn report_empty_function_body(
         severity,
         "empty function",
         ctx.module.file_id,
-        ctx.tree.get_span(body_expression_id),
+        callable_owner_span(ctx.tree, owner_id),
     )
     .with_label("add implementation or a comment explaining why empty");
 
@@ -97,6 +97,68 @@ fn report_empty_function_body(
     }
 
     ctx.report(diagnostic);
+}
+
+/// Return one coarse function kind for option matching.
+fn empty_function_kind(
+    owner_id: CallableOwnerId,
+    signature: &ast::FunctionSignature,
+) -> EmptyFunctionKind {
+    // getters, setters, and constructors are specialized method kinds first
+    if let Some(mode) = signature.mode {
+        return match mode {
+            ast::FunctionMode::Getter => EmptyFunctionKind::Getters,
+            ast::FunctionMode::Setter => EmptyFunctionKind::Setters,
+            ast::FunctionMode::Constructor => EmptyFunctionKind::Constructors,
+            ast::FunctionMode::New | ast::FunctionMode::Call => {
+                empty_non_accessor_function_kind(owner_id, signature)
+            }
+        };
+    }
+
+    empty_non_accessor_function_kind(owner_id, signature)
+}
+
+/// Return the non-accessor empty function kind for option matching.
+fn empty_non_accessor_function_kind(
+    owner_id: CallableOwnerId,
+    signature: &ast::FunctionSignature,
+) -> EmptyFunctionKind {
+    // method override is a distinct opt-in policy from ordinary methods
+    if matches!(
+        owner_id,
+        CallableOwnerId::Member(_) | CallableOwnerId::Property(_)
+    ) && matches!(
+        signature.abstraction,
+        ast::FunctionAbstraction::AbstractOverride | ast::FunctionAbstraction::ConcreteOverride
+    ) {
+        return EmptyFunctionKind::OverrideMethods;
+    }
+
+    // classify by callable owner and signature traits
+    match owner_id {
+        CallableOwnerId::Declaration(_) => match signature.kind {
+            ast::FunctionKind::Lambda => EmptyFunctionKind::ArrowFunctions,
+            ast::FunctionKind::Function => {
+                if signature.cardinality == ast::FunctionCardinality::Generator {
+                    EmptyFunctionKind::GeneratorFunctions
+                } else if signature.asynchrony == ast::Asynchrony::Async {
+                    EmptyFunctionKind::AsyncFunctions
+                } else {
+                    EmptyFunctionKind::Functions
+                }
+            }
+        },
+        CallableOwnerId::Member(_) | CallableOwnerId::Property(_) => {
+            if signature.cardinality == ast::FunctionCardinality::Generator {
+                EmptyFunctionKind::GeneratorMethods
+            } else if signature.asynchrony == ast::Asynchrony::Async {
+                EmptyFunctionKind::AsyncMethods
+            } else {
+                EmptyFunctionKind::Methods
+            }
+        }
+    }
 }
 
 /// Return one block id when a function body is empty and uncommented.
@@ -171,6 +233,52 @@ class Foo {
 "#,
         );
         test.result(result).assert_lint("no-empty-function");
+    }
+
+    #[test]
+    fn test_detects_empty_object_method() {
+        let test = TestProgram::for_rule_without_prelude(NoEmptyFunction);
+        let result = test.lint_ast(
+            "no_empty_function/test_detects_empty_object_method.ds",
+            r#"
+const service = {
+    handle() {}
+};
+"#,
+        );
+        test.result(result).assert_lint("no-empty-function");
+    }
+
+    #[test]
+    fn test_allows_empty_constructor_when_configured() {
+        let test = TestProgram::for_rule_without_prelude(NoEmptyFunction).with_options(|options| {
+            options.no_empty_function_allow = vec![EmptyFunctionKind::Constructors];
+        });
+        let result = test.lint_ast(
+            "no_empty_function/test_allows_empty_constructor_when_configured.ds",
+            r#"
+class Service {
+    constructor() {}
+}
+"#,
+        );
+        test.result(result).assert_no_lint("no-empty-function");
+    }
+
+    #[test]
+    fn test_allows_empty_object_method_when_methods_are_allowed() {
+        let test = TestProgram::for_rule_without_prelude(NoEmptyFunction).with_options(|options| {
+            options.no_empty_function_allow = vec![EmptyFunctionKind::Methods];
+        });
+        let result = test.lint_ast(
+            "no_empty_function/test_allows_empty_object_method_when_methods_are_allowed.ds",
+            r#"
+const service = {
+    handle() {}
+};
+"#,
+        );
+        test.result(result).assert_no_lint("no-empty-function");
     }
 
     #[test]

@@ -1,6 +1,7 @@
 use destack_ast as ast;
 use destack_source::Span;
 use destack_workspace::LintSeverity;
+use std::collections::HashSet;
 
 use crate::rules::common::{regex_pattern_info, regexp_global_qualifier_names};
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
@@ -39,6 +40,9 @@ impl LintRule for NoUselessEscape {
         let source = file.text();
         let regexp_name = ctx.strings.intern("RegExp");
         let global_qualifier_names = regexp_global_qualifier_names(ctx.strings);
+        let allowed_regex_escape_characters = configured_regex_escape_characters(
+            &ctx.options.no_useless_escape_allow_regex_characters,
+        );
 
         // inspect candidate expression literals
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -74,6 +78,7 @@ impl LintRule for NoUselessEscape {
                 pattern_info.pattern_id,
                 pattern_info.flags_id,
                 pattern_info.has_unknown_flags,
+                &allowed_regex_escape_characters,
             );
         }
     }
@@ -160,7 +165,7 @@ fn report_string_literal_escapes(
                 string_backslash_span(literal_span, raw_literal, backslash_position)
         {
             let edits = ctx.edit_builder().delete(backslash_span).into_edits();
-            let fix = LintFix::safe("Remove unnecessary escape backslash").with_edits(edits);
+            let fix = LintFix::suggestion("Remove unnecessary escape backslash").with_edits(edits);
             diagnostic = diagnostic.with_fix(fix);
         }
 
@@ -178,6 +183,7 @@ fn report_regex_escapes(
     pattern_id: ast::StringId,
     flags_id: Option<ast::StringId>,
     has_unknown_flags: bool,
+    allowed_regex_escape_characters: &HashSet<char>,
 ) {
     // resolve regex pattern and flags
     let pattern = ctx.strings.get(pattern_id);
@@ -191,7 +197,11 @@ fn report_regex_escapes(
     };
 
     // collect useless regex escapes from the pattern text
-    let escape_positions = find_useless_regex_escape_positions(pattern.as_ref(), flags);
+    let escape_positions = find_useless_regex_escape_positions(
+        pattern.as_ref(),
+        flags,
+        allowed_regex_escape_characters,
+    );
     if escape_positions.is_empty() {
         return;
     }
@@ -233,7 +243,7 @@ fn report_regex_escapes(
                 regex_backslash_span(literal_span, raw_literal, backslash_position)
         {
             let edits = ctx.edit_builder().delete(backslash_span).into_edits();
-            let fix = LintFix::safe("Remove unnecessary escape backslash").with_edits(edits);
+            let fix = LintFix::suggestion("Remove unnecessary escape backslash").with_edits(edits);
             diagnostic = diagnostic.with_fix(fix);
         }
 
@@ -313,7 +323,11 @@ fn template_interpolation_escape_is_intentional(
 }
 
 /// Resolve one useless regex escape position list from one pattern and flags.
-fn find_useless_regex_escape_positions(pattern: &str, flags: Option<&str>) -> Vec<usize> {
+fn find_useless_regex_escape_positions(
+    pattern: &str,
+    flags: Option<&str>,
+    allowed_regex_escape_characters: &HashSet<char>,
+) -> Vec<usize> {
     let unicode_set_mode = flags.is_some_and(|flag_text| flag_text.contains('v'));
 
     // walk regex pattern characters
@@ -347,6 +361,11 @@ fn find_useless_regex_escape_positions(pattern: &str, flags: Option<&str>) -> Ve
         // process one escape pair
         if character == '\\' && index + 1 < indexed_characters.len() {
             let escaped_character = indexed_characters[index + 1].1;
+            if allowed_regex_escape_characters.contains(&escaped_character) {
+                index += 2;
+                continue;
+            }
+
             let escape_is_valid = if let Some(class_content_start) = class_content_starts.last() {
                 let class_is_negated = class_is_negated_stack.last().copied().unwrap_or(false);
                 regex_character_class_escape_is_valid(
@@ -373,6 +392,14 @@ fn find_useless_regex_escape_positions(pattern: &str, flags: Option<&str>) -> Ve
     }
 
     positions
+}
+
+/// Return configured regex escape characters as a character set.
+fn configured_regex_escape_characters(values: &[String]) -> HashSet<char> {
+    values
+        .iter()
+        .filter_map(|value| value.chars().next())
+        .collect()
 }
 
 /// Return true when one escaped regex character is valid inside a character class.
@@ -568,7 +595,7 @@ const x = "hel\lo"
         );
         test.result(result)
             .assert_lint("no-useless-escape")
-            .assert_safe_fixed(
+            .assert_suggested_fixed(
                 r#"
 const x = "hello";
 "#,
@@ -586,7 +613,7 @@ const x = "hel\lo\n"
         );
         test.result(result)
             .assert_lint("no-useless-escape")
-            .assert_safe_fixed(
+            .assert_suggested_fixed(
                 r#"
 const x = "hello\n";
 "#,
@@ -664,7 +691,7 @@ const re = /\a/;
         );
         test.result(result)
             .assert_lint("no-useless-escape")
-            .assert_safe_fixed(
+            .assert_suggested_fixed(
                 r#"
 const re = /a/;
 "#,
@@ -811,6 +838,20 @@ const re = RegExp("\a", flags);
             "no_useless_escape/test_allows_valid_regex_escape_in_regexp_constructor.ds",
             r#"
 const re = RegExp("\\.");
+"#,
+        );
+        test.result(result).assert_no_lint("no-useless-escape");
+    }
+
+    #[test]
+    fn test_allows_configured_regex_escape_character() {
+        let test = TestProgram::for_rule_without_prelude(NoUselessEscape).with_options(|options| {
+            options.no_useless_escape_allow_regex_characters = vec!["-".to_string()];
+        });
+        let result = test.lint_ast(
+            "no_useless_escape/test_allows_configured_regex_escape_character.ds",
+            r#"
+const pattern = /[\-]/
 "#,
         );
         test.result(result).assert_no_lint("no-useless-escape");

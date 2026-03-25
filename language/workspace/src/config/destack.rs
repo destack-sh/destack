@@ -1156,4 +1156,62 @@ mod tests {
             vec!["_".to_string(), "ignored".to_string()]
         );
     }
+
+    /// Apply suspicious linter options from config.
+    #[test]
+    fn test_applies_suspicious_linter_options() {
+        let file = File::from_text_as_json(
+            FileId::new(1),
+            "destack.json".to_string(),
+            Uri::from_string("file:///tmp/destack.json"),
+            Some(PathBuf::from("/tmp/destack.json")),
+            FileType::Json,
+            r#"
+{
+  "linter": {
+    "noSelfAssignCheckProperties": false,
+    "noInnerDeclarationsCheckVarDeclarations": false,
+    "noCondAssignMode": "always",
+    "noEmptyAllowEmptyCatch": true,
+    "noEmptyPatternAllowObjectPatternsAsParameters": true,
+    "noEmptyFunctionAllow": ["constructors", "methods"],
+    "noUselessRenameIgnoreDestructuring": true,
+    "noUselessRenameIgnoreImport": true,
+    "noUselessRenameIgnoreExport": true,
+    "noUselessEscapeAllowRegexCharacters": ["-", "]"]
+  }
+}
+"#
+            .to_string(),
+        )
+        .unwrap_or_else(|error| panic!("expected valid json fixture: {error}"));
+        let file = Arc::new(file);
+
+        let destack = Destack::parse(&file)
+            .unwrap_or_else(|error| panic!("expected valid config parse: {error}"));
+        let linter = &destack.options.linter;
+
+        assert!(!linter.no_self_assign_check_properties);
+        assert!(!linter.no_inner_declarations_check_var_declarations);
+        assert_eq!(
+            linter.no_cond_assign_mode,
+            crate::ConditionAssignmentMode::Always
+        );
+        assert!(linter.no_empty_allow_empty_catch);
+        assert!(linter.no_empty_pattern_allow_object_patterns_as_parameters);
+        assert_eq!(
+            linter.no_empty_function_allow,
+            vec![
+                crate::EmptyFunctionKind::Constructors,
+                crate::EmptyFunctionKind::Methods
+            ]
+        );
+        assert!(linter.no_useless_rename_ignore_destructuring);
+        assert!(linter.no_useless_rename_ignore_import);
+        assert!(linter.no_useless_rename_ignore_export);
+        assert_eq!(
+            linter.no_useless_escape_allow_regex_characters,
+            vec!["-".to_string(), "]".to_string()]
+        );
+    }
 }

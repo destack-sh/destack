@@ -40,42 +40,65 @@ impl LintRule for NoEmptyPattern {
                 ast::Pattern::Tuple { fields } => fields.is_empty(),
                 _ => false,
             };
+            if !is_empty {
+                continue;
+            }
 
-            if is_empty {
-                let severity = ctx.get_effective_severity(meta, node_id);
-                if !severity.is_enabled() {
-                    continue;
+            // allow parameter object patterns when configured, matching ESLint
+            if matches!(pattern, ast::Pattern::Object { .. })
+                && ctx
+                    .options
+                    .no_empty_pattern_allow_object_patterns_as_parameters
+                && object_pattern_is_parameter_position(ctx, node_id)
+            {
+                continue;
+            }
+
+            let severity = ctx.get_effective_severity(meta, node_id);
+            if !severity.is_enabled() {
+                continue;
+            }
+
+            let kind = match pattern {
+                ast::Pattern::Object { .. } => "object",
+                ast::Pattern::Array { .. } => "array",
+                ast::Pattern::Tuple { .. } => "tuple",
+                _ => unreachable!(),
+            };
+
+            ctx.report({
+                let mut diagnostic = LintDiagnostic::new(
+                    NO_EMPTY_PATTERN.id,
+                    NO_EMPTY_PATTERN.code,
+                    NO_EMPTY_PATTERN.category,
+                    severity,
+                    format!("empty {kind} destructuring pattern"),
+                    ctx.module.file_id,
+                    ctx.tree.get_span(node_id),
+                )
+                .with_label("this pattern doesn't bind any values");
+                if ctx.compute_fixes
+                    && let Some(fix) = no_empty_pattern_fix(ctx, node_id)
+                {
+                    diagnostic = diagnostic.with_fix(fix);
                 }
 
-                let kind = match pattern {
-                    ast::Pattern::Object { .. } => "object",
-                    ast::Pattern::Array { .. } => "array",
-                    ast::Pattern::Tuple { .. } => "tuple",
-                    _ => unreachable!(),
-                };
-
-                ctx.report({
-                    let mut diagnostic = LintDiagnostic::new(
-                        NO_EMPTY_PATTERN.id,
-                        NO_EMPTY_PATTERN.code,
-                        NO_EMPTY_PATTERN.category,
-                        severity,
-                        format!("empty {kind} destructuring pattern"),
-                        ctx.module.file_id,
-                        ctx.tree.get_span(node_id),
-                    )
-                    .with_label("this pattern doesn't bind any values");
-                    if ctx.compute_fixes
-                        && let Some(fix) = no_empty_pattern_fix(ctx, node_id)
-                    {
-                        diagnostic = diagnostic.with_fix(fix);
-                    }
-
-                    diagnostic
-                });
-            }
+                diagnostic
+            });
         }
     }
+}
+
+/// Return true when an object pattern is used as a callable parameter.
+fn object_pattern_is_parameter_position(
+    ctx: &LintAstContext<'_>,
+    pattern_id: ast::LocalNodeId<ast::Pattern>,
+) -> bool {
+    let Some(parent_id) = ctx.parents.get(pattern_id) else {
+        return false;
+    };
+
+    matches!(ctx.tree.get_node_type(parent_id), ast::NodeType::Parameter)
 }
 
 /// Build a safe replacement for empty declarator patterns.
@@ -175,6 +198,20 @@ function foo({}) {}
         test.result(result)
             .assert_lint("no-empty-pattern")
             .assert_has_no_fix("no-empty-pattern");
+    }
+
+    #[test]
+    fn test_allows_empty_object_pattern_in_function_param_when_configured() {
+        let test = TestProgram::for_rule_without_prelude(NoEmptyPattern).with_options(|options| {
+            options.no_empty_pattern_allow_object_patterns_as_parameters = true;
+        });
+        let result = test.lint_ast(
+            "no_empty_pattern/test_allows_empty_object_pattern_in_function_param_when_configured.ds",
+            r#"
+function foo({}) {}
+"#,
+        );
+        test.result(result).assert_no_lint("no-empty-pattern");
     }
 
     #[test]

@@ -20,7 +20,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = Always,
+        fixable = Sometimes,
         recommended = Always,
         stability = Stable
     )]
@@ -46,8 +46,17 @@ impl LintRule for NoCondAssign {
 
             // classify assignment wrapping style in the condition
             let assignment_style = condition_assignment_style(ctx.tree, condition_id);
-            if assignment_style == ConditionAssignmentStyle::None {
-                continue;
+            let has_assignment = expression_contains_assignment(ctx.tree, condition_id);
+            match ctx.options.no_cond_assign_mode {
+                ConditionAssignmentMode::ExceptParens
+                    if assignment_style == ConditionAssignmentStyle::None =>
+                {
+                    continue;
+                }
+                ConditionAssignmentMode::Always if !has_assignment => {
+                    continue;
+                }
+                _ => {}
             }
 
             // skip disabled diagnostics
@@ -56,35 +65,42 @@ impl LintRule for NoCondAssign {
                 continue;
             }
 
-            // build the explicit parenthesized replacement
             let condition_span = ctx.tree.get_span(condition_id);
-            let condition_text = ctx.get_span_text(condition_span);
-            let replacement = match assignment_style {
-                ConditionAssignmentStyle::Bare => format!("(({condition_text}))"),
-                ConditionAssignmentStyle::SingleParenthesized => format!("({condition_text})"),
-                ConditionAssignmentStyle::None => unreachable!(),
-            };
-            let edits = ctx
-                .edit_builder()
-                .replace(condition_span, replacement)
-                .into_edits();
-            let fix =
-                LintFix::safe("Wrap assignment in explicit extra parentheses").with_edits(edits);
+            let mut diagnostic = LintDiagnostic::new(
+                NO_COND_ASSIGN.id,
+                NO_COND_ASSIGN.code,
+                NO_COND_ASSIGN.category,
+                severity,
+                "assignment in condition",
+                ctx.module.file_id,
+                condition_span,
+            )
+            .with_label("did you mean `==`?");
 
-            // report the assignment style diagnostic with an intent preserving fix
-            ctx.report(
-                LintDiagnostic::new(
-                    NO_COND_ASSIGN.id,
-                    NO_COND_ASSIGN.code,
-                    NO_COND_ASSIGN.category,
-                    severity,
-                    "assignment in condition",
-                    ctx.module.file_id,
-                    condition_span,
-                )
-                .with_label("did you mean `==`?")
-                .with_fix(fix),
-            );
+            // only the except-parens mode has an intent preserving wrap fix
+            if ctx.options.no_cond_assign_mode == ConditionAssignmentMode::ExceptParens
+                && ctx.compute_fixes
+            {
+                let condition_text = ctx.get_span_text(condition_span);
+                let replacement = match assignment_style {
+                    ConditionAssignmentStyle::Bare => format!("(({condition_text}))"),
+                    ConditionAssignmentStyle::SingleParenthesized => {
+                        format!("({condition_text})")
+                    }
+                    ConditionAssignmentStyle::None => String::new(),
+                };
+                if !replacement.is_empty() {
+                    let edits = ctx
+                        .edit_builder()
+                        .replace(condition_span, replacement)
+                        .into_edits();
+                    let fix = LintFix::safe("Wrap assignment in explicit extra parentheses")
+                        .with_edits(edits);
+                    diagnostic = diagnostic.with_fix(fix);
+                }
+            }
+
+            ctx.report(diagnostic);
         }
     }
 }
@@ -301,5 +317,41 @@ while (next = read()) {
 "#,
         );
         test.result(result).assert_lint_count("no-cond-assign", 2);
+    }
+
+    #[test]
+    fn test_detects_nested_assignment_when_always_mode_is_enabled() {
+        let test = TestProgram::for_rule_without_prelude(NoCondAssign).with_options(|options| {
+            options.no_cond_assign_mode = ConditionAssignmentMode::Always;
+        });
+        let result = test.lint_ast(
+            "no_cond_assign/test_detects_nested_assignment_when_always_mode_is_enabled.ds",
+            r#"
+if (isReady || (next = read())) {
+    process(next)
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-cond-assign")
+            .assert_has_no_fix("no-cond-assign");
+    }
+
+    #[test]
+    fn test_detects_double_parenthesized_assignment_when_always_mode_is_enabled() {
+        let test = TestProgram::for_rule_without_prelude(NoCondAssign).with_options(|options| {
+            options.no_cond_assign_mode = ConditionAssignmentMode::Always;
+        });
+        let result = test.lint_ast(
+            "no_cond_assign/test_detects_double_parenthesized_assignment_when_always_mode_is_enabled.ds",
+            r#"
+if (((next = read()))) {
+    process(next)
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-cond-assign")
+            .assert_has_no_fix("no-cond-assign");
     }
 }

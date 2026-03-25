@@ -32,62 +32,64 @@ impl LintRule for NoUselessRename {
         let meta = self.meta();
 
         // check destructuring pattern fields
-        for node_id in ctx.tree.iter_nodes::<ast::PatternField>() {
-            let field = ctx.tree.get(node_id);
+        if !ctx.options.no_useless_rename_ignore_destructuring {
+            for node_id in ctx.tree.iter_nodes::<ast::PatternField>() {
+                let field = ctx.tree.get(node_id);
 
-            // keep only alias fields with one identifier key
-            let ast::PatternField::Alias {
-                mutability,
-                name,
-                alias,
-                default,
-            } = field
-            else {
-                continue;
-            };
-            let ast::Name::Identifier(name_id) = name else {
-                continue;
-            };
+                // keep only alias fields with one identifier key
+                let ast::PatternField::Alias {
+                    mutability,
+                    name,
+                    alias,
+                    default,
+                } = field
+                else {
+                    continue;
+                };
+                let ast::Name::Identifier(name_id) = name else {
+                    continue;
+                };
 
-            // enforce one identical alias pair
-            if *name_id != *alias {
-                continue;
-            }
+                // enforce one identical alias pair
+                if *name_id != *alias {
+                    continue;
+                }
 
-            // resolve effective severity
-            let severity = ctx.get_effective_severity(meta, node_id);
-            if !severity.is_enabled() {
-                continue;
-            }
+                // resolve effective severity
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
 
-            // build one diagnostic message
-            let name_text: String = ctx.strings.get(*name_id).as_ref().to_string();
-            let field_span = ctx.tree.get_span(node_id);
-            let mut diagnostic = LintDiagnostic::new(
-                NO_USELESS_RENAME.id,
-                NO_USELESS_RENAME.code,
-                NO_USELESS_RENAME.category,
-                severity,
-                format!("useless rename: `{name_text}: {name_text}` can be `{name_text}`"),
-                ctx.module.file_id,
-                field_span,
-            )
-            .with_label("this rename is unnecessary");
-
-            // attach one fix for safe local rewrites
-            if ctx.compute_fixes
-                && let Some(fix) = useless_destructuring_rename_fix(
-                    ctx,
+                // build one diagnostic message
+                let name_text: String = ctx.strings.get(*name_id).as_ref().to_string();
+                let field_span = ctx.tree.get_span(node_id);
+                let mut diagnostic = LintDiagnostic::new(
+                    NO_USELESS_RENAME.id,
+                    NO_USELESS_RENAME.code,
+                    NO_USELESS_RENAME.category,
+                    severity,
+                    format!("useless rename: `{name_text}: {name_text}` can be `{name_text}`"),
+                    ctx.module.file_id,
                     field_span,
-                    *mutability,
-                    name_text,
-                    *default,
                 )
-            {
-                diagnostic = diagnostic.with_fix(fix);
-            }
+                .with_label("this rename is unnecessary");
 
-            ctx.report(diagnostic);
+                // attach one fix for safe local rewrites
+                if ctx.compute_fixes
+                    && let Some(fix) = useless_destructuring_rename_fix(
+                        ctx,
+                        field_span,
+                        *mutability,
+                        name_text,
+                        *default,
+                    )
+                {
+                    diagnostic = diagnostic.with_fix(fix);
+                }
+
+                ctx.report(diagnostic);
+            }
         }
 
         // check import and export dependency items
@@ -98,6 +100,14 @@ impl LintRule for NoUselessRename {
                 ast::Expression::Export { items, .. } => (items, RenameKind::Export),
                 _ => continue,
             };
+
+            // honor per-kind ignore options
+            if (rename_kind == RenameKind::Import && ctx.options.no_useless_rename_ignore_import)
+                || (rename_kind == RenameKind::Export
+                    && ctx.options.no_useless_rename_ignore_export)
+            {
+                continue;
+            }
 
             // inspect each renamed item in the clause
             for item_id in items {
@@ -154,7 +164,7 @@ impl LintRule for NoUselessRename {
 }
 
 /// One dependency rename source kind for messages.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 enum RenameKind {
     /// Import item rename.
     Import,
@@ -384,5 +394,47 @@ export { value as value } from "./source.ds";
 export { value } from "./source.ds";
 "#,
             );
+    }
+
+    #[test]
+    fn test_allows_destructuring_when_ignored() {
+        let test = TestProgram::for_rule_without_prelude(NoUselessRename).with_options(|options| {
+            options.no_useless_rename_ignore_destructuring = true;
+        });
+        let result = test.lint_ast(
+            "no_useless_rename/test_allows_destructuring_when_ignored.ds",
+            r#"
+const { x: x } = obj;
+"#,
+        );
+        test.result(result).assert_no_lint("no-useless-rename");
+    }
+
+    #[test]
+    fn test_allows_import_when_ignored() {
+        let test = TestProgram::for_rule_without_prelude(NoUselessRename).with_options(|options| {
+            options.no_useless_rename_ignore_import = true;
+        });
+        let result = test.lint_ast(
+            "no_useless_rename/test_allows_import_when_ignored.ds",
+            r#"
+import { value as value } from "./source.ds";
+"#,
+        );
+        test.result(result).assert_no_lint("no-useless-rename");
+    }
+
+    #[test]
+    fn test_allows_export_when_ignored() {
+        let test = TestProgram::for_rule_without_prelude(NoUselessRename).with_options(|options| {
+            options.no_useless_rename_ignore_export = true;
+        });
+        let result = test.lint_ast(
+            "no_useless_rename/test_allows_export_when_ignored.ds",
+            r#"
+export { value as value } from "./source.ds";
+"#,
+        );
+        test.result(result).assert_no_lint("no-useless-rename");
     }
 }

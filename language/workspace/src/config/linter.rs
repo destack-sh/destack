@@ -363,10 +363,22 @@ pub struct LinterOptions {
     pub use_isnan_enforce_switch_case: bool,
     /// Check `indexOf` and `lastIndexOf` calls in `use-isnan`.
     pub use_isnan_enforce_index_of: bool,
+    /// Check property assignments in `no-self-assign`.
+    pub no_self_assign_check_properties: bool,
     /// Ignore explicit `void` wrappers in `no-confusing-void-expression`.
     pub no_confusing_void_expression_ignore_void_operator: bool,
     /// Ignore returned void expressions inside void-returning functions.
     pub no_confusing_void_expression_ignore_void_returning_functions: bool,
+    /// Check nested `var` declarations in `no-inner-declarations`.
+    pub no_inner_declarations_check_var_declarations: bool,
+    /// Assignment policy for `no-cond-assign`.
+    pub no_cond_assign_mode: ConditionAssignmentMode,
+    /// Allow empty catch blocks in `no-empty`.
+    pub no_empty_allow_empty_catch: bool,
+    /// Allow empty object patterns in parameter position for `no-empty-pattern`.
+    pub no_empty_pattern_allow_object_patterns_as_parameters: bool,
+    /// Allowed empty function kinds in `no-empty-function`.
+    pub no_empty_function_allow: Vec<EmptyFunctionKind>,
     /// Allow empty switch cases in `no-fallthrough`.
     pub no_fallthrough_allow_empty_case: bool,
     /// Regex pattern for intentional `no-fallthrough` comments.
@@ -377,6 +389,14 @@ pub struct LinterOptions {
     pub return_await_mode: ReturnAwaitMode,
     /// Parameter name prefixes ignored by `no-unused-parameters`.
     pub ignored_unused_parameter_prefixes: Vec<String>,
+    /// Ignore destructuring aliases in `no-useless-rename`.
+    pub no_useless_rename_ignore_destructuring: bool,
+    /// Ignore import aliases in `no-useless-rename`.
+    pub no_useless_rename_ignore_import: bool,
+    /// Ignore export aliases in `no-useless-rename`.
+    pub no_useless_rename_ignore_export: bool,
+    /// Regex characters allowed by `no-useless-escape`.
+    pub no_useless_escape_allow_regex_characters: Vec<String>,
 
     // complexity thresholds
     /// Maximum boolean parameters or fields.
@@ -519,13 +539,23 @@ impl Default for LinterOptions {
             check_misused_promises_in_spreads: true,
             use_isnan_enforce_switch_case: true,
             use_isnan_enforce_index_of: false,
+            no_self_assign_check_properties: true,
             no_confusing_void_expression_ignore_void_operator: false,
             no_confusing_void_expression_ignore_void_returning_functions: false,
+            no_inner_declarations_check_var_declarations: true,
+            no_cond_assign_mode: ConditionAssignmentMode::default(),
+            no_empty_allow_empty_catch: false,
+            no_empty_pattern_allow_object_patterns_as_parameters: false,
+            no_empty_function_allow: Vec::new(),
             no_fallthrough_allow_empty_case: false,
             no_fallthrough_comment_pattern: None,
             no_fallthrough_report_unused_comment: false,
             return_await_mode: ReturnAwaitMode::default(),
             ignored_unused_parameter_prefixes: vec!["_".to_string()],
+            no_useless_rename_ignore_destructuring: false,
+            no_useless_rename_ignore_import: false,
+            no_useless_rename_ignore_export: false,
+            no_useless_escape_allow_regex_characters: Vec::new(),
             // complexity
             max_booleans: 3,
             max_branching_factor: 10,
@@ -860,6 +890,14 @@ pub struct LinterJson {
     pub return_await_mode: Option<ReturnAwaitModeJson>,
     /// Parameter name prefixes ignored by `no-unused-parameters`.
     pub ignored_unused_parameter_prefixes: Option<Vec<String>>,
+    /// Ignore destructuring aliases in `no-useless-rename`.
+    pub no_useless_rename_ignore_destructuring: Option<bool>,
+    /// Ignore import aliases in `no-useless-rename`.
+    pub no_useless_rename_ignore_import: Option<bool>,
+    /// Ignore export aliases in `no-useless-rename`.
+    pub no_useless_rename_ignore_export: Option<bool>,
+    /// Regex characters allowed by `no-useless-escape`.
+    pub no_useless_escape_allow_regex_characters: Option<Vec<String>>,
     /// Allow named callbacks in `prefer-arrow-callback`.
     pub allow_named_functions_in_prefer_arrow_callback: Option<bool>,
     /// Allow unbound `this` in `prefer-arrow-callback`.
@@ -868,6 +906,16 @@ pub struct LinterJson {
     pub no_confusing_void_expression_ignore_void_operator: Option<bool>,
     /// Ignore returned void expressions inside void-returning functions.
     pub no_confusing_void_expression_ignore_void_returning_functions: Option<bool>,
+    /// Check nested `var` declarations in `no-inner-declarations`.
+    pub no_inner_declarations_check_var_declarations: Option<bool>,
+    /// Assignment policy for `no-cond-assign`.
+    pub no_cond_assign_mode: Option<ConditionAssignmentModeJson>,
+    /// Allow empty catch blocks in `no-empty`.
+    pub no_empty_allow_empty_catch: Option<bool>,
+    /// Allow empty object patterns in parameter position for `no-empty-pattern`.
+    pub no_empty_pattern_allow_object_patterns_as_parameters: Option<bool>,
+    /// Allowed empty function kinds in `no-empty-function`.
+    pub no_empty_function_allow: Option<Vec<EmptyFunctionKindJson>>,
     /// Allow empty switch cases in `no-fallthrough`.
     pub no_fallthrough_allow_empty_case: Option<bool>,
     /// Regex pattern for intentional `no-fallthrough` comments.
@@ -888,6 +936,8 @@ pub struct LinterJson {
     pub use_isnan_enforce_switch_case: Option<bool>,
     /// Check `indexOf` and `lastIndexOf` calls in `use-isnan`.
     pub use_isnan_enforce_index_of: Option<bool>,
+    /// Check property assignments in `no-self-assign`.
+    pub no_self_assign_check_properties: Option<bool>,
     /// Prefer top-level `import type` in `consistent-type-imports`.
     pub consistent_type_imports_prefer_type_imports: Option<bool>,
     /// Prefer inline `type` specifiers in `consistent-type-imports`.
@@ -956,6 +1006,10 @@ impl LinterJson {
                 .as_ref()
                 .map(std::slice::from_ref),
         )?;
+        validate_single_character_strings(
+            "linter.noUselessEscapeAllowRegexCharacters",
+            self.no_useless_escape_allow_regex_characters.as_deref(),
+        )?;
 
         Ok(())
     }
@@ -993,6 +1047,9 @@ impl LinterJson {
         }
         if let Some(use_isnan_enforce_index_of) = self.use_isnan_enforce_index_of {
             options.use_isnan_enforce_index_of = use_isnan_enforce_index_of;
+        }
+        if let Some(no_self_assign_check_properties) = self.no_self_assign_check_properties {
+            options.no_self_assign_check_properties = no_self_assign_check_properties;
         }
 
         // complexity thresholds
@@ -1101,6 +1158,31 @@ impl LinterJson {
             options.no_confusing_void_expression_ignore_void_returning_functions =
                 no_confusing_void_expression_ignore_void_returning_functions;
         }
+        if let Some(no_inner_declarations_check_var_declarations) =
+            self.no_inner_declarations_check_var_declarations
+        {
+            options.no_inner_declarations_check_var_declarations =
+                no_inner_declarations_check_var_declarations;
+        }
+        if let Some(no_cond_assign_mode) = self.no_cond_assign_mode {
+            options.no_cond_assign_mode = no_cond_assign_mode.into();
+        }
+        if let Some(no_empty_allow_empty_catch) = self.no_empty_allow_empty_catch {
+            options.no_empty_allow_empty_catch = no_empty_allow_empty_catch;
+        }
+        if let Some(no_empty_pattern_allow_object_patterns_as_parameters) =
+            self.no_empty_pattern_allow_object_patterns_as_parameters
+        {
+            options.no_empty_pattern_allow_object_patterns_as_parameters =
+                no_empty_pattern_allow_object_patterns_as_parameters;
+        }
+        if let Some(ref no_empty_function_allow) = self.no_empty_function_allow {
+            options.no_empty_function_allow = no_empty_function_allow
+                .iter()
+                .copied()
+                .map(Into::into)
+                .collect();
+        }
         if let Some(no_fallthrough_allow_empty_case) = self.no_fallthrough_allow_empty_case {
             options.no_fallthrough_allow_empty_case = no_fallthrough_allow_empty_case;
         }
@@ -1115,6 +1197,23 @@ impl LinterJson {
         if let Some(ref ignored_unused_parameter_prefixes) = self.ignored_unused_parameter_prefixes
         {
             options.ignored_unused_parameter_prefixes = ignored_unused_parameter_prefixes.clone();
+        }
+        if let Some(no_useless_rename_ignore_destructuring) =
+            self.no_useless_rename_ignore_destructuring
+        {
+            options.no_useless_rename_ignore_destructuring = no_useless_rename_ignore_destructuring;
+        }
+        if let Some(no_useless_rename_ignore_import) = self.no_useless_rename_ignore_import {
+            options.no_useless_rename_ignore_import = no_useless_rename_ignore_import;
+        }
+        if let Some(no_useless_rename_ignore_export) = self.no_useless_rename_ignore_export {
+            options.no_useless_rename_ignore_export = no_useless_rename_ignore_export;
+        }
+        if let Some(ref no_useless_escape_allow_regex_characters) =
+            self.no_useless_escape_allow_regex_characters
+        {
+            options.no_useless_escape_allow_regex_characters =
+                no_useless_escape_allow_regex_characters.clone();
         }
         if let Some(consistent_type_imports_prefer_type_imports) =
             self.consistent_type_imports_prefer_type_imports
@@ -1244,6 +1343,26 @@ fn validate_regex_patterns(field_name: &str, patterns: Option<&[String]>) -> Res
     Ok(())
 }
 
+/// Validate one list of single-character strings.
+fn validate_single_character_strings(
+    field_name: &str,
+    values: Option<&[String]>,
+) -> Result<(), String> {
+    let Some(values) = values else {
+        return Ok(());
+    };
+
+    for value in values {
+        if value.chars().count() != 1 {
+            return Err(format!(
+                "invalid value in {field_name}: `{value}` must be exactly one character"
+            ));
+        }
+    }
+
+    Ok(())
+}
+
 /// Return compiled allow patterns for `no-require-imports`.
 pub fn compiled_allowed_require_import_patterns(patterns: &[String]) -> Arc<[Regex]> {
     let mut cache = ALLOWED_REQUIRE_IMPORT_PATTERNS_CACHE
@@ -1286,6 +1405,27 @@ pub fn compiled_no_fallthrough_comment_pattern(pattern: Option<&str>) -> Option<
     );
     cache.insert(pattern.to_string(), compiled_pattern.clone());
     Some(compiled_pattern)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::LinterJson;
+
+    #[test]
+    fn test_rejects_invalid_no_useless_escape_allow_regex_characters() {
+        let json = LinterJson {
+            no_useless_escape_allow_regex_characters: Some(vec!["ab".to_string()]),
+            ..Default::default()
+        };
+
+        let error = json
+            .validate()
+            .expect_err("expected invalid character allowlist");
+        assert!(
+            error.contains("noUselessEscapeAllowRegexCharacters"),
+            "unexpected error: {error}"
+        );
+    }
 }
 
 /// Module boundary options for linter configuration JSON.
@@ -1593,6 +1733,110 @@ impl From<ReturnAwaitModeJson> for ReturnAwaitMode {
             }
             ReturnAwaitModeJson::Always => ReturnAwaitMode::Always,
             ReturnAwaitModeJson::Never => ReturnAwaitMode::Never,
+        }
+    }
+}
+
+/// Condition assignment policy for `no-cond-assign`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ConditionAssignmentMode {
+    /// Allow assignments only when wrapped in extra parentheses.
+    #[default]
+    ExceptParens,
+    /// Disallow assignments anywhere inside the condition.
+    Always,
+}
+
+/// Condition assignment policy accepted in linter JSON.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "kebab-case")]
+pub enum ConditionAssignmentModeJson {
+    /// Allow assignments only when wrapped in extra parentheses.
+    ExceptParens,
+    /// Disallow assignments anywhere inside the condition.
+    Always,
+}
+
+impl From<ConditionAssignmentModeJson> for ConditionAssignmentMode {
+    fn from(value: ConditionAssignmentModeJson) -> Self {
+        match value {
+            ConditionAssignmentModeJson::ExceptParens => ConditionAssignmentMode::ExceptParens,
+            ConditionAssignmentModeJson::Always => ConditionAssignmentMode::Always,
+        }
+    }
+}
+
+/// Empty function kinds that `no-empty-function` may allow.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum EmptyFunctionKind {
+    /// Regular function declarations and expressions.
+    Functions,
+    /// Arrow or lambda functions.
+    ArrowFunctions,
+    /// Generator functions.
+    GeneratorFunctions,
+    /// Ordinary methods.
+    Methods,
+    /// Generator methods.
+    GeneratorMethods,
+    /// Getter methods.
+    Getters,
+    /// Setter methods.
+    Setters,
+    /// Constructor methods.
+    Constructors,
+    /// Async functions.
+    AsyncFunctions,
+    /// Async methods.
+    AsyncMethods,
+    /// Override methods.
+    OverrideMethods,
+}
+
+/// Empty function kinds accepted in linter JSON.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub enum EmptyFunctionKindJson {
+    /// Regular function declarations and expressions.
+    Functions,
+    /// Arrow or lambda functions.
+    ArrowFunctions,
+    /// Generator functions.
+    GeneratorFunctions,
+    /// Ordinary methods.
+    Methods,
+    /// Generator methods.
+    GeneratorMethods,
+    /// Getter methods.
+    Getters,
+    /// Setter methods.
+    Setters,
+    /// Constructor methods.
+    Constructors,
+    /// Async functions.
+    AsyncFunctions,
+    /// Async methods.
+    AsyncMethods,
+    /// Override methods.
+    OverrideMethods,
+}
+
+impl From<EmptyFunctionKindJson> for EmptyFunctionKind {
+    fn from(value: EmptyFunctionKindJson) -> Self {
+        match value {
+            EmptyFunctionKindJson::Functions => EmptyFunctionKind::Functions,
+            EmptyFunctionKindJson::ArrowFunctions => EmptyFunctionKind::ArrowFunctions,
+            EmptyFunctionKindJson::GeneratorFunctions => EmptyFunctionKind::GeneratorFunctions,
+            EmptyFunctionKindJson::Methods => EmptyFunctionKind::Methods,
+            EmptyFunctionKindJson::GeneratorMethods => EmptyFunctionKind::GeneratorMethods,
+            EmptyFunctionKindJson::Getters => EmptyFunctionKind::Getters,
+            EmptyFunctionKindJson::Setters => EmptyFunctionKind::Setters,
+            EmptyFunctionKindJson::Constructors => EmptyFunctionKind::Constructors,
+            EmptyFunctionKindJson::AsyncFunctions => EmptyFunctionKind::AsyncFunctions,
+            EmptyFunctionKindJson::AsyncMethods => EmptyFunctionKind::AsyncMethods,
+            EmptyFunctionKindJson::OverrideMethods => EmptyFunctionKind::OverrideMethods,
         }
     }
 }
