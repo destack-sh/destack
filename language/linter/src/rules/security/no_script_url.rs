@@ -43,9 +43,8 @@ impl LintRule for NoScriptUrl {
             let string_value = ctx.strings.get(string_id);
             let string_str = string_value.as_ref();
 
-            // check for javascript: URL (case insensitive)
-            let trimmed = string_str.trim();
-            if trimmed.to_lowercase().starts_with("javascript:") {
+            // check for javascript: URL
+            if starts_with_javascript_scheme(string_str) {
                 let severity = ctx.get_effective_severity(meta, node_id);
                 if !severity.is_enabled() {
                     continue;
@@ -65,6 +64,18 @@ impl LintRule for NoScriptUrl {
             }
         }
     }
+}
+
+/// Return true when one string starts with the `javascript:` URL scheme.
+fn starts_with_javascript_scheme(value: &str) -> bool {
+    const JAVASCRIPT_SCHEME: &str = "javascript:";
+
+    let trimmed = value.trim_start_matches(|character: char| character.is_ascii_whitespace());
+    let Some(prefix) = trimmed.get(..JAVASCRIPT_SCHEME.len()) else {
+        return false;
+    };
+
+    prefix.eq_ignore_ascii_case(JAVASCRIPT_SCHEME)
 }
 
 #[cfg(test)]

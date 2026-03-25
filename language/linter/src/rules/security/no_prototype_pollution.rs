@@ -89,17 +89,9 @@ impl<'a, 'b> NoPrototypePollutionVisitor<'a, 'b> {
         left: dir::LocalNodeId<dir::Expression>,
     ) {
         // check for direct prototype assignment
-        if self.is_prototype_access(left) {
+        if self.is_prototype_assignment_target(left) {
             self.report(expression_id, "direct prototype modification");
             return;
-        }
-
-        // check for dynamic property on prototype
-        let expression = self.ctx.tree.get(left);
-        if let dir::Expression::Index { left: target, .. } = expression
-            && self.is_prototype_access(*target)
-        {
-            self.report(expression_id, "dynamic prototype property assignment");
         }
     }
 
@@ -109,7 +101,7 @@ impl<'a, 'b> NoPrototypePollutionVisitor<'a, 'b> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         index: Option<dir::LocalNodeId<dir::Expression>>,
     ) {
-        // check for obj["__proto__"] or obj["prototype"]
+        // check for obj["__proto__"]
         let Some(index_id) = index else {
             return;
         };
@@ -117,9 +109,9 @@ impl<'a, 'b> NoPrototypePollutionVisitor<'a, 'b> {
         if let dir::Expression::ScalarLiteral {
             value: dir::ScalarLiteral::String(string_id),
         } = index_expr
-            && (*string_id == self.proto_name || *string_id == self.prototype_name)
+            && *string_id == self.proto_name
         {
-            self.report(expression_id, "__proto__ or prototype access via string");
+            self.report(expression_id, "__proto__ access via string");
         }
     }
 
@@ -127,17 +119,9 @@ impl<'a, 'b> NoPrototypePollutionVisitor<'a, 'b> {
     fn check_member(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        left: dir::LocalNodeId<dir::Expression>,
+        _left: dir::LocalNodeId<dir::Expression>,
         name: StringId,
     ) {
-        // check for Object.prototype
-        if name == self.prototype_name
-            && let Some(symbol) = expression_target_symbol(self.ctx.tree, left)
-            && symbol == self.object_symbol
-        {
-            self.report(expression_id, "Object.prototype access");
-        }
-
         // check for __proto__
         if name == self.proto_name {
             self.report(expression_id, "__proto__ access");
@@ -147,20 +131,65 @@ impl<'a, 'b> NoPrototypePollutionVisitor<'a, 'b> {
     /// Return true if expression accesses a prototype.
     fn is_prototype_access(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
         let expression = self.ctx.tree.get(expression_id);
-        let dir::Expression::Member { left, name, .. } = expression else {
-            return false;
-        };
+        if let dir::Expression::Member { left, name, .. } = expression {
+            // check for Object.prototype
+            if *name == Some(self.prototype_name)
+                && let Some(symbol) = expression_target_symbol(self.ctx.tree, *left)
+                && symbol == self.object_symbol
+            {
+                return true;
+            }
 
-        // check for Object.prototype
-        if *name == Some(self.prototype_name)
-            && let Some(symbol) = expression_target_symbol(self.ctx.tree, *left)
-            && symbol == self.object_symbol
-        {
+            // check for __proto__
+            return *name == Some(self.proto_name);
+        }
+
+        if let dir::Expression::Index { left, right } = expression {
+            let Some(right) = right else {
+                return false;
+            };
+            let right_expression = self.ctx.tree.get(*right);
+            let dir::Expression::ScalarLiteral {
+                value: dir::ScalarLiteral::String(string_id),
+            } = right_expression
+            else {
+                return false;
+            };
+
+            if *string_id == self.proto_name {
+                return true;
+            }
+
+            if *string_id != self.prototype_name {
+                return false;
+            }
+
+            return expression_target_symbol(self.ctx.tree, *left)
+                .is_some_and(|symbol| symbol == self.object_symbol);
+        }
+
+        false
+    }
+
+    /// Return true when one assignment target writes through a prototype path.
+    fn is_prototype_assignment_target(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> bool {
+        if self.is_prototype_access(expression_id) {
             return true;
         }
 
-        // check for __proto__
-        *name == Some(self.proto_name)
+        let expression = self.ctx.tree.get(expression_id);
+        if let dir::Expression::Member { left, .. } = expression {
+            return self.is_prototype_access(*left);
+        }
+
+        if let dir::Expression::Index { left, .. } = expression {
+            return self.is_prototype_access(*left);
+        }
+
+        false
     }
 
     /// Report a prototype pollution diagnostic.
@@ -296,11 +325,6 @@ let x = obj["foo"];
         );
         test.result(result).assert_no_lint("no-prototype-pollution");
     }
-}
-"#,
-        );
-        test.result(result).assert_no_lint("no-prototype-pollution");
-    }
 
     /// Allow ordinary string index access to a property named prototype.
     #[test]
@@ -352,3 +376,8 @@ Object["prototype"] = {};
             "no_prototype_pollution/test_allows_object_prototype_index_access.ds",
             r#"
 let x = Object["prototype"];
+"#,
+        );
+        test.result(result).assert_no_lint("no-prototype-pollution");
+    }
+}

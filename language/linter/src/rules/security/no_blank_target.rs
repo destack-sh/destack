@@ -1,10 +1,9 @@
 use destack_ast::{self as ast, Argument, Expression};
 use destack_workspace::LintSeverity;
+use url::Url;
 
 use crate::rules::common::expression_static_string_literal_syntax;
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
-
-// TODO #Architecture: this rule works but would be better with canonical DIR symbols
 
 declare_lint! {
     /// Disallow `target="_blank"` without `rel="noopener noreferrer"`.
@@ -50,70 +49,111 @@ impl LintRule for NoBlankTarget {
             };
 
             // check if the tag is supported for target checks
-            if !is_checked_target_element(ctx, *left) {
+            let Some(target_attribute_name) = checked_target_attribute_name(ctx, *left) else {
                 continue;
-            }
+            };
 
             // get arguments if present
             let Some(args) = arguments else {
                 continue;
             };
 
-            // check for target="_blank"
-            let has_blank_target = args.iter().any(|arg_id| {
+            // resolve the target argument position
+            let target_argument_index = args.iter().position(|arg_id| {
                 let arg = ctx.tree.get(*arg_id);
                 is_blank_target(ctx, arg)
             });
-            if !has_blank_target {
+            let Some(target_argument_index) = target_argument_index else {
+                continue;
+            };
+
+            // honor allowed domains before enforcing rel hardening
+            if target_url_matches_allowed_domain(
+                ctx,
+                args,
+                target_attribute_name,
+                &ctx.options.no_blank_target_allow_domains,
+            ) {
                 continue;
             }
 
-            // check for rel="noopener" or rel="noreferrer"
-            let has_safe_rel = args.iter().any(|arg_id| {
-                let arg = ctx.tree.get(*arg_id);
-                is_safe_rel(ctx, arg)
-            });
-            let has_rel_argument = args.iter().any(|arg_id| {
+            // resolve explicit rel handling
+            let rel_argument_index = args.iter().position(|arg_id| {
                 let arg = ctx.tree.get(*arg_id);
                 is_rel_argument(ctx, arg)
             });
-            if !has_safe_rel {
-                let severity = ctx.get_effective_severity(meta, node_id);
-                if !severity.is_enabled() {
-                    continue;
-                }
-                let mut diagnostic = LintDiagnostic::new(
-                    NO_BLANK_TARGET.id,
-                    NO_BLANK_TARGET.code,
-                    NO_BLANK_TARGET.category,
-                    severity,
-                    "target=\"_blank\" without rel=\"noopener\" is a security risk",
-                    ctx.module.file_id,
-                    ctx.tree.get_span(node_id),
-                )
-                .with_label("add rel=\"noopener\" or rel=\"noreferrer\"");
-
-                // compute fixes only when requested by the runner
-                if ctx.compute_fixes
-                    && !has_rel_argument
-                    && let Some(fix) = blank_target_fix(ctx, args)
-                {
-                    diagnostic = diagnostic.with_fix(fix);
-                }
-
-                ctx.report(diagnostic);
+            let rel_argument_id = rel_argument_index.map(|index| args[index]);
+            let rel_status = rel_argument_id.map(|arg_id| {
+                rel_safety_status(ctx, arg_id, ctx.options.no_blank_target_allow_no_referrer)
+            });
+            if rel_status == Some(RelSafetyStatus::Safe) {
+                continue;
             }
+
+            // accept cases where later spread props may still set or override rel
+            if rel_argument_id.is_none()
+                && has_trailing_spread_argument(ctx, args, target_argument_index)
+            {
+                continue;
+            }
+            if rel_argument_index.is_some_and(|rel_argument_index| {
+                has_trailing_spread_argument(ctx, args, target_argument_index)
+                    || has_trailing_spread_argument(ctx, args, rel_argument_index)
+            }) {
+                continue;
+            }
+
+            let severity = ctx.get_effective_severity(meta, node_id);
+            if !severity.is_enabled() {
+                continue;
+            }
+
+            let rel_requirement_message = if ctx.options.no_blank_target_allow_no_referrer {
+                "add rel=\"noopener\" or rel=\"noreferrer\""
+            } else {
+                "add rel=\"noopener\""
+            };
+            let mut diagnostic = LintDiagnostic::new(
+                NO_BLANK_TARGET.id,
+                NO_BLANK_TARGET.code,
+                NO_BLANK_TARGET.category,
+                severity,
+                "target=\"_blank\" without rel=\"noopener\" is a security risk",
+                ctx.module.file_id,
+                ctx.tree.get_span(node_id),
+            )
+            .with_label(rel_requirement_message);
+
+            // compute fixes only when requested by the runner
+            if ctx.compute_fixes
+                && let Some(fix) = blank_target_fix(ctx, args, rel_argument_id)
+            {
+                diagnostic = diagnostic.with_fix(fix);
+            }
+
+            ctx.report(diagnostic);
         }
     }
 }
 
-/// Check if the left expression is a checked element tag.
-fn is_checked_target_element(
+/// One rel attribute safety state.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum RelSafetyStatus {
+    /// The rel value already satisfies the rule.
+    Safe,
+    /// The rel value is static but missing noopener coverage.
+    UnsafeStatic,
+    /// The rel value exists but is not a static string literal.
+    UnsafeDynamic,
+}
+
+/// Return the target attribute name for one checked element tag.
+fn checked_target_attribute_name(
     ctx: &LintAstContext<'_>,
     left: Option<ast::LocalNodeId<Expression>>,
-) -> bool {
+) -> Option<&'static str> {
     let Some(left_id) = left else {
-        return false;
+        return None;
     };
 
     // resolve left expr
@@ -121,16 +161,20 @@ fn is_checked_target_element(
 
     // check for simple path like `a`
     let Expression::Path { path, .. } = left_expr else {
-        return false;
+        return None;
     };
 
     // check if the path has exactly one segment and a checked tag name
     if path.segments.len() == 1 {
         let name_str = ctx.strings.get(path.segments[0]);
-        return matches!(name_str.as_ref(), "a" | "area" | "form");
+        return match name_str.as_ref() {
+            "a" | "area" => Some("href"),
+            "form" => Some("action"),
+            _ => None,
+        };
     }
 
-    false
+    None
 }
 
 /// Check if an argument is `target="_blank"`.
@@ -152,32 +196,7 @@ fn is_blank_target(ctx: &LintAstContext<'_>, arg: &Argument) -> bool {
 
     // resolve value str
     let value_str = ctx.strings.get(string_id);
-    value_str.as_ref() == "_blank"
-}
-
-/// Check if an argument is `rel` containing "noopener" or "noreferrer".
-fn is_safe_rel(ctx: &LintAstContext<'_>, arg: &Argument) -> bool {
-    let Argument::Named { name, value, .. } = arg else {
-        return false;
-    };
-
-    // check if the name is "rel"
-    let name_str = ctx.strings.get(name.string());
-    if name_str.as_ref() != "rel" {
-        return false;
-    }
-
-    // check if one rel token is safe
-    let Some(string_id) = argument_static_string_id(ctx, *value) else {
-        return false;
-    };
-
-    // resolve rel value
-    let rel_value = ctx.strings.get(string_id);
-    rel_value
-        .as_ref()
-        .split_ascii_whitespace()
-        .any(|token| token == "noopener" || token == "noreferrer")
+    value_str.as_ref().eq_ignore_ascii_case("_blank")
 }
 
 /// Check if an argument is any `rel=...` attribute.
@@ -199,18 +218,188 @@ fn argument_static_string_id(
     expression_static_string_literal_syntax(ctx.tree, value)
 }
 
-/// Build a safe fix that injects rel noopener and noreferrer.
+/// Return the rel safety status for one rel argument.
+fn rel_safety_status(
+    ctx: &LintAstContext<'_>,
+    argument_id: ast::LocalNodeId<Argument>,
+    allow_no_referrer: bool,
+) -> RelSafetyStatus {
+    let argument = ctx.tree.get(argument_id);
+    let Argument::Named { value, .. } = argument else {
+        return RelSafetyStatus::UnsafeDynamic;
+    };
+
+    let Some(string_id) = argument_static_string_id(ctx, *value) else {
+        return RelSafetyStatus::UnsafeDynamic;
+    };
+
+    let rel_value = ctx.strings.get(string_id);
+    if rel_tokens_are_safe(rel_value.as_ref(), allow_no_referrer) {
+        return RelSafetyStatus::Safe;
+    }
+
+    RelSafetyStatus::UnsafeStatic
+}
+
+/// Return true when one rel value satisfies the rule.
+fn rel_tokens_are_safe(rel_value: &str, allow_no_referrer: bool) -> bool {
+    let has_noopener = rel_value
+        .split_ascii_whitespace()
+        .any(|token| token.eq_ignore_ascii_case("noopener"));
+    if has_noopener {
+        return true;
+    }
+
+    allow_no_referrer
+        && rel_value
+            .split_ascii_whitespace()
+            .any(|token| token.eq_ignore_ascii_case("noreferrer"))
+}
+
+/// Return true when the target attribute matches one allowed domain entry.
+fn target_url_matches_allowed_domain(
+    ctx: &LintAstContext<'_>,
+    args: &[ast::LocalNodeId<Argument>],
+    target_attribute_name: &str,
+    allowed_domains: &[String],
+) -> bool {
+    if allowed_domains.is_empty() {
+        return false;
+    }
+
+    let target_url = args.iter().find_map(|arg_id| {
+        let argument = ctx.tree.get(*arg_id);
+        static_named_argument_value(ctx, argument, target_attribute_name)
+    });
+    let Some(target_url_id) = target_url else {
+        return false;
+    };
+    let target_url = ctx.strings.get(target_url_id);
+    let target_url = target_url.as_ref();
+
+    allowed_domains
+        .iter()
+        .any(|allowed_domain| url_matches_allowed_domain(target_url, allowed_domain))
+}
+
+/// Return one static named argument string id when present.
+fn static_named_argument_value(
+    ctx: &LintAstContext<'_>,
+    argument: &Argument,
+    name: &str,
+) -> Option<ast::StringId> {
+    let Argument::Named {
+        name: argument_name,
+        value,
+        ..
+    } = argument
+    else {
+        return None;
+    };
+
+    if ctx.strings.get(argument_name.string()).as_ref() != name {
+        return None;
+    }
+
+    argument_static_string_id(ctx, *value)
+}
+
+/// Return true when one target URL matches one allowed domain entry.
+fn url_matches_allowed_domain(target_url: &str, allowed_domain: &str) -> bool {
+    let target_url = target_url.trim();
+    let allowed_domain = allowed_domain.trim();
+
+    if target_url.eq_ignore_ascii_case(allowed_domain) {
+        return true;
+    }
+
+    match (Url::parse(target_url), Url::parse(allowed_domain)) {
+        (Ok(target), Ok(allowed)) => {
+            target.scheme().eq_ignore_ascii_case(allowed.scheme())
+                && target
+                    .host_str()
+                    .zip(allowed.host_str())
+                    .is_some_and(|(left, right)| left.eq_ignore_ascii_case(right))
+                && target.port_or_known_default() == allowed.port_or_known_default()
+        }
+        (Ok(target), Err(_)) => target
+            .host_str()
+            .is_some_and(|host| host.eq_ignore_ascii_case(allowed_domain)),
+        (Err(_), Ok(allowed)) => allowed
+            .host_str()
+            .is_some_and(|host| host.eq_ignore_ascii_case(target_url)),
+        (Err(_), Err(_)) => false,
+    }
+}
+
+/// Return true when one later prop spread may override earlier attributes.
+fn has_trailing_spread_argument(
+    ctx: &LintAstContext<'_>,
+    args: &[ast::LocalNodeId<Argument>],
+    start_index: usize,
+) -> bool {
+    args.iter()
+        .skip(start_index + 1)
+        .copied()
+        .any(|argument_id| matches!(ctx.tree.get(argument_id), Argument::Spread { .. }))
+}
+
+/// Build a safe fix that injects or amends rel with noopener.
 fn blank_target_fix(
     ctx: &LintAstContext<'_>,
     args: &[ast::LocalNodeId<Argument>],
+    rel_argument_id: Option<ast::LocalNodeId<Argument>>,
 ) -> Option<LintFix> {
+    if let Some(rel_argument_id) = rel_argument_id {
+        return blank_target_rel_fix(ctx, rel_argument_id);
+    }
+
     let last_argument = args.last()?;
     let last_span = ctx.tree.get_span(*last_argument);
     let edits = ctx
         .edit_builder()
-        .insert(last_span.end, " rel=\"noopener noreferrer\"")
+        .insert(last_span.end, " rel=\"noopener\"")
         .into_edits();
-    Some(LintFix::safe("Add rel=\"noopener noreferrer\"").with_edits(edits))
+    Some(LintFix::safe("Add rel=\"noopener\"").with_edits(edits))
+}
+
+/// Build a safe fix that amends one rel attribute with noopener.
+fn blank_target_rel_fix(
+    ctx: &LintAstContext<'_>,
+    rel_argument_id: ast::LocalNodeId<Argument>,
+) -> Option<LintFix> {
+    let argument = ctx.tree.get(rel_argument_id);
+    let Argument::Named { value, .. } = argument else {
+        return None;
+    };
+
+    let string_id = argument_static_string_id(ctx, *value)?;
+    let rel_value = ctx.strings.get(string_id);
+    let rel_value = rel_value.as_ref();
+    let amended_rel = if rel_value.trim().is_empty() {
+        "noopener".to_string()
+    } else {
+        format!("noopener {rel_value}")
+    };
+
+    let value_span = ctx.tree.get_span(*value);
+    let value_text = ctx.get_span_text(value_span);
+    let replacement = quoted_rel_literal(value_text, &amended_rel)?;
+    let edits = ctx
+        .edit_builder()
+        .replace(value_span, replacement)
+        .into_edits();
+    Some(LintFix::safe("Add noopener to rel attribute").with_edits(edits))
+}
+
+/// Return one rel string literal using the same quote style as the original.
+fn quoted_rel_literal(original: &str, rel_value: &str) -> Option<String> {
+    let quote = original.chars().next()?;
+    if !matches!(quote, '"' | '\'' | '`') || !original.ends_with(quote) {
+        return None;
+    }
+
+    Some(format!("{quote}{rel_value}{quote}"))
 }
 
 #[cfg(test)]

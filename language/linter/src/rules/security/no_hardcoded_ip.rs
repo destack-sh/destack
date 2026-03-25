@@ -14,7 +14,7 @@ declare_lint! {
     /// - `127.0.0.1` and `::1` (localhost)
     /// - `0.0.0.0` (bind to all interfaces)
     /// - `255.255.255.255` (broadcast)
-    /// - Documentation IPs: `192.0.2.*`, `198.51.100.*`, `203.0.113.*`
+    /// - Documentation IPs: `192.0.2.*`, `198.51.100.*`, `203.0.113.*`, `2001:db8::/32`
     #[lint(
         id = "no-hardcoded-ip",
         code = "LS002",
@@ -259,7 +259,10 @@ fn try_parse_ipv6_at(bytes: &[u8], start: usize) -> Option<(String, usize)> {
 /// Check if an IPv6 address is allowed.
 fn is_allowed_ipv6(ip: &str) -> bool {
     // localhost
-    ip == "::1" || ip == "0:0:0:0:0:0:0:1"
+    ip == "::1"
+        || ip == "0:0:0:0:0:0:0:1"
+        || ip.starts_with("2001:db8:")
+        || ip.starts_with("2001:DB8:")
 }
 
 #[cfg(test)]
@@ -385,9 +388,6 @@ let localhost = "::1"
 "#,
         );
         test.result(result).assert_no_lint("no-hardcoded-ip");
-"#,
-        );
-        test.result(result).assert_no_lint("no-hardcoded-ip");
     }
 
     #[test]
@@ -397,5 +397,8 @@ let localhost = "::1"
             "no_hardcoded_ip/test_allows_documentation_ipv6_address.ds",
             r#"
 let server = "2001:db8::1"
+"#,
+        );
+        test.result(result).assert_no_lint("no-hardcoded-ip");
     }
 }

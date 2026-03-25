@@ -5,7 +5,7 @@ use destack_workspace::LintSeverity;
 use crate::LintRequirement::{RequireLibSymbol, RequireWellKnownSymbol};
 use crate::rules::common::{
     expression_is_global_qualified_member, expression_target_symbol,
-    expression_unwrap_parenthesized,
+    expression_type_or_call_return_type_map, expression_unwrap_parenthesized, is_string_type,
 };
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -54,6 +54,8 @@ struct NoImpliedEvalVisitor<'a, 'b> {
     meta: &'a LintMeta,
     /// The Function constructor symbol.
     function_symbol: dir::GlobalSymbolId,
+    /// The String well known symbol when available.
+    string_symbol: Option<dir::GlobalSymbolId>,
     /// The Function member name.
     function_name: StringId,
     /// The setTimeout symbol for this module.
@@ -78,6 +80,7 @@ impl<'a, 'b> NoImpliedEvalVisitor<'a, 'b> {
     /// Build a visitor for no-implied-eval checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let function_symbol = ctx.well_known_symbol(WellKnownSymbol::Function);
+        let string_symbol = ctx.get_well_known_symbol(WellKnownSymbol::String);
         let function_name = ctx.program.strings.intern("Function");
         let set_timeout_name = ctx.program.strings.intern("setTimeout");
         let set_interval_name = ctx.program.strings.intern("setInterval");
@@ -92,6 +95,7 @@ impl<'a, 'b> NoImpliedEvalVisitor<'a, 'b> {
             ctx,
             meta,
             function_symbol,
+            string_symbol,
             function_name,
             set_timeout_symbol,
             set_interval_symbol,
@@ -253,7 +257,18 @@ impl<'a, 'b> NoImpliedEvalVisitor<'a, 'b> {
             return self.is_string_like(*left) || self.is_string_like(*right);
         }
 
-        false
+        expression_type_or_call_return_type_map(
+            self.ctx.program.as_ref(),
+            self.ctx.artifacts.as_ref(),
+            self.ctx.profile_id,
+            self.ctx.module_id(),
+            self.ctx.tree,
+            self.ctx.symbols,
+            self.ctx.types,
+            expression_id,
+            |types, type_id| is_string_type(types, type_id, self.string_symbol),
+        )
+        .unwrap_or(false)
     }
 }
 
@@ -373,11 +388,6 @@ setTimeout("return " + expression, 10);
         );
         test.result(result).assert_lint("no-implied-eval");
     }
-}
-"#,
-        );
-        test.result(result).assert_lint("no-implied-eval");
-    }
 
     /// Report timer calls with string typed variables.
     #[test]
@@ -388,3 +398,8 @@ setTimeout("return " + expression, 10);
             r#"
 let expression: string = "work()";
 setTimeout(expression, 10);
+"#,
+        );
+        test.result(result).assert_lint("no-implied-eval");
+    }
+}
