@@ -37,7 +37,7 @@ impl LintRule for NoExcessiveBooleans {
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         // resolve lint metadata and threshold
         let meta = self.meta();
-        let max_booleans = ctx.options.max_booleans;
+        let max_booleans = ctx.options.complexity.max_booleans;
 
         // check callable parameters across declarations and method owners
         for_each_callable_signature(ctx.tree, |owner_id, signature, _body| {

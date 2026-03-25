@@ -35,14 +35,15 @@ impl LintRule for DotNotation {
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
-        let allow_pattern = ctx
-            .options
-            .dot_notation_allow_pattern
-            .as_deref()
-            .map(|pattern| {
-                Regex::new(pattern)
-                    .expect("validated config invariant: dot-notation allow pattern compiles")
-            });
+        let allow_pattern =
+            ctx.options
+                .style
+                .dot_notation_allow_pattern
+                .as_deref()
+                .map(|pattern| {
+                    Regex::new(pattern)
+                        .expect("validated config invariant: dot-notation allow pattern compiles")
+                });
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expr = ctx.tree.get(node_id);
@@ -119,7 +120,7 @@ fn property_name_prefers_dot_notation(
         return false;
     }
 
-    if ctx.options.dot_notation_allow_keywords && ast::Keyword::from_str(name).is_ok() {
+    if ctx.options.style.dot_notation_allow_keywords && ast::Keyword::from_str(name).is_ok() {
         return false;
     }
 
@@ -289,7 +290,7 @@ const x = obj["class"]
     #[test]
     fn test_reports_keyword_property_when_keywords_are_disallowed() {
         let test = TestProgram::for_rule_without_prelude(DotNotation).with_options(|options| {
-            options.dot_notation_allow_keywords = false;
+            options.style.dot_notation_allow_keywords = false;
         });
         let result = test.lint_ast(
             "dot_notation/test_reports_keyword_property_when_keywords_are_disallowed.ds",
@@ -303,7 +304,7 @@ const x = obj["class"]
     #[test]
     fn test_allows_property_name_matching_allow_pattern() {
         let test = TestProgram::for_rule_without_prelude(DotNotation).with_options(|options| {
-            options.dot_notation_allow_pattern = Some("^_".to_string());
+            options.style.dot_notation_allow_pattern = Some("^_".to_string());
         });
         let result = test.lint_ast(
             "dot_notation/test_allows_property_name_matching_allow_pattern.ds",

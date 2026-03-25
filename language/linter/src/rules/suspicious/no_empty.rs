@@ -54,7 +54,9 @@ impl LintRule for NoEmpty {
             {
                 continue;
             }
-            if ctx.options.no_empty_allow_empty_catch && block_is_catch_body(ctx, node_id) {
+            if ctx.options.correctness.no_empty_allow_empty_catch
+                && block_is_catch_body(ctx, node_id)
+            {
                 continue;
             }
 
@@ -257,7 +259,7 @@ switch (value) { /* intentionally empty */ }
     #[test]
     fn test_allows_empty_catch_when_configured() {
         let test = TestProgram::for_rule_without_prelude(NoEmpty).with_options(|options| {
-            options.no_empty_allow_empty_catch = true;
+            options.correctness.no_empty_allow_empty_catch = true;
         });
         let result = test.lint_ast(
             "no_empty/test_allows_empty_catch_when_configured.ds",

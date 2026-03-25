@@ -39,7 +39,7 @@ impl LintRule for ArrayType {
     /// Check module DIR nodes for inconsistent array type syntax.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
-        let preferred_style = ctx.options.array_type;
+        let preferred_style = ctx.options.style.array_type;
         let array_symbols = resolve_array_symbols(ctx);
         if array_symbols.is_empty() {
             return;
@@ -372,7 +372,7 @@ type Values = number[];
     #[test]
     fn test_flags_shorthand_array_type_when_generic_preferred() {
         let test = TestProgram::for_rule_with_prelude(ArrayType).with_options(|options| {
-            options.array_type = ArrayTypeStyle::Generic;
+            options.style.array_type = ArrayTypeStyle::Generic;
         });
         let result = test.lint_dir(
             "array_type/test_flags_shorthand_array_type_when_generic_preferred.ds",
@@ -394,7 +394,7 @@ type Values = Array<number>;
     #[test]
     fn test_allows_generic_array_type_when_generic_preferred() {
         let test = TestProgram::for_rule_with_prelude(ArrayType).with_options(|options| {
-            options.array_type = ArrayTypeStyle::Generic;
+            options.style.array_type = ArrayTypeStyle::Generic;
         });
         let result = test.lint_dir(
             "array_type/test_allows_generic_array_type_when_generic_preferred.ds",

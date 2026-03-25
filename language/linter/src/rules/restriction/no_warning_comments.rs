@@ -32,9 +32,9 @@ impl LintRule for NoWarningComments {
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
-        let warning_terms = &ctx.options.warning_comment_terms;
-        let warning_location = ctx.options.warning_comment_location;
-        let warning_decoration = &ctx.options.warning_comment_decoration;
+        let warning_terms = &ctx.options.restriction.warning_comment_terms;
+        let warning_location = ctx.options.restriction.warning_comment_location;
+        let warning_decoration = &ctx.options.restriction.warning_comment_decoration;
 
         // iterate over all comment trivia records
         for trivia in ctx.tree.comment_trivia().iter().copied() {
@@ -284,7 +284,7 @@ const value = 1;
     fn test_detects_warning_term_anywhere_when_enabled() {
         let test =
             TestProgram::for_rule_without_prelude(NoWarningComments).with_options(|options| {
-                options.warning_comment_location =
+                options.restriction.warning_comment_location =
                     destack_workspace::WarningCommentLocation::Anywhere;
             });
         let result = test.lint_ast(
@@ -314,7 +314,7 @@ const value = 1;
     fn test_detects_warning_term_after_configured_decoration() {
         let test =
             TestProgram::for_rule_without_prelude(NoWarningComments).with_options(|options| {
-                options.warning_comment_decoration = vec![String::from("*")];
+                options.restriction.warning_comment_decoration = vec![String::from("*")];
             });
         let result = test.lint_ast(
             "no_warning_comments/test_detects_warning_term_after_configured_decoration.ts",

@@ -72,7 +72,7 @@ impl LintRule for NoBlankTarget {
                 ctx,
                 args,
                 target_attribute_name,
-                &ctx.options.no_blank_target_allow_domains,
+                &ctx.options.security.no_blank_target_allow_domains,
             ) {
                 continue;
             }
@@ -84,7 +84,11 @@ impl LintRule for NoBlankTarget {
             });
             let rel_argument_id = rel_argument_index.map(|index| args[index]);
             let rel_status = rel_argument_id.map(|arg_id| {
-                rel_safety_status(ctx, arg_id, ctx.options.no_blank_target_allow_no_referrer)
+                rel_safety_status(
+                    ctx,
+                    arg_id,
+                    ctx.options.security.no_blank_target_allow_no_referrer,
+                )
             });
             if rel_status == Some(RelSafetyStatus::Safe) {
                 continue;
@@ -108,7 +112,8 @@ impl LintRule for NoBlankTarget {
                 continue;
             }
 
-            let rel_requirement_message = if ctx.options.no_blank_target_allow_no_referrer {
+            let rel_requirement_message = if ctx.options.security.no_blank_target_allow_no_referrer
+            {
                 "add rel=\"noopener\" or rel=\"noreferrer\""
             } else {
                 "add rel=\"noopener\""
@@ -626,7 +631,8 @@ let link = <a href="https://example.com" target="_blank" rel="nofollow" {...prop
     #[test]
     fn test_allows_blank_target_for_allowed_domain() {
         let test = TestProgram::for_rule_without_prelude(NoBlankTarget).with_options(|options| {
-            options.no_blank_target_allow_domains = vec!["https://example.com".to_string()];
+            options.security.no_blank_target_allow_domains =
+                vec!["https://example.com".to_string()];
         });
         let result = test.lint_ast(
             "no_blank_target/test_allows_blank_target_for_allowed_domain.ds",
@@ -640,7 +646,7 @@ let link = <a href="https://example.com/path" target="_blank">Click</a>
     #[test]
     fn test_flags_noreferrer_when_no_referrer_is_disabled() {
         let test = TestProgram::for_rule_without_prelude(NoBlankTarget).with_options(|options| {
-            options.no_blank_target_allow_no_referrer = false;
+            options.security.no_blank_target_allow_no_referrer = false;
         });
         let result = test.lint_ast(
             "no_blank_target/test_flags_noreferrer_when_no_referrer_is_disabled.ds",

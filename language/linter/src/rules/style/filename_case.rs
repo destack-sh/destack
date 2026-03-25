@@ -29,7 +29,7 @@ impl LintRule for FilenameCaseRule {
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
-        let expected_case = ctx.options.filename_case;
+        let expected_case = ctx.options.style.filename_case;
 
         // keep filesystem paths only
         let Some(path) = &ctx.module.path else {

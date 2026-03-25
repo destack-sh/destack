@@ -58,7 +58,10 @@ impl<'a, 'b> PromiseExecutorReturnVisitor<'a, 'b> {
     /// Build a visitor for Promise executor return checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let promise_symbol = ctx.well_known_symbol(WellKnownSymbol::Promise);
-        let allow_void = ctx.options.no_promise_executor_return_allow_void;
+        let allow_void = ctx
+            .options
+            .correctness
+            .no_promise_executor_return_allow_void;
         Self {
             ctx,
             meta,
@@ -505,7 +508,7 @@ let task = new Promise((resolve, reject) => {
     fn test_allows_void_return_when_configured() {
         let test =
             TestProgram::for_rule_with_prelude(NoPromiseExecutorReturn).with_options(|options| {
-                options.no_promise_executor_return_allow_void = true;
+                options.correctness.no_promise_executor_return_allow_void = true;
             });
         let result = test.lint_dir(
             "no_promise_executor_return/test_allows_void_return_when_configured.ds",
@@ -523,7 +526,7 @@ let task = new Promise((resolve, reject) => {
     fn test_allows_void_expression_body_when_configured() {
         let test =
             TestProgram::for_rule_with_prelude(NoPromiseExecutorReturn).with_options(|options| {
-                options.no_promise_executor_return_allow_void = true;
+                options.correctness.no_promise_executor_return_allow_void = true;
             });
         let result = test.lint_dir(
             "no_promise_executor_return/test_allows_void_expression_body_when_configured.ds",
@@ -539,7 +542,7 @@ let task = new Promise((resolve, reject) => void resolve(1));
     fn test_flags_mixed_void_and_value_returns_when_configured() {
         let test =
             TestProgram::for_rule_with_prelude(NoPromiseExecutorReturn).with_options(|options| {
-                options.no_promise_executor_return_allow_void = true;
+                options.correctness.no_promise_executor_return_allow_void = true;
             });
         let result = test.lint_dir(
             "no_promise_executor_return/test_flags_mixed_void_and_value_returns_when_configured.ds",

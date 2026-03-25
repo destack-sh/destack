@@ -32,7 +32,7 @@ impl LintRule for MaxTypeFields {
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         // resolve lint metadata and threshold
         let meta = self.meta();
-        let max_type_fields = ctx.options.max_type_fields;
+        let max_type_fields = ctx.options.complexity.max_type_fields;
 
         // check declaration field counts
         for declaration_id in ctx.tree.iter_nodes::<ast::Declaration>() {
@@ -158,7 +158,7 @@ mod tests {
     #[test]
     fn test_detects_too_many_struct_fields() {
         let test = TestProgram::for_rule_without_prelude(MaxTypeFields)
-            .with_options(|options| options.max_type_fields = 3);
+            .with_options(|options| options.complexity.max_type_fields = 3);
         let result = test.lint_ast(
             "max_type_fields/test_detects_too_many_struct_fields.ds",
             r#"
@@ -176,7 +176,7 @@ struct TooMany {
     #[test]
     fn test_detects_too_many_class_fields() {
         let test = TestProgram::for_rule_without_prelude(MaxTypeFields)
-            .with_options(|options| options.max_type_fields = 3);
+            .with_options(|options| options.complexity.max_type_fields = 3);
         let result = test.lint_ast(
             "max_type_fields/test_detects_too_many_class_fields.ds",
             r#"
@@ -194,7 +194,7 @@ class TooMany {
     #[test]
     fn test_ignores_methods_for_field_count() {
         let test = TestProgram::for_rule_without_prelude(MaxTypeFields)
-            .with_options(|options| options.max_type_fields = 2);
+            .with_options(|options| options.complexity.max_type_fields = 2);
         let result = test.lint_ast(
             "max_type_fields/test_ignores_methods_for_field_count.ds",
             r#"
@@ -212,7 +212,7 @@ struct WithMethods {
     #[test]
     fn test_detects_too_many_object_type_fields() {
         let test = TestProgram::for_rule_without_prelude(MaxTypeFields)
-            .with_options(|options| options.max_type_fields = 3);
+            .with_options(|options| options.complexity.max_type_fields = 3);
         let result = test.lint_ast(
             "max_type_fields/test_detects_too_many_object_type_fields.ds",
             r#"
@@ -225,7 +225,7 @@ type TooMany = { a: int32, b: int32, c: int32, d: int32 };
     #[test]
     fn test_ignores_runtime_object_literals() {
         let test = TestProgram::for_rule_without_prelude(MaxTypeFields)
-            .with_options(|options| options.max_type_fields = 1);
+            .with_options(|options| options.complexity.max_type_fields = 1);
         let result = test.lint_ast(
             "max_type_fields/test_ignores_runtime_object_literals.ds",
             r#"

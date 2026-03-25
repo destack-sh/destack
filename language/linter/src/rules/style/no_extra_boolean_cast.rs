@@ -204,6 +204,7 @@ impl<'a, 'b> NoExtraBooleanCastVisitor<'a, 'b> {
             expression_id,
             self.ctx
                 .options
+                .style
                 .no_extra_boolean_cast_enforce_for_inner_expressions,
         )
     }
@@ -571,7 +572,9 @@ let value = !!flag;
     #[test]
     fn test_flags_logical_operand_when_enforced() {
         let test = TestProgram::for_rule_with_prelude(NoExtraBooleanCast).with_options(|options| {
-            options.no_extra_boolean_cast_enforce_for_inner_expressions = true;
+            options
+                .style
+                .no_extra_boolean_cast_enforce_for_inner_expressions = true;
         });
         let result = test.lint_dir(
             "no_extra_boolean_cast/test_flags_logical_operand_when_enforced.ds",
@@ -607,7 +610,9 @@ if (value || !!flag) {
     #[test]
     fn test_flags_ternary_branch_when_enforced() {
         let test = TestProgram::for_rule_with_prelude(NoExtraBooleanCast).with_options(|options| {
-            options.no_extra_boolean_cast_enforce_for_inner_expressions = true;
+            options
+                .style
+                .no_extra_boolean_cast_enforce_for_inner_expressions = true;
         });
         let result = test.lint_dir(
             "no_extra_boolean_cast/test_flags_ternary_branch_when_enforced.ds",

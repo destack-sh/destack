@@ -39,7 +39,7 @@ impl LintRule for MaxStatements {
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         // resolve lint metadata and threshold
         let meta = self.meta();
-        let max_statements = ctx.options.max_statements;
+        let max_statements = ctx.options.complexity.max_statements;
         let mut pending_top_level_violations = Vec::new();
 
         // check all callable owners that have a body expression
@@ -56,7 +56,10 @@ impl LintRule for MaxStatements {
             }
 
             // mirror eslint here: defer a single top-level function violation
-            if ctx.options.max_statements_ignore_top_level_functions
+            if ctx
+                .options
+                .complexity
+                .max_statements_ignore_top_level_functions
                 && callable_owner_is_top_level_function(ctx.tree, owner_id)
             {
                 pending_top_level_violations.push((owner_id, body_id, statement_count));
@@ -395,7 +398,7 @@ function foo() {
     #[test]
     fn test_counts_nested_block_statements() {
         let test = TestProgram::for_rule_without_prelude(MaxStatements)
-            .with_options(|options| options.max_statements = 2);
+            .with_options(|options| options.complexity.max_statements = 2);
 
         // include nested block statements in the same callable
         let result = test.lint_ast(
@@ -417,7 +420,7 @@ function foo(flag: boolean) {
     #[test]
     fn test_expression_body_lambda_counts_zero_statements() {
         let test = TestProgram::for_rule_without_prelude(MaxStatements)
-            .with_options(|options| options.max_statements = 0);
+            .with_options(|options| options.complexity.max_statements = 0);
 
         // expression body lambdas have no block statements
         let result = test.lint_ast(
@@ -434,7 +437,7 @@ const fn = (value: int32) => value + 1;
     #[test]
     fn test_ignores_nested_function_statements() {
         let test = TestProgram::for_rule_without_prelude(MaxStatements)
-            .with_options(|options| options.max_statements = 1);
+            .with_options(|options| options.complexity.max_statements = 1);
 
         // ignore statements inside nested callable scopes
         let result = test.lint_ast(
@@ -455,7 +458,7 @@ function outer() {
     #[test]
     fn test_detects_object_method_too_many_statements() {
         let test = TestProgram::for_rule_without_prelude(MaxStatements)
-            .with_options(|options| options.max_statements = 2);
+            .with_options(|options| options.complexity.max_statements = 2);
 
         // count statements for object method bodies
         let result = test.lint_ast(
@@ -478,8 +481,8 @@ const object = {
     #[test]
     fn test_ignores_top_level_function_declarations_when_enabled() {
         let test = TestProgram::for_rule_without_prelude(MaxStatements).with_options(|options| {
-            options.max_statements = 1;
-            options.max_statements_ignore_top_level_functions = true;
+            options.complexity.max_statements = 1;
+            options.complexity.max_statements_ignore_top_level_functions = true;
         });
 
         let result = test.lint_ast(
@@ -498,8 +501,8 @@ function outer() {
     #[test]
     fn test_ignores_single_top_level_wrapper_function_when_enabled() {
         let test = TestProgram::for_rule_without_prelude(MaxStatements).with_options(|options| {
-            options.max_statements = 1;
-            options.max_statements_ignore_top_level_functions = true;
+            options.complexity.max_statements = 1;
+            options.complexity.max_statements_ignore_top_level_functions = true;
         });
 
         let result = test.lint_ast(
@@ -518,8 +521,8 @@ register(() => {
     #[test]
     fn test_reports_multiple_top_level_functions_when_enabled() {
         let test = TestProgram::for_rule_without_prelude(MaxStatements).with_options(|options| {
-            options.max_statements = 1;
-            options.max_statements_ignore_top_level_functions = true;
+            options.complexity.max_statements = 1;
+            options.complexity.max_statements_ignore_top_level_functions = true;
         });
 
         let result = test.lint_ast(
@@ -545,8 +548,8 @@ second(() => {
     #[test]
     fn test_ignores_single_top_level_object_method_when_enabled() {
         let test = TestProgram::for_rule_without_prelude(MaxStatements).with_options(|options| {
-            options.max_statements = 1;
-            options.max_statements_ignore_top_level_functions = true;
+            options.complexity.max_statements = 1;
+            options.complexity.max_statements_ignore_top_level_functions = true;
         });
 
         let result = test.lint_ast(

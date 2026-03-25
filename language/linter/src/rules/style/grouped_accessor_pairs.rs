@@ -57,7 +57,7 @@ impl LintRule for GroupedAccessorPairs {
                 Declaration::Struct { members, .. }
                 | Declaration::Interface { members, .. }
                 | Declaration::Extension { members, .. } => {
-                    if !ctx.options.grouped_accessor_pairs_enforce_for_types {
+                    if !ctx.options.style.grouped_accessor_pairs_enforce_for_types {
                         continue;
                     }
 
@@ -70,7 +70,7 @@ impl LintRule for GroupedAccessorPairs {
                 ctx,
                 meta,
                 members,
-                ctx.options.grouped_accessor_pairs_order,
+                ctx.options.style.grouped_accessor_pairs_order,
             );
         }
 
@@ -86,7 +86,7 @@ impl LintRule for GroupedAccessorPairs {
                 ctx,
                 meta,
                 properties,
-                ctx.options.grouped_accessor_pairs_order,
+                ctx.options.style.grouped_accessor_pairs_order,
             );
         }
     }
@@ -519,7 +519,8 @@ class Example {
     fn test_reports_setter_then_getter_when_get_before_set_is_required() {
         let test =
             TestProgram::for_rule_without_prelude(GroupedAccessorPairs).with_options(|options| {
-                options.grouped_accessor_pairs_order = GroupedAccessorPairsOrder::GetBeforeSet;
+                options.style.grouped_accessor_pairs_order =
+                    GroupedAccessorPairsOrder::GetBeforeSet;
             });
         let result = test.lint_ast(
             "grouped_accessor_pairs/test_reports_setter_then_getter_when_get_before_set_is_required.ds",
@@ -678,7 +679,7 @@ class Example {
     fn test_struct_accessors_non_adjacent_detected() {
         let test =
             TestProgram::for_rule_without_prelude(GroupedAccessorPairs).with_options(|options| {
-                options.grouped_accessor_pairs_enforce_for_types = true;
+                options.style.grouped_accessor_pairs_enforce_for_types = true;
             });
         let result = test.lint_ast(
             "grouped_accessor_pairs/test_struct_accessors_non_adjacent_detected.ds",
@@ -713,7 +714,7 @@ struct Example {
     fn test_checks_struct_accessors_when_enabled() {
         let test =
             TestProgram::for_rule_without_prelude(GroupedAccessorPairs).with_options(|options| {
-                options.grouped_accessor_pairs_enforce_for_types = true;
+                options.style.grouped_accessor_pairs_enforce_for_types = true;
             });
         let result = test.lint_ast(
             "grouped_accessor_pairs/test_checks_struct_accessors_when_enabled.ds",

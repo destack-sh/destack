@@ -35,7 +35,7 @@ impl LintRule for NoComplexType {
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         // resolve lint metadata and threshold
         let meta = self.meta();
-        let max_type_complexity = ctx.options.max_type_complexity;
+        let max_type_complexity = ctx.options.complexity.max_type_complexity;
 
         // check only top level type annotation roots
         for expression_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -196,7 +196,7 @@ mod tests {
     #[test]
     fn test_detects_complex_type_alias() {
         let test = TestProgram::for_rule_without_prelude(NoComplexType)
-            .with_options(|options| options.max_type_complexity = 3);
+            .with_options(|options| options.complexity.max_type_complexity = 3);
         let result = test.lint_ast(
             "no_complex_type/test_detects_complex_type_alias.ds",
             r#"
@@ -221,7 +221,7 @@ let value: Array<string>;
     #[test]
     fn test_detects_complex_parameter_type() {
         let test = TestProgram::for_rule_without_prelude(NoComplexType)
-            .with_options(|options| options.max_type_complexity = 2);
+            .with_options(|options| options.complexity.max_type_complexity = 2);
         let result = test.lint_ast(
             "no_complex_type/test_detects_complex_parameter_type.ds",
             r#"
@@ -234,7 +234,7 @@ function run(value: Array<Map<string, Set<int32>>>): void {}
     #[test]
     fn test_ignores_runtime_expression_complexity() {
         let test = TestProgram::for_rule_without_prelude(NoComplexType)
-            .with_options(|options| options.max_type_complexity = 1);
+            .with_options(|options| options.complexity.max_type_complexity = 1);
         let result = test.lint_ast(
             "no_complex_type/test_ignores_runtime_expression_complexity.ds",
             r#"

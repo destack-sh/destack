@@ -80,7 +80,7 @@ fn is_allowed_null_usage(
     null_expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     // allow strict comparisons when configured
-    if !ctx.options.check_strict_null_equality
+    if !ctx.options.restriction.check_strict_null_equality
         && null_is_in_strict_equality_comparison(ctx, null_expression_id)
     {
         return true;
@@ -321,7 +321,7 @@ mod tests {
     #[test]
     fn test_allows_strict_null_comparison_when_disabled() {
         let test = TestProgram::for_rule_without_prelude(NoNull).with_options(|options| {
-            options.check_strict_null_equality = false;
+            options.restriction.check_strict_null_equality = false;
         });
         let result = test.lint_ast(
             "no_null/test_allows_strict_null_comparison_when_disabled.ts",
@@ -333,7 +333,7 @@ mod tests {
     #[test]
     fn test_still_detects_loose_null_comparison_when_strict_equality_disabled() {
         let test = TestProgram::for_rule_without_prelude(NoNull).with_options(|options| {
-            options.check_strict_null_equality = false;
+            options.restriction.check_strict_null_equality = false;
         });
         let result = test.lint_ast(
             "no_null/test_still_detects_loose_null_comparison_when_strict_equality_disabled.ts",

@@ -35,8 +35,8 @@ impl LintRule for MaxParams {
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         // resolve lint metadata and threshold
         let meta = self.meta();
-        let max_params = ctx.options.max_params;
-        let this_parameter_count = match ctx.options.max_params_count_this {
+        let max_params = ctx.options.complexity.max_params;
+        let this_parameter_count = match ctx.options.complexity.max_params_count_this {
             MaxParamsCountThis::Never => ThisParameterCount::Never,
             MaxParamsCountThis::ExceptVoid => ThisParameterCount::ExceptVoid,
             MaxParamsCountThis::Always => ThisParameterCount::Always,
@@ -231,7 +231,7 @@ const object = {
     #[test]
     fn test_ignores_void_this_parameter() {
         let test = TestProgram::for_rule_without_prelude(MaxParams)
-            .with_options(|options| options.max_params = 1);
+            .with_options(|options| options.complexity.max_params = 1);
         let result = test.lint_ast(
             "max_params/test_ignores_void_this_parameter.ds",
             r#"
@@ -244,7 +244,7 @@ function withVoidThis(this: void, a: int32) {}
     #[test]
     fn test_counts_non_void_this_parameter() {
         let test = TestProgram::for_rule_without_prelude(MaxParams)
-            .with_options(|options| options.max_params = 1);
+            .with_options(|options| options.complexity.max_params = 1);
         let result = test.lint_ast(
             "max_params/test_counts_non_void_this_parameter.ds",
             r#"
@@ -257,8 +257,8 @@ function withTypedThis(this: Example, a: int32) {}
     #[test]
     fn test_counts_void_this_when_enabled() {
         let test = TestProgram::for_rule_without_prelude(MaxParams).with_options(|options| {
-            options.max_params = 1;
-            options.max_params_count_this = MaxParamsCountThis::Always;
+            options.complexity.max_params = 1;
+            options.complexity.max_params_count_this = MaxParamsCountThis::Always;
         });
         let result = test.lint_ast(
             "max_params/test_counts_void_this_when_enabled.ds",
@@ -272,8 +272,8 @@ function withVoidThis(this: void, a: int32) {}
     #[test]
     fn test_ignores_this_when_count_this_is_never() {
         let test = TestProgram::for_rule_without_prelude(MaxParams).with_options(|options| {
-            options.max_params = 1;
-            options.max_params_count_this = MaxParamsCountThis::Never;
+            options.complexity.max_params = 1;
+            options.complexity.max_params_count_this = MaxParamsCountThis::Never;
         });
         let result = test.lint_ast(
             "max_params/test_ignores_this_when_count_this_is_never.ds",

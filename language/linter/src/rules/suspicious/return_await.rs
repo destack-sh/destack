@@ -39,7 +39,7 @@ impl LintRule for ReturnAwait {
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
         let promise_symbols = resolve_promise_symbols(ctx);
-        let configuration = return_await_configuration(ctx.options.return_await_mode);
+        let configuration = return_await_configuration(ctx.options.correctness.return_await_mode);
 
         // inspect return expressions
         for return_expression_id in ctx.tree.iter_node_ids_of_type::<dir::Expression>() {
@@ -882,7 +882,7 @@ async function fetchValue(): Promise<int32> {
     #[test]
     fn test_always_mode_requires_await_in_ordinary_context() {
         let test = TestProgram::for_rule_with_prelude(ReturnAwait).with_options(|options| {
-            options.return_await_mode = ReturnAwaitMode::Always;
+            options.correctness.return_await_mode = ReturnAwaitMode::Always;
         });
         let result = test.lint_dir(
             "return_await/test_always_mode_requires_await_in_ordinary_context.ds",
@@ -903,7 +903,7 @@ async function fetchValue(): Promise<int32> {
     #[test]
     fn test_never_mode_forbids_await_in_try_context() {
         let test = TestProgram::for_rule_with_prelude(ReturnAwait).with_options(|options| {
-            options.return_await_mode = ReturnAwaitMode::Never;
+            options.correctness.return_await_mode = ReturnAwaitMode::Never;
         });
         let result = test.lint_dir(
             "return_await/test_never_mode_forbids_await_in_try_context.ds",
@@ -928,7 +928,7 @@ async function fetchValue(): Promise<int32> {
     #[test]
     fn test_correctness_mode_allows_both_return_forms_outside_try() {
         let test = TestProgram::for_rule_with_prelude(ReturnAwait).with_options(|options| {
-            options.return_await_mode = ReturnAwaitMode::ErrorHandlingCorrectnessOnly;
+            options.correctness.return_await_mode = ReturnAwaitMode::ErrorHandlingCorrectnessOnly;
         });
         let result = test.lint_dir(
             "return_await/test_correctness_mode_allows_both_return_forms_outside_try.ds",
@@ -970,7 +970,7 @@ async function fetchValue(): Promise<int32> {
     #[test]
     fn test_always_mode_requires_await_in_async_concise_body() {
         let test = TestProgram::for_rule_with_prelude(ReturnAwait).with_options(|options| {
-            options.return_await_mode = ReturnAwaitMode::Always;
+            options.correctness.return_await_mode = ReturnAwaitMode::Always;
         });
         let result = test.lint_dir(
             "return_await/test_always_mode_requires_await_in_async_concise_body.ds",

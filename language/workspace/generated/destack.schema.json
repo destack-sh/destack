@@ -3655,326 +3655,11 @@
           "description": "Rule configuration.",
           "$ref": "#/$defs/LinterRulesJson"
         },
-        "maxBooleans": {
-          "description": "Maximum boolean parameters or fields.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint",
-          "minimum": 0
-        },
-        "maxCognitiveComplexity": {
-          "description": "Maximum cognitive complexity.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint",
-          "minimum": 0
-        },
-        "maxCyclomaticComplexity": {
-          "description": "Maximum cyclomatic complexity.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint",
-          "minimum": 0
-        },
-        "cyclomaticComplexityVariant": {
-          "description": "Switch counting variant for `cyclomatic-complexity`.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/CyclomaticComplexityVariantJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "maxDepth": {
-          "description": "Maximum nesting depth.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint",
-          "minimum": 0
-        },
-        "maxLines": {
-          "description": "Maximum lines per file.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint",
-          "minimum": 0
-        },
-        "maxLinesSkipComments": {
-          "description": "Ignore full-line comments in `max-lines`.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "maxLinesSkipBlankLines": {
-          "description": "Ignore blank lines in `max-lines`.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "maxLinesPerFunction": {
-          "description": "Maximum lines per function.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint",
-          "minimum": 0
-        },
-        "maxLinesPerFunctionSkipComments": {
-          "description": "Ignore full-line comments in `max-lines-per-function`.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "maxLinesPerFunctionSkipBlankLines": {
-          "description": "Ignore blank lines in `max-lines-per-function`.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "maxLinesPerFunctionIncludeIifes": {
-          "description": "Include immediately invoked functions in `max-lines-per-function`.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "maxNestedCallbacks": {
-          "description": "Maximum callback nesting.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint",
-          "minimum": 0
-        },
-        "maxParams": {
-          "description": "Maximum function parameters.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint",
-          "minimum": 0
-        },
-        "maxParamsCountVoidThis": {
-          "description": "Legacy alias for void-this counting in `max-params`.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "maxParamsCountThis": {
-          "description": "Count `this` parameters in `max-params`.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/MaxParamsCountThisJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "maxStatements": {
-          "description": "Maximum statements per function.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint",
-          "minimum": 0
-        },
-        "maxStatementsIgnoreTopLevelFunctions": {
-          "description": "Ignore top-level functions in `max-statements`.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "maxReturnStatements": {
-          "description": "Maximum return statements per function.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint",
-          "minimum": 0
-        },
-        "maxSwitchCases": {
-          "description": "Maximum switch cases per switch statement.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint",
-          "minimum": 0
-        },
-        "maxTypeVariants": {
-          "description": "Maximum variants in a union type or enum.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint",
-          "minimum": 0
-        },
-        "maxTypeFields": {
-          "description": "Maximum fields in a struct, class, or interface.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint",
-          "minimum": 0
-        },
-        "maxTypeComplexity": {
-          "description": "Maximum type complexity (nesting depth of generics/unions/intersections).",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint",
-          "minimum": 0
-        },
-        "maxDuplicateStringOccurrences": {
-          "description": "Maximum occurrences of the same string literal before warning.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint",
-          "minimum": 0
-        },
-        "maxTryBlockStatements": {
-          "description": "Maximum statements in a try block.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint",
-          "minimum": 0
-        },
-        "noMultiAssignIgnoreNonDeclaration": {
-          "description": "Ignore non-declaration chains in `no-multi-assign`.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "noUnusedExpressionsAllowShortCircuit": {
-          "description": "Allow short-circuit expressions in `no-unused-expressions`.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "noUnusedExpressionsAllowTernary": {
-          "description": "Allow ternary expressions in `no-unused-expressions`.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "noUnusedExpressionsAllowTaggedTemplates": {
-          "description": "Allow tagged templates in `no-unused-expressions`.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "noUnusedExpressionsEnforceForJsx": {
-          "description": "Enforce JSX-like tree expressions in `no-unused-expressions`.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "noUnusedExpressionsIgnoreDirectives": {
-          "description": "Ignore directive prologues in `no-unused-expressions`.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "arrayType": {
-          "description": "Preferred array type syntax: \"array\" or \"generic\".",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ArrayTypeStyleJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "typeDefinitionStyle": {
-          "description": "Preferred type definition syntax: \"type\" or \"interface\".",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/TypeDefinitionStyleJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "catchErrorName": {
-          "description": "Required catch clause error name.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "filenameCase": {
-          "description": "Required filename case style.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/FilenameCaseJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "allowSingleExtendsEmptyInterface": {
-          "description": "Allow empty interfaces that extend exactly one supertype.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
         "returnAwaitMode": {
           "description": "Await policy for the `return-await` rule.",
           "anyOf": [
             {
               "$ref": "#/$defs/ReturnAwaitModeJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "requireUnicodeRegexpRequireFlag": {
-          "description": "Required Unicode regex flag for `require-unicode-regexp`.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/UnicodeRegexpRequireFlagJson"
             },
             {
               "type": "null"
@@ -4022,40 +3707,205 @@
             "type": "string"
           }
         },
-        "noBlankTargetAllowNoReferrer": {
-          "description": "Allow `rel=\"noreferrer\"` without `noopener` in `no-blank-target`.",
+        "noConfusingVoidExpressionIgnoreVoidOperator": {
+          "description": "Ignore explicit `void` wrappers in `no-confusing-void-expression`.",
           "type": [
             "boolean",
             "null"
           ]
         },
-        "noBlankTargetAllowDomains": {
-          "description": "Domains allowed to use `target=\"_blank\"` without rel hardening.",
+        "noConfusingVoidExpressionIgnoreVoidReturningFunctions": {
+          "description": "Ignore returned void expressions inside void-returning functions.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noInnerDeclarationsCheckVarDeclarations": {
+          "description": "Check nested `var` declarations in `no-inner-declarations`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noCondAssignMode": {
+          "description": "Assignment policy for `no-cond-assign`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConditionAssignmentModeJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "noEmptyAllowEmptyCatch": {
+          "description": "Allow empty catch blocks in `no-empty`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noEmptyPatternAllowObjectPatternsAsParameters": {
+          "description": "Allow empty object patterns in parameter position for `no-empty-pattern`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noEmptyFunctionAllow": {
+          "description": "Allowed empty function kinds in `no-empty-function`.",
           "type": [
             "array",
             "null"
           ],
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/EmptyFunctionKindJson"
           }
         },
-        "noSecretsEntropyThreshold": {
-          "description": "Entropy threshold in tenths for `no-secrets`.",
+        "noFallthroughAllowEmptyCase": {
+          "description": "Allow empty switch cases in `no-fallthrough`.",
           "type": [
-            "integer",
+            "boolean",
             "null"
-          ],
-          "format": "uint32",
-          "minimum": 0
+          ]
         },
-        "allowNamedFunctionsInPreferArrowCallback": {
+        "noFallthroughCommentPattern": {
+          "description": "Regex pattern for intentional `no-fallthrough` comments.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "noFallthroughReportUnusedComment": {
+          "description": "Report unused intentional `no-fallthrough` comments.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noFloatingPromisesIgnoreVoid": {
+          "description": "Ignore explicit `void` wrappers in `no-floating-promises`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noPromiseExecutorReturnAllowVoid": {
+          "description": "Allow explicit `void` returns in `no-promise-executor-return`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noMisusedPromisesCheckCallbacks": {
+          "description": "Check callback positions in `no-misused-promises`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noMisusedPromisesCheckConditionals": {
+          "description": "Check conditionals in `no-misused-promises`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noMisusedPromisesCheckSpreads": {
+          "description": "Check spread positions in `no-misused-promises`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "useIsnanEnforceForSwitchCase": {
+          "description": "Check switch discriminants and cases in `use-isnan`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "useIsnanEnforceForIndexOf": {
+          "description": "Check `indexOf` and `lastIndexOf` calls in `use-isnan`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noSelfAssignCheckProperties": {
+          "description": "Check property assignments in `no-self-assign`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "requireUnicodeRegexpRequireFlag": {
+          "description": "Required Unicode regex flag for `require-unicode-regexp`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UnicodeRegexpRequireFlagJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "arrayType": {
+          "description": "Preferred array type syntax.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArrayTypeStyleJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "typeDefinitionStyle": {
+          "description": "Preferred type definition syntax.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TypeDefinitionStyleJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "catchErrorName": {
+          "description": "Required catch clause error name.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "filenameCase": {
+          "description": "Required filename case style.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FilenameCaseJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "allowSingleExtendsEmptyInterface": {
+          "description": "Allow empty interfaces that extend exactly one supertype.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "preferArrowCallbackAllowNamedFunctions": {
           "description": "Allow named callbacks in `prefer-arrow-callback`.",
           "type": [
             "boolean",
             "null"
           ]
         },
-        "allowUnboundThisInPreferArrowCallback": {
+        "preferArrowCallbackAllowUnboundThis": {
           "description": "Allow unbound `this` in `prefer-arrow-callback`.",
           "type": [
             "boolean",
@@ -4275,139 +4125,6 @@
             "$ref": "#/$defs/SortImportsMemberSyntaxJson"
           }
         },
-        "noConfusingVoidExpressionIgnoreVoidOperator": {
-          "description": "Ignore explicit `void` wrappers in `no-confusing-void-expression`.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "noConfusingVoidExpressionIgnoreVoidReturningFunctions": {
-          "description": "Ignore returned void expressions inside void-returning functions.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "noInnerDeclarationsCheckVarDeclarations": {
-          "description": "Check nested `var` declarations in `no-inner-declarations`.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "noCondAssignMode": {
-          "description": "Assignment policy for `no-cond-assign`.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ConditionAssignmentModeJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "noEmptyAllowEmptyCatch": {
-          "description": "Allow empty catch blocks in `no-empty`.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "noEmptyPatternAllowObjectPatternsAsParameters": {
-          "description": "Allow empty object patterns in parameter position for `no-empty-pattern`.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "noEmptyFunctionAllow": {
-          "description": "Allowed empty function kinds in `no-empty-function`.",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "$ref": "#/$defs/EmptyFunctionKindJson"
-          }
-        },
-        "noFallthroughAllowEmptyCase": {
-          "description": "Allow empty switch cases in `no-fallthrough`.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "noFallthroughCommentPattern": {
-          "description": "Regex pattern for intentional `no-fallthrough` comments.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "noFallthroughReportUnusedComment": {
-          "description": "Report unused intentional `no-fallthrough` comments.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "allowVoidDiscard": {
-          "description": "Allow explicit `void` to intentionally discard Promise results.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "noPromiseExecutorReturnAllowVoid": {
-          "description": "Allow explicit `void` returns in `no-promise-executor-return`.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "checkMisusedPromisesInCallbacks": {
-          "description": "Check callback positions in `no-misused-promises`.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "checkMisusedPromisesInConditionals": {
-          "description": "Check conditionals in `no-misused-promises`.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "checkMisusedPromisesInSpreads": {
-          "description": "Check spread positions in `no-misused-promises`.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "useIsnanEnforceSwitchCase": {
-          "description": "Check switch discriminants and cases in `use-isnan`.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "useIsnanEnforceIndexOf": {
-          "description": "Check `indexOf` and `lastIndexOf` calls in `use-isnan`.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "noSelfAssignCheckProperties": {
-          "description": "Check property assignments in `no-self-assign`.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
         "consistentTypeImportsPreferTypeImports": {
           "description": "Prefer top-level `import type` in `consistent-type-imports`.",
           "type": [
@@ -4423,28 +4140,322 @@
           ]
         },
         "consistentTypeImportsDisallowTypeAnnotations": {
-          "description": "Disallow `import(\\\"...\\\")` type annotations in `consistent-type-imports`.",
+          "description": "Disallow `import(\"...\")` type annotations in `consistent-type-imports`.",
           "type": [
             "boolean",
             "null"
           ]
         },
-        "ignoreConditionalTestsInPreferNullishCoalescing": {
+        "preferNullishCoalescingIgnoreConditionalTests": {
           "description": "Ignore conditional tests in `prefer-nullish-coalescing`.",
           "type": [
             "boolean",
             "null"
           ]
         },
-        "ignoreMixedLogicalExpressionsInPreferNullishCoalescing": {
+        "preferNullishCoalescingIgnoreMixedLogicalExpressions": {
           "description": "Ignore mixed logical expressions in `prefer-nullish-coalescing`.",
           "type": [
             "boolean",
             "null"
           ]
         },
-        "ignoreTernaryTestsInPreferNullishCoalescing": {
+        "preferNullishCoalescingIgnoreTernaryTests": {
           "description": "Ignore ternary checks in `prefer-nullish-coalescing`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noBlankTargetAllowNoReferrer": {
+          "description": "Allow `rel=\"noreferrer\"` without `noopener` in `no-blank-target`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noBlankTargetAllowDomains": {
+          "description": "Domains allowed to use `target=\"_blank\"` without rel hardening.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "noSecretsEntropyThreshold": {
+          "description": "Entropy threshold in tenths for `no-secrets`.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        },
+        "maxBooleans": {
+          "description": "Maximum boolean parameters or fields.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        },
+        "maxBranchingFactor": {
+          "description": "Maximum branching factor.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        },
+        "maxCognitiveComplexity": {
+          "description": "Maximum cognitive complexity.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        },
+        "maxCyclomaticComplexity": {
+          "description": "Maximum cyclomatic complexity.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        },
+        "cyclomaticComplexityVariant": {
+          "description": "Switch counting variant for `cyclomatic-complexity`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CyclomaticComplexityVariantJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "maxDepth": {
+          "description": "Maximum nesting depth.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        },
+        "maxStaticParams": {
+          "description": "Maximum static parameters.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        },
+        "maxLines": {
+          "description": "Maximum lines per file.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        },
+        "maxLinesSkipComments": {
+          "description": "Ignore full-line comments in `max-lines`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "maxLinesSkipBlankLines": {
+          "description": "Ignore blank lines in `max-lines`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "maxLinesPerFunction": {
+          "description": "Maximum lines per function.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        },
+        "maxLinesPerFunctionSkipComments": {
+          "description": "Ignore full-line comments in `max-lines-per-function`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "maxLinesPerFunctionSkipBlankLines": {
+          "description": "Ignore blank lines in `max-lines-per-function`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "maxLinesPerFunctionIifes": {
+          "description": "Count immediately invoked functions in `max-lines-per-function`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "maxNestedCallbacks": {
+          "description": "Maximum callback nesting.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        },
+        "maxParams": {
+          "description": "Maximum function parameters.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        },
+        "maxParamsCountThis": {
+          "description": "Count `this` parameters in `max-params`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MaxParamsCountThisJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "maxStatements": {
+          "description": "Maximum statements per function.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        },
+        "maxStatementsIgnoreTopLevelFunctions": {
+          "description": "Ignore top-level functions in `max-statements`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "maxReturnStatements": {
+          "description": "Maximum return statements per function.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        },
+        "maxSwitchCases": {
+          "description": "Maximum switch cases per switch statement.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        },
+        "maxTypeVariants": {
+          "description": "Maximum variants in a union type or enum.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        },
+        "maxTypeFields": {
+          "description": "Maximum fields in a struct, class, or interface.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        },
+        "maxTypeComplexity": {
+          "description": "Maximum type complexity.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        },
+        "maxDuplicateStringOccurrences": {
+          "description": "Maximum duplicate string occurrences.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        },
+        "maxTryBlockStatements": {
+          "description": "Maximum statements in a try block.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        },
+        "noMultiAssignIgnoreNonDeclaration": {
+          "description": "Ignore non-declaration chains in `no-multi-assign`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noUnusedExpressionsAllowShortCircuit": {
+          "description": "Allow short-circuit expressions in `no-unused-expressions`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noUnusedExpressionsAllowTernary": {
+          "description": "Allow ternary expressions in `no-unused-expressions`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noUnusedExpressionsAllowTaggedTemplates": {
+          "description": "Allow tagged templates in `no-unused-expressions`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noUnusedExpressionsEnforceForJsx": {
+          "description": "Enforce JSX-like tree expressions in `no-unused-expressions`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noUnusedExpressionsIgnoreDirectives": {
+          "description": "Ignore directive prologues in `no-unused-expressions`.",
           "type": [
             "boolean",
             "null"
@@ -4678,38 +4689,118 @@
         }
       ]
     },
-    "CyclomaticComplexityVariantJson": {
-      "description": "Cyclomatic-complexity variant accepted in linter JSON.",
+    "ReturnAwaitModeJson": {
+      "description": "Return-await mode for linter JSON.",
       "oneOf": [
         {
-          "description": "Count each non-default switch case.",
+          "description": "Require await only in error handling contexts and forbid it elsewhere.",
           "type": "string",
-          "const": "classic"
+          "const": "in-try-catch"
         },
         {
-          "description": "Count each switch once regardless of case count.",
+          "description": "Require await only in error handling contexts and do not enforce elsewhere.",
           "type": "string",
-          "const": "modified"
+          "const": "error-handling-correctness-only"
+        },
+        {
+          "description": "Require await in all contexts.",
+          "type": "string",
+          "const": "always"
+        },
+        {
+          "description": "Forbid await in all contexts.",
+          "type": "string",
+          "const": "never"
         }
       ]
     },
-    "MaxParamsCountThisJson": {
-      "description": "Max-params `this` counting mode accepted in linter JSON.",
+    "ConditionAssignmentModeJson": {
+      "description": "Condition assignment policy accepted in linter JSON.",
       "oneOf": [
         {
-          "description": "Never count `this`.",
+          "description": "Allow assignments only when wrapped in extra parentheses.",
           "type": "string",
-          "const": "never"
+          "const": "except-parens"
         },
         {
-          "description": "Count `this` unless it is explicitly typed as `void`.",
-          "type": "string",
-          "const": "except-void"
-        },
-        {
-          "description": "Always count `this`.",
+          "description": "Disallow assignments anywhere inside the condition.",
           "type": "string",
           "const": "always"
+        }
+      ]
+    },
+    "EmptyFunctionKindJson": {
+      "description": "Empty function kinds accepted in linter JSON.",
+      "oneOf": [
+        {
+          "description": "Regular function declarations and expressions.",
+          "type": "string",
+          "const": "functions"
+        },
+        {
+          "description": "Arrow or lambda functions.",
+          "type": "string",
+          "const": "arrowFunctions"
+        },
+        {
+          "description": "Generator functions.",
+          "type": "string",
+          "const": "generatorFunctions"
+        },
+        {
+          "description": "Ordinary methods.",
+          "type": "string",
+          "const": "methods"
+        },
+        {
+          "description": "Generator methods.",
+          "type": "string",
+          "const": "generatorMethods"
+        },
+        {
+          "description": "Getter methods.",
+          "type": "string",
+          "const": "getters"
+        },
+        {
+          "description": "Setter methods.",
+          "type": "string",
+          "const": "setters"
+        },
+        {
+          "description": "Constructor methods.",
+          "type": "string",
+          "const": "constructors"
+        },
+        {
+          "description": "Async functions.",
+          "type": "string",
+          "const": "asyncFunctions"
+        },
+        {
+          "description": "Async methods.",
+          "type": "string",
+          "const": "asyncMethods"
+        },
+        {
+          "description": "Override methods.",
+          "type": "string",
+          "const": "overrideMethods"
+        }
+      ]
+    },
+    "UnicodeRegexpRequireFlagJson": {
+      "description": "Required Unicode regex flag accepted in linter JSON.",
+      "oneOf": [
+        {
+          "description": "Require the `u` flag.",
+          "type": "string",
+          "const": "u"
+        },
+        {
+          "description": "Require the `v` flag.",
+          "type": "string",
+          "const": "v"
         }
       ]
     },
@@ -4765,46 +4856,6 @@
           "description": "PascalCase (e.g., `MyComponent.ts`).",
           "type": "string",
           "const": "pascal"
-        }
-      ]
-    },
-    "ReturnAwaitModeJson": {
-      "description": "Return-await mode for linter JSON.",
-      "oneOf": [
-        {
-          "description": "Require await only in error handling contexts and forbid it elsewhere.",
-          "type": "string",
-          "const": "in-try-catch"
-        },
-        {
-          "description": "Require await only in error handling contexts and do not enforce elsewhere.",
-          "type": "string",
-          "const": "error-handling-correctness-only"
-        },
-        {
-          "description": "Require await in all contexts.",
-          "type": "string",
-          "const": "always"
-        },
-        {
-          "description": "Forbid await in all contexts.",
-          "type": "string",
-          "const": "never"
-        }
-      ]
-    },
-    "UnicodeRegexpRequireFlagJson": {
-      "description": "Required Unicode regex flag accepted in linter JSON.",
-      "oneOf": [
-        {
-          "description": "Require the `u` flag.",
-          "type": "string",
-          "const": "u"
-        },
-        {
-          "description": "Require the `v` flag.",
-          "type": "string",
-          "const": "v"
         }
       ]
     },
@@ -4973,78 +5024,38 @@
         }
       ]
     },
-    "ConditionAssignmentModeJson": {
-      "description": "Condition assignment policy accepted in linter JSON.",
+    "CyclomaticComplexityVariantJson": {
+      "description": "Cyclomatic-complexity variant accepted in linter JSON.",
       "oneOf": [
         {
-          "description": "Allow assignments only when wrapped in extra parentheses.",
+          "description": "Count each non-default switch case.",
           "type": "string",
-          "const": "except-parens"
+          "const": "classic"
         },
         {
-          "description": "Disallow assignments anywhere inside the condition.",
+          "description": "Count each switch once regardless of case count.",
           "type": "string",
-          "const": "always"
+          "const": "modified"
         }
       ]
     },
-    "EmptyFunctionKindJson": {
-      "description": "Empty function kinds accepted in linter JSON.",
+    "MaxParamsCountThisJson": {
+      "description": "Max-params `this` counting mode accepted in linter JSON.",
       "oneOf": [
         {
-          "description": "Regular function declarations and expressions.",
+          "description": "Never count `this`.",
           "type": "string",
-          "const": "functions"
+          "const": "never"
         },
         {
-          "description": "Arrow or lambda functions.",
+          "description": "Count `this` unless it is explicitly typed as `void`.",
           "type": "string",
-          "const": "arrowFunctions"
+          "const": "except-void"
         },
         {
-          "description": "Generator functions.",
+          "description": "Always count `this`.",
           "type": "string",
-          "const": "generatorFunctions"
-        },
-        {
-          "description": "Ordinary methods.",
-          "type": "string",
-          "const": "methods"
-        },
-        {
-          "description": "Generator methods.",
-          "type": "string",
-          "const": "generatorMethods"
-        },
-        {
-          "description": "Getter methods.",
-          "type": "string",
-          "const": "getters"
-        },
-        {
-          "description": "Setter methods.",
-          "type": "string",
-          "const": "setters"
-        },
-        {
-          "description": "Constructor methods.",
-          "type": "string",
-          "const": "constructors"
-        },
-        {
-          "description": "Async functions.",
-          "type": "string",
-          "const": "asyncFunctions"
-        },
-        {
-          "description": "Async methods.",
-          "type": "string",
-          "const": "asyncMethods"
-        },
-        {
-          "description": "Override methods.",
-          "type": "string",
-          "const": "overrideMethods"
+          "const": "always"
         }
       ]
     },

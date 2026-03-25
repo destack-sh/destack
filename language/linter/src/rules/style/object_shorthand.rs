@@ -35,6 +35,7 @@ impl LintRule for ObjectShorthand {
         let meta = self.meta();
         let methods_ignore_pattern = ctx
             .options
+            .style
             .object_shorthand_methods_ignore_pattern
             .as_deref()
             .and_then(|pattern| Regex::new(pattern).ok());
@@ -86,7 +87,7 @@ fn check_object_expression(
     properties: &[ast::LocalNodeId<ast::Property>],
     methods_ignore_pattern: Option<&Regex>,
 ) {
-    match ctx.options.object_shorthand_mode {
+    match ctx.options.style.object_shorthand_mode {
         ObjectShorthandMode::Always => {
             for property_id in properties {
                 report_longform_property_if_needed(
@@ -442,7 +443,7 @@ fn redundant_method_name(
     };
 
     let method_name = property_key_redundant_name(ctx, key)?;
-    if ctx.options.object_shorthand_ignore_constructors && is_constructor_name(&method_name) {
+    if ctx.options.style.object_shorthand_ignore_constructors && is_constructor_name(&method_name) {
         return None;
     }
     if methods_ignore_pattern.is_some_and(|pattern| pattern.is_match(&method_name)) {
@@ -469,7 +470,10 @@ fn redundant_method_name(
     ) {
         return None;
     }
-    if ctx.options.object_shorthand_avoid_explicit_return_arrows
+    if ctx
+        .options
+        .style
+        .object_shorthand_avoid_explicit_return_arrows
         && signature.kind == FunctionKind::Lambda
         && body
             .is_some_and(|body_id| !matches!(ctx.tree.get(body_id), ast::Expression::Block { .. }))
@@ -492,7 +496,7 @@ fn property_key_shorthand_name(ctx: &LintAstContext<'_>, key: &Key) -> Option<St
 fn property_key_redundant_name(ctx: &LintAstContext<'_>, key: &Key) -> Option<String> {
     match key {
         Key::Name(Name::Identifier(name)) => Some(ctx.strings.get(*name).to_string()),
-        Key::Name(Name::String(name)) if !ctx.options.object_shorthand_avoid_quotes => {
+        Key::Name(Name::String(name)) if !ctx.options.style.object_shorthand_avoid_quotes => {
             let name = ctx.strings.get(*name).to_string();
             is_identifier_like(&name).then_some(name)
         }
@@ -618,7 +622,7 @@ const obj = {
     #[test]
     fn test_allows_quoted_key_when_avoid_quotes_is_enabled() {
         let test = TestProgram::for_rule_without_prelude(ObjectShorthand).with_options(|options| {
-            options.object_shorthand_avoid_quotes = true;
+            options.style.object_shorthand_avoid_quotes = true;
         });
         let result = test.lint_ast(
             "object_shorthand/test_allows_quoted_key_when_avoid_quotes_is_enabled.ds",
@@ -651,7 +655,7 @@ const obj = {
     #[test]
     fn test_allows_constructor_method_when_ignored() {
         let test = TestProgram::for_rule_without_prelude(ObjectShorthand).with_options(|options| {
-            options.object_shorthand_ignore_constructors = true;
+            options.style.object_shorthand_ignore_constructors = true;
         });
         let result = test.lint_ast(
             "object_shorthand/test_allows_constructor_method_when_ignored.ds",
@@ -670,7 +674,7 @@ const obj = {
     #[test]
     fn test_flags_shorthand_in_never_mode() {
         let test = TestProgram::for_rule_without_prelude(ObjectShorthand).with_options(|options| {
-            options.object_shorthand_mode = ObjectShorthandMode::Never;
+            options.style.object_shorthand_mode = ObjectShorthandMode::Never;
         });
         let result = test.lint_ast(
             "object_shorthand/test_flags_shorthand_in_never_mode.ds",
@@ -693,7 +697,7 @@ const obj = { x: x };
     #[test]
     fn test_flags_mixed_object_in_consistent_mode() {
         let test = TestProgram::for_rule_without_prelude(ObjectShorthand).with_options(|options| {
-            options.object_shorthand_mode = ObjectShorthandMode::Consistent;
+            options.style.object_shorthand_mode = ObjectShorthandMode::Consistent;
         });
         let result = test.lint_ast(
             "object_shorthand/test_flags_mixed_object_in_consistent_mode.ds",
@@ -710,7 +714,7 @@ const obj = { x, y: y }
     #[test]
     fn test_flags_all_longform_object_in_consistent_as_needed_mode() {
         let test = TestProgram::for_rule_without_prelude(ObjectShorthand).with_options(|options| {
-            options.object_shorthand_mode = ObjectShorthandMode::ConsistentAsNeeded;
+            options.style.object_shorthand_mode = ObjectShorthandMode::ConsistentAsNeeded;
         });
         let result = test.lint_ast(
             "object_shorthand/test_flags_all_longform_object_in_consistent_as_needed_mode.ds",

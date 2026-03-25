@@ -35,7 +35,10 @@ impl LintRule for NoMultiAssign {
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         // resolve lint metadata and option policy
         let meta = self.meta();
-        let ignore_non_declaration = ctx.options.no_multi_assign_ignore_non_declaration;
+        let ignore_non_declaration = ctx
+            .options
+            .complexity
+            .no_multi_assign_ignore_non_declaration;
 
         // inspect each assignment expression for chained-assignment contexts
         for expression_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -401,7 +404,7 @@ let x = (a = 1);
     #[test]
     fn test_ignore_non_declaration_option_ignores_assignment_chain() {
         let test = TestProgram::for_rule_without_prelude(NoMultiAssign).with_options(|options| {
-            options.no_multi_assign_ignore_non_declaration = true;
+            options.complexity.no_multi_assign_ignore_non_declaration = true;
         });
         let result = test.lint_ast(
             "no_multi_assign/test_ignore_non_declaration_option_ignores_assignment_chain.ds",
@@ -417,7 +420,7 @@ a = (b = 1);
     #[test]
     fn test_ignore_non_declaration_option_still_reports_declaration_initializer() {
         let test = TestProgram::for_rule_without_prelude(NoMultiAssign).with_options(|options| {
-            options.no_multi_assign_ignore_non_declaration = true;
+            options.complexity.no_multi_assign_ignore_non_declaration = true;
         });
         let result = test.lint_ast(
             "no_multi_assign/test_ignore_non_declaration_option_still_reports_declaration_initializer.ds",

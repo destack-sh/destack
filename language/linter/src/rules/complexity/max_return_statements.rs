@@ -38,7 +38,7 @@ impl LintRule for MaxReturnStatements {
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         // resolve lint metadata and threshold
         let meta = self.meta();
-        let max_return_statements = ctx.options.max_return_statements;
+        let max_return_statements = ctx.options.complexity.max_return_statements;
 
         // check callable bodies across declarations and methods
         for_each_callable_signature(ctx.tree, |owner_id, _signature, body_id| {
@@ -289,7 +289,7 @@ function matchReturns(x: int32): int32 {
     #[test]
     fn test_ignores_nested_function_returns_for_outer_function() {
         let test = TestProgram::for_rule_without_prelude(MaxReturnStatements)
-            .with_options(|options| options.max_return_statements = 1);
+            .with_options(|options| options.complexity.max_return_statements = 1);
         let result = test.lint_ast(
             "max_return_statements/test_ignores_nested_function_returns_for_outer_function.ds",
             r#"
@@ -311,7 +311,7 @@ function outer(x: int32): int32 {
     #[test]
     fn test_detects_object_method_too_many_returns() {
         let test = TestProgram::for_rule_without_prelude(MaxReturnStatements)
-            .with_options(|options| options.max_return_statements = 2);
+            .with_options(|options| options.complexity.max_return_statements = 2);
         let result = test.lint_ast(
             "max_return_statements/test_detects_object_method_too_many_returns.ds",
             r#"

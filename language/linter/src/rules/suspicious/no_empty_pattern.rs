@@ -48,6 +48,7 @@ impl LintRule for NoEmptyPattern {
             if matches!(pattern, ast::Pattern::Object { .. })
                 && ctx
                     .options
+                    .correctness
                     .no_empty_pattern_allow_object_patterns_as_parameters
                 && object_pattern_is_parameter_position(ctx, node_id)
             {
@@ -203,7 +204,9 @@ function foo({}) {}
     #[test]
     fn test_allows_empty_object_pattern_in_function_param_when_configured() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyPattern).with_options(|options| {
-            options.no_empty_pattern_allow_object_patterns_as_parameters = true;
+            options
+                .correctness
+                .no_empty_pattern_allow_object_patterns_as_parameters = true;
         });
         let result = test.lint_ast(
             "no_empty_pattern/test_allows_empty_object_pattern_in_function_param_when_configured.ds",

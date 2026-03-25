@@ -36,7 +36,7 @@ impl LintRule for MaxNestedCallbacks {
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         // resolve lint metadata and threshold
         let meta = self.meta();
-        let max_callbacks = ctx.options.max_nested_callbacks;
+        let max_callbacks = ctx.options.complexity.max_nested_callbacks;
 
         // traverse module roots and collect callback-depth violations
         let mut visitor = CallbackVisitor {
@@ -300,7 +300,7 @@ function outer() {
     fn test_ignores_new_expression_callback_arguments() {
         let test =
             TestProgram::for_rule_without_prelude(MaxNestedCallbacks).with_options(|options| {
-                options.max_nested_callbacks = 0;
+                options.complexity.max_nested_callbacks = 0;
             });
         let result = test.lint_ast(
             "max_nested_callbacks/test_ignores_new_expression_callback_arguments.ds",
@@ -317,7 +317,7 @@ new Service(() => {
     fn test_counts_parenthesized_callback_arguments() {
         let test =
             TestProgram::for_rule_without_prelude(MaxNestedCallbacks).with_options(|options| {
-                options.max_nested_callbacks = 0;
+                options.complexity.max_nested_callbacks = 0;
             });
         let result = test.lint_ast(
             "max_nested_callbacks/test_counts_parenthesized_callback_arguments.ds",

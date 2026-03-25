@@ -54,7 +54,7 @@ impl LintRule for NoSelfAssign {
             }
 
             // keep property assignments behind the upstream option
-            let checks_properties = ctx.options.no_self_assign_check_properties;
+            let checks_properties = ctx.options.correctness.no_self_assign_check_properties;
             if !checks_properties && expression_is_property_assignment_target(ctx.tree, *left) {
                 continue;
             }
@@ -232,7 +232,7 @@ x;
     #[test]
     fn test_allows_property_self_assign_when_props_disabled() {
         let test = TestProgram::for_rule_without_prelude(NoSelfAssign).with_options(|options| {
-            options.no_self_assign_check_properties = false;
+            options.correctness.no_self_assign_check_properties = false;
         });
         let result = test.lint_ast(
             "no_self_assign/test_allows_property_self_assign_when_props_disabled.ds",

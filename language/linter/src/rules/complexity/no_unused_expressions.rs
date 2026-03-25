@@ -154,7 +154,11 @@ fn expression_statement_is_directive(
     inner_expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     // allow strict parity callers to disable directive handling
-    if !ctx.options.no_unused_expressions_ignore_directives {
+    if !ctx
+        .options
+        .complexity
+        .no_unused_expressions_ignore_directives
+    {
         return false;
     }
 
@@ -439,24 +443,29 @@ fn expression_disallowed_by_rule_options(
 ) -> Option<bool> {
     match expression {
         ast::Expression::Delete { .. } => Some(false),
-        ast::Expression::TaggedTemplateExpression { .. } => {
-            Some(!ctx.options.no_unused_expressions_allow_tagged_templates)
-        }
+        ast::Expression::TaggedTemplateExpression { .. } => Some(
+            !ctx.options
+                .complexity
+                .no_unused_expressions_allow_tagged_templates,
+        ),
         ast::Expression::TreeExpression { .. } => {
-            Some(ctx.options.no_unused_expressions_enforce_for_jsx)
+            Some(ctx.options.complexity.no_unused_expressions_enforce_for_jsx)
         }
         ast::Expression::If {
             kind: ast::IfKind::Ternary,
             then_expression,
             else_expression: Some(else_expression),
             ..
-        } if ctx.options.no_unused_expressions_allow_ternary => Some(
+        } if ctx.options.complexity.no_unused_expressions_allow_ternary => Some(
             expression_is_disallowed_in_statement(ctx, *then_expression)
                 || expression_is_disallowed_in_statement(ctx, *else_expression),
         ),
         ast::Expression::Binary {
             operator, right, ..
-        } if ctx.options.no_unused_expressions_allow_short_circuit
+        } if ctx
+            .options
+            .complexity
+            .no_unused_expressions_allow_short_circuit
             && matches!(operator, ast::BinaryOperator::And | ast::BinaryOperator::Or) =>
         {
             Some(expression_is_disallowed_in_statement(ctx, *right))
@@ -639,8 +648,10 @@ void maybeValue;
 
     #[test]
     fn test_allows_module_directive_prologue_strings() {
-        let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions)
-            .with_options(|options| options.no_unused_expressions_ignore_directives = true);
+        let test =
+            TestProgram::for_rule_without_prelude(NoUnusedExpressions).with_options(|options| {
+                options.complexity.no_unused_expressions_ignore_directives = true
+            });
         let result = test.lint_ast(
             "no_unused_expressions/test_allows_module_directive_prologue_strings.ds",
             r#"
@@ -667,8 +678,10 @@ doSomething();
 
     #[test]
     fn test_allows_short_circuit_when_enabled() {
-        let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions)
-            .with_options(|options| options.no_unused_expressions_allow_short_circuit = true);
+        let test =
+            TestProgram::for_rule_without_prelude(NoUnusedExpressions).with_options(|options| {
+                options.complexity.no_unused_expressions_allow_short_circuit = true
+            });
         let result = test.lint_ast(
             "no_unused_expressions/test_allows_short_circuit_when_enabled.ds",
             r#"
@@ -681,7 +694,7 @@ ready && doSomething();
     #[test]
     fn test_allows_ternary_when_enabled() {
         let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions)
-            .with_options(|options| options.no_unused_expressions_allow_ternary = true);
+            .with_options(|options| options.complexity.no_unused_expressions_allow_ternary = true);
         let result = test.lint_ast(
             "no_unused_expressions/test_allows_ternary_when_enabled.ds",
             r#"
@@ -693,8 +706,12 @@ ready ? doSomething() : doOtherThing();
 
     #[test]
     fn test_allows_tagged_templates_when_enabled() {
-        let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions)
-            .with_options(|options| options.no_unused_expressions_allow_tagged_templates = true);
+        let test =
+            TestProgram::for_rule_without_prelude(NoUnusedExpressions).with_options(|options| {
+                options
+                    .complexity
+                    .no_unused_expressions_allow_tagged_templates = true
+            });
         let result = test.lint_ast(
             "no_unused_expressions/test_allows_tagged_templates_when_enabled.ds",
             r#"
@@ -718,8 +735,10 @@ sql`SELECT * FROM users`;
 
     #[test]
     fn test_reports_tree_expression_when_enforced() {
-        let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions)
-            .with_options(|options| options.no_unused_expressions_enforce_for_jsx = true);
+        let test =
+            TestProgram::for_rule_without_prelude(NoUnusedExpressions).with_options(|options| {
+                options.complexity.no_unused_expressions_enforce_for_jsx = true
+            });
         let result = test.lint_ast(
             "no_unused_expressions/test_reports_tree_expression_when_enforced.ds",
             r#"
@@ -731,8 +750,10 @@ sql`SELECT * FROM users`;
 
     #[test]
     fn test_allows_namespace_directive_prologue_strings() {
-        let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions)
-            .with_options(|options| options.no_unused_expressions_ignore_directives = true);
+        let test =
+            TestProgram::for_rule_without_prelude(NoUnusedExpressions).with_options(|options| {
+                options.complexity.no_unused_expressions_ignore_directives = true
+            });
         let result = test.lint_ast(
             "no_unused_expressions/test_allows_namespace_directive_prologue_strings.ts",
             r#"

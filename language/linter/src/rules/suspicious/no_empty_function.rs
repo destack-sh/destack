@@ -61,7 +61,12 @@ fn report_empty_function_body(
 
     // honor allowed empty function kinds
     let function_kind = empty_function_kind(owner_id, signature);
-    if ctx.options.no_empty_function_allow.contains(&function_kind) {
+    if ctx
+        .options
+        .correctness
+        .no_empty_function_allow
+        .contains(&function_kind)
+    {
         return;
     }
 
@@ -252,7 +257,7 @@ const service = {
     #[test]
     fn test_allows_empty_constructor_when_configured() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyFunction).with_options(|options| {
-            options.no_empty_function_allow = vec![EmptyFunctionKind::Constructors];
+            options.correctness.no_empty_function_allow = vec![EmptyFunctionKind::Constructors];
         });
         let result = test.lint_ast(
             "no_empty_function/test_allows_empty_constructor_when_configured.ds",
@@ -268,7 +273,7 @@ class Service {
     #[test]
     fn test_allows_empty_object_method_when_methods_are_allowed() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyFunction).with_options(|options| {
-            options.no_empty_function_allow = vec![EmptyFunctionKind::Methods];
+            options.correctness.no_empty_function_allow = vec![EmptyFunctionKind::Methods];
         });
         let result = test.lint_ast(
             "no_empty_function/test_allows_empty_object_method_when_methods_are_allowed.ds",

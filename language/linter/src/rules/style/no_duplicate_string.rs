@@ -41,7 +41,7 @@ impl LintRule for NoDuplicateString {
         let meta = self.meta();
 
         // collect all string literals with their locations
-        let max_occurrences = ctx.options.max_duplicate_string_occurrences;
+        let max_occurrences = ctx.options.complexity.max_duplicate_string_occurrences;
         let mut string_occurrences: HashMap<StringId, Vec<ast::LocalNodeId<ast::Expression>>> =
             HashMap::new();
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -136,7 +136,7 @@ mod tests {
     #[test]
     fn test_detects_duplicate_strings() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateString)
-            .with_options(|options| options.max_duplicate_string_occurrences = 2);
+            .with_options(|options| options.complexity.max_duplicate_string_occurrences = 2);
         let result = test.lint_ast(
             "no_duplicate_string/test_detects_duplicate_strings.ds",
             r#"
@@ -151,7 +151,7 @@ let c = "hello world";
     #[test]
     fn test_allows_few_occurrences() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateString)
-            .with_options(|options| options.max_duplicate_string_occurrences = 3);
+            .with_options(|options| options.complexity.max_duplicate_string_occurrences = 3);
         let result = test.lint_ast(
             "no_duplicate_string/test_allows_few_occurrences.ds",
             r#"
@@ -166,7 +166,7 @@ let c = "hello world";
     #[test]
     fn test_ignores_short_strings() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateString)
-            .with_options(|options| options.max_duplicate_string_occurrences = 1);
+            .with_options(|options| options.complexity.max_duplicate_string_occurrences = 1);
         let result = test.lint_ast(
             "no_duplicate_string/test_ignores_short_strings.ds",
             r#"
@@ -184,7 +184,7 @@ let f = "a";
     #[test]
     fn test_ignores_string_without_separators() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateString)
-            .with_options(|options| options.max_duplicate_string_occurrences = 1);
+            .with_options(|options| options.complexity.max_duplicate_string_occurrences = 1);
         let result = test.lint_ast(
             "no_duplicate_string/test_ignores_string_without_separators.ds",
             r#"
@@ -198,7 +198,7 @@ let b = "helloworld";
     #[test]
     fn test_ignores_application_json_literal() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateString)
-            .with_options(|options| options.max_duplicate_string_occurrences = 1);
+            .with_options(|options| options.complexity.max_duplicate_string_occurrences = 1);
         let result = test.lint_ast(
             "no_duplicate_string/test_ignores_application_json_literal.ds",
             r#"
@@ -212,7 +212,7 @@ let b = "application/json";
     #[test]
     fn test_ignores_standalone_expression_statements() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateString)
-            .with_options(|options| options.max_duplicate_string_occurrences = 1);
+            .with_options(|options| options.complexity.max_duplicate_string_occurrences = 1);
         let result = test.lint_ast(
             "no_duplicate_string/test_ignores_standalone_expression_statements.ds",
             r#"
@@ -226,7 +226,7 @@ let b = "application/json";
     #[test]
     fn test_counts_unique_strings_separately() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateString)
-            .with_options(|options| options.max_duplicate_string_occurrences = 2);
+            .with_options(|options| options.complexity.max_duplicate_string_occurrences = 2);
         let result = test.lint_ast(
             "no_duplicate_string/test_counts_unique_strings_separately.ds",
             r#"
@@ -242,7 +242,7 @@ let d = "world";
     #[test]
     fn test_handles_unicode_display_truncation() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateString)
-            .with_options(|options| options.max_duplicate_string_occurrences = 1);
+            .with_options(|options| options.complexity.max_duplicate_string_occurrences = 1);
         let result = test.lint_ast(
             "no_duplicate_string/test_handles_unicode_display_truncation.ds",
             r#"

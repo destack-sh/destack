@@ -485,7 +485,6 @@ fn exact_identifier_span(
     None
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;

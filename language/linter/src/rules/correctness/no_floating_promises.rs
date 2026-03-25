@@ -52,7 +52,7 @@ struct FloatingPromiseVisitor<'a, 'b> {
     /// The Promise symbol.
     promise_symbol: dir::GlobalSymbolId,
     /// Whether explicit `void` should suppress the lint.
-    allow_void_discard: bool,
+    ignore_void: bool,
     /// The member name `then`.
     then_name: StringId,
     /// The member name `catch`.
@@ -70,7 +70,7 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
             .well_known_symbols()
             .get_type_symbol(WellKnownSymbol::Promise)
             .unwrap_or_else(|| ctx.well_known_symbol(WellKnownSymbol::Promise));
-        let allow_void_discard = ctx.options.allow_void_discard;
+        let ignore_void = ctx.options.correctness.no_floating_promises_ignore_void;
         let then_name = ctx.program.strings.intern("then");
         let catch_name = ctx.program.strings.intern("catch");
         let finally_name = ctx.program.strings.intern("finally");
@@ -79,7 +79,7 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
             ctx,
             meta,
             promise_symbol,
-            allow_void_discard,
+            ignore_void,
             then_name,
             catch_name,
             finally_name,
@@ -217,7 +217,7 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
             dir::Expression::Unary {
                 operator: dir::UnaryOperator::Void,
                 ..
-            } => self.allow_void_discard,
+            } => self.ignore_void,
             dir::Expression::Call { .. } => self.is_handler_call(expression_id),
             _ => false,
         }
@@ -282,7 +282,7 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<LintFix> {
         // this fix only applies when explicit void discard is accepted
-        if !self.allow_void_discard {
+        if !self.ignore_void {
             return None;
         }
 
@@ -470,7 +470,7 @@ void load();
     #[test]
     fn test_flags_void_discard_when_disabled() {
         let test = TestProgram::for_rule_with_prelude(NoFloatingPromises).with_options(|options| {
-            options.allow_void_discard = false;
+            options.correctness.no_floating_promises_ignore_void = false;
         });
         let result = test.lint_dir(
             "no_floating_promises/test_flags_void_discard_when_disabled.ts",
@@ -598,7 +598,7 @@ void [load()];
     #[test]
     fn test_no_fix_when_void_discard_is_disabled() {
         let test = TestProgram::for_rule_with_prelude(NoFloatingPromises).with_options(|options| {
-            options.allow_void_discard = false;
+            options.correctness.no_floating_promises_ignore_void = false;
         });
         let result = test.lint_dir(
             "no_floating_promises/test_no_fix_when_void_discard_is_disabled.ts",

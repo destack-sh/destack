@@ -35,7 +35,7 @@ impl LintRule for MaxDepth {
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
-        let max_depth = ctx.options.max_depth;
+        let max_depth = ctx.options.complexity.max_depth;
 
         // collect violations
         let mut visitor = DepthNodeVisitor {
@@ -377,7 +377,7 @@ function foo() {
     #[test]
     fn test_static_block_depth_resets_from_outer_if() {
         let test = TestProgram::for_rule_without_prelude(MaxDepth)
-            .with_options(|options| options.max_depth = 2);
+            .with_options(|options| options.complexity.max_depth = 2);
         let result = test.lint_ast(
             "max_depth/test_static_block_depth_resets_from_outer_if.ds",
             r#"
@@ -400,7 +400,7 @@ if (a) {
     #[test]
     fn test_reports_static_block_depth_over_limit() {
         let test = TestProgram::for_rule_without_prelude(MaxDepth)
-            .with_options(|options| options.max_depth = 2);
+            .with_options(|options| options.complexity.max_depth = 2);
         let result = test.lint_ast(
             "max_depth/test_reports_static_block_depth_over_limit.ds",
             r#"

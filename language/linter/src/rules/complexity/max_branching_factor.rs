@@ -32,7 +32,7 @@ impl LintRule for MaxBranchingFactor {
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         // resolve lint metadata and threshold
         let meta = self.meta();
-        let max_branches = ctx.options.max_branching_factor;
+        let max_branches = ctx.options.complexity.max_branching_factor;
 
         // scan conditionals and branch based expressions
         for expression_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -245,7 +245,7 @@ function check(x: int32) {
     #[test]
     fn test_reports_else_if_chain_once() {
         let test = TestProgram::for_rule_without_prelude(MaxBranchingFactor)
-            .with_options(|options| options.max_branching_factor = 2);
+            .with_options(|options| options.complexity.max_branching_factor = 2);
         let result = test.lint_ast(
             "max_branching_factor/test_reports_else_if_chain_once.ds",
             r#"

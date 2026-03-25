@@ -71,8 +71,11 @@ struct PreferArrowCallbackOptions {
 /// Resolve the rule options from linter configuration.
 fn prefer_arrow_callback_options(ctx: &LintModuleDirContext<'_>) -> PreferArrowCallbackOptions {
     PreferArrowCallbackOptions {
-        allow_named_functions: ctx.options.allow_named_functions_in_prefer_arrow_callback,
-        allow_unbound_this: ctx.options.allow_unbound_this_in_prefer_arrow_callback,
+        allow_named_functions: ctx
+            .options
+            .style
+            .prefer_arrow_callback_allow_named_functions,
+        allow_unbound_this: ctx.options.style.prefer_arrow_callback_allow_unbound_this,
     }
 }
 
@@ -859,7 +862,7 @@ items.map(((x) => {
     #[test]
     fn test_flags_unbound_this_when_option_disallows_it() {
         let test = TestProgram::for_rule_without_prelude(PreferArrowCallback)
-            .with_options(|options| options.allow_unbound_this_in_prefer_arrow_callback = false);
+            .with_options(|options| options.style.prefer_arrow_callback_allow_unbound_this = false);
         let result = test.lint_dir(
             "prefer_arrow_callback/test_flags_unbound_this_when_option_disallows_it.ds",
             r#"
@@ -875,7 +878,7 @@ items.map(function(x) { return this.transform(x) })
     #[test]
     fn test_flags_this_parameter_callback_without_fix() {
         let test = TestProgram::for_rule_without_prelude(PreferArrowCallback)
-            .with_options(|options| options.allow_unbound_this_in_prefer_arrow_callback = false);
+            .with_options(|options| options.style.prefer_arrow_callback_allow_unbound_this = false);
         let result = test.lint_dir(
             "prefer_arrow_callback/test_flags_this_parameter_callback_without_fix.ds",
             r#"
@@ -890,8 +893,10 @@ items.map(function(this: Service, x) { return this.transform(x) })
     /// Allow named callbacks when configured.
     #[test]
     fn test_allows_named_callback_when_option_enabled() {
-        let test = TestProgram::for_rule_without_prelude(PreferArrowCallback)
-            .with_options(|options| options.allow_named_functions_in_prefer_arrow_callback = true);
+        let test =
+            TestProgram::for_rule_without_prelude(PreferArrowCallback).with_options(|options| {
+                options.style.prefer_arrow_callback_allow_named_functions = true
+            });
         let result = test.lint_dir(
             "prefer_arrow_callback/test_allows_named_callback_when_option_enabled.ds",
             r#"

@@ -46,14 +46,16 @@ impl LintRule for NoElseReturn {
             };
 
             // skip else if chain members when the option allows them
-            if ctx.options.no_else_return_allow_else_if
+            if ctx.options.style.no_else_return_allow_else_if
                 && expression_is_else_if_branch(ctx.tree, ctx.parents, node_id)
             {
                 continue;
             }
 
             // skip else if alternates when the option allows them
-            if ctx.options.no_else_return_allow_else_if && expression_is_else_if(ctx, *else_id) {
+            if ctx.options.style.no_else_return_allow_else_if
+                && expression_is_else_if(ctx, *else_id)
+            {
                 continue;
             }
 
@@ -310,7 +312,7 @@ function foo(x: boolean, y: boolean) {
     #[test]
     fn test_reports_else_if_when_disabled() {
         let test = TestProgram::for_rule_without_prelude(NoElseReturn)
-            .with_options(|options| options.no_else_return_allow_else_if = false);
+            .with_options(|options| options.style.no_else_return_allow_else_if = false);
         let result = test.lint_ast(
             "no_else_return/test_reports_else_if_when_disabled.ds",
             r#"

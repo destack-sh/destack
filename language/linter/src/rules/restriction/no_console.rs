@@ -70,6 +70,7 @@ impl<'a, 'b> NoConsoleVisitor<'a, 'b> {
         let global_qualifiers = ctx.global_qualifier_symbols();
         let allowed_methods = ctx
             .options
+            .restriction
             .allowed_console_methods
             .iter()
             .map(|name| ctx.program.strings.intern(name))
@@ -402,7 +403,10 @@ globalThis["console"]["warn"]("warning");
     #[test]
     fn test_allows_configured_console_method() {
         let test = TestProgram::for_rule_with_prelude(NoConsole).with_options(|options| {
-            options.allowed_console_methods.push("error".to_string());
+            options
+                .restriction
+                .allowed_console_methods
+                .push("error".to_string());
         });
         let result = test.lint_dir(
             "no_console/test_allows_configured_console_method.ds",
@@ -418,7 +422,10 @@ console.error("oops");
     #[test]
     fn test_allows_configured_computed_console_method() {
         let test = TestProgram::for_rule_with_prelude(NoConsole).with_options(|options| {
-            options.allowed_console_methods.push("warn".to_string());
+            options
+                .restriction
+                .allowed_console_methods
+                .push("warn".to_string());
         });
         let result = test.lint_dir(
             "no_console/test_allows_configured_computed_console_method.ds",
@@ -434,7 +441,10 @@ console["warn"]("warning");
     #[test]
     fn test_still_flags_disallowed_console_method() {
         let test = TestProgram::for_rule_with_prelude(NoConsole).with_options(|options| {
-            options.allowed_console_methods.push("warn".to_string());
+            options
+                .restriction
+                .allowed_console_methods
+                .push("warn".to_string());
         });
         let result = test.lint_dir(
             "no_console/test_still_flags_disallowed_console_method.ds",

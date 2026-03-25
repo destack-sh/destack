@@ -32,7 +32,7 @@ impl LintRule for MaxSwitchCases {
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         // resolve lint metadata and threshold
         let meta = self.meta();
-        let max_switch_cases = ctx.options.max_switch_cases;
+        let max_switch_cases = ctx.options.complexity.max_switch_cases;
 
         // check each switch expression against non-empty non-default case count
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -107,7 +107,7 @@ mod tests {
     #[test]
     fn test_detects_too_many_cases() {
         let test = TestProgram::for_rule_without_prelude(MaxSwitchCases)
-            .with_options(|options| options.max_switch_cases = 5);
+            .with_options(|options| options.complexity.max_switch_cases = 5);
         let result = test.lint_ast(
             "max_switch_cases/test_detects_too_many_cases.ds",
             r#"
@@ -145,7 +145,7 @@ switch (x) {
     #[test]
     fn test_allows_exactly_at_limit() {
         let test = TestProgram::for_rule_without_prelude(MaxSwitchCases)
-            .with_options(|options| options.max_switch_cases = 3);
+            .with_options(|options| options.complexity.max_switch_cases = 3);
         let result = test.lint_ast(
             "max_switch_cases/test_allows_exactly_at_limit.ds",
             r#"
@@ -163,7 +163,7 @@ switch (x) {
     #[test]
     fn test_ignores_match_expression() {
         let test = TestProgram::for_rule_without_prelude(MaxSwitchCases)
-            .with_options(|options| options.max_switch_cases = 2);
+            .with_options(|options| options.complexity.max_switch_cases = 2);
         // match expressions are not switch statements
         let result = test.lint_ast(
             "max_switch_cases/test_ignores_match_expression.ds",
@@ -185,7 +185,7 @@ function testMatch(x: int32): int32 {
     #[test]
     fn test_excludes_default_case_from_count() {
         let test = TestProgram::for_rule_without_prelude(MaxSwitchCases)
-            .with_options(|options| options.max_switch_cases = 1);
+            .with_options(|options| options.complexity.max_switch_cases = 1);
         let result = test.lint_ast(
             "max_switch_cases/test_excludes_default_case_from_count.ds",
             r#"
@@ -202,7 +202,7 @@ switch (x) {
     #[test]
     fn test_excludes_empty_cases_from_count() {
         let test = TestProgram::for_rule_without_prelude(MaxSwitchCases)
-            .with_options(|options| options.max_switch_cases = 1);
+            .with_options(|options| options.complexity.max_switch_cases = 1);
         let result = test.lint_ast(
             "max_switch_cases/test_excludes_empty_cases_from_count.ds",
             r#"

@@ -121,8 +121,8 @@ impl LintRule for CommentLayout {
             // require uppercase keyword and valid tags
             if let Some(keyword_info) = parse_keyword_comment_with_options(
                 text,
-                &ctx.options.comment_keywords,
-                &ctx.options.comment_keyword_tags,
+                &ctx.options.style.comment_keywords,
+                &ctx.options.style.comment_keyword_tags,
             ) {
                 let severity = ctx.get_effective_severity(meta, trivia.comment);
                 if !severity.is_enabled() {
@@ -140,7 +140,7 @@ impl LintRule for CommentLayout {
                         ctx.module.file_id,
                         trivia.span,
                     )
-                    .with_label(known_comment_tag_label(&ctx.options.comment_keywords));
+                    .with_label(known_comment_tag_label(&ctx.options.style.comment_keywords));
 
                     // compute fixes only when requested by the runner
                     if ctx.compute_fixes
@@ -165,7 +165,9 @@ impl LintRule for CommentLayout {
                             ctx.module.file_id,
                             trivia.span,
                         )
-                        .with_label(known_comment_tag_label(&ctx.options.comment_keyword_tags)),
+                        .with_label(known_comment_tag_label(
+                            &ctx.options.style.comment_keyword_tags,
+                        )),
                     );
                 }
 

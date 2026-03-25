@@ -32,7 +32,11 @@ impl LintRule for NoUselessRename {
         let meta = self.meta();
 
         // check destructuring pattern fields
-        if !ctx.options.no_useless_rename_ignore_destructuring {
+        if !ctx
+            .options
+            .correctness
+            .no_useless_rename_ignore_destructuring
+        {
             for node_id in ctx.tree.iter_nodes::<ast::PatternField>() {
                 let field = ctx.tree.get(node_id);
 
@@ -102,9 +106,10 @@ impl LintRule for NoUselessRename {
             };
 
             // honor per-kind ignore options
-            if (rename_kind == RenameKind::Import && ctx.options.no_useless_rename_ignore_import)
+            if (rename_kind == RenameKind::Import
+                && ctx.options.correctness.no_useless_rename_ignore_import)
                 || (rename_kind == RenameKind::Export
-                    && ctx.options.no_useless_rename_ignore_export)
+                    && ctx.options.correctness.no_useless_rename_ignore_export)
             {
                 continue;
             }
@@ -399,7 +404,7 @@ export { value } from "./source.ds";
     #[test]
     fn test_allows_destructuring_when_ignored() {
         let test = TestProgram::for_rule_without_prelude(NoUselessRename).with_options(|options| {
-            options.no_useless_rename_ignore_destructuring = true;
+            options.correctness.no_useless_rename_ignore_destructuring = true;
         });
         let result = test.lint_ast(
             "no_useless_rename/test_allows_destructuring_when_ignored.ds",
@@ -413,7 +418,7 @@ const { x: x } = obj;
     #[test]
     fn test_allows_import_when_ignored() {
         let test = TestProgram::for_rule_without_prelude(NoUselessRename).with_options(|options| {
-            options.no_useless_rename_ignore_import = true;
+            options.correctness.no_useless_rename_ignore_import = true;
         });
         let result = test.lint_ast(
             "no_useless_rename/test_allows_import_when_ignored.ds",
@@ -427,7 +432,7 @@ import { value as value } from "./source.ds";
     #[test]
     fn test_allows_export_when_ignored() {
         let test = TestProgram::for_rule_without_prelude(NoUselessRename).with_options(|options| {
-            options.no_useless_rename_ignore_export = true;
+            options.correctness.no_useless_rename_ignore_export = true;
         });
         let result = test.lint_ast(
             "no_useless_rename/test_allows_export_when_ignored.ds",

@@ -37,7 +37,7 @@ impl LintRule for NoExplicitAny {
             if !matches!(expression, ast::Expression::TypeLiteral(TypeLiteral::Any)) {
                 continue;
             }
-            if ctx.options.ignore_explicit_any_in_rest_args
+            if ctx.options.restriction.ignore_explicit_any_in_rest_args
                 && any_is_in_rest_parameter_type(ctx, node_id)
             {
                 continue;
@@ -239,7 +239,7 @@ function foo(...values: any[]) {}
     #[test]
     fn test_allows_rest_parameter_any_when_enabled() {
         let test = TestProgram::for_rule_without_prelude(NoExplicitAny).with_options(|options| {
-            options.ignore_explicit_any_in_rest_args = true;
+            options.restriction.ignore_explicit_any_in_rest_args = true;
         });
         let result = test.lint_ast(
             "no_explicit_any/test_allows_rest_parameter_any_when_enabled.ts",
@@ -253,7 +253,7 @@ function foo(...values: any[]) {}
     #[test]
     fn test_allows_generic_rest_parameter_any_when_enabled() {
         let test = TestProgram::for_rule_without_prelude(NoExplicitAny).with_options(|options| {
-            options.ignore_explicit_any_in_rest_args = true;
+            options.restriction.ignore_explicit_any_in_rest_args = true;
         });
         let result = test.lint_ast(
             "no_explicit_any/test_allows_generic_rest_parameter_any_when_enabled.ts",

@@ -32,9 +32,9 @@ impl LintRule for MaxLines {
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         // resolve lint metadata, threshold, and active options
         let meta = self.meta();
-        let max_lines = ctx.options.max_lines;
-        let skip_comments = ctx.options.max_lines_skip_comments;
-        let skip_blank_lines = ctx.options.max_lines_skip_blank_lines;
+        let max_lines = ctx.options.complexity.max_lines;
+        let skip_comments = ctx.options.complexity.max_lines_skip_comments;
+        let skip_blank_lines = ctx.options.complexity.max_lines_skip_blank_lines;
 
         // count file lines with option aware filtering
         let file = ctx.program.files.get(ctx.module.file_id);
@@ -127,8 +127,8 @@ let z = 3;
     #[test]
     fn test_skips_blank_lines_when_enabled() {
         let test = TestProgram::for_rule_without_prelude(MaxLines).with_options(|options| {
-            options.max_lines = 2;
-            options.max_lines_skip_blank_lines = true;
+            options.complexity.max_lines = 2;
+            options.complexity.max_lines_skip_blank_lines = true;
         });
 
         // ignore blank lines while counting
@@ -149,8 +149,8 @@ let second = 2;
     #[test]
     fn test_skips_comment_lines_when_enabled() {
         let test = TestProgram::for_rule_without_prelude(MaxLines).with_options(|options| {
-            options.max_lines = 2;
-            options.max_lines_skip_comments = true;
+            options.complexity.max_lines = 2;
+            options.complexity.max_lines_skip_comments = true;
         });
 
         // ignore full-line comments while counting
@@ -173,8 +173,8 @@ let second = 2;
     #[test]
     fn test_counts_code_with_trailing_comment_when_skipping_comments() {
         let test = TestProgram::for_rule_without_prelude(MaxLines).with_options(|options| {
-            options.max_lines = 1;
-            options.max_lines_skip_comments = true;
+            options.complexity.max_lines = 1;
+            options.complexity.max_lines_skip_comments = true;
         });
 
         // still count lines that contain code before trailing comments

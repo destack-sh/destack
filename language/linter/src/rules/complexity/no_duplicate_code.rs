@@ -93,9 +93,12 @@ impl DuplicateCodeOptions {
     /// Build rule options from linter options.
     fn from_linter_options(options: &destack_workspace::LinterOptions) -> Self {
         Self {
-            min_lines: options.min_duplicate_code_lines,
-            min_tokens: options.min_duplicate_code_tokens,
-            near_similarity_threshold: options.min_duplicate_code_near_similarity.clamp(0, 100),
+            min_lines: options.complexity.min_duplicate_code_lines,
+            min_tokens: options.complexity.min_duplicate_code_tokens,
+            near_similarity_threshold: options
+                .complexity
+                .min_duplicate_code_near_similarity
+                .clamp(0, 100),
         }
     }
 
@@ -1950,8 +1953,8 @@ function {function_name}(input: int32): int32 {{
     ) -> Vec<LintDiagnostic> {
         let test = TestProgram::new_without_prelude(vec![crate::boxed(NoDuplicateCode)])
             .with_options(|options| {
-                options.min_duplicate_code_lines = 3;
-                options.min_duplicate_code_tokens = 12;
+                options.complexity.min_duplicate_code_lines = 3;
+                options.complexity.min_duplicate_code_tokens = 12;
                 configure(options);
             });
 
@@ -1969,8 +1972,8 @@ function {function_name}(input: int32): int32 {{
     fn test_reports_exact_duplicate_blocks_across_modules() {
         let test = TestProgram::new_without_prelude(vec![crate::boxed(NoDuplicateCode)])
             .with_options(|options| {
-                options.min_duplicate_code_lines = 3;
-                options.min_duplicate_code_tokens = 12;
+                options.complexity.min_duplicate_code_lines = 3;
+                options.complexity.min_duplicate_code_tokens = 12;
             });
 
         let first_module = test.add_module(
@@ -2009,8 +2012,8 @@ function sharedAgain(x: int32): int32 {
     fn test_reports_near_duplicate_blocks_for_renamed_identifiers() {
         let test = TestProgram::new_without_prelude(vec![crate::boxed(NoDuplicateCode)])
             .with_options(|options| {
-                options.min_duplicate_code_lines = 3;
-                options.min_duplicate_code_tokens = 12;
+                options.complexity.min_duplicate_code_lines = 3;
+                options.complexity.min_duplicate_code_tokens = 12;
             });
 
         let first_module = test.add_module(
@@ -2049,8 +2052,8 @@ function second(value: int32): int32 {
     fn test_reports_near_duplicates_for_literal_mutations() {
         let test = TestProgram::new_without_prelude(vec![crate::boxed(NoDuplicateCode)])
             .with_options(|options| {
-                options.min_duplicate_code_lines = 3;
-                options.min_duplicate_code_tokens = 12;
+                options.complexity.min_duplicate_code_lines = 3;
+                options.complexity.min_duplicate_code_tokens = 12;
             });
 
         let first_module = test.add_module(
@@ -2089,9 +2092,9 @@ function second(x: int32): int32 {
     fn test_respects_near_duplicate_similarity_threshold() {
         let test = TestProgram::new_without_prelude(vec![crate::boxed(NoDuplicateCode)])
             .with_options(|options| {
-                options.min_duplicate_code_lines = 3;
-                options.min_duplicate_code_tokens = 12;
-                options.min_duplicate_code_near_similarity = 95;
+                options.complexity.min_duplicate_code_lines = 3;
+                options.complexity.min_duplicate_code_tokens = 12;
+                options.complexity.min_duplicate_code_near_similarity = 95;
             });
 
         let first_module = test.add_module(
@@ -2128,9 +2131,9 @@ function second(input: int32): int32 {
     fn test_detects_near_duplicates_with_relaxed_similarity_threshold() {
         let test = TestProgram::new_without_prelude(vec![crate::boxed(NoDuplicateCode)])
             .with_options(|options| {
-                options.min_duplicate_code_lines = 3;
-                options.min_duplicate_code_tokens = 12;
-                options.min_duplicate_code_near_similarity = 60;
+                options.complexity.min_duplicate_code_lines = 3;
+                options.complexity.min_duplicate_code_tokens = 12;
+                options.complexity.min_duplicate_code_near_similarity = 60;
             });
 
         let first_module = test.add_module(
@@ -2169,9 +2172,9 @@ function second(input: int32): int32 {
     fn test_allows_disabling_near_duplicate_detection() {
         let test = TestProgram::new_without_prelude(vec![crate::boxed(NoDuplicateCode)])
             .with_options(|options| {
-                options.min_duplicate_code_lines = 3;
-                options.min_duplicate_code_tokens = 12;
-                options.min_duplicate_code_near_similarity = 0;
+                options.complexity.min_duplicate_code_lines = 3;
+                options.complexity.min_duplicate_code_tokens = 12;
+                options.complexity.min_duplicate_code_near_similarity = 0;
             });
 
         let first_module = test.add_module(
@@ -2208,8 +2211,8 @@ function second(value: int32): int32 {
     fn test_respects_duplicate_thresholds() {
         let test = TestProgram::new_without_prelude(vec![crate::boxed(NoDuplicateCode)])
             .with_options(|options| {
-                options.min_duplicate_code_lines = 8;
-                options.min_duplicate_code_tokens = 64;
+                options.complexity.min_duplicate_code_lines = 8;
+                options.complexity.min_duplicate_code_tokens = 64;
             });
 
         let first_module = test.add_module(
@@ -2244,8 +2247,8 @@ function sharedAgain(x: int32): int32 {
     fn test_reports_all_duplicate_code_diagnostics() {
         let test = TestProgram::new_without_prelude(vec![crate::boxed(NoDuplicateCode)])
             .with_options(|options| {
-                options.min_duplicate_code_lines = 3;
-                options.min_duplicate_code_tokens = 12;
+                options.complexity.min_duplicate_code_lines = 3;
+                options.complexity.min_duplicate_code_tokens = 12;
             });
 
         let first_module = test.add_module(
@@ -2295,8 +2298,8 @@ function three(x: int32): int32 {
     fn test_reports_near_duplicates_when_literals_differ() {
         let test = TestProgram::new_without_prelude(vec![crate::boxed(NoDuplicateCode)])
             .with_options(|options| {
-                options.min_duplicate_code_lines = 3;
-                options.min_duplicate_code_tokens = 12;
+                options.complexity.min_duplicate_code_lines = 3;
+                options.complexity.min_duplicate_code_tokens = 12;
             });
 
         let first_module = test.add_module(
@@ -2335,9 +2338,9 @@ function second(x: int32): int32 {
     fn test_reports_exact_duplicates_when_near_duplicate_detection_is_disabled() {
         let test = TestProgram::new_without_prelude(vec![crate::boxed(NoDuplicateCode)])
             .with_options(|options| {
-                options.min_duplicate_code_lines = 3;
-                options.min_duplicate_code_tokens = 12;
-                options.min_duplicate_code_near_similarity = 0;
+                options.complexity.min_duplicate_code_lines = 3;
+                options.complexity.min_duplicate_code_tokens = 12;
+                options.complexity.min_duplicate_code_near_similarity = 0;
             });
 
         let first_module = test.add_module(
@@ -2376,8 +2379,8 @@ function second(x: int32): int32 {
     fn test_skips_declaration_files_by_default() {
         let test = TestProgram::new_without_prelude(vec![crate::boxed(NoDuplicateCode)])
             .with_options(|options| {
-                options.min_duplicate_code_lines = 3;
-                options.min_duplicate_code_tokens = 12;
+                options.complexity.min_duplicate_code_lines = 3;
+                options.complexity.min_duplicate_code_tokens = 12;
             });
 
         let first_module = test.add_module(
@@ -2414,8 +2417,8 @@ function second(x: int32): int32 {
     fn test_includes_declaration_files_when_enabled() {
         let test = TestProgram::new_without_prelude(vec![crate::boxed(NoDuplicateCode)])
             .with_options(|options| {
-                options.min_duplicate_code_lines = 3;
-                options.min_duplicate_code_tokens = 12;
+                options.complexity.min_duplicate_code_lines = 3;
+                options.complexity.min_duplicate_code_tokens = 12;
                 options.include_declaration_files = true;
             });
 
@@ -2455,8 +2458,8 @@ function second(x: int32): int32 {
     fn test_labels_same_file_duplicates_as_local() {
         let test = TestProgram::new_without_prelude(vec![crate::boxed(NoDuplicateCode)])
             .with_options(|options| {
-                options.min_duplicate_code_lines = 3;
-                options.min_duplicate_code_tokens = 12;
+                options.complexity.min_duplicate_code_lines = 3;
+                options.complexity.min_duplicate_code_tokens = 12;
             });
 
         let module = test.add_module(
@@ -2503,8 +2506,8 @@ function second(x: int32): int32 {
     fn test_emits_expected_diagnostic_metadata() {
         let test = TestProgram::new_without_prelude(vec![crate::boxed(NoDuplicateCode)])
             .with_options(|options| {
-                options.min_duplicate_code_lines = 3;
-                options.min_duplicate_code_tokens = 12;
+                options.complexity.min_duplicate_code_lines = 3;
+                options.complexity.min_duplicate_code_tokens = 12;
             });
 
         let first_module = test.add_module(

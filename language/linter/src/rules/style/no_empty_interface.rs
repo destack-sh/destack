@@ -99,7 +99,7 @@ impl LintRule for NoEmptyInterface {
             }
 
             // keep multi-extends and configured single-extends interfaces
-            if extends_count != 1 || ctx.options.allow_single_extends_empty_interface {
+            if extends_count != 1 || ctx.options.style.allow_single_extends_empty_interface {
                 continue;
             }
 
@@ -321,7 +321,7 @@ type Child = Parent;
     #[test]
     fn test_allows_single_extends_when_option_enabled() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyInterface)
-            .with_options(|options| options.allow_single_extends_empty_interface = true);
+            .with_options(|options| options.style.allow_single_extends_empty_interface = true);
         let result = test.lint_dir(
             "no_empty_interface/test_allows_single_extends_when_option_enabled.ts",
             r#"

@@ -31,7 +31,7 @@ impl LintRule for NoMagicNumbers {
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
-        let allowed_numbers = &ctx.options.allowed_magic_numbers;
+        let allowed_numbers = &ctx.options.restriction.allowed_magic_numbers;
 
         // inspect candidate expressions
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -171,7 +171,7 @@ mod tests {
     #[test]
     fn test_allows_configured_negative_magic_number() {
         let test = TestProgram::for_rule_without_prelude(NoMagicNumbers).with_options(|options| {
-            options.allowed_magic_numbers.push(-3.0);
+            options.restriction.allowed_magic_numbers.push(-3.0);
         });
         let result = test.lint_ast(
             "no_magic_numbers/test_allows_configured_negative_magic_number.ts",

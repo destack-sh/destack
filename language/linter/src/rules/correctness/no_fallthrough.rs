@@ -1,9 +1,9 @@
 use regex::Regex;
 
 use destack_ast as ast;
-use destack_workspace::{LintSeverity, compiled_no_fallthrough_comment_pattern};
+use destack_workspace::LintSeverity;
 
-use crate::rules::common::fallthrough_comment_matches;
+use crate::rules::common::{compiled_no_fallthrough_comment_pattern, fallthrough_comment_matches};
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
 
 declare_lint! {
@@ -35,11 +35,14 @@ impl LintRule for NoFallthrough {
     /// Check module AST nodes for switch fallthrough cases.
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
-        let allow_empty_case = ctx.options.no_fallthrough_allow_empty_case;
+        let allow_empty_case = ctx.options.correctness.no_fallthrough_allow_empty_case;
         let fallthrough_comment_pattern = compiled_no_fallthrough_comment_pattern(
-            ctx.options.no_fallthrough_comment_pattern.as_deref(),
+            ctx.options
+                .correctness
+                .no_fallthrough_comment_pattern
+                .as_deref(),
         );
-        let report_unused_comment = ctx.options.no_fallthrough_report_unused_comment;
+        let report_unused_comment = ctx.options.correctness.no_fallthrough_report_unused_comment;
 
         // inspect candidate expressions
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -552,7 +555,7 @@ switch (x) {
     #[test]
     fn test_allows_empty_case_when_configured() {
         let test = TestProgram::for_rule_without_prelude(NoFallthrough).with_options(|options| {
-            options.no_fallthrough_allow_empty_case = true;
+            options.correctness.no_fallthrough_allow_empty_case = true;
         });
         let result = test.lint_ast(
             "no_fallthrough/test_allows_empty_case_when_configured.ds",
@@ -571,7 +574,7 @@ switch (x) {
     #[test]
     fn test_allows_custom_fallthrough_comment_pattern() {
         let test = TestProgram::for_rule_without_prelude(NoFallthrough).with_options(|options| {
-            options.no_fallthrough_comment_pattern = Some("no break".to_string());
+            options.correctness.no_fallthrough_comment_pattern = Some("no break".to_string());
         });
         let result = test.lint_ast(
             "no_fallthrough/test_allows_custom_fallthrough_comment_pattern.ds",
@@ -592,7 +595,7 @@ switch (x) {
     #[test]
     fn test_reports_unused_fallthrough_comment_when_enabled() {
         let test = TestProgram::for_rule_without_prelude(NoFallthrough).with_options(|options| {
-            options.no_fallthrough_report_unused_comment = true;
+            options.correctness.no_fallthrough_report_unused_comment = true;
         });
         let result = test.lint_ast(
             "no_fallthrough/test_reports_unused_fallthrough_comment_when_enabled.ds",
