@@ -125,22 +125,22 @@ Code that is likely unintentional but may occasionally be intentional.
 
 | Code | Rule | Source | Level | Status | Autofix Support | Fixability | Description |
 |------|------|--------|-------|--------|------------------|------------|-------------|
-| `LU001` | `guard-for-in` | ESLint | AST | ✓ | Sometimes | Unsafe | Require `hasOwnProperty` guard in for-in loops |
+| `LU001` | `guard-for-in` | ESLint | DIR | ✓ | Sometimes | Unsafe | Require real own-property guards in `for-in` loops |
 | `LU002` | `no-async-foreach` | Destack | DIR | ✓ | Sometimes | Unsafe | Disallow `forEach` with async callback (doesn't await) |
-| `LU003` | `no-cond-assign` | ESLint | AST | ✓ | Always | Suggestion | Disallow assignment operators in conditional expressions |
-| `LU004` | `no-confusing-assignment` | Destack | AST | ✓ | Always | Suggestion | Warn on assignments that look like comparisons |
-| `LU005` | `no-confusing-non-null-assertion` | TS-ESLint | AST | ✓ | Always | Safe | Disallow non-null assertions after optional chain expressions |
-| `LU006` | `no-constant-assertion` | Destack | AST | ✓ | Sometimes | Safe | Disallow assertions on constant values |
-| `LU007` | `no-constructor-return` | ESLint | DIR | ✓ | Sometimes | Safe | Disallow returning values from constructors |
-| `LU008` | `no-debugger` | ESLint | AST | ✓ | Always | Safe | Disallow debugger statements |
+| `LU003` | `no-cond-assign` | ESLint | AST | ✓ | Sometimes | Safe | Disallow assignment operators in conditional expressions |
+| `LU004` | `no-confusing-assignment` | Destack | AST | ✓ | Always | Safe | Warn on assignments that look like comparisons |
+| `LU005` | `no-confusing-non-null-assertion` | TS-ESLint | AST | ✓ | Always | Suggestion | Disallow confusing non-null assertions around operators and optional chains |
+| `LU006` | `no-constant-assertion` | Destack | AST | ✓ | Sometimes | Suggestion | Disallow assertions on constant values |
+| `LU007` | `no-constructor-return` | ESLint | DIR | ✓ | Sometimes | Unsafe | Disallow returning values from constructors |
+| `LU008` | `no-debugger` | ESLint | AST | ✓ | Sometimes | Safe | Disallow debugger statements |
 | `LU010` | `no-duplicate-else-if` | ESLint | AST | ✓ | Sometimes | Unsafe | Disallow duplicate conditions in if-else-if chains |
-| `LU009` | `no-duplicate-decorators` | Destack | AST | ✓ | Always | Always | Disallow identical decorators (same name and arguments) |
-| `LU011` | `no-duplicate-match-arms` | Destack | AST | ✓ | Always | Unsafe | Warn on match arms with identical bodies |
-| `LU012` | `no-empty` | ESLint | AST | ✓ | Always | Suggestion | Disallow empty block statements |
-| `LU013` | `no-empty-function` | ESLint | AST | ✓ | Always | Suggestion | Disallow empty functions |
+| `LU009` | `no-duplicate-decorators` | Destack | AST | ✓ | Sometimes | Suggestion | Disallow identical decorators (same name and arguments) |
+| `LU011` | `no-duplicate-match-arms` | Destack | AST | ✓ | Sometimes | Unsafe | Warn on match arms with identical bodies |
+| `LU012` | `no-empty` | ESLint | AST | ✓ | Sometimes | Safe | Disallow empty block statements |
+| `LU013` | `no-empty-function` | ESLint | AST | ✓ | Always | Safe | Disallow empty functions |
 | `LU014` | `no-empty-pattern` | ESLint | AST | ✓ | Sometimes | Safe | Disallow empty destructuring patterns |
-| `LU015` | `no-empty-static-block` | ESLint | AST | ✓ | Always | Safe | Disallow empty static initialization blocks in classes |
-| `LU016` | `no-ex-assign` | ESLint | AST | ✓ | Sometimes | Suggestion | Disallow reassigning exceptions in catch clauses |
+| `LU015` | `no-empty-static-block` | ESLint | AST | ✓ | Always | Suggestion | Disallow empty static initialization blocks in classes |
+| `LU016` | `no-ex-assign` | ESLint | AST | ✓ | Sometimes | Unsafe | Disallow reassigning exceptions in catch clauses |
 | `LU017` | `no-extra-non-null-assertion` | TS-ESLint | AST | ✓ | Always | Safe | Disallow extra non-null assertions |
 | `LU018` | `no-identical-branches` | SonarQube | AST | ✓ | No | None | Warn when all branches of if/switch have identical bodies |
 | `LU020` | `no-inner-declarations` | ESLint | AST | ✓ | No | None | Disallow variable or function declarations in nested blocks |
@@ -148,28 +148,28 @@ Code that is likely unintentional but may occasionally be intentional.
 | `LU046` | `no-loop-func` | ESLint | DIR | ✓ | No | None | Disallow functions that capture loop variables |
 | `LU023` | `no-mixed-key-types` | Destack | DIR | ✓ | No | None | Warn on objects that mix string, symbol, and numeric keys |
 | `LU022` | `no-misleading-character-class` | ESLint | AST | ✓ | No | None | Disallow characters that behave unexpectedly in regex |
-| `LU024` | `no-negation-in-equality-check` | Unicorn | AST | ✓ | Always | Safe | Disallow negation in the left operand of equality tests |
+| `LU024` | `no-negation-in-equality-check` | Unicorn | AST | ✓ | Sometimes | Suggestion | Disallow negation in the left operand of equality tests |
 | `LU025` | `no-redundant-match-guard` | Destack | AST | ✓ | Sometimes | Safe | Disallow match guards that are always true or false |
 | `LU026` | `no-redundant-pattern` | Destack | AST | ✓ | No | None | Disallow patterns that bind nothing useful |
 | `LU027` | `no-return-assign` | ESLint | AST | ✓ | Sometimes | Unsafe | Disallow assignment operators in return statements |
-| `LU028` | `no-self-assign` | ESLint | AST | ✓ | Always | Safe | Disallow assignments where both sides are exactly the same |
+| `LU028` | `no-self-assign` | ESLint | AST | ✓ | Sometimes | Suggestion | Disallow assignments where both sides are exactly the same |
 | `LU029` | `no-shadow-restricted-names` | ESLint | AST | ✓ | Sometimes | Suggestion | Disallow shadowing of restricted or builtin names |
-| `LU030` | `no-single-element-tuple` | Destack | AST | ✓ | Always | Safe | Warn on single-element tuples that may be accidental |
-| `LU031` | `no-template-curly-in-string` | ESLint | AST | ✓ | Sometimes | Safe | Disallow template literal placeholder syntax in regular strings |
-| `LU032` | `no-throw-literal` | ESLint | DIR | ✓ | Always | Suggestion | Disallow throwing literals instead of Error objects |
+| `LU030` | `no-single-element-tuple` | Destack | AST | ✓ | Sometimes | Suggestion | Warn on single-element tuples that may be accidental |
+| `LU031` | `no-template-curly-in-string` | ESLint | AST | ✓ | Sometimes | Unsafe | Disallow template literal placeholder syntax in regular strings |
+| `LU032` | `no-throw-literal` | ESLint | DIR | ✓ | Always | Unsafe | Disallow throwing literals instead of Error objects |
 | `LU033` | `no-unused-except-recursion` | Destack | DIR | ✓ | Sometimes | Unsafe | Warn on function arguments only used for recursion |
 | `LU034` | `no-useless-backreference` | ESLint | AST | ✓ | No | None | Disallow useless backreferences in regular expressions |
-| `LU035` | `no-useless-catch` | ESLint | AST | ✓ | Always | Safe | Disallow catch clauses that only rethrow |
-| `LU036` | `no-useless-computed-key` | ESLint | AST | ✓ | Always | Safe | Disallow unnecessary computed property keys |
-| `LU037` | `no-useless-concat` | ESLint | AST | ✓ | Always | Safe | Disallow unnecessary concatenation of literals |
-| `LU038` | `no-useless-constructor` | ESLint | DIR | ✓ | Sometimes | Safe | Disallow unnecessary constructors |
-| `LU039` | `no-useless-escape` | ESLint | AST | ✓ | Sometimes | Safe | Disallow unnecessary escape characters |
-| `LU040` | `no-useless-rename` | ESLint | AST | ✓ | Always | Safe | Disallow renaming imports/exports to the same name |
-| `LU041` | `no-useless-return` | ESLint | AST | ✓ | Always | Safe | Disallow redundant return statements |
-| `LU042` | `require-await` | TS-ESLint | DIR | ✓ | Always | Safe | Disallow async functions with no await expressions |
+| `LU035` | `no-useless-catch` | ESLint | AST | ✓ | No | None | Disallow catch clauses that only rethrow |
+| `LU036` | `no-useless-computed-key` | ESLint | AST | ✓ | Sometimes | Safe | Disallow unnecessary computed property keys |
+| `LU037` | `no-useless-concat` | ESLint | AST | ✓ | Sometimes | Safe | Disallow unnecessary concatenation of literals |
+| `LU038` | `no-useless-constructor` | ESLint | DIR | ✓ | Sometimes | Suggestion | Disallow unnecessary constructors |
+| `LU039` | `no-useless-escape` | ESLint | AST | ✓ | Sometimes | Suggestion | Disallow unnecessary escape characters |
+| `LU040` | `no-useless-rename` | ESLint | AST | ✓ | Sometimes | Safe | Disallow renaming imports, exports, and destructuring to the same name |
+| `LU041` | `no-useless-return` | ESLint | AST | ✓ | Sometimes | Safe | Disallow redundant return statements |
+| `LU042` | `require-await` | TS-ESLint | DIR | ✓ | Sometimes | Suggestion | Disallow async functions with no await expressions |
 | `LU043` | `require-else-in-if-chain` | Destack | AST | ✓ | Sometimes | Unsafe | Require final else in if-else-if chains |
-| `LU044` | `require-yield` | ESLint | AST | ✓ | Sometimes | Unsafe | Require generator functions to contain yield |
-| `LU045` | `return-await` | TS-ESLint | DIR | ✓ | Always | Safe | Enforce consistent `return await` usage |
+| `LU044` | `require-yield` | ESLint | AST | ✓ | No | None | Require generator functions to contain yield |
+| `LU045` | `return-await` | TS-ESLint | DIR | ✓ | Always | Suggestion | Enforce consistent `return await` usage |
 
 ## Security (S)
 
@@ -216,7 +216,7 @@ Correct code that could be faster or use less memory.
 | `LP020` | `no-sequential-independent-await` | Destack | DIR | ✓ | No | None | Suggest `Promise.all` for independent sequential awaits |
 | `LP010` | `no-string-concat-in-loop` | Destack | DIR | ✓ | No | None | Disallow `+=` and `x = x + y` string concatenation in loops |
 | `LP011` | `no-super-linear-regex` | Destack | AST | ✓ | No | None | Disallow regular expressions with catastrophic backtracking |
-| `LP012` | `prefer-array-every` | Unicorn | DIR | ✓ | Always | Safe | Prefer `.every()` over `.filter().length === .length` |
+| `LP012` | `prefer-array-every` | Unicorn | DIR | ✓ | Sometimes | Safe | Prefer `.every()` over `.filter().length === .length` |
 | `LP013` | `prefer-array-literal` | Destack | DIR | ✓ | Sometimes | Unsafe | Suggest using array literal instead of empty array followed by extend |
 | `LP014` | `prefer-for-of` | TS-ESLint | DIR | ✓ | Sometimes | Unsafe | Prefer for-of loops over index-based for loops |
 | `LP015` | `prefer-includes` | TS-ESLint | DIR | ✓ | Sometimes | Safe | Prefer `.includes()` over `.indexOf() !== -1` |

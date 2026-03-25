@@ -2,7 +2,8 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    block_is_empty_without_comment, block_is_function_body, block_is_static_block_body,
+    block_expression_ancestor, block_is_empty_without_comment, block_is_function_body,
+    block_is_static_block_body, span_has_comment_trivia,
 };
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
 
@@ -18,7 +19,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = Always,
+        fixable = Sometimes,
         recommended = Always,
         stability = Stable
     )]
@@ -53,6 +54,9 @@ impl LintRule for NoEmpty {
             {
                 continue;
             }
+            if ctx.options.no_empty_allow_empty_catch && block_is_catch_body(ctx, node_id) {
+                continue;
+            }
 
             // skip disabled diagnostics
             let severity = ctx.get_effective_severity(meta, node_id);
@@ -85,7 +89,65 @@ impl LintRule for NoEmpty {
 
             ctx.report(diagnostic);
         }
+
+        // inspect empty switch expressions separately
+        for expression_id in ctx.tree.iter_nodes::<ast::Expression>() {
+            let ast::Expression::Match { kind, cases, .. } = ctx.tree.get(expression_id) else {
+                continue;
+            };
+            if *kind != ast::MatchKind::Switch || !cases.is_empty() {
+                continue;
+            }
+            if span_has_comment_trivia(ctx.tree, ctx.tree.get_span(expression_id)) {
+                continue;
+            }
+
+            let severity = ctx.get_effective_severity(meta, expression_id);
+            if !severity.is_enabled() {
+                continue;
+            }
+
+            ctx.report(
+                LintDiagnostic::new(
+                    NO_EMPTY.id,
+                    NO_EMPTY.code,
+                    NO_EMPTY.category,
+                    severity,
+                    "empty switch statement",
+                    ctx.module.file_id,
+                    ctx.tree.get_span(expression_id),
+                )
+                .with_label("this switch has no cases"),
+            );
+        }
     }
+}
+
+/// Return true when one explicit block is the catch body of a try expression.
+fn block_is_catch_body(ctx: &LintAstContext<'_>, block_id: ast::LocalNodeId<ast::Block>) -> bool {
+    // resolve the owning block expression first
+    let Some(block_expression_id) = block_expression_ancestor(ctx.tree, ctx.parents, block_id)
+    else {
+        return false;
+    };
+
+    // keep only try catch bodies
+    let Some(parent_id) = ctx.parents.get(block_expression_id) else {
+        return false;
+    };
+    if ctx.tree.get_node_type(parent_id) != ast::NodeType::Expression {
+        return false;
+    }
+
+    let parent_expression_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
+    let parent_expression = ctx.tree.get(parent_expression_id);
+    matches!(
+        parent_expression,
+        ast::Expression::Try {
+            catch_expression: Some(catch_expression_id),
+            ..
+        } if *catch_expression_id == block_expression_id
+    )
 }
 
 #[cfg(test)]
@@ -163,6 +225,46 @@ let x = 1;
             "no_empty/test_no_empty_block_with_comment.ds",
             r#"
 { /* intentionally empty */ }
+"#,
+        );
+        test.result(result).assert_no_lint("no-empty");
+    }
+
+    #[test]
+    fn test_detects_empty_switch() {
+        let test = TestProgram::for_rule_without_prelude(NoEmpty);
+        let result = test.lint_ast(
+            "no_empty/test_detects_empty_switch.ds",
+            r#"
+switch (value) {}
+"#,
+        );
+        test.result(result).assert_lint("no-empty");
+    }
+
+    #[test]
+    fn test_allows_empty_switch_with_comment() {
+        let test = TestProgram::for_rule_without_prelude(NoEmpty);
+        let result = test.lint_ast(
+            "no_empty/test_allows_empty_switch_with_comment.ds",
+            r#"
+switch (value) { /* intentionally empty */ }
+"#,
+        );
+        test.result(result).assert_no_lint("no-empty");
+    }
+
+    #[test]
+    fn test_allows_empty_catch_when_configured() {
+        let test = TestProgram::for_rule_without_prelude(NoEmpty).with_options(|options| {
+            options.no_empty_allow_empty_catch = true;
+        });
+        let result = test.lint_ast(
+            "no_empty/test_allows_empty_catch_when_configured.ds",
+            r#"
+try {
+    work()
+} catch (error) {}
 "#,
         );
         test.result(result).assert_no_lint("no-empty");

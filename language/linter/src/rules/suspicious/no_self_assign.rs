@@ -15,7 +15,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = Always,
+        fixable = Sometimes,
         recommended = Always,
         stability = Stable
     )]
@@ -53,6 +53,12 @@ impl LintRule for NoSelfAssign {
                 continue;
             }
 
+            // keep property assignments behind the upstream option
+            let checks_properties = ctx.options.no_self_assign_check_properties;
+            if !checks_properties && expression_is_property_assignment_target(ctx.tree, *left) {
+                continue;
+            }
+
             // compare assignment operands structurally
             let left_span = ctx.tree.get_span(*left);
             if !expression_is_equal(ctx, *left, *right) {
@@ -86,7 +92,7 @@ impl LintRule for NoSelfAssign {
                         .edit_builder()
                         .replace(expression_span, replacement)
                         .into_edits();
-                    let fix = LintFix::safe("Remove self-assignment").with_edits(edits);
+                    let fix = LintFix::suggestion("Remove self-assignment").with_edits(edits);
                     diagnostic = diagnostic.with_fix(fix);
                 }
             }
@@ -94,6 +100,24 @@ impl LintRule for NoSelfAssign {
             ctx.report(diagnostic);
         }
     }
+}
+
+/// Return true when one assignment target is property-like.
+fn expression_is_property_assignment_target(
+    tree: &ast::NodeTree,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    let expression = tree.get(expression_id);
+
+    matches!(
+        expression,
+        ast::Expression::Path { path, .. } if path.segments.len() > 1
+    ) || matches!(
+        expression,
+        ast::Expression::Member { .. }
+            | ast::Expression::PrivateMember { .. }
+            | ast::Expression::Index { .. }
+    )
 }
 
 #[cfg(test)]
@@ -198,10 +222,24 @@ x = x
         );
         test.result(result)
             .assert_lint("no-self-assign")
-            .assert_safe_fixed(
+            .assert_suggested_fixed(
                 r#"
 x;
 "#,
             );
+    }
+
+    #[test]
+    fn test_allows_property_self_assign_when_props_disabled() {
+        let test = TestProgram::for_rule_without_prelude(NoSelfAssign).with_options(|options| {
+            options.no_self_assign_check_properties = false;
+        });
+        let result = test.lint_ast(
+            "no_self_assign/test_allows_property_self_assign_when_props_disabled.ds",
+            r#"
+obj.x = obj.x
+"#,
+        );
+        test.result(result).assert_no_lint("no-self-assign");
     }
 }
