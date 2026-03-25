@@ -179,8 +179,8 @@ impl Parser {
             }
             // path or identifier
             else {
-                let (path, name_span) = self
-                    .eat_path_with_last_span()
+                let (path, first_span, last_span) = self
+                    .eat_path_with_endpoint_spans()
                     .for_node_type(NodeType::Pattern)?;
                 // tuple with path
                 if self.peek_is(TokenType::OpenParenthesis) {
@@ -196,7 +196,7 @@ impl Parser {
                         },
                         self.get_span_from(&start),
                     );
-                    self.tree.set_main_span(expression_id, name_span);
+                    self.set_path_expression_spans(expression_id, first_span, last_span);
                     let pattern = Pattern::TaggedTuple {
                         ty: expression_id,
                         fields,
@@ -218,7 +218,7 @@ impl Parser {
                         },
                         self.get_span_from(&start),
                     );
-                    self.tree.set_main_span(ty_id, name_span);
+                    self.set_path_expression_spans(ty_id, first_span, last_span);
                     let pattern = Pattern::TaggedObject { ty: ty_id, fields };
                     self.eat_token(TokenType::CloseBrace)?;
                     self.insert_node(pattern, self.get_span_from(&start))
@@ -232,7 +232,7 @@ impl Parser {
                         },
                         self.get_span_from(&start),
                     );
-                    self.tree.set_main_span(expression_id, name_span);
+                    self.set_path_expression_spans(expression_id, first_span, last_span);
                     self.insert_node(
                         Pattern::Expression {
                             value: expression_id,
@@ -253,7 +253,7 @@ impl Parser {
                         Expression::TypeLiteral(type_literal),
                         self.get_span_from(&start),
                     );
-                    self.tree.set_main_span(expression_id, name_span);
+                    self.tree.set_main_span(expression_id, last_span);
                     self.insert_node(
                         Pattern::Expression {
                             value: expression_id,
@@ -271,7 +271,7 @@ impl Parser {
                         },
                         self.get_span_from(&start),
                     );
-                    self.tree.set_main_span(pattern_id, name_span);
+                    self.tree.set_main_span(pattern_id, last_span);
                     pattern_id
                 }
             }
