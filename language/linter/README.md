@@ -211,7 +211,7 @@ Correct code that could be faster or use less memory.
 | `LP006` | `no-json-clone` | Destack | DIR | ✓ | Sometimes | Unsafe | Disallow `JSON.parse(JSON.stringify())` for cloning |
 | `LP007` | `no-nested-array-includes` | Destack | DIR | ✓ | No | None | Disallow `includes`/`indexOf` inside loops over another array |
 | `LP008` | `no-object-spread-in-reduce` | Destack | DIR | ✓ | No | None | Disallow object spread in reduce accumulators |
-| `LP009` | `no-regex-in-loop` | Destack | DIR | ✓ | No | None | Disallow `new RegExp()` inside loops |
+| `LP009` | `no-regex-in-loop` | Destack | DIR | ✓ | No | None | Disallow `RegExp()` construction inside loops |
 | `LP020` | `no-sequential-independent-await` | Destack | DIR | ✓ | No | None | Suggest `Promise.all` for independent sequential awaits |
 | `LP010` | `no-string-concat-in-loop` | Destack | DIR | ✓ | No | None | Disallow `+=` and `x = x + y` string concatenation in loops |
 | `LP011` | `no-super-linear-regex` | Destack | AST | ✓ | No | None | Disallow regular expressions with catastrophic backtracking |

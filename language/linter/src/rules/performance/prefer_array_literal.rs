@@ -192,6 +192,44 @@ impl<'a, 'b> PreferArrayLiteralVisitor<'a, 'b> {
         }
     }
 
+    /// Return true when this expression is only the receiver of a `.push(...)` call.
+    fn is_push_receiver_use(&self, expression_id: LocalNodeId<dir::Expression>) -> bool {
+        let Some(parent_id) = self.ctx.tree.get_parent_id(expression_id.id) else {
+            return false;
+        };
+        if self.ctx.tree.get_node_type(parent_id) != dir::NodeType::Expression {
+            return false;
+        }
+
+        let parent_expression_id = LocalNodeId::<dir::Expression>::new(parent_id);
+        let parent_expression = self.ctx.tree.get(parent_expression_id);
+        let dir::Expression::Member { left, name, .. } = parent_expression else {
+            return false;
+        };
+        if *left != expression_id || *name != Some(self.push_name) {
+            return false;
+        }
+
+        let Some(grandparent_id) = self.ctx.tree.get_parent_id(parent_id) else {
+            return false;
+        };
+        if self.ctx.tree.get_node_type(grandparent_id) != dir::NodeType::Expression {
+            return false;
+        }
+
+        let grandparent_expression = self
+            .ctx
+            .tree
+            .get(LocalNodeId::<dir::Expression>::new(grandparent_id));
+        matches!(
+            grandparent_expression,
+            dir::Expression::Call {
+                left,
+                ..
+            } if *left == parent_expression_id
+        )
+    }
+
     /// Report arrays that could be array literals.
     fn report_candidates(&mut self) {
         let declaration_candidates = self.empty_arrays.values().cloned().collect::<Vec<_>>();
@@ -339,6 +377,11 @@ impl NodeVisitor for PreferArrayLiteralVisitor<'_, '_> {
         // check for call expressions
         if matches!(expression, dir::Expression::Call { .. }) {
             self.check_call(id);
+        }
+
+        // mark plain symbol uses that are not just `.push(...)` receivers
+        if expression.target_symbol().is_some() && !self.is_push_receiver_use(id) {
+            self.mark_other_use(id);
         }
 
         // check for member accesses (like items.length) as other use

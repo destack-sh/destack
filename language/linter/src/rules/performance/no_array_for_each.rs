@@ -4,7 +4,8 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
-    expression_method_call, is_array_type, statement_expression_ancestor, strip_dot_member_suffix,
+    collect_local_symbol_direct_reference_expression_ids, expression_method_call, is_array_type,
+    is_simple_identifier, statement_expression_ancestor, strip_dot_member_suffix,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -207,6 +208,7 @@ impl<'a, 'b> NoArrayForEachVisitor<'a, 'b> {
         else {
             return None;
         };
+        let parameter_symbol = parameter.symbol();
 
         // require a block body so we can preserve statements exactly
         let body_expression = self.ctx.tree.get(*body_id);
@@ -214,18 +216,91 @@ impl<'a, 'b> NoArrayForEachVisitor<'a, 'b> {
             return None;
         }
 
-        // rewrite to a simple for-of loop
+        // choose one loop binding name from the callback parameter symbol
         let parameter_name = self.ctx.program.strings.get(*name).to_string();
+        let binding_name = self.for_of_binding_name(statement_id, &parameter_name)?;
+
+        // rewrite callback parameter references inside the body
         let member_text = self.ctx.get_span_text(self.ctx.get_span(*left));
         let receiver_text = strip_dot_member_suffix(member_text, "forEach")?;
-        let body_text = self.ctx.get_span_text(self.ctx.get_span(*body_id));
-        let replacement = format!("for (const {parameter_name} of {receiver_text}) {body_text}");
+        let rewritten_body =
+            self.rewrite_callback_body(*body_id, parameter_symbol, &binding_name)?;
+        let replacement = format!("for (const {binding_name} of {receiver_text}) {rewritten_body}");
         let edits = self
             .ctx
             .edit_builder()
             .replace(self.ctx.get_span(statement_id), replacement)
             .into_edits();
         Some(LintFix::r#unsafe("Rewrite forEach callback as for-of loop").with_edits(edits))
+    }
+
+    /// Choose one loop binding name that stays valid after callback flattening.
+    fn for_of_binding_name(
+        &self,
+        statement_id: dir::LocalNodeId<dir::Expression>,
+        parameter_name: &str,
+    ) -> Option<String> {
+        if !is_simple_identifier(parameter_name) {
+            return None;
+        }
+
+        // resolve the lexical scope where the new for-of binding will land
+        let (_, scope, mark) = self.ctx.symbols.get_scope(statement_id, self.ctx.tree);
+        let is_name_taken = |candidate: &str| {
+            let candidate_id = self.ctx.program.strings.intern(candidate);
+            let candidate_key = dir::StaticKey::Name(candidate_id);
+            self.ctx
+                .symbols
+                .find_active_symbol_up_to(scope, candidate_key, mark)
+                .is_some()
+        };
+
+        // keep the original callback parameter name when it stays valid
+        if !is_name_taken(parameter_name) {
+            return Some(parameter_name.to_string());
+        }
+
+        // otherwise add an element suffix with deterministic numbering
+        let mut candidate = format!("{parameter_name}Element");
+        let mut suffix_index = 2usize;
+        while is_name_taken(&candidate) {
+            candidate = format!("{parameter_name}Element{suffix_index}");
+            suffix_index += 1;
+            if suffix_index > 1024 {
+                return None;
+            }
+        }
+
+        Some(candidate)
+    }
+
+    /// Rewrite one callback body by renaming direct references to the callback parameter.
+    fn rewrite_callback_body(
+        &self,
+        body_id: dir::LocalNodeId<dir::Expression>,
+        parameter_symbol: dir::LocalSymbolId,
+        binding_name: &str,
+    ) -> Option<String> {
+        let body_span = self.ctx.get_span(body_id);
+        let mut body_text = self.ctx.get_span_text(body_span).to_string();
+        let mut spans = collect_local_symbol_direct_reference_expression_ids(
+            self.ctx.module_id(),
+            self.ctx.tree,
+            parameter_symbol,
+        )
+        .into_iter()
+        .map(|expression_id| self.ctx.get_span(expression_id))
+        .filter(|span| span.start >= body_span.start && span.end <= body_span.end)
+        .collect::<Vec<_>>();
+        spans.sort_by(|left, right| right.start.cmp(&left.start));
+
+        for span in spans {
+            let start = (span.start - body_span.start) as usize;
+            let end = (span.end - body_span.start) as usize;
+            body_text.replace_range(start..end, binding_name);
+        }
+
+        Some(body_text)
     }
 }
 
