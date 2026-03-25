@@ -242,3 +242,61 @@ const x = 1 .toString;
             );
     }
 }
+"#,
+            );
+    }
+
+    #[test]
+    fn test_allows_keyword_property_when_keywords_are_allowed() {
+        let test = TestProgram::for_rule_without_prelude(DotNotation);
+        let result = test.lint_ast(
+            "dot_notation/test_allows_keyword_property_when_keywords_are_allowed.ds",
+            r#"
+const x = obj["class"]
+"#,
+        );
+        test.result(result).assert_no_lint("dot-notation");
+    }
+
+    #[test]
+    fn test_reports_keyword_property_when_keywords_are_disallowed() {
+        let test = TestProgram::for_rule_without_prelude(DotNotation).with_options(|options| {
+            options.dot_notation_allow_keywords = false;
+        });
+        let result = test.lint_ast(
+            "dot_notation/test_reports_keyword_property_when_keywords_are_disallowed.ds",
+            r#"
+const x = obj["class"]
+"#,
+        );
+        test.result(result).assert_lint("dot-notation");
+    }
+
+    #[test]
+    fn test_allows_property_name_matching_allow_pattern() {
+        let test = TestProgram::for_rule_without_prelude(DotNotation).with_options(|options| {
+            options.dot_notation_allow_pattern = Some("^_".to_string());
+        });
+        let result = test.lint_ast(
+            "dot_notation/test_allows_property_name_matching_allow_pattern.ds",
+            r#"
+const x = obj["_private"]
+"#,
+        );
+        test.result(result).assert_no_lint("dot-notation");
+    }
+
+    #[test]
+    fn test_reports_static_template_key() {
+        let test = TestProgram::for_rule_without_prelude(DotNotation);
+        let result = test.lint_ast(
+            "dot_notation/test_reports_static_template_key.ds",
+            r#"
+const x = obj[`foo`]
+"#,
+        );
+        test.result(result)
+            .assert_lint("dot-notation")
+            .assert_safe_fixed(
+                r#"
+const x = obj.foo;

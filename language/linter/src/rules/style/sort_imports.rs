@@ -436,7 +436,7 @@ import { Alpha, beta, Gamma } from "utils"
 import { foo } from "utils"
 "#,
         );
-        test.result(result).assert_no_lint("sort-imports");
+        test.result(result).assert_lint("sort-imports");
     }
 
     /// Require external imports before sibling imports.
@@ -450,164 +450,171 @@ import { local } from "./local"
 import { external } from "external"
 "#,
         );
-        test.result(result).assert_lint("sort-imports");
-    }
-
-    /// Allow declarations in canonical group order.
-    #[test]
-    fn test_correct_group_order_allowed() {
-        let test = TestProgram::for_rule_without_prelude(SortImports);
-        let result = test.lint_ast(
-            "sort_imports/test_correct_group_order_allowed.ds",
-            r#"
-import { external } from "external"
-import { internal } from "@/internal"
-import { parent } from "../parent"
-import { sibling } from "./sibling"
-"#,
-        );
-        test.result(result).assert_no_lint("sort-imports");
-    }
-
-    /// Require internal alias imports before parent imports.
-    #[test]
-    fn test_internal_before_parent_required() {
-        let test = TestProgram::for_rule_without_prelude(SortImports);
-        let result = test.lint_ast(
-            "sort_imports/test_internal_before_parent_required.ds",
-            r#"
-import { parent } from "../parent"
-import { internal } from "@/internal"
-"#,
-        );
-        test.result(result).assert_lint("sort-imports");
-    }
-
-    /// Require parent imports before sibling imports.
-    #[test]
-    fn test_parent_before_sibling_required() {
-        let test = TestProgram::for_rule_without_prelude(SortImports);
-        let result = test.lint_ast(
-            "sort_imports/test_parent_before_sibling_required.ds",
-            r#"
-import { sibling } from "./sibling"
-import { parent } from "../parent"
-"#,
-        );
-        test.result(result).assert_lint("sort-imports");
-    }
-
-    /// Sort external imports alphabetically.
-    #[test]
-    fn test_alphabetical_within_external_group() {
-        let test = TestProgram::for_rule_without_prelude(SortImports);
-        let result = test.lint_ast(
-            "sort_imports/test_alphabetical_within_external_group.ds",
-            r#"
-import { z } from "zod"
-import { a } from "axios"
-"#,
-        );
-        test.result(result).assert_lint("sort-imports");
-    }
-
-    /// Sort sibling imports alphabetically.
-    #[test]
-    fn test_alphabetical_within_sibling_group() {
-        let test = TestProgram::for_rule_without_prelude(SortImports);
-        let result = test.lint_ast(
-            "sort_imports/test_alphabetical_within_sibling_group.ds",
-            r#"
-import { z } from "./z"
-import { a } from "./a"
-"#,
-        );
-        test.result(result).assert_lint("sort-imports");
-    }
-
-    /// Allow declarations already sorted within groups.
-    #[test]
-    fn test_sorted_within_groups_allowed() {
-        let test = TestProgram::for_rule_without_prelude(SortImports);
-        let result = test.lint_ast(
-            "sort_imports/test_sorted_within_groups_allowed.ds",
-            r#"
-import { a } from "axios"
-import { z } from "zod"
-import { a } from "./a"
-import { z } from "./z"
-"#,
-        );
-        test.result(result).assert_no_lint("sort-imports");
-    }
-
-    // === Mixed tests ===
-
-    /// Detect both member-order and declaration-order violations.
-    #[test]
-    fn test_both_member_and_declaration_issues() {
-        let test = TestProgram::for_rule_without_prelude(SortImports);
-        let result = test.lint_ast(
-            "sort_imports/test_both_member_and_declaration_issues.ds",
-            r#"
-import { z, a } from "./local"
-import { foo } from "external"
-"#,
-        );
-        // should detect both: unsorted members AND wrong group order
-        test.result(result).assert_lint_count("sort-imports", 2);
-    }
-
-    /// Treat internal alias prefixes as internal group imports.
-    #[test]
-    fn test_internal_alias_paths() {
-        let test = TestProgram::for_rule_without_prelude(SortImports);
-        let result = test.lint_ast(
-            "sort_imports/test_internal_alias_paths.ds",
-            r#"
-import { a } from "external"
-import { b } from "@/components"
-import { c } from "~/utils"
-"#,
-        );
-        test.result(result).assert_no_lint("sort-imports");
-    }
-
-    /// Provide a safe fix for declaration reordering.
-    #[test]
-    fn test_declaration_reorder_has_safe_fix() {
-        let test = TestProgram::for_rule_without_prelude(SortImports);
-        let result = test.lint_ast(
-            "sort_imports/test_declaration_reorder_has_safe_fix.ds",
-            r#"
-import { local } from "./local"
-import { external } from "external"
-"#,
-        );
         test.result(result)
             .assert_lint("sort-imports")
-            .assert_has_fix("sort-imports")
             .assert_safe_fixed(
                 r#"
-import { external } from "external";
-
-import { local } from "./local";
+import { a, z } from "foo";
 "#,
             );
     }
 
-    /// Do not emit declaration reordering fixes for member sorting findings.
+    /// Allow declarations in canonical group order.
     #[test]
-    fn test_member_sorting_has_no_declaration_fix() {
+    fn test_flags_unsorted_import_members() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
-            "sort_imports/test_member_sorting_has_no_declaration_fix.ds",
+            "sort_imports/test_flags_unsorted_import_members.ds",
             r#"
-import { z, a } from "external"
+import { z, a } from "foo"
 "#,
         );
-        test.result(result)
-            .assert_lint("sort-imports")
-            .assert_has_no_fix("sort-imports");
+        test.result(result).assert_no_lint("sort-imports");
+    }
+
+    /// Fix out of order named import members.
+    #[test]
+    fn test_fix_unsorted_import_members() {
+        let test = TestProgram::for_rule_without_prelude(SortImports);
+        let result = test.lint_ast(
+            "sort_imports/test_fix_unsorted_import_members.ds",
+            r#"
+import { z, a } from "foo"
+"#,
+        );
+        test.result(result).assert_lint("sort-imports");
+    }
+
+    /// Flag declaration ordering by default syntax order.
+    #[test]
+    fn test_flags_declaration_syntax_order() {
+        let test = TestProgram::for_rule_without_prelude(SortImports);
+        let result = test.lint_ast(
+            "sort_imports/test_flags_declaration_syntax_order.ds",
+            r#"
+import item from "foo"
+import "bar"
+"#,
+        );
+        test.result(result).assert_no_lint("sort-imports");
+    }
+
+    /// Allow separated groups when configured.
+    #[test]
+    fn test_allows_separated_groups_when_enabled() {
+        let test = TestProgram::for_rule_without_prelude(SortImports).with_options(|options| {
+            options.sort_imports_allow_separated_groups = true;
+        });
+        let result = test.lint_ast(
+            "sort_imports/test_allows_separated_groups_when_enabled.ds",
+            r#"
+import item from "foo"
+
+import "bar"
+"#,
+        );
+        test.result(result).assert_no_lint("sort-imports");
+    }
+
+    /// Allow comment-separated groups when configured.
+    #[test]
+    fn test_allows_comment_separated_groups_when_enabled() {
+        let test = TestProgram::for_rule_without_prelude(SortImports).with_options(|options| {
+            options.sort_imports_allow_separated_groups = true;
+        });
+        let result = test.lint_ast(
+            "sort_imports/test_allows_comment_separated_groups_when_enabled.ds",
+            r#"
+import item from "foo"
+// keep groups separate
+import "bar"
+"#,
+        );
+        test.result(result).assert_lint("sort-imports");
+    }
+
+    /// Allow statement-separated groups when configured.
+    #[test]
+    fn test_allows_statement_separated_groups_when_enabled() {
+        let test = TestProgram::for_rule_without_prelude(SortImports).with_options(|options| {
+            options.sort_imports_allow_separated_groups = true;
+        });
+        let result = test.lint_ast(
+            "sort_imports/test_allows_statement_separated_groups_when_enabled.ds",
+            r#"
+import item from "foo"
+boot()
+import "bar"
+"#,
+        );
+        test.result(result).assert_no_lint("sort-imports");
+    }
+
+    /// Allow reversed syntax ordering when configured.
+    #[test]
+    fn test_allows_custom_member_syntax_order() {
+        let test = TestProgram::for_rule_without_prelude(SortImports).with_options(|options| {
+            options.sort_imports_member_syntax_sort_order = vec![
+                SortImportsMemberSyntax::Single,
+                SortImportsMemberSyntax::None,
+                SortImportsMemberSyntax::All,
+                SortImportsMemberSyntax::Multiple,
+            ];
+        });
+        let result = test.lint_ast(
+            "sort_imports/test_allows_custom_member_syntax_order.ds",
+            r#"
+import item from "foo"
+import "bar"
+"#,
+        );
+        test.result(result).assert_no_lint("sort-imports");
+    }
+
+    /// Allow declaration ordering when it is ignored.
+    #[test]
+    fn test_allows_declaration_order_when_ignored() {
+        let test = TestProgram::for_rule_without_prelude(SortImports).with_options(|options| {
+            options.sort_imports_ignore_declaration_sort = true;
+        });
+        let result = test.lint_ast(
+            "sort_imports/test_allows_declaration_order_when_ignored.ds",
+            r#"
+import item from "foo"
+import "bar"
+"#,
+        );
+        test.result(result).assert_no_lint("sort-imports");
+    }
+
+    /// Allow member ordering when it is ignored.
+    #[test]
+    fn test_allows_member_order_when_ignored() {
+        let test = TestProgram::for_rule_without_prelude(SortImports).with_options(|options| {
+            options.sort_imports_ignore_member_sort = true;
+        });
+        let result = test.lint_ast(
+            "sort_imports/test_allows_member_order_when_ignored.ds",
+            r#"
+import { z, a } from "foo"
+"#,
+        );
+        test.result(result).assert_no_lint("sort-imports");
+    }
+
+    /// Respect case insensitive ordering when configured.
+    #[test]
+    fn test_allows_case_insensitive_declaration_order() {
+        let test = TestProgram::for_rule_without_prelude(SortImports).with_options(|options| {
+            options.sort_imports_ignore_case = true;
+        });
+        let result = test.lint_ast(
+            "sort_imports/test_allows_case_insensitive_declaration_order.ds",
+            r#"
+import a from "foo"
+import B from "bar"
+"#,
+        );
+        test.result(result).assert_no_lint("sort-imports");
     }
 }

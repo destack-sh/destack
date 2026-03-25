@@ -231,6 +231,27 @@ function foo(x: boolean) {
             "no_else_return/test_allows_no_else.ds",
             r#"
 function foo(x: boolean) {
+    #[test]
+    fn test_has_no_fix_when_else_block_contains_comment() {
+        let test = TestProgram::for_rule_without_prelude(NoElseReturn);
+        let result = test.lint_ast(
+            "no_else_return/test_has_no_fix_when_else_block_contains_comment.ds",
+            r#"
+function foo(x: boolean) {
+    if (x) {
+        return 1
+    } else {
+        // keep
+        log()
+    }
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-else-return")
+            .assert_has_no_fix("no-else-return");
+    }
+
     if (x) {
         return 1
     }
@@ -266,6 +287,47 @@ function foo(x: boolean) {
             "no_else_return/test_fix_else_after_return.ds",
             r#"
 function foo(x: bool): int32 {
+    #[test]
+    fn test_allows_else_if_by_default() {
+        let test = TestProgram::for_rule_without_prelude(NoElseReturn);
+        let result = test.lint_ast(
+            "no_else_return/test_allows_else_if_by_default.ds",
+            r#"
+function foo(x: boolean, y: boolean) {
+    if (x) {
+        return 1
+    } else if (y) {
+        return 2
+    } else {
+        return 3
+    }
+}
+"#,
+        );
+        test.result(result).assert_no_lint("no-else-return");
+    }
+
+    #[test]
+    fn test_reports_else_if_when_disabled() {
+        let test = TestProgram::for_rule_without_prelude(NoElseReturn)
+            .with_options(|options| options.no_else_return_allow_else_if = false);
+        let result = test.lint_ast(
+            "no_else_return/test_reports_else_if_when_disabled.ds",
+            r#"
+function foo(x: boolean, y: boolean) {
+    if (x) {
+        return 1
+    } else if (y) {
+        return 2
+    } else {
+        return 3
+    }
+}
+"#,
+        );
+        test.result(result).assert_lint("no-else-return");
+    }
+
     if (x) {
         return 1
     } else {

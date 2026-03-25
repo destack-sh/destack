@@ -260,31 +260,49 @@ impl NodeVisitor for NoExtraBooleanCastVisitor<'_, '_> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::linter::{TestProgram, test_modules};
+    use crate::linter::TestProgram;
 
-    /// Report Boolean(value) when value is already boolean typed.
+    /// Allow Boolean casts in ordinary value contexts.
     #[test]
-    fn test_flags_boolean_constructor_on_boolean_value() {
+    fn test_allows_boolean_constructor_assignment() {
         let test = TestProgram::for_rule_with_prelude(NoExtraBooleanCast);
         let result = test.lint_dir(
-            "no_extra_boolean_cast/test_flags_boolean_constructor_on_boolean_value.ds",
+            "no_extra_boolean_cast/test_allows_boolean_constructor_assignment.ds",
             r#"
-let flag: boolean = true;
+let flag = true;
 let value = Boolean(flag);
+"#,
+        );
+        test.result(result).assert_no_lint("no-extra-boolean-cast");
+    }
+
+    /// Report Boolean casts in if conditions.
+    #[test]
+    fn test_flags_boolean_constructor_in_if_condition() {
+        let test = TestProgram::for_rule_with_prelude(NoExtraBooleanCast);
+        let result = test.lint_dir(
+            "no_extra_boolean_cast/test_flags_boolean_constructor_in_if_condition.ds",
+            r#"
+let flag = true;
+if (Boolean(flag)) {
+    let value = flag;
+}
 "#,
         );
         test.result(result).assert_lint("no-extra-boolean-cast");
     }
 
-    /// Safely remove Boolean() casts on boolean values.
+    /// Safely remove Boolean casts in if conditions.
     #[test]
-    fn test_fix_boolean_constructor_on_boolean_value() {
+    fn test_fix_boolean_constructor_in_if_condition() {
         let test = TestProgram::for_rule_with_prelude(NoExtraBooleanCast);
         let result = test.lint_dir(
-            "no_extra_boolean_cast/test_fix_boolean_constructor_on_boolean_value.ds",
+            "no_extra_boolean_cast/test_fix_boolean_constructor_in_if_condition.ds",
             r#"
-let flag: boolean = true;
-let value = Boolean(flag);
+let flag = true;
+if (Boolean(flag)) {
+    let value = flag;
+}
 "#,
         );
         test.result(result)
@@ -292,62 +310,57 @@ let value = Boolean(flag);
             .assert_has_fix("no-extra-boolean-cast")
             .assert_safe_fixed(
                 r#"
-let flag: boolean = true;
-let value = flag;
+let flag = true;
+if (flag) {
+    let value = flag;
+}
 "#,
             );
     }
 
-    /// Report global Boolean(value) when value is already boolean typed.
+    /// Report new Boolean casts in if conditions.
     #[test]
-    fn test_flags_global_boolean_constructor_on_boolean_value() {
+    fn test_flags_new_boolean_in_if_condition() {
         let test = TestProgram::for_rule_with_prelude(NoExtraBooleanCast);
         let result = test.lint_dir(
-            "no_extra_boolean_cast/test_flags_global_boolean_constructor_on_boolean_value.ds",
+            "no_extra_boolean_cast/test_flags_new_boolean_in_if_condition.ds",
             r#"
-let flag: boolean = true;
-let value = globalThis.Boolean(flag);
+let flag = true;
+if (new Boolean(flag)) {
+    let value = flag;
+}
 "#,
         );
         test.result(result).assert_lint("no-extra-boolean-cast");
     }
 
-    /// Allow Boolean(value) when the value is not already boolean typed.
+    /// Report double negation in if conditions.
     #[test]
-    fn test_allows_boolean_constructor_on_non_boolean_value() {
+    fn test_flags_double_negation_in_if_condition() {
         let test = TestProgram::for_rule_with_prelude(NoExtraBooleanCast);
         let result = test.lint_dir(
-            "no_extra_boolean_cast/test_allows_boolean_constructor_on_non_boolean_value.ds",
+            "no_extra_boolean_cast/test_flags_double_negation_in_if_condition.ds",
             r#"
-let value = Boolean("name");
-"#,
-        );
-        test.result(result).assert_no_lint("no-extra-boolean-cast");
-    }
-
-    /// Report `!!value` when value is already boolean typed.
-    #[test]
-    fn test_flags_double_negation_on_boolean_value() {
-        let test = TestProgram::for_rule_with_prelude(NoExtraBooleanCast);
-        let result = test.lint_dir(
-            "no_extra_boolean_cast/test_flags_double_negation_on_boolean_value.ds",
-            r#"
-let flag: boolean = true;
-let value = !!flag;
+let flag = true;
+if (!!flag) {
+    let value = flag;
+}
 "#,
         );
         test.result(result).assert_lint("no-extra-boolean-cast");
     }
 
-    /// Safely remove double negation on boolean values.
+    /// Safely remove double negation in if conditions.
     #[test]
-    fn test_fix_double_negation_on_boolean_value() {
+    fn test_fix_double_negation_in_if_condition() {
         let test = TestProgram::for_rule_with_prelude(NoExtraBooleanCast);
         let result = test.lint_dir(
-            "no_extra_boolean_cast/test_fix_double_negation_on_boolean_value.ds",
+            "no_extra_boolean_cast/test_fix_double_negation_in_if_condition.ds",
             r#"
-let flag: boolean = true;
-let value = !!flag;
+let flag = true;
+if (!!flag) {
+    let value = flag;
+}
 "#,
         );
         test.result(result)
@@ -355,40 +368,86 @@ let value = !!flag;
             .assert_has_fix("no-extra-boolean-cast")
             .assert_safe_fixed(
                 r#"
-let flag: boolean = true;
-let value = flag;
+let flag = true;
+if (flag) {
+    let value = flag;
+}
 "#,
             );
     }
 
-    /// Allow `!!value` when value is not already boolean typed.
+    /// Allow double negation in ordinary value contexts.
     #[test]
-    fn test_allows_double_negation_on_non_boolean_value() {
+    fn test_allows_double_negation_assignment() {
         let test = TestProgram::for_rule_with_prelude(NoExtraBooleanCast);
         let result = test.lint_dir(
-            "no_extra_boolean_cast/test_allows_double_negation_on_non_boolean_value.ds",
+            "no_extra_boolean_cast/test_allows_double_negation_assignment.ds",
             r#"
-let value = !!"name";
+let flag = true;
+let value = !!flag;
 "#,
         );
         test.result(result).assert_no_lint("no-extra-boolean-cast");
     }
 
-    /// Allow single negation on boolean values.
+    /// Report nested logical operands only when configured.
     #[test]
-    fn test_allows_single_negation() {
+    fn test_flags_logical_operand_when_enforced() {
+        let test = TestProgram::for_rule_with_prelude(NoExtraBooleanCast).with_options(|options| {
+            options.no_extra_boolean_cast_enforce_for_inner_expressions = true;
+        });
+        let result = test.lint_dir(
+            "no_extra_boolean_cast/test_flags_logical_operand_when_enforced.ds",
+            r#"
+let value = false;
+let flag = true;
+if (value || !!flag) {
+    let seen = flag;
+}
+"#,
+        );
+        test.result(result).assert_lint("no-extra-boolean-cast");
+    }
+
+    /// Allow nested logical operands by default.
+    #[test]
+    fn test_allows_logical_operand_by_default() {
         let test = TestProgram::for_rule_with_prelude(NoExtraBooleanCast);
         let result = test.lint_dir(
-            "no_extra_boolean_cast/test_allows_single_negation.ds",
+            "no_extra_boolean_cast/test_allows_logical_operand_by_default.ds",
             r#"
-let flag: boolean = true;
-let value = !flag;
+let value = false;
+let flag = true;
+if (value || !!flag) {
+    let seen = flag;
+}
 "#,
         );
         test.result(result).assert_no_lint("no-extra-boolean-cast");
     }
 
-    /// Allow local Boolean symbols that shadow the global constructor.
+    /// Report nested ternary branches when enforced.
+    #[test]
+    fn test_flags_ternary_branch_when_enforced() {
+        let test = TestProgram::for_rule_with_prelude(NoExtraBooleanCast).with_options(|options| {
+            options.no_extra_boolean_cast_enforce_for_inner_expressions = true;
+        });
+        let result = test.lint_dir(
+            "no_extra_boolean_cast/test_flags_ternary_branch_when_enforced.ds",
+            r#"
+let ready = true;
+let left = true;
+let right = false;
+if (ready ? !!left : !!right) {
+    let seen = left;
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint_count("no-extra-boolean-cast", 2);
+    }
+
+    /// Keep shadowed Boolean references out of the lint path.
     #[test]
     fn test_allows_shadowed_boolean_symbol() {
         let test = TestProgram::for_rule_with_prelude(NoExtraBooleanCast);
@@ -399,107 +458,40 @@ function Boolean(value: boolean): boolean {
     return value;
 }
 
-let flag: boolean = true;
-let result = Boolean(flag);
+let flag = true;
+if (Boolean(flag)) {
+    let value = flag;
+}
 "#,
         );
         test.result(result).assert_no_lint("no-extra-boolean-cast");
     }
 
-    /// Report Boolean(value) for imported boolean values.
+    /// Preserve grouping under outer unary negation.
     #[test]
-    fn test_flags_boolean_constructor_on_cross_module_boolean_value() {
-        let test = TestProgram::for_rule_with_prelude(NoExtraBooleanCast);
-        let diagnostics = test.lint_module_dir_with_modules(
-            test_modules! {
-                "no_extra_boolean_cast/source.ds" => r#"
-export const flag: boolean = true;
-"#,
-                "no_extra_boolean_cast/consumer.ds" => r#"
-import { flag } from "./source.ds";
-let value = Boolean(flag);
-"#,
-            },
-            "no_extra_boolean_cast/consumer.ds",
-        );
-
-        test.result(diagnostics)
-            .assert_lint("no-extra-boolean-cast");
-    }
-
-    /// Allow Boolean(value) when the value can be non boolean.
-    #[test]
-    fn test_allows_boolean_constructor_on_union_value() {
+    fn test_fix_boolean_constructor_under_not() {
         let test = TestProgram::for_rule_with_prelude(NoExtraBooleanCast);
         let result = test.lint_dir(
-            "no_extra_boolean_cast/test_allows_boolean_constructor_on_union_value.ds",
+            "no_extra_boolean_cast/test_fix_boolean_constructor_under_not.ds",
             r#"
-let value: boolean | string = "x";
-let casted = Boolean(value);
+let left = true;
+let right = false;
+if (!Boolean(left && right)) {
+    let seen = left;
+}
 "#,
         );
-        test.result(result).assert_no_lint("no-extra-boolean-cast");
-    }
-
-    /// Report `!!value` for imported boolean values.
-    #[test]
-    fn test_flags_double_negation_on_cross_module_boolean_value() {
-        let test = TestProgram::for_rule_with_prelude(NoExtraBooleanCast);
-        let diagnostics = test.lint_module_dir_with_modules(
-            test_modules! {
-                "no_extra_boolean_cast/source_not.ds" => r#"
-export const flag: boolean = true;
+        test.result(result)
+            .assert_lint("no-extra-boolean-cast")
+            .assert_has_fix("no-extra-boolean-cast")
+            .assert_safe_fixed(
+                r#"
+let left = true;
+let right = false;
+if (!(left && right)) {
+    let seen = left;
+}
 "#,
-                "no_extra_boolean_cast/consumer_not.ds" => r#"
-import { flag } from "./source_not.ds";
-let value = !!flag;
-"#,
-            },
-            "no_extra_boolean_cast/consumer_not.ds",
-        );
-
-        test.result(diagnostics)
-            .assert_lint("no-extra-boolean-cast");
-    }
-
-    /// Report redundant casts for boolean literals.
-    #[test]
-    fn test_flags_boolean_constructor_on_boolean_literal() {
-        let test = TestProgram::for_rule_with_prelude(NoExtraBooleanCast);
-        let result = test.lint_dir(
-            "no_extra_boolean_cast/test_flags_boolean_constructor_on_boolean_literal.ds",
-            r#"
-let value = Boolean(true);
-"#,
-        );
-        test.result(result).assert_lint("no-extra-boolean-cast");
-    }
-
-    /// Allow boolean constructor casts for unknown values.
-    #[test]
-    fn test_allows_boolean_constructor_on_unknown_value() {
-        let test = TestProgram::for_rule_with_prelude(NoExtraBooleanCast);
-        let result = test.lint_dir(
-            "no_extra_boolean_cast/test_allows_boolean_constructor_on_unknown_value.ds",
-            r#"
-let value: unknown = true;
-let casted = Boolean(value);
-"#,
-        );
-        test.result(result).assert_no_lint("no-extra-boolean-cast");
-    }
-
-    /// Report parenthesized double negation on booleans.
-    #[test]
-    fn test_flags_parenthesized_double_negation_on_boolean_value() {
-        let test = TestProgram::for_rule_with_prelude(NoExtraBooleanCast);
-        let result = test.lint_dir(
-            "no_extra_boolean_cast/test_flags_parenthesized_double_negation_on_boolean_value.ds",
-            r#"
-let flag: boolean = true;
-let value = !(!flag);
-"#,
-        );
-        test.result(result).assert_lint("no-extra-boolean-cast");
+            );
     }
 }

@@ -498,16 +498,18 @@ c /= 1;
 
     /// Avoid mixed declaration fixes when one declarator is reassigned.
     #[test]
-    fn test_allows_mixed_mutability_in_one_declaration() {
+    fn test_flags_const_eligible_binding_in_mixed_declaration() {
         let test = TestProgram::for_rule_with_prelude(PreferConst);
         let result = test.lint_dir(
-            "prefer_const/test_allows_mixed_mutability_in_one_declaration.ds",
+            "prefer_const/test_flags_const_eligible_binding_in_mixed_declaration.ds",
             r#"
 let a = 1, b = 2;
 b = 3;
 "#,
         );
-        test.result(result).assert_no_lint("prefer-const");
+        test.result(result)
+            .assert_lint_count("prefer-const", 1)
+            .assert_has_no_fix("prefer-const");
     }
 
     /// Flag destructured let declarations that are never reassigned.
@@ -522,11 +524,73 @@ let { a, b } = value;
         );
         test.result(result)
             .assert_lint("prefer-const")
-            .assert_has_fix("prefer-const")
-            .assert_safe_fixed(
-                r#"
-const { a, b } = value;
+            .assert_has_no_fix("prefer-const");
+    }
+
+    /// Flag one late assignment that can become a const declaration.
+    #[test]
+    fn test_flags_single_late_assignment() {
+        let test = TestProgram::for_rule_with_prelude(PreferConst);
+        let result = test.lint_dir(
+            "prefer_const/test_flags_single_late_assignment.ds",
+            r#"
+let value;
+value = 1;
+consume(value);
 "#,
-            );
+        );
+        test.result(result)
+            .assert_lint("prefer-const")
+            .assert_has_no_fix("prefer-const");
+    }
+
+    /// Allow conditional late assignment that cannot become a declaration.
+    #[test]
+    fn test_allows_conditional_late_assignment() {
+        let test = TestProgram::for_rule_with_prelude(PreferConst);
+        let result = test.lint_dir(
+            "prefer_const/test_allows_conditional_late_assignment.ds",
+            r#"
+let value;
+if (ready) {
+    value = 1;
+}
+"#,
+        );
+        test.result(result).assert_no_lint("prefer-const");
+    }
+
+    /// Allow partial destructuring groups when `all` is required.
+    #[test]
+    fn test_allows_partial_destructuring_group_with_all_mode() {
+        let test = TestProgram::for_rule_with_prelude(PreferConst).with_options(|options| {
+            options.prefer_const_destructuring = PreferConstDestructuring::All;
+        });
+        let result = test.lint_dir(
+            "prefer_const/test_allows_partial_destructuring_group_with_all_mode.ds",
+            r#"
+let { a, b } = value;
+b = 1;
+consume(a);
+"#,
+        );
+        test.result(result).assert_no_lint("prefer-const");
+    }
+
+    /// Ignore read-before-assign bindings when configured.
+    #[test]
+    fn test_allows_read_before_assign_when_ignored() {
+        let test = TestProgram::for_rule_with_prelude(PreferConst).with_options(|options| {
+            options.prefer_const_ignore_read_before_assign = true;
+        });
+        let result = test.lint_dir(
+            "prefer_const/test_allows_read_before_assign_when_ignored.ds",
+            r#"
+let value;
+consume(value);
+value = 1;
+"#,
+        );
+        test.result(result).assert_no_lint("prefer-const");
     }
 }

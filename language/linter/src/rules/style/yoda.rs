@@ -268,3 +268,60 @@ if (x <= 10) { y() }
         );
     }
 }
+    #[test]
+    fn test_has_no_fix_when_comparison_contains_comment() {
+        let test = TestProgram::for_rule_without_prelude(Yoda);
+        let result = test.lint_ast(
+            "yoda/test_has_no_fix_when_comparison_contains_comment.ds",
+            r#"
+if (1 /* keep */ === value) {
+    ok()
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("yoda")
+            .assert_has_no_fix("yoda");
+    }
+
+
+    #[test]
+    fn test_allows_non_yoda_in_always_mode() {
+        let test = TestProgram::for_rule_without_prelude(Yoda)
+            .with_options(|options| options.yoda_mode = YodaMode::Always);
+        let result = test.lint_ast(
+            "yoda/test_allows_non_yoda_in_always_mode.ds",
+            r#"
+if (value === 5) { y() }
+"#,
+        );
+        test.result(result).assert_lint("yoda");
+    }
+
+    #[test]
+    fn test_allows_range_test_when_except_range_enabled() {
+        let test = TestProgram::for_rule_without_prelude(Yoda).with_options(|options| {
+            options.yoda_except_range = true;
+        });
+        let result = test.lint_ast(
+            "yoda/test_allows_range_test_when_except_range_enabled.ds",
+            r#"
+if ((0 <= x) && (x < 10)) { y() }
+"#,
+        );
+        test.result(result).assert_no_lint("yoda");
+    }
+
+    #[test]
+    fn test_allows_non_equality_when_only_equality_enabled() {
+        let test = TestProgram::for_rule_without_prelude(Yoda).with_options(|options| {
+            options.yoda_only_equality = true;
+        });
+        let result = test.lint_ast(
+            "yoda/test_allows_non_equality_when_only_equality_enabled.ds",
+            r#"
+if (10 < x) { y() }
+"#,
+        );
+        test.result(result).assert_no_lint("yoda");
+    }

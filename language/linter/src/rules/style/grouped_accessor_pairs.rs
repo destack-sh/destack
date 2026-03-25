@@ -515,6 +515,24 @@ class Example {
             "grouped_accessor_pairs/test_only_setter_allowed.ds",
             r#"
 class Example {
+    #[test]
+    fn test_reports_setter_then_getter_when_get_before_set_is_required() {
+        let test =
+            TestProgram::for_rule_without_prelude(GroupedAccessorPairs).with_options(|options| {
+                options.grouped_accessor_pairs_order = GroupedAccessorPairsOrder::GetBeforeSet;
+            });
+        let result = test.lint_ast(
+            "grouped_accessor_pairs/test_reports_setter_then_getter_when_get_before_set_is_required.ds",
+            r#"
+class Example {
+    set foo(v) { this._foo = v }
+    get foo() { return this._foo }
+}
+"#,
+        );
+        test.result(result).assert_lint("grouped-accessor-pairs");
+    }
+
     set foo(v) { this._foo = v }
     bar: int32 = 1
 }
@@ -637,7 +655,10 @@ const value = {
 
     #[test]
     fn test_no_fix_when_member_range_contains_comments() {
-        let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
+        let test =
+            TestProgram::for_rule_without_prelude(GroupedAccessorPairs).with_options(|options| {
+                options.grouped_accessor_pairs_enforce_for_types = true;
+            });
         let result = test.lint_ast(
             "grouped_accessor_pairs/test_no_fix_when_member_range_contains_comments.ds",
             r#"
@@ -654,3 +675,38 @@ class Example {
             .assert_has_no_fix("grouped-accessor-pairs");
     }
 }
+    #[test]
+    fn test_ignores_struct_accessors_by_default() {
+        let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
+        let result = test.lint_ast(
+            "grouped_accessor_pairs/test_ignores_struct_accessors_by_default.ds",
+            r#"
+struct Example {
+    get foo() { this._foo }
+    bar: int32
+    set foo(v) { this._foo = v }
+}
+"#,
+        );
+        test.result(result).assert_no_lint("grouped-accessor-pairs");
+    }
+
+    #[test]
+    fn test_checks_struct_accessors_when_enabled() {
+        let test =
+            TestProgram::for_rule_without_prelude(GroupedAccessorPairs).with_options(|options| {
+                options.grouped_accessor_pairs_enforce_for_types = true;
+            });
+        let result = test.lint_ast(
+            "grouped_accessor_pairs/test_checks_struct_accessors_when_enabled.ds",
+            r#"
+struct Example {
+    get foo() { this._foo }
+    bar: int32
+    set foo(v) { this._foo = v }
+}
+"#,
+        );
+        test.result(result).assert_lint("grouped-accessor-pairs");
+    }
+

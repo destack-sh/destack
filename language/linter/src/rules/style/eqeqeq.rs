@@ -275,3 +275,75 @@ if (1 === 2) { x() }
         );
     }
 }
+
+    #[test]
+    fn test_has_no_fix_when_comparison_contains_comment() {
+        let test = TestProgram::for_rule_without_prelude(Eqeqeq);
+        let result = test.lint_ast(
+            "eqeqeq/test_has_no_fix_when_comparison_contains_comment.ds",
+            r#"
+if (typeof value /* keep */ == "string") { x() }
+"#,
+        );
+        test.result(result)
+            .assert_lint("eqeqeq")
+            .assert_has_no_fix("eqeqeq");
+    }
+
+    #[test]
+    fn test_allows_null_check_in_allow_null_mode() {
+        let test = TestProgram::for_rule_without_prelude(Eqeqeq).with_options(|options| {
+            options.eqeqeq_mode = EqeqeqMode::AllowNull;
+        });
+        let result = test.lint_ast(
+            "eqeqeq/test_allows_null_check_in_allow_null_mode.ds",
+            r#"
+if (value == null) { x() }
+"#,
+        );
+        test.result(result).assert_no_lint("eqeqeq");
+    }
+
+    #[test]
+    fn test_allows_smart_typeof_comparison() {
+        let test = TestProgram::for_rule_without_prelude(Eqeqeq).with_options(|options| {
+            options.eqeqeq_mode = EqeqeqMode::Smart;
+        });
+        let result = test.lint_ast(
+            "eqeqeq/test_allows_smart_typeof_comparison.ds",
+            r#"
+if (typeof value == "string") { x() }
+"#,
+        );
+        test.result(result).assert_no_lint("eqeqeq");
+    }
+
+    #[test]
+    fn test_reports_strict_null_check_when_null_policy_is_never() {
+        let test = TestProgram::for_rule_without_prelude(Eqeqeq).with_options(|options| {
+            options.eqeqeq_null = EqeqeqNullPolicy::Never;
+        });
+        let result = test.lint_ast(
+            "eqeqeq/test_reports_strict_null_check_when_null_policy_is_never.ds",
+            r#"
+if (value === null) { x() }
+"#,
+        );
+        test.result(result)
+            .assert_lint("eqeqeq")
+            .assert_has_no_fix("eqeqeq");
+    }
+
+    #[test]
+    fn test_ignores_loose_null_check_when_null_policy_is_ignore() {
+        let test = TestProgram::for_rule_without_prelude(Eqeqeq).with_options(|options| {
+            options.eqeqeq_null = EqeqeqNullPolicy::Ignore;
+        });
+        let result = test.lint_ast(
+            "eqeqeq/test_ignores_loose_null_check_when_null_policy_is_ignore.ds",
+            r#"
+if (value == null) { x() }
+"#,
+        );
+        test.result(result).assert_no_lint("eqeqeq");
+    }

@@ -230,3 +230,48 @@ const result = !(a && b);
             );
     }
 }
+    #[test]
+    fn test_has_no_fix_when_expression_contains_comment() {
+        let test = TestProgram::for_rule_without_prelude(NoUnneededTernary);
+        let result = test.lint_ast(
+            "no_unneeded_ternary/test_has_no_fix_when_expression_contains_comment.ds",
+            r#"
+const result = x ? /* keep */ true : false
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-unneeded-ternary")
+            .assert_has_no_fix("no-unneeded-ternary");
+    }
+
+"#,
+            );
+    }
+
+    #[test]
+    fn test_allows_default_assignment_ternary_by_default() {
+        let test = TestProgram::for_rule_without_prelude(NoUnneededTernary);
+        let result = test.lint_ast(
+            "no_unneeded_ternary/test_allows_default_assignment_ternary_by_default.ds",
+            r#"
+const result = value ? value : fallback
+"#,
+        );
+        test.result(result).assert_no_lint("no-unneeded-ternary");
+    }
+
+    #[test]
+    fn test_flags_default_assignment_ternary_when_disabled() {
+        let test = TestProgram::for_rule_without_prelude(NoUnneededTernary)
+            .with_options(|options| options.no_unneeded_ternary_default_assignment = false);
+        let result = test.lint_ast(
+            "no_unneeded_ternary/test_flags_default_assignment_ternary_when_disabled.ds",
+            r#"
+const result = value ? value : fallback
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-unneeded-ternary")
+            .assert_safe_fixed(
+                r#"
+const result = value || fallback;

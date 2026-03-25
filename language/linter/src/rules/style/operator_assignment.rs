@@ -368,3 +368,35 @@ x = x /* keep */ + y
             .assert_has_no_fix("operator-assignment");
     }
 }
+
+    #[test]
+    fn test_reports_shorthand_assignment_when_mode_is_never() {
+        let test =
+            TestProgram::for_rule_without_prelude(OperatorAssignment).with_options(|options| {
+                options.operator_assignment_mode = OperatorAssignmentMode::Never
+            });
+        let result = test.lint_ast(
+            "operator_assignment/test_reports_shorthand_assignment_when_mode_is_never.ds",
+            r#"
+x += y
+"#,
+        );
+        test.result(result)
+            .assert_lint("operator-assignment")
+            .assert_has_no_fix("operator-assignment");
+    }
+
+    #[test]
+    fn test_ignores_logical_assignment_when_mode_is_never() {
+        let test =
+            TestProgram::for_rule_without_prelude(OperatorAssignment).with_options(|options| {
+                options.operator_assignment_mode = OperatorAssignmentMode::Never
+            });
+        let result = test.lint_ast(
+            "operator_assignment/test_ignores_logical_assignment_when_mode_is_never.ds",
+            r#"
+x &&= y
+"#,
+        );
+        test.result(result).assert_no_lint("operator-assignment");
+    }
