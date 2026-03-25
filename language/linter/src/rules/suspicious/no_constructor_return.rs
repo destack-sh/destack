@@ -119,6 +119,24 @@ fn no_constructor_return_fix(
     Some(LintFix::r#unsafe("Drop constructor return value").with_edits(edits))
 }
 
+/// Return statement-safe text for one constructor return value expression.
+fn statement_safe_return_value_text(
+    ctx: &LintModuleDirContext<'_>,
+    value_expression_id: dir::LocalNodeId<dir::Expression>,
+    _return_expression: &dir::Expression,
+    value_text: &str,
+) -> String {
+    let value_expression = ctx.tree.get(value_expression_id);
+    if matches!(
+        value_expression,
+        dir::Expression::ObjectExpression { .. } | dir::Expression::Declaration { .. }
+    ) {
+        return format!("({value_text})");
+    }
+
+    value_text.to_string()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -261,7 +279,7 @@ class Foo {
 class Foo {
     constructor() {
         {
-            (makeValue());
+            makeValue();
             return;
         }
     }
@@ -292,6 +310,40 @@ class Foo {
     constructor() {
         {
             ({ value: buildValue() });
+            return;
+        }
+    }
+}
+"#,
+            );
+    }
+
+    /// Preserve declaration-valued returns as expressions in the fix.
+    #[test]
+    fn test_fix_parenthesizes_function_expression_return_value() {
+        let test = TestProgram::for_rule_without_prelude(NoConstructorReturn);
+        let result = test.lint_dir(
+            "no_constructor_return/test_fix_parenthesizes_function_expression_return_value.ds",
+            r#"
+class Foo {
+    constructor() {
+        return function buildValue(): int32 {
+            return 1
+        }
+    }
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-constructor-return")
+            .assert_unsafe_fixed(
+                r#"
+class Foo {
+    constructor() {
+        {
+            (function buildValue(): int32 {
+                return 1
+            });
             return;
         }
     }

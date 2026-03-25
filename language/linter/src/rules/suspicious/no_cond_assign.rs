@@ -1,8 +1,9 @@
 use destack_ast as ast;
-use destack_workspace::LintSeverity;
+use destack_workspace::{ConditionAssignmentMode, LintSeverity};
 
 use crate::rules::common::{
     ConditionAssignmentStyle, condition_assignment_style, control_flow_condition_expression,
+    expression_contains_assignment,
 };
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
 

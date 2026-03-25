@@ -202,7 +202,7 @@ function foo(obj: object) {
     #[test]
     fn test_guarded_for_in_allowed() {
         let test = TestProgram::for_rule_without_prelude(GuardForIn);
-        let result = test.lint_ast(
+        let result = test.lint_dir(
             "guard_for_in/test_guarded_for_in_allowed.ds",
             r#"
 function foo(obj: object) {
@@ -218,9 +218,98 @@ function foo(obj: object) {
     }
 
     #[test]
+    fn test_object_has_own_guard_allowed() {
+        let test = TestProgram::for_rule_without_prelude(GuardForIn);
+        let result = test.lint_dir(
+            "guard_for_in/test_object_has_own_guard_allowed.ds",
+            r#"
+function foo(obj: object) {
+    for (const key in obj) {
+        if (Object.hasOwn(obj, key)) {
+            console.log(key)
+        }
+    }
+}
+"#,
+        );
+        test.result(result).assert_no_lint("guard-for-in");
+    }
+
+    #[test]
+    fn test_prototype_has_own_call_guard_allowed() {
+        let test = TestProgram::for_rule_without_prelude(GuardForIn);
+        let result = test.lint_dir(
+            "guard_for_in/test_prototype_has_own_call_guard_allowed.ds",
+            r#"
+function foo(obj: object) {
+    for (const key in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+            console.log(key)
+        }
+    }
+}
+"#,
+        );
+        test.result(result).assert_no_lint("guard-for-in");
+    }
+
+    #[test]
+    fn test_negative_continue_guard_allowed() {
+        let test = TestProgram::for_rule_without_prelude(GuardForIn);
+        let result = test.lint_dir(
+            "guard_for_in/test_negative_continue_guard_allowed.ds",
+            r#"
+function foo(obj: object) {
+    for (const key in obj) {
+        if (!Object.hasOwn(obj, key)) continue
+        console.log(key)
+    }
+}
+"#,
+        );
+        test.result(result).assert_no_lint("guard-for-in");
+    }
+
+    #[test]
+    fn test_shadowed_object_has_own_does_not_count() {
+        let test = TestProgram::for_rule_without_prelude(GuardForIn);
+        let result = test.lint_dir(
+            "guard_for_in/test_shadowed_object_has_own_does_not_count.ds",
+            r#"
+function foo(obj: object, Object: { hasOwn: (value: object, key: string) => boolean }) {
+    for (const key in obj) {
+        if (Object.hasOwn(obj, key)) {
+            console.log(key)
+        }
+    }
+}
+"#,
+        );
+        test.result(result).assert_lint("guard-for-in");
+    }
+
+    #[test]
+    fn test_unrelated_if_does_not_count_as_guard() {
+        let test = TestProgram::for_rule_without_prelude(GuardForIn);
+        let result = test.lint_dir(
+            "guard_for_in/test_unrelated_if_does_not_count_as_guard.ds",
+            r#"
+function foo(obj: object, ready: boolean) {
+    for (const key in obj) {
+        if (ready) {
+            console.log(key)
+        }
+    }
+}
+"#,
+        );
+        test.result(result).assert_lint("guard-for-in");
+    }
+
+    #[test]
     fn test_for_of_not_affected() {
         let test = TestProgram::for_rule_without_prelude(GuardForIn);
-        let result = test.lint_ast(
+        let result = test.lint_dir(
             "guard_for_in/test_for_of_not_affected.ds",
             r#"
 function foo(arr: int32[]) {
@@ -236,7 +325,7 @@ function foo(arr: int32[]) {
     #[test]
     fn test_empty_for_in_allowed() {
         let test = TestProgram::for_rule_without_prelude(GuardForIn);
-        let result = test.lint_ast(
+        let result = test.lint_dir(
             "guard_for_in/test_empty_for_in_allowed.ds",
             r#"
 function foo(obj: object) {
@@ -250,7 +339,7 @@ function foo(obj: object) {
     #[test]
     fn test_no_fix_when_iterator_has_side_effects() {
         let test = TestProgram::for_rule_without_prelude(GuardForIn);
-        let result = test.lint_ast(
+        let result = test.lint_dir(
             "guard_for_in/test_no_fix_when_iterator_has_side_effects.ds",
             r#"
 function foo() {

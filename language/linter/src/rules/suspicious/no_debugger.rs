@@ -76,9 +76,7 @@ impl LintRule for NoDebugger {
                 continue;
             }
 
-            // fall back to deleting only the expression span as an unsafe fix
-            let diagnostic =
-                diagnostic.with_fix(LintFix::r#unsafe("Remove debugger expression").delete(span));
+            // keep expression-position debugger diagnostics fixless
             ctx.report(diagnostic);
         }
     }
@@ -192,15 +190,6 @@ let x = debugger;
         );
         test.result(result)
             .assert_lint("no-debugger")
-            .assert_safe_fixed(
-                r#"
-let x = debugger;
-"#,
-            )
-            .assert_unsafe_fixed(
-                r#"
-let x = ;
-"#,
-            );
+            .assert_has_no_fix("no-debugger");
     }
 }
