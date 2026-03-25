@@ -67,8 +67,7 @@ The terminators themselves are also quite straightforward: essentially, control 
 
 ## Instructions
 
-Instructions produce SSA values and perform operations.
-Each instruction defines at most one `Value`.
+Instructions perform "operations" and may produce SSA `Value`s.
 
 | Category | Instructions |
 |----------|--------------|

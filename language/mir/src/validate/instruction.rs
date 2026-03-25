@@ -1,16 +1,16 @@
 use std::collections::HashSet;
 
 use crate::{
-    AllocationMode, ArgumentSlice, CastOperator, Constant, Function, Instruction, Intrinsic, Local,
-    LocalNodeId, Mutability, NodeType, ReferenceKind, TensorDimension, Type, Value,
-    compute_type_layout,
+    AddressSpace, AllocationMode, ArgumentSlice, CastOperator, Constant, Function, Instruction,
+    Intrinsic, Local, LocalNodeId, Mutability, NodeType, ReferenceKind, TensorDimension,
+    TensorLayout, Type, Value, compute_type_layout,
 };
 
 use super::{ValidateAnchor, ValidateError, ValidateResult, Validator};
 
 #[allow(clippy::type_complexity)]
 impl<'a> Validator<'a> {
-    /// Validate an instruction uses only defined values.
+    /// Validate one instruction against function-local invariants.
     pub(super) fn validate_instruction(
         &self,
         function: &Function,
@@ -19,143 +19,121 @@ impl<'a> Validator<'a> {
         locals: &HashSet<LocalNodeId<Local>>,
         defined_values: &HashSet<Value>,
     ) -> ValidateResult<()> {
-        // check inline uses
+        let anchor = ValidateAnchor::node(instruction_id);
+
+        // uses
+        self.validate_instruction_uses(instruction, anchor, defined_values)?;
+
+        // call metadata
+        self.validate_instruction_call(function, instruction_id, instruction)?;
+
+        // operation rules
+        self.validate_instruction_operation(function, instruction, instruction_id, locals)?;
+
+        // allocation policy
+        self.validate_instruction_allocation(function, instruction, instruction_id)?;
+
+        Ok(())
+    }
+
+    /// Validate the SSA uses embedded in one instruction.
+    fn validate_instruction_uses(
+        &self,
+        instruction: &Instruction,
+        anchor: ValidateAnchor,
+        defined_values: &HashSet<Value>,
+    ) -> ValidateResult<()> {
         for value in instruction.uses() {
-            self.ensure_defined(value, ValidateAnchor::node(instruction_id), defined_values)?;
+            self.ensure_defined(value, anchor, defined_values)?;
         }
 
-        // check external argument uses
-        if let Some(slice) = instruction.argument_slice() {
-            // validate the slice bounds
-            self.validate_argument_slice(slice, instruction_id)?;
+        Ok(())
+    }
 
-            // ensure slice arguments are defined
-            let arguments = self.tree.get_arguments(slice);
-            for &value in arguments {
-                self.ensure_defined(value, ValidateAnchor::node(instruction_id), defined_values)?;
-            }
+    /// Validate call-site metadata attached to one instruction.
+    fn validate_instruction_call(
+        &self,
+        function: &Function,
+        instruction_id: LocalNodeId<Instruction>,
+        instruction: &Instruction,
+    ) -> ValidateResult<()> {
+        let anchor = ValidateAnchor::node(instruction_id);
 
-            // validate call signatures and effects
-            match instruction {
-                Instruction::Call {
-                    destination,
-                    function,
-                    signature,
-                    effects,
-                    ..
-                } => {
-                    self.validate_call_signature(
-                        instruction_id,
-                        *destination,
-                        arguments.len(),
-                        *signature,
-                    )?;
-                    self.validate_call_signature_matches_function(
-                        ValidateAnchor::node(instruction_id),
-                        *signature,
-                        *function,
-                    )?;
-                    self.validate_call_effects(instruction_id, effects.as_ref(), arguments.len())?;
-                }
-                Instruction::CallVirtual {
-                    destination,
-                    declaring_type,
-                    slot_id,
-                    signature,
-                    effects,
-                    ..
-                } => {
-                    self.validate_call_signature(
-                        instruction_id,
-                        *destination,
-                        arguments.len(),
-                        *signature,
-                    )?;
-                    self.validate_call_effects(instruction_id, effects.as_ref(), arguments.len())?;
-                    self.validate_virtual_dispatch_slot(
-                        *declaring_type,
-                        *slot_id,
-                        ValidateAnchor::node(instruction_id),
-                    )?;
-                }
-                Instruction::CallInterface {
-                    destination,
-                    declaring_type,
-                    slot_id,
-                    signature,
-                    effects,
-                    ..
-                } => {
-                    self.validate_call_signature(
-                        instruction_id,
-                        *destination,
-                        arguments.len(),
-                        *signature,
-                    )?;
-                    self.validate_call_effects(instruction_id, effects.as_ref(), arguments.len())?;
-                    self.validate_interface_dispatch_slot(
-                        *declaring_type,
-                        *slot_id,
-                        ValidateAnchor::node(instruction_id),
-                    )?;
-                }
-                Instruction::CallIndirect {
-                    destination,
-                    signature,
-                    effects,
-                    env,
-                    ..
-                } => {
-                    self.validate_call_signature(
-                        instruction_id,
-                        *destination,
-                        arguments.len(),
-                        *signature,
-                    )?;
-                    if let Some(env) = env {
-                        let env_type_id = self.value_type_or_error(
-                            function,
-                            *env,
-                            ValidateAnchor::node(instruction_id),
-                            "call.indirect env",
-                        )?;
-                        let env_type = self.tree.get(env_type_id);
-                        if !matches!(env_type, Type::Reference { .. }) {
-                            return Err(ValidateError::MetadataInvariantViolation {
-                                message: "call.indirect env must be a reference type".to_string(),
-                                anchor: ValidateAnchor::node(instruction_id),
-                            });
-                        }
-                    }
-                    self.validate_call_effects(instruction_id, effects.as_ref(), arguments.len())?;
-                }
-                _ => {}
+        // shared call metadata
+        let Some((destination, arguments, signature, effects)) = (match instruction {
+            Instruction::Call {
+                destination,
+                arguments,
+                signature,
+                effects,
+                ..
             }
+            | Instruction::CallVirtual {
+                destination,
+                arguments,
+                signature,
+                effects,
+                ..
+            }
+            | Instruction::CallInterface {
+                destination,
+                arguments,
+                signature,
+                effects,
+                ..
+            }
+            | Instruction::CallIndirect {
+                destination,
+                arguments,
+                signature,
+                effects,
+                ..
+            } => Some((*destination, *arguments, *signature, effects.as_ref())),
+            _ => None,
+        }) else {
+            return Ok(());
+        };
+
+        self.validate_argument_slice(arguments, instruction_id)?;
+        let arguments = self.tree.get_arguments(arguments);
+
+        self.validate_call_signature(instruction_id, destination, arguments.len(), signature)?;
+        self.validate_call_effects(instruction_id, effects, arguments.len())?;
+
+        // per-call-kind checks
+        match instruction {
+            Instruction::Call {
+                function: callee, ..
+            } => {
+                self.validate_call_signature_matches_function(anchor, signature, *callee)?;
+            }
+            Instruction::CallVirtual {
+                declaring_type,
+                slot_id,
+                ..
+            } => {
+                self.validate_virtual_dispatch_slot(*declaring_type, *slot_id, anchor)?;
+            }
+            Instruction::CallInterface {
+                declaring_type,
+                slot_id,
+                ..
+            } => {
+                self.validate_interface_dispatch_slot(*declaring_type, *slot_id, anchor)?;
+            }
+            Instruction::CallIndirect { env, .. } => {
+                if let Some(env) = env {
+                    self.ensure_reference_value(function, *env, anchor, "call.indirect env")?;
+                }
+            }
+            _ => {}
         }
-
-        // validate instruction node references
-        self.validate_instruction_nodes(instruction, instruction_id)?;
-
-        // validate local references
-        self.validate_local_reference(instruction, locals, instruction_id)?;
-
-        // validate instruction shape invariants
-        self.validate_instruction_shapes(instruction, instruction_id)?;
-
-        // validate vector and tensor instruction semantics
-        self.validate_vector_tensor_ops(function, instruction, instruction_id)?;
-
-        // validate inline types
-        self.validate_instruction_inline_types(function, instruction, instruction_id)?;
-
-        // validate function allocation policy
-        self.validate_allocation_mode(function, instruction, instruction_id)?;
 
         Ok(())
     }
 
     /// Validate function allocation policy against allocation instructions.
-    fn validate_allocation_mode(
+    fn validate_instruction_allocation(
         &self,
         function: &Function,
         instruction: &Instruction,
@@ -220,6 +198,30 @@ impl<'a> Validator<'a> {
         Ok(value_type)
     }
 
+    /// Validate one external argument slice.
+    pub(super) fn validate_argument_slice(
+        &self,
+        slice: ArgumentSlice,
+        instruction_id: LocalNodeId<Instruction>,
+    ) -> ValidateResult<()> {
+        // compute slice bounds
+        let start = slice.start as usize;
+        let end = start + slice.count as usize;
+        let len = self.tree.instruction_arguments.len();
+
+        // reject out of bounds slices
+        if end > len {
+            return Err(ValidateError::ArgumentSliceOutOfBounds {
+                start: slice.start,
+                count: slice.count,
+                len,
+                anchor: ValidateAnchor::node(instruction_id),
+            });
+        }
+
+        Ok(())
+    }
+
     /// Check whether two tensor shapes are compatible for casts.
     fn tensor_shapes_compatible(
         &self,
@@ -242,16 +244,308 @@ impl<'a> Validator<'a> {
             })
     }
 
-    /// Validate vector and tensor instruction invariants.
-    fn validate_vector_tensor_ops(
+    /// Resolve one vector type.
+    fn vector_type(
+        &self,
+        type_id: LocalNodeId<Type>,
+        anchor: ValidateAnchor,
+        message: &'static str,
+    ) -> ValidateResult<(LocalNodeId<Type>, u32)> {
+        let vector_type = self.tree.get(type_id);
+
+        match vector_type {
+            Type::Vector { element, lanes, .. } => Ok((*element, *lanes)),
+            other => Err(ValidateError::MetadataInvariantViolation {
+                message: format!("{message}, found {}", self.type_kind(other)),
+                anchor,
+            }),
+        }
+    }
+
+    /// Resolve one tensor type.
+    fn tensor_type(
+        &self,
+        type_id: LocalNodeId<Type>,
+        anchor: ValidateAnchor,
+        message: &'static str,
+    ) -> ValidateResult<(LocalNodeId<Type>, &[TensorDimension], &TensorLayout)> {
+        let tensor_type = self.tree.get(type_id);
+
+        match tensor_type {
+            Type::Tensor {
+                element,
+                shape,
+                layout,
+                ..
+            } => Ok((*element, shape, layout)),
+            other => Err(ValidateError::MetadataInvariantViolation {
+                message: format!("{message}, found {}", self.type_kind(other)),
+                anchor,
+            }),
+        }
+    }
+
+    /// Resolve one tensor reference type.
+    fn tensor_reference_type(
+        &self,
+        type_id: LocalNodeId<Type>,
+        anchor: ValidateAnchor,
+        message: &'static str,
+    ) -> ValidateResult<(
+        ReferenceKind,
+        AddressSpace,
+        Mutability,
+        LocalNodeId<Type>,
+        &[TensorDimension],
+        &TensorLayout,
+    )> {
+        let tensor_type = self.tree.get(type_id);
+
+        match tensor_type {
+            Type::TensorReference {
+                kind,
+                address_space,
+                mutability,
+                element,
+                shape,
+                layout,
+                ..
+            } => Ok((*kind, *address_space, *mutability, *element, shape, layout)),
+            other => Err(ValidateError::MetadataInvariantViolation {
+                message: format!("{message}, found {}", self.type_kind(other)),
+                anchor,
+            }),
+        }
+    }
+
+    /// Resolve one reference type.
+    fn reference_type(
+        &self,
+        type_id: LocalNodeId<Type>,
+        anchor: ValidateAnchor,
+        message: &'static str,
+    ) -> ValidateResult<(ReferenceKind, Mutability, LocalNodeId<Type>, bool)> {
+        let reference_type = self.tree.get(type_id);
+
+        match reference_type {
+            Type::Reference {
+                kind,
+                mutability,
+                pointee,
+                is_nullable,
+                ..
+            } => Ok((*kind, *mutability, *pointee, *is_nullable)),
+            _ => Err(ValidateError::MetadataInvariantViolation {
+                message: message.to_string(),
+                anchor,
+            }),
+        }
+    }
+
+    /// Resolve one reference pointee type.
+    fn reference_pointee_type_or_error(
+        &self,
+        type_id: LocalNodeId<Type>,
+        anchor: ValidateAnchor,
+        message: &'static str,
+    ) -> ValidateResult<LocalNodeId<Type>> {
+        let (_kind, _mutability, pointee, _is_nullable) =
+            self.reference_type(type_id, anchor, message)?;
+
+        Ok(pointee)
+    }
+
+    /// Ensure one type is integer-like.
+    fn expect_integer_like_type(
+        &self,
+        type_id: LocalNodeId<Type>,
+        anchor: ValidateAnchor,
+        message: &'static str,
+    ) -> ValidateResult<()> {
+        if !matches!(
+            self.tree.get(type_id),
+            Type::Int { .. } | Type::Isize | Type::Usize
+        ) {
+            return Err(ValidateError::MetadataInvariantViolation {
+                message: message.to_string(),
+                anchor,
+            });
+        }
+
+        Ok(())
+    }
+
+    /// Validate one instruction operation.
+    fn validate_instruction_operation(
         &self,
         function: &Function,
         instruction: &Instruction,
         instruction_id: LocalNodeId<Instruction>,
+        locals: &HashSet<LocalNodeId<Local>>,
     ) -> ValidateResult<()> {
-        // prepare anchor for error reporting
         let anchor = ValidateAnchor::node(instruction_id);
 
+        // embedded node references
+        match instruction {
+            Instruction::LocalGet { local, .. } | Instruction::LocalSet { local, .. } => {
+                self.ensure_node_type(NodeType::Local, local.id, anchor)?;
+            }
+            Instruction::LocalAddr {
+                local, result_type, ..
+            } => {
+                self.ensure_node_type(NodeType::Local, local.id, anchor)?;
+                self.ensure_node_type(NodeType::Type, result_type.id, anchor)?;
+            }
+            Instruction::GlobalAddr { global, .. } | Instruction::GlobalConst { global, .. } => {
+                self.ensure_node_type(NodeType::Global, global.id, anchor)?;
+            }
+            Instruction::FunctionAddr { function, .. } | Instruction::Call { function, .. } => {
+                self.ensure_node_type(NodeType::Function, function.id, anchor)?;
+            }
+            Instruction::Cast { to_type, .. }
+            | Instruction::Struct { ty: to_type, .. }
+            | Instruction::Tuple { ty: to_type, .. }
+            | Instruction::Array { ty: to_type, .. }
+            | Instruction::ManagedAlloc {
+                layout: to_type, ..
+            }
+            | Instruction::ManagedAllocArray {
+                element: to_type, ..
+            }
+            | Instruction::RawAlloc {
+                layout: to_type, ..
+            }
+            | Instruction::StackAlloc {
+                layout: to_type, ..
+            } => {
+                self.ensure_node_type(NodeType::Type, to_type.id, anchor)?;
+            }
+            _ => {}
+        }
+
+        // local ownership
+        match instruction {
+            Instruction::LocalGet { local, .. }
+            | Instruction::LocalAddr { local, .. }
+            | Instruction::LocalSet { local, .. } => {
+                if !locals.contains(local) {
+                    return Err(ValidateError::LocalReferenceNotInFunction {
+                        local_id: *local,
+                        anchor,
+                    });
+                }
+            }
+            _ => {}
+        }
+
+        // aggregate form
+        match instruction {
+            Instruction::Struct { ty, fields, .. } => {
+                let expected = match self.tree.get(*ty) {
+                    Type::Struct { fields, .. } => fields.len(),
+                    Type::FunctionValue { .. } => 2,
+                    other => {
+                        return Err(ValidateError::AggregateTypeMismatch {
+                            expected: "struct or fnvalue",
+                            found: self.type_kind(other),
+                            anchor,
+                        });
+                    }
+                };
+
+                if expected != fields.len() {
+                    return Err(ValidateError::AggregateArgumentCountMismatch {
+                        expected,
+                        got: fields.len(),
+                        anchor,
+                    });
+                }
+            }
+            Instruction::Tuple { ty, elements, .. } => {
+                let expected = match self.tree.get(*ty) {
+                    Type::Tuple { elements, .. } => elements.len(),
+                    other => {
+                        return Err(ValidateError::AggregateTypeMismatch {
+                            expected: "tuple",
+                            found: self.type_kind(other),
+                            anchor,
+                        });
+                    }
+                };
+
+                if expected != elements.len() {
+                    return Err(ValidateError::AggregateArgumentCountMismatch {
+                        expected,
+                        got: elements.len(),
+                        anchor,
+                    });
+                }
+            }
+            Instruction::Array { ty, elements, .. } => {
+                let expected = match self.tree.get(*ty) {
+                    Type::Array { length, .. } => usize::try_from(*length).unwrap_or(usize::MAX),
+                    other => {
+                        return Err(ValidateError::AggregateTypeMismatch {
+                            expected: "array",
+                            found: self.type_kind(other),
+                            anchor,
+                        });
+                    }
+                };
+
+                if expected != elements.len() {
+                    return Err(ValidateError::AggregateArgumentCountMismatch {
+                        expected,
+                        got: elements.len(),
+                        anchor,
+                    });
+                }
+            }
+            Instruction::TensorSlice {
+                arguments,
+                offsets_count,
+                sizes_count,
+                strides_count,
+                ..
+            }
+            | Instruction::TensorView {
+                arguments,
+                offsets_count,
+                sizes_count,
+                strides_count,
+                ..
+            } => {
+                let expected =
+                    *offsets_count as usize + *sizes_count as usize + *strides_count as usize;
+                if expected != arguments.len() {
+                    return Err(ValidateError::AggregateArgumentCountMismatch {
+                        expected,
+                        got: arguments.len(),
+                        anchor,
+                    });
+                }
+            }
+            Instruction::TensorPad {
+                arguments,
+                low_count,
+                high_count,
+                interior_count,
+                ..
+            } => {
+                let expected =
+                    *low_count as usize + *high_count as usize + *interior_count as usize;
+                if expected != arguments.len() {
+                    return Err(ValidateError::AggregateArgumentCountMismatch {
+                        expected,
+                        got: arguments.len(),
+                        anchor,
+                    });
+                }
+            }
+            _ => {}
+        }
+
+        // typed operations
         match instruction {
             Instruction::Binary {
                 destination,
@@ -259,7 +553,6 @@ impl<'a> Validator<'a> {
                 left,
                 right,
             } => {
-                // resolve operand types
                 let left_type_id =
                     self.value_type_or_error(function, *left, anchor, "binary left")?;
                 let right_type_id =
@@ -267,44 +560,28 @@ impl<'a> Validator<'a> {
                 let destination_type_id =
                     self.value_type_or_error(function, *destination, anchor, "binary result")?;
 
-                // validate elementwise vector/tensor operations
                 match self.tree.get(left_type_id) {
-                    Type::Vector {
-                        element: left_element,
-                        lanes: left_lanes,
-                        ..
-                    } => {
-                        let right_type = self.tree.get(right_type_id);
-                        let destination_type = self.tree.get(destination_type_id);
-                        let (right_element, right_lanes) = match right_type {
-                            Type::Vector { element, lanes, .. } => (element, lanes),
-                            other => {
-                                return Err(ValidateError::MetadataInvariantViolation {
-                                    message: format!(
-                                        "vector binary expects vector operands, found {}",
-                                        self.type_kind(other)
-                                    ),
-                                    anchor,
-                                });
-                            }
-                        };
-                        let (dest_element, dest_lanes) = match destination_type {
-                            Type::Vector { element, lanes, .. } => (element, lanes),
-                            other => {
-                                return Err(ValidateError::MetadataInvariantViolation {
-                                    message: format!(
-                                        "vector binary result must be a vector, found {}",
-                                        self.type_kind(other)
-                                    ),
-                                    anchor,
-                                });
-                            }
-                        };
+                    Type::Vector { .. } => {
+                        let left_vector = self.vector_type(
+                            left_type_id,
+                            anchor,
+                            "vector binary expects vector operands",
+                        )?;
+                        let right_vector = self.vector_type(
+                            right_type_id,
+                            anchor,
+                            "vector binary expects vector operands",
+                        )?;
+                        let destination_vector = self.vector_type(
+                            destination_type_id,
+                            anchor,
+                            "vector binary result must be a vector",
+                        )?;
 
-                        if left_element != right_element
-                            || left_lanes != right_lanes
-                            || left_element != dest_element
-                            || left_lanes != dest_lanes
+                        if left_vector.0 != right_vector.0
+                            || left_vector.1 != right_vector.1
+                            || left_vector.0 != destination_vector.0
+                            || left_vector.1 != destination_vector.1
                         {
                             return Err(ValidateError::MetadataInvariantViolation {
                                 message: "vector binary operands and result must match".to_string(),
@@ -319,55 +596,29 @@ impl<'a> Validator<'a> {
                             });
                         }
                     }
-                    Type::Tensor {
-                        element: left_element,
-                        shape: left_shape,
-                        layout: left_layout,
-                        ..
-                    } => {
-                        let right_type = self.tree.get(right_type_id);
-                        let destination_type = self.tree.get(destination_type_id);
-                        let (right_element, right_shape, right_layout) = match right_type {
-                            Type::Tensor {
-                                element,
-                                shape,
-                                layout,
-                                ..
-                            } => (element, shape, layout),
-                            other => {
-                                return Err(ValidateError::MetadataInvariantViolation {
-                                    message: format!(
-                                        "tensor binary expects tensor operands, found {}",
-                                        self.type_kind(other)
-                                    ),
-                                    anchor,
-                                });
-                            }
-                        };
-                        let (dest_element, dest_shape, dest_layout) = match destination_type {
-                            Type::Tensor {
-                                element,
-                                shape,
-                                layout,
-                                ..
-                            } => (element, shape, layout),
-                            other => {
-                                return Err(ValidateError::MetadataInvariantViolation {
-                                    message: format!(
-                                        "tensor binary result must be a tensor, found {}",
-                                        self.type_kind(other)
-                                    ),
-                                    anchor,
-                                });
-                            }
-                        };
+                    Type::Tensor { .. } => {
+                        let left_tensor = self.tensor_type(
+                            left_type_id,
+                            anchor,
+                            "tensor binary expects tensor operands",
+                        )?;
+                        let right_tensor = self.tensor_type(
+                            right_type_id,
+                            anchor,
+                            "tensor binary expects tensor operands",
+                        )?;
+                        let destination_tensor = self.tensor_type(
+                            destination_type_id,
+                            anchor,
+                            "tensor binary result must be a tensor",
+                        )?;
 
-                        if left_element != right_element
-                            || left_shape != right_shape
-                            || left_layout != right_layout
-                            || left_element != dest_element
-                            || left_shape != dest_shape
-                            || left_layout != dest_layout
+                        if left_tensor.0 != right_tensor.0
+                            || left_tensor.1 != right_tensor.1
+                            || left_tensor.2 != right_tensor.2
+                            || left_tensor.0 != destination_tensor.0
+                            || left_tensor.1 != destination_tensor.1
+                            || left_tensor.2 != destination_tensor.2
                         {
                             return Err(ValidateError::MetadataInvariantViolation {
                                 message: "tensor binary operands and result must match".to_string(),
@@ -421,7 +672,6 @@ impl<'a> Validator<'a> {
                 left,
                 right,
             } => {
-                // reject non comparison operators
                 if !operator.is_comparison() {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "vector.compare requires a comparison operator".to_string(),
@@ -429,80 +679,48 @@ impl<'a> Validator<'a> {
                     });
                 }
 
-                // resolve operand types
                 let left_type_id =
                     self.value_type_or_error(function, *left, anchor, "vector.compare left")?;
                 let right_type_id =
                     self.value_type_or_error(function, *right, anchor, "vector.compare right")?;
-
-                // resolve operand vector layouts
-                let left_type = self.tree.get(left_type_id);
-                let right_type = self.tree.get(right_type_id);
-                let (left_element, left_lanes) = match left_type {
-                    Type::Vector { element, lanes, .. } => (element, lanes),
-                    other => {
-                        return Err(ValidateError::MetadataInvariantViolation {
-                            message: format!(
-                                "vector.compare expects vector operands, found {}",
-                                self.type_kind(other)
-                            ),
-                            anchor,
-                        });
-                    }
-                };
-                let (right_element, right_lanes) = match right_type {
-                    Type::Vector { element, lanes, .. } => (element, lanes),
-                    other => {
-                        return Err(ValidateError::MetadataInvariantViolation {
-                            message: format!(
-                                "vector.compare expects vector operands, found {}",
-                                self.type_kind(other)
-                            ),
-                            anchor,
-                        });
-                    }
-                };
-
-                // reject mismatched vector operands
-                if left_element != right_element || left_lanes != right_lanes {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "vector.compare expects matching vector operand types".to_string(),
-                        anchor,
-                    });
-                }
-
-                // resolve destination type
                 let destination_type_id = self.value_type_or_error(
                     function,
                     *destination,
                     anchor,
                     "vector.compare result",
                 )?;
-                let destination_type = self.tree.get(destination_type_id);
-                let (result_element, result_lanes) = match destination_type {
-                    Type::Vector { element, lanes, .. } => (element, lanes),
-                    other => {
-                        return Err(ValidateError::MetadataInvariantViolation {
-                            message: format!(
-                                "vector.compare result must be a vector, found {}",
-                                self.type_kind(other)
-                            ),
-                            anchor,
-                        });
-                    }
-                };
 
-                // reject mismatched lane counts
-                if *result_lanes != *left_lanes {
+                let left_vector = self.vector_type(
+                    left_type_id,
+                    anchor,
+                    "vector.compare expects vector operands",
+                )?;
+                let right_vector = self.vector_type(
+                    right_type_id,
+                    anchor,
+                    "vector.compare expects vector operands",
+                )?;
+                let result_vector = self.vector_type(
+                    destination_type_id,
+                    anchor,
+                    "vector.compare result must be a vector",
+                )?;
+
+                if left_vector.0 != right_vector.0 || left_vector.1 != right_vector.1 {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "vector.compare expects matching vector operand types".to_string(),
+                        anchor,
+                    });
+                }
+
+                if result_vector.1 != left_vector.1 {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "vector.compare result must match lane count".to_string(),
                         anchor,
                     });
                 }
 
-                // reject non boolean result element types
-                let result_element_type = self.tree.get(*result_element);
-                if !matches!(result_element_type, Type::Boolean) {
+                if !matches!(self.tree.get(result_vector.0), Type::Boolean) {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "vector.compare result element type must be bool".to_string(),
                         anchor,
@@ -514,7 +732,6 @@ impl<'a> Validator<'a> {
                 vector,
                 ..
             } => {
-                // resolve operand types
                 let source_type_id =
                     self.value_type_or_error(function, *vector, anchor, "vector.convert source")?;
                 let destination_type_id = self.value_type_or_error(
@@ -524,36 +741,18 @@ impl<'a> Validator<'a> {
                     "vector.convert result",
                 )?;
 
-                // resolve vector types
-                let source_type = self.tree.get(source_type_id);
-                let destination_type = self.tree.get(destination_type_id);
-                let source_lanes = match source_type {
-                    Type::Vector { lanes, .. } => lanes,
-                    other => {
-                        return Err(ValidateError::MetadataInvariantViolation {
-                            message: format!(
-                                "vector.convert expects vector source, found {}",
-                                self.type_kind(other)
-                            ),
-                            anchor,
-                        });
-                    }
-                };
-                let destination_lanes = match destination_type {
-                    Type::Vector { lanes, .. } => lanes,
-                    other => {
-                        return Err(ValidateError::MetadataInvariantViolation {
-                            message: format!(
-                                "vector.convert expects vector result, found {}",
-                                self.type_kind(other)
-                            ),
-                            anchor,
-                        });
-                    }
-                };
+                let source_vector = self.vector_type(
+                    source_type_id,
+                    anchor,
+                    "vector.convert expects vector source",
+                )?;
+                let destination_vector = self.vector_type(
+                    destination_type_id,
+                    anchor,
+                    "vector.convert expects vector result",
+                )?;
 
-                // reject mismatched lane counts
-                if source_lanes != destination_lanes {
+                if source_vector.1 != destination_vector.1 {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "vector.convert must preserve lane count".to_string(),
                         anchor,
@@ -566,7 +765,6 @@ impl<'a> Validator<'a> {
                 left,
                 right,
             } => {
-                // reject non comparison operators
                 if !operator.is_comparison() {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "tensor.compare requires a comparison operator".to_string(),
@@ -574,54 +772,36 @@ impl<'a> Validator<'a> {
                     });
                 }
 
-                // resolve operand types
                 let left_type_id =
                     self.value_type_or_error(function, *left, anchor, "tensor.compare left")?;
                 let right_type_id =
                     self.value_type_or_error(function, *right, anchor, "tensor.compare right")?;
+                let destination_type_id = self.value_type_or_error(
+                    function,
+                    *destination,
+                    anchor,
+                    "tensor.compare result",
+                )?;
 
-                // resolve operand tensor layouts
-                let left_type = self.tree.get(left_type_id);
-                let right_type = self.tree.get(right_type_id);
-                let (left_element, left_shape, left_layout) = match left_type {
-                    Type::Tensor {
-                        element,
-                        shape,
-                        layout,
-                        ..
-                    } => (element, shape, layout),
-                    other => {
-                        return Err(ValidateError::MetadataInvariantViolation {
-                            message: format!(
-                                "tensor.compare expects tensor operands, found {}",
-                                self.type_kind(other)
-                            ),
-                            anchor,
-                        });
-                    }
-                };
-                let (right_element, right_shape, right_layout) = match right_type {
-                    Type::Tensor {
-                        element,
-                        shape,
-                        layout,
-                        ..
-                    } => (element, shape, layout),
-                    other => {
-                        return Err(ValidateError::MetadataInvariantViolation {
-                            message: format!(
-                                "tensor.compare expects tensor operands, found {}",
-                                self.type_kind(other)
-                            ),
-                            anchor,
-                        });
-                    }
-                };
+                let left_tensor = self.tensor_type(
+                    left_type_id,
+                    anchor,
+                    "tensor.compare expects tensor operands",
+                )?;
+                let right_tensor = self.tensor_type(
+                    right_type_id,
+                    anchor,
+                    "tensor.compare expects tensor operands",
+                )?;
+                let result_tensor = self.tensor_type(
+                    destination_type_id,
+                    anchor,
+                    "tensor.compare result must be a tensor",
+                )?;
 
-                // reject mismatched tensor operands
-                if left_element != right_element
-                    || left_shape != right_shape
-                    || left_layout != right_layout
+                if left_tensor.0 != right_tensor.0
+                    || left_tensor.1 != right_tensor.1
+                    || left_tensor.2 != right_tensor.2
                 {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "tensor.compare expects matching tensor operand types".to_string(),
@@ -629,34 +809,7 @@ impl<'a> Validator<'a> {
                     });
                 }
 
-                // resolve destination type
-                let destination_type_id = self.value_type_or_error(
-                    function,
-                    *destination,
-                    anchor,
-                    "tensor.compare result",
-                )?;
-                let destination_type = self.tree.get(destination_type_id);
-                let (result_element, result_shape, result_layout) = match destination_type {
-                    Type::Tensor {
-                        element,
-                        shape,
-                        layout,
-                        ..
-                    } => (element, shape, layout),
-                    other => {
-                        return Err(ValidateError::MetadataInvariantViolation {
-                            message: format!(
-                                "tensor.compare result must be a tensor, found {}",
-                                self.type_kind(other)
-                            ),
-                            anchor,
-                        });
-                    }
-                };
-
-                // reject mismatched shapes or layouts
-                if result_shape != left_shape || result_layout != left_layout {
+                if result_tensor.1 != left_tensor.1 || result_tensor.2 != left_tensor.2 {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "tensor.compare result must match tensor shape and layout"
                             .to_string(),
@@ -664,9 +817,7 @@ impl<'a> Validator<'a> {
                     });
                 }
 
-                // reject non boolean result element types
-                let result_element_type = self.tree.get(*result_element);
-                if !matches!(result_element_type, Type::Boolean) {
+                if !matches!(self.tree.get(result_tensor.0), Type::Boolean) {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "tensor.compare result element type must be bool".to_string(),
                         anchor,
@@ -692,71 +843,36 @@ impl<'a> Validator<'a> {
                     "vector.select result",
                 )?;
 
-                let mask_type = self.tree.get(mask_type_id);
-                let (mask_element, mask_lanes) = match mask_type {
-                    Type::Vector { element, lanes, .. } => (element, lanes),
-                    other => {
-                        return Err(ValidateError::MetadataInvariantViolation {
-                            message: format!(
-                                "vector.select mask must be a vector, found {}",
-                                self.type_kind(other)
-                            ),
-                            anchor,
-                        });
-                    }
-                };
-                if !matches!(self.tree.get(*mask_element), Type::Boolean) {
+                let mask_vector =
+                    self.vector_type(mask_type_id, anchor, "vector.select mask must be a vector")?;
+                let then_vector = self.vector_type(
+                    then_type_id,
+                    anchor,
+                    "vector.select expects vector operands",
+                )?;
+                let else_vector = self.vector_type(
+                    else_type_id,
+                    anchor,
+                    "vector.select expects vector operands",
+                )?;
+                let destination_vector = self.vector_type(
+                    destination_type_id,
+                    anchor,
+                    "vector.select result must be a vector",
+                )?;
+
+                if !matches!(self.tree.get(mask_vector.0), Type::Boolean) {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "vector.select mask element type must be bool".to_string(),
                         anchor,
                     });
                 }
 
-                let then_type = self.tree.get(then_type_id);
-                let else_type = self.tree.get(else_type_id);
-                let destination_type = self.tree.get(destination_type_id);
-                let (then_element, then_lanes) = match then_type {
-                    Type::Vector { element, lanes, .. } => (element, lanes),
-                    other => {
-                        return Err(ValidateError::MetadataInvariantViolation {
-                            message: format!(
-                                "vector.select expects vector operands, found {}",
-                                self.type_kind(other)
-                            ),
-                            anchor,
-                        });
-                    }
-                };
-                let (else_element, else_lanes) = match else_type {
-                    Type::Vector { element, lanes, .. } => (element, lanes),
-                    other => {
-                        return Err(ValidateError::MetadataInvariantViolation {
-                            message: format!(
-                                "vector.select expects vector operands, found {}",
-                                self.type_kind(other)
-                            ),
-                            anchor,
-                        });
-                    }
-                };
-                let (dest_element, dest_lanes) = match destination_type {
-                    Type::Vector { element, lanes, .. } => (element, lanes),
-                    other => {
-                        return Err(ValidateError::MetadataInvariantViolation {
-                            message: format!(
-                                "vector.select result must be a vector, found {}",
-                                self.type_kind(other)
-                            ),
-                            anchor,
-                        });
-                    }
-                };
-
-                if then_element != else_element
-                    || then_lanes != else_lanes
-                    || then_element != dest_element
-                    || then_lanes != dest_lanes
-                    || then_lanes != mask_lanes
+                if then_vector.0 != else_vector.0
+                    || then_vector.1 != else_vector.1
+                    || then_vector.0 != destination_vector.0
+                    || then_vector.1 != destination_vector.1
+                    || then_vector.1 != mask_vector.1
                 {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "vector.select operands must match mask lane count".to_string(),
@@ -783,94 +899,39 @@ impl<'a> Validator<'a> {
                     "tensor.select result",
                 )?;
 
-                let mask_type = self.tree.get(mask_type_id);
-                let (mask_element, mask_shape, mask_layout) = match mask_type {
-                    Type::Tensor {
-                        element,
-                        shape,
-                        layout,
-                        ..
-                    } => (element, shape, layout),
-                    other => {
-                        return Err(ValidateError::MetadataInvariantViolation {
-                            message: format!(
-                                "tensor.select mask must be a tensor, found {}",
-                                self.type_kind(other)
-                            ),
-                            anchor,
-                        });
-                    }
-                };
-                if !matches!(self.tree.get(*mask_element), Type::Boolean) {
+                let mask_tensor =
+                    self.tensor_type(mask_type_id, anchor, "tensor.select mask must be a tensor")?;
+                let then_tensor = self.tensor_type(
+                    then_type_id,
+                    anchor,
+                    "tensor.select expects tensor operands",
+                )?;
+                let else_tensor = self.tensor_type(
+                    else_type_id,
+                    anchor,
+                    "tensor.select expects tensor operands",
+                )?;
+                let destination_tensor = self.tensor_type(
+                    destination_type_id,
+                    anchor,
+                    "tensor.select result must be a tensor",
+                )?;
+
+                if !matches!(self.tree.get(mask_tensor.0), Type::Boolean) {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "tensor.select mask element type must be bool".to_string(),
                         anchor,
                     });
                 }
 
-                let then_type = self.tree.get(then_type_id);
-                let else_type = self.tree.get(else_type_id);
-                let destination_type = self.tree.get(destination_type_id);
-                let (then_element, then_shape, then_layout) = match then_type {
-                    Type::Tensor {
-                        element,
-                        shape,
-                        layout,
-                        ..
-                    } => (element, shape, layout),
-                    other => {
-                        return Err(ValidateError::MetadataInvariantViolation {
-                            message: format!(
-                                "tensor.select expects tensor operands, found {}",
-                                self.type_kind(other)
-                            ),
-                            anchor,
-                        });
-                    }
-                };
-                let (else_element, else_shape, else_layout) = match else_type {
-                    Type::Tensor {
-                        element,
-                        shape,
-                        layout,
-                        ..
-                    } => (element, shape, layout),
-                    other => {
-                        return Err(ValidateError::MetadataInvariantViolation {
-                            message: format!(
-                                "tensor.select expects tensor operands, found {}",
-                                self.type_kind(other)
-                            ),
-                            anchor,
-                        });
-                    }
-                };
-                let (dest_element, dest_shape, dest_layout) = match destination_type {
-                    Type::Tensor {
-                        element,
-                        shape,
-                        layout,
-                        ..
-                    } => (element, shape, layout),
-                    other => {
-                        return Err(ValidateError::MetadataInvariantViolation {
-                            message: format!(
-                                "tensor.select result must be a tensor, found {}",
-                                self.type_kind(other)
-                            ),
-                            anchor,
-                        });
-                    }
-                };
-
-                if then_element != else_element
-                    || then_shape != else_shape
-                    || then_layout != else_layout
-                    || then_element != dest_element
-                    || then_shape != dest_shape
-                    || then_layout != dest_layout
-                    || then_shape != mask_shape
-                    || then_layout != mask_layout
+                if then_tensor.0 != else_tensor.0
+                    || then_tensor.1 != else_tensor.1
+                    || then_tensor.2 != else_tensor.2
+                    || then_tensor.0 != destination_tensor.0
+                    || then_tensor.1 != destination_tensor.1
+                    || then_tensor.2 != destination_tensor.2
+                    || then_tensor.1 != mask_tensor.1
+                    || then_tensor.2 != mask_tensor.2
                 {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "tensor.select operands must match mask shape".to_string(),
@@ -883,7 +944,6 @@ impl<'a> Validator<'a> {
                 tensor,
                 ..
             } => {
-                // resolve operand types
                 let source_type_id =
                     self.value_type_or_error(function, *tensor, anchor, "tensor.convert source")?;
                 let destination_type_id = self.value_type_or_error(
@@ -893,36 +953,20 @@ impl<'a> Validator<'a> {
                     "tensor.convert result",
                 )?;
 
-                // resolve tensor types
-                let source_type = self.tree.get(source_type_id);
-                let destination_type = self.tree.get(destination_type_id);
-                let (source_shape, source_layout) = match source_type {
-                    Type::Tensor { shape, layout, .. } => (shape, layout),
-                    other => {
-                        return Err(ValidateError::MetadataInvariantViolation {
-                            message: format!(
-                                "tensor.convert expects tensor source, found {}",
-                                self.type_kind(other)
-                            ),
-                            anchor,
-                        });
-                    }
-                };
-                let (destination_shape, destination_layout) = match destination_type {
-                    Type::Tensor { shape, layout, .. } => (shape, layout),
-                    other => {
-                        return Err(ValidateError::MetadataInvariantViolation {
-                            message: format!(
-                                "tensor.convert expects tensor result, found {}",
-                                self.type_kind(other)
-                            ),
-                            anchor,
-                        });
-                    }
-                };
+                let source_tensor = self.tensor_type(
+                    source_type_id,
+                    anchor,
+                    "tensor.convert expects tensor source",
+                )?;
+                let destination_tensor = self.tensor_type(
+                    destination_type_id,
+                    anchor,
+                    "tensor.convert expects tensor result",
+                )?;
 
-                // reject mismatched shapes or layouts
-                if source_shape != destination_shape || source_layout != destination_layout {
+                if source_tensor.1 != destination_tensor.1
+                    || source_tensor.2 != destination_tensor.2
+                {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "tensor.convert must preserve shape and layout".to_string(),
                         anchor,
@@ -933,55 +977,22 @@ impl<'a> Validator<'a> {
                 destination,
                 tensor,
             } => {
-                // resolve operand types
                 let source_type_id =
                     self.value_type_or_error(function, *tensor, anchor, "tensor.cast source")?;
                 let destination_type_id =
                     self.value_type_or_error(function, *destination, anchor, "tensor.cast result")?;
 
-                // resolve tensor types
-                let source_type = self.tree.get(source_type_id);
-                let destination_type = self.tree.get(destination_type_id);
-                let (source_element, source_shape, source_layout) = match source_type {
-                    Type::Tensor {
-                        element,
-                        shape,
-                        layout,
-                        ..
-                    } => (element, shape, layout),
-                    other => {
-                        return Err(ValidateError::MetadataInvariantViolation {
-                            message: format!(
-                                "tensor.cast expects tensor source, found {}",
-                                self.type_kind(other)
-                            ),
-                            anchor,
-                        });
-                    }
-                };
-                let (destination_element, destination_shape, destination_layout) =
-                    match destination_type {
-                        Type::Tensor {
-                            element,
-                            shape,
-                            layout,
-                            ..
-                        } => (element, shape, layout),
-                        other => {
-                            return Err(ValidateError::MetadataInvariantViolation {
-                                message: format!(
-                                    "tensor.cast expects tensor result, found {}",
-                                    self.type_kind(other)
-                                ),
-                                anchor,
-                            });
-                        }
-                    };
+                let source_tensor =
+                    self.tensor_type(source_type_id, anchor, "tensor.cast expects tensor source")?;
+                let destination_tensor = self.tensor_type(
+                    destination_type_id,
+                    anchor,
+                    "tensor.cast expects tensor result",
+                )?;
 
-                // reject element or layout mismatches
-                if source_element != destination_element
-                    || source_layout != destination_layout
-                    || !self.tensor_shapes_compatible(source_shape, destination_shape)
+                if source_tensor.0 != destination_tensor.0
+                    || source_tensor.2 != destination_tensor.2
+                    || !self.tensor_shapes_compatible(source_tensor.1, destination_tensor.1)
                 {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "tensor.cast requires compatible shapes and matching layout"
@@ -998,70 +1009,25 @@ impl<'a> Validator<'a> {
                 strides_count,
                 ..
             } => {
-                // resolve operand types
                 let source_type_id =
                     self.value_type_or_error(function, *view, anchor, "tensor.view source")?;
                 let destination_type_id =
                     self.value_type_or_error(function, *destination, anchor, "tensor.view result")?;
 
-                // resolve view types
-                let source_type = self.tree.get(source_type_id);
-                let destination_type = self.tree.get(destination_type_id);
-                let (
-                    source_kind,
-                    source_address_space,
-                    source_mutability,
-                    source_element,
-                    source_shape,
-                ) = match source_type {
-                    Type::TensorReference {
-                        kind,
-                        address_space,
-                        mutability,
-                        element,
-                        shape,
-                        ..
-                    } => (kind, address_space, mutability, element, shape),
-                    other => {
-                        return Err(ValidateError::MetadataInvariantViolation {
-                            message: format!(
-                                "tensor.view expects tensor reference source, found {}",
-                                self.type_kind(other)
-                            ),
-                            anchor,
-                        });
-                    }
-                };
-                let (
-                    destination_kind,
-                    destination_address_space,
-                    destination_mutability,
-                    destination_element,
-                    destination_shape,
-                ) = match destination_type {
-                    Type::TensorReference {
-                        kind,
-                        address_space,
-                        mutability,
-                        element,
-                        shape,
-                        ..
-                    } => (kind, address_space, mutability, element, shape),
-                    other => {
-                        return Err(ValidateError::MetadataInvariantViolation {
-                            message: format!(
-                                "tensor.view expects tensor reference result, found {}",
-                                self.type_kind(other)
-                            ),
-                            anchor,
-                        });
-                    }
-                };
+                let source_view = self.tensor_reference_type(
+                    source_type_id,
+                    anchor,
+                    "tensor.view expects tensor reference source",
+                )?;
+                let destination_view = self.tensor_reference_type(
+                    destination_type_id,
+                    anchor,
+                    "tensor.view expects tensor reference result",
+                )?;
 
-                // reject incompatible reference kinds
-                if source_kind != destination_kind
-                    || source_address_space != destination_address_space
-                    || source_element != destination_element
+                if source_view.0 != destination_view.0
+                    || source_view.1 != destination_view.1
+                    || source_view.3 != destination_view.3
                 {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "tensor.view requires matching reference kind, address space, and element type"
@@ -1070,9 +1036,8 @@ impl<'a> Validator<'a> {
                     });
                 }
 
-                // reject mutability upgrades
-                if matches!(source_mutability, Mutability::Immutable)
-                    && matches!(destination_mutability, Mutability::Mutable)
+                if matches!(source_view.2, Mutability::Immutable)
+                    && matches!(destination_view.2, Mutability::Mutable)
                 {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "tensor.view cannot increase mutability".to_string(),
@@ -1080,16 +1045,14 @@ impl<'a> Validator<'a> {
                     });
                 }
 
-                // reject mismatched ranks
-                if source_shape.len() != destination_shape.len() {
+                if source_view.4.len() != destination_view.4.len() {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "tensor.view requires matching ranks".to_string(),
                         anchor,
                     });
                 }
 
-                // reject mismatched view argument counts
-                let expected = destination_shape.len();
+                let expected = destination_view.4.len();
                 if *offsets_count as usize != expected
                     || *sizes_count as usize != expected
                     || *strides_count as usize != expected
@@ -1102,323 +1065,6 @@ impl<'a> Validator<'a> {
                     });
                 }
             }
-            _ => {}
-        }
-
-        Ok(())
-    }
-
-    /// Ensure a value is defined within the function.
-    pub(super) fn ensure_defined(
-        &self,
-        value: Value,
-        anchor: ValidateAnchor,
-        defined_values: &HashSet<Value>,
-    ) -> ValidateResult<()> {
-        // ensure the value was defined
-        if !defined_values.contains(&value) {
-            return Err(ValidateError::UseOfUndefinedValue { value, anchor });
-        }
-
-        Ok(())
-    }
-
-    /// Ensure a node id points at the expected node type.
-    pub(super) fn ensure_node_type(
-        &self,
-        expected: NodeType,
-        node_id: u32,
-        anchor: ValidateAnchor,
-    ) -> ValidateResult<()> {
-        // resolve the node type
-        let found = self
-            .tree
-            .node_type_by_node_id
-            .get(node_id as usize)
-            .copied();
-
-        // reject mismatched node types
-        if found != Some(expected) {
-            return Err(ValidateError::InvalidNodeReference {
-                expected,
-                found,
-                node_id,
-                anchor,
-            });
-        }
-
-        Ok(())
-    }
-
-    /// Ensure an argument slice is within the argument buffer.
-    pub(super) fn validate_argument_slice(
-        &self,
-        slice: ArgumentSlice,
-        instruction_id: LocalNodeId<Instruction>,
-    ) -> ValidateResult<()> {
-        // compute slice bounds
-        let start = slice.start as usize;
-        let end = start + slice.count as usize;
-        let len = self.tree.instruction_arguments.len();
-
-        // reject out of bounds slices
-        if end > len {
-            return Err(ValidateError::ArgumentSliceOutOfBounds {
-                start: slice.start,
-                count: slice.count,
-                len,
-                anchor: ValidateAnchor::node(instruction_id),
-            });
-        }
-
-        Ok(())
-    }
-
-    /// Validate local references are defined within the function.
-    fn validate_local_reference(
-        &self,
-        instruction: &Instruction,
-        locals: &HashSet<LocalNodeId<Local>>,
-        instruction_id: LocalNodeId<Instruction>,
-    ) -> ValidateResult<()> {
-        // validate local references
-        match instruction {
-            Instruction::LocalGet { local, .. }
-            | Instruction::LocalAddr { local, .. }
-            | Instruction::LocalSet { local, .. } => {
-                // reject locals not owned by the function
-                if !locals.contains(local) {
-                    return Err(ValidateError::LocalReferenceNotInFunction {
-                        local_id: *local,
-                        anchor: ValidateAnchor::node(instruction_id),
-                    });
-                }
-            }
-            _ => {}
-        }
-
-        Ok(())
-    }
-
-    /// Validate instruction node references.
-    fn validate_instruction_nodes(
-        &self,
-        instruction: &Instruction,
-        instruction_id: LocalNodeId<Instruction>,
-    ) -> ValidateResult<()> {
-        // prepare anchor for node checks
-        let anchor = ValidateAnchor::node(instruction_id);
-
-        // validate instruction node references
-        match instruction {
-            Instruction::LocalGet { local, .. } | Instruction::LocalSet { local, .. } => {
-                // ensure local ids resolve
-                self.ensure_node_type(NodeType::Local, local.id, anchor)?;
-            }
-            Instruction::LocalAddr {
-                local, result_type, ..
-            } => {
-                // ensure local ids resolve
-                self.ensure_node_type(NodeType::Local, local.id, anchor)?;
-                self.ensure_node_type(NodeType::Type, result_type.id, anchor)?;
-            }
-            Instruction::GlobalAddr { global, .. } | Instruction::GlobalConst { global, .. } => {
-                // ensure global ids resolve
-                self.ensure_node_type(NodeType::Global, global.id, anchor)?;
-            }
-            Instruction::FunctionAddr { function, .. } => {
-                // ensure function ids resolve
-                self.ensure_node_type(NodeType::Function, function.id, anchor)?;
-            }
-            Instruction::Call { function, .. } => {
-                // ensure function ids resolve
-                self.ensure_node_type(NodeType::Function, function.id, anchor)?;
-            }
-            Instruction::CallVirtual { .. } | Instruction::CallInterface { .. } => {}
-            Instruction::Cast { to_type, .. }
-            | Instruction::Struct { ty: to_type, .. }
-            | Instruction::Tuple { ty: to_type, .. }
-            | Instruction::Array { ty: to_type, .. }
-            | Instruction::ManagedAlloc {
-                layout: to_type, ..
-            }
-            | Instruction::ManagedAllocArray {
-                element: to_type, ..
-            }
-            | Instruction::RawAlloc {
-                layout: to_type, ..
-            }
-            | Instruction::StackAlloc {
-                layout: to_type, ..
-            } => {
-                // ensure type ids resolve
-                self.ensure_node_type(NodeType::Type, to_type.id, anchor)?;
-            }
-            _ => {}
-        }
-
-        Ok(())
-    }
-
-    /// Validate aggregate constructor shapes.
-    fn validate_instruction_shapes(
-        &self,
-        instruction: &Instruction,
-        instruction_id: LocalNodeId<Instruction>,
-    ) -> ValidateResult<()> {
-        // prepare anchor for shape validation
-        let anchor = ValidateAnchor::node(instruction_id);
-
-        // validate aggregate constructor shapes
-        match instruction {
-            Instruction::Struct { ty, fields, .. } => {
-                // resolve struct layout
-                let ty = self.tree.get(*ty);
-                let expected = match ty {
-                    Type::Struct { fields, .. } => fields.len(),
-                    Type::FunctionValue { .. } => 2,
-                    other => {
-                        return Err(ValidateError::AggregateTypeMismatch {
-                            expected: "struct or fnvalue",
-                            found: self.type_kind(other),
-                            anchor,
-                        });
-                    }
-                };
-                let got = fields.len();
-
-                // reject mismatched field counts
-                if expected != got {
-                    return Err(ValidateError::AggregateArgumentCountMismatch {
-                        expected,
-                        got,
-                        anchor,
-                    });
-                }
-            }
-            Instruction::Tuple { ty, elements, .. } => {
-                // resolve tuple layout
-                let ty = self.tree.get(*ty);
-                let expected = match ty {
-                    Type::Tuple { elements, .. } => elements.len(),
-                    other => {
-                        return Err(ValidateError::AggregateTypeMismatch {
-                            expected: "tuple",
-                            found: self.type_kind(other),
-                            anchor,
-                        });
-                    }
-                };
-                let got = elements.len();
-
-                // reject mismatched element counts
-                if expected != got {
-                    return Err(ValidateError::AggregateArgumentCountMismatch {
-                        expected,
-                        got,
-                        anchor,
-                    });
-                }
-            }
-            Instruction::Array { ty, elements, .. } => {
-                // resolve array layout
-                let ty = self.tree.get(*ty);
-                let expected = match ty {
-                    Type::Array { length, .. } => usize::try_from(*length).unwrap_or(usize::MAX),
-                    other => {
-                        return Err(ValidateError::AggregateTypeMismatch {
-                            expected: "array",
-                            found: self.type_kind(other),
-                            anchor,
-                        });
-                    }
-                };
-                let got = elements.len();
-
-                // reject mismatched element counts
-                if expected != got {
-                    return Err(ValidateError::AggregateArgumentCountMismatch {
-                        expected,
-                        got,
-                        anchor,
-                    });
-                }
-            }
-            Instruction::TensorSlice {
-                arguments,
-                offsets_count,
-                sizes_count,
-                strides_count,
-                ..
-            } => {
-                // validate argument counts
-                let expected =
-                    *offsets_count as usize + *sizes_count as usize + *strides_count as usize;
-                let got = arguments.len();
-                if expected != got {
-                    return Err(ValidateError::AggregateArgumentCountMismatch {
-                        expected,
-                        got,
-                        anchor,
-                    });
-                }
-            }
-            Instruction::TensorView {
-                arguments,
-                offsets_count,
-                sizes_count,
-                strides_count,
-                ..
-            } => {
-                // validate argument counts
-                let expected =
-                    *offsets_count as usize + *sizes_count as usize + *strides_count as usize;
-                let got = arguments.len();
-                if expected != got {
-                    return Err(ValidateError::AggregateArgumentCountMismatch {
-                        expected,
-                        got,
-                        anchor,
-                    });
-                }
-            }
-            Instruction::TensorPad {
-                arguments,
-                low_count,
-                high_count,
-                interior_count,
-                ..
-            } => {
-                // validate argument counts
-                let expected =
-                    *low_count as usize + *high_count as usize + *interior_count as usize;
-                let got = arguments.len();
-                if expected != got {
-                    return Err(ValidateError::AggregateArgumentCountMismatch {
-                        expected,
-                        got,
-                        anchor,
-                    });
-                }
-            }
-            _ => {}
-        }
-
-        Ok(())
-    }
-
-    /// Validate inline result and signature types.
-    fn validate_instruction_inline_types(
-        &self,
-        function: &Function,
-        instruction: &Instruction,
-        instruction_id: LocalNodeId<Instruction>,
-    ) -> ValidateResult<()> {
-        // prepare anchor for error reporting
-        let anchor = ValidateAnchor::node(instruction_id);
-
-        // validate pointer-producing result types
-        match instruction {
             Instruction::Const { destination, value } => {
                 let Constant::Null = value else {
                     return Ok(());
@@ -1426,21 +1072,12 @@ impl<'a> Validator<'a> {
 
                 let destination_type_id =
                     self.value_type_or_error(function, *destination, anchor, "null constant")?;
-                let destination_type = self.tree.get(destination_type_id);
-                let (kind, _address_space, is_nullable) = match destination_type {
-                    Type::Reference {
-                        kind,
-                        address_space,
-                        is_nullable,
-                        ..
-                    } => (*kind, *address_space, *is_nullable),
-                    _ => {
-                        return Err(ValidateError::MetadataInvariantViolation {
-                            message: "null constant requires a reference type".to_string(),
-                            anchor,
-                        });
-                    }
-                };
+                let reference_type = self.reference_type(
+                    destination_type_id,
+                    anchor,
+                    "null constant requires a reference type",
+                )?;
+                let (kind, _mutability, _pointee, is_nullable) = reference_type;
 
                 if !is_nullable {
                     return Err(ValidateError::MetadataInvariantViolation {
@@ -1529,13 +1166,11 @@ impl<'a> Validator<'a> {
                     anchor,
                     "function.env result",
                 )?;
-                let destination_type = self.tree.get(destination_type_id);
-                if !matches!(destination_type, Type::Reference { .. }) {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "function.env result must be a reference type".to_string(),
-                        anchor,
-                    });
-                }
+                self.reference_type(
+                    destination_type_id,
+                    anchor,
+                    "function.env result must be a reference type",
+                )?;
 
                 let env_type = function.closure_env_type.ok_or_else(|| {
                     ValidateError::MetadataInvariantViolation {
@@ -1584,15 +1219,14 @@ impl<'a> Validator<'a> {
                 ..
             } => {
                 self.ensure_node_type(NodeType::Type, result_type.id, anchor)?;
-                let Type::Reference { kind, pointee, .. } = self.tree.get(*result_type) else {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "pointer-producing instruction result type is not a reference"
-                            .to_string(),
-                        anchor,
-                    });
-                };
+                let reference_type = self.reference_type(
+                    *result_type,
+                    anchor,
+                    "pointer-producing instruction result type is not a reference",
+                )?;
+                let (kind, _mutability, pointee, _is_nullable) = reference_type;
 
-                if *pointee != *layout {
+                if pointee != *layout {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "pointer-producing instruction result type mismatches pointee"
                             .to_string(),
@@ -1634,14 +1268,13 @@ impl<'a> Validator<'a> {
                 let destination_type =
                     self.value_type_or_error(function, *destination, anchor, "atomic.load result")?;
 
-                let Type::Reference { pointee, .. } = self.tree.get(pointer_type) else {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "atomic.load pointer must be a reference type".to_string(),
-                        anchor,
-                    });
-                };
+                let pointee_type = self.reference_pointee_type_or_error(
+                    pointer_type,
+                    anchor,
+                    "atomic.load pointer must be a reference type",
+                )?;
 
-                if !self.types_equivalent(*pointee, *result_type)
+                if !self.types_equivalent(pointee_type, *result_type)
                     || !self.types_equivalent(destination_type, *result_type)
                 {
                     return Err(ValidateError::MetadataInvariantViolation {
@@ -1657,14 +1290,13 @@ impl<'a> Validator<'a> {
                 let value_type =
                     self.value_type_or_error(function, *value, anchor, "atomic.store value")?;
 
-                let Type::Reference { pointee, .. } = self.tree.get(pointer_type) else {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "atomic.store pointer must be a reference type".to_string(),
-                        anchor,
-                    });
-                };
+                let pointee_type = self.reference_pointee_type_or_error(
+                    pointer_type,
+                    anchor,
+                    "atomic.store pointer must be a reference type",
+                )?;
 
-                if !self.is_store_compatible_type(value_type, *pointee) {
+                if !self.is_store_compatible_type(value_type, pointee_type) {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "atomic.store value type must match the pointer pointee"
                             .to_string(),
@@ -1704,16 +1336,14 @@ impl<'a> Validator<'a> {
                     "atomic.compare_exchange result",
                 )?;
 
-                let Type::Reference { pointee, .. } = self.tree.get(pointer_type) else {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "atomic.compare_exchange pointer must be a reference type"
-                            .to_string(),
-                        anchor,
-                    });
-                };
+                let pointee_type = self.reference_pointee_type_or_error(
+                    pointer_type,
+                    anchor,
+                    "atomic.compare_exchange pointer must be a reference type",
+                )?;
 
-                if !self.types_equivalent(expected_type, *pointee)
-                    || !self.types_equivalent(new_value_type, *pointee)
+                if !self.types_equivalent(expected_type, pointee_type)
+                    || !self.types_equivalent(new_value_type, pointee_type)
                 {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "atomic.compare_exchange values must match the pointer pointee"
@@ -1732,7 +1362,7 @@ impl<'a> Validator<'a> {
                 };
 
                 if elements.len() != 2
-                    || !self.types_equivalent(elements[0], *pointee)
+                    || !self.types_equivalent(elements[0], pointee_type)
                     || !matches!(self.tree.get(elements[1]), Type::Boolean)
                 {
                     return Err(ValidateError::MetadataInvariantViolation {
@@ -1756,15 +1386,14 @@ impl<'a> Validator<'a> {
                 let destination_type =
                     self.value_type_or_error(function, *destination, anchor, "atomic.rmw result")?;
 
-                let Type::Reference { pointee, .. } = self.tree.get(pointer_type) else {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "atomic.rmw pointer must be a reference type".to_string(),
-                        anchor,
-                    });
-                };
+                let pointee_type = self.reference_pointee_type_or_error(
+                    pointer_type,
+                    anchor,
+                    "atomic.rmw pointer must be a reference type",
+                )?;
 
-                if !self.types_equivalent(value_type, *pointee)
-                    || !self.types_equivalent(destination_type, *pointee)
+                if !self.types_equivalent(value_type, pointee_type)
+                    || !self.types_equivalent(destination_type, pointee_type)
                 {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "atomic.rmw value and result must match the pointer pointee"
@@ -1788,8 +1417,12 @@ impl<'a> Validator<'a> {
                     "field.get destination",
                 )?;
 
-                let field_type =
-                    self.field_type_for_aggregate(aggregate_type, *index, anchor, "field.get")?;
+                let field_type = self.field_type_for_projection_target(
+                    aggregate_type,
+                    *index as usize,
+                    anchor,
+                    "field.get",
+                )?;
                 if !self.types_equivalent(destination_type, field_type) {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "field.get destination type mismatches projected field type"
@@ -1822,8 +1455,12 @@ impl<'a> Validator<'a> {
                     });
                 }
 
-                let field_type =
-                    self.field_type_for_aggregate(aggregate_type, *index, anchor, "field.set")?;
+                let field_type = self.field_type_for_projection_target(
+                    aggregate_type,
+                    *index as usize,
+                    anchor,
+                    "field.set",
+                )?;
                 if !self.is_store_compatible_type(value_type, field_type) {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "field.set value type mismatches projected field type".to_string(),
@@ -1841,8 +1478,12 @@ impl<'a> Validator<'a> {
 
                 let aggregate_type =
                     self.value_type_or_error(function, *aggregate, anchor, "field.addr aggregate")?;
-                let _ =
-                    self.field_type_for_aggregate(aggregate_type, *index, anchor, "field.addr")?;
+                self.field_type_for_projection_target(
+                    aggregate_type,
+                    *index as usize,
+                    anchor,
+                    "field.addr",
+                )?;
                 self.validate_reference_result_type(*result_type, None, None, None, anchor)?;
             }
             Instruction::ElementGet {
@@ -1871,15 +1512,11 @@ impl<'a> Validator<'a> {
                     });
                 }
 
-                if !matches!(
-                    self.tree.get(index_type),
-                    Type::Int { .. } | Type::Isize | Type::Usize
-                ) {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "element.get index must be an integer type".to_string(),
-                        anchor,
-                    });
-                }
+                self.expect_integer_like_type(
+                    index_type,
+                    anchor,
+                    "element.get index must be an integer type",
+                )?;
             }
             Instruction::ElementSet {
                 destination,
@@ -1916,15 +1553,11 @@ impl<'a> Validator<'a> {
                     });
                 }
 
-                if !matches!(
-                    self.tree.get(index_type),
-                    Type::Int { .. } | Type::Isize | Type::Usize
-                ) {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "element.set index must be an integer type".to_string(),
-                        anchor,
-                    });
-                }
+                self.expect_integer_like_type(
+                    index_type,
+                    anchor,
+                    "element.set index must be an integer type",
+                )?;
             }
             Instruction::ElementAddr {
                 array,
@@ -1938,18 +1571,14 @@ impl<'a> Validator<'a> {
                     self.value_type_or_error(function, *array, anchor, "element.addr array")?;
                 let index_type =
                     self.value_type_or_error(function, *index, anchor, "element.addr index")?;
-                let _ = self.element_type_for_array(array_type, anchor, "element.addr")?;
+                self.element_type_for_array(array_type, anchor, "element.addr")?;
                 self.validate_reference_result_type(*result_type, None, None, None, anchor)?;
 
-                if !matches!(
-                    self.tree.get(index_type),
-                    Type::Int { .. } | Type::Isize | Type::Usize
-                ) {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "element.addr index must be an integer type".to_string(),
-                        anchor,
-                    });
-                }
+                self.expect_integer_like_type(
+                    index_type,
+                    anchor,
+                    "element.addr index must be an integer type",
+                )?;
             }
             Instruction::Cast {
                 operator,
@@ -1966,180 +1595,17 @@ impl<'a> Validator<'a> {
                 intrinsic,
                 arguments,
             } => {
-                let arguments = self.tree.get_arguments(*arguments);
-                match intrinsic {
-                    Intrinsic::AddrSpaceCast => {
-                        if arguments.len() != 1 {
-                            return Err(ValidateError::MetadataInvariantViolation {
-                                message: "addrspace.cast requires one argument".to_string(),
-                                anchor,
-                            });
-                        }
-                        let Some(destination) = destination else {
-                            return Err(ValidateError::MetadataInvariantViolation {
-                                message: "addrspace.cast requires a destination value".to_string(),
-                                anchor,
-                            });
-                        };
-
-                        let source_type = self.value_type_or_error(
-                            function,
-                            arguments[0],
-                            anchor,
-                            "addrspace.cast source",
-                        )?;
-                        let destination_type = self.value_type_or_error(
-                            function,
-                            *destination,
-                            anchor,
-                            "addrspace.cast destination",
-                        )?;
-                        let source = self.tree.get(source_type);
-                        let destination = self.tree.get(destination_type);
-
-                        match (source, destination) {
-                            (
-                                Type::Reference {
-                                    kind: source_kind,
-                                    mutability: source_mutability,
-                                    pointee: source_pointee,
-                                    ..
-                                },
-                                Type::Reference {
-                                    kind: destination_kind,
-                                    mutability: destination_mutability,
-                                    pointee: destination_pointee,
-                                    ..
-                                },
-                            ) => {
-                                if source_kind != destination_kind
-                                    || source_mutability != destination_mutability
-                                    || source_pointee != destination_pointee
-                                {
-                                    return Err(ValidateError::MetadataInvariantViolation {
-                                        message: "addrspace.cast requires matching reference kind, mutability, and pointee".to_string(),
-                                        anchor,
-                                    });
-                                }
-                            }
-                            (
-                                Type::TensorReference {
-                                    kind: source_kind,
-                                    mutability: source_mutability,
-                                    element: source_element,
-                                    shape: source_shape,
-                                    layout: source_layout,
-                                    ..
-                                },
-                                Type::TensorReference {
-                                    kind: destination_kind,
-                                    mutability: destination_mutability,
-                                    element: destination_element,
-                                    shape: destination_shape,
-                                    layout: destination_layout,
-                                    ..
-                                },
-                            ) => {
-                                if source_kind != destination_kind
-                                    || source_mutability != destination_mutability
-                                    || source_element != destination_element
-                                    || source_shape != destination_shape
-                                    || source_layout != destination_layout
-                                {
-                                    return Err(ValidateError::MetadataInvariantViolation {
-                                        message: "addrspace.cast requires matching tensor reference kind, mutability, element, shape, and layout".to_string(),
-                                        anchor,
-                                    });
-                                }
-                            }
-                            _ => {
-                                return Err(ValidateError::MetadataInvariantViolation {
-                                    message:
-                                        "addrspace.cast requires reference or tensor reference types"
-                                            .to_string(),
-                                    anchor,
-                                });
-                            }
-                        }
-                    }
-                    Intrinsic::PtrOffsetFrom => {
-                        if arguments.len() != 2 {
-                            return Err(ValidateError::MetadataInvariantViolation {
-                                message: "ptr_offset_from requires two pointer arguments"
-                                    .to_string(),
-                                anchor,
-                            });
-                        }
-                        let Some(destination) = destination else {
-                            return Err(ValidateError::MetadataInvariantViolation {
-                                message: "ptr_offset_from requires a destination value".to_string(),
-                                anchor,
-                            });
-                        };
-
-                        let left_type = self.value_type_or_error(
-                            function,
-                            arguments[0],
-                            anchor,
-                            "ptr_offset_from left",
-                        )?;
-                        let right_type = self.value_type_or_error(
-                            function,
-                            arguments[1],
-                            anchor,
-                            "ptr_offset_from right",
-                        )?;
-                        let destination_type = self.value_type_or_error(
-                            function,
-                            *destination,
-                            anchor,
-                            "ptr_offset_from destination",
-                        )?;
-                        let left = self.tree.get(left_type);
-                        let right = self.tree.get(right_type);
-                        let destination = self.tree.get(destination_type);
-
-                        if !matches!(
-                            left,
-                            Type::Reference {
-                                kind: ReferenceKind::Raw,
-                                ..
-                            } | Type::TensorReference {
-                                kind: ReferenceKind::Raw,
-                                ..
-                            }
-                        ) || !matches!(
-                            right,
-                            Type::Reference {
-                                kind: ReferenceKind::Raw,
-                                ..
-                            } | Type::TensorReference {
-                                kind: ReferenceKind::Raw,
-                                ..
-                            }
-                        ) {
-                            return Err(ValidateError::MetadataInvariantViolation {
-                                message: "ptr_offset_from requires raw pointer arguments"
-                                    .to_string(),
-                                anchor,
-                            });
-                        }
-
-                        if !matches!(destination, Type::Int { .. } | Type::Isize | Type::Usize) {
-                            return Err(ValidateError::MetadataInvariantViolation {
-                                message: "ptr_offset_from destination must be an integer type"
-                                    .to_string(),
-                                anchor,
-                            });
-                        }
-                    }
-                    _ => {}
-                }
+                self.validate_intrinsic_operation(
+                    function,
+                    *destination,
+                    *intrinsic,
+                    self.tree.get_arguments(*arguments),
+                    anchor,
+                )?;
             }
             Instruction::Call { signature, .. } | Instruction::CallIndirect { signature, .. } => {
                 self.ensure_node_type(NodeType::Type, signature.id, anchor)?;
-                let ty = self.tree.get(*signature);
-                if !matches!(ty, Type::FunctionPointer { .. }) {
+                if !matches!(self.tree.get(*signature), Type::FunctionPointer { .. }) {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "call signature is not a function type".to_string(),
                         anchor,
@@ -2158,8 +1624,7 @@ impl<'a> Validator<'a> {
             } => {
                 self.ensure_node_type(NodeType::Type, declaring_type.id, anchor)?;
                 self.ensure_node_type(NodeType::Type, signature.id, anchor)?;
-                let ty = self.tree.get(*signature);
-                if !matches!(ty, Type::FunctionPointer { .. }) {
+                if !matches!(self.tree.get(*signature), Type::FunctionPointer { .. }) {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "call signature is not a function type".to_string(),
                         anchor,
@@ -2172,16 +1637,172 @@ impl<'a> Validator<'a> {
         Ok(())
     }
 
-    /// Resolve the projected field type for a struct, tuple, or function value aggregate.
-    fn field_type_for_aggregate(
+    /// Validate one intrinsic operation.
+    fn validate_intrinsic_operation(
         &self,
-        aggregate_type: LocalNodeId<Type>,
-        index: u32,
+        function: &Function,
+        destination: Option<Value>,
+        intrinsic: Intrinsic,
+        arguments: &[Value],
+        anchor: ValidateAnchor,
+    ) -> ValidateResult<()> {
+        match intrinsic {
+            Intrinsic::AddrSpaceCast => {
+                self.validate_addr_space_cast_intrinsic(function, destination, arguments, anchor)?;
+            }
+            Intrinsic::PtrOffsetFrom => {
+                self.validate_ptr_offset_from_intrinsic(function, destination, arguments, anchor)?;
+            }
+            _ => {}
+        }
+
+        Ok(())
+    }
+
+    /// Validate the `addrspace.cast` intrinsic.
+    fn validate_addr_space_cast_intrinsic(
+        &self,
+        function: &Function,
+        destination: Option<Value>,
+        arguments: &[Value],
+        anchor: ValidateAnchor,
+    ) -> ValidateResult<()> {
+        // arity and destination
+        if arguments.len() != 1 {
+            return Err(ValidateError::MetadataInvariantViolation {
+                message: "addrspace.cast requires one argument".to_string(),
+                anchor,
+            });
+        }
+
+        let destination = destination.ok_or_else(|| ValidateError::MetadataInvariantViolation {
+            message: "addrspace.cast requires a destination value".to_string(),
+            anchor,
+        })?;
+
+        // source and destination types
+        let source_type =
+            self.value_type_or_error(function, arguments[0], anchor, "addrspace.cast source")?;
+        let destination_type =
+            self.value_type_or_error(function, destination, anchor, "addrspace.cast destination")?;
+
+        // reference forms
+        if let (Ok(source), Ok(destination)) = (
+            self.reference_type(
+                source_type,
+                anchor,
+                "addrspace.cast requires reference or tensor reference types",
+            ),
+            self.reference_type(
+                destination_type,
+                anchor,
+                "addrspace.cast requires reference or tensor reference types",
+            ),
+        ) {
+            if source.0 != destination.0 || source.1 != destination.1 || source.2 != destination.2 {
+                return Err(ValidateError::MetadataInvariantViolation {
+                    message:
+                        "addrspace.cast requires matching reference kind, mutability, and pointee"
+                            .to_string(),
+                    anchor,
+                });
+            }
+
+            return Ok(());
+        }
+
+        // tensor reference forms
+        if let (Ok(source), Ok(destination)) = (
+            self.tensor_reference_type(
+                source_type,
+                anchor,
+                "addrspace.cast requires reference or tensor reference types",
+            ),
+            self.tensor_reference_type(
+                destination_type,
+                anchor,
+                "addrspace.cast requires reference or tensor reference types",
+            ),
+        ) {
+            if source.0 != destination.0
+                || source.2 != destination.2
+                || source.3 != destination.3
+                || source.4 != destination.4
+                || source.5 != destination.5
+            {
+                return Err(ValidateError::MetadataInvariantViolation {
+                    message: "addrspace.cast requires matching tensor reference kind, mutability, element, shape, and layout".to_string(),
+                    anchor,
+                });
+            }
+
+            return Ok(());
+        }
+
+        Err(ValidateError::MetadataInvariantViolation {
+            message: "addrspace.cast requires reference or tensor reference types".to_string(),
+            anchor,
+        })
+    }
+
+    /// Validate the `ptr_offset_from` intrinsic.
+    fn validate_ptr_offset_from_intrinsic(
+        &self,
+        function: &Function,
+        destination: Option<Value>,
+        arguments: &[Value],
+        anchor: ValidateAnchor,
+    ) -> ValidateResult<()> {
+        // arity and destination
+        if arguments.len() != 2 {
+            return Err(ValidateError::MetadataInvariantViolation {
+                message: "ptr_offset_from requires two pointer arguments".to_string(),
+                anchor,
+            });
+        }
+
+        let destination = destination.ok_or_else(|| ValidateError::MetadataInvariantViolation {
+            message: "ptr_offset_from requires a destination value".to_string(),
+            anchor,
+        })?;
+
+        // operand and destination types
+        let left_type =
+            self.value_type_or_error(function, arguments[0], anchor, "ptr_offset_from left")?;
+        let right_type =
+            self.value_type_or_error(function, arguments[1], anchor, "ptr_offset_from right")?;
+        let destination_type =
+            self.value_type_or_error(function, destination, anchor, "ptr_offset_from destination")?;
+
+        // raw pointer inputs
+        if !self.is_raw_pointer_like(self.tree.get(left_type))
+            || !self.is_raw_pointer_like(self.tree.get(right_type))
+        {
+            return Err(ValidateError::MetadataInvariantViolation {
+                message: "ptr_offset_from requires raw pointer arguments".to_string(),
+                anchor,
+            });
+        }
+
+        // integer destination
+        self.expect_integer_like_type(
+            destination_type,
+            anchor,
+            "ptr_offset_from destination must be an integer type",
+        )?;
+
+        Ok(())
+    }
+
+    /// Resolve one projected field type from a concrete projection target.
+    fn field_type_for_projection_target(
+        &self,
+        target_type: LocalNodeId<Type>,
+        index: usize,
         anchor: ValidateAnchor,
         operation: &'static str,
     ) -> ValidateResult<LocalNodeId<Type>> {
-        let index = index as usize;
-        match self.tree.get(aggregate_type) {
+        match self.tree.get(target_type) {
             Type::Struct { fields, .. } => {
                 let Some(field_id) = fields.get(index) else {
                     return Err(ValidateError::MetadataInvariantViolation {
@@ -2221,59 +1842,22 @@ impl<'a> Validator<'a> {
                     anchor,
                 }),
             },
-            Type::Reference { pointee, .. } => match self.tree.get(*pointee) {
-                Type::Struct { fields, .. } => {
-                    let Some(field_id) = fields.get(index) else {
-                        return Err(ValidateError::MetadataInvariantViolation {
-                            message: format!(
-                                "{operation} field index {index} out of bounds for struct with {} fields",
-                                fields.len()
-                            ),
-                            anchor,
-                        });
-                    };
+            Type::Reference { pointee, .. } => {
+                let pointee_type = *pointee;
+                let pointee = self.tree.get(pointee_type);
 
-                    Ok(self.tree.get(*field_id).ty)
-                }
-                Type::Tuple { elements, .. } => {
-                    let Some(element_type) = elements.get(index) else {
-                        return Err(ValidateError::MetadataInvariantViolation {
-                            message: format!(
-                                "{operation} field index {index} out of bounds for tuple with {} elements",
-                                elements.len()
-                            ),
-                            anchor,
-                        });
-                    };
-
-                    Ok(*element_type)
-                }
-                Type::FunctionValue {
-                    signature,
-                    environment,
-                } => match index {
-                    0 => Ok(*signature),
-                    1 => Ok(*environment),
+                match pointee {
+                    Type::Struct { .. } | Type::Tuple { .. } | Type::FunctionValue { .. } => self
+                        .field_type_for_projection_target(pointee_type, index, anchor, operation),
+                    _ if index == 0 => Ok(pointee_type),
                     _ => Err(ValidateError::MetadataInvariantViolation {
                         message: format!(
-                            "{operation} field index {index} out of bounds for fnvalue with 2 fields"
+                            "{operation} field index {index} out of bounds for scalar pointee"
                         ),
                         anchor,
                     }),
-                },
-                _ => {
-                    if index != 0 {
-                        return Err(ValidateError::MetadataInvariantViolation {
-                            message: format!(
-                                "{operation} field index {index} out of bounds for scalar pointee"
-                            ),
-                            anchor,
-                        });
-                    }
-
-                    Ok(*pointee)
                 }
-            },
+            }
             _ => Err(ValidateError::MetadataInvariantViolation {
                 message: format!("{operation} expects a struct, tuple, or fnvalue aggregate"),
                 anchor,
@@ -2288,17 +1872,25 @@ impl<'a> Validator<'a> {
         anchor: ValidateAnchor,
         operation: &'static str,
     ) -> ValidateResult<LocalNodeId<Type>> {
-        match self.tree.get(array_type) {
-            Type::Array { element, .. } => Ok(*element),
-            Type::Reference { pointee, .. } => match self.tree.get(*pointee) {
-                Type::Array { element, .. } => Ok(*element),
-                _ => Ok(*pointee),
-            },
-            Type::TensorReference { element, .. } => Ok(*element),
+        match self.array_element_type(array_type) {
+            Some(element_type) => Ok(element_type),
             _ => Err(ValidateError::MetadataInvariantViolation {
                 message: format!("{operation} expects an array aggregate"),
                 anchor,
             }),
+        }
+    }
+
+    /// Resolve one projected element type if the type supports indexing.
+    fn array_element_type(&self, type_id: LocalNodeId<Type>) -> Option<LocalNodeId<Type>> {
+        match self.tree.get(type_id) {
+            Type::Array { element, .. } => Some(*element),
+            Type::Reference { pointee, .. } => match self.tree.get(*pointee) {
+                Type::Array { element, .. } => Some(*element),
+                _ => Some(*pointee),
+            },
+            Type::TensorReference { element, .. } => Some(*element),
+            _ => None,
         }
     }
 
@@ -2312,86 +1904,60 @@ impl<'a> Validator<'a> {
             return true;
         }
 
-        match (self.tree.get(value_type), self.tree.get(slot_type)) {
-            (
-                Type::Reference {
-                    pointee: value_pointee,
-                    ..
-                },
-                Type::Reference {
-                    pointee: slot_pointee,
-                    ..
-                },
-            ) => self.types_equivalent(*value_pointee, *slot_pointee),
-            (
-                Type::TensorReference {
-                    element: value_element,
-                    shape: value_shape,
-                    layout: value_layout,
-                    ..
-                },
-                Type::TensorReference {
-                    element: slot_element,
-                    shape: slot_shape,
-                    layout: slot_layout,
-                    ..
-                },
-            ) => {
-                value_element == slot_element
-                    && value_shape == slot_shape
-                    && value_layout == slot_layout
-            }
-            (
-                Type::Reference {
-                    pointee: value_pointee,
-                    ..
-                },
-                _,
-            ) => self.types_equivalent(*value_pointee, slot_type),
-            (
-                _,
-                Type::Reference {
-                    pointee: slot_pointee,
-                    ..
-                },
-            ) => self.types_equivalent(value_type, *slot_pointee),
-            (
-                Type::TensorReference {
-                    element: value_element,
-                    shape: value_shape,
-                    layout: value_layout,
-                    ..
-                },
-                Type::Tensor {
-                    element: slot_element,
-                    shape: slot_shape,
-                    layout: slot_layout,
-                    ..
-                },
-            ) => {
-                value_element == slot_element
-                    && value_shape == slot_shape
-                    && value_layout == slot_layout
-            }
-            (
-                Type::Tensor {
-                    element: value_element,
-                    shape: value_shape,
-                    layout: value_layout,
-                    ..
-                },
-                Type::TensorReference {
-                    element: slot_element,
-                    shape: slot_shape,
-                    layout: slot_layout,
-                    ..
-                },
-            ) => {
-                value_element == slot_element
-                    && value_shape == slot_shape
-                    && value_layout == slot_layout
-            }
-            _ => false,
+        if let (Some(value_pointee), Some(slot_pointee)) = (
+            self.reference_pointee_type(value_type),
+            self.reference_pointee_type(slot_type),
+        ) {
+            return self.types_equivalent(value_pointee, slot_pointee);
+        }
+
+        if let Some(value_pointee) = self.reference_pointee_type(value_type) {
+            return self.types_equivalent(value_pointee, slot_type);
+        }
+
+        if let Some(slot_pointee) = self.reference_pointee_type(slot_type) {
+            return self.types_equivalent(value_type, slot_pointee);
+        }
+
+        if let (Some(value_tensor), Some(slot_tensor)) = (
+            self.tensor_storage_type(value_type),
+            self.tensor_storage_type(slot_type),
+        ) {
+            return value_tensor.0 == slot_tensor.0
+                && value_tensor.1 == slot_tensor.1
+                && value_tensor.2 == slot_tensor.2;
+        }
+
+        false
+    }
+
+    /// Resolve one reference pointee type.
+    fn reference_pointee_type(&self, type_id: LocalNodeId<Type>) -> Option<LocalNodeId<Type>> {
+        match self.tree.get(type_id) {
+            Type::Reference { pointee, .. } => Some(*pointee),
+            _ => None,
+        }
+    }
+
+    /// Resolve one tensor-shaped storage type.
+    fn tensor_storage_type(
+        &self,
+        type_id: LocalNodeId<Type>,
+    ) -> Option<(LocalNodeId<Type>, &[TensorDimension], &TensorLayout)> {
+        match self.tree.get(type_id) {
+            Type::Tensor {
+                element,
+                shape,
+                layout,
+                ..
+            } => Some((*element, shape, layout)),
+            Type::TensorReference {
+                element,
+                shape,
+                layout,
+                ..
+            } => Some((*element, shape, layout)),
+            _ => None,
         }
     }
 
@@ -2642,6 +2208,59 @@ impl<'a> Validator<'a> {
         }
     }
 
+    /// Validate reference result types for pointer-producing instructions.
+    fn validate_reference_result_type(
+        &self,
+        result_type: LocalNodeId<Type>,
+        expected_pointee: Option<LocalNodeId<Type>>,
+        expected_kind: Option<ReferenceKind>,
+        expected_mutability: Option<Mutability>,
+        anchor: ValidateAnchor,
+    ) -> ValidateResult<()> {
+        let Type::Reference {
+            kind,
+            mutability,
+            pointee,
+            ..
+        } = self.tree.get(result_type)
+        else {
+            return Err(ValidateError::MetadataInvariantViolation {
+                message: "pointer-producing instruction result type is not a reference".to_string(),
+                anchor,
+            });
+        };
+
+        if let Some(expected) = expected_pointee
+            && !self.types_equivalent(*pointee, expected)
+        {
+            return Err(ValidateError::MetadataInvariantViolation {
+                message: "pointer-producing instruction result type mismatches pointee".to_string(),
+                anchor,
+            });
+        }
+
+        if let Some(expected) = expected_kind
+            && *kind != expected
+        {
+            return Err(ValidateError::MetadataInvariantViolation {
+                message: "pointer-producing instruction result type has wrong reference kind"
+                    .to_string(),
+                anchor,
+            });
+        }
+
+        if let Some(expected) = expected_mutability
+            && *mutability != expected
+        {
+            return Err(ValidateError::MetadataInvariantViolation {
+                message: "pointer-producing instruction result type has wrong mutability"
+                    .to_string(),
+                anchor,
+            });
+        }
+
+        Ok(())
+    }
     /// Validate cast operator legality for canonical storage representations.
     fn validate_cast_legality(
         &self,
@@ -2876,59 +2495,5 @@ impl<'a> Validator<'a> {
                 ..
             } | Type::FunctionPointer { .. }
         )
-    }
-
-    /// Validate a reference result type.
-    fn validate_reference_result_type(
-        &self,
-        result_type: LocalNodeId<Type>,
-        expected_pointee: Option<LocalNodeId<Type>>,
-        expected_kind: Option<ReferenceKind>,
-        expected_mutability: Option<Mutability>,
-        anchor: ValidateAnchor,
-    ) -> ValidateResult<()> {
-        let Type::Reference {
-            kind,
-            mutability,
-            pointee,
-            ..
-        } = self.tree.get(result_type)
-        else {
-            return Err(ValidateError::MetadataInvariantViolation {
-                message: "pointer-producing instruction result type is not a reference".to_string(),
-                anchor,
-            });
-        };
-
-        if let Some(expected) = expected_pointee
-            && !self.types_equivalent(*pointee, expected)
-        {
-            return Err(ValidateError::MetadataInvariantViolation {
-                message: "pointer-producing instruction result type mismatches pointee".to_string(),
-                anchor,
-            });
-        }
-
-        if let Some(expected) = expected_kind
-            && *kind != expected
-        {
-            return Err(ValidateError::MetadataInvariantViolation {
-                message: "pointer-producing instruction result type has wrong reference kind"
-                    .to_string(),
-                anchor,
-            });
-        }
-
-        if let Some(expected) = expected_mutability
-            && *mutability != expected
-        {
-            return Err(ValidateError::MetadataInvariantViolation {
-                message: "pointer-producing instruction result type has wrong mutability"
-                    .to_string(),
-                anchor,
-            });
-        }
-
-        Ok(())
     }
 }

@@ -1,17 +1,20 @@
 use destack_core::StringPool;
-use destack_source::FileId;
+use destack_source::{FileId, Span};
 
-use crate::parse::{ParseOptions, Parser};
+use crate::parse::{ParseError, ParseOptions, Parser};
 use crate::{
     AddressSpace, AllocationMode, ArgumentSlice, Block, CallArgumentMetadata, CallBehavior,
-    CallEffects, CallSite, DevirtualizationMetadata, Function, Instruction, Local, Mutability,
-    Ownership, ReferenceKind, Repeatability, Type, UnwindBehavior, Value,
+    CallEffects, CallSite, Constant, Copyability, DebugBindingKind, DebugRangeStart,
+    DebugScopeKind, DebugValueLocation, DevirtualizationMetadata, Field, Function, Instruction,
+    Layout, LayoutField, LayoutType, Local, LocalNodeId, Mutability, NodeTree, Ownership,
+    ProvenanceKind, ReferenceKind, Repeatability, Terminator, Type, UnwindBehavior, Value,
+    VtableSlotId,
 };
 
 use super::Validator;
 
 /// Parse MIR source and return the parse error.
-fn parse_error(source: &str) -> crate::parse::ParseError {
+fn parse_error(source: &str) -> ParseError {
     Parser::parse(FileId::new(0), source, ParseOptions::default())
         .expect_err("expected parse failure")
 }
@@ -24,7 +27,7 @@ fn parse_ok(source: &str) {
 /// Local references must resolve to locals declared on the function.
 #[test]
 fn test_validate_rejects_local_not_in_function() {
-    let mut tree = crate::NodeTree::new();
+    let mut tree = NodeTree::new();
     let pool = StringPool::new();
     let name = pool.intern("test");
 
@@ -46,7 +49,7 @@ fn test_validate_rejects_local_not_in_function() {
     let block = Block {
         parameters: Vec::new(),
         instructions: vec![instruction],
-        terminator: crate::Terminator::Return { value: None },
+        terminator: Terminator::Return { value: None },
     };
     let block_id = tree.insert(block);
 
@@ -281,7 +284,7 @@ block2:
 /// Reject duplicate instruction ids within a block.
 #[test]
 fn test_reject_duplicate_instruction_id() {
-    let mut tree = crate::NodeTree::new();
+    let mut tree = NodeTree::new();
     let pool = StringPool::new();
     let name = pool.intern("dup_inst");
 
@@ -293,13 +296,13 @@ fn test_reject_duplicate_instruction_id() {
     let value = Value::new(0);
     let instruction = tree.insert(Instruction::Const {
         destination: value,
-        value: crate::Constant::int32(1),
+        value: Constant::int32(1),
     });
     let assume = tree.insert(Instruction::Assume { condition: value });
     let block = Block {
         parameters: Vec::new(),
         instructions: vec![instruction, assume, assume],
-        terminator: crate::Terminator::Return { value: None },
+        terminator: Terminator::Return { value: None },
     };
     let block_id = tree.insert(block);
 
@@ -317,10 +320,88 @@ fn test_reject_duplicate_instruction_id() {
     assert_eq!(error.to_string(), expected);
 }
 
+/// Reject one empty debug binding location range.
+#[test]
+fn test_reject_debug_binding_empty_range() {
+    let mut tree = NodeTree::new();
+    let pool = StringPool::new();
+    let name = pool.intern("debug_range");
+
+    let void_type = tree.insert_type(Type::Void);
+    let value_type = tree.insert_type(Type::Int {
+        width: 32,
+        is_signed: true,
+    });
+    let instruction = tree.insert(Instruction::Const {
+        destination: Value::new(0),
+        value: Constant::int32(1),
+    });
+    let block_id = tree.insert(Block {
+        parameters: Vec::new(),
+        instructions: vec![instruction],
+        terminator: Terminator::Return { value: None },
+    });
+
+    let mut function = Function::local(name, Vec::new(), void_type, block_id);
+    function.set_value_type(Value::new(0), value_type);
+    function.blocks = vec![block_id];
+    function.entry = Some(block_id);
+    let function_id = tree.insert(function);
+
+    let span = Span::new(FileId::new(0), 0, 0);
+    let scope_id = tree
+        .debug_table
+        .create_scope(DebugScopeKind::Function, Some(name), span, None);
+    tree.debug_table.set_function_scope(function_id, scope_id);
+
+    let binding_id =
+        tree.debug_table
+            .create_binding(name, value_type, scope_id, DebugBindingKind::Local);
+    tree.debug_table.add_binding_location_range(
+        binding_id,
+        DebugValueLocation::Value(Value::new(0)),
+        DebugRangeStart::instruction(instruction),
+        Some(instruction),
+    );
+
+    let validator = Validator::new(&tree);
+    let error = validator
+        .validate()
+        .expect_err("expected validation failure");
+    assert_eq!(
+        error.to_string(),
+        "metadata invariant violation: debug binding ranges must be non-empty and ordered"
+    );
+}
+
+/// Reject one cyclic provenance parent chain.
+#[test]
+fn test_reject_provenance_cycle() {
+    let mut tree = NodeTree::new();
+    let first = tree
+        .provenance_table
+        .create(ProvenanceKind::Derived, None, Vec::new(), Vec::new());
+    let second =
+        tree.provenance_table
+            .create(ProvenanceKind::Derived, None, Vec::new(), vec![first]);
+    tree.provenance_table.records[first.index()]
+        .parents
+        .push(second);
+
+    let validator = Validator::new(&tree);
+    let error = validator
+        .validate()
+        .expect_err("expected validation failure");
+    assert_eq!(
+        error.to_string(),
+        "metadata invariant violation: provenance parent chain must be acyclic"
+    );
+}
+
 /// Reject duplicate local ids on a function.
 #[test]
 fn test_reject_duplicate_local_id() {
-    let mut tree = crate::NodeTree::new();
+    let mut tree = NodeTree::new();
     let pool = StringPool::new();
     let name = pool.intern("dup_local");
 
@@ -337,7 +418,7 @@ fn test_reject_duplicate_local_id() {
     let block = Block {
         parameters: Vec::new(),
         instructions: Vec::new(),
-        terminator: crate::Terminator::Return { value: None },
+        terminator: Terminator::Return { value: None },
     };
     let block_id = tree.insert(block);
 
@@ -355,10 +436,76 @@ fn test_reject_duplicate_local_id() {
     assert_eq!(error.to_string(), expected);
 }
 
+/// Reject malformed function return type ids.
+#[test]
+fn test_reject_function_return_type_wrong_node_kind() {
+    let mut tree = NodeTree::new();
+    let pool = StringPool::new();
+    let name = pool.intern("bad_return_type");
+
+    let void_type = tree.insert_type(Type::Void);
+    let block_id = tree.insert(Block {
+        parameters: Vec::new(),
+        instructions: Vec::new(),
+        terminator: Terminator::Return { value: None },
+    });
+
+    let mut function = Function::local(name, Vec::new(), void_type, block_id);
+    function.return_type = LocalNodeId::new(block_id.id);
+    function.blocks = vec![block_id];
+    function.entry = Some(block_id);
+    let function_id = tree.insert(function);
+
+    let validator = Validator::new(&tree);
+    let error = validator
+        .validate_function(function_id)
+        .expect_err("expected validation failure");
+    assert_eq!(
+        error.to_string(),
+        format!(
+            "invalid node reference id{} expected Type got Block",
+            block_id.id
+        )
+    );
+}
+
+/// Reject malformed closure env type ids.
+#[test]
+fn test_reject_function_closure_env_type_wrong_node_kind() {
+    let mut tree = NodeTree::new();
+    let pool = StringPool::new();
+    let name = pool.intern("bad_closure_env_type");
+
+    let void_type = tree.insert_type(Type::Void);
+    let block_id = tree.insert(Block {
+        parameters: Vec::new(),
+        instructions: Vec::new(),
+        terminator: Terminator::Return { value: None },
+    });
+
+    let mut function = Function::local(name, Vec::new(), void_type, block_id);
+    function.closure_env_type = Some(LocalNodeId::new(block_id.id));
+    function.blocks = vec![block_id];
+    function.entry = Some(block_id);
+    let function_id = tree.insert(function);
+
+    let validator = Validator::new(&tree);
+    let error = validator
+        .validate_function(function_id)
+        .expect_err("expected validation failure");
+    assert_eq!(
+        error.to_string(),
+        format!(
+            "invalid node reference id{} expected Type got Block",
+            block_id.id
+        )
+    );
+}
+
 /// Reject argument slices that exceed the argument buffer.
 #[test]
 fn test_reject_argument_slice_out_of_bounds() {
-    let mut tree = crate::NodeTree::new();
+    let mut tree = NodeTree::new();
     let pool = StringPool::new();
     let name = pool.intern("arg_slice");
 
@@ -380,7 +527,7 @@ fn test_reject_argument_slice_out_of_bounds() {
     let block = Block {
         parameters: Vec::new(),
         instructions: vec![instruction],
-        terminator: crate::Terminator::Return { value: None },
+        terminator: Terminator::Return { value: None },
     };
     let block_id = tree.insert(block);
 
@@ -402,7 +549,7 @@ fn test_reject_argument_slice_out_of_bounds() {
 /// Reject call effects with mismatched argument metadata lengths.
 #[test]
 fn test_reject_call_effect_argument_count_mismatch() {
-    let mut tree = crate::NodeTree::new();
+    let mut tree = NodeTree::new();
     let pool = StringPool::new();
     let name = pool.intern("bad_effects");
 
@@ -428,7 +575,7 @@ fn test_reject_call_effect_argument_count_mismatch() {
     let block = Block {
         parameters: Vec::new(),
         instructions: vec![instruction],
-        terminator: crate::Terminator::Return { value: None },
+        terminator: Terminator::Return { value: None },
     };
     let block_id = tree.insert(block);
 
@@ -450,7 +597,7 @@ fn test_reject_call_effect_argument_count_mismatch() {
 /// Pure effects must not suspend execution.
 #[test]
 fn test_reject_pure_effect_with_suspend() {
-    let mut tree = crate::NodeTree::new();
+    let mut tree = NodeTree::new();
     let pool = StringPool::new();
     let name = pool.intern("pure_suspend");
 
@@ -482,7 +629,7 @@ fn test_reject_pure_effect_with_suspend() {
     let block = Block {
         parameters: Vec::new(),
         instructions: vec![instruction],
-        terminator: crate::Terminator::Return { value: None },
+        terminator: Terminator::Return { value: None },
     };
     let block_id = tree.insert(block);
 
@@ -504,7 +651,7 @@ fn test_reject_pure_effect_with_suspend() {
 /// Pure effects must not unwind.
 #[test]
 fn test_reject_pure_effect_with_unwind() {
-    let mut tree = crate::NodeTree::new();
+    let mut tree = NodeTree::new();
     let pool = StringPool::new();
     let name = pool.intern("pure_unwind");
 
@@ -536,7 +683,7 @@ fn test_reject_pure_effect_with_unwind() {
     let block = Block {
         parameters: Vec::new(),
         instructions: vec![instruction],
-        terminator: crate::Terminator::Return { value: None },
+        terminator: Terminator::Return { value: None },
     };
     let block_id = tree.insert(block);
 
@@ -558,9 +705,9 @@ fn test_reject_pure_effect_with_unwind() {
 /// Dispatch metadata must not carry empty sparse entries.
 #[test]
 fn test_reject_empty_dispatch_callsite_metadata() {
-    let mut tree = crate::NodeTree::new();
+    let mut tree = NodeTree::new();
     tree.dispatch_table.insert_callsite_metadata(
-        CallSite::Instruction(crate::LocalNodeId::new(0)),
+        CallSite::Instruction(LocalNodeId::new(0)),
         DevirtualizationMetadata::default(),
     );
 
@@ -691,9 +838,7 @@ block0:
 /// Reject struct layout metadata when field types disagree with the struct type.
 #[test]
 fn test_reject_struct_layout_field_type_mismatch() {
-    use crate::{Copyability, Field, Layout, LayoutField, LayoutType};
-
-    let mut tree = crate::NodeTree::new();
+    let mut tree = NodeTree::new();
     let strings = StringPool::new();
     let field_name = strings.intern("x");
 
@@ -740,9 +885,9 @@ fn test_dynamic_call_declared_target_is_metadata_only() {
         destination: None,
         receiver: Value::new(0),
         arguments: ArgumentSlice::new(0, 0),
-        declaring_type: crate::LocalNodeId::new(0),
-        slot_id: crate::VtableSlotId::new(0),
-        signature: crate::LocalNodeId::new(0),
+        declaring_type: LocalNodeId::new(0),
+        slot_id: VtableSlotId::new(0),
+        signature: LocalNodeId::new(0),
         effects: None,
     };
 
@@ -752,7 +897,7 @@ fn test_dynamic_call_declared_target_is_metadata_only() {
 /// Reject managed allocation instructions when no_managed is required.
 #[test]
 fn test_reject_managed_alloc_with_no_managed_mode() {
-    let mut tree = crate::NodeTree::new();
+    let mut tree = NodeTree::new();
     let pool = StringPool::new();
     let name = pool.intern("no_managed");
 
@@ -777,7 +922,7 @@ fn test_reject_managed_alloc_with_no_managed_mode() {
     let block = Block {
         parameters: Vec::new(),
         instructions: vec![instruction],
-        terminator: crate::Terminator::Return { value: None },
+        terminator: Terminator::Return { value: None },
     };
     let block_id = tree.insert(block);
 
@@ -801,7 +946,7 @@ fn test_reject_managed_alloc_with_no_managed_mode() {
 /// Reject raw heap allocations when stack_only is required.
 #[test]
 fn test_reject_raw_alloc_with_stack_only_mode() {
-    let mut tree = crate::NodeTree::new();
+    let mut tree = NodeTree::new();
     let pool = StringPool::new();
     let name = pool.intern("stack_only");
 
@@ -826,7 +971,7 @@ fn test_reject_raw_alloc_with_stack_only_mode() {
     let block = Block {
         parameters: Vec::new(),
         instructions: vec![instruction],
-        terminator: crate::Terminator::Return { value: None },
+        terminator: Terminator::Return { value: None },
     };
     let block_id = tree.insert(block);
 
