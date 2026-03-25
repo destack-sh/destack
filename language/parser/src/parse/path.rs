@@ -1,10 +1,10 @@
 use destack_core::StringId;
-use destack_source::Span;
+use destack_source::{NodeSpanType, Span};
 use smallvec::SmallVec;
 
 use crate::parse::timing::tags;
 use crate::{ParseResult, Parser};
-use destack_ast::{Path, TokenType};
+use destack_ast::{Expression, LocalNodeId, Path, TokenType};
 
 impl Parser {
     /// Return true when a semantic token has leading comment trivia.
@@ -84,6 +84,12 @@ impl Parser {
 
     /// Eat a path and return the span of its last segment.
     pub fn eat_path_with_last_span(&mut self) -> ParseResult<(Path, Span)> {
+        let (path, _first_span, last_span) = self.eat_path_with_endpoint_spans()?;
+        Ok((path, last_span))
+    }
+
+    /// Eat a path and return the spans of its first and last segments.
+    pub fn eat_path_with_endpoint_spans(&mut self) -> ParseResult<(Path, Span, Span)> {
         let _timing = self.timing_scope(tags::PARSE_PATH);
         let mut segments: SmallVec<[StringId; 3]> = SmallVec::new();
 
@@ -95,7 +101,7 @@ impl Parser {
         // single segment fast path
         let next_token_type = self.peek_token_type();
         if next_token_type != TokenType::Dot && next_token_type != TokenType::Newline {
-            return Ok((Path { segments }, last_span));
+            return Ok((Path { segments }, first_span, last_span));
         }
 
         // zero or more `.identifier` (ignoring newlines)
@@ -137,7 +143,7 @@ impl Parser {
             break;
         }
 
-        Ok((Path { segments }, last_span))
+        Ok((Path { segments }, first_span, last_span))
     }
 
     /// Eat a tree literal path.
@@ -198,6 +204,12 @@ impl Parser {
 
     /// Eat a tree literal path and return the span of its last segment.
     pub fn eat_tree_literal_path_with_last_span(&mut self) -> ParseResult<(Path, Span)> {
+        let (path, _first_span, last_span) = self.eat_tree_literal_path_with_endpoint_spans()?;
+        Ok((path, last_span))
+    }
+
+    /// Eat a tree literal path and return the spans of its first and last segments.
+    pub fn eat_tree_literal_path_with_endpoint_spans(&mut self) -> ParseResult<(Path, Span, Span)> {
         let _timing = self.timing_scope(tags::PARSE_PATH);
         let mut segments: SmallVec<[StringId; 3]> = SmallVec::new();
 
@@ -209,7 +221,7 @@ impl Parser {
         // single segment fast path
         let next_token_type = self.peek_token_type();
         if next_token_type != TokenType::Dot && next_token_type != TokenType::Newline {
-            return Ok((Path { segments }, last_span));
+            return Ok((Path { segments }, first_span, last_span));
         }
 
         // zero or more `.identifier` (ignoring newlines)
@@ -251,7 +263,19 @@ impl Parser {
             break;
         }
 
-        Ok((Path { segments }, last_span))
+        Ok((Path { segments }, first_span, last_span))
+    }
+
+    /// Record the leading and trailing identifier spans for one path expression.
+    pub fn set_path_expression_spans(
+        &mut self,
+        expression_id: LocalNodeId<Expression>,
+        first_span: Span,
+        last_span: Span,
+    ) {
+        self.tree.set_main_span(expression_id, last_span);
+        self.tree
+            .set_side_span(expression_id, NodeSpanType::Leading, first_span);
     }
 }
 

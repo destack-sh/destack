@@ -791,8 +791,9 @@ impl Parser {
         // type member: `type Name<U> = ...` or `type Name: Bound`
         if self.is_keyword(Keyword::Type) && self.peek_next_is(TokenType::Identifier) {
             self.bump(); // eat type keyword
+
             // parse type member name
-            let (name, _name_span) = self.eat_identifier_with_span()?;
+            let (name, name_span) = self.eat_identifier_with_span()?;
 
             // parse optional static parameters and where clauses
             let static_parameters = self.eat_static_parameters_maybe(false)?;
@@ -837,7 +838,10 @@ impl Parser {
                 ty,
                 value,
             };
-            return Ok(self.insert_node(member, self.get_span_from(&start)));
+            let member_id = self.insert_node(member, self.get_span_from(&start));
+            self.tree.set_main_span(member_id, name_span);
+
+            return Ok(member_id);
         }
 
         // comptime block: `comptime { ... }` (timing modifier already consumed)

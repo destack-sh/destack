@@ -32,6 +32,8 @@ pub enum NodeSpanType {
     Enclosing,
     /// The main span of a node (usually its identifier).
     Main,
+    /// The leading span of a node (usually its first identifier).
+    Leading,
     /// The type declaration span of a node.
     Type,
 }

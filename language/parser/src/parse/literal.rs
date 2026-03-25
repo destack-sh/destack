@@ -1186,16 +1186,16 @@ impl Parser {
         self.eat_newlines_maybe()?;
 
         // left
-        let mut path_name_span = None;
+        let mut path_name_spans = None;
         let path: Option<Path> = if self.peek_is(TokenType::Identifier) {
-            let (path, name_span) = self.eat_tree_literal_path_with_last_span()?;
+            let (path, first_span, last_span) = self.eat_tree_literal_path_with_endpoint_spans()?;
 
             // jsx namespace names cannot be followed by member access
             if self.tree_literal_path_has_namespace_member(&path) {
                 return Err(ParseError::unexpected(self.peek()?.span));
             }
 
-            path_name_span = Some(name_span);
+            path_name_spans = Some((first_span, last_span));
             Some(path)
         } else {
             None
@@ -1350,8 +1350,8 @@ impl Parser {
                 },
                 self.get_span_between(&start, &header_start),
             );
-            if let Some(name_span) = path_name_span {
-                self.tree.set_main_span(expression_id, name_span);
+            if let Some((first_span, last_span)) = path_name_spans {
+                self.set_path_expression_spans(expression_id, first_span, last_span);
             }
             expression_id
         });
