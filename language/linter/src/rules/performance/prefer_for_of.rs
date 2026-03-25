@@ -6,7 +6,9 @@ use destack_dir::{
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
-use crate::rules::common::{is_array_type, strip_dot_member_suffix};
+use crate::rules::common::{
+    fresh_name_in_expression_scope, is_array_type, strip_dot_member_suffix,
+};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -342,10 +344,11 @@ impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
         pattern: ForLoopPattern,
         index_accesses: &[LocalNodeId<dir::Expression>],
     ) -> Option<LintFix> {
-        // choose a stable loop binding name
+        // choose a fresh loop binding name
         let body_span = self.ctx.get_span(body_id);
         let body_text = self.ctx.get_span_text(body_span).to_string();
-        let binding_name = "item";
+        let binding_name =
+            fresh_name_in_expression_scope(self.ctx, expression_id, "item", "Element")?;
 
         // replace each `arr[i]` with the loop binding inside body text
         let mut rewritten_body = body_text;
@@ -361,7 +364,7 @@ impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
 
             let start = (span.start - body_span.start) as usize;
             let end = (span.end - body_span.start) as usize;
-            rewritten_body.replace_range(start..end, binding_name);
+            rewritten_body.replace_range(start..end, &binding_name);
         }
 
         // build a for-of loop replacement

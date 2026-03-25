@@ -3,7 +3,8 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
-    ReferencePath, expression_reference_path, expression_unwrap_parenthesized, is_string_type,
+    ReferencePath, expression_enters_nested_declaration_scope, expression_reference_path,
+    expression_unwrap_parenthesized, is_string_type,
 };
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -397,6 +398,11 @@ impl NodeVisitor for NoStringConcatInLoopVisitor<'_, '_> {
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
+        // avoid leaking loop context into nested declarations
+        if self.is_in_loop && expression_enters_nested_declaration_scope(tree, expression) {
+            return;
+        }
+
         // check for string concatenation
         self.check_expression(id, expression);
 

@@ -3,7 +3,9 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol,
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
-use crate::rules::common::{expression_method_call, is_array_type};
+use crate::rules::common::{
+    expression_enters_nested_declaration_scope, expression_method_call, is_array_type,
+};
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -269,6 +271,11 @@ impl NodeVisitor for NoNestedArrayIncludesVisitor<'_, '_> {
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
+        // avoid leaking loop context into nested declarations
+        if self.is_in_loop && expression_enters_nested_declaration_scope(tree, expression) {
+            return;
+        }
+
         // check call expressions
         if matches!(expression, dir::Expression::Call { .. }) {
             self.check_call(id);
