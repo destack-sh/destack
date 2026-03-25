@@ -13,36 +13,24 @@ impl Parser<'_> {
             return Ok(());
         }
 
-        // only aggregate types get layout metadata
-        enum LayoutTarget {
-            Struct(Vec<LocalNodeId<Field>>),
-            Tuple(Vec<LocalNodeId<Type>>),
-            Array(LocalNodeId<Type>, u64),
-            FunctionValue(LocalNodeId<Type>, LocalNodeId<Type>),
-        }
-
-        let target = match self.tree.get(type_id) {
-            Type::Struct { fields, .. } => LayoutTarget::Struct(fields.clone()),
-            Type::Tuple { elements, .. } => LayoutTarget::Tuple(elements.clone()),
+        // dispatch on the parsed aggregate type
+        match self.tree.get(type_id) {
+            Type::Struct { fields, .. } => {
+                let fields = fields.clone();
+                self.record_struct_layout(type_id, &fields)
+            }
+            Type::Tuple { elements, .. } => {
+                let elements = elements.clone();
+                self.record_tuple_layout(type_id, &elements)
+            }
             Type::Array {
                 element, length, ..
-            } => LayoutTarget::Array(*element, *length),
+            } => self.record_array_layout(type_id, *element, *length),
             Type::FunctionValue {
                 signature,
                 environment,
-            } => LayoutTarget::FunctionValue(*signature, *environment),
-            _ => return Ok(()),
-        };
-
-        match target {
-            LayoutTarget::Struct(fields) => self.record_struct_layout(type_id, &fields),
-            LayoutTarget::Tuple(elements) => self.record_tuple_layout(type_id, &elements),
-            LayoutTarget::Array(element, length) => {
-                self.record_array_layout(type_id, element, length)
-            }
-            LayoutTarget::FunctionValue(signature, environment) => {
-                self.record_function_value_layout(type_id, signature, environment)
-            }
+            } => self.record_function_value_layout(type_id, *signature, *environment),
+            _ => Ok(()),
         }
     }
 
@@ -155,7 +143,7 @@ impl Parser<'_> {
     ) -> ParseResult<()> {
         // compute element layout
         let element_layout = compute_type_layout(&self.tree, element, self.tree.pointer_bytes());
-        let element_stride = align_up(element_layout.size, element_layout.alignment);
+        let element_stride = self.align_up(element_layout.size, element_layout.alignment);
 
         // validate the array length
         let length_u32 = u32::try_from(length)
@@ -246,17 +234,20 @@ impl Parser<'_> {
         let name = index.to_string();
         self.strings.intern(&name)
     }
-}
 
-/// Align a size up to a given alignment.
-fn align_up(value: u32, alignment: u32) -> u32 {
-    if alignment == 0 {
-        return value;
-    }
-    let misalignment = value % alignment;
-    if misalignment == 0 {
-        value
-    } else {
-        value + (alignment - misalignment)
+    /// Align a size up to a given alignment.
+    fn align_up(&self, value: u32, alignment: u32) -> u32 {
+        // zero alignment leaves the value unchanged
+        if alignment == 0 {
+            return value;
+        }
+
+        // already aligned values stay put
+        let misalignment = value % alignment;
+        if misalignment == 0 {
+            value
+        } else {
+            value + (alignment - misalignment)
+        }
     }
 }

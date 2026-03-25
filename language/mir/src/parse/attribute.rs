@@ -1,7 +1,4 @@
-use crate::{
-    Attribute, AttributeArgs, AttributeKeyValue, AttributeValue, ExecutionModel, ExecutionStage,
-    FloatValue, LocalNodeId, Type,
-};
+use crate::{Attribute, AttributeArgs, AttributeKeyValue, AttributeValue, FloatValue};
 
 use super::error::{ParseError, ParseResult};
 use super::parser::Parser;
@@ -31,6 +28,8 @@ impl<'a> Parser<'a> {
         let name_token = self.eat_token(TokenType::Identifier)?;
         let name_text = name_token.text.to_string();
         let name = self.strings.intern(&name_text);
+
+        // optional argument payload
         let args = if self.eat_token_maybe(TokenType::OpenParen) {
             let args = self.parse_attribute_args()?;
             self.eat_token(TokenType::CloseParen)?;
@@ -103,12 +102,13 @@ impl<'a> Parser<'a> {
         let token_text = token.text.to_string();
         let token_start = token.start;
 
-        // parse value
+        // type values
         if self.peek_type(token_ty) {
             let ty = self.parse_type()?;
             return Ok(AttributeValue::Type(ty));
         }
 
+        // scalar and list values
         match token_ty {
             TokenType::Identifier => {
                 self.bump();
@@ -130,10 +130,9 @@ impl<'a> Parser<'a> {
             }
             TokenType::StringLiteral => {
                 self.bump();
-                let value =
-                    super::constant::parse_string_literal(&token_text).ok_or_else(|| {
-                        ParseError::invalid(&format!("string literal '{token_text}'"), token_start)
-                    })?;
+                let value = self.parse_string_literal(&token_text).ok_or_else(|| {
+                    ParseError::invalid(&format!("string literal '{token_text}'"), token_start)
+                })?;
                 Ok(AttributeValue::String(self.strings.intern(&value)))
             }
             TokenType::OpenBracket => {
@@ -199,257 +198,5 @@ impl<'a> Parser<'a> {
         };
 
         Ok(FloatValue::from_f64(value))
-    }
-
-    /// Resolve attributes into function metadata.
-    pub(super) fn resolve_function_attributes(
-        &mut self,
-        attributes: &[Attribute],
-    ) -> ParseResult<(
-        Option<ExecutionModel>,
-        Option<ExecutionStage>,
-        Option<[u32; 3]>,
-        Option<LocalNodeId<Type>>,
-    )> {
-        // metadata outputs
-        let mut execution_model = None;
-        let mut execution_stage = None;
-        let mut workgroup_size = None;
-        let mut closure_env_type = None;
-
-        // inspect attributes
-        for attribute in attributes {
-            let name = {
-                let name_ref = self.strings.get(attribute.name);
-                name_ref.to_string()
-            };
-            match name.as_str() {
-                "execution_model" => {
-                    if execution_model.is_some() {
-                        return Err(ParseError::new(
-                            "duplicate execution_model attribute",
-                            self.pos(),
-                        ));
-                    }
-                    let value = match &attribute.args {
-                        AttributeArgs::Value(AttributeValue::Identifier(value)) => {
-                            self.strings.get(*value)
-                        }
-                        AttributeArgs::Value(AttributeValue::String(value)) => {
-                            self.strings.get(*value)
-                        }
-                        _ => {
-                            return Err(ParseError::new(
-                                "execution_model expects an identifier",
-                                self.pos(),
-                            ));
-                        }
-                    };
-                    let value = value.to_string();
-                    let model = ExecutionModel::try_from(value.as_str()).map_err(|_| {
-                        ParseError::invalid(&format!("execution model '{value}'"), self.pos())
-                    })?;
-                    execution_model = Some(model);
-                }
-                "execution_stage" => {
-                    if execution_stage.is_some() {
-                        return Err(ParseError::new(
-                            "duplicate execution_stage attribute",
-                            self.pos(),
-                        ));
-                    }
-                    let value = match &attribute.args {
-                        AttributeArgs::Value(AttributeValue::Identifier(value)) => {
-                            self.strings.get(*value)
-                        }
-                        AttributeArgs::Value(AttributeValue::String(value)) => {
-                            self.strings.get(*value)
-                        }
-                        _ => {
-                            return Err(ParseError::new(
-                                "execution_stage expects an identifier",
-                                self.pos(),
-                            ));
-                        }
-                    };
-                    let value = value.to_string();
-                    let stage = ExecutionStage::try_from(value.as_str()).map_err(|_| {
-                        ParseError::invalid(&format!("execution stage '{value}'"), self.pos())
-                    })?;
-                    execution_stage = Some(stage);
-                }
-                "workgroup_size" => {
-                    if workgroup_size.is_some() {
-                        return Err(ParseError::new(
-                            "duplicate workgroup_size attribute",
-                            self.pos(),
-                        ));
-                    }
-                    let size = self.parse_workgroup_size(&attribute.args)?;
-                    workgroup_size = Some(size);
-                }
-                "closure_env" => {
-                    if closure_env_type.is_some() {
-                        return Err(ParseError::new(
-                            "duplicate closure_env attribute",
-                            self.pos(),
-                        ));
-                    }
-                    let env_type = match &attribute.args {
-                        AttributeArgs::Value(AttributeValue::Type(value)) => *value,
-                        _ => {
-                            return Err(ParseError::new(
-                                "closure_env expects a type value",
-                                self.pos(),
-                            ));
-                        }
-                    };
-                    closure_env_type = Some(env_type);
-                }
-                _ => {}
-            }
-        }
-
-        Ok((
-            execution_model,
-            execution_stage,
-            workgroup_size,
-            closure_env_type,
-        ))
-    }
-
-    /// Parse a workgroup_size attribute.
-    fn parse_workgroup_size(&mut self, args: &AttributeArgs) -> ParseResult<[u32; 3]> {
-        // list or key values
-        let dims = match args {
-            AttributeArgs::Value(AttributeValue::Integer(value)) => [*value, 1, 1],
-            AttributeArgs::Values(values) => self.parse_workgroup_dims_from_values(values)?,
-            AttributeArgs::Value(AttributeValue::List(values)) => {
-                self.parse_workgroup_dims_from_values(values)?
-            }
-            AttributeArgs::KeyValues(pairs) => self.parse_workgroup_dims_from_pairs(pairs)?,
-            _ => {
-                return Err(ParseError::new(
-                    "workgroup_size expects one to three integer values",
-                    self.pos(),
-                ));
-            }
-        };
-
-        self.check_workgroup_size(dims)
-    }
-
-    /// Parse positional workgroup sizes into a full 3D array.
-    fn parse_workgroup_dims_from_values(
-        &mut self,
-        values: &[AttributeValue],
-    ) -> ParseResult<[i64; 3]> {
-        // require between one and three values
-        if values.is_empty() || values.len() > 3 {
-            return Err(ParseError::new(
-                "workgroup_size expects one to three integer values",
-                self.pos(),
-            ));
-        }
-
-        // default missing dimensions to 1
-        let mut dims = [1i64; 3];
-        for (index, value) in values.iter().enumerate() {
-            match value {
-                AttributeValue::Integer(value) => dims[index] = *value,
-                _ => {
-                    return Err(ParseError::new(
-                        "workgroup_size values must be integers",
-                        self.pos(),
-                    ));
-                }
-            }
-        }
-
-        Ok(dims)
-    }
-
-    /// Parse keyed workgroup sizes into a full 3D array.
-    fn parse_workgroup_dims_from_pairs(
-        &mut self,
-        pairs: &[AttributeKeyValue],
-    ) -> ParseResult<[i64; 3]> {
-        // collect keyed values
-        let mut x = None;
-        let mut y = None;
-        let mut z = None;
-        for pair in pairs {
-            let key = self.strings.get(pair.key);
-            let key = key.as_ref();
-            let value = match &pair.value {
-                AttributeValue::Integer(value) => *value,
-                _ => {
-                    return Err(ParseError::new(
-                        "workgroup_size values must be integers",
-                        self.pos(),
-                    ));
-                }
-            };
-            match key {
-                "x" => {
-                    if x.is_some() {
-                        return Err(ParseError::new(
-                            "duplicate workgroup_size x value",
-                            self.pos(),
-                        ));
-                    }
-                    x = Some(value);
-                }
-                "y" => {
-                    if y.is_some() {
-                        return Err(ParseError::new(
-                            "duplicate workgroup_size y value",
-                            self.pos(),
-                        ));
-                    }
-                    y = Some(value);
-                }
-                "z" => {
-                    if z.is_some() {
-                        return Err(ParseError::new(
-                            "duplicate workgroup_size z value",
-                            self.pos(),
-                        ));
-                    }
-                    z = Some(value);
-                }
-                _ => {
-                    return Err(ParseError::invalid(
-                        &format!("workgroup_size key '{key}'"),
-                        self.pos(),
-                    ));
-                }
-            }
-        }
-
-        // require x and default missing dimensions to 1
-        let x = x.ok_or_else(|| ParseError::new("workgroup_size requires x", self.pos()))?;
-        let y = y.unwrap_or(1);
-        let z = z.unwrap_or(1);
-
-        Ok([x, y, z])
-    }
-
-    /// Validate and coerce workgroup size values.
-    fn check_workgroup_size(&mut self, dims: [i64; 3]) -> ParseResult<[u32; 3]> {
-        // validate dimensions
-        let mut size = [0u32; 3];
-        for (index, dim) in dims.into_iter().enumerate() {
-            if dim < 0 {
-                return Err(ParseError::new(
-                    "workgroup_size values must be non-negative",
-                    self.pos(),
-                ));
-            }
-
-            size[index] = dim as u32;
-        }
-
-        Ok(size)
     }
 }

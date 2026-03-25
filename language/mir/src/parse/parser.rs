@@ -4,10 +4,7 @@ use destack_core::{ImmutableStringPool, StringPool};
 use destack_source::{FileId, Span};
 
 use crate::validate::Validator;
-use crate::{
-    AllocationMode, Block, CallBehavior, Field, Function, Global, Lifetime, Linkage, LocalNodeId,
-    MemoryEffect, NodeTree, PointerAttributes, Type,
-};
+use crate::{Field, Function, Global, LocalNodeId, NodeTree, Type, Value};
 
 use super::error::{ParseError, ParseResult};
 use super::key::{FieldKey, TypeKey};
@@ -41,8 +38,6 @@ pub struct Parser<'a> {
     pub(super) strings: StringPool,
     /// The source file id for spans.
     pub(super) file_id: FileId,
-    /// Map from block names to their ids (for forward references).
-    pub(super) block_map: HashMap<String, LocalNodeId<Block>>,
     /// Map from function names to their ids (for forward references).
     pub(super) function_map: HashMap<String, LocalNodeId<Function>>,
     /// Map from global names to their ids (for forward references).
@@ -72,7 +67,6 @@ impl<'a> Parser<'a> {
             tree,
             strings: StringPool::new(),
             file_id,
-            block_map: HashMap::new(),
             function_map: HashMap::new(),
             global_map: HashMap::new(),
             type_alias_map: HashMap::new(),
@@ -92,6 +86,17 @@ impl<'a> Parser<'a> {
         let mut parser = Parser::new(file_id, source, options);
         parser.parse_module()?;
 
+        // validate the finished tree
+        let validator = Validator::new(&parser.tree);
+        validator.validate().map_err(|error| {
+            let position = error
+                .anchor()
+                .and_then(|anchor| parser.tree.get_span_by_id(anchor.node.id))
+                .map(|span| span.start as usize)
+                .unwrap_or_else(|| parser.pos());
+            ParseError::new(error.to_string(), position)
+        })?;
+
         Ok((parser.tree, parser.strings.into_immutable()))
     }
 
@@ -101,15 +106,15 @@ impl<'a> Parser<'a> {
     }
 
     /// Build a span for a source slice.
-    pub(super) fn span_at(file_id: FileId, start: usize, length: usize) -> Span {
+    pub(super) fn span_at(&self, start: usize, length: usize) -> Span {
         let start = u32::try_from(start).unwrap_or(u32::MAX);
         let length = u32::try_from(length).unwrap_or(0);
-        Span::at(file_id, start, length)
+        Span::at(self.file_id, start, length)
     }
 
     /// Build a span for a token.
-    pub(super) fn span_for_token(file_id: FileId, token: &Token<'_>) -> Span {
-        Self::span_at(file_id, token.start, token.text.len())
+    pub(super) fn span_for_token(&self, token: &Token<'_>) -> Span {
+        self.span_at(token.start, token.text.len())
     }
 
     /// Peek the current token (skipping trivia).
@@ -226,66 +231,6 @@ impl<'a> Parser<'a> {
         self.peek().map(|t| t.text).unwrap_or("")
     }
 
-    /// Parse a module (list of type aliases, globals, and functions).
-    fn parse_module(&mut self) -> ParseResult<()> {
-        // first pass: register all type aliases for forward references
-        self.register_all_type_aliases();
-
-        // second pass: register all function names for forward references
-        self.register_all_functions();
-
-        // third pass: parse everything
-        while !self.peek_token(TokenType::End) {
-            // parse optional attributes
-            let attributes = self.parse_attributes()?;
-
-            // parse optional linkage prefix: extern or export
-            let linkage = if self.peek_token(TokenType::Extern) {
-                self.bump();
-                Linkage::Import
-            } else if self.peek_token(TokenType::Export) {
-                self.bump();
-                Linkage::Export
-            } else {
-                Linkage::Local // default
-            };
-
-            if self.peek_token(TokenType::Type) {
-                if linkage != Linkage::Local {
-                    return Err(ParseError::new(
-                        "type aliases cannot be extern or export",
-                        self.pos(),
-                    ));
-                }
-                self.parse_type_alias(attributes)?;
-            } else if self.peek_token(TokenType::Global) {
-                self.parse_global(linkage, attributes)?;
-            } else if self.peek_token(TokenType::Function) {
-                self.parse_function(linkage, attributes)?;
-            } else {
-                return Err(ParseError::new(
-                    "expected 'type', 'function', or 'global'",
-                    self.pos(),
-                ));
-            }
-        }
-
-        // set up the validator
-        let validator = Validator::new(&self.tree);
-
-        // map validation errors to source positions
-        validator.validate().map_err(|error| {
-            let position = error
-                .anchor()
-                .and_then(|anchor| self.tree.get_span_by_id(anchor.node.id))
-                .map(|span| span.start as usize)
-                .unwrap_or_else(|| self.pos());
-            ParseError::new(error.to_string(), position)
-        })?;
-
-        Ok(())
-    }
-
     /// Parse a symbol name after `@`.
     pub(super) fn parse_symbol_name(&mut self) -> ParseResult<(String, usize)> {
         // read the base identifier segment
@@ -338,131 +283,19 @@ impl<'a> Parser<'a> {
         Some(name)
     }
 
-    /// Pre register all function names to allow forward references.
-    ///
-    /// This scans for `function @name` patterns without parsing anything else.
-    fn register_all_functions(&mut self) {
-        let saved_pos = self.pos;
-
-        // scan token by token looking for function declarations
-        while !self.peek_token(TokenType::End) {
-            // skip attributes
-            self.skip_attribute_tokens();
-
-            // skip optional linkage prefix
-            if self.peek_token(TokenType::Extern) || self.peek_token(TokenType::Export) {
-                self.bump();
-            }
-
-            // look for: function @name
-            if self.peek_token(TokenType::Function) {
-                self.bump();
-                if self.peek_token(TokenType::At) {
-                    self.bump();
-                    if let Some(name) = self.scan_symbol_name() {
-                        // register placeholder if not already known
-                        if !self.function_map.contains_key(&name) {
-                            let name_id = self.strings.intern(&name);
-                            let void_ty = self.intern_type(Type::Void);
-                            let parameter_attributes = Vec::new();
-                            let placeholder = Function {
-                                name: name_id,
-                                parameters: Vec::new(),
-                                parameter_names: Vec::new(),
-                                value_types: Vec::new(),
-                                return_type: void_ty,
-                                return_lifetime: Lifetime::Inferred,
-                                memory_effects: MemoryEffect::unknown(),
-                                call_behavior: CallBehavior::unknown(),
-                                alloc_size: None,
-                                parameter_attributes,
-                                return_attributes: PointerAttributes::default(),
-                                linkage: Linkage::Local,
-                                allocation: AllocationMode::Any,
-                                coroutine: None,
-                                execution_model: None,
-                                execution_stage: None,
-                                workgroup_size: None,
-                                closure_env_type: None,
-                                locals: Vec::new(),
-                                blocks: Vec::new(),
-                                entry: None,
-                                next_value_id: 0,
-                            };
-                            let id = self.tree.insert(placeholder);
-                            self.function_map.insert(name, id);
-                        }
-                        continue;
-                    }
+    /// Record the type for a value in the current function.
+    pub(super) fn record_value_type(&mut self, value: Value, ty: LocalNodeId<Type>) {
+        if let Some(function_id) = self.current_function {
+            let function = self.tree.get_mut(function_id);
+            let existing = function.value_type(value);
+            if let Some(existing) = existing {
+                if existing != ty {
+                    panic!("value {value:?} has mismatched types {existing:?} and {ty:?}");
                 }
+                return;
             }
 
-            self.bump();
-        }
-
-        self.pos = saved_pos;
-    }
-
-    /// Pre register all type aliases to allow forward references.
-    ///
-    /// This scans for `type @name` patterns without parsing anything else.
-    fn register_all_type_aliases(&mut self) {
-        let saved_pos = self.pos;
-
-        // scan token by token looking for type alias declarations
-        while !self.peek_token(TokenType::End) {
-            // skip attributes
-            self.skip_attribute_tokens();
-
-            // skip optional linkage prefix
-            if self.peek_token(TokenType::Extern) || self.peek_token(TokenType::Export) {
-                self.bump();
-            }
-
-            // look for: type @name
-            if self.peek_token(TokenType::Type) {
-                self.bump();
-                if self.peek_token(TokenType::At) {
-                    self.bump();
-                    if let Some(name) = self.scan_symbol_name() {
-                        // register placeholder if not already known
-                        if !self.type_alias_map.contains_key(&name) {
-                            let placeholder = self.tree.insert_type(Type::Void);
-                            self.type_alias_map.insert(name, placeholder);
-                        }
-                        continue;
-                    }
-                }
-            }
-
-            self.bump();
-        }
-
-        self.pos = saved_pos;
-    }
-
-    /// Skip attribute tokens during the pre scan.
-    fn skip_attribute_tokens(&mut self) {
-        // scan for attribute prefixes
-        while self.peek_token(TokenType::Hash) {
-            self.bump();
-
-            // require an opening bracket to start the attribute
-            if !self.peek_token(TokenType::OpenBracket) {
-                continue;
-            }
-
-            // consume the attribute contents
-            self.bump();
-            let mut depth = 1usize;
-            while depth > 0 && !self.peek_token(TokenType::End) {
-                if self.peek_token(TokenType::OpenBracket) {
-                    depth += 1;
-                } else if self.peek_token(TokenType::CloseBracket) {
-                    depth = depth.saturating_sub(1);
-                }
-                self.bump();
-            }
+            function.set_value_type(value, ty);
         }
     }
 }

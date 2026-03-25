@@ -1,16 +1,14 @@
 use std::str::FromStr;
 
 use crate::{
-    ArgumentSlice, AtomicRmwOperator, AtomicScope, BinaryOperator, Block, CallSite, CastOperator,
-    CheckConstraint, CheckTarget, DevirtualizationMetadata, Function, Instruction, InterfaceSlotId,
-    Intrinsic, LocalNodeId, MemoryOrdering, MemoryRegionSet, MemoryScope, MemorySemantics,
-    SwitchCase, TensorConvertMode, TensorConvolutionDimensionNumbers, TensorConvolutionWindow,
+    ArgumentSlice, AtomicRmwOperator, AtomicScope, BinaryOperator, CastOperator, Function,
+    Instruction, InterfaceSlotId, LocalNodeId, MemoryOrdering, MemoryRegionSet, MemoryScope,
+    MemorySemantics, TensorConvertMode, TensorConvolutionDimensionNumbers, TensorConvolutionWindow,
     TensorDotDimensionNumbers, TensorGatherDimensionNumbers, TensorReduceOperator,
-    TensorScatterDimensionNumbers, TensorScatterMode, Terminator, TrapKind, Type, UnaryOperator,
-    Value, VectorConvertMode, VectorReduceOperator, VtableSlotId,
+    TensorScatterDimensionNumbers, TensorScatterMode, Type, UnaryOperator, Value,
+    VectorConvertMode, VectorReduceOperator, VtableSlotId,
 };
 
-use super::constant::{parse_intrinsic_name, parse_memory_location};
 use super::error::{ParseError, ParseResult};
 use super::parser::Parser;
 use super::token::TokenType;
@@ -18,800 +16,54 @@ use super::token::TokenType;
 #[allow(clippy::type_complexity)]
 impl<'a> Parser<'a> {
     /// Parse an instruction.
-    ///
-    /// Instructions come in two forms:
-    /// - With destination: `vN = opcode ...`
-    /// - Without destination: `opcode ...`
     pub(super) fn eat_instruction(&mut self) -> ParseResult<LocalNodeId<Instruction>> {
-        // check if this is an instruction with destination (vN = ...)
-        let has_destination = self.peek_token(TokenType::Value);
-        if has_destination {
-            self.eat_instruction_with_destination()
-        } else {
-            self.eat_instruction_without_destination()
+        // optional destination
+        let mut destination = None;
+        let mut destination_type = None;
+        let mut instruction_span = None;
+        if self.peek_token(TokenType::Value) {
+            let (parsed_destination, parsed_type, parsed_span) = self.parse_typed_destination()?;
+            self.record_value_type(parsed_destination, parsed_type);
+            self.eat_token(TokenType::Equals)?;
+            destination = Some(parsed_destination);
+            destination_type = Some(parsed_type);
+            instruction_span = Some(parsed_span);
         }
-    }
 
-    /// Parse an instruction that produces a value: `vN = opcode ...`
-    fn eat_instruction_with_destination(&mut self) -> ParseResult<LocalNodeId<Instruction>> {
-        let (destination, destination_type, destination_span) = self.parse_typed_destination()?;
-        self.record_value_type(destination, destination_type);
-        self.eat_token(TokenType::Equals)?;
-        let dispatch_facts = None;
-
-        // opcode can be an identifier or the `struct` keyword
-        let (opcode_text, opcode_start) = self.eat_opcode()?;
-
-        let instruction = match opcode_text {
-            // constant
-            "iconst" => {
-                if let Some(token) = self.peek()
-                    && token.ty == TokenType::StringLiteral
-                {
-                    return Err(ParseError::invalid(
-                        "string constants must use globals",
-                        token.start,
-                    ));
-                }
-                let value = self.parse_constant_for_type(destination_type)?;
-                Instruction::Const { destination, value }
-            }
-
-            // binary ops
-            _ if opcode_text.parse::<BinaryOperator>().is_ok() => {
-                let operator = opcode_text.parse().unwrap();
-                let left = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let right = self.parse_value()?;
-                Instruction::Binary {
-                    destination,
-                    operator,
-                    left,
-                    right,
-                }
-            }
-
-            // unary ops
-            _ if opcode_text.parse::<UnaryOperator>().is_ok() => {
-                let operator = opcode_text.parse().unwrap();
-                let argument = self.parse_value()?;
-                Instruction::Unary {
-                    destination,
-                    operator,
-                    argument,
-                }
-            }
-
-            // cast ops
-            _ if opcode_text.parse::<CastOperator>().is_ok() => {
-                let operator = opcode_text.parse().unwrap();
-                let argument = self.parse_value()?;
-                self.eat_token(TokenType::Arrow)?;
-                let to_type = self.parse_type()?;
-                Instruction::Cast {
-                    destination,
-                    operator,
-                    argument,
-                    to_type,
-                }
-            }
-
-            // selection
-            "select" => {
-                let condition = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let then_value = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let else_value = self.parse_value()?;
-                Instruction::Select {
-                    destination,
-                    condition,
-                    then_value,
-                    else_value,
-                }
-            }
-
-            // local operations
-            "local.get" => {
-                let local = self.parse_local_ref()?;
-                Instruction::LocalGet { destination, local }
-            }
-            "local.addr" => {
-                let local = self.parse_local_ref()?;
-                let result_type = destination_type;
-                Instruction::LocalAddr {
-                    destination,
-                    local,
-                    result_type,
-                }
-            }
-
-            // global operations
-            "global.addr" => {
-                let global = self.parse_global_reference()?;
-                let result_type = destination_type;
-                Instruction::GlobalAddr {
-                    destination,
-                    global,
-                    result_type,
-                }
-            }
-            "global.const" => {
-                let global = self.parse_global_reference()?;
-                Instruction::GlobalConst {
-                    destination,
-                    global,
-                }
-            }
-            "function.addr" => {
-                let function = self.parse_function_reference()?;
-                Instruction::FunctionAddr {
-                    destination,
-                    function,
-                }
-            }
-            "function.env" => Instruction::FunctionEnv { destination },
-
-            // memory operations
-            "load" => {
-                let pointer = self.parse_value()?;
-                let result_type = destination_type;
-                Instruction::Load {
-                    destination,
-                    pointer,
-                    result_type,
-                }
-            }
-
-            // aggregate operations
-            "field.get" => {
-                let aggregate = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let index = self.parse_int_literal()? as u32;
-                Instruction::FieldGet {
-                    destination,
-                    aggregate,
-                    index,
-                }
-            }
-            "field.addr" => {
-                let aggregate = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let index = self.parse_int_literal()? as u32;
-                let result_type = destination_type;
-                Instruction::FieldAddr {
-                    destination,
-                    aggregate,
-                    index,
-                    result_type,
-                }
-            }
-            "field.set" => {
-                let aggregate = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let index = self.parse_int_literal()? as u32;
-                self.eat_token(TokenType::Comma)?;
-                let value = self.parse_value()?;
-                Instruction::FieldSet {
-                    destination,
-                    aggregate,
-                    index,
-                    value,
-                }
-            }
-            "element.get" => {
-                let array = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let index = self.parse_value()?;
-                Instruction::ElementGet {
-                    destination,
-                    array,
-                    index,
-                }
-            }
-            "element.addr" => {
-                let array = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let index = self.parse_value()?;
-                let result_type = destination_type;
-                Instruction::ElementAddr {
-                    destination,
-                    array,
-                    index,
-                    result_type,
-                }
-            }
-            "element.set" => {
-                let array = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let index = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let value = self.parse_value()?;
-                Instruction::ElementSet {
-                    destination,
-                    array,
-                    index,
-                    value,
-                }
-            }
-            "struct" => {
-                let ty = self.parse_type()?;
-                let args = self.parse_call_arguments()?;
-                let fields = self.tree.add_arguments(&args);
-                Instruction::Struct {
-                    destination,
-                    ty,
-                    fields,
-                }
-            }
-            "tuple" => {
-                let ty = self.parse_type()?;
-                let args = self.parse_call_arguments()?;
-                let elements = self.tree.add_arguments(&args);
-                Instruction::Tuple {
-                    destination,
-                    ty,
-                    elements,
-                }
-            }
-            "array" => {
-                let ty = self.parse_type()?;
-                let args = self.parse_call_arguments()?;
-                let elements = self.tree.add_arguments(&args);
-                Instruction::Array {
-                    destination,
-                    ty,
-                    elements,
-                }
-            }
-
-            // vector operations
-            "vector.splat" => {
-                let value = self.parse_value()?;
-                Instruction::VectorSplat { destination, value }
-            }
-            "vector.extract" => {
-                let vector = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let index = self.parse_value()?;
-                Instruction::VectorExtract {
-                    destination,
-                    vector,
-                    index,
-                }
-            }
-            "vector.insert" => {
-                let vector = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let index = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let value = self.parse_value()?;
-                Instruction::VectorInsert {
-                    destination,
-                    vector,
-                    index,
-                    value,
-                }
-            }
-            "vector.shuffle" => {
-                let left = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let right = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let mask = self.parse_u32_bracket_list()?;
-                Instruction::VectorShuffle {
-                    destination,
-                    left,
-                    right,
-                    mask,
-                }
-            }
-            "vector.select" => {
-                let mask = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let then_value = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let else_value = self.parse_value()?;
-                Instruction::VectorSelect {
-                    destination,
-                    mask,
-                    then_value,
-                    else_value,
-                }
-            }
-            "vector.reduce" => {
-                let operator = self.parse_vector_reduce_operator()?;
-                self.eat_token(TokenType::Comma)?;
-                let vector = self.parse_value()?;
-                Instruction::VectorReduce {
-                    destination,
-                    operator,
-                    vector,
-                }
-            }
-            "vector.compare" => {
-                let operator = self.parse_compare_operator()?;
-                self.eat_token(TokenType::Comma)?;
-                let left = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let right = self.parse_value()?;
-                Instruction::VectorCompare {
-                    destination,
-                    operator,
-                    left,
-                    right,
-                }
-            }
-            "vector.convert" => {
-                let mode = self.parse_vector_convert_mode()?;
-                self.eat_token(TokenType::Comma)?;
-                let vector = self.parse_value()?;
-                Instruction::VectorConvert {
-                    destination,
-                    mode,
-                    vector,
-                }
-            }
-
-            // tensor operations
-            "tensor.load" => {
-                let view = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let indices = self.parse_value_bracket_list()?;
-                let indices = self.tree.add_arguments(&indices);
-                Instruction::TensorLoad {
-                    destination,
-                    view,
-                    indices,
-                }
-            }
-            "tensor.reshape" => {
-                let tensor = self.parse_value()?;
-                let shape = if self.eat_token_maybe(TokenType::Comma) {
-                    let values = self.parse_value_bracket_list()?;
-                    self.tree.add_arguments(&values)
-                } else {
-                    ArgumentSlice::default()
-                };
-                Instruction::TensorReshape {
-                    destination,
-                    tensor,
-                    shape,
-                }
-            }
-            "tensor.broadcast" => {
-                let tensor = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let dimensions = self.parse_u32_bracket_list()?;
-                Instruction::TensorBroadcast {
-                    destination,
-                    tensor,
-                    dimensions,
-                }
-            }
-            "tensor.transpose" => {
-                let tensor = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let permutation = self.parse_u32_bracket_list()?;
-                Instruction::TensorTranspose {
-                    destination,
-                    tensor,
-                    permutation,
-                }
-            }
-            "tensor.cast" => {
-                let tensor = self.parse_value()?;
-                Instruction::TensorCast {
-                    destination,
-                    tensor,
-                }
-            }
-            "tensor.view" => {
-                let view = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let offsets = self.parse_named_value_list("offsets")?;
-                self.eat_token(TokenType::Comma)?;
-                let sizes = self.parse_named_value_list("sizes")?;
-                self.eat_token(TokenType::Comma)?;
-                let strides = self.parse_named_value_list("strides")?;
-                let arguments = self.pack_tensor_ranges(&offsets, &sizes, &strides)?;
-                let offsets_count = self.parse_u16_count(offsets.len(), "offsets count")?;
-                let sizes_count = self.parse_u16_count(sizes.len(), "sizes count")?;
-                let strides_count = self.parse_u16_count(strides.len(), "strides count")?;
-                Instruction::TensorView {
-                    destination,
-                    view,
-                    arguments,
-                    offsets_count,
-                    sizes_count,
-                    strides_count,
-                }
-            }
-            "tensor.slice" => {
-                let tensor = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let offsets = self.parse_named_value_list("offsets")?;
-                self.eat_token(TokenType::Comma)?;
-                let sizes = self.parse_named_value_list("sizes")?;
-                self.eat_token(TokenType::Comma)?;
-                let strides = self.parse_named_value_list("strides")?;
-                let arguments = self.pack_tensor_ranges(&offsets, &sizes, &strides)?;
-                let offsets_count = self.parse_u16_count(offsets.len(), "offsets count")?;
-                let sizes_count = self.parse_u16_count(sizes.len(), "sizes count")?;
-                let strides_count = self.parse_u16_count(strides.len(), "strides count")?;
-                Instruction::TensorSlice {
-                    destination,
-                    tensor,
-                    arguments,
-                    offsets_count,
-                    sizes_count,
-                    strides_count,
-                }
-            }
-            "tensor.pad" => {
-                let tensor = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let value = self.parse_named_value("value")?;
-                self.eat_token(TokenType::Comma)?;
-                let low = self.parse_named_value_list("low")?;
-                self.eat_token(TokenType::Comma)?;
-                let high = self.parse_named_value_list("high")?;
-                self.eat_token(TokenType::Comma)?;
-                let interior = self.parse_named_value_list("interior")?;
-                let arguments = self.pack_tensor_padding(&low, &high, &interior)?;
-                let low_count = self.parse_u16_count(low.len(), "low padding count")?;
-                let high_count = self.parse_u16_count(high.len(), "high padding count")?;
-                let interior_count =
-                    self.parse_u16_count(interior.len(), "interior padding count")?;
-                Instruction::TensorPad {
-                    destination,
-                    tensor,
-                    arguments,
-                    low_count,
-                    high_count,
-                    interior_count,
-                    value,
-                }
-            }
-            "tensor.concat" => {
-                let tensors = self.parse_value_bracket_list()?;
-                self.eat_token(TokenType::Comma)?;
-                let axis = self.parse_named_u32("axis")?;
-                let tensors = self.tree.add_arguments(&tensors);
-                Instruction::TensorConcat {
-                    destination,
-                    tensors,
-                    axis,
-                }
-            }
-            "tensor.compare" => {
-                let operator = self.parse_compare_operator()?;
-                self.eat_token(TokenType::Comma)?;
-                let left = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let right = self.parse_value()?;
-                Instruction::TensorCompare {
-                    destination,
-                    operator,
-                    left,
-                    right,
-                }
-            }
-            "tensor.select" => {
-                let mask = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let then_value = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let else_value = self.parse_value()?;
-                Instruction::TensorSelect {
-                    destination,
-                    mask,
-                    then_value,
-                    else_value,
-                }
-            }
-            "tensor.reduce" => {
-                let operator = self.parse_tensor_reduce_operator()?;
-                self.eat_token(TokenType::Comma)?;
-                let tensor = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let initial = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let axes = self.parse_named_u32_list("axes")?;
-                Instruction::TensorReduce {
-                    destination,
-                    operator,
-                    tensor,
-                    initial,
-                    axes,
-                }
-            }
-            "tensor.dot" => {
-                let left = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let right = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let dimensions = self.parse_tensor_dot_dimensions()?;
-                Instruction::TensorDot {
-                    destination,
-                    left,
-                    right,
-                    dimensions,
-                }
-            }
-            "tensor.convolution" => {
-                let input = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let kernel = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let dimensions = self.parse_tensor_convolution_dimensions()?;
-                let window = self.parse_tensor_convolution_window(&dimensions)?;
-                let (feature_group_count, batch_group_count) =
-                    self.parse_tensor_convolution_group_counts()?;
-                Instruction::TensorConvolution {
-                    destination,
-                    input,
-                    kernel,
-                    dimensions,
-                    window,
-                    feature_group_count,
-                    batch_group_count,
-                }
-            }
-            "tensor.gather" => {
-                let operand = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let indices = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let dimensions = self.parse_tensor_gather_dimensions()?;
-                self.eat_token(TokenType::Comma)?;
-                let slice_sizes = self.parse_named_u32_list("slice_sizes")?;
-                Instruction::TensorGather {
-                    destination,
-                    operand,
-                    indices,
-                    dimensions,
-                    slice_sizes,
-                }
-            }
-            "tensor.scatter" => {
-                let operand = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let indices = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let updates = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let dimensions = self.parse_tensor_scatter_dimensions()?;
-                let mode = self
-                    .parse_optional_named_scatter_mode()?
-                    .unwrap_or(TensorScatterMode::Replace);
-                Instruction::TensorScatter {
-                    destination,
-                    operand,
-                    indices,
-                    updates,
-                    dimensions,
-                    mode,
-                }
-            }
-            "tensor.convert" => {
-                let mode = self.parse_tensor_convert_mode()?;
-                self.eat_token(TokenType::Comma)?;
-                let tensor = self.parse_value()?;
-                Instruction::TensorConvert {
-                    destination,
-                    mode,
-                    tensor,
-                }
-            }
-
-            // function calls
-            "call" => {
-                let function = self.parse_function_reference()?;
-                let args = self.parse_call_arguments()?;
-                let arguments = self.tree.add_arguments(&args);
-                let signature = if self.eat_token_maybe(TokenType::Arrow) {
-                    self.parse_type()?
-                } else {
-                    self.signature_type_for_function(function)?
-                };
-                Instruction::Call {
-                    destination: Some(destination),
-                    function,
-                    arguments,
-                    signature,
-                    effects: None,
-                }
-            }
-            "call.virtual" => {
-                let receiver = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let declaring_type = self.parse_type()?;
-                self.eat_token(TokenType::Comma)?;
-                let slot_id = VtableSlotId::new(self.parse_int_literal()? as u32);
-                let args = self.parse_call_arguments()?;
-                let arguments = self.tree.add_arguments(&args);
-                self.eat_token(TokenType::Arrow)?;
-                let signature = self.parse_type()?;
-                Instruction::CallVirtual {
-                    destination: Some(destination),
-                    receiver,
-                    arguments,
-                    declaring_type,
-                    slot_id,
-                    signature,
-                    effects: None,
-                }
-            }
-            "call.interface" => {
-                let receiver = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let declaring_type = self.parse_type()?;
-                self.eat_token(TokenType::Comma)?;
-                let slot_id = InterfaceSlotId::new(self.parse_int_literal()? as u32);
-                let args = self.parse_call_arguments()?;
-                let arguments = self.tree.add_arguments(&args);
-                self.eat_token(TokenType::Arrow)?;
-                let signature = self.parse_type()?;
-                Instruction::CallInterface {
-                    destination: Some(destination),
-                    receiver,
-                    arguments,
-                    declaring_type,
-                    slot_id,
-                    signature,
-                    effects: None,
-                }
-            }
-            "call.indirect" => {
-                let callee = self.parse_value()?;
-                let (args, env) = self.parse_call_arguments_with_env()?;
-                let arguments = self.tree.add_arguments(&args);
-                self.eat_token(TokenType::Arrow)?;
-                let signature = self.parse_type()?;
-                Instruction::CallIndirect {
-                    destination: Some(destination),
-                    callee,
-                    env,
-                    arguments,
-                    signature,
-                    effects: None,
-                }
-            }
-
-            // allocation operations
-            "managed.alloc" => {
-                let layout = self.parse_type()?;
-                let result_type = destination_type;
-                Instruction::ManagedAlloc {
-                    destination,
-                    layout,
-                    result_type,
-                }
-            }
-            "managed.alloc_array" => {
-                let element = self.parse_type()?;
-                self.eat_token(TokenType::Comma)?;
-                let length = self.parse_value()?;
-                let result_type = destination_type;
-                Instruction::ManagedAllocArray {
-                    destination,
-                    element,
-                    length,
-                    result_type,
-                }
-            }
-            "raw.alloc" => {
-                let layout = self.parse_type()?;
-                let result_type = destination_type;
-                Instruction::RawAlloc {
-                    destination,
-                    layout,
-                    result_type,
-                }
-            }
-            "stack.alloc" => {
-                let layout = self.parse_type()?;
-                let result_type = destination_type;
-                Instruction::StackAlloc {
-                    destination,
-                    layout,
-                    result_type,
-                }
-            }
-
-            // atomic memory operations
-            "atomic.load" => {
-                let pointer = self.parse_value()?;
-                let (ordering, scope, memory_scope, semantics) = self.parse_atomic_attributes()?;
-                Instruction::AtomicLoad {
-                    destination,
-                    pointer,
-                    result_type: destination_type,
-                    ordering,
-                    scope,
-                    memory_scope,
-                    semantics,
-                }
-            }
-            "atomic.cas" | "atomic.cas.weak" => {
-                let pointer = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let expected = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let new_value = self.parse_value()?;
-                let (ordering, scope, memory_scope, semantics) = self.parse_atomic_attributes()?;
-                Instruction::AtomicCompareExchange {
-                    destination,
-                    pointer,
-                    expected,
-                    new_value,
-                    is_weak: opcode_text == "atomic.cas.weak",
-                    ordering,
-                    scope,
-                    memory_scope,
-                    semantics,
-                }
-            }
-            _ if opcode_text.starts_with("atomic.rmw.") => {
-                let operator = parse_atomic_rmw_operator(opcode_text, opcode_start)?;
-                let pointer = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let value = self.parse_value()?;
-                let (ordering, scope, memory_scope, semantics) = self.parse_atomic_attributes()?;
-                Instruction::AtomicRmw {
-                    destination,
-                    operator,
-                    pointer,
-                    value,
-                    ordering,
-                    scope,
-                    memory_scope,
-                    semantics,
-                }
-            }
-
-            // intrinsics: intrinsic.{name}(args)
-            _ if opcode_text.starts_with("intrinsic.") => {
-                let intrinsic = parse_intrinsic_name(opcode_text, opcode_start)?;
-                let args = self.parse_intrinsic_arguments(intrinsic)?;
-                let arguments = self.tree.add_arguments(&args);
-                Instruction::Intrinsic {
-                    destination: Some(destination),
-                    intrinsic,
-                    arguments,
-                }
-            }
-
-            _ => {
-                return Err(ParseError::invalid(
-                    &format!("instruction '{opcode_text}'"),
-                    opcode_start,
-                ));
-            }
-        };
-
-        let instruction_id = self.tree.insert(instruction);
-        self.tree.set_span(instruction_id, destination_span);
-        if let Some(facts) = dispatch_facts {
-            self.tree
-                .dispatch_table
-                .insert_callsite_metadata(CallSite::Instruction(instruction_id), facts);
-        }
-        Ok(instruction_id)
-    }
-
-    /// Parse an instruction without a destination: `opcode ...`
-    fn eat_instruction_without_destination(&mut self) -> ParseResult<LocalNodeId<Instruction>> {
-        let file_id = self.file_id;
+        // opcode
         let opcode = self
             .peek()
             .cloned()
             .ok_or_else(|| ParseError::unexpected_end("opcode", self.pos()))?;
         let (opcode_text, opcode_start) = self.eat_opcode()?;
-        let opcode_span = Self::span_for_token(file_id, &opcode);
-        let dispatch_facts = None;
+        let opcode_span = self.span_for_token(&opcode);
+        let instruction_span = instruction_span.unwrap_or(opcode_span);
 
+        // reject destinations on void instructions
+        if destination.is_some()
+            && matches!(
+                opcode_text,
+                "local.set"
+                    | "store"
+                    | "raw.drop"
+                    | "stack.drop"
+                    | "atomic.store"
+                    | "atomic.fence"
+                    | "barrier"
+                    | "assume"
+                    | "tensor.store"
+                    | "tensor.fill"
+                    | "tensor.copy"
+                    | "raw.free"
+            )
+        {
+            return Err(ParseError::invalid(
+                &format!("instruction '{opcode_text}'"),
+                opcode_start,
+            ));
+        }
+
+        // parse the operation
         let instruction = match opcode_text {
             // local operations
             "local.set" => {
@@ -821,7 +73,7 @@ impl<'a> Parser<'a> {
                 Instruction::LocalSet { local, value }
             }
 
-            // memory operations
+            // memory side effects
             "store" => {
                 let pointer = self.parse_value()?;
                 self.eat_token(TokenType::Comma)?;
@@ -872,7 +124,7 @@ impl<'a> Parser<'a> {
                 Instruction::Assume { condition }
             }
 
-            // tensor operations
+            // tensor side effects
             "tensor.store" => {
                 let view = self.parse_value()?;
                 self.eat_token(TokenType::Comma)?;
@@ -899,18 +151,14 @@ impl<'a> Parser<'a> {
                 Instruction::TensorCopy { target, source }
             }
 
-            // void calls
+            // calls and intrinsics
             "call" => {
-                let function = self.parse_function_reference()?;
-                let args = self.parse_call_arguments()?;
-                let arguments = self.tree.add_arguments(&args);
-                let signature = if self.eat_token_maybe(TokenType::Arrow) {
-                    self.parse_type()?
-                } else {
-                    self.signature_type_for_function(function)?
-                };
+                let (function, arguments) = self.parse_direct_call_target()?;
+                let arguments = self.tree.add_arguments(&arguments);
+                let signature = self.parse_direct_call_signature(function)?;
+
                 Instruction::Call {
-                    destination: None,
+                    destination,
                     function,
                     arguments,
                     signature,
@@ -918,17 +166,11 @@ impl<'a> Parser<'a> {
                 }
             }
             "call.virtual" => {
-                let receiver = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let declaring_type = self.parse_type()?;
-                self.eat_token(TokenType::Comma)?;
-                let slot_id = VtableSlotId::new(self.parse_int_literal()? as u32);
-                let args = self.parse_call_arguments()?;
-                let arguments = self.tree.add_arguments(&args);
-                self.eat_token(TokenType::Arrow)?;
-                let signature = self.parse_type()?;
+                let (receiver, declaring_type, slot_id, arguments, signature) =
+                    self.parse_virtual_call_target()?;
+                let arguments = self.tree.add_arguments(&arguments);
                 Instruction::CallVirtual {
-                    destination: None,
+                    destination,
                     receiver,
                     arguments,
                     declaring_type,
@@ -938,17 +180,11 @@ impl<'a> Parser<'a> {
                 }
             }
             "call.interface" => {
-                let receiver = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let declaring_type = self.parse_type()?;
-                self.eat_token(TokenType::Comma)?;
-                let slot_id = InterfaceSlotId::new(self.parse_int_literal()? as u32);
-                let args = self.parse_call_arguments()?;
-                let arguments = self.tree.add_arguments(&args);
-                self.eat_token(TokenType::Arrow)?;
-                let signature = self.parse_type()?;
+                let (receiver, declaring_type, slot_id, arguments, signature) =
+                    self.parse_interface_call_target()?;
+                let arguments = self.tree.add_arguments(&arguments);
                 Instruction::CallInterface {
-                    destination: None,
+                    destination,
                     receiver,
                     arguments,
                     declaring_type,
@@ -958,13 +194,10 @@ impl<'a> Parser<'a> {
                 }
             }
             "call.indirect" => {
-                let callee = self.parse_value()?;
-                let (args, env) = self.parse_call_arguments_with_env()?;
-                let arguments = self.tree.add_arguments(&args);
-                self.eat_token(TokenType::Arrow)?;
-                let signature = self.parse_type()?;
+                let (callee, arguments, env, signature) = self.parse_indirect_call_target()?;
+                let arguments = self.tree.add_arguments(&arguments);
                 Instruction::CallIndirect {
-                    destination: None,
+                    destination,
                     callee,
                     env,
                     arguments,
@@ -972,43 +205,749 @@ impl<'a> Parser<'a> {
                     effects: None,
                 }
             }
-
-            // allocation operations (no destination)
-            "raw.free" => {
-                let pointer = self.parse_value()?;
-                Instruction::RawFree { pointer }
-            }
-
-            // void intrinsics: intrinsic.{name}(args)
             _ if opcode_text.starts_with("intrinsic.") => {
-                let intrinsic = parse_intrinsic_name(opcode_text, opcode_start)?;
-                let args = self.parse_intrinsic_arguments(intrinsic)?;
-                let arguments = self.tree.add_arguments(&args);
+                let intrinsic = self.parse_intrinsic_name(opcode_text, opcode_start)?;
+                let arguments = self.parse_call_arguments()?;
+                let arguments = self.tree.add_arguments(&arguments);
                 Instruction::Intrinsic {
-                    destination: None,
+                    destination,
                     intrinsic,
                     arguments,
                 }
             }
 
+            // allocation side effects
+            "raw.free" => {
+                let pointer = self.parse_value()?;
+                Instruction::RawFree { pointer }
+            }
+
+            // result instructions
             _ => {
-                return Err(ParseError::invalid(
-                    &format!("instruction '{opcode_text}'"),
-                    opcode_start,
-                ));
+                let destination = destination.ok_or_else(|| {
+                    ParseError::invalid(&format!("instruction '{opcode_text}'"), opcode_start)
+                })?;
+                let destination_type = destination_type.ok_or_else(|| {
+                    ParseError::invalid(&format!("instruction '{opcode_text}'"), opcode_start)
+                })?;
+
+                match opcode_text {
+                    // constant
+                    "iconst" => {
+                        if let Some(token) = self.peek()
+                            && token.ty == TokenType::StringLiteral
+                        {
+                            return Err(ParseError::invalid(
+                                "string constants must use globals",
+                                token.start,
+                            ));
+                        }
+
+                        let value = self.parse_constant_for_type(destination_type)?;
+                        Instruction::Const { destination, value }
+                    }
+
+                    // binary ops
+                    _ if opcode_text.parse::<BinaryOperator>().is_ok() => {
+                        let operator = opcode_text.parse().unwrap();
+                        let left = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let right = self.parse_value()?;
+                        Instruction::Binary {
+                            destination,
+                            operator,
+                            left,
+                            right,
+                        }
+                    }
+
+                    // unary ops
+                    _ if opcode_text.parse::<UnaryOperator>().is_ok() => {
+                        let operator = opcode_text.parse().unwrap();
+                        let argument = self.parse_value()?;
+                        Instruction::Unary {
+                            destination,
+                            operator,
+                            argument,
+                        }
+                    }
+
+                    // cast ops
+                    _ if opcode_text.parse::<CastOperator>().is_ok() => {
+                        let operator = opcode_text.parse().unwrap();
+                        let argument = self.parse_value()?;
+                        self.eat_token(TokenType::Arrow)?;
+                        let to_type = self.parse_type()?;
+                        Instruction::Cast {
+                            destination,
+                            operator,
+                            argument,
+                            to_type,
+                        }
+                    }
+
+                    // selection
+                    "select" => {
+                        let condition = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let then_value = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let else_value = self.parse_value()?;
+                        Instruction::Select {
+                            destination,
+                            condition,
+                            then_value,
+                            else_value,
+                        }
+                    }
+
+                    // local operations
+                    "local.get" => {
+                        let local = self.parse_local_ref()?;
+                        Instruction::LocalGet { destination, local }
+                    }
+                    "local.addr" => {
+                        let local = self.parse_local_ref()?;
+                        Instruction::LocalAddr {
+                            destination,
+                            local,
+                            result_type: destination_type,
+                        }
+                    }
+
+                    // global operations
+                    "global.addr" => {
+                        let global = self.parse_global_reference()?;
+                        Instruction::GlobalAddr {
+                            destination,
+                            global,
+                            result_type: destination_type,
+                        }
+                    }
+                    "global.const" => {
+                        let global = self.parse_global_reference()?;
+                        Instruction::GlobalConst {
+                            destination,
+                            global,
+                        }
+                    }
+                    "function.addr" => {
+                        let function = self.parse_function_reference()?;
+                        Instruction::FunctionAddr {
+                            destination,
+                            function,
+                        }
+                    }
+                    "function.env" => Instruction::FunctionEnv { destination },
+
+                    // memory operations
+                    "load" => {
+                        let pointer = self.parse_value()?;
+                        Instruction::Load {
+                            destination,
+                            pointer,
+                            result_type: destination_type,
+                        }
+                    }
+
+                    // aggregate operations
+                    "field.get" => {
+                        let aggregate = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let index = self.parse_int_literal()? as u32;
+                        Instruction::FieldGet {
+                            destination,
+                            aggregate,
+                            index,
+                        }
+                    }
+                    "field.addr" => {
+                        let aggregate = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let index = self.parse_int_literal()? as u32;
+                        Instruction::FieldAddr {
+                            destination,
+                            aggregate,
+                            index,
+                            result_type: destination_type,
+                        }
+                    }
+                    "field.set" => {
+                        let aggregate = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let index = self.parse_int_literal()? as u32;
+                        self.eat_token(TokenType::Comma)?;
+                        let value = self.parse_value()?;
+                        Instruction::FieldSet {
+                            destination,
+                            aggregate,
+                            index,
+                            value,
+                        }
+                    }
+                    "element.get" => {
+                        let array = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let index = self.parse_value()?;
+                        Instruction::ElementGet {
+                            destination,
+                            array,
+                            index,
+                        }
+                    }
+                    "element.addr" => {
+                        let array = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let index = self.parse_value()?;
+                        Instruction::ElementAddr {
+                            destination,
+                            array,
+                            index,
+                            result_type: destination_type,
+                        }
+                    }
+                    "element.set" => {
+                        let array = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let index = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let value = self.parse_value()?;
+                        Instruction::ElementSet {
+                            destination,
+                            array,
+                            index,
+                            value,
+                        }
+                    }
+                    "struct" => {
+                        let ty = self.parse_type()?;
+                        let fields = self.parse_call_arguments()?;
+                        let fields = self.tree.add_arguments(&fields);
+                        Instruction::Struct {
+                            destination,
+                            ty,
+                            fields,
+                        }
+                    }
+                    "tuple" => {
+                        let ty = self.parse_type()?;
+                        let elements = self.parse_call_arguments()?;
+                        let elements = self.tree.add_arguments(&elements);
+                        Instruction::Tuple {
+                            destination,
+                            ty,
+                            elements,
+                        }
+                    }
+                    "array" => {
+                        let ty = self.parse_type()?;
+                        let elements = self.parse_call_arguments()?;
+                        let elements = self.tree.add_arguments(&elements);
+                        Instruction::Array {
+                            destination,
+                            ty,
+                            elements,
+                        }
+                    }
+
+                    // vector operations
+                    "vector.splat" => {
+                        let value = self.parse_value()?;
+                        Instruction::VectorSplat { destination, value }
+                    }
+                    "vector.extract" => {
+                        let vector = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let index = self.parse_value()?;
+                        Instruction::VectorExtract {
+                            destination,
+                            vector,
+                            index,
+                        }
+                    }
+                    "vector.insert" => {
+                        let vector = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let index = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let value = self.parse_value()?;
+                        Instruction::VectorInsert {
+                            destination,
+                            vector,
+                            index,
+                            value,
+                        }
+                    }
+                    "vector.shuffle" => {
+                        let left = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let right = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let mask = self.parse_u32_bracket_list()?;
+                        Instruction::VectorShuffle {
+                            destination,
+                            left,
+                            right,
+                            mask,
+                        }
+                    }
+                    "vector.select" => {
+                        let mask = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let then_value = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let else_value = self.parse_value()?;
+                        Instruction::VectorSelect {
+                            destination,
+                            mask,
+                            then_value,
+                            else_value,
+                        }
+                    }
+                    "vector.reduce" => {
+                        let operator = self.parse_vector_reduce_operator()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let vector = self.parse_value()?;
+                        Instruction::VectorReduce {
+                            destination,
+                            operator,
+                            vector,
+                        }
+                    }
+                    "vector.compare" => {
+                        let operator = self.parse_compare_operator()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let left = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let right = self.parse_value()?;
+                        Instruction::VectorCompare {
+                            destination,
+                            operator,
+                            left,
+                            right,
+                        }
+                    }
+                    "vector.convert" => {
+                        let mode = self.parse_vector_convert_mode()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let vector = self.parse_value()?;
+                        Instruction::VectorConvert {
+                            destination,
+                            mode,
+                            vector,
+                        }
+                    }
+
+                    // tensor operations
+                    "tensor.load" => {
+                        let view = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let indices = self.parse_value_bracket_list()?;
+                        let indices = self.tree.add_arguments(&indices);
+                        Instruction::TensorLoad {
+                            destination,
+                            view,
+                            indices,
+                        }
+                    }
+                    "tensor.reshape" => {
+                        let tensor = self.parse_value()?;
+                        let shape = if self.eat_token_maybe(TokenType::Comma) {
+                            let values = self.parse_value_bracket_list()?;
+                            self.tree.add_arguments(&values)
+                        } else {
+                            ArgumentSlice::default()
+                        };
+                        Instruction::TensorReshape {
+                            destination,
+                            tensor,
+                            shape,
+                        }
+                    }
+                    "tensor.broadcast" => {
+                        let tensor = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let dimensions = self.parse_u32_bracket_list()?;
+                        Instruction::TensorBroadcast {
+                            destination,
+                            tensor,
+                            dimensions,
+                        }
+                    }
+                    "tensor.transpose" => {
+                        let tensor = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let permutation = self.parse_u32_bracket_list()?;
+                        Instruction::TensorTranspose {
+                            destination,
+                            tensor,
+                            permutation,
+                        }
+                    }
+                    "tensor.cast" => {
+                        let tensor = self.parse_value()?;
+                        Instruction::TensorCast {
+                            destination,
+                            tensor,
+                        }
+                    }
+                    "tensor.view" => {
+                        let view = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        self.eat_named_key("offsets")?;
+                        let offsets = self.parse_value_bracket_list()?;
+                        self.eat_token(TokenType::Comma)?;
+                        self.eat_named_key("sizes")?;
+                        let sizes = self.parse_value_bracket_list()?;
+                        self.eat_token(TokenType::Comma)?;
+                        self.eat_named_key("strides")?;
+                        let strides = self.parse_value_bracket_list()?;
+
+                        // range payload
+                        let mut arguments =
+                            Vec::with_capacity(offsets.len() + sizes.len() + strides.len());
+                        arguments.extend_from_slice(&offsets);
+                        arguments.extend_from_slice(&sizes);
+                        arguments.extend_from_slice(&strides);
+                        let arguments = self.tree.add_arguments(&arguments);
+
+                        // range counts
+                        let offsets_count = u16::try_from(offsets.len())
+                            .map_err(|_| ParseError::invalid("offsets count", self.pos()))?;
+                        let sizes_count = u16::try_from(sizes.len())
+                            .map_err(|_| ParseError::invalid("sizes count", self.pos()))?;
+                        let strides_count = u16::try_from(strides.len())
+                            .map_err(|_| ParseError::invalid("strides count", self.pos()))?;
+
+                        Instruction::TensorView {
+                            destination,
+                            view,
+                            arguments,
+                            offsets_count,
+                            sizes_count,
+                            strides_count,
+                        }
+                    }
+                    "tensor.slice" => {
+                        let tensor = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        self.eat_named_key("offsets")?;
+                        let offsets = self.parse_value_bracket_list()?;
+                        self.eat_token(TokenType::Comma)?;
+                        self.eat_named_key("sizes")?;
+                        let sizes = self.parse_value_bracket_list()?;
+                        self.eat_token(TokenType::Comma)?;
+                        self.eat_named_key("strides")?;
+                        let strides = self.parse_value_bracket_list()?;
+
+                        // range payload
+                        let mut arguments =
+                            Vec::with_capacity(offsets.len() + sizes.len() + strides.len());
+                        arguments.extend_from_slice(&offsets);
+                        arguments.extend_from_slice(&sizes);
+                        arguments.extend_from_slice(&strides);
+                        let arguments = self.tree.add_arguments(&arguments);
+
+                        // range counts
+                        let offsets_count = u16::try_from(offsets.len())
+                            .map_err(|_| ParseError::invalid("offsets count", self.pos()))?;
+                        let sizes_count = u16::try_from(sizes.len())
+                            .map_err(|_| ParseError::invalid("sizes count", self.pos()))?;
+                        let strides_count = u16::try_from(strides.len())
+                            .map_err(|_| ParseError::invalid("strides count", self.pos()))?;
+
+                        Instruction::TensorSlice {
+                            destination,
+                            tensor,
+                            arguments,
+                            offsets_count,
+                            sizes_count,
+                            strides_count,
+                        }
+                    }
+                    "tensor.pad" => {
+                        let tensor = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        self.eat_named_key("value")?;
+                        let value = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        self.eat_named_key("low")?;
+                        let low = self.parse_value_bracket_list()?;
+                        self.eat_token(TokenType::Comma)?;
+                        self.eat_named_key("high")?;
+                        let high = self.parse_value_bracket_list()?;
+                        self.eat_token(TokenType::Comma)?;
+                        self.eat_named_key("interior")?;
+                        let interior = self.parse_value_bracket_list()?;
+
+                        // padding payload
+                        let mut arguments =
+                            Vec::with_capacity(low.len() + high.len() + interior.len());
+                        arguments.extend_from_slice(&low);
+                        arguments.extend_from_slice(&high);
+                        arguments.extend_from_slice(&interior);
+                        let arguments = self.tree.add_arguments(&arguments);
+
+                        // padding counts
+                        let low_count = u16::try_from(low.len())
+                            .map_err(|_| ParseError::invalid("low padding count", self.pos()))?;
+                        let high_count = u16::try_from(high.len())
+                            .map_err(|_| ParseError::invalid("high padding count", self.pos()))?;
+                        let interior_count = u16::try_from(interior.len()).map_err(|_| {
+                            ParseError::invalid("interior padding count", self.pos())
+                        })?;
+
+                        Instruction::TensorPad {
+                            destination,
+                            tensor,
+                            arguments,
+                            low_count,
+                            high_count,
+                            interior_count,
+                            value,
+                        }
+                    }
+                    "tensor.concat" => {
+                        let tensors = self.parse_value_bracket_list()?;
+                        self.eat_token(TokenType::Comma)?;
+                        self.eat_named_key("axis")?;
+                        let axis = self.parse_int_as_u32()?;
+                        let tensors = self.tree.add_arguments(&tensors);
+                        Instruction::TensorConcat {
+                            destination,
+                            tensors,
+                            axis,
+                        }
+                    }
+                    "tensor.compare" => {
+                        let operator = self.parse_compare_operator()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let left = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let right = self.parse_value()?;
+                        Instruction::TensorCompare {
+                            destination,
+                            operator,
+                            left,
+                            right,
+                        }
+                    }
+                    "tensor.select" => {
+                        let mask = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let then_value = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let else_value = self.parse_value()?;
+                        Instruction::TensorSelect {
+                            destination,
+                            mask,
+                            then_value,
+                            else_value,
+                        }
+                    }
+                    "tensor.reduce" => {
+                        let operator = self.parse_tensor_reduce_operator()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let tensor = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let initial = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        self.eat_named_key("axes")?;
+                        let axes = self.parse_u32_bracket_list()?;
+                        Instruction::TensorReduce {
+                            destination,
+                            operator,
+                            tensor,
+                            initial,
+                            axes,
+                        }
+                    }
+                    "tensor.dot" => {
+                        let left = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let right = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let dimensions = self.parse_tensor_dot_dimensions()?;
+                        Instruction::TensorDot {
+                            destination,
+                            left,
+                            right,
+                            dimensions,
+                        }
+                    }
+                    "tensor.convolution" => {
+                        let input = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let kernel = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let dimensions = self.parse_tensor_convolution_dimensions()?;
+                        let window = self.parse_tensor_convolution_window(&dimensions)?;
+                        let (feature_group_count, batch_group_count) =
+                            self.parse_tensor_convolution_group_counts()?;
+                        Instruction::TensorConvolution {
+                            destination,
+                            input,
+                            kernel,
+                            dimensions,
+                            window,
+                            feature_group_count,
+                            batch_group_count,
+                        }
+                    }
+                    "tensor.gather" => {
+                        let operand = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let indices = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let dimensions = self.parse_tensor_gather_dimensions()?;
+                        self.eat_token(TokenType::Comma)?;
+                        self.eat_named_key("slice_sizes")?;
+                        let slice_sizes = self.parse_u32_bracket_list()?;
+                        Instruction::TensorGather {
+                            destination,
+                            operand,
+                            indices,
+                            dimensions,
+                            slice_sizes,
+                        }
+                    }
+                    "tensor.scatter" => {
+                        let operand = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let indices = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let updates = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let dimensions = self.parse_tensor_scatter_dimensions()?;
+                        let mode = self
+                            .parse_optional_scatter_mode()?
+                            .unwrap_or(TensorScatterMode::Replace);
+                        Instruction::TensorScatter {
+                            destination,
+                            operand,
+                            indices,
+                            updates,
+                            dimensions,
+                            mode,
+                        }
+                    }
+                    "tensor.convert" => {
+                        let mode = self.parse_tensor_convert_mode()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let tensor = self.parse_value()?;
+                        Instruction::TensorConvert {
+                            destination,
+                            mode,
+                            tensor,
+                        }
+                    }
+
+                    // allocation operations
+                    "managed.alloc" => {
+                        let layout = self.parse_type()?;
+                        Instruction::ManagedAlloc {
+                            destination,
+                            layout,
+                            result_type: destination_type,
+                        }
+                    }
+                    "managed.alloc_array" => {
+                        let element = self.parse_type()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let length = self.parse_value()?;
+                        Instruction::ManagedAllocArray {
+                            destination,
+                            element,
+                            length,
+                            result_type: destination_type,
+                        }
+                    }
+                    "raw.alloc" => {
+                        let layout = self.parse_type()?;
+                        Instruction::RawAlloc {
+                            destination,
+                            layout,
+                            result_type: destination_type,
+                        }
+                    }
+                    "stack.alloc" => {
+                        let layout = self.parse_type()?;
+                        Instruction::StackAlloc {
+                            destination,
+                            layout,
+                            result_type: destination_type,
+                        }
+                    }
+
+                    // atomic memory operations
+                    "atomic.load" => {
+                        let pointer = self.parse_value()?;
+                        let (ordering, scope, memory_scope, semantics) =
+                            self.parse_atomic_attributes()?;
+                        Instruction::AtomicLoad {
+                            destination,
+                            pointer,
+                            result_type: destination_type,
+                            ordering,
+                            scope,
+                            memory_scope,
+                            semantics,
+                        }
+                    }
+                    "atomic.cas" | "atomic.cas.weak" => {
+                        let pointer = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let expected = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let new_value = self.parse_value()?;
+                        let (ordering, scope, memory_scope, semantics) =
+                            self.parse_atomic_attributes()?;
+                        Instruction::AtomicCompareExchange {
+                            destination,
+                            pointer,
+                            expected,
+                            new_value,
+                            is_weak: opcode_text == "atomic.cas.weak",
+                            ordering,
+                            scope,
+                            memory_scope,
+                            semantics,
+                        }
+                    }
+                    _ if opcode_text.starts_with("atomic.rmw.") => {
+                        let operator = self.parse_atomic_rmw_operator(opcode_text, opcode_start)?;
+                        let pointer = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let value = self.parse_value()?;
+                        let (ordering, scope, memory_scope, semantics) =
+                            self.parse_atomic_attributes()?;
+                        Instruction::AtomicRmw {
+                            destination,
+                            operator,
+                            pointer,
+                            value,
+                            ordering,
+                            scope,
+                            memory_scope,
+                            semantics,
+                        }
+                    }
+
+                    _ => {
+                        return Err(ParseError::invalid(
+                            &format!("instruction '{opcode_text}'"),
+                            opcode_start,
+                        ));
+                    }
+                }
             }
         };
 
+        // record the instruction
         let instruction_id = self.tree.insert(instruction);
-        self.tree.set_span(instruction_id, opcode_span);
-        if let Some(facts) = dispatch_facts {
-            self.tree
-                .dispatch_table
-                .insert_callsite_metadata(CallSite::Instruction(instruction_id), facts);
-        }
+        self.tree.set_span(instruction_id, instruction_span);
         Ok(instruction_id)
     }
-
     /// Parse a bracketed list of values.
     fn parse_value_bracket_list(&mut self) -> ParseResult<Vec<Value>> {
         // open the list
@@ -1030,28 +969,28 @@ impl<'a> Parser<'a> {
 
     /// Parse a bracketed list of u32 values.
     fn parse_u32_bracket_list(&mut self) -> ParseResult<Vec<u32>> {
-        // open the list
-        self.eat_token(TokenType::OpenBracket)?;
-        let mut values = Vec::new();
-
-        // read values
-        while !self.peek_token(TokenType::CloseBracket) {
-            let value = self.parse_int_literal()?;
-            let value =
-                u32::try_from(value).map_err(|_| ParseError::invalid("u32 literal", self.pos()))?;
-            values.push(value);
-            if !self.eat_token_maybe(TokenType::Comma) {
-                break;
-            }
-        }
-
-        // close the list
-        self.eat_token(TokenType::CloseBracket)?;
-        Ok(values)
+        let values = self.parse_int_bracket_list()?;
+        values
+            .into_iter()
+            .map(|value| {
+                u32::try_from(value).map_err(|_| ParseError::invalid("u32 literal", self.pos()))
+            })
+            .collect()
     }
 
     /// Parse a bracketed list of u64 values.
     fn parse_u64_bracket_list(&mut self) -> ParseResult<Vec<u64>> {
+        let values = self.parse_int_bracket_list()?;
+        values
+            .into_iter()
+            .map(|value| {
+                u64::try_from(value).map_err(|_| ParseError::invalid("u64 literal", self.pos()))
+            })
+            .collect()
+    }
+
+    /// Parse a bracketed list of integer values.
+    fn parse_int_bracket_list(&mut self) -> ParseResult<Vec<i64>> {
         // open the list
         self.eat_token(TokenType::OpenBracket)?;
         let mut values = Vec::new();
@@ -1059,8 +998,6 @@ impl<'a> Parser<'a> {
         // read values
         while !self.peek_token(TokenType::CloseBracket) {
             let value = self.parse_int_literal()?;
-            let value =
-                u64::try_from(value).map_err(|_| ParseError::invalid("u64 literal", self.pos()))?;
             values.push(value);
             if !self.eat_token_maybe(TokenType::Comma) {
                 break;
@@ -1093,57 +1030,23 @@ impl<'a> Parser<'a> {
         Ok(values)
     }
 
-    /// Parse a named value list like `name=[v0, v1]`.
-    fn parse_named_value_list(&mut self, name: &str) -> ParseResult<Vec<Value>> {
-        // validate the list name
-        let token = self.eat_token(TokenType::Identifier)?;
-        if token.text != name {
-            return Err(ParseError::invalid(name, token.start));
+    /// Parse one named assignment key like `name=`.
+    fn eat_named_key(&mut self, name: &str) -> ParseResult<()> {
+        let (key, key_start) = self.eat_assignment_key()?;
+        if key != name {
+            return Err(ParseError::invalid(name, key_start));
         }
-        self.eat_token(TokenType::Equals)?;
 
-        // parse the list
-        self.parse_value_bracket_list()
+        Ok(())
     }
 
-    /// Parse a named u32 list like `name=[0, 1]`.
-    fn parse_named_u32_list(&mut self, name: &str) -> ParseResult<Vec<u32>> {
-        // validate the list name
+    /// Parse one assignment key like `name=`.
+    fn eat_assignment_key(&mut self) -> ParseResult<(&'a str, usize)> {
         let token = self.eat_token(TokenType::Identifier)?;
-        if token.text != name {
-            return Err(ParseError::invalid(name, token.start));
-        }
+        let text = token.text;
+        let start = token.start;
         self.eat_token(TokenType::Equals)?;
-
-        // parse the list
-        self.parse_u32_bracket_list()
-    }
-
-    /// Parse a named u32 value like `axis=0`.
-    fn parse_named_u32(&mut self, name: &str) -> ParseResult<u32> {
-        // validate the name
-        let token = self.eat_token(TokenType::Identifier)?;
-        if token.text != name {
-            return Err(ParseError::invalid(name, token.start));
-        }
-        self.eat_token(TokenType::Equals)?;
-
-        // parse the literal
-        let value = self.parse_int_literal()?;
-        u32::try_from(value).map_err(|_| ParseError::invalid("u32 literal", self.pos()))
-    }
-
-    /// Parse a named value like `value=v0`.
-    fn parse_named_value(&mut self, name: &str) -> ParseResult<Value> {
-        // validate the name
-        let token = self.eat_token(TokenType::Identifier)?;
-        if token.text != name {
-            return Err(ParseError::invalid(name, token.start));
-        }
-        self.eat_token(TokenType::Equals)?;
-
-        // parse the value
-        self.parse_value()
+        Ok((text, start))
     }
 
     /// Parse a vector reduction operator.
@@ -1192,7 +1095,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse an optional tensor scatter mode.
-    fn parse_optional_named_scatter_mode(&mut self) -> ParseResult<Option<TensorScatterMode>> {
+    fn parse_optional_scatter_mode(&mut self) -> ParseResult<Option<TensorScatterMode>> {
         // check for a comma followed by the mode
         if !self.peek_token(TokenType::Comma) {
             return Ok(None);
@@ -1224,13 +1127,9 @@ impl<'a> Parser<'a> {
         let mut lhs_contracting = None;
         let mut rhs_contracting = None;
         while !self.peek_token(TokenType::CloseParen) {
-            let (key_text, key_start) = {
-                let key = self.eat_token(TokenType::Identifier)?;
-                (key.text.to_string(), key.start)
-            };
-            self.eat_token(TokenType::Equals)?;
+            let (key, key_start) = self.eat_assignment_key()?;
             let list = self.parse_u32_bracket_list()?;
-            match key_text.as_str() {
+            match key {
                 "lhs_batch" => lhs_batch = Some(list),
                 "rhs_batch" => rhs_batch = Some(list),
                 "lhs_contract" => lhs_contracting = Some(list),
@@ -1281,12 +1180,8 @@ impl<'a> Parser<'a> {
         let mut output_feature = None;
         let mut output_spatial = None;
         while !self.peek_token(TokenType::CloseParen) {
-            let (key_text, key_start) = {
-                let key = self.eat_token(TokenType::Identifier)?;
-                (key.text.to_string(), key.start)
-            };
-            self.eat_token(TokenType::Equals)?;
-            match key_text.as_str() {
+            let (key, key_start) = self.eat_assignment_key()?;
+            match key {
                 "input_batch" => input_batch = Some(self.parse_int_as_u32()?),
                 "input_feature" => input_feature = Some(self.parse_int_as_u32()?),
                 "input_spatial" => input_spatial = Some(self.parse_u32_bracket_list()?),
@@ -1372,12 +1267,8 @@ impl<'a> Parser<'a> {
 
             // consume the window key
             self.eat_token(TokenType::Comma)?;
-            let (key_text, key_start) = {
-                let token = self.eat_token(TokenType::Identifier)?;
-                (token.text.to_string(), token.start)
-            };
-            self.eat_token(TokenType::Equals)?;
-            match key_text.as_str() {
+            let (key, key_start) = self.eat_assignment_key()?;
+            match key {
                 "strides" => strides = Some(self.parse_u64_bracket_list()?),
                 "padding_low" => padding_low = Some(self.parse_u64_bracket_list()?),
                 "padding_high" => padding_high = Some(self.parse_u64_bracket_list()?),
@@ -1407,13 +1298,9 @@ impl<'a> Parser<'a> {
         let mut batch_group_count = None;
         while self.peek_token(TokenType::Comma) {
             self.eat_token(TokenType::Comma)?;
-            let (key_text, key_start) = {
-                let token = self.eat_token(TokenType::Identifier)?;
-                (token.text.to_string(), token.start)
-            };
-            self.eat_token(TokenType::Equals)?;
+            let (key, key_start) = self.eat_assignment_key()?;
             let value = self.parse_int_as_u32()?;
-            match key_text.as_str() {
+            match key {
                 "feature_group" => feature_group_count = Some(value),
                 "batch_group" => batch_group_count = Some(value),
                 _ => {
@@ -1443,12 +1330,8 @@ impl<'a> Parser<'a> {
         let mut start_index_map = None;
         let mut index_vector_dim = None;
         while !self.peek_token(TokenType::CloseParen) {
-            let (key_text, key_start) = {
-                let key = self.eat_token(TokenType::Identifier)?;
-                (key.text.to_string(), key.start)
-            };
-            self.eat_token(TokenType::Equals)?;
-            match key_text.as_str() {
+            let (key, key_start) = self.eat_assignment_key()?;
+            match key {
                 "offset_dims" => offset_dims = Some(self.parse_u32_bracket_list()?),
                 "collapsed_slice_dims" => {
                     collapsed_slice_dims = Some(self.parse_u32_bracket_list()?);
@@ -1496,12 +1379,8 @@ impl<'a> Parser<'a> {
         let mut scatter_dims_to_operand_dims = None;
         let mut index_vector_dim = None;
         while !self.peek_token(TokenType::CloseParen) {
-            let (key_text, key_start) = {
-                let key = self.eat_token(TokenType::Identifier)?;
-                (key.text.to_string(), key.start)
-            };
-            self.eat_token(TokenType::Equals)?;
-            match key_text.as_str() {
+            let (key, key_start) = self.eat_assignment_key()?;
+            match key {
                 "update_window_dims" => update_window_dims = Some(self.parse_u32_bracket_list()?),
                 "inserted_window_dims" => {
                     inserted_window_dims = Some(self.parse_u32_bracket_list()?);
@@ -1536,43 +1415,6 @@ impl<'a> Parser<'a> {
         })
     }
 
-    /// Pack tensor range lists into a single argument slice.
-    fn pack_tensor_ranges(
-        &mut self,
-        offsets: &[Value],
-        sizes: &[Value],
-        strides: &[Value],
-    ) -> ParseResult<ArgumentSlice> {
-        // build the packed argument list
-        let mut values = Vec::with_capacity(offsets.len() + sizes.len() + strides.len());
-        values.extend_from_slice(offsets);
-        values.extend_from_slice(sizes);
-        values.extend_from_slice(strides);
-
-        Ok(self.tree.add_arguments(&values))
-    }
-
-    /// Pack tensor padding lists into a single argument slice.
-    fn pack_tensor_padding(
-        &mut self,
-        low: &[Value],
-        high: &[Value],
-        interior: &[Value],
-    ) -> ParseResult<ArgumentSlice> {
-        // build the packed argument list
-        let mut values = Vec::with_capacity(low.len() + high.len() + interior.len());
-        values.extend_from_slice(low);
-        values.extend_from_slice(high);
-        values.extend_from_slice(interior);
-
-        Ok(self.tree.add_arguments(&values))
-    }
-
-    /// Convert a list length into u16 for instruction metadata.
-    fn parse_u16_count(&mut self, count: usize, context: &str) -> ParseResult<u16> {
-        u16::try_from(count).map_err(|_| ParseError::invalid(context, self.pos()))
-    }
-
     /// Parse an integer literal as u32.
     fn parse_int_as_u32(&mut self) -> ParseResult<u32> {
         // read the literal
@@ -1580,764 +1422,91 @@ impl<'a> Parser<'a> {
         u32::try_from(value).map_err(|_| ParseError::invalid("u32 literal", self.pos()))
     }
 
-    /// Parse a terminator and optional dynamic dispatch metadata.
-    pub(super) fn parse_terminator(
+    /// Parse one direct call target and arguments.
+    pub(super) fn parse_direct_call_target(
         &mut self,
-    ) -> ParseResult<(Terminator, Option<DevirtualizationMetadata>)> {
-        let token = self
-            .peek()
-            .ok_or_else(|| ParseError::unexpected_end("terminator", self.pos()))?;
-
-        match token.ty {
-            TokenType::Return => {
-                self.bump();
-                let value = if self.peek_token(TokenType::Value) {
-                    Some(self.parse_value()?)
-                } else {
-                    None
-                };
-                Ok((Terminator::Return { value }, None))
-            }
-
-            TokenType::Call => {
-                self.bump();
-                let function = self.parse_function_reference()?;
-                let arguments = self.parse_call_arguments()?;
-                let (normal_target, normal_arguments, unwind_target, unwind_arguments) =
-                    self.parse_call_continuations()?;
-                Ok((
-                    Terminator::Call {
-                        function,
-                        arguments,
-                        normal_target,
-                        normal_arguments,
-                        unwind_target,
-                        unwind_arguments,
-                    },
-                    None,
-                ))
-            }
-
-            TokenType::Jump => {
-                self.bump();
-                let target = self.parse_block_ref()?;
-                let arguments = if self.eat_token_maybe(TokenType::OpenParen) {
-                    let args = self.parse_value_list()?;
-                    self.eat_token(TokenType::CloseParen)?;
-                    args
-                } else {
-                    Vec::new()
-                };
-                Ok((Terminator::Jump { target, arguments }, None))
-            }
-
-            TokenType::Branch => {
-                self.bump();
-                let condition = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let then_target = self.parse_block_ref()?;
-                let then_arguments = if self.eat_token_maybe(TokenType::OpenParen) {
-                    let args = self.parse_value_list()?;
-                    self.eat_token(TokenType::CloseParen)?;
-                    args
-                } else {
-                    Vec::new()
-                };
-                self.eat_token(TokenType::Comma)?;
-                let else_target = self.parse_block_ref()?;
-                let else_arguments = if self.eat_token_maybe(TokenType::OpenParen) {
-                    let args = self.parse_value_list()?;
-                    self.eat_token(TokenType::CloseParen)?;
-                    args
-                } else {
-                    Vec::new()
-                };
-                Ok((
-                    Terminator::Branch {
-                        condition,
-                        then_target,
-                        then_arguments,
-                        else_target,
-                        else_arguments,
-                    },
-                    None,
-                ))
-            }
-
-            TokenType::Check => {
-                self.bump();
-                let condition = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let constraint = self.parse_check_kind()?;
-                self.eat_token(TokenType::Comma)?;
-                let success = self.parse_check_target()?;
-                self.eat_token(TokenType::Comma)?;
-                let failure = self.parse_check_target()?;
-                Ok((
-                    Terminator::Check {
-                        condition,
-                        constraint,
-                        success,
-                        failure,
-                    },
-                    None,
-                ))
-            }
-
-            TokenType::Switch => {
-                self.bump();
-                let value = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let default = self.parse_block_ref()?;
-                let default_arguments = if self.eat_token_maybe(TokenType::OpenParen) {
-                    let args = self.parse_value_list()?;
-                    self.eat_token(TokenType::CloseParen)?;
-                    args
-                } else {
-                    Vec::new()
-                };
-
-                // parse cases: value => blockN(args), ...
-                let mut cases = Vec::new();
-                while self.eat_token_maybe(TokenType::Comma) {
-                    let case_value = self.parse_int_literal()?;
-                    self.eat_token(TokenType::FatArrow)?;
-                    let target = self.parse_block_ref()?;
-                    let arguments = if self.eat_token_maybe(TokenType::OpenParen) {
-                        let args = self.parse_value_list()?;
-                        self.eat_token(TokenType::CloseParen)?;
-                        args
-                    } else {
-                        Vec::new()
-                    };
-                    cases.push(SwitchCase {
-                        value: case_value,
-                        target,
-                        arguments,
-                    });
-                }
-
-                Ok((
-                    Terminator::Switch {
-                        value,
-                        default,
-                        default_arguments,
-                        cases,
-                    },
-                    None,
-                ))
-            }
-
-            TokenType::Yield => {
-                self.bump();
-                let value = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let resume = self.parse_block_ref()?;
-                let resume_arguments = if self.eat_token_maybe(TokenType::OpenParen) {
-                    let args = self.parse_value_list()?;
-                    self.eat_token(TokenType::CloseParen)?;
-                    args
-                } else {
-                    Vec::new()
-                };
-                Ok((
-                    Terminator::Yield {
-                        value,
-                        resume,
-                        resume_arguments,
-                    },
-                    None,
-                ))
-            }
-
-            TokenType::Throw => {
-                self.bump();
-                let value = self.parse_value()?;
-                Ok((Terminator::Throw { value }, None))
-            }
-
-            TokenType::Trap => {
-                self.bump();
-                let trap_kind = self.eat_token(TokenType::Identifier)?;
-
-                // abort trap has no payload
-                if trap_kind.text == "abort" {
-                    return Ok((
-                        Terminator::Trap {
-                            kind: TrapKind::Abort,
-                            payload: None,
-                        },
-                        None,
-                    ));
-                }
-
-                // panic trap carries a payload
-                if trap_kind.text == "panic" {
-                    let payload = self.parse_value()?;
-                    return Ok((
-                        Terminator::Trap {
-                            kind: TrapKind::Panic,
-                            payload: Some(payload),
-                        },
-                        None,
-                    ));
-                }
-
-                Err(ParseError::invalid(
-                    "expected `abort` or `panic`",
-                    trap_kind.start,
-                ))
-            }
-
-            TokenType::Unreachable => {
-                self.bump();
-                Ok((Terminator::Unreachable, None))
-            }
-
-            TokenType::TailCall => {
-                self.bump();
-                // tailcall @func(args...)
-                let function = self.parse_function_reference()?;
-                let arguments = self.parse_call_arguments()?;
-                Ok((
-                    Terminator::TailCall {
-                        function,
-                        arguments,
-                    },
-                    None,
-                ))
-            }
-
-            TokenType::TailCallIndirect => {
-                self.bump();
-                // tailcall.indirect callee(args...) -> signature
-                let callee = self.parse_value()?;
-                let (arguments, env) = self.parse_call_arguments_with_env()?;
-                self.eat_token(TokenType::Arrow)?;
-                let signature = self.parse_type()?;
-                Ok((
-                    Terminator::TailCallIndirect {
-                        callee,
-                        env,
-                        arguments,
-                        signature,
-                    },
-                    None,
-                ))
-            }
-            TokenType::CallIndirect => {
-                self.bump();
-                let callee = self.parse_value()?;
-                let (arguments, env) = self.parse_call_arguments_with_env()?;
-                self.eat_token(TokenType::Arrow)?;
-                let signature = self.parse_type()?;
-                let (normal_target, normal_arguments, unwind_target, unwind_arguments) =
-                    self.parse_call_continuations()?;
-                Ok((
-                    Terminator::CallIndirect {
-                        callee,
-                        env,
-                        arguments,
-                        signature,
-                        normal_target,
-                        normal_arguments,
-                        unwind_target,
-                        unwind_arguments,
-                    },
-                    None,
-                ))
-            }
-            TokenType::TailCallVirtual => {
-                self.bump();
-                // tailcall.virtual receiver, declaring_type, slot_id(args...) -> signature
-                let receiver = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let declaring_type = self.parse_type()?;
-                self.eat_token(TokenType::Comma)?;
-                let slot_id = VtableSlotId::new(self.parse_int_literal()? as u32);
-                let arguments = self.parse_call_arguments()?;
-                self.eat_token(TokenType::Arrow)?;
-                let signature = self.parse_type()?;
-                Ok((
-                    Terminator::TailCallVirtual {
-                        receiver,
-                        arguments,
-                        declaring_type,
-                        slot_id,
-                        signature,
-                    },
-                    None,
-                ))
-            }
-            TokenType::CallVirtual => {
-                self.bump();
-                let receiver = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let declaring_type = self.parse_type()?;
-                self.eat_token(TokenType::Comma)?;
-                let slot_id = VtableSlotId::new(self.parse_int_literal()? as u32);
-                let arguments = self.parse_call_arguments()?;
-                self.eat_token(TokenType::Arrow)?;
-                let signature = self.parse_type()?;
-                let (normal_target, normal_arguments, unwind_target, unwind_arguments) =
-                    self.parse_call_continuations()?;
-                Ok((
-                    Terminator::CallVirtual {
-                        receiver,
-                        arguments,
-                        declaring_type,
-                        slot_id,
-                        signature,
-                        normal_target,
-                        normal_arguments,
-                        unwind_target,
-                        unwind_arguments,
-                    },
-                    None,
-                ))
-            }
-            TokenType::TailCallInterface => {
-                self.bump();
-                // tailcall.interface receiver, declaring_type, slot_id(args...) -> signature
-                let receiver = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let declaring_type = self.parse_type()?;
-                self.eat_token(TokenType::Comma)?;
-                let slot_id = InterfaceSlotId::new(self.parse_int_literal()? as u32);
-                let arguments = self.parse_call_arguments()?;
-                self.eat_token(TokenType::Arrow)?;
-                let signature = self.parse_type()?;
-                Ok((
-                    Terminator::TailCallInterface {
-                        receiver,
-                        arguments,
-                        declaring_type,
-                        slot_id,
-                        signature,
-                    },
-                    None,
-                ))
-            }
-            TokenType::CallInterface => {
-                self.bump();
-                let receiver = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let declaring_type = self.parse_type()?;
-                self.eat_token(TokenType::Comma)?;
-                let slot_id = InterfaceSlotId::new(self.parse_int_literal()? as u32);
-                let arguments = self.parse_call_arguments()?;
-                self.eat_token(TokenType::Arrow)?;
-                let signature = self.parse_type()?;
-                let (normal_target, normal_arguments, unwind_target, unwind_arguments) =
-                    self.parse_call_continuations()?;
-                Ok((
-                    Terminator::CallInterface {
-                        receiver,
-                        arguments,
-                        declaring_type,
-                        slot_id,
-                        signature,
-                        normal_target,
-                        normal_arguments,
-                        unwind_target,
-                        unwind_arguments,
-                    },
-                    None,
-                ))
-            }
-
-            _ => Err(ParseError::unexpected("terminator", token.ty, token.start)),
-        }
+    ) -> ParseResult<(LocalNodeId<Function>, Vec<Value>)> {
+        let function = self.parse_function_reference()?;
+        let arguments = self.parse_call_arguments()?;
+        Ok((function, arguments))
     }
 
-    /// Parse a check kind and its operands.
-    fn parse_check_kind(&mut self) -> ParseResult<CheckConstraint> {
-        // parse the kind identifier
-        let kind_token = self
-            .peek()
-            .ok_or_else(|| ParseError::unexpected_end("check kind", self.pos()))?;
-        let kind_text = kind_token.text;
-        let kind_start = kind_token.start;
-        match kind_token.ty {
-            TokenType::Identifier | TokenType::TypeName | TokenType::Type => {
-                self.bump();
-            }
-            _ => {
-                return Err(ParseError::unexpected(
-                    "check kind",
-                    kind_token.ty,
-                    kind_start,
-                ));
-            }
-        }
-
-        // split the kind into segments
-        let mut parts = kind_text.split('.');
-        let head = parts.next().unwrap_or_default();
-
-        // dispatch on the kind head
-        match head {
-            "bounds" => {
-                // parse signedness
-                let signedness = parts.next().ok_or_else(|| {
-                    ParseError::invalid(&format!("check kind '{kind_text}'"), kind_start)
-                })?;
-                let is_signed = match signedness {
-                    "signed" => true,
-                    "unsigned" => false,
-                    _ => {
-                        return Err(ParseError::invalid(
-                            &format!("check kind '{kind_text}'"),
-                            kind_start,
-                        ));
-                    }
-                };
-
-                // reject extra segments
-                if parts.next().is_some() {
-                    return Err(ParseError::invalid(
-                        &format!("check kind '{kind_text}'"),
-                        kind_start,
-                    ));
-                }
-
-                // parse bounds operands
-                let index = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let length = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let collection = self.parse_value()?;
-
-                Ok(CheckConstraint::Bounds {
-                    index,
-                    length,
-                    collection,
-                    is_signed,
-                })
-            }
-            "null" => {
-                // reject extra segments
-                if parts.next().is_some() {
-                    return Err(ParseError::invalid(
-                        &format!("check kind '{kind_text}'"),
-                        kind_start,
-                    ));
-                }
-
-                // parse the null checked value
-                let value = self.parse_value()?;
-                Ok(CheckConstraint::Null { value })
-            }
-            "div_zero" => {
-                // reject extra segments
-                if parts.next().is_some() {
-                    return Err(ParseError::invalid(
-                        &format!("check kind '{kind_text}'"),
-                        kind_start,
-                    ));
-                }
-
-                // parse the divisor
-                let divisor = self.parse_value()?;
-                Ok(CheckConstraint::DivZero { divisor })
-            }
-            "type" => {
-                // reject extra segments
-                if parts.next().is_some() {
-                    return Err(ParseError::invalid(
-                        &format!("check kind '{kind_text}'"),
-                        kind_start,
-                    ));
-                }
-
-                // parse type descriptor operands
-                let value = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let expected = self.parse_type()?;
-
-                Ok(CheckConstraint::Type { value, expected })
-            }
-            "union" => {
-                // reject extra segments
-                if parts.next().is_some() {
-                    return Err(ParseError::invalid(
-                        &format!("check kind '{kind_text}'"),
-                        kind_start,
-                    ));
-                }
-
-                // parse union tag operands
-                let value = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let expected = self.parse_int_literal()?;
-                let expected = u64::try_from(expected)
-                    .map_err(|_| ParseError::invalid("check union tag", kind_start))?;
-
-                Ok(CheckConstraint::Union { value, expected })
-            }
-            "receiver_type" => {
-                // reject extra segments
-                if parts.next().is_some() {
-                    return Err(ParseError::invalid(
-                        &format!("check kind '{kind_text}'"),
-                        kind_start,
-                    ));
-                }
-
-                // parse receiver type operands
-                let receiver = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let expected = self.parse_type()?;
-
-                Ok(CheckConstraint::ReceiverType { receiver, expected })
-            }
-            "implements" => {
-                // reject extra segments
-                if parts.next().is_some() {
-                    return Err(ParseError::invalid(
-                        &format!("check kind '{kind_text}'"),
-                        kind_start,
-                    ));
-                }
-
-                // parse interface conformance operands
-                let receiver = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let expected = self.parse_type()?;
-
-                Ok(CheckConstraint::Implements { receiver, expected })
-            }
-
-            "shift" => {
-                // parse signedness
-                let signedness = parts.next().ok_or_else(|| {
-                    ParseError::invalid(&format!("check kind '{kind_text}'"), kind_start)
-                })?;
-                let is_signed = match signedness {
-                    "signed" => true,
-                    "unsigned" => false,
-                    _ => {
-                        return Err(ParseError::invalid(
-                            &format!("check kind '{kind_text}'"),
-                            kind_start,
-                        ));
-                    }
-                };
-
-                // reject extra segments
-                if parts.next().is_some() {
-                    return Err(ParseError::invalid(
-                        &format!("check kind '{kind_text}'"),
-                        kind_start,
-                    ));
-                }
-
-                // parse shift operands
-                let value = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let bit_width = self.parse_int_literal()?;
-                let bit_width = u8::try_from(bit_width)
-                    .map_err(|_| ParseError::invalid("check bit width", kind_start))?;
-
-                Ok(CheckConstraint::ShiftRange {
-                    value,
-                    bit_width,
-                    is_signed,
-                })
-            }
-            "narrow" => {
-                // parse signedness
-                let signedness = parts.next().ok_or_else(|| {
-                    ParseError::invalid(&format!("check kind '{kind_text}'"), kind_start)
-                })?;
-                let is_signed = match signedness {
-                    "signed" => true,
-                    "unsigned" => false,
-                    _ => {
-                        return Err(ParseError::invalid(
-                            &format!("check kind '{kind_text}'"),
-                            kind_start,
-                        ));
-                    }
-                };
-
-                // reject extra segments
-                if parts.next().is_some() {
-                    return Err(ParseError::invalid(
-                        &format!("check kind '{kind_text}'"),
-                        kind_start,
-                    ));
-                }
-
-                // parse narrow operands
-                let value = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let to_width = self.parse_int_literal()?;
-                let to_width = u8::try_from(to_width)
-                    .map_err(|_| ParseError::invalid("check width", kind_start))?;
-
-                Ok(CheckConstraint::Narrow {
-                    value,
-                    to_width,
-                    is_signed,
-                })
-            }
-            "overflow" => {
-                // parse signedness and operator
-                let signedness = parts.next().ok_or_else(|| {
-                    ParseError::invalid(&format!("check kind '{kind_text}'"), kind_start)
-                })?;
-                let operator_text = parts.next().ok_or_else(|| {
-                    ParseError::invalid(&format!("check kind '{kind_text}'"), kind_start)
-                })?;
-                let is_signed = match signedness {
-                    "signed" => true,
-                    "unsigned" => false,
-                    _ => {
-                        return Err(ParseError::invalid(
-                            &format!("check kind '{kind_text}'"),
-                            kind_start,
-                        ));
-                    }
-                };
-                let operator = operator_text.parse::<BinaryOperator>().map_err(|_| {
-                    ParseError::invalid(&format!("check operator '{operator_text}'"), kind_start)
-                })?;
-
-                // reject extra segments
-                if parts.next().is_some() {
-                    return Err(ParseError::invalid(
-                        &format!("check kind '{kind_text}'"),
-                        kind_start,
-                    ));
-                }
-
-                // parse overflow operands
-                let left = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let right = self.parse_value()?;
-
-                Ok(CheckConstraint::Overflow {
-                    operator,
-                    left,
-                    right,
-                    is_signed,
-                })
-            }
-            _ => Err(ParseError::invalid(
-                &format!("check kind '{kind_text}'"),
-                kind_start,
-            )),
-        }
-    }
-
-    /// Parse a check target with optional block arguments.
-    fn parse_check_target(&mut self) -> ParseResult<CheckTarget> {
-        // parse the target block
-        let target = self.parse_block_ref()?;
-
-        // parse optional arguments
-        let arguments = if self.eat_token_maybe(TokenType::OpenParen) {
-            let args = self.parse_value_list()?;
-            self.eat_token(TokenType::CloseParen)?;
-            args
-        } else {
-            Vec::new()
-        };
-
-        Ok(CheckTarget { target, arguments })
-    }
-
-    /// Parse normal and unwind continuations for a call terminator.
-    fn parse_call_continuations(
-        &mut self,
-    ) -> ParseResult<(
-        LocalNodeId<Block>,
-        Vec<Value>,
-        LocalNodeId<Block>,
-        Vec<Value>,
-    )> {
-        let normal_keyword = self.eat_token(TokenType::Identifier)?;
-        if normal_keyword.text != "normal" {
-            return Err(ParseError::invalid("normal", normal_keyword.start));
-        }
-
-        let normal_target = self.parse_block_ref()?;
-        let normal_arguments = if self.eat_token_maybe(TokenType::OpenParen) {
-            let arguments = self.parse_value_list()?;
-            self.eat_token(TokenType::CloseParen)?;
-            arguments
-        } else {
-            Vec::new()
-        };
-
-        let unwind_keyword = self.eat_token(TokenType::Identifier)?;
-        if unwind_keyword.text != "unwind" {
-            return Err(ParseError::invalid("unwind", unwind_keyword.start));
-        }
-
-        let unwind_target = self.parse_block_ref()?;
-        let unwind_arguments = if self.eat_token_maybe(TokenType::OpenParen) {
-            let arguments = self.parse_value_list()?;
-            self.eat_token(TokenType::CloseParen)?;
-            arguments
-        } else {
-            Vec::new()
-        };
-
-        Ok((
-            normal_target,
-            normal_arguments,
-            unwind_target,
-            unwind_arguments,
-        ))
-    }
-
-    /// Build a function pointer type for a direct call signature.
-    fn signature_type_for_function(
+    /// Parse an optional direct call signature.
+    fn parse_direct_call_signature(
         &mut self,
         function: LocalNodeId<Function>,
     ) -> ParseResult<LocalNodeId<Type>> {
+        if self.eat_token_maybe(TokenType::Arrow) {
+            return self.parse_type();
+        }
+
         let function = self.tree.get(function);
-        let parameters = function.parameters.iter().map(|param| param.ty).collect();
-        Ok(self.tree.insert_type(Type::FunctionPointer {
+        let parameters = function
+            .parameters
+            .iter()
+            .map(|parameter| parameter.ty)
+            .collect();
+
+        Ok(self.intern_type(Type::FunctionPointer {
             parameters,
             result: function.return_type,
         }))
     }
 
-    /// Parse intrinsic arguments.
-    fn parse_intrinsic_arguments(&mut self, _intrinsic: Intrinsic) -> ParseResult<Vec<Value>> {
-        self.eat_token(TokenType::OpenParen)?;
+    /// Parse one virtual call target and signature.
+    pub(super) fn parse_virtual_call_target(
+        &mut self,
+    ) -> ParseResult<(
+        Value,
+        LocalNodeId<Type>,
+        VtableSlotId,
+        Vec<Value>,
+        LocalNodeId<Type>,
+    )> {
+        let receiver = self.parse_value()?;
+        self.eat_token(TokenType::Comma)?;
+        let declaring_type = self.parse_type()?;
+        self.eat_token(TokenType::Comma)?;
+        let slot_id = VtableSlotId::new(self.parse_int_literal()? as u32);
+        let arguments = self.parse_call_arguments()?;
+        self.eat_token(TokenType::Arrow)?;
+        let signature = self.parse_type()?;
 
-        let mut values = Vec::new();
+        Ok((receiver, declaring_type, slot_id, arguments, signature))
+    }
 
-        // parse values
-        loop {
-            if self.peek_token(TokenType::CloseParen) {
-                break;
-            }
+    /// Parse one interface call target and signature.
+    pub(super) fn parse_interface_call_target(
+        &mut self,
+    ) -> ParseResult<(
+        Value,
+        LocalNodeId<Type>,
+        InterfaceSlotId,
+        Vec<Value>,
+        LocalNodeId<Type>,
+    )> {
+        let receiver = self.parse_value()?;
+        self.eat_token(TokenType::Comma)?;
+        let declaring_type = self.parse_type()?;
+        self.eat_token(TokenType::Comma)?;
+        let slot_id = InterfaceSlotId::new(self.parse_int_literal()? as u32);
+        let arguments = self.parse_call_arguments()?;
+        self.eat_token(TokenType::Arrow)?;
+        let signature = self.parse_type()?;
 
-            if self.peek_token(TokenType::Value) {
-                values.push(self.parse_value()?);
-            } else {
-                let token = self
-                    .peek()
-                    .ok_or_else(|| ParseError::unexpected_end("intrinsic argument", self.pos()))?;
-                return Err(ParseError::unexpected(
-                    "intrinsic argument",
-                    token.ty,
-                    token.start,
-                ));
-            }
+        Ok((receiver, declaring_type, slot_id, arguments, signature))
+    }
 
-            if !self.eat_token_maybe(TokenType::Comma) {
-                break;
-            }
-        }
+    /// Parse one indirect call target and signature.
+    pub(super) fn parse_indirect_call_target(
+        &mut self,
+    ) -> ParseResult<(Value, Vec<Value>, Option<Value>, LocalNodeId<Type>)> {
+        let callee = self.parse_value()?;
+        let (arguments, env) = self.parse_call_arguments_with_env()?;
+        self.eat_token(TokenType::Arrow)?;
+        let signature = self.parse_type()?;
 
-        self.eat_token(TokenType::CloseParen)?;
-        Ok(values)
+        Ok((callee, arguments, env, signature))
     }
 
     /// Parse one atomic ordering, scope, memory scope, and semantics suffix.
@@ -2346,16 +1515,20 @@ impl<'a> Parser<'a> {
     ) -> ParseResult<(MemoryOrdering, AtomicScope, MemoryScope, MemorySemantics)> {
         self.eat_token(TokenType::Comma)?;
 
-        let ordering = self.parse_named_memory_ordering("ordering")?;
+        self.eat_named_key("ordering")?;
+        let ordering = self.parse_memory_ordering()?;
         self.eat_token(TokenType::Comma)?;
 
-        let scope = self.parse_named_atomic_scope("scope")?;
+        self.eat_named_key("scope")?;
+        let scope = self.parse_atomic_scope()?;
         self.eat_token(TokenType::Comma)?;
 
-        let memory_scope = self.parse_named_memory_scope("memory_scope")?;
+        self.eat_named_key("memory_scope")?;
+        let memory_scope = self.parse_memory_scope()?;
         self.eat_token(TokenType::Comma)?;
 
-        let semantics = self.parse_named_memory_semantics("semantics")?;
+        self.eat_named_key("semantics")?;
+        let semantics = self.parse_memory_semantics()?;
 
         Ok((ordering, scope, memory_scope, semantics))
     }
@@ -2364,71 +1537,45 @@ impl<'a> Parser<'a> {
     fn parse_barrier_attributes(
         &mut self,
     ) -> ParseResult<(AtomicScope, MemoryScope, MemorySemantics)> {
-        let scope = self.parse_named_atomic_scope("scope")?;
+        self.eat_named_key("scope")?;
+        let scope = self.parse_atomic_scope()?;
         self.eat_token(TokenType::Comma)?;
 
-        let memory_scope = self.parse_named_memory_scope("memory_scope")?;
+        self.eat_named_key("memory_scope")?;
+        let memory_scope = self.parse_memory_scope()?;
         self.eat_token(TokenType::Comma)?;
 
-        let semantics = self.parse_named_memory_semantics("semantics")?;
+        self.eat_named_key("semantics")?;
+        let semantics = self.parse_memory_semantics()?;
 
         Ok((scope, memory_scope, semantics))
     }
 
-    /// Parse one named memory ordering like `ordering=seq_cst`.
-    fn parse_named_memory_ordering(&mut self, name: &str) -> ParseResult<MemoryOrdering> {
-        let token = self.eat_token(TokenType::Identifier)?;
-        let token_start = token.start;
-        if token.text != name {
-            return Err(ParseError::invalid(name, token_start));
-        }
-        self.eat_token(TokenType::Equals)?;
-
+    /// Parse one memory ordering like `seq_cst`.
+    fn parse_memory_ordering(&mut self) -> ParseResult<MemoryOrdering> {
+        let token_start = self.pos();
         self.eat_token(TokenType::Identifier)?
             .text
             .parse::<MemoryOrdering>()
             .map_err(|_| ParseError::invalid("memory ordering", token_start))
     }
 
-    /// Parse one named atomic scope like `scope=device`.
-    fn parse_named_atomic_scope(&mut self, name: &str) -> ParseResult<AtomicScope> {
-        let token = self.eat_token(TokenType::Identifier)?;
-        let token_start = token.start;
-        if token.text != name {
-            return Err(ParseError::invalid(name, token_start));
-        }
-        self.eat_token(TokenType::Equals)?;
-
+    /// Parse one atomic scope like `device`.
+    fn parse_atomic_scope(&mut self) -> ParseResult<AtomicScope> {
+        let token_start = self.pos();
         self.eat_token(TokenType::Identifier)?
             .text
             .parse::<AtomicScope>()
             .map_err(|_| ParseError::invalid("atomic scope", token_start))
     }
 
-    /// Parse one named memory scope like `memory_scope=device`.
-    fn parse_named_memory_scope(&mut self, name: &str) -> ParseResult<MemoryScope> {
-        let token = self.eat_token(TokenType::Identifier)?;
-        let token_start = token.start;
-        if token.text != name {
-            return Err(ParseError::invalid(name, token_start));
-        }
-        self.eat_token(TokenType::Equals)?;
-
+    /// Parse one memory scope like `device`.
+    fn parse_memory_scope(&mut self) -> ParseResult<MemoryScope> {
+        let token_start = self.pos();
         self.eat_token(TokenType::Identifier)?
             .text
             .parse::<MemoryScope>()
             .map_err(|_| ParseError::invalid("memory scope", token_start))
-    }
-
-    /// Parse one named memory semantics like `semantics=any`.
-    fn parse_named_memory_semantics(&mut self, name: &str) -> ParseResult<MemorySemantics> {
-        let token = self.eat_token(TokenType::Identifier)?;
-        let token_start = token.start;
-        if token.text != name {
-            return Err(ParseError::invalid(name, token_start));
-        }
-        self.eat_token(TokenType::Equals)?;
-        self.parse_memory_semantics()
     }
 
     /// Parse memory semantics for atomic operations.
@@ -2440,78 +1587,10 @@ impl<'a> Parser<'a> {
         let mut is_volatile = false;
         let mut is_make_available = false;
         let mut is_make_visible = false;
+        let is_list = self.eat_token_maybe(TokenType::OpenBracket);
 
-        // parse a single semantics identifier
-        let mut parse_item = |text: &str, start: usize| -> ParseResult<()> {
-            match text {
-                "volatile" => {
-                    is_volatile = true;
-                    Ok(())
-                }
-                "make_available" => {
-                    is_make_available = true;
-                    Ok(())
-                }
-                "make_visible" => {
-                    is_make_visible = true;
-                    Ok(())
-                }
-                _ => {
-                    let location = parse_memory_location(text, start)?;
-                    if location == MemoryRegionSet::ANY || location == MemoryRegionSet::NONE {
-                        if has_location && !is_location_locked {
-                            return Err(ParseError::new(
-                                "memory semantics cannot mix any/none with other locations",
-                                start,
-                            ));
-                        }
-                        locations = location;
-                        has_location = true;
-                        is_location_locked = true;
-                        return Ok(());
-                    }
-                    if is_location_locked {
-                        return Err(ParseError::new(
-                            "memory semantics cannot mix any/none with other locations",
-                            start,
-                        ));
-                    }
-                    if !has_location {
-                        locations = MemoryRegionSet::NONE;
-                        has_location = true;
-                    }
-                    locations.insert(location);
-                    Ok(())
-                }
-            }
-        };
-
-        // parse the semantics list or single value
-        if self.eat_token_maybe(TokenType::OpenBracket) {
-            while !self.peek_token(TokenType::CloseBracket) {
-                let token = self
-                    .peek()
-                    .ok_or_else(|| ParseError::unexpected_end("memory semantics", self.pos()))?;
-                if !matches!(
-                    token.ty,
-                    TokenType::Identifier | TokenType::Global | TokenType::Local
-                ) {
-                    return Err(ParseError::unexpected(
-                        "memory semantics",
-                        token.ty,
-                        token.start,
-                    ));
-                }
-                let token_text = token.text.to_string();
-                let token_start = token.start;
-                self.bump();
-                parse_item(&token_text, token_start)?;
-                if !self.eat_token_maybe(TokenType::Comma) {
-                    break;
-                }
-            }
-            self.eat_token(TokenType::CloseBracket)?;
-        } else {
+        // parse one or more semantics items
+        loop {
             let token = self
                 .peek()
                 .ok_or_else(|| ParseError::unexpected_end("memory semantics", self.pos()))?;
@@ -2525,10 +1604,67 @@ impl<'a> Parser<'a> {
                     token.start,
                 ));
             }
+
             let token_text = token.text.to_string();
             let token_start = token.start;
             self.bump();
-            parse_item(&token_text, token_start)?;
+
+            // flags and locations
+            match token_text.as_str() {
+                "volatile" => {
+                    is_volatile = true;
+                }
+                "make_available" => {
+                    is_make_available = true;
+                }
+                "make_visible" => {
+                    is_make_visible = true;
+                }
+                _ => {
+                    let location = self.parse_memory_location(&token_text, token_start)?;
+                    if location == MemoryRegionSet::ANY || location == MemoryRegionSet::NONE {
+                        if has_location && !is_location_locked {
+                            return Err(ParseError::new(
+                                "memory semantics cannot mix any/none with other locations",
+                                token_start,
+                            ));
+                        }
+
+                        locations = location;
+                        has_location = true;
+                        is_location_locked = true;
+                    } else {
+                        if is_location_locked {
+                            return Err(ParseError::new(
+                                "memory semantics cannot mix any/none with other locations",
+                                token_start,
+                            ));
+                        }
+
+                        if !has_location {
+                            locations = MemoryRegionSet::NONE;
+                            has_location = true;
+                        }
+
+                        locations.insert(location);
+                    }
+                }
+            }
+
+            // single values stop after one item
+            if !is_list {
+                break;
+            }
+
+            // lists stop before the closing bracket
+            if !self.eat_token_maybe(TokenType::Comma) || self.peek_token(TokenType::CloseBracket) {
+                break;
+            }
+        }
+
+        // close the list
+        if is_list {
+            self.eat_token(TokenType::CloseBracket)?;
         }
 
         // default the location set when omitted
@@ -2543,14 +1679,18 @@ impl<'a> Parser<'a> {
             is_make_visible,
         ))
     }
-}
 
-/// Parse one atomic read modify write opcode suffix.
-fn parse_atomic_rmw_operator(text: &str, start: usize) -> ParseResult<AtomicRmwOperator> {
-    let Some(operator_text) = text.strip_prefix("atomic.rmw.") else {
-        return Err(ParseError::invalid("atomic.rmw opcode", start));
-    };
+    /// Parse one atomic read modify write opcode suffix.
+    fn parse_atomic_rmw_operator(
+        &self,
+        text: &str,
+        start: usize,
+    ) -> ParseResult<AtomicRmwOperator> {
+        let Some(operator_text) = text.strip_prefix("atomic.rmw.") else {
+            return Err(ParseError::invalid("atomic.rmw opcode", start));
+        };
 
-    AtomicRmwOperator::parse(operator_text)
-        .ok_or_else(|| ParseError::invalid("atomic rmw operator", start))
+        AtomicRmwOperator::parse(operator_text)
+            .ok_or_else(|| ParseError::invalid("atomic rmw operator", start))
+    }
 }

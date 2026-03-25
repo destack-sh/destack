@@ -1,9 +1,8 @@
 use crate::{
     AddressSpace, Attribute, Copyability, Field, LocalNodeId, Mutability, ReferenceKind,
-    TensorDimension, TensorLayout, Type,
+    TensorDimension, TensorLayout, Type, Value,
 };
 
-use super::constant::parse_primitive_type;
 use super::error::{ParseError, ParseResult};
 use super::key::{FieldKey, TypeKey};
 use super::parser::Parser;
@@ -53,7 +52,7 @@ impl<'a> Parser<'a> {
                 Type::Boolean
             }
             TokenType::Identifier | TokenType::TypeName => {
-                if let Some(primitive) = parse_primitive_type(token_text) {
+                if let Some(primitive) = self.parse_primitive_type(token_text) {
                     self.bump();
                     primitive
                 } else {
@@ -77,7 +76,7 @@ impl<'a> Parser<'a> {
                 let value_id: u32 = token_text[1..].parse().map_err(|_| {
                     ParseError::invalid(&format!("value id '{token_text}'"), token_start)
                 })?;
-                let value = crate::Value(value_id);
+                let value = Value(value_id);
                 let ty = self.current_function.and_then(|function_id| {
                     let function = self.tree.get(function_id);
                     function.value_type(value)
@@ -87,82 +86,11 @@ impl<'a> Parser<'a> {
                 });
             }
             TokenType::Ref | TokenType::RefNullable => {
-                let is_nullable = token_ty == TokenType::RefNullable;
-                self.bump();
-                self.eat_token(TokenType::LessThan)?;
-                let (kind, address_space, mutability, pointee) = self.parse_reference_header()?;
-                self.eat_token(TokenType::GreaterThan)?;
-                Type::Reference {
-                    kind,
-                    address_space,
-                    mutability,
-                    pointee,
-                    is_nullable,
-                }
+                self.parse_reference_type(token_ty == TokenType::RefNullable)?
             }
-            TokenType::TensorReference => {
-                self.bump();
-                self.eat_token(TokenType::LessThan)?;
-                let (kind, address_space, mutability, element) = self.parse_reference_header()?;
-                self.eat_token(TokenType::Comma)?;
-                let shape = self.parse_tensor_shape()?;
-                let layout = if self.eat_token_maybe(TokenType::Comma) {
-                    self.parse_tensor_layout_assignment()?
-                } else {
-                    TensorLayout::RowMajor
-                };
-                self.eat_token(TokenType::GreaterThan)?;
-                Type::TensorReference {
-                    kind,
-                    address_space,
-                    mutability,
-                    element,
-                    shape,
-                    layout,
-                    is_nullable: false,
-                }
-            }
-            TokenType::TensorReferenceNullable => {
-                self.bump();
-                self.eat_token(TokenType::LessThan)?;
-                let (kind, address_space, mutability, element) = self.parse_reference_header()?;
-                self.eat_token(TokenType::Comma)?;
-                let shape = self.parse_tensor_shape()?;
-                let layout = if self.eat_token_maybe(TokenType::Comma) {
-                    self.parse_tensor_layout_assignment()?
-                } else {
-                    TensorLayout::RowMajor
-                };
-                self.eat_token(TokenType::GreaterThan)?;
-                Type::TensorReference {
-                    kind,
-                    address_space,
-                    mutability,
-                    element,
-                    shape,
-                    layout,
-                    is_nullable: true,
-                }
-            }
-            TokenType::Tensor => {
-                self.bump();
-                self.eat_token(TokenType::LessThan)?;
-                let element = self.parse_type()?;
-                self.eat_token(TokenType::Comma)?;
-                let shape = self.parse_tensor_shape()?;
-                let layout = if self.eat_token_maybe(TokenType::Comma) {
-                    self.parse_tensor_layout_assignment()?
-                } else {
-                    TensorLayout::RowMajor
-                };
-                self.eat_token(TokenType::GreaterThan)?;
-                Type::Tensor {
-                    element,
-                    shape,
-                    layout,
-                    copyability: Copyability::default(),
-                }
-            }
+            TokenType::TensorReference => self.parse_tensor_reference_type(false)?,
+            TokenType::TensorReferenceNullable => self.parse_tensor_reference_type(true)?,
+            TokenType::Tensor => self.parse_tensor_type()?,
             TokenType::Vector => {
                 self.bump();
                 self.eat_token(TokenType::LessThan)?;
@@ -308,6 +236,61 @@ impl<'a> Parser<'a> {
         Ok(type_id)
     }
 
+    /// Parse a reference type.
+    fn parse_reference_type(&mut self, is_nullable: bool) -> ParseResult<Type> {
+        self.bump();
+        self.eat_token(TokenType::LessThan)?;
+        let (kind, address_space, mutability, pointee) = self.parse_reference_header()?;
+        self.eat_token(TokenType::GreaterThan)?;
+
+        Ok(Type::Reference {
+            kind,
+            address_space,
+            mutability,
+            pointee,
+            is_nullable,
+        })
+    }
+
+    /// Parse a tensor reference type.
+    fn parse_tensor_reference_type(&mut self, is_nullable: bool) -> ParseResult<Type> {
+        self.bump();
+        self.eat_token(TokenType::LessThan)?;
+        let (kind, address_space, mutability, element) = self.parse_reference_header()?;
+        self.eat_token(TokenType::Comma)?;
+        let shape = self.parse_tensor_shape()?;
+        let layout = self.parse_optional_tensor_layout()?;
+        self.eat_token(TokenType::GreaterThan)?;
+
+        Ok(Type::TensorReference {
+            kind,
+            address_space,
+            mutability,
+            element,
+            shape,
+            layout,
+            is_nullable,
+        })
+    }
+
+    /// Parse a tensor type.
+    fn parse_tensor_type(&mut self) -> ParseResult<Type> {
+        self.bump();
+        self.eat_token(TokenType::LessThan)?;
+        let element = self.parse_type()?;
+        self.eat_token(TokenType::Comma)?;
+        let shape = self.parse_tensor_shape()?;
+        let layout = self.parse_optional_tensor_layout()?;
+        self.eat_token(TokenType::GreaterThan)?;
+
+        Ok(Type::Tensor {
+            element,
+            shape,
+            layout,
+            copyability: Copyability::default(),
+        })
+    }
+
     /// Parse the reference header for ref and tensor_ref types.
     fn parse_reference_header(
         &mut self,
@@ -397,6 +380,15 @@ impl<'a> Parser<'a> {
 
         let pointee = self.parse_type()?;
         Ok((kind, address_space, mutability, pointee))
+    }
+
+    /// Parse an optional trailing tensor layout assignment.
+    fn parse_optional_tensor_layout(&mut self) -> ParseResult<TensorLayout> {
+        if self.eat_token_maybe(TokenType::Comma) {
+            self.parse_tensor_layout_assignment()
+        } else {
+            Ok(TensorLayout::RowMajor)
+        }
     }
 
     /// Parse a tensor shape list.
