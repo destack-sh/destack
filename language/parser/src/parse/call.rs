@@ -100,10 +100,14 @@ impl Parser {
         self.eat_keyword(Keyword::New)?;
 
         // receiver
-        let receiver_options = self.options.not_in_position().in_new_receiver();
-        let left = self.with_options(receiver_options, |parser| {
-            parser.eat_expression(parser.options)
-        })?;
+        let left = if self.peek_token_type() == TokenType::Newline {
+            self.recover_missing_expression_here(NodeType::Expression)
+        } else {
+            let receiver_options = self.options.not_in_position().in_new_receiver();
+            self.with_options(receiver_options, |parser| {
+                parser.eat_expression_or_recover_missing(parser.options, NodeType::Expression)
+            })?
+        };
 
         // hoist static arguments parsed on the receiver
         let mut static_arguments = None;
@@ -601,6 +605,28 @@ mod tests {
             // no static arguments
             assert!(static_arguments.is_none());
             // empty dynamic arguments
+            assert!(dynamic_arguments.is_empty());
+        });
+    }
+
+    #[test]
+    fn test_parse_new_without_receiver_recovers_missing_constructor() {
+        let mut test = TestParser::new("new");
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression(parser.options).unwrap();
+
+        // diagnostics
+        test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
+
+        // new
+        assert_node!(parser.tree, expression_id, Expression::New { left, static_arguments, dynamic_arguments } => {
+            // missing constructor
+            assert_node!(parser.tree, *left, Expression::Missing);
+
+            // no static arguments
+            assert!(static_arguments.is_none());
+
+            // no dynamic arguments
             assert!(dynamic_arguments.is_empty());
         });
     }
