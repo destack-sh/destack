@@ -242,18 +242,114 @@ const SUSPICIOUS_NAME_PATTERNS: &[&str] = &[
     "signing_key",
 ];
 
-/// Suspicious variable name matcher.
-static SUSPICIOUS_NAME_MATCHER: LazyLock<AhoCorasick> = LazyLock::new(|| {
-    AhoCorasick::builder()
-        .ascii_case_insensitive(true)
-        .match_kind(MatchKind::Standard)
-        .build(SUSPICIOUS_NAME_PATTERNS)
-        .expect("invalid suspicious name patterns")
-});
-
 /// Check if a variable name suggests it might hold a secret.
 fn is_suspicious_name(name: &str) -> bool {
-    SUSPICIOUS_NAME_MATCHER.is_match(name.as_bytes())
+    let words = ascii_identifier_words(name);
+    if words.is_empty() {
+        return false;
+    }
+
+    // match suspicious names on identifier words, not raw substrings
+    for start in 0..words.len() {
+        let mut sequence = String::new();
+
+        for end in start..words.len() {
+            if end > start {
+                sequence.push(' ');
+            }
+            sequence.push_str(&words[end]);
+
+            if suspicious_name_pattern_matches(&sequence) {
+                return true;
+            }
+        }
+    }
+
+    false
+}
+
+/// Return true when one normalized word sequence matches a suspicious name pattern.
+fn suspicious_name_pattern_matches(sequence: &str) -> bool {
+    SUSPICIOUS_NAME_PATTERNS
+        .iter()
+        .any(|pattern| normalize_suspicious_name_pattern(pattern).as_deref() == Some(sequence))
+}
+
+/// Return one suspicious name pattern normalized to identifier words.
+fn normalize_suspicious_name_pattern(pattern: &str) -> Option<String> {
+    let words = ascii_identifier_words(pattern);
+    if words.is_empty() {
+        return None;
+    }
+
+    Some(words.join(" "))
+}
+
+/// Split one ascii identifier-like string into lowercase words.
+fn ascii_identifier_words(value: &str) -> Vec<String> {
+    let bytes = value.as_bytes();
+    let mut words = Vec::new();
+    let mut word_start = None;
+
+    for index in 0..bytes.len() {
+        let byte = bytes[index];
+
+        // end a word on separators
+        if !byte.is_ascii_alphanumeric() {
+            push_ascii_identifier_word(&mut words, value, word_start, index);
+            word_start = None;
+            continue;
+        }
+
+        // start a new word on the first identifier character
+        let Some(current_start) = word_start else {
+            word_start = Some(index);
+            continue;
+        };
+
+        let previous = bytes[index - 1];
+        let next = bytes.get(index + 1).copied();
+        let starts_new_word = starts_ascii_identifier_word(previous, byte, next);
+        if !starts_new_word {
+            continue;
+        }
+
+        push_ascii_identifier_word(&mut words, value, Some(current_start), index);
+        word_start = Some(index);
+    }
+
+    push_ascii_identifier_word(&mut words, value, word_start, bytes.len());
+    words
+}
+
+/// Return true when one ascii identifier byte starts a new word.
+fn starts_ascii_identifier_word(previous: u8, current: u8, next: Option<u8>) -> bool {
+    // split camelCase words
+    if previous.is_ascii_lowercase() && current.is_ascii_uppercase() {
+        return true;
+    }
+
+    // split acronym tails like APIKey
+    previous.is_ascii_uppercase()
+        && current.is_ascii_uppercase()
+        && next.is_some_and(|next| next.is_ascii_lowercase())
+}
+
+/// Push one lowercase identifier word when present.
+fn push_ascii_identifier_word(
+    words: &mut Vec<String>,
+    value: &str,
+    start: Option<usize>,
+    end: usize,
+) {
+    let Some(start) = start else {
+        return;
+    };
+    if start >= end {
+        return;
+    }
+
+    words.push(value[start..end].to_ascii_lowercase());
 }
 
 /// Check if a string value is suspicious when assigned to a secret-named variable.
@@ -266,10 +362,6 @@ fn is_suspicious_value(value: &str) -> bool {
 
 /// Minimum string length to consider for entropy analysis.
 const MIN_ENTROPY_CHECK_LENGTH: usize = 16;
-
-/// Entropy threshold for high-entropy strings (bits per character).
-/// English text is ~4.0, random alphanumeric ~5.7, random base64 ~6.0.
-const ENTROPY_THRESHOLD: f64 = 4.5;
 
 /// Minimum string length for suspicious name detection.
 const MIN_SUSPICIOUS_VALUE_LENGTH: usize = 8;
@@ -287,7 +379,7 @@ enum SecretMatch {
 ///
 /// Returns `Some(SecretMatch)` if the string matches a known pattern or has
 /// suspiciously high entropy, `None` otherwise.
-fn detect_secret(value: &str) -> Option<SecretMatch> {
+fn detect_secret(value: &str, entropy_threshold: f64) -> Option<SecretMatch> {
     // skip short or placeholder strings
     if value.len() < MIN_SUSPICIOUS_VALUE_LENGTH || is_placeholder(value) {
         return None;
@@ -349,7 +441,7 @@ fn detect_secret(value: &str) -> Option<SecretMatch> {
     // entropy check for longer strings (catches unknown secret formats)
     if value.len() >= MIN_ENTROPY_CHECK_LENGTH {
         let entropy = calculate_entropy(value);
-        if entropy >= ENTROPY_THRESHOLD {
+        if entropy >= entropy_threshold {
             // only flag alphanumeric-heavy strings (looks random)
             let mut alnum_count = 0usize;
             for byte in value_bytes {
@@ -455,6 +547,8 @@ impl LintRule for NoSecrets {
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
         let mut secret_match_cache: HashMap<StringId, Option<SecretMatch>> = HashMap::new();
+        let entropy_threshold =
+            no_secrets_entropy_threshold(ctx.options.no_secrets_entropy_threshold);
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
@@ -466,7 +560,7 @@ impl LintRule for NoSecrets {
                     } else {
                         let string_ref = ctx.strings.get(*s);
                         let string_value: &str = &string_ref;
-                        let secret_match = detect_secret(string_value);
+                        let secret_match = detect_secret(string_value, entropy_threshold);
                         secret_match_cache.insert(*s, secret_match);
                         secret_match
                     };
@@ -552,6 +646,11 @@ impl LintRule for NoSecrets {
             }
         }
     }
+}
+
+/// Return the configured no-secrets entropy threshold.
+fn no_secrets_entropy_threshold(entropy_threshold_tenths: u32) -> f64 {
+    entropy_threshold_tenths as f64 / 10.0
 }
 
 #[cfg(test)]
@@ -728,6 +827,16 @@ mod tests {
         test.result(result).assert_lint("no-secrets");
     }
 
+    #[test]
+    fn test_detects_hardcoded_acronym_api_key_by_name() {
+        let test = TestProgram::for_rule_without_prelude(NoSecrets);
+        let result = test.lint_ast(
+            "no_secrets/test_detects_hardcoded_acronym_api_key_by_name.ts",
+            r#"const APIKey = "some_long_api_key_value";"#,
+        );
+        test.result(result).assert_lint("no-secrets");
+    }
+
     // entropy detection tests
 
     #[test]
@@ -739,6 +848,18 @@ mod tests {
             r#"const config = "Kj8mNpQrStUvWxYz1234AbCdEfGhIjKl";"#,
         );
         test.result(result).assert_lint("no-secrets");
+    }
+
+    #[test]
+    fn test_allows_high_entropy_string_with_higher_threshold() {
+        let test = TestProgram::for_rule_without_prelude(NoSecrets).with_options(|options| {
+            options.no_secrets_entropy_threshold = 50;
+        });
+        let result = test.lint_ast(
+            "no_secrets/test_allows_high_entropy_string_with_higher_threshold.ts",
+            r#"const config = "Kj8mNpQrStUvWxYz1234AbCdEfGhIjKl";"#,
+        );
+        test.result(result).assert_no_lint("no-secrets");
     }
 
     // false positive prevention tests
@@ -806,6 +927,16 @@ mod tests {
     }
 
     #[test]
+    fn test_allows_secretary_name() {
+        let test = TestProgram::for_rule_without_prelude(NoSecrets);
+        let result = test.lint_ast(
+            "no_secrets/test_allows_secretary_name.ts",
+            r#"const secretary = "monthly_schedule";"#,
+        );
+        test.result(result).assert_no_lint("no-secrets");
+    }
+
+    #[test]
     fn test_allows_urls_without_credentials() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
         let result = test.lint_ast(
@@ -827,16 +958,6 @@ mod tests {
 
     #[test]
     fn test_allows_low_entropy_strings() {
-    #[test]
-    fn test_detects_hardcoded_acronym_api_key_by_name() {
-        let test = TestProgram::for_rule_without_prelude(NoSecrets);
-        let result = test.lint_ast(
-            "no_secrets/test_detects_hardcoded_acronym_api_key_by_name.ts",
-            r#"const APIKey = "some_long_api_key_value";"#,
-        );
-        test.result(result).assert_lint("no-secrets");
-    }
-
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
         // repetitive string has low entropy
         let result = test.lint_ast(
@@ -850,18 +971,6 @@ mod tests {
 
     #[test]
     fn test_entropy_calculation() {
-    #[test]
-    fn test_allows_high_entropy_string_with_higher_threshold() {
-        let test = TestProgram::for_rule_without_prelude(NoSecrets).with_options(|options| {
-            options.no_secrets_entropy_threshold = 50;
-        });
-        let result = test.lint_ast(
-            "no_secrets/test_allows_high_entropy_string_with_higher_threshold.ts",
-            r#"const config = "Kj8mNpQrStUvWxYz1234AbCdEfGhIjKl";"#,
-        );
-        test.result(result).assert_no_lint("no-secrets");
-    }
-
         // single character repeated: entropy = 0
         assert!(calculate_entropy("aaaa") < 0.1);
 
@@ -882,13 +991,3 @@ mod tests {
         assert!(english_entropy > 2.0 && english_entropy < 4.5);
     }
 }
-    #[test]
-    fn test_allows_secretary_name() {
-        let test = TestProgram::for_rule_without_prelude(NoSecrets);
-        let result = test.lint_ast(
-            "no_secrets/test_allows_secretary_name.ts",
-            r#"const secretary = "monthly_schedule";"#,
-        );
-        test.result(result).assert_no_lint("no-secrets");
-    }
-

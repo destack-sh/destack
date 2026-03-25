@@ -8,7 +8,6 @@ mod no_regex_injection;
 mod no_script_url;
 mod no_secrets;
 mod no_tainted_sink;
-mod no_weak_crypto;
 
 use crate::{BoxedLintRule, boxed};
 
@@ -22,7 +21,6 @@ pub use no_regex_injection::*;
 pub use no_script_url::*;
 pub use no_secrets::*;
 pub use no_tainted_sink::*;
-pub use no_weak_crypto::*;
 
 /// Get all security rules.
 pub fn rules() -> Vec<BoxedLintRule> {
@@ -37,6 +35,5 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoScriptUrl),
         boxed(NoSecrets),
         boxed(NoTaintedSink),
-        boxed(NoWeakCrypto),
     ]
 }

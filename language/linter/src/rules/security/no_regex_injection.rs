@@ -1,7 +1,11 @@
+use destack_core::StringId;
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{TaintAnalysis, TaintCache, expression_target_symbol};
+use crate::LintRequirement::RequireLibSymbol;
+use crate::rules::common::{
+    TaintAnalysis, TaintCache, expression_is_symbol_or_global_qualified_member,
+};
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -15,7 +19,7 @@ declare_lint! {
         code = "LS007",
         category = Security,
         level = Dir,
-        requires_all = [],
+        requires_all = [RequireLibSymbol("RegExp", &[])],
         requires_any = [],
         fixable = No,
         recommended = Strict,
@@ -43,8 +47,12 @@ struct NoRegexInjectionVisitor<'a, 'b> {
     ctx: &'a mut LintModuleDirContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
-    /// The RegExp symbol if available.
-    regexp_symbol: Option<dir::GlobalSymbolId>,
+    /// The RegExp symbol for this module.
+    regexp_symbol: dir::GlobalSymbolId,
+    /// The RegExp member name.
+    regexp_name: StringId,
+    /// The global qualifier symbols.
+    global_qualifiers: Vec<dir::GlobalSymbolId>,
     /// Cached taint analysis state.
     taint_cache: TaintCache,
     /// The visitor options.
@@ -54,14 +62,16 @@ struct NoRegexInjectionVisitor<'a, 'b> {
 impl<'a, 'b> NoRegexInjectionVisitor<'a, 'b> {
     /// Build a new visitor.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        // intern and resolve regexp symbol
         let regexp_name = ctx.program.strings.intern("RegExp");
-        let regexp_symbol = ctx.get_declared_library_symbol(regexp_name);
+        let regexp_symbol = ctx.declared_library_symbol(regexp_name);
+        let global_qualifiers = ctx.global_qualifier_symbols();
 
         Self {
             ctx,
             meta,
             regexp_symbol,
+            regexp_name,
+            global_qualifiers,
             taint_cache: TaintCache::default(),
             options: NodeVisitorOptions::default(),
         }
@@ -132,11 +142,13 @@ impl<'a, 'b> NoRegexInjectionVisitor<'a, 'b> {
 
     /// Return true when the expression is the RegExp constructor.
     fn is_regexp_constructor(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        let Some(regexp_symbol) = self.regexp_symbol else {
-            return false;
-        };
-
-        expression_target_symbol(self.ctx.tree, expression_id) == Some(regexp_symbol)
+        expression_is_symbol_or_global_qualified_member(
+            self.ctx.tree,
+            expression_id,
+            self.regexp_symbol,
+            &self.global_qualifiers,
+            self.regexp_name,
+        )
     }
 
     /// Report a regex injection diagnostic.
@@ -248,18 +260,6 @@ let regex = RegExp(pattern);
         test.result(result).assert_lint("no-regex-injection");
     }
 
-    /// Flag new RegExp with string concatenation.
-    #[test]
-    fn test_flags_new_regexp_with_concatenation() {
-        let test = TestProgram::for_rule_with_prelude(NoRegexInjection);
-        let result = test.lint_dir(
-            "no_regex_injection/test_flags_new_regexp_with_concatenation.ds",
-            r#"
-let input = "user";
-let regex = new RegExp("^" + input + "$");
-"#,
-        );
-        test.result(result).assert_lint("no-regex-injection");
     /// Flag global qualified RegExp constructor calls.
     #[test]
     fn test_flags_global_regexp_call_with_variable() {
@@ -288,6 +288,18 @@ let regex = globalThis["RegExp"](pattern);
         test.result(result).assert_lint("no-regex-injection");
     }
 
+    /// Flag new RegExp with string concatenation.
+    #[test]
+    fn test_flags_new_regexp_with_concatenation() {
+        let test = TestProgram::for_rule_with_prelude(NoRegexInjection);
+        let result = test.lint_dir(
+            "no_regex_injection/test_flags_new_regexp_with_concatenation.ds",
+            r#"
+let input = "user";
+let regex = new RegExp("^" + input + "$");
+"#,
+        );
+        test.result(result).assert_lint("no-regex-injection");
     }
 
     /// Allow new RegExp with a string literal pattern.
