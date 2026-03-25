@@ -20,6 +20,24 @@ export enum BackgroundTriggerKind {
     Processing = 2,
 }
 
+/// Background-task network requirement.
+export enum BackgroundNetworkRequirement {
+    /// No network route is required.
+    None = 1,
+    /// One network route is required.
+    Connected = 2,
+    /// One unmetered network route is required.
+    Unmetered = 3,
+}
+
+/// Background-task registration conflict policy.
+export enum BackgroundConflictPolicy {
+    /// Replace one existing registration with the same identifier.
+    Replace = 1,
+    /// Keep one existing registration with the same identifier.
+    Keep = 2,
+}
+
 /// Background-task completion class.
 export enum BackgroundTaskResult {
     /// Task completed successfully.
@@ -30,26 +48,30 @@ export enum BackgroundTaskResult {
     Failure = 3,
 }
 
+/// Background-task schedule payload.
+export struct BackgroundTaskSchedule {
+    /// Requested minimum repeat interval in nanoseconds.
+    minimumIntervalNs: uint64;
+    /// Earliest target execution timestamp in UTC nanoseconds when provided.
+    earliestBeginUnixNs?: uint64;
+}
+
 /// Background-task scheduling options.
 export struct BackgroundTaskOptions {
     /// Stable task identifier.
     identifier: string;
     /// Trigger class.
     trigger: BackgroundTriggerKind;
-    /// Requested minimum repeat interval in nanoseconds.
-    minimumIntervalNs: uint64;
-    /// Earliest target execution timestamp in UTC nanoseconds.
-    earliestBeginUnixNs: uint64;
-    /// Whether one network route is required.
-    requiresNetwork: boolean;
-    /// Whether one unmetered network route is required.
-    requiresUnmeteredNetwork: boolean;
+    /// Requested schedule payload.
+    schedule: BackgroundTaskSchedule;
+    /// Requested network requirement.
+    network: BackgroundNetworkRequirement;
     /// Whether charging power is required.
     requiresCharging: boolean;
     /// Whether idle mode is required.
     requiresIdle: boolean;
-    /// Whether this registration should persist across host restart.
-    persisted: boolean;
+    /// Registration conflict policy for one existing identifier.
+    conflictPolicy: BackgroundConflictPolicy;
 }
 
 /// Background-task descriptor payload.
@@ -58,20 +80,16 @@ export struct BackgroundTaskDescriptor {
     identifier: string;
     /// Trigger class.
     trigger: BackgroundTriggerKind;
-    /// Effective minimum repeat interval in nanoseconds.
-    minimumIntervalNs: uint64;
-    /// Earliest target execution timestamp in UTC nanoseconds.
-    earliestBeginUnixNs: uint64;
-    /// Whether one network route is required.
-    requiresNetwork: boolean;
-    /// Whether one unmetered network route is required.
-    requiresUnmeteredNetwork: boolean;
+    /// Effective schedule payload.
+    schedule: BackgroundTaskSchedule;
+    /// Effective network requirement.
+    network: BackgroundNetworkRequirement;
     /// Whether charging power is required.
     requiresCharging: boolean;
     /// Whether idle mode is required.
     requiresIdle: boolean;
-    /// Whether this registration persists across host restart.
-    persisted: boolean;
+    /// Registration conflict policy for one existing identifier.
+    conflictPolicy: BackgroundConflictPolicy;
 }
 
 /// Background-task event stream open options.
@@ -175,7 +193,7 @@ declare namespace os {
 
     /// Register one background task.
     ///
-    /// Create or replace one background-task registration for this runtime identity.
+    /// Create one background-task registration or resolve one existing identifier according to the selected registration policy.
     ///
     /// # Platform
     /// Unix and Windows.
