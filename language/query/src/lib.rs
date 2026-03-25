@@ -1,11 +1,7 @@
-#[path = "query/assist/mod.rs"]
 pub mod assist;
-#[path = "query/common/mod.rs"]
 pub mod common;
 pub mod format;
-#[path = "query/navigation/mod.rs"]
 pub mod navigation;
-#[path = "query/refactor/mod.rs"]
 pub mod refactor;
 pub mod registry;
 pub mod request;
