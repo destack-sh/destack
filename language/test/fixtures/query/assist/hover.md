@@ -623,6 +623,45 @@ stableLater();
 range=main.ds:5:1-5:12 signature=export function stableLater(): void documentation=<none>
 ```
 
+### Keep hover working after throw recovery statements
+
+Hover should still resolve valid later declarations after one recovered `throw` statement.
+
+```ds
+throw
+
+export function stableLater(): void {}
+//              ^^^^^^^^^^^ def:stableLater
+
+stableLater();
+// ^^^^^^^^^^^ use:stableLater
+```
+
+```query hover use:stableLater
+range=main.ds:5:1-5:12 signature=export function stableLater(): void documentation=<none>
+```
+
+### Keep hover working after yield star recovery statements
+
+Hover should still resolve valid later declarations after one recovered `yield*` statement.
+
+```ds
+function* broken() {
+    yield*
+    const value = 1;
+}
+
+export function stableLater(): void {}
+//              ^^^^^^^^^^^ def:stableLater
+
+stableLater();
+// ^^^^^^^^^^^ use:stableLater
+```
+
+```query hover use:stableLater
+range=main.ds:8:1-8:12 signature=export function stableLater(): void documentation=<none>
+```
+
 ### Return no hover for malformed unresolved member access
 
 Hover should return no symbol information when the cursor is on malformed unresolved syntax.

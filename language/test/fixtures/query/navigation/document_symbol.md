@@ -281,3 +281,47 @@ stableLater(function) range=3:1-3:39 selection=3:17-3:28
 StableBox(class) range=5:1-7:2 selection=5:7-5:16
   value(field) range=6:5-6:17 selection=6:5-6:10
 ```
+
+### Keep later symbols after throw recovery statements
+
+Document symbols should still include later declarations after one recovered `throw` statement.
+
+```ds
+throw
+
+export function stableLater(): void {}
+
+class StableBox {
+    value: int32
+}
+```
+
+```query document_symbols $0
+stableLater(function) range=3:1-3:39 selection=3:17-3:28
+StableBox(class) range=5:1-7:2 selection=5:7-5:16
+  value(field) range=6:5-6:17 selection=6:5-6:10
+```
+
+### Keep later symbols after yield star recovery statements
+
+Document symbols should still include later declarations after one recovered `yield*` statement.
+
+```ds
+function* broken() {
+    yield*
+    const value = 1;
+}
+
+export function stableLater(): void {}
+
+class StableBox {
+    value: int32
+}
+```
+
+```query document_symbols $0
+broken(function) range=1:1-4:2 selection=1:11-1:17
+stableLater(function) range=6:1-6:39 selection=6:17-6:28
+StableBox(class) range=8:1-10:2 selection=8:7-8:16
+  value(field) range=9:5-9:17 selection=9:5-9:10
+```

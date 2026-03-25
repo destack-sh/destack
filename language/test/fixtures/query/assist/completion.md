@@ -2288,6 +2288,27 @@ main: function
 sourceData: variable
 ```
 
+### Keep member completions when one initializer introduces the same label
+
+Initializer binding exclusion should only suppress lexical value names, not member completions.
+
+```ds
+class Calculator {
+    add(a: int32, b: int32): int32 {
+        return a + b;
+    }
+}
+
+function main() {
+    const calc = new Calculator();
+    const add = calc.ad$0
+}
+```
+
+```query completion $0
+add: method
+```
+
 ### Complete after malformed call statements
 
 Value completion should still work for later call arguments after one malformed call statement.
@@ -2315,6 +2336,46 @@ function greet(name: string): void {}
 
 function main() {
     new
+    const userName = "Alice";
+    greet($0)
+}
+```
+
+```query completion $0
+main: function
+greet: function
+userName: variable
+```
+
+### Complete after throw recovery statements
+
+Value completion should still work for later call arguments after one recovered `throw` statement.
+
+```ds
+function greet(name: string): void {}
+
+function main() {
+    throw
+    const userName = "Alice";
+    greet($0)
+}
+```
+
+```query completion $0
+main: function
+greet: function
+userName: variable
+```
+
+### Complete after yield star recovery statements
+
+Value completion should still work for later call arguments after one recovered `yield*` statement.
+
+```ds
+function greet(name: string): void {}
+
+function* main() {
+    yield*
     const userName = "Alice";
     greet($0)
 }
@@ -2774,4 +2835,71 @@ function main() {
 top: 2
 [0] label=formatTieAlpha kind=function sort=471 sort_text=0471:./a/format_tie:formatTieAlpha detail=Auto import from ./a/format_tie edits=main.ds:1:1-1:1=>"import { formatTieAlpha } from \"./a/format_tie\";"
 [1] label=formatTieBeta kind=function sort=471 sort_text=0471:./b/format_tie:formatTieBeta detail=Auto import from ./b/format_tie edits=main.ds:1:1-1:1=>"import { formatTieBeta } from \"./b/format_tie\";"
+```
+
+### Complete constructor names after bare new
+
+Recovered `new` constructor slots should complete constructor names from scope.
+
+```ds
+class Engine {}
+
+function main() {
+    new Eng$0
+}
+```
+
+```query completion $0
+Engine: class
+```
+
+### Complete values after return
+
+Recovered `return` value slots should complete visible values from scope.
+
+```ds
+function helperValue(): int32 {
+    return 1;
+}
+
+function main() {
+    return hel$0
+}
+```
+
+```query completion $0
+helperValue: function
+```
+
+### Complete values after throw
+
+Recovered `throw` value slots should complete visible values from scope.
+
+```ds
+function main() {
+    const failureValue = 1;
+    throw fai$0
+}
+```
+
+```query completion $0
+failureValue: variable
+```
+
+### Complete values after yield star
+
+Recovered `yield*` operand slots should complete visible values from scope.
+
+```ds
+function* iteratorItems() {
+    yield 1;
+}
+
+function* main() {
+    yield* iteratorI$0
+}
+```
+
+```query completion $0
+iteratorItems: function
 ```

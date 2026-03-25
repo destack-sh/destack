@@ -60,6 +60,50 @@ active_signature=0 active_parameter=1
 signature[0] label=add(x: int32, y: int32): int32 documentation=<none> parameters=x: int32|y: int32 param_docs=<none>|<none>
 ```
 
+### Keep signature help working after throw recovery statements
+
+Signature help should still resolve later valid calls after one recovered `throw` statement.
+
+```ds
+function add(x: int32, y: int32): int32 {
+    return x + y;
+}
+
+function main() {
+    throw
+    const result = add(1, $0);
+}
+```
+
+```query signature_help $0
+active_signature=0 active_parameter=1
+signature[0] label=add(x: int32, y: int32): int32 documentation=<none> parameters=x: int32|y: int32 param_docs=<none>|<none>
+```
+
+### Keep signature help working after yield star recovery statements
+
+Signature help should still resolve later valid calls after one recovered `yield*` statement.
+
+```ds
+function add(x: int32, y: int32): int32 {
+    return x + y;
+}
+
+function* broken() {
+    yield*
+    const value = 1;
+}
+
+function main() {
+    const result = add(1, $0);
+}
+```
+
+```query signature_help $0
+active_signature=0 active_parameter=1
+signature[0] label=add(x: int32, y: int32): int32 documentation=<none> parameters=x: int32|y: int32 param_docs=<none>|<none>
+```
+
 ### Track active parameter after trailing comma
 
 Signature help should keep the last parameter active after a trailing comma.

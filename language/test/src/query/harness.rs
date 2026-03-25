@@ -449,10 +449,8 @@ fn ensure_test_file_id(
 mod tests {
     use std::collections::HashMap;
 
-    use destack_dir as dir;
     use destack_query::{
-        CompletionContext, CompletionTrigger, completions, detect_completion_context,
-        find_symbol_at_offset, get_canonical_symbol, get_symbol_definition_span, query_context,
+        CompletionContext, CompletionTrigger, completions, detect_completion_context, query_context,
     };
 
     use super::QueryTestSession;
@@ -524,6 +522,251 @@ $0
             CompletionContext::StatementPosition { .. } => {}
             other => panic!("expected statement completion context, found {other:?}"),
         }
+    }
+
+    /// Detects new-expression completion context after a bare `new` keyword.
+    #[test]
+    fn test_detects_new_expression_completion_context_after_new_keyword() {
+        let session = QueryTestSession::from_mdtest(&mdtest_case(
+            r#"
+class Engine {}
+
+function main() {
+    new $0
+}
+"#,
+        ));
+        let cursor = session
+            .markers
+            .cursors
+            .first()
+            .unwrap_or_else(|| panic!("expected cursor marker"))
+            .offset;
+
+        // detect completion context at the cursor
+        let result = detect_completion_context(session.session.as_ref(), session.file_id, cursor);
+
+        // require new-expression completion at the cursor
+        match result.context {
+            CompletionContext::NewExpression { .. } => {}
+            other => panic!("expected new-expression completion context, found {other:?}"),
+        }
+    }
+
+    /// Detects new-expression completion context while typing a constructor name.
+    #[test]
+    fn test_detects_new_expression_completion_context_for_constructor_prefix() {
+        let session = QueryTestSession::from_mdtest(&mdtest_case(
+            r#"
+class Engine {}
+
+function main() {
+    new Eng$0
+}
+"#,
+        ));
+        let cursor = session
+            .markers
+            .cursors
+            .first()
+            .unwrap_or_else(|| panic!("expected cursor marker"))
+            .offset;
+
+        // detect completion context at the cursor
+        let result = detect_completion_context(session.session.as_ref(), session.file_id, cursor);
+
+        // require new-expression completion at the cursor
+        match result.context {
+            CompletionContext::NewExpression { .. } => {}
+            other => panic!("expected new-expression completion context, found {other:?}"),
+        }
+    }
+
+    /// Detects value completion context in one missing return slot.
+    #[test]
+    fn test_detects_value_completion_context_after_return_keyword() {
+        let session = QueryTestSession::from_mdtest(&mdtest_case(
+            r#"
+function helper(): void {}
+
+function main() {
+    return $0
+}
+"#,
+        ));
+        let cursor = session
+            .markers
+            .cursors
+            .first()
+            .unwrap_or_else(|| panic!("expected cursor marker"))
+            .offset;
+
+        // detect completion context at the cursor
+        let result = detect_completion_context(session.session.as_ref(), session.file_id, cursor);
+
+        // require value completion at the cursor
+        match result.context {
+            CompletionContext::ValuePosition { .. } => {}
+            other => panic!("expected value completion context, found {other:?}"),
+        }
+    }
+
+    /// Detects value completion context in one missing yield slot.
+    #[test]
+    fn test_detects_value_completion_context_after_yield_keyword() {
+        let session = QueryTestSession::from_mdtest(&mdtest_case(
+            r#"
+function* main() {
+    yield $0
+}
+"#,
+        ));
+        let cursor = session
+            .markers
+            .cursors
+            .first()
+            .unwrap_or_else(|| panic!("expected cursor marker"))
+            .offset;
+
+        // detect completion context at the cursor
+        let result = detect_completion_context(session.session.as_ref(), session.file_id, cursor);
+
+        // require value completion at the cursor
+        match result.context {
+            CompletionContext::ValuePosition { .. } => {}
+            other => panic!("expected value completion context, found {other:?}"),
+        }
+    }
+
+    /// Detects value completion context in one missing `yield*` operand slot.
+    #[test]
+    fn test_detects_value_completion_context_after_yield_star() {
+        let session = QueryTestSession::from_mdtest(&mdtest_case(
+            r#"
+function* main() {
+    yield* $0
+}
+"#,
+        ));
+        let cursor = session
+            .markers
+            .cursors
+            .first()
+            .unwrap_or_else(|| panic!("expected cursor marker"))
+            .offset;
+
+        // detect completion context at the cursor
+        let result = detect_completion_context(session.session.as_ref(), session.file_id, cursor);
+
+        // require value completion at the cursor
+        match result.context {
+            CompletionContext::ValuePosition { .. } => {}
+            other => panic!("expected value completion context, found {other:?}"),
+        }
+    }
+
+    /// Detects value completion context in one missing throw slot.
+    #[test]
+    fn test_detects_value_completion_context_after_throw_keyword() {
+        let session = QueryTestSession::from_mdtest(&mdtest_case(
+            r#"
+function main() {
+    throw $0
+}
+"#,
+        ));
+        let cursor = session
+            .markers
+            .cursors
+            .first()
+            .unwrap_or_else(|| panic!("expected cursor marker"))
+            .offset;
+
+        // detect completion context at the cursor
+        let result = detect_completion_context(session.session.as_ref(), session.file_id, cursor);
+
+        // require value completion at the cursor
+        match result.context {
+            CompletionContext::ValuePosition { .. } => {}
+            other => panic!("expected value completion context, found {other:?}"),
+        }
+    }
+
+    /// Detects member access completion context inside one initializer with the same binding name.
+    #[test]
+    fn test_detects_member_access_context_inside_initializer_with_same_label() {
+        let session = QueryTestSession::from_mdtest(&mdtest_case(
+            r#"
+class Calculator {
+    add(a: int32, b: int32): int32 {
+        return a + b;
+    }
+}
+
+function main() {
+    const calc = new Calculator();
+    const add = calc.ad$0
+}
+"#,
+        ));
+        let cursor = session
+            .markers
+            .cursors
+            .first()
+            .unwrap_or_else(|| panic!("expected cursor marker"))
+            .offset;
+
+        // detect completion context at the cursor
+        let result = detect_completion_context(session.session.as_ref(), session.file_id, cursor);
+
+        // require member access completion at the cursor
+        match result.context {
+            CompletionContext::MemberAccess { .. } => {}
+            other => panic!("expected member access completion context, found {other:?}"),
+        }
+    }
+
+    /// Returns member completions inside one initializer even when the binding has the same label.
+    #[test]
+    fn test_completions_keep_member_access_inside_initializer_with_same_label() {
+        let session = QueryTestSession::from_mdtest(&mdtest_case(
+            r#"
+class Calculator {
+    add(a: int32, b: int32): int32 {
+        return a + b;
+    }
+}
+
+function main() {
+    const calc = new Calculator();
+    const add = calc.ad$0
+}
+"#,
+        ));
+        let cursor = session
+            .markers
+            .cursors
+            .first()
+            .unwrap_or_else(|| panic!("expected cursor marker"))
+            .offset;
+
+        // request completions at the member access cursor
+        let completions = completions(
+            session.session.as_ref(),
+            session.file_id,
+            cursor,
+            CompletionTrigger::Invoked,
+        );
+        let labels: Vec<_> = completions
+            .iter()
+            .map(|completion| completion.label.clone())
+            .collect();
+
+        // keep the class method completion visible
+        assert!(
+            labels.iter().any(|label| label == "add"),
+            "expected method completion, found {labels:?}"
+        );
     }
 
     /// Returns visible local value completions for a simple mdtest session.

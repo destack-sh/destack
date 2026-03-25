@@ -607,6 +607,47 @@ main.ds:3:17-3:28
 main.ds:5:1-5:12
 ```
 
+### Find references for valid symbols after throw recovery statements
+
+Find references should still resolve later declarations after one recovered `throw` statement.
+
+```ds
+throw
+
+export function stableLater(): void {}
+//              ^^^^^^^^^^^ def:stableLater
+
+stableLater();
+// ^^^^^^^^^^^ use:stableLater
+```
+
+```query find_references def:stableLater
+main.ds:3:17-3:28
+main.ds:5:1-5:12
+```
+
+### Find references for valid symbols after yield star recovery statements
+
+Find references should still resolve later declarations after one recovered `yield*` statement.
+
+```ds
+function* broken() {
+    yield*
+    const value = 1;
+}
+
+export function stableLater(): void {}
+//              ^^^^^^^^^^^ def:stableLater
+
+stableLater();
+// ^^^^^^^^^^^ use:stableLater
+```
+
+```query find_references def:stableLater
+main.ds:6:17-6:28
+main.ds:8:1-8:12
+```
+
 ### Return no references for malformed unresolved access
 
 Find references should fail gracefully when the cursor is on malformed unresolved syntax.

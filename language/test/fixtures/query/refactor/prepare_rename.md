@@ -584,6 +584,43 @@ stableLater();
 stableLater
 ```
 
+### Prepare rename after throw recovery statements
+
+Prepare rename should still work for later declarations after one recovered `throw` statement.
+
+```ds
+throw
+
+export function stableLater(): void {}
+//              ^^^^^^^^^^^ target:stableLater
+
+stableLater();
+```
+
+```query prepare_rename target:stableLater
+stableLater
+```
+
+### Prepare rename after yield star recovery statements
+
+Prepare rename should still work for later declarations after one recovered `yield*` statement.
+
+```ds
+function* broken() {
+    yield*
+    const value = 1;
+}
+
+export function stableLater(): void {}
+//              ^^^^^^^^^^^ target:stableLater
+
+stableLater();
+```
+
+```query prepare_rename target:stableLater
+stableLater
+```
+
 ### Prepare rename on malformed unresolved member access
 
 Prepare rename should return no result when the cursor is on malformed unresolved syntax.
