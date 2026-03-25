@@ -438,7 +438,10 @@ impl Parser {
             }
             dynamic_parameters.push(parameter_id);
         }
-        self.eat_token(TokenType::CloseParenthesis)?;
+        self.eat_list_close_token_or_recover_missing(
+            TokenType::CloseParenthesis,
+            NodeType::Parameter,
+        )?;
 
         // parse an explicit lambda return type when present
         let (return_type, return_type_span) = if self.has_lambda_return_type_marker() {
@@ -518,7 +521,10 @@ impl Parser {
             self.eat_parameters_body_with_options(parameter_options)?
         };
         self.eat_newlines_maybe()?;
-        self.eat_token(TokenType::CloseParenthesis)?;
+        self.eat_list_close_token_or_recover_missing(
+            TokenType::CloseParenthesis,
+            NodeType::Parameter,
+        )?;
 
         // explicit lambda return type
         let (return_type, return_type_span) = if self.has_lambda_return_type_marker() {
@@ -815,7 +821,10 @@ impl Parser {
                     self.eat_parameters_body_with_options(parameter_options)?
                 };
                 self.eat_newlines_maybe()?;
-                self.eat_token(TokenType::CloseParenthesis)?;
+                self.eat_list_close_token_or_recover_missing(
+                    TokenType::CloseParenthesis,
+                    NodeType::Parameter,
+                )?;
 
                 dynamic_parameters
             }
@@ -1066,14 +1075,17 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Argument, Asynchrony, BinaryOperator, CommentStyle, Declaration, DeclarationDescriptor,
-        Expression, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode, IntType,
-        Parameter, ScalarLiteral, TypeLiteral, VarianceModifier, WhereClause, YieldCardinality,
+        Argument, Asynchrony, BinaryOperator, BlockContext, BlockFormat, CommentStyle, Declaration,
+        DeclarationDescriptor, Declarator, Expression, FunctionAbstraction, FunctionCardinality,
+        FunctionKind, FunctionMode, IntType, NodeType, Parameter, Pattern, ScalarLiteral,
+        TypeLiteral, VarianceModifier, WhereClause, YieldCardinality,
     };
 
     use destack_source::LanguageType;
 
-    use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
+    use crate::{
+        TestParser, assert_expression_path, assert_name, assert_node, assert_path, assert_string,
+    };
 
     #[test]
     fn test_parse_function_lambda_with_newlines() {
@@ -1103,6 +1115,174 @@ mod tests {
             // x
             assert_node!(parser.tree, *body, Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "x");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_function_missing_close_paren_keeps_following_declaration() {
+        let mut test = TestParser::new_with_options(
+            r#"
+export function broken( {}
+export function stableLater(): void {}
+"#,
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+
+        let expressions = parser
+            .eat_block_body_with_context(BlockFormat::Implicit, BlockContext::Statement)
+            .unwrap();
+
+        assert_eq!(expressions.len(), 2);
+
+        // export function broken( {}
+        let first_declaration_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, first_declaration_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { descriptor, .. } => {
+                assert_name!(parser, descriptor.name.unwrap(), "broken");
+            });
+        });
+
+        // export function stableLater(): void {}
+        let second_declaration_id = parser.unwrap_statement_expression(expressions[1]);
+        assert_node!(parser.tree, second_declaration_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { descriptor, .. } => {
+                assert_name!(parser, descriptor.name.unwrap(), "stableLater");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_function_missing_close_paren_before_following_function_keeps_declaration() {
+        let mut test = TestParser::new_with_options(
+            r#"
+function broken(
+function stableLater(): void {}
+"#,
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+
+        let expressions = parser
+            .eat_block_body_with_context(BlockFormat::Implicit, BlockContext::Statement)
+            .unwrap();
+
+        assert_eq!(expressions.len(), 2);
+
+        // function broken(
+        let first_declaration_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, first_declaration_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { descriptor, .. } => {
+                assert_name!(parser, descriptor.name.unwrap(), "broken");
+            });
+        });
+
+        // function stableLater(): void {}
+        let second_declaration_id = parser.unwrap_statement_expression(expressions[1]);
+        assert_node!(parser.tree, second_declaration_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { descriptor, .. } => {
+                assert_name!(parser, descriptor.name.unwrap(), "stableLater");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_function_missing_close_paren_before_following_const_keeps_statement() {
+        let mut test = TestParser::new_with_options(
+            r#"
+function broken(
+const value = 1
+"#,
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+
+        let expressions = parser
+            .eat_block_body_with_context(BlockFormat::Implicit, BlockContext::Statement)
+            .unwrap();
+
+        assert_eq!(expressions.len(), 2);
+
+        // function broken(
+        let first_declaration_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, first_declaration_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { descriptor, .. } => {
+                assert_name!(parser, descriptor.name.unwrap(), "broken");
+            });
+        });
+
+        // const value = 1
+        let second_expression_id = parser.unwrap_statement_expression(expressions[1]);
+        assert_node!(parser.tree, second_expression_id, Expression::Let { declarators, .. } => {
+            assert_eq!(declarators.len(), 1);
+            assert_node!(parser.tree, declarators[0], Declarator { pattern, .. } => {
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
+                    assert_string!(parser, *name, "value");
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_function_parameter_named_type_after_newline() {
+        let mut test = TestParser::new_with_options(
+            r#"
+function configure(
+    type: string,
+): void {}
+"#,
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newlines_maybe().unwrap();
+
+        let start = parser.mark_span();
+        let function_id = parser
+            .eat_function(&start, DeclarationDescriptor::default(), false, false)
+            .unwrap();
+
+        // function configure(type: string): void {}
+        assert_node!(parser.tree, function_id, Declaration::Function { descriptor, signature, .. } => {
+            assert_name!(parser, descriptor.name.unwrap(), "configure");
+            assert_eq!(signature.dynamic_parameters.len(), 1);
+
+            // type: string
+            assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
+                assert_string!(parser, *name, "type");
+                assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::String));
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_function_parameter_named_namespace_after_newline() {
+        let mut test = TestParser::new(
+            r#"
+function setns(
+    namespace: ProcessNamespaceKind,
+): void {}
+"#,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newlines_maybe().unwrap();
+
+        let start = parser.mark_span();
+        let function_id = parser
+            .eat_function(&start, DeclarationDescriptor::default(), false, false)
+            .unwrap();
+
+        // function setns(namespace: ProcessNamespaceKind): void {}
+        assert_node!(parser.tree, function_id, Declaration::Function { descriptor, signature, .. } => {
+            assert_name!(parser, descriptor.name.unwrap(), "setns");
+            assert_eq!(signature.dynamic_parameters.len(), 1);
+
+            // namespace: ProcessNamespaceKind
+            assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
+                assert_string!(parser, *name, "namespace");
+                assert_node!(parser.tree, ty.unwrap(), Expression::Path { path, .. } => {
+                    assert_path!(parser, *path, "ProcessNamespaceKind");
+                });
             });
         });
     }
@@ -1719,7 +1899,13 @@ function main() {
         let mut parser = test.prepare();
         let expressions = parser.parse();
 
-        assert_eq!(parser.errors.len(), 2);
+        // diagnostics
+        test.assert_error_leaves(
+            &parser,
+            &[(None, None, "}"), (Some(NodeType::Expression), None, "}")],
+        );
+
+        // top level expressions
         assert_eq!(expressions.len(), 2);
 
         // function main() { ... }
@@ -1886,6 +2072,49 @@ function main() {
 
                     // *a
                     assert_node!(parser.tree, block.expressions[1], Expression::Error);
+                });
+            });
+        });
+    }
+
+    /// Recover delegated generator yield without an operand before a following const statement.
+    #[test]
+    fn test_recover_function_generator_delegate_before_following_const_javascript() {
+        // source: function *a(){yield*
+        // const value = 1}
+        let mut test = TestParser::new_with_options(
+            "function *a(){yield*\nconst value = 1}",
+            LanguageType::JavaScript,
+        );
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression(parser.options).unwrap();
+
+        // diagnostics
+        test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "\n")]);
+
+        // function *a(){yield*
+        // const value = 1}
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body: Some(body), .. } => {
+                assert_eq!(signature.cardinality, FunctionCardinality::Generator);
+
+                // { yield* \n const value = 1 }
+                assert_node!(parser.tree, *body, Expression::Block(block_id) => {
+                    let block = parser.tree.get(*block_id);
+                    assert_eq!(block.expressions.len(), 2);
+
+                    // yield*
+                    assert_node!(parser.tree, block.expressions[0], Expression::Statement(statement_id) => {
+                        assert_node!(parser.tree, *statement_id, Expression::Yield { cardinality, value } => {
+                            assert_eq!(*cardinality, YieldCardinality::Generator);
+                            assert_node!(parser.tree, value.expect("expected missing generator operand"), Expression::Missing);
+                        });
+                    });
+
+                    // const value = 1
+                    assert_node!(parser.tree, block.expressions[1], Expression::Let { declarators, .. } => {
+                        assert_eq!(declarators.len(), 1);
+                    });
                 });
             });
         });

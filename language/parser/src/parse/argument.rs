@@ -112,6 +112,102 @@ impl Parser {
             .not_in_position()
     }
 
+    /// Return true when the current keyword should end a malformed parameter list after a newline.
+    fn current_keyword_starts_parameter_recovery_boundary(&mut self) -> bool {
+        // only statement scoped dynamic parameters should stop at newline led keywords
+        if self.options.is_in_static() || !self.options.is_in_statement_context() {
+            return false;
+        }
+
+        // only newline led keywords can start a following statement
+        if !self.has_line_terminator_before_current_token() {
+            return false;
+        }
+
+        // parameter heads should win when the keyword is already followed by a
+        // parameter continuation like `type:` or `namespace:`
+        if self.current_keyword_continues_parameter_head() {
+            return false;
+        }
+
+        // statement keywords
+        let Some(keyword) = self.keyword_for_index(self.pos_index()) else {
+            return false;
+        };
+
+        matches!(
+            keyword,
+            Keyword::Abstract
+                | Keyword::Break
+                | Keyword::Class
+                | Keyword::Const
+                | Keyword::Continue
+                | Keyword::Do
+                | Keyword::Enum
+                | Keyword::Export
+                | Keyword::Extension
+                | Keyword::For
+                | Keyword::Function
+                | Keyword::If
+                | Keyword::Import
+                | Keyword::Interface
+                | Keyword::Let
+                | Keyword::Match
+                | Keyword::Namespace
+                | Keyword::Return
+                | Keyword::Switch
+                | Keyword::Throw
+                | Keyword::Type
+                | Keyword::Try
+                | Keyword::Using
+                | Keyword::Var
+                | Keyword::While
+        )
+    }
+
+    /// Return true when the current keyword token already looks like a parameter head.
+    fn current_keyword_continues_parameter_head(&mut self) -> bool {
+        let next_index = self.next_non_newline_index_from(self.pos_index().saturating_add(1));
+        let next_token_type = self.token_type_at(next_index);
+
+        matches!(
+            next_token_type,
+            TokenType::Assign
+                | TokenType::CloseParenthesis
+                | TokenType::Colon
+                | TokenType::Comma
+                | TokenType::Maybe
+        )
+    }
+
+    /// Return true when one recovered argument list should stop at the current statement boundary.
+    fn should_end_recovered_argument_list_at_statement_boundary(
+        &mut self,
+        is_recovered_argument: bool,
+    ) -> bool {
+        is_recovered_argument
+            && self.options.is_in_statement_context()
+            && self.has_line_terminator_before_current_token()
+    }
+
+    /// Return true when one parsed argument came from a recovered missing or error slot.
+    fn argument_has_recovered_slot(&self, argument_id: LocalNodeId<Argument>) -> bool {
+        match self.tree.get(argument_id) {
+            Argument::Error => true,
+
+            // missing and error values should stop newline led statement calls locally
+            Argument::Named { value, .. }
+            | Argument::Labeled { value, .. }
+            | Argument::Positional { value, .. }
+            | Argument::Spread { value, .. } => {
+                matches!(
+                    self.tree.get(*value),
+                    Expression::Missing | Expression::Error
+                )
+            }
+        }
+    }
+
     /// Parse a parameter type annotation expression.
     #[inline]
     fn eat_parameter_type_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
@@ -795,6 +891,11 @@ impl Parser {
                 break;
             }
 
+            // newline led statement keywords should stay outside malformed parameter lists
+            if self.current_keyword_starts_parameter_recovery_boundary() {
+                break;
+            }
+
             // one parameter slot
             let parameter_start = self.mark_span();
             let mut is_recovered_parameter = false;
@@ -802,15 +903,27 @@ impl Parser {
                 Ok(parameter) => parameter,
                 Err(error) => {
                     is_recovered_parameter = true;
-                    self.try_recover_in_item_list(
-                        &parameter_start,
-                        if self.options.is_in_static() {
-                            TokenType::GreaterThan
-                        } else {
-                            TokenType::CloseParenthesis
-                        },
-                        Some(error),
-                    )?;
+                    let recover_at_statement_keyword =
+                        self.current_keyword_starts_parameter_recovery_boundary();
+
+                    // newline led keyword statements should stay outside malformed parameter lists
+                    if recover_at_statement_keyword {
+                        let error = ParseError::from_source_maybe(
+                            self.get_span_from(&parameter_start),
+                            Some(error),
+                        );
+                        self.error(&error);
+                    } else {
+                        self.try_recover_in_item_list(
+                            &parameter_start,
+                            if self.options.is_in_static() {
+                                TokenType::GreaterThan
+                            } else {
+                                TokenType::CloseParenthesis
+                            },
+                            Some(error),
+                        )?;
+                    }
 
                     self.insert_node(Parameter::Error, self.get_span_from(&parameter_start))
                 }
@@ -838,6 +951,12 @@ impl Parser {
 
             if self.peek_is(TokenType::Comma) {
                 self.eat_item_stop_with_newlines()?;
+            }
+            // recovered parameter lists should stop before a newline led keyword statement
+            else if is_recovered_parameter
+                && self.current_keyword_starts_parameter_recovery_boundary()
+            {
+                break;
             }
             // recovered slots may continue across newline separators only
             else if !self.can_continue_after_recovered_item(
@@ -1696,14 +1815,18 @@ impl Parser {
 
             // one argument slot
             let argument_start = self.mark_span();
-            let mut is_recovered_argument = false;
+            let is_recovered_argument;
             let argument_id = match self.eat_positional_argument() {
-                Ok(argument_id) => argument_id,
+                Ok(argument_id) => {
+                    is_recovered_argument = self.argument_has_recovered_slot(argument_id);
+                    argument_id
+                }
                 Err(error) => {
-                    is_recovered_argument = true;
                     self.try_recover_in_item_list(&argument_start, terminator, Some(error))?;
-
-                    self.insert_node(Argument::Error, self.get_span_from(&argument_start))
+                    let argument_id =
+                        self.insert_node(Argument::Error, self.get_span_from(&argument_start));
+                    is_recovered_argument = true;
+                    argument_id
                 }
             };
 
@@ -1712,6 +1835,19 @@ impl Parser {
             arguments.push(argument_id);
             if self.peek_is(TokenType::Comma) {
                 self.eat_item_stop_with_newlines()?;
+
+                // recovered statement calls should stop before the next newline led statement
+                if self
+                    .should_end_recovered_argument_list_at_statement_boundary(is_recovered_argument)
+                {
+                    break;
+                }
+            }
+            // recovered statement calls should stop before the next newline led statement
+            else if self
+                .should_end_recovered_argument_list_at_statement_boundary(is_recovered_argument)
+            {
+                break;
             }
             // recovered slots may continue across newline separators only
             else if !self.can_continue_after_recovered_item(terminator, is_recovered_argument) {
@@ -1744,14 +1880,18 @@ impl Parser {
 
             // one argument slot
             let argument_start = self.mark_span();
-            let mut is_recovered_argument = false;
+            let is_recovered_argument;
             let argument_id = match self.eat_tree_argument() {
-                Ok(argument_id) => argument_id,
+                Ok(argument_id) => {
+                    is_recovered_argument = self.argument_has_recovered_slot(argument_id);
+                    argument_id
+                }
                 Err(error) => {
-                    is_recovered_argument = true;
                     self.try_recover_in_item_list(&argument_start, terminator, Some(error))?;
-
-                    self.insert_node(Argument::Error, self.get_span_from(&argument_start))
+                    let argument_id =
+                        self.insert_node(Argument::Error, self.get_span_from(&argument_start));
+                    is_recovered_argument = true;
+                    argument_id
                 }
             };
 
@@ -1760,6 +1900,19 @@ impl Parser {
             arguments.push(argument_id);
             if self.peek_is(TokenType::Comma) {
                 self.eat_item_stop_with_newlines()?;
+
+                // recovered statement calls should stop before the next newline led statement
+                if self
+                    .should_end_recovered_argument_list_at_statement_boundary(is_recovered_argument)
+                {
+                    break;
+                }
+            }
+            // recovered statement calls should stop before the next newline led statement
+            else if self
+                .should_end_recovered_argument_list_at_statement_boundary(is_recovered_argument)
+            {
+                break;
             }
             // recovered slots may continue across newline separators only
             else if !self.can_continue_after_recovered_item(terminator, is_recovered_argument) {
@@ -2925,18 +3078,85 @@ foo (a, ...);
             ],
         );
 
-        // foo(a,b var;
-        // foo (a, ...);
         assert_eq!(expressions.len(), 2);
 
+        // foo(a,b var;
         let first_call_id = parser.unwrap_statement_expression(expressions[0]);
         assert_node!(parser.tree, first_call_id, Expression::Call { dynamic_arguments, .. } => {
             assert_eq!(dynamic_arguments.len(), 2);
         });
 
+        // foo (a, ...);
         let second_call_id = parser.unwrap_statement_expression(expressions[1]);
         assert_node!(parser.tree, second_call_id, Expression::Call { dynamic_arguments, .. } => {
             assert_eq!(dynamic_arguments.len(), 2);
+        });
+    }
+
+    #[test]
+    fn test_parse_malformed_call_with_empty_slot_before_following_call_keeps_statement_shape() {
+        let source = r#"
+foo(,
+bar();
+"#;
+        let mut test = TestParser::new_with_options(source, LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        // diagnostics
+        test.assert_error_leaves(
+            &parser,
+            &[(None, None, ","), (Some(NodeType::Expression), None, "bar")],
+        );
+
+        assert_eq!(expressions.len(), 2);
+
+        // foo(,
+        let first_call_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, first_call_id, Expression::Call { dynamic_arguments, .. } => {
+            assert_eq!(dynamic_arguments.len(), 1);
+            assert_node!(parser.tree, dynamic_arguments[0], Argument::Error);
+        });
+
+        // bar();
+        let second_call_id = parser.unwrap_statement_expression(expressions[1]);
+        assert_node!(parser.tree, second_call_id, Expression::Call { dynamic_arguments, .. } => {
+            assert_eq!(dynamic_arguments.len(), 0);
+        });
+    }
+
+    #[test]
+    fn test_parse_malformed_call_with_empty_slot_before_following_const_keeps_statement_shape() {
+        let source = r#"
+foo(,
+const value = 1;
+"#;
+        let mut test = TestParser::new_with_options(source, LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        // diagnostics
+        test.assert_error_leaves(
+            &parser,
+            &[
+                (None, None, ","),
+                (Some(NodeType::Expression), None, "const"),
+            ],
+        );
+
+        assert_eq!(expressions.len(), 2);
+
+        // foo(,
+        let first_call_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, first_call_id, Expression::Call { dynamic_arguments, .. } => {
+            assert_eq!(dynamic_arguments.len(), 1);
+            assert_node!(parser.tree, dynamic_arguments[0], Argument::Error);
+        });
+
+        // const value = 1;
+        let second_expression_id = parser.unwrap_statement_expression(expressions[1]);
+        assert_node!(parser.tree, second_expression_id, Expression::Let { declarators, .. } => {
+            assert_eq!(declarators.len(), 1);
         });
     }
 
