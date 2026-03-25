@@ -61,7 +61,7 @@ fn expression_is_bitwise_int32_hint(
     expression_id: ast::LocalNodeId<ast::Expression>,
     operator: BitwiseOperator,
 ) -> bool {
-    if !ctx.options.allow_bitwise_int32_hint || operator != BitwiseOperator::Or {
+    if !ctx.options.restriction.allow_bitwise_int32_hint || operator != BitwiseOperator::Or {
         return false;
     }
 
@@ -117,7 +117,11 @@ impl LintRule for NoBitwise {
             let Some(operator) = operator else {
                 continue;
             };
-            if ctx.options.allowed_bitwise_operators.contains(&operator)
+            if ctx
+                .options
+                .restriction
+                .allowed_bitwise_operators
+                .contains(&operator)
                 || expression_is_bitwise_int32_hint(ctx, node_id, operator)
             {
                 continue;
@@ -262,7 +266,10 @@ mod tests {
     #[test]
     fn test_allows_configured_bitwise_not() {
         let test = TestProgram::for_rule_without_prelude(NoBitwise).with_options(|options| {
-            options.allowed_bitwise_operators.push(BitwiseOperator::Not);
+            options
+                .restriction
+                .allowed_bitwise_operators
+                .push(BitwiseOperator::Not);
         });
         let result = test.lint_ast(
             "no_bitwise/test_allows_configured_bitwise_not.ts",
@@ -274,7 +281,7 @@ mod tests {
     #[test]
     fn test_allows_configured_int32_hint() {
         let test = TestProgram::for_rule_without_prelude(NoBitwise).with_options(|options| {
-            options.allow_bitwise_int32_hint = true;
+            options.restriction.allow_bitwise_int32_hint = true;
         });
         let result = test.lint_ast(
             "no_bitwise/test_allows_configured_int32_hint.ts",
@@ -286,7 +293,7 @@ mod tests {
     #[test]
     fn test_still_flags_non_hint_bitwise_or_with_zero_on_left() {
         let test = TestProgram::for_rule_without_prelude(NoBitwise).with_options(|options| {
-            options.allow_bitwise_int32_hint = true;
+            options.restriction.allow_bitwise_int32_hint = true;
         });
         let result = test.lint_ast(
             "no_bitwise/test_still_flags_non_hint_bitwise_or_with_zero_on_left.ts",

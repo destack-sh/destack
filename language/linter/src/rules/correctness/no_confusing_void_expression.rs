@@ -65,9 +65,11 @@ impl<'a, 'b> NoConfusingVoidExpressionVisitor<'a, 'b> {
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let ignore_void_operator = ctx
             .options
+            .correctness
             .no_confusing_void_expression_ignore_void_operator;
         let ignore_void_returning_functions = ctx
             .options
+            .correctness
             .no_confusing_void_expression_ignore_void_returning_functions;
 
         Self {
@@ -460,7 +462,9 @@ consume(void sideEffect());
     fn test_allows_explicit_void_operator_when_ignored() {
         let test = TestProgram::for_rule_without_prelude(NoConfusingVoidExpression).with_options(
             |options| {
-                options.no_confusing_void_expression_ignore_void_operator = true;
+                options
+                    .correctness
+                    .no_confusing_void_expression_ignore_void_operator = true;
             },
         );
         let result = test.lint_dir(
@@ -482,7 +486,9 @@ const value = !void sideEffect();
     fn test_allows_void_return_in_void_returning_function_when_ignored() {
         let test = TestProgram::for_rule_without_prelude(NoConfusingVoidExpression).with_options(
             |options| {
-                options.no_confusing_void_expression_ignore_void_returning_functions = true;
+                options
+                    .correctness
+                    .no_confusing_void_expression_ignore_void_returning_functions = true;
             },
         );
         let result = test.lint_dir(
@@ -504,7 +510,9 @@ function run(): void {
     fn test_allows_void_lambda_body_when_ignored() {
         let test = TestProgram::for_rule_without_prelude(NoConfusingVoidExpression).with_options(
             |options| {
-                options.no_confusing_void_expression_ignore_void_returning_functions = true;
+                options
+                    .correctness
+                    .no_confusing_void_expression_ignore_void_returning_functions = true;
             },
         );
         let result = test.lint_dir(
@@ -524,7 +532,9 @@ const run = (): void => sideEffect();
     fn test_flags_void_return_in_non_void_function_when_ignored() {
         let test = TestProgram::for_rule_without_prelude(NoConfusingVoidExpression).with_options(
             |options| {
-                options.no_confusing_void_expression_ignore_void_returning_functions = true;
+                options
+                    .correctness
+                    .no_confusing_void_expression_ignore_void_returning_functions = true;
             },
         );
         let result = test.lint_dir(
@@ -546,7 +556,9 @@ function run(): unknown {
     fn test_flags_nested_void_return_expression_when_ignored() {
         let test = TestProgram::for_rule_without_prelude(NoConfusingVoidExpression).with_options(
             |options| {
-                options.no_confusing_void_expression_ignore_void_returning_functions = true;
+                options
+                    .correctness
+                    .no_confusing_void_expression_ignore_void_returning_functions = true;
             },
         );
         let result = test.lint_dir(

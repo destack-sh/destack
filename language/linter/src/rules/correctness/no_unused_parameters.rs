@@ -290,6 +290,7 @@ fn parameter_name_is_ignored(ctx: &LintModuleDirContext<'_>, name: dir::StringId
     }
 
     ctx.options
+        .correctness
         .ignored_unused_parameter_prefixes
         .iter()
         .any(|prefix| !prefix.is_empty() && text.starts_with(prefix))
@@ -365,7 +366,7 @@ function run(_value: int32): int32 {
     fn test_respects_custom_ignored_prefixes() {
         let test =
             TestProgram::for_rule_without_prelude(NoUnusedParameters).with_options(|options| {
-                options.ignored_unused_parameter_prefixes = vec!["ignored".to_string()];
+                options.correctness.ignored_unused_parameter_prefixes = vec!["ignored".to_string()];
             });
         let result = test.lint_dir(
             "no_unused_parameters/test_respects_custom_ignored_prefixes.ds",

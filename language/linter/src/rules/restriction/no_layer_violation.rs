@@ -42,7 +42,7 @@ impl LintRule for NoLayerViolation {
         }
 
         // resolve module boundary options
-        let module_boundaries = ctx.options().module_boundaries.clone();
+        let module_boundaries = ctx.options().restriction.module_boundaries.clone();
         if module_boundaries.components.is_empty() {
             return;
         }
@@ -488,7 +488,7 @@ export const query = 1;
 "#,
             },
             |options| {
-                options.module_boundaries = test_module_boundaries();
+                options.restriction.module_boundaries = test_module_boundaries();
             },
         );
 
@@ -516,7 +516,7 @@ export const queryTwo = 2;
 "#,
             },
             |options| {
-                options.module_boundaries = test_module_boundaries();
+                options.restriction.module_boundaries = test_module_boundaries();
             },
         );
 
@@ -541,7 +541,7 @@ export const query = 1;
 "#,
             },
             |options| {
-                options.module_boundaries = test_module_boundaries();
+                options.restriction.module_boundaries = test_module_boundaries();
             },
         );
 
@@ -565,7 +565,7 @@ export const rule = 1;
 "#,
             },
             |options| {
-                options.module_boundaries = test_module_boundaries();
+                options.restriction.module_boundaries = test_module_boundaries();
             },
         );
 
@@ -588,7 +588,7 @@ export const helper = 1;
 "#,
             },
             |options| {
-                options.module_boundaries = test_module_boundaries();
+                options.restriction.module_boundaries = test_module_boundaries();
             },
         );
 
@@ -620,7 +620,7 @@ export const query = 1;
                         path_patterns: vec!["no_layer_violation/app/bootstrap.ds".to_string()],
                         reason: Some("composition root".to_string()),
                     });
-                options.module_boundaries = module_boundaries;
+                options.restriction.module_boundaries = module_boundaries;
             },
         );
 
@@ -652,7 +652,7 @@ export const query = 1;
                         path_patterns: Vec::new(),
                         reason: Some("global pair exception".to_string()),
                     });
-                options.module_boundaries = module_boundaries;
+                options.restriction.module_boundaries = module_boundaries;
             },
         );
 
@@ -684,7 +684,7 @@ export const query = 1;
                         path_patterns: vec!["no_layer_violation/app/bootstrap.ds".to_string()],
                         reason: Some("not matching".to_string()),
                     });
-                options.module_boundaries = module_boundaries;
+                options.restriction.module_boundaries = module_boundaries;
             },
         );
 
@@ -708,7 +708,7 @@ export const value = 1;
 "#,
             },
             |options| {
-                options.module_boundaries = test_module_boundaries();
+                options.restriction.module_boundaries = test_module_boundaries();
             },
         );
 
@@ -728,7 +728,7 @@ export const tool = 1;
             |options| {
                 let mut module_boundaries = test_module_boundaries();
                 module_boundaries.unknown_component_policy = DiagnosticPolicy::Warn;
-                options.module_boundaries = module_boundaries;
+                options.restriction.module_boundaries = module_boundaries;
             },
         );
 
@@ -749,7 +749,7 @@ export const tool = 1;
             |options| {
                 let mut module_boundaries = test_module_boundaries();
                 module_boundaries.unknown_component_policy = DiagnosticPolicy::Deny;
-                options.module_boundaries = module_boundaries;
+                options.restriction.module_boundaries = module_boundaries;
             },
         );
 
@@ -768,7 +768,7 @@ export const tool = 1;
 "#,
             },
             |options| {
-                options.module_boundaries = test_module_boundaries();
+                options.restriction.module_boundaries = test_module_boundaries();
             },
         );
 
@@ -788,7 +788,7 @@ export declare const tool: number;
             |options| {
                 let mut module_boundaries = test_module_boundaries();
                 module_boundaries.unknown_component_policy = DiagnosticPolicy::Warn;
-                options.module_boundaries = module_boundaries;
+                options.restriction.module_boundaries = module_boundaries;
             },
         );
 
@@ -808,7 +808,7 @@ export declare const tool: number;
             |options| {
                 let mut module_boundaries = test_module_boundaries();
                 module_boundaries.unknown_component_policy = DiagnosticPolicy::Warn;
-                options.module_boundaries = module_boundaries;
+                options.restriction.module_boundaries = module_boundaries;
                 options.include_declaration_files = true;
             },
         );
@@ -833,7 +833,7 @@ export const query = 1;
 "#,
             },
             |options| {
-                options.module_boundaries = LintModuleBoundariesOptions::default();
+                options.restriction.module_boundaries = LintModuleBoundariesOptions::default();
             },
         );
 
@@ -856,7 +856,7 @@ export const query = 1;
 "#,
             },
             |options| {
-                options.module_boundaries = LintModuleBoundariesOptions {
+                options.restriction.module_boundaries = LintModuleBoundariesOptions {
                     components: vec![
                         LintModuleComponent {
                             name: "app".to_string(),
@@ -898,7 +898,7 @@ export const value = 1;
             |options| {
                 let mut module_boundaries = test_module_boundaries();
                 module_boundaries.unknown_component_policy = DiagnosticPolicy::Warn;
-                options.module_boundaries = module_boundaries;
+                options.restriction.module_boundaries = module_boundaries;
             },
         );
 
@@ -923,7 +923,7 @@ export declare const query: number;
 "#,
             },
             |options| {
-                options.module_boundaries = test_module_boundaries();
+                options.restriction.module_boundaries = test_module_boundaries();
             },
         );
 
@@ -946,7 +946,7 @@ export declare const query: number;
 "#,
             },
             |options| {
-                options.module_boundaries = test_module_boundaries();
+                options.restriction.module_boundaries = test_module_boundaries();
                 options.include_declaration_files = true;
             },
         );

@@ -36,7 +36,7 @@ impl LintRule for Yoda {
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
-        let mode = ctx.options.yoda_mode;
+        let mode = ctx.options.style.yoda_mode;
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
@@ -55,12 +55,13 @@ impl LintRule for Yoda {
             }
 
             // honor the equality-only option
-            if ctx.options.yoda_only_equality && !is_equality_operator(operator) {
+            if ctx.options.style.yoda_only_equality && !is_equality_operator(operator) {
                 continue;
             }
 
             // honor the range exception option
-            if ctx.options.yoda_except_range && expression_is_part_of_range_test(ctx, node_id) {
+            if ctx.options.style.yoda_except_range && expression_is_part_of_range_test(ctx, node_id)
+            {
                 continue;
             }
 
@@ -432,7 +433,7 @@ if (x <= 10) { y() }
     #[test]
     fn test_allows_non_yoda_in_always_mode() {
         let test = TestProgram::for_rule_without_prelude(Yoda)
-            .with_options(|options| options.yoda_mode = YodaMode::Always);
+            .with_options(|options| options.style.yoda_mode = YodaMode::Always);
         let result = test.lint_ast(
             "yoda/test_allows_non_yoda_in_always_mode.ds",
             r#"
@@ -445,7 +446,7 @@ if (value === 5) { y() }
     #[test]
     fn test_allows_range_test_when_except_range_enabled() {
         let test = TestProgram::for_rule_without_prelude(Yoda).with_options(|options| {
-            options.yoda_except_range = true;
+            options.style.yoda_except_range = true;
         });
         let result = test.lint_ast(
             "yoda/test_allows_range_test_when_except_range_enabled.ds",
@@ -459,7 +460,7 @@ if ((0 <= x) && (x < 10)) { y() }
     #[test]
     fn test_allows_non_equality_when_only_equality_enabled() {
         let test = TestProgram::for_rule_without_prelude(Yoda).with_options(|options| {
-            options.yoda_only_equality = true;
+            options.style.yoda_only_equality = true;
         });
         let result = test.lint_ast(
             "yoda/test_allows_non_equality_when_only_equality_enabled.ds",

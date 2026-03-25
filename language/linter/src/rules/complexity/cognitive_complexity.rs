@@ -38,7 +38,7 @@ impl LintRule for CognitiveComplexity {
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         // resolve lint metadata and threshold
         let meta = self.meta();
-        let max_complexity = ctx.options.max_cognitive_complexity;
+        let max_complexity = ctx.options.complexity.max_cognitive_complexity;
 
         // check all callable bodies
         for_each_callable_signature(ctx.tree, |owner_id, _signature, body_id| {
@@ -406,7 +406,7 @@ mod tests {
     #[test]
     fn test_detects_high_cognitive_complexity() {
         let test = TestProgram::for_rule_without_prelude(CognitiveComplexity)
-            .with_options(|options| options.max_cognitive_complexity = 5);
+            .with_options(|options| options.complexity.max_cognitive_complexity = 5);
         let result = test.lint_ast(
             "cognitive_complexity/test_detects_high_cognitive_complexity.ds",
             r#"
@@ -448,7 +448,7 @@ function simple(x: int32): int32 {
     #[test]
     fn test_else_if_chain_does_not_double_nest() {
         let test = TestProgram::for_rule_without_prelude(CognitiveComplexity)
-            .with_options(|options| options.max_cognitive_complexity = 3);
+            .with_options(|options| options.complexity.max_cognitive_complexity = 3);
         let result = test.lint_ast(
             "cognitive_complexity/test_else_if_chain_does_not_double_nest.ds",
             r#"
@@ -471,7 +471,7 @@ function check(x: int32) {
     #[test]
     fn test_logical_operator_sequences_count_once_per_sequence() {
         let test = TestProgram::for_rule_without_prelude(CognitiveComplexity)
-            .with_options(|options| options.max_cognitive_complexity = 1);
+            .with_options(|options| options.complexity.max_cognitive_complexity = 1);
         let result = test.lint_ast(
             "cognitive_complexity/test_logical_operator_sequences_count_once_per_sequence.ds",
             r#"
@@ -486,7 +486,7 @@ function check(a: bool, b: bool, c: bool, d: bool): bool {
     #[test]
     fn test_ignores_nested_callable_complexity_for_parent_callable() {
         let test = TestProgram::for_rule_without_prelude(CognitiveComplexity)
-            .with_options(|options| options.max_cognitive_complexity = 1);
+            .with_options(|options| options.complexity.max_cognitive_complexity = 1);
         let result = test.lint_ast(
             "cognitive_complexity/test_ignores_nested_callable_complexity_for_parent_callable.ds",
             r#"
@@ -510,7 +510,7 @@ function outer() {
     #[test]
     fn test_detects_object_method_cognitive_complexity() {
         let test = TestProgram::for_rule_without_prelude(CognitiveComplexity)
-            .with_options(|options| options.max_cognitive_complexity = 2);
+            .with_options(|options| options.complexity.max_cognitive_complexity = 2);
         let result = test.lint_ast(
             "cognitive_complexity/test_detects_object_method_cognitive_complexity.ds",
             r#"

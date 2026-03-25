@@ -6,11 +6,11 @@ use destack_core::StringId;
 use destack_dir::{
     self as dir, DependencySource, NodeVisitor, NodeVisitorOptions, walk_expression,
 };
-use destack_workspace::{LintSeverity, compiled_allowed_require_import_patterns};
+use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    expression_is_global_qualified_member, expression_static_string_literal,
-    expression_unwrap_transparent, statement_prefix_span,
+    compiled_allowed_require_import_patterns, expression_is_global_qualified_member,
+    expression_static_string_literal, expression_unwrap_transparent, statement_prefix_span,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -70,9 +70,10 @@ impl<'a, 'b> NoRequireImportsVisitor<'a, 'b> {
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let require_name = ctx.program.strings.intern("require");
         let global_qualifiers = ctx.global_qualifier_symbols();
-        let allowed_target_patterns =
-            compiled_allowed_require_import_patterns(&ctx.options.allowed_require_import_patterns);
-        let allow_require_import_aliases = ctx.options.allow_require_import_aliases;
+        let allowed_target_patterns = compiled_allowed_require_import_patterns(
+            &ctx.options.restriction.allowed_require_import_patterns,
+        );
+        let allow_require_import_aliases = ctx.options.restriction.allow_require_import_aliases;
 
         Self {
             ctx,
@@ -601,7 +602,7 @@ React;
     #[test]
     fn test_allows_import_equals_require_when_enabled() {
         let test = TestProgram::for_rule_with_prelude(NoRequireImports).with_options(|options| {
-            options.allow_require_import_aliases = true;
+            options.restriction.allow_require_import_aliases = true;
         });
         let result = test.lint_dir(
             "no_require_imports/test_allows_import_equals_require_when_enabled.ds",
@@ -651,7 +652,8 @@ fs;
     #[test]
     fn test_allows_require_call_with_allowed_target_pattern() {
         let test = TestProgram::for_rule_with_prelude(NoRequireImports).with_options(|options| {
-            options.allowed_require_import_patterns = vec!["/package\\.json$".to_string()];
+            options.restriction.allowed_require_import_patterns =
+                vec!["/package\\.json$".to_string()];
         });
         let result = test.lint_dir(
             "no_require_imports/test_allows_require_call_with_allowed_target_pattern.ds",
@@ -666,7 +668,8 @@ const pkg = require("../package.json");
     #[test]
     fn test_allows_template_require_call_with_allowed_target_pattern() {
         let test = TestProgram::for_rule_with_prelude(NoRequireImports).with_options(|options| {
-            options.allowed_require_import_patterns = vec!["/package\\.json$".to_string()];
+            options.restriction.allowed_require_import_patterns =
+                vec!["/package\\.json$".to_string()];
         });
         let result = test.lint_dir(
             "no_require_imports/test_allows_template_require_call_with_allowed_target_pattern.ds",
@@ -681,7 +684,8 @@ const pkg = require(`../package.json`);
     #[test]
     fn test_flags_require_call_when_allowed_target_pattern_does_not_match() {
         let test = TestProgram::for_rule_with_prelude(NoRequireImports).with_options(|options| {
-            options.allowed_require_import_patterns = vec!["/package\\.json$".to_string()];
+            options.restriction.allowed_require_import_patterns =
+                vec!["/package\\.json$".to_string()];
         });
         let result = test.lint_dir(
             "no_require_imports/test_flags_require_call_when_allowed_target_pattern_does_not_match.ds",

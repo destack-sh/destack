@@ -44,7 +44,7 @@ impl LintRule for OperatorAssignment {
                 continue;
             };
 
-            if ctx.options.operator_assignment_mode == OperatorAssignmentMode::Never {
+            if ctx.options.style.operator_assignment_mode == OperatorAssignmentMode::Never {
                 self.check_disallowed_shorthand_assignment(ctx, meta, node_id, *left, *operator);
                 continue;
             }
@@ -480,7 +480,7 @@ x = x /* keep */ + y
     fn test_reports_shorthand_assignment_when_mode_is_never() {
         let test =
             TestProgram::for_rule_without_prelude(OperatorAssignment).with_options(|options| {
-                options.operator_assignment_mode = OperatorAssignmentMode::Never
+                options.style.operator_assignment_mode = OperatorAssignmentMode::Never
             });
         let result = test.lint_ast(
             "operator_assignment/test_reports_shorthand_assignment_when_mode_is_never.ds",
@@ -497,7 +497,7 @@ x += y
     fn test_ignores_logical_assignment_when_mode_is_never() {
         let test =
             TestProgram::for_rule_without_prelude(OperatorAssignment).with_options(|options| {
-                options.operator_assignment_mode = OperatorAssignmentMode::Never
+                options.style.operator_assignment_mode = OperatorAssignmentMode::Never
             });
         let result = test.lint_ast(
             "operator_assignment/test_ignores_logical_assignment_when_mode_is_never.ds",

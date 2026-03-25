@@ -30,9 +30,9 @@ impl LintRule for Eqeqeq {
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
-        let mode = ctx.options.eqeqeq_mode;
+        let mode = ctx.options.style.eqeqeq_mode;
         let null_policy = if mode == EqeqeqMode::Always {
-            ctx.options.eqeqeq_null
+            ctx.options.style.eqeqeq_null
         } else {
             EqeqeqNullPolicy::Ignore
         };
@@ -384,7 +384,7 @@ if (typeof value /* keep */ == "string") { x() }
     #[test]
     fn test_allows_null_check_in_allow_null_mode() {
         let test = TestProgram::for_rule_without_prelude(Eqeqeq).with_options(|options| {
-            options.eqeqeq_mode = EqeqeqMode::AllowNull;
+            options.style.eqeqeq_mode = EqeqeqMode::AllowNull;
         });
         let result = test.lint_ast(
             "eqeqeq/test_allows_null_check_in_allow_null_mode.ds",
@@ -398,7 +398,7 @@ if (value == null) { x() }
     #[test]
     fn test_allows_smart_typeof_comparison() {
         let test = TestProgram::for_rule_without_prelude(Eqeqeq).with_options(|options| {
-            options.eqeqeq_mode = EqeqeqMode::Smart;
+            options.style.eqeqeq_mode = EqeqeqMode::Smart;
         });
         let result = test.lint_ast(
             "eqeqeq/test_allows_smart_typeof_comparison.ds",
@@ -412,7 +412,7 @@ if (typeof value == "string") { x() }
     #[test]
     fn test_reports_strict_null_check_when_null_policy_is_never() {
         let test = TestProgram::for_rule_without_prelude(Eqeqeq).with_options(|options| {
-            options.eqeqeq_null = EqeqeqNullPolicy::Never;
+            options.style.eqeqeq_null = EqeqeqNullPolicy::Never;
         });
         let result = test.lint_ast(
             "eqeqeq/test_reports_strict_null_check_when_null_policy_is_never.ds",
@@ -428,7 +428,7 @@ if (value === null) { x() }
     #[test]
     fn test_ignores_loose_null_check_when_null_policy_is_ignore() {
         let test = TestProgram::for_rule_without_prelude(Eqeqeq).with_options(|options| {
-            options.eqeqeq_null = EqeqeqNullPolicy::Ignore;
+            options.style.eqeqeq_null = EqeqeqNullPolicy::Ignore;
         });
         let result = test.lint_ast(
             "eqeqeq/test_ignores_loose_null_check_when_null_policy_is_ignore.ds",

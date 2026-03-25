@@ -47,7 +47,7 @@ impl LintRule for NoCondAssign {
             // classify assignment wrapping style in the condition
             let assignment_style = condition_assignment_style(ctx.tree, condition_id);
             let has_assignment = expression_contains_assignment(ctx.tree, condition_id);
-            match ctx.options.no_cond_assign_mode {
+            match ctx.options.correctness.no_cond_assign_mode {
                 ConditionAssignmentMode::ExceptParens
                     if assignment_style == ConditionAssignmentStyle::None =>
                 {
@@ -78,7 +78,7 @@ impl LintRule for NoCondAssign {
             .with_label("did you mean `==`?");
 
             // only the except-parens mode has an intent preserving wrap fix
-            if ctx.options.no_cond_assign_mode == ConditionAssignmentMode::ExceptParens
+            if ctx.options.correctness.no_cond_assign_mode == ConditionAssignmentMode::ExceptParens
                 && ctx.compute_fixes
             {
                 let condition_text = ctx.get_span_text(condition_span);
@@ -322,7 +322,7 @@ while (next = read()) {
     #[test]
     fn test_detects_nested_assignment_when_always_mode_is_enabled() {
         let test = TestProgram::for_rule_without_prelude(NoCondAssign).with_options(|options| {
-            options.no_cond_assign_mode = ConditionAssignmentMode::Always;
+            options.correctness.no_cond_assign_mode = ConditionAssignmentMode::Always;
         });
         let result = test.lint_ast(
             "no_cond_assign/test_detects_nested_assignment_when_always_mode_is_enabled.ds",
@@ -340,7 +340,7 @@ if (isReady || (next = read())) {
     #[test]
     fn test_detects_double_parenthesized_assignment_when_always_mode_is_enabled() {
         let test = TestProgram::for_rule_without_prelude(NoCondAssign).with_options(|options| {
-            options.no_cond_assign_mode = ConditionAssignmentMode::Always;
+            options.correctness.no_cond_assign_mode = ConditionAssignmentMode::Always;
         });
         let result = test.lint_ast(
             "no_cond_assign/test_detects_double_parenthesized_assignment_when_always_mode_is_enabled.ds",

@@ -32,7 +32,7 @@ impl LintRule for NoLargeTryBlock {
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
-        let max_statements = ctx.options.max_try_block_statements;
+        let max_statements = ctx.options.complexity.max_try_block_statements;
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let ast::Expression::Try { try_expression, .. } = ctx.tree.get(node_id) else {
@@ -90,7 +90,7 @@ mod tests {
     #[test]
     fn test_detects_large_try_block() {
         let test = TestProgram::for_rule_without_prelude(NoLargeTryBlock)
-            .with_options(|options| options.max_try_block_statements = 3);
+            .with_options(|options| options.complexity.max_try_block_statements = 3);
         let result = test.lint_ast(
             "no_large_try_block/test_detects_large_try_block.ds",
             r#"
@@ -110,7 +110,7 @@ try {
     #[test]
     fn test_allows_small_try_block() {
         let test = TestProgram::for_rule_without_prelude(NoLargeTryBlock)
-            .with_options(|options| options.max_try_block_statements = 5);
+            .with_options(|options| options.complexity.max_try_block_statements = 5);
         let result = test.lint_ast(
             "no_large_try_block/test_allows_small_try_block.ds",
             r#"
@@ -128,7 +128,7 @@ try {
     #[test]
     fn test_allows_exactly_at_limit() {
         let test = TestProgram::for_rule_without_prelude(NoLargeTryBlock)
-            .with_options(|options| options.max_try_block_statements = 3);
+            .with_options(|options| options.complexity.max_try_block_statements = 3);
         let result = test.lint_ast(
             "no_large_try_block/test_allows_exactly_at_limit.ds",
             r#"

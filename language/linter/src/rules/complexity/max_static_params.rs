@@ -34,7 +34,7 @@ impl LintRule for MaxStaticParams {
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         // resolve lint metadata and threshold
         let meta = self.meta();
-        let max_static_params = ctx.options.max_static_params;
+        let max_static_params = ctx.options.complexity.max_static_params;
 
         // check declaration-level static parameters
         for declaration_id in ctx.tree.iter_nodes::<ast::Declaration>() {

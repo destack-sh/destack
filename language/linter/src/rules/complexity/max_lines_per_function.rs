@@ -35,10 +35,13 @@ impl LintRule for MaxLinesPerFunction {
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         // resolve lint metadata, threshold, and source file
         let meta = self.meta();
-        let max_lines = ctx.options.max_lines_per_function;
-        let skip_comments = ctx.options.max_lines_per_function_skip_comments;
-        let skip_blank_lines = ctx.options.max_lines_per_function_skip_blank_lines;
-        let include_iifes = ctx.options.max_lines_per_function_include_iifes;
+        let max_lines = ctx.options.complexity.max_lines_per_function;
+        let skip_comments = ctx.options.complexity.max_lines_per_function_skip_comments;
+        let skip_blank_lines = ctx
+            .options
+            .complexity
+            .max_lines_per_function_skip_blank_lines;
+        let include_iifes = ctx.options.complexity.max_lines_per_function_iifes;
         let file = ctx.program.files.get(ctx.module.file_id);
 
         // check all callable owners that have a body expression
@@ -247,8 +250,8 @@ declare function foo(): void;
     fn test_skips_comment_lines_when_enabled() {
         let test =
             TestProgram::for_rule_without_prelude(MaxLinesPerFunction).with_options(|options| {
-                options.max_lines_per_function = 3;
-                options.max_lines_per_function_skip_comments = true;
+                options.complexity.max_lines_per_function = 3;
+                options.complexity.max_lines_per_function_skip_comments = true;
             });
         let result = test.lint_ast(
             "max_lines_per_function/test_skips_comment_lines_when_enabled.ds",
@@ -266,8 +269,8 @@ function foo() {
     fn test_skips_blank_lines_when_enabled() {
         let test =
             TestProgram::for_rule_without_prelude(MaxLinesPerFunction).with_options(|options| {
-                options.max_lines_per_function = 3;
-                options.max_lines_per_function_skip_blank_lines = true;
+                options.complexity.max_lines_per_function = 3;
+                options.complexity.max_lines_per_function_skip_blank_lines = true;
             });
         let result = test.lint_ast(
             "max_lines_per_function/test_skips_blank_lines_when_enabled.ds",
@@ -284,7 +287,7 @@ function foo() {
     #[test]
     fn test_ignores_iife_by_default() {
         let test = TestProgram::for_rule_without_prelude(MaxLinesPerFunction)
-            .with_options(|options| options.max_lines_per_function = 3);
+            .with_options(|options| options.complexity.max_lines_per_function = 3);
         let result = test.lint_ast(
             "max_lines_per_function/test_ignores_iife_by_default.ds",
             r#"
@@ -301,8 +304,8 @@ function foo() {
     fn test_checks_iife_when_enabled() {
         let test =
             TestProgram::for_rule_without_prelude(MaxLinesPerFunction).with_options(|options| {
-                options.max_lines_per_function = 3;
-                options.max_lines_per_function_include_iifes = true;
+                options.complexity.max_lines_per_function = 3;
+                options.complexity.max_lines_per_function_iifes = true;
             });
         let result = test.lint_ast(
             "max_lines_per_function/test_checks_iife_when_enabled.ds",

@@ -232,7 +232,10 @@ fn reject_payload_is_obviously_non_error(
     result_symbol: Option<dir::GlobalSymbolId>,
 ) -> bool {
     if dynamic_arguments.is_empty() {
-        return !ctx.options.prefer_promise_reject_errors_allow_empty_reject;
+        return !ctx
+            .options
+            .style
+            .prefer_promise_reject_errors_allow_empty_reject;
     }
 
     let Some(value_id) = value_id else {
@@ -415,8 +418,12 @@ Promise.reject();
     /// Allow Promise.reject without argument when configured.
     #[test]
     fn test_allows_promise_reject_without_argument_when_enabled() {
-        let test = TestProgram::for_rule_with_prelude(PreferPromiseRejectErrors)
-            .with_options(|options| options.prefer_promise_reject_errors_allow_empty_reject = true);
+        let test =
+            TestProgram::for_rule_with_prelude(PreferPromiseRejectErrors).with_options(|options| {
+                options
+                    .style
+                    .prefer_promise_reject_errors_allow_empty_reject = true
+            });
         let result = test.lint_dir(
             "prefer_promise_reject_errors/test_allows_promise_reject_without_argument_when_enabled.ds",
             r#"
@@ -446,8 +453,12 @@ let task = new Promise((resolve, reject) => {
     /// Allow executor reject without argument when configured.
     #[test]
     fn test_allows_executor_reject_without_argument_when_enabled() {
-        let test = TestProgram::for_rule_with_prelude(PreferPromiseRejectErrors)
-            .with_options(|options| options.prefer_promise_reject_errors_allow_empty_reject = true);
+        let test =
+            TestProgram::for_rule_with_prelude(PreferPromiseRejectErrors).with_options(|options| {
+                options
+                    .style
+                    .prefer_promise_reject_errors_allow_empty_reject = true
+            });
         let result = test.lint_dir(
             "prefer_promise_reject_errors/test_allows_executor_reject_without_argument_when_enabled.ds",
             r#"

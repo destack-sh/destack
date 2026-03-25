@@ -548,7 +548,7 @@ impl LintRule for NoSecrets {
         let meta = self.meta();
         let mut secret_match_cache: HashMap<StringId, Option<SecretMatch>> = HashMap::new();
         let entropy_threshold =
-            no_secrets_entropy_threshold(ctx.options.no_secrets_entropy_threshold);
+            no_secrets_entropy_threshold(ctx.options.security.no_secrets_entropy_threshold);
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
@@ -853,7 +853,7 @@ mod tests {
     #[test]
     fn test_allows_high_entropy_string_with_higher_threshold() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets).with_options(|options| {
-            options.no_secrets_entropy_threshold = 50;
+            options.security.no_secrets_entropy_threshold = 50;
         });
         let result = test.lint_ast(
             "no_secrets/test_allows_high_entropy_string_with_higher_threshold.ts",

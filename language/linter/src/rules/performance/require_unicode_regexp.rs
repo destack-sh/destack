@@ -39,7 +39,7 @@ impl LintRule for RequireUnicodeRegexp {
         let meta = self.meta();
         let regexp_name = ctx.strings.intern("RegExp");
         let global_qualifier_names = regexp_global_qualifier_names(ctx.strings);
-        let required_flag = ctx.options.require_unicode_regexp_require_flag;
+        let required_flag = ctx.options.performance.require_unicode_regexp_require_flag;
         let required_flag_char = required_flag.as_char();
 
         // inspect candidate expressions
@@ -502,7 +502,8 @@ let re = globalThis.RegExp("foo", "u");
     fn test_allows_regex_with_v_flag_when_configured() {
         let test =
             TestProgram::for_rule_without_prelude(RequireUnicodeRegexp).with_options(|options| {
-                options.require_unicode_regexp_require_flag = UnicodeRegexpRequireFlag::V
+                options.performance.require_unicode_regexp_require_flag =
+                    UnicodeRegexpRequireFlag::V
             });
         let result = test.lint_ast(
             "require_unicode_regexp/test_allows_regex_with_v_flag_when_configured.ds",
@@ -517,7 +518,8 @@ let re = /foo/v
     fn test_detects_regex_with_u_flag_when_v_is_configured() {
         let test =
             TestProgram::for_rule_without_prelude(RequireUnicodeRegexp).with_options(|options| {
-                options.require_unicode_regexp_require_flag = UnicodeRegexpRequireFlag::V
+                options.performance.require_unicode_regexp_require_flag =
+                    UnicodeRegexpRequireFlag::V
             });
         let result = test.lint_ast(
             "require_unicode_regexp/test_detects_regex_with_u_flag_when_v_is_configured.ds",
@@ -534,7 +536,8 @@ let re = /foo/u
     fn test_fix_adds_v_flag_when_configured() {
         let test =
             TestProgram::for_rule_without_prelude(RequireUnicodeRegexp).with_options(|options| {
-                options.require_unicode_regexp_require_flag = UnicodeRegexpRequireFlag::V
+                options.performance.require_unicode_regexp_require_flag =
+                    UnicodeRegexpRequireFlag::V
             });
         let result = test.lint_ast(
             "require_unicode_regexp/test_fix_adds_v_flag_when_configured.ds",

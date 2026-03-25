@@ -221,7 +221,6 @@ fn scope_subtree_contains_name(
     false
 }
 
-
 /// Collect parameter symbol usage while tracking recursive call argument context.
 struct RecursiveParameterUseVisitor<'a> {
     /// The DIR tree.

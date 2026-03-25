@@ -37,7 +37,7 @@ impl LintRule for CatchErrorName {
     /// Check module DIR expressions for catch binding names.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
-        let expected_name = &ctx.options.catch_error_name;
+        let expected_name = &ctx.options.style.catch_error_name;
         let catch_name = ctx.program.strings.intern("catch");
         let then_name = ctx.program.strings.intern("then");
 

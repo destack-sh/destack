@@ -48,7 +48,7 @@ impl LintRule for UseIsnan {
             }
 
             // check indexOf and lastIndexOf calls when enabled
-            if ctx.options.use_isnan_enforce_index_of
+            if ctx.options.correctness.use_isnan_enforce_for_index_of
                 && let Expression::Call {
                     left,
                     dynamic_arguments,
@@ -66,7 +66,7 @@ impl LintRule for UseIsnan {
             if *kind != ast::MatchKind::Switch {
                 continue;
             }
-            if !ctx.options.use_isnan_enforce_switch_case {
+            if !ctx.options.correctness.use_isnan_enforce_for_switch_case {
                 continue;
             }
 
@@ -468,7 +468,7 @@ switch (x) {
     #[test]
     fn test_allows_nan_switch_when_disabled() {
         let test = TestProgram::for_rule_without_prelude(UseIsnan).with_options(|options| {
-            options.use_isnan_enforce_switch_case = false;
+            options.correctness.use_isnan_enforce_for_switch_case = false;
         });
         let result = test.lint_ast(
             "use_isnan/test_allows_nan_switch_when_disabled.ds",
@@ -540,7 +540,7 @@ if (x === 0.0) {}
     #[test]
     fn test_detects_index_of_nan_when_enabled() {
         let test = TestProgram::for_rule_without_prelude(UseIsnan).with_options(|options| {
-            options.use_isnan_enforce_index_of = true;
+            options.correctness.use_isnan_enforce_for_index_of = true;
         });
         let result = test.lint_ast(
             "use_isnan/test_detects_index_of_nan_when_enabled.ds",
@@ -568,7 +568,7 @@ let index = values.indexOf(NaN);
     #[test]
     fn test_detects_last_index_of_nan_when_enabled() {
         let test = TestProgram::for_rule_without_prelude(UseIsnan).with_options(|options| {
-            options.use_isnan_enforce_index_of = true;
+            options.correctness.use_isnan_enforce_for_index_of = true;
         });
         let result = test.lint_ast(
             "use_isnan/test_detects_last_index_of_nan_when_enabled.ds",
@@ -583,7 +583,7 @@ let index = values.lastIndexOf(NaN);
     #[test]
     fn test_allows_bare_index_of_function_when_enabled() {
         let test = TestProgram::for_rule_without_prelude(UseIsnan).with_options(|options| {
-            options.use_isnan_enforce_index_of = true;
+            options.correctness.use_isnan_enforce_for_index_of = true;
         });
         let result = test.lint_ast(
             "use_isnan/test_allows_bare_index_of_function_when_enabled.ds",

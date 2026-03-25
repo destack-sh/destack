@@ -71,9 +71,12 @@ impl<'a, 'b> MisusedPromiseVisitor<'a, 'b> {
             .well_known_symbols()
             .get_type_symbol(WellKnownSymbol::Promise)
             .unwrap_or_else(|| ctx.well_known_symbol(WellKnownSymbol::Promise));
-        let check_conditionals = ctx.options.check_misused_promises_in_conditionals;
-        let check_callbacks = ctx.options.check_misused_promises_in_callbacks;
-        let check_spreads = ctx.options.check_misused_promises_in_spreads;
+        let check_conditionals = ctx
+            .options
+            .correctness
+            .no_misused_promises_check_conditionals;
+        let check_callbacks = ctx.options.correctness.no_misused_promises_check_callbacks;
+        let check_spreads = ctx.options.correctness.no_misused_promises_check_spreads;
 
         Self {
             ctx,
@@ -461,7 +464,7 @@ takesPromises(...promisedNumbers);
     #[test]
     fn test_allows_promise_spread_when_disabled() {
         let test = TestProgram::for_rule_with_prelude(NoMisusedPromises).with_options(|options| {
-            options.check_misused_promises_in_spreads = false;
+            options.correctness.no_misused_promises_check_spreads = false;
         });
         let result = test.lint_dir(
             "no_misused_promises/test_allows_promise_spread_when_disabled.ts",
@@ -514,7 +517,7 @@ takesPromise(load());
     #[test]
     fn test_allows_conditional_when_disabled() {
         let test = TestProgram::for_rule_with_prelude(NoMisusedPromises).with_options(|options| {
-            options.check_misused_promises_in_conditionals = false;
+            options.correctness.no_misused_promises_check_conditionals = false;
         });
         let result = test.lint_dir(
             "no_misused_promises/test_allows_conditional_when_disabled.ts",
@@ -534,7 +537,7 @@ if (ready()) {
     #[test]
     fn test_allows_callback_when_disabled() {
         let test = TestProgram::for_rule_with_prelude(NoMisusedPromises).with_options(|options| {
-            options.check_misused_promises_in_callbacks = false;
+            options.correctness.no_misused_promises_check_callbacks = false;
         });
         let result = test.lint_dir(
             "no_misused_promises/test_allows_callback_when_disabled.ts",

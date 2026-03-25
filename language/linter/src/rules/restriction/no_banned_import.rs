@@ -63,6 +63,7 @@ impl<'a, 'b> NoBannedImportVisitor<'a, 'b> {
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let restricted_patterns = ctx
             .options
+            .restriction
             .restricted_imports
             .iter()
             .map(|pattern| pattern.trim())
@@ -361,7 +362,7 @@ mod tests {
     #[test]
     fn test_flags_exact_restricted_import() {
         let test = TestProgram::for_rule_without_prelude(NoBannedImport).with_options(|options| {
-            options.restricted_imports = vec!["legacy/http".to_string()];
+            options.restriction.restricted_imports = vec!["legacy/http".to_string()];
         });
         let diagnostics = test.lint_dir(
             "no_banned_import/test_flags_exact_restricted_import.ds",
@@ -377,7 +378,7 @@ import { client } from "legacy/http";
     #[test]
     fn test_flags_wildcard_restricted_import() {
         let test = TestProgram::for_rule_without_prelude(NoBannedImport).with_options(|options| {
-            options.restricted_imports = vec!["internal/*".to_string()];
+            options.restriction.restricted_imports = vec!["internal/*".to_string()];
         });
         let diagnostics = test.lint_dir(
             "no_banned_import/test_flags_wildcard_restricted_import.ds",
@@ -393,7 +394,7 @@ import { cache } from "internal/cache";
     #[test]
     fn test_flags_re_export_target() {
         let test = TestProgram::for_rule_without_prelude(NoBannedImport).with_options(|options| {
-            options.restricted_imports = vec!["legacy/*".to_string()];
+            options.restriction.restricted_imports = vec!["legacy/*".to_string()];
         });
         let diagnostics = test.lint_dir(
             "no_banned_import/test_flags_re_export_target.ds",
@@ -409,7 +410,7 @@ export { tool } from "legacy/toolkit";
     #[test]
     fn test_flags_resolved_module_path_pattern() {
         let test = TestProgram::for_rule_without_prelude(NoBannedImport).with_options(|options| {
-            options.restricted_imports = vec!["*/source.ds".to_string()];
+            options.restriction.restricted_imports = vec!["*/source.ds".to_string()];
         });
         let diagnostics = test.lint_module_dir_with_modules(
             test_modules! {
@@ -432,7 +433,7 @@ const copy = value;
     #[test]
     fn test_allows_non_matching_import() {
         let test = TestProgram::for_rule_without_prelude(NoBannedImport).with_options(|options| {
-            options.restricted_imports = vec!["internal/*".to_string()];
+            options.restriction.restricted_imports = vec!["internal/*".to_string()];
         });
         let diagnostics = test.lint_dir(
             "no_banned_import/test_allows_non_matching_import.ds",
@@ -448,7 +449,7 @@ import { safe } from "public/safe";
     #[test]
     fn test_skips_declaration_files_by_default() {
         let test = TestProgram::for_rule_without_prelude(NoBannedImport).with_options(|options| {
-            options.restricted_imports = vec!["internal/*".to_string()];
+            options.restriction.restricted_imports = vec!["internal/*".to_string()];
         });
         let diagnostics = test.lint_dir(
             "no_banned_import/test_skips_declaration_files_by_default.d.ds",
@@ -464,7 +465,7 @@ import { service } from "internal/service";
     #[test]
     fn test_includes_declaration_files_when_enabled() {
         let test = TestProgram::for_rule_without_prelude(NoBannedImport).with_options(|options| {
-            options.restricted_imports = vec!["internal/*".to_string()];
+            options.restriction.restricted_imports = vec!["internal/*".to_string()];
             options.include_declaration_files = true;
         });
         let diagnostics = test.lint_dir(
@@ -481,7 +482,7 @@ import { service } from "internal/service";
     #[test]
     fn test_flags_dynamic_import_with_static_string_target() {
         let test = TestProgram::for_rule_without_prelude(NoBannedImport).with_options(|options| {
-            options.restricted_imports = vec!["internal/*".to_string()];
+            options.restriction.restricted_imports = vec!["internal/*".to_string()];
         });
         let diagnostics = test.lint_dir(
             "no_banned_import/test_flags_dynamic_import_with_static_string_target.ds",
@@ -497,7 +498,7 @@ await import("internal/cache");
     #[test]
     fn test_flags_require_call_with_static_string_target() {
         let test = TestProgram::for_rule_with_prelude(NoBannedImport).with_options(|options| {
-            options.restricted_imports = vec!["internal/*".to_string()];
+            options.restriction.restricted_imports = vec!["internal/*".to_string()];
         });
         let diagnostics = test.lint_dir(
             "no_banned_import/test_flags_require_call_with_static_string_target.ds",
@@ -514,7 +515,7 @@ cache;
     #[test]
     fn test_flags_global_require_call_with_static_string_target() {
         let test = TestProgram::for_rule_with_prelude(NoBannedImport).with_options(|options| {
-            options.restricted_imports = vec!["internal/*".to_string()];
+            options.restriction.restricted_imports = vec!["internal/*".to_string()];
         });
         let diagnostics = test.lint_dir(
             "no_banned_import/test_flags_global_require_call_with_static_string_target.ds",
@@ -531,7 +532,7 @@ cache;
     #[test]
     fn test_allows_shadowed_require_call() {
         let test = TestProgram::for_rule_with_prelude(NoBannedImport).with_options(|options| {
-            options.restricted_imports = vec!["internal/*".to_string()];
+            options.restriction.restricted_imports = vec!["internal/*".to_string()];
         });
         let diagnostics = test.lint_dir(
             "no_banned_import/test_allows_shadowed_require_call.ds",
@@ -552,7 +553,7 @@ cache;
     #[test]
     fn test_allows_dynamic_import_with_non_static_target() {
         let test = TestProgram::for_rule_without_prelude(NoBannedImport).with_options(|options| {
-            options.restricted_imports = vec!["internal/*".to_string()];
+            options.restriction.restricted_imports = vec!["internal/*".to_string()];
         });
         let diagnostics = test.lint_dir(
             "no_banned_import/test_allows_dynamic_import_with_non_static_target.ds",

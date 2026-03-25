@@ -112,12 +112,17 @@ struct ImportClause {
 /// Resolve rule options from linter configuration.
 fn consistent_type_imports_options(ctx: &LintModuleDirContext<'_>) -> ConsistentTypeImportsOptions {
     ConsistentTypeImportsOptions {
-        prefer_type_imports: ctx.options.consistent_type_imports_prefer_type_imports,
+        prefer_type_imports: ctx
+            .options
+            .style
+            .consistent_type_imports_prefer_type_imports,
         prefer_inline_type_imports: ctx
             .options
+            .style
             .consistent_type_imports_prefer_inline_type_imports,
         disallow_type_annotations: ctx
             .options
+            .style
             .consistent_type_imports_disallow_type_annotations,
     }
 }
@@ -872,8 +877,10 @@ const value = Bar;
     /// Remove type import syntax when the rule prefers value imports.
     #[test]
     fn test_no_type_mode_flags_import_type() {
-        let test = TestProgram::for_rule_without_prelude(ConsistentTypeImports)
-            .with_options(|options| options.consistent_type_imports_prefer_type_imports = false);
+        let test =
+            TestProgram::for_rule_without_prelude(ConsistentTypeImports).with_options(|options| {
+                options.style.consistent_type_imports_prefer_type_imports = false
+            });
         let diagnostics = test.lint_module_dir_with_modules(
             test_modules! {
                 "consistent_type_imports/source_no_type.ds" => r#"
@@ -904,7 +911,9 @@ type Example = Foo;
     fn test_inline_mode_flags_top_level_type_import() {
         let test =
             TestProgram::for_rule_without_prelude(ConsistentTypeImports).with_options(|options| {
-                options.consistent_type_imports_prefer_inline_type_imports = true
+                options
+                    .style
+                    .consistent_type_imports_prefer_inline_type_imports = true
             });
         let diagnostics = test.lint_module_dir_with_modules(
             test_modules! {
@@ -952,7 +961,9 @@ type Foo = import("foo").Foo;
     fn test_disallow_type_annotations_can_be_disabled() {
         let test =
             TestProgram::for_rule_without_prelude(ConsistentTypeImports).with_options(|options| {
-                options.consistent_type_imports_disallow_type_annotations = false
+                options
+                    .style
+                    .consistent_type_imports_disallow_type_annotations = false
             });
         let diagnostics = test.lint_dir(
             "consistent_type_imports/test_allow_type_annotations.ds",

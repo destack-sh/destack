@@ -64,7 +64,8 @@ impl LintRule for PreferConst {
                     .filter(|symbol_id| symbol_should_be_const(ctx, &declaration, *symbol_id))
                     .collect::<Vec<_>>();
                 let requires_all_symbols = group.is_destructuring
-                    && ctx.options.prefer_const_destructuring == PreferConstDestructuring::All;
+                    && ctx.options.style.prefer_const_destructuring
+                        == PreferConstDestructuring::All;
                 if requires_all_symbols && group_eligible_symbols.len() != group.symbols.len() {
                     continue;
                 }
@@ -354,7 +355,7 @@ fn symbol_has_single_const_eligible_assignment(
     let Some(assignment_expression_id) = assignment_expression_id else {
         return false;
     };
-    if ctx.options.prefer_const_ignore_read_before_assign && is_read_before_assignment {
+    if ctx.options.style.prefer_const_ignore_read_before_assign && is_read_before_assignment {
         return false;
     }
 
@@ -718,7 +719,7 @@ if (ready) {
     #[test]
     fn test_allows_partial_destructuring_group_with_all_mode() {
         let test = TestProgram::for_rule_with_prelude(PreferConst).with_options(|options| {
-            options.prefer_const_destructuring = PreferConstDestructuring::All;
+            options.style.prefer_const_destructuring = PreferConstDestructuring::All;
         });
         let result = test.lint_dir(
             "prefer_const/test_allows_partial_destructuring_group_with_all_mode.ds",
@@ -735,7 +736,7 @@ consume(a);
     #[test]
     fn test_allows_read_before_assign_when_ignored() {
         let test = TestProgram::for_rule_with_prelude(PreferConst).with_options(|options| {
-            options.prefer_const_ignore_read_before_assign = true;
+            options.style.prefer_const_ignore_read_before_assign = true;
         });
         let result = test.lint_dir(
             "prefer_const/test_allows_read_before_assign_when_ignored.ds",

@@ -48,11 +48,11 @@ impl LintRule for SortImports {
         let meta = self.meta();
         let imports = collect_imports(ctx);
 
-        if !ctx.options.sort_imports_ignore_declaration_sort {
+        if !ctx.options.style.sort_imports_ignore_declaration_sort {
             check_declaration_sorting(ctx, meta, &imports);
         }
 
-        if !ctx.options.sort_imports_ignore_member_sort {
+        if !ctx.options.style.sort_imports_ignore_member_sort {
             for import in &imports {
                 check_member_sorting(ctx, meta, import);
             }
@@ -120,7 +120,7 @@ fn check_declaration_sorting(
 
     for import in imports {
         if previous_import.is_some()
-            && ctx.options.sort_imports_allow_separated_groups
+            && ctx.options.style.sort_imports_allow_separated_groups
             && imports_are_separated_group(ctx, previous_import.unwrap().span, import.span)
         {
             previous_import = None;
@@ -345,6 +345,7 @@ fn item_mode(
 /// Return the configured syntax-group index for one import declaration.
 fn member_syntax_group_index(ctx: &LintAstContext<'_>, group: SortImportsMemberSyntax) -> usize {
     ctx.options
+        .style
         .sort_imports_member_syntax_sort_order
         .iter()
         .position(|candidate| *candidate == group)
@@ -394,7 +395,7 @@ fn dependency_item_name(
 
 /// Normalize one import ordering name based on the case policy.
 fn normalize_import_name(ctx: &LintAstContext<'_>, name: &str) -> String {
-    if ctx.options.sort_imports_ignore_case {
+    if ctx.options.style.sort_imports_ignore_case {
         return name.to_ascii_lowercase();
     }
 
@@ -483,7 +484,7 @@ import "bar"
     #[test]
     fn test_allows_separated_groups_when_enabled() {
         let test = TestProgram::for_rule_without_prelude(SortImports).with_options(|options| {
-            options.sort_imports_allow_separated_groups = true;
+            options.style.sort_imports_allow_separated_groups = true;
         });
         let result = test.lint_ast(
             "sort_imports/test_allows_separated_groups_when_enabled.ds",
@@ -500,7 +501,7 @@ import "bar"
     #[test]
     fn test_allows_comment_separated_groups_when_enabled() {
         let test = TestProgram::for_rule_without_prelude(SortImports).with_options(|options| {
-            options.sort_imports_allow_separated_groups = true;
+            options.style.sort_imports_allow_separated_groups = true;
         });
         let result = test.lint_ast(
             "sort_imports/test_allows_comment_separated_groups_when_enabled.ds",
@@ -517,7 +518,7 @@ import "bar"
     #[test]
     fn test_allows_statement_separated_groups_when_enabled() {
         let test = TestProgram::for_rule_without_prelude(SortImports).with_options(|options| {
-            options.sort_imports_allow_separated_groups = true;
+            options.style.sort_imports_allow_separated_groups = true;
         });
         let result = test.lint_ast(
             "sort_imports/test_allows_statement_separated_groups_when_enabled.ds",
@@ -534,7 +535,7 @@ import "bar"
     #[test]
     fn test_allows_custom_member_syntax_order() {
         let test = TestProgram::for_rule_without_prelude(SortImports).with_options(|options| {
-            options.sort_imports_member_syntax_sort_order = vec![
+            options.style.sort_imports_member_syntax_sort_order = vec![
                 SortImportsMemberSyntax::Single,
                 SortImportsMemberSyntax::None,
                 SortImportsMemberSyntax::All,
@@ -555,7 +556,7 @@ import "bar"
     #[test]
     fn test_allows_declaration_order_when_ignored() {
         let test = TestProgram::for_rule_without_prelude(SortImports).with_options(|options| {
-            options.sort_imports_ignore_declaration_sort = true;
+            options.style.sort_imports_ignore_declaration_sort = true;
         });
         let result = test.lint_ast(
             "sort_imports/test_allows_declaration_order_when_ignored.ds",
@@ -571,7 +572,7 @@ import "bar"
     #[test]
     fn test_allows_member_order_when_ignored() {
         let test = TestProgram::for_rule_without_prelude(SortImports).with_options(|options| {
-            options.sort_imports_ignore_member_sort = true;
+            options.style.sort_imports_ignore_member_sort = true;
         });
         let result = test.lint_ast(
             "sort_imports/test_allows_member_order_when_ignored.ds",
@@ -586,7 +587,7 @@ import { z, a } from "foo"
     #[test]
     fn test_allows_case_insensitive_declaration_order() {
         let test = TestProgram::for_rule_without_prelude(SortImports).with_options(|options| {
-            options.sort_imports_ignore_case = true;
+            options.style.sort_imports_ignore_case = true;
         });
         let result = test.lint_ast(
             "sort_imports/test_allows_case_insensitive_declaration_order.ds",

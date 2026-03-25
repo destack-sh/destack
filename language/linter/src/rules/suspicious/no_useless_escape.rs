@@ -41,7 +41,9 @@ impl LintRule for NoUselessEscape {
         let regexp_name = ctx.strings.intern("RegExp");
         let global_qualifier_names = regexp_global_qualifier_names(ctx.strings);
         let allowed_regex_escape_characters = configured_regex_escape_characters(
-            &ctx.options.no_useless_escape_allow_regex_characters,
+            &ctx.options
+                .correctness
+                .no_useless_escape_allow_regex_characters,
         );
 
         // inspect candidate expression literals
@@ -846,7 +848,7 @@ const re = RegExp("\\.");
     #[test]
     fn test_allows_configured_regex_escape_character() {
         let test = TestProgram::for_rule_without_prelude(NoUselessEscape).with_options(|options| {
-            options.no_useless_escape_allow_regex_characters = vec!["-".to_string()];
+            options.correctness.no_useless_escape_allow_regex_characters = vec!["-".to_string()];
         });
         let result = test.lint_ast(
             "no_useless_escape/test_allows_configured_regex_escape_character.ds",

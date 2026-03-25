@@ -47,7 +47,10 @@ impl LintRule for NoPlusplus {
             ) {
                 continue;
             }
-            if ctx.options.allow_plusplus_for_loop_afterthoughts
+            if ctx
+                .options
+                .restriction
+                .allow_plusplus_for_loop_afterthoughts
                 && expression_is_for_loop_afterthought(ctx, node_id)
             {
                 continue;
@@ -207,7 +210,7 @@ mod tests {
     #[test]
     fn test_allows_for_loop_afterthought_when_enabled() {
         let test = TestProgram::for_rule_without_prelude(NoPlusplus).with_options(|options| {
-            options.allow_plusplus_for_loop_afterthoughts = true;
+            options.restriction.allow_plusplus_for_loop_afterthoughts = true;
         });
         let result = test.lint_ast(
             "no_plusplus/test_allows_for_loop_afterthought_when_enabled.ts",
@@ -223,7 +226,7 @@ for (let i = 0; i < 3; i++) {
     #[test]
     fn test_allows_sequence_for_loop_afterthought_when_enabled() {
         let test = TestProgram::for_rule_without_prelude(NoPlusplus).with_options(|options| {
-            options.allow_plusplus_for_loop_afterthoughts = true;
+            options.restriction.allow_plusplus_for_loop_afterthoughts = true;
         });
         let result = test.lint_ast(
             "no_plusplus/test_allows_sequence_for_loop_afterthought_when_enabled.ts",
@@ -239,7 +242,7 @@ for (let i = 0; i < 3; log(i), i++) {
     #[test]
     fn test_still_detects_loop_body_increment_when_afterthoughts_enabled() {
         let test = TestProgram::for_rule_without_prelude(NoPlusplus).with_options(|options| {
-            options.allow_plusplus_for_loop_afterthoughts = true;
+            options.restriction.allow_plusplus_for_loop_afterthoughts = true;
         });
         let result = test.lint_ast(
             "no_plusplus/test_still_detects_loop_body_increment_when_afterthoughts_enabled.ts",

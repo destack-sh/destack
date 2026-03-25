@@ -32,7 +32,7 @@ impl LintRule for MaxTypeVariants {
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         // resolve lint metadata and threshold
         let meta = self.meta();
-        let max_type_variants = ctx.options.max_type_variants;
+        let max_type_variants = ctx.options.complexity.max_type_variants;
 
         // check top level union type expressions only
         for expression_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -167,7 +167,7 @@ mod tests {
     #[test]
     fn test_detects_too_many_union_members() {
         let test = TestProgram::for_rule_without_prelude(MaxTypeVariants)
-            .with_options(|options| options.max_type_variants = 5);
+            .with_options(|options| options.complexity.max_type_variants = 5);
         let result = test.lint_ast(
             "max_type_variants/test_detects_too_many_union_members.ds",
             r#"
@@ -192,7 +192,7 @@ type SmallUnion = A | B | C;
     #[test]
     fn test_counts_unions_in_parameter_types() {
         let test = TestProgram::for_rule_without_prelude(MaxTypeVariants)
-            .with_options(|options| options.max_type_variants = 3);
+            .with_options(|options| options.complexity.max_type_variants = 3);
         let result = test.lint_ast(
             "max_type_variants/test_counts_unions_in_parameter_types.ds",
             r#"
@@ -205,7 +205,7 @@ function test(x: A | B | C | D): void {}
     #[test]
     fn test_ignores_runtime_bitwise_or_expressions() {
         let test = TestProgram::for_rule_without_prelude(MaxTypeVariants)
-            .with_options(|options| options.max_type_variants = 1);
+            .with_options(|options| options.complexity.max_type_variants = 1);
         let result = test.lint_ast(
             "max_type_variants/test_ignores_runtime_bitwise_or_expressions.ds",
             r#"
@@ -218,7 +218,7 @@ let x = a | b | c | d;
     #[test]
     fn test_detects_too_many_enum_variants() {
         let test = TestProgram::for_rule_without_prelude(MaxTypeVariants)
-            .with_options(|options| options.max_type_variants = 3);
+            .with_options(|options| options.complexity.max_type_variants = 3);
         let result = test.lint_ast(
             "max_type_variants/test_detects_too_many_enum_variants.ds",
             r#"

@@ -72,7 +72,7 @@ fn namespace_file_is_allowed(file_type: FileType, ctx: &LintAstContext<'_>) -> b
     matches!(
         file_type,
         FileType::DestackDeclaration | FileType::TypeScriptDeclaration
-    ) && ctx.options.allow_namespace_definition_files
+    ) && ctx.options.restriction.allow_namespace_definition_files
 }
 
 /// Return true when one namespace declaration is allowed by policy.
@@ -92,7 +92,7 @@ fn namespace_declaration_is_allowed(
         return true;
     }
 
-    if !ctx.options.allow_namespace_declarations {
+    if !ctx.options.restriction.allow_namespace_declarations {
         return false;
     }
 
@@ -206,7 +206,7 @@ declare namespace External {
     #[test]
     fn test_allows_declare_namespace_when_enabled() {
         let test = TestProgram::for_rule_without_prelude(NoNamespace).with_options(|options| {
-            options.allow_namespace_declarations = true;
+            options.restriction.allow_namespace_declarations = true;
         });
         let result = test.lint_ast(
             "no_namespace/test_allows_declare_namespace_when_enabled.ts",
@@ -222,7 +222,7 @@ declare namespace External {
     #[test]
     fn test_allows_nested_namespace_in_declare_namespace_when_enabled() {
         let test = TestProgram::for_rule_without_prelude(NoNamespace).with_options(|options| {
-            options.allow_namespace_declarations = true;
+            options.restriction.allow_namespace_declarations = true;
         });
         let result = test.lint_ast(
             "no_namespace/test_allows_nested_namespace_in_declare_namespace_when_enabled.ts",
@@ -240,7 +240,7 @@ declare namespace External {
     #[test]
     fn test_still_detects_namespace_when_enabled_without_declare_context() {
         let test = TestProgram::for_rule_without_prelude(NoNamespace).with_options(|options| {
-            options.allow_namespace_declarations = true;
+            options.restriction.allow_namespace_declarations = true;
         });
         let result = test.lint_ast(
             "no_namespace/test_still_detects_namespace_when_enabled_without_declare_context.ts",
@@ -271,7 +271,7 @@ declare namespace External {
     fn test_includes_declaration_file_when_enabled() {
         let test = TestProgram::for_rule_without_prelude(NoNamespace).with_options(|options| {
             options.include_declaration_files = true;
-            options.allow_namespace_definition_files = false;
+            options.restriction.allow_namespace_definition_files = false;
         });
         let result = test.lint_ast(
             "no_namespace/test_includes_declaration_file_when_enabled.d.ts",
@@ -288,7 +288,7 @@ declare namespace External {
     fn test_allows_declaration_file_when_enabled_by_rule_option() {
         let test = TestProgram::for_rule_without_prelude(NoNamespace).with_options(|options| {
             options.include_declaration_files = true;
-            options.allow_namespace_definition_files = true;
+            options.restriction.allow_namespace_definition_files = true;
         });
         let result = test.lint_ast(
             "no_namespace/test_allows_declaration_file_when_enabled_by_rule_option.d.ts",

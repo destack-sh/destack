@@ -63,7 +63,11 @@ impl LintRule for NoInnerDeclarations {
         }
 
         // nested vars
-        if !ctx.options.no_inner_declarations_check_var_declarations {
+        if !ctx
+            .options
+            .correctness
+            .no_inner_declarations_check_var_declarations
+        {
             return;
         }
         for expression_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -265,7 +269,9 @@ function outer() {
     fn test_allows_nested_var_when_option_disabled() {
         let test =
             TestProgram::for_rule_without_prelude(NoInnerDeclarations).with_options(|options| {
-                options.no_inner_declarations_check_var_declarations = false;
+                options
+                    .correctness
+                    .no_inner_declarations_check_var_declarations = false;
             });
         let result = test.lint_ast(
             "no_inner_declarations/test_allows_nested_var_when_option_disabled.ts",

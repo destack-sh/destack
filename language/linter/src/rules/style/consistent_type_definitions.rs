@@ -30,7 +30,7 @@ impl LintRule for ConsistentTypeDefinitions {
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
-        let preferred_style = ctx.options.type_definition_style;
+        let preferred_style = ctx.options.style.type_definition_style;
 
         for node_id in ctx.tree.iter_nodes::<ast::Declaration>() {
             let decl = ctx.tree.get(node_id);
@@ -284,8 +284,9 @@ type Handler = (event: Event) => void
 
     #[test]
     fn test_detects_type_alias_when_interface_preferred() {
-        let test = TestProgram::for_rule_without_prelude(ConsistentTypeDefinitions)
-            .with_options(|options| options.type_definition_style = TypeDefinitionStyle::Interface);
+        let test = TestProgram::for_rule_without_prelude(ConsistentTypeDefinitions).with_options(
+            |options| options.style.type_definition_style = TypeDefinitionStyle::Interface,
+        );
         let result = test.lint_ast(
             "consistent_type_definitions/test_detects_type_alias_when_interface_preferred.ds",
             r#"
@@ -322,8 +323,9 @@ interface Point extends Shape {
 
     #[test]
     fn test_no_fix_for_type_alias_with_static_parameters() {
-        let test = TestProgram::for_rule_without_prelude(ConsistentTypeDefinitions)
-            .with_options(|options| options.type_definition_style = TypeDefinitionStyle::Interface);
+        let test = TestProgram::for_rule_without_prelude(ConsistentTypeDefinitions).with_options(
+            |options| options.style.type_definition_style = TypeDefinitionStyle::Interface,
+        );
         let result = test.lint_ast(
             "consistent_type_definitions/test_no_fix_for_type_alias_with_static_parameters.ds",
             r#"
@@ -337,8 +339,9 @@ type Box<T> = { value: T }
 
     #[test]
     fn test_tuple_alias_not_reported_when_interface_preferred() {
-        let test = TestProgram::for_rule_without_prelude(ConsistentTypeDefinitions)
-            .with_options(|options| options.type_definition_style = TypeDefinitionStyle::Interface);
+        let test = TestProgram::for_rule_without_prelude(ConsistentTypeDefinitions).with_options(
+            |options| options.style.type_definition_style = TypeDefinitionStyle::Interface,
+        );
         let result = test.lint_ast(
             "consistent_type_definitions/test_tuple_alias_not_reported_when_interface_preferred.ds",
             r#"

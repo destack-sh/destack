@@ -47,8 +47,8 @@ impl LintRule for CyclomaticComplexity {
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         // resolve one shared max-threshold and lint meta
         let meta = self.meta();
-        let max_complexity = ctx.options.max_cyclomatic_complexity;
-        let variant = ctx.options.cyclomatic_complexity_variant;
+        let max_complexity = ctx.options.complexity.max_cyclomatic_complexity;
+        let variant = ctx.options.complexity.cyclomatic_complexity_variant;
 
         // check function declarations
         for declaration_id in ctx.tree.iter_nodes::<ast::Declaration>() {
@@ -320,7 +320,7 @@ mod tests {
     #[test]
     fn test_detects_high_complexity() {
         let test = TestProgram::for_rule_without_prelude(CyclomaticComplexity)
-            .with_options(|options| options.max_cyclomatic_complexity = 20);
+            .with_options(|options| options.complexity.max_cyclomatic_complexity = 20);
         // create a function with 21+ decision points to exceed limit of 20
         let result = test.lint_ast(
             "cyclomatic_complexity/test_detects_high_complexity.ds",
@@ -374,7 +374,7 @@ function simple(x: int32): int32 {
     #[test]
     fn test_counts_logical_operators() {
         let test = TestProgram::for_rule_without_prelude(CyclomaticComplexity)
-            .with_options(|opts| opts.max_cyclomatic_complexity = 20);
+            .with_options(|opts| opts.complexity.max_cyclomatic_complexity = 20);
         let result = test.lint_ast(
             "cyclomatic_complexity/test_counts_logical_operators.ds",
             r#"
@@ -446,7 +446,7 @@ function withTry() {
     #[test]
     fn test_counts_logical_assignment_operators() {
         let test = TestProgram::for_rule_without_prelude(CyclomaticComplexity)
-            .with_options(|options| options.max_cyclomatic_complexity = 1);
+            .with_options(|options| options.complexity.max_cyclomatic_complexity = 1);
         let result = test.lint_ast(
             "cyclomatic_complexity/test_counts_logical_assignment_operators.ds",
             r#"
@@ -462,7 +462,7 @@ function logicalAssign(x: bool, y: bool): bool {
     #[test]
     fn test_counts_default_parameter_as_branch() {
         let test = TestProgram::for_rule_without_prelude(CyclomaticComplexity)
-            .with_options(|options| options.max_cyclomatic_complexity = 1);
+            .with_options(|options| options.complexity.max_cyclomatic_complexity = 1);
         let result = test.lint_ast(
             "cyclomatic_complexity/test_counts_default_parameter_as_branch.ds",
             r#"
@@ -477,7 +477,7 @@ function withDefault(value = 1): int32 {
     #[test]
     fn test_counts_destructuring_default_as_branch() {
         let test = TestProgram::for_rule_without_prelude(CyclomaticComplexity)
-            .with_options(|options| options.max_cyclomatic_complexity = 1);
+            .with_options(|options| options.complexity.max_cyclomatic_complexity = 1);
         let result = test.lint_ast(
             "cyclomatic_complexity/test_counts_destructuring_default_as_branch.ds",
             r#"
@@ -493,7 +493,7 @@ function withPattern(value): int32 {
     #[test]
     fn test_counts_method_body_complexity() {
         let test = TestProgram::for_rule_without_prelude(CyclomaticComplexity)
-            .with_options(|options| options.max_cyclomatic_complexity = 1);
+            .with_options(|options| options.complexity.max_cyclomatic_complexity = 1);
         let result = test.lint_ast(
             "cyclomatic_complexity/test_counts_method_body_complexity.ds",
             r#"
@@ -513,7 +513,7 @@ class Demo {
     #[test]
     fn test_does_not_count_nested_function_complexity_in_parent() {
         let test = TestProgram::for_rule_without_prelude(CyclomaticComplexity)
-            .with_options(|options| options.max_cyclomatic_complexity = 1);
+            .with_options(|options| options.complexity.max_cyclomatic_complexity = 1);
         let result = test.lint_ast(
             "cyclomatic_complexity/test_does_not_count_nested_function_complexity_in_parent.ds",
             r#"
@@ -536,7 +536,7 @@ function outer(): int32 {
     #[test]
     fn test_counts_switch_cases_without_default_case() {
         let test = TestProgram::for_rule_without_prelude(CyclomaticComplexity)
-            .with_options(|options| options.max_cyclomatic_complexity = 3);
+            .with_options(|options| options.complexity.max_cyclomatic_complexity = 3);
         let result = test.lint_ast(
             "cyclomatic_complexity/test_counts_switch_cases_without_default_case.ds",
             r#"
@@ -556,8 +556,9 @@ function withSwitch(value: int32): int32 {
     fn test_allows_modified_switch_complexity_variant() {
         let test =
             TestProgram::for_rule_without_prelude(CyclomaticComplexity).with_options(|options| {
-                options.max_cyclomatic_complexity = 2;
-                options.cyclomatic_complexity_variant = CyclomaticComplexityVariant::Modified;
+                options.complexity.max_cyclomatic_complexity = 2;
+                options.complexity.cyclomatic_complexity_variant =
+                    CyclomaticComplexityVariant::Modified;
             });
         let result = test.lint_ast(
             "cyclomatic_complexity/test_allows_modified_switch_complexity_variant.ds",
@@ -578,7 +579,7 @@ function withSwitch(value: int32): int32 {
     #[test]
     fn test_counts_class_field_initializer_complexity() {
         let test = TestProgram::for_rule_without_prelude(CyclomaticComplexity)
-            .with_options(|options| options.max_cyclomatic_complexity = 1);
+            .with_options(|options| options.complexity.max_cyclomatic_complexity = 1);
         let result = test.lint_ast(
             "cyclomatic_complexity/test_counts_class_field_initializer_complexity.ds",
             r#"

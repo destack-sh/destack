@@ -153,8 +153,8 @@ fn referenced_label_target_kind(
 /// Return true when one label target kind is allowed by configuration.
 fn label_kind_is_allowed(kind: LabelTargetKind, ctx: &LintAstContext<'_>) -> bool {
     match kind {
-        LabelTargetKind::Loop => ctx.options.allow_loop_labels,
-        LabelTargetKind::Switch => ctx.options.allow_switch_labels,
+        LabelTargetKind::Loop => ctx.options.restriction.allow_loop_labels,
+        LabelTargetKind::Switch => ctx.options.restriction.allow_switch_labels,
         LabelTargetKind::Other => false,
     }
 }
@@ -237,7 +237,7 @@ for (let i = 0; i < 2; i++) {
     #[test]
     fn test_allows_loop_labels_when_enabled() {
         let test = TestProgram::for_rule_without_prelude(NoLabels).with_options(|options| {
-            options.allow_loop_labels = true;
+            options.restriction.allow_loop_labels = true;
         });
         let result = test.lint_ast(
             "no_labels/test_allows_loop_labels_when_enabled.ts",
@@ -253,7 +253,7 @@ outer: for (let i = 0; i < 2; i++) {
     #[test]
     fn test_allows_continue_loop_labels_when_enabled() {
         let test = TestProgram::for_rule_without_prelude(NoLabels).with_options(|options| {
-            options.allow_loop_labels = true;
+            options.restriction.allow_loop_labels = true;
         });
         let result = test.lint_ast(
             "no_labels/test_allows_continue_loop_labels_when_enabled.ts",
@@ -269,7 +269,7 @@ outer: for (let i = 0; i < 2; i++) {
     #[test]
     fn test_allows_switch_labels_when_enabled() {
         let test = TestProgram::for_rule_without_prelude(NoLabels).with_options(|options| {
-            options.allow_switch_labels = true;
+            options.restriction.allow_switch_labels = true;
         });
         let result = test.lint_ast(
             "no_labels/test_allows_switch_labels_when_enabled.ts",
@@ -288,7 +288,7 @@ outer: switch (value) {
     #[test]
     fn test_still_detects_non_loop_labels_when_loop_labels_enabled() {
         let test = TestProgram::for_rule_without_prelude(NoLabels).with_options(|options| {
-            options.allow_loop_labels = true;
+            options.restriction.allow_loop_labels = true;
         });
         let result = test.lint_ast(
             "no_labels/test_still_detects_non_loop_labels_when_loop_labels_enabled.ts",

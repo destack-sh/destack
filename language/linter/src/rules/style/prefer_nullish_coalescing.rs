@@ -302,13 +302,16 @@ fn prefer_nullish_coalescing_options(
     PreferNullishCoalescingOptions {
         ignore_conditional_tests: ctx
             .options
-            .ignore_conditional_tests_in_prefer_nullish_coalescing,
+            .style
+            .prefer_nullish_coalescing_ignore_conditional_tests,
         ignore_mixed_logical_expressions: ctx
             .options
-            .ignore_mixed_logical_expressions_in_prefer_nullish_coalescing,
+            .style
+            .prefer_nullish_coalescing_ignore_mixed_logical_expressions,
         ignore_ternary_tests: ctx
             .options
-            .ignore_ternary_tests_in_prefer_nullish_coalescing,
+            .style
+            .prefer_nullish_coalescing_ignore_ternary_tests,
     }
 }
 
@@ -952,7 +955,7 @@ let selected = profile != null ? { id: 2 } : { id: 1 };
     #[test]
     fn test_allows_ternary_when_option_ignores_ternary_checks() {
         let test = TestProgram::for_rule_without_prelude(PreferNullishCoalescing).with_options(
-            |options| options.ignore_ternary_tests_in_prefer_nullish_coalescing = true,
+            |options| options.style.prefer_nullish_coalescing_ignore_ternary_tests = true,
         );
         let diagnostics = test.lint_dir(
             "prefer_nullish_coalescing/test_allows_ternary_when_option_ignores_ternary_checks.ds",
@@ -970,7 +973,11 @@ let selected = profile != null ? profile : { id: 1 };
     #[test]
     fn test_allows_mixed_logical_when_option_ignores_mixed_logical() {
         let test = TestProgram::for_rule_without_prelude(PreferNullishCoalescing).with_options(
-            |options| options.ignore_mixed_logical_expressions_in_prefer_nullish_coalescing = true,
+            |options| {
+                options
+                    .style
+                    .prefer_nullish_coalescing_ignore_mixed_logical_expressions = true
+            },
         );
         let diagnostics = test.lint_dir(
             "prefer_nullish_coalescing/test_allows_mixed_logical_when_option_ignores_mixed_logical.ds",
@@ -988,7 +995,11 @@ let selected = profile || (true && { id: 1 });
     #[test]
     fn test_flags_condition_context_when_option_disables_condition_ignore() {
         let test = TestProgram::for_rule_without_prelude(PreferNullishCoalescing).with_options(
-            |options| options.ignore_conditional_tests_in_prefer_nullish_coalescing = false,
+            |options| {
+                options
+                    .style
+                    .prefer_nullish_coalescing_ignore_conditional_tests = false
+            },
         );
         let diagnostics = test.lint_dir(
             "prefer_nullish_coalescing/test_flags_condition_context_when_option_disables_condition_ignore.ds",

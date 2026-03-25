@@ -119,7 +119,7 @@ impl LintRule for NoUnneededTernary {
                 ctx.report(diagnostic);
             }
             // check for x ? x : y -> x || y when default-assignment simplification is enabled
-            else if !ctx.options.no_unneeded_ternary_default_assignment
+            else if !ctx.options.style.no_unneeded_ternary_default_assignment
                 && expression_is_equal(ctx, condition_id, *then_expression)
             {
                 let severity = ctx.get_effective_severity(meta, node_id);
@@ -300,7 +300,7 @@ const result = value ? value : fallback
     #[test]
     fn test_flags_default_assignment_ternary_when_disabled() {
         let test = TestProgram::for_rule_without_prelude(NoUnneededTernary)
-            .with_options(|options| options.no_unneeded_ternary_default_assignment = false);
+            .with_options(|options| options.style.no_unneeded_ternary_default_assignment = false);
         let result = test.lint_ast(
             "no_unneeded_ternary/test_flags_default_assignment_ternary_when_disabled.ds",
             r#"
