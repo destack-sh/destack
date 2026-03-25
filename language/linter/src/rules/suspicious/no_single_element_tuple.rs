@@ -92,7 +92,10 @@ fn no_single_element_tuple_fix(
         .edit_builder()
         .replace(tuple_span, replacement)
         .into_edits();
-    Some(LintFix::safe("Replace single-element tuple with grouped expression").with_edits(edits))
+    Some(
+        LintFix::suggestion("Replace single-element tuple with grouped expression")
+            .with_edits(edits),
+    )
 }
 
 #[cfg(test)]
@@ -145,7 +148,7 @@ const x = (1,)
         );
         test.result(result)
             .assert_lint("no-single-element-tuple")
-            .assert_safe_fixed(
+            .assert_suggested_fixed(
                 r#"
 const x = (1);
 "#,
@@ -163,7 +166,7 @@ const x = ({ value: 1 },)
         );
         test.result(result)
             .assert_lint("no-single-element-tuple")
-            .assert_safe_fixed(
+            .assert_suggested_fixed(
                 r#"
 const x = ({ value: 1 });
 "#,
@@ -181,7 +184,7 @@ const value = ((input + 1),)
         );
         test.result(result)
             .assert_lint("no-single-element-tuple")
-            .assert_safe_fixed(
+            .assert_suggested_fixed(
                 r#"
 const value = ((input + 1));
 "#,

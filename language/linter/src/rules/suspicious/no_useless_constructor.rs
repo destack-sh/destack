@@ -3,6 +3,7 @@ use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
     declaration_has_extends_types, expression_target_symbol, expression_unwrap_statement,
+    source_text_contains_comment_token,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -59,6 +60,11 @@ impl LintRule for NoUselessConstructor {
                 continue;
             }
 
+            // keep parameter property style constructors out of this rule
+            if constructor_parameters_have_modifiers(ctx, signature.dynamic_parameters.as_slice()) {
+                continue;
+            }
+
             // report only empty constructors without parameters or direct super passthroughs
             let is_useless_constructor = (constructor_body_is_empty(ctx, *body_expression_id)
                 && signature.dynamic_parameters.is_empty())
@@ -90,9 +96,10 @@ impl LintRule for NoUselessConstructor {
             // keep fixes out of explicit modifier and comment carrying constructors
             let member_span = ctx.get_span(member_id);
             let member_text = ctx.get_span_text(member_span);
-            if modifiers.is_none() && !contains_comment_token(member_text) {
+            if modifiers.is_none() && !source_text_contains_comment_token(member_text) {
                 let edits = ctx.edit_builder().delete(member_span).into_edits();
-                let fix = LintFix::safe("Remove useless constructor declaration").with_edits(edits);
+                let fix =
+                    LintFix::suggestion("Remove useless constructor declaration").with_edits(edits);
                 diagnostic = diagnostic.with_fix(fix);
             }
 
@@ -165,6 +172,17 @@ fn constructor_body_is_empty(
     let block = ctx.tree.get(*block);
 
     block.expressions.is_empty()
+}
+
+/// Return true when one constructor uses parameter modifiers.
+fn constructor_parameters_have_modifiers(
+    ctx: &LintModuleDirContext<'_>,
+    parameter_ids: &[dir::LocalNodeId<dir::Parameter>],
+) -> bool {
+    parameter_ids
+        .iter()
+        .copied()
+        .any(|parameter_id| ctx.tree.get(parameter_id).modifiers().is_some())
 }
 
 /// Return true when a constructor only forwards parameters to one `super(...)` call.
@@ -283,11 +301,6 @@ fn constructor_argument_binding(
     Some((value_symbol, is_spread))
 }
 
-/// Return true when one constructor text may contain comments.
-fn contains_comment_token(text: &str) -> bool {
-    text.contains("//") || text.contains("/*")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -328,7 +341,7 @@ class Foo {
         test.result(result)
             .assert_lint("no-useless-constructor")
             .assert_has_fix("no-useless-constructor")
-            .assert_safe_fixed(
+            .assert_suggested_fixed(
                 r#"
 class Foo {
 
@@ -472,6 +485,47 @@ class Foo extends Base {
 "#,
         );
         test.result(result).assert_lint("no-useless-constructor");
+    }
+
+    /// Allow parameter property style constructors.
+    #[test]
+    fn test_allows_constructor_with_parameter_modifiers() {
+        let test = TestProgram::for_rule_without_prelude(NoUselessConstructor);
+        let result = test.lint_dir(
+            "no_useless_constructor/test_allows_constructor_with_parameter_modifiers.ds",
+            r#"
+class Base {}
+
+class Foo extends Base {
+    constructor(public value: int32) {
+        super(value);
+    }
+}
+"#,
+        );
+        test.result(result).assert_no_lint("no-useless-constructor");
+    }
+
+    /// Suggest removal instead of claiming a safe fix.
+    #[test]
+    fn test_reports_redundant_constructor_with_suggestion() {
+        let test = TestProgram::for_rule_without_prelude(NoUselessConstructor);
+        let result = test.lint_dir(
+            "no_useless_constructor/test_reports_redundant_constructor_with_suggestion.ds",
+            r#"
+class Foo {
+    constructor() {}
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-useless-constructor")
+            .assert_has_fix("no-useless-constructor")
+            .assert_suggested_fixed(
+                r#"
+class Foo {}
+"#,
+            );
     }
 
     /// Allow super constructors when arguments change.

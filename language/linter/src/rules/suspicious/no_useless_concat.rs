@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expression_unwrap_parenthesized_syntax;
+use crate::rules::common::{expression_unwrap_parenthesized_syntax, single_quoted_string_literal};
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
@@ -156,29 +156,18 @@ fn expressions_share_line(
     !between_text.contains('\n')
 }
 
-/// Get the content of a string literal (without quotes).
-/// Uses raw span text to preserve escape sequences.
-fn get_string_content(
+/// Get the semantic content of one string literal.
+fn string_literal_content(
     ctx: &LintAstContext<'_>,
     expr_id: ast::LocalNodeId<ast::Expression>,
-) -> String {
+) -> Option<String> {
     let expr = ctx.tree.get(expr_id);
     match expr {
-        ast::Expression::ScalarLiteral(ast::ScalarLiteral::String(_)) => {
-            let span = ctx.tree.get_span(expr_id);
-            let text = ctx.get_span_text(span);
-            // strip leading and trailing quotes
-            if text.len() >= 2
-                && ((text.starts_with('"') && text.ends_with('"'))
-                    || (text.starts_with('\'') && text.ends_with('\'')))
-            {
-                text[1..text.len() - 1].to_string()
-            } else {
-                text.to_string()
-            }
+        ast::Expression::ScalarLiteral(ast::ScalarLiteral::String(string_id)) => {
+            Some(ctx.strings.get(*string_id).to_string())
         }
-        ast::Expression::Parenthesized { expression } => get_string_content(ctx, *expression),
-        _ => String::new(),
+        ast::Expression::Parenthesized { expression } => string_literal_content(ctx, *expression),
+        _ => None,
     }
 }
 
@@ -189,10 +178,10 @@ fn no_useless_concat_fix(
     left_id: ast::LocalNodeId<ast::Expression>,
     right_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<LintFix> {
-    let left_content = get_string_content(ctx, left_id);
-    let right_content = get_string_content(ctx, right_id);
-    let combined = format!("\"{left_content}{right_content}\"");
-    if combined.trim().is_empty() {
+    let left_content = string_literal_content(ctx, left_id)?;
+    let right_content = string_literal_content(ctx, right_id)?;
+    let combined = single_quoted_string_literal(&format!("{left_content}{right_content}"));
+    if combined.is_empty() {
         return None;
     }
 
@@ -315,6 +304,24 @@ const x = "" + "hello";
             .assert_safe_fixed(
                 r#"
 const x = "hello";
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_preserves_quotes_and_escapes() {
+        let test = TestProgram::for_rule_without_prelude(NoUselessConcat);
+        let result = test.lint_ast(
+            "no_useless_concat/test_fix_preserves_quotes_and_escapes.ds",
+            r#"
+const x = "a'\\n" + '"b"';
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-useless-concat")
+            .assert_safe_fixed(
+                r#"
+const x = "a\'\\\\n\"b\"";
 "#,
             );
     }

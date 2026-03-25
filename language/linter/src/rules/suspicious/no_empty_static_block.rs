@@ -74,8 +74,8 @@ impl LintRule for NoEmptyStaticBlock {
                     .edit_builder()
                     .replace(block_span, "{\n        // intentionally empty\n    }")
                     .into_edits();
-                let fix =
-                    LintFix::safe("Add intentional empty static block comment").with_edits(edits);
+                let fix = LintFix::suggestion("Add intentional empty static block comment")
+                    .with_edits(edits);
                 diagnostic = diagnostic.with_fix(fix);
             }
 
@@ -146,7 +146,7 @@ class Foo {
         );
         test.result(result)
             .assert_lint("no-empty-static-block")
-            .assert_safe_fixed(
+            .assert_suggested_fixed(
                 r#"
 class Foo {
     static {

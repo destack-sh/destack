@@ -66,7 +66,9 @@ impl LintRule for NoTemplateCurlyInString {
             )
             .with_label("use a template literal `...` instead of \"...\"");
 
-            if let Some(fix) = template_literal_fix(ctx, span, literal_text) {
+            if ctx.compute_fixes
+                && let Some(fix) = template_literal_fix(ctx, span, literal_text)
+            {
                 diagnostic = diagnostic.with_fix(fix);
             }
 

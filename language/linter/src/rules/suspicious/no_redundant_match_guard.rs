@@ -26,8 +26,6 @@ declare_lint! {
     "Disallow match guards that are always true or false"
 }
 
-// TODO #Incomplete: check whether the guard can be merged with the main pattern
-
 impl LintRule for NoRedundantMatchGuard {
     fn meta(&self) -> &'static crate::LintMeta {
         NoRedundantMatchGuard::meta()

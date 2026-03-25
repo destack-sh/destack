@@ -1,7 +1,9 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expression_contains_assignment;
+use crate::rules::common::{
+    expression_contains_assignment, expression_subtree_mentions_identifier_name,
+};
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
@@ -138,7 +140,7 @@ fn no_return_assign_fix(
         return None;
     }
 
-    let binding_name = unique_binding_name(ctx, "__destackReturnAssignValue");
+    let binding_name = unique_binding_name(ctx, assignment_id, "__destackReturnAssignValue");
     let replacement =
         format!("{{ const {binding_name} = ({assignment_text}); return {binding_name}; }}");
     let return_span = ctx.tree.get_span(return_id);
@@ -150,16 +152,22 @@ fn no_return_assign_fix(
     Some(LintFix::r#unsafe("Move assignment out of return").with_edits(edits))
 }
 
-/// Build a unique binding name not present in the current source file.
-fn unique_binding_name(ctx: &LintAstContext<'_>, base_name: &str) -> String {
-    if !ctx.file.text().contains(base_name) {
+/// Build a unique binding name not mentioned in the rewritten assignment subtree.
+fn unique_binding_name(
+    ctx: &LintAstContext<'_>,
+    assignment_id: ast::LocalNodeId<ast::Expression>,
+    base_name: &str,
+) -> String {
+    let base_name_id = ctx.strings.intern(base_name);
+    if !expression_subtree_mentions_identifier_name(ctx.tree, assignment_id, base_name_id) {
         return base_name.to_string();
     }
 
     let mut index = 1_u32;
     loop {
         let candidate = format!("{base_name}{index}");
-        if !ctx.file.text().contains(&candidate) {
+        let candidate_id = ctx.strings.intern(&candidate);
+        if !expression_subtree_mentions_identifier_name(ctx.tree, assignment_id, candidate_id) {
             return candidate;
         }
         index += 1;
@@ -249,10 +257,10 @@ function foo() {
     }
 
     #[test]
-    fn test_fix_uses_unique_binding_name_on_collision() {
+    fn test_fix_keeps_base_binding_name_when_outer_name_is_unrelated() {
         let test = TestProgram::for_rule_without_prelude(NoReturnAssign);
         let result = test.lint_ast(
-            "no_return_assign/test_fix_uses_unique_binding_name_on_collision.ts",
+            "no_return_assign/test_fix_keeps_base_binding_name_when_outer_name_is_unrelated.ts",
             r#"
 const __destackReturnAssignValue = 0
 
@@ -269,7 +277,36 @@ const __destackReturnAssignValue = 0;
 
 function foo() {
     {
-        const __destackReturnAssignValue1 = (x = 1);
+        const __destackReturnAssignValue = (x = 1);
+        return __destackReturnAssignValue;
+    }
+}
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_uses_unique_binding_name_when_assignment_mentions_base_name() {
+        let test = TestProgram::for_rule_without_prelude(NoReturnAssign);
+        let result = test.lint_ast(
+            "no_return_assign/test_fix_uses_unique_binding_name_when_assignment_mentions_base_name.ts",
+            r#"
+const __destackReturnAssignValue = 0
+
+function foo() {
+    return x = __destackReturnAssignValue + 1
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-return-assign")
+            .assert_unsafe_fixed(
+                r#"
+const __destackReturnAssignValue = 0;
+
+function foo() {
+    {
+        const __destackReturnAssignValue1 = (x = __destackReturnAssignValue + 1);
         return __destackReturnAssignValue1;
     }
 }

@@ -2,11 +2,10 @@ use destack_ast::{
     self as ast, Expression, LocalNodeId, NodeTree, NodeVisitor, NodeVisitorOptions,
     walk_expression,
 };
-use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_starts_nested_declaration_scope;
-use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
 
 declare_lint! {
     /// Require a `yield` keyword in generator functions.
@@ -20,7 +19,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = Sometimes,
+        fixable = No,
         recommended = Always,
         stability = Stable
     )]
@@ -138,7 +137,7 @@ fn report_missing_generator_yield<T: ast::Node>(
         return;
     }
 
-    let mut diagnostic = LintDiagnostic::new(
+    let diagnostic = LintDiagnostic::new(
         REQUIRE_YIELD.id,
         REQUIRE_YIELD.code,
         REQUIRE_YIELD.category,
@@ -149,17 +148,6 @@ fn report_missing_generator_yield<T: ast::Node>(
             .get_span(ast::LocalNodeId::<T>::new(callable_raw_id)),
     )
     .with_label("add a `yield` expression or remove the `*`");
-
-    // compute fixes only when requested by the runner
-    if ctx.compute_fixes
-        && let Some(fix) = remove_generator_marker_fix(
-            ctx,
-            ast::LocalNodeId::<T>::new(callable_raw_id),
-            body_expression_id,
-        )
-    {
-        diagnostic = diagnostic.with_fix(fix);
-    }
 
     ctx.report(diagnostic);
 }
@@ -227,31 +215,6 @@ impl NodeVisitor for GeneratorYieldVisitor {
     }
 }
 
-/// Build an unsafe fix by removing one generator marker (`*`) from a callable signature.
-fn remove_generator_marker_fix<T: ast::Node>(
-    ctx: &LintAstContext<'_>,
-    declaration_id: ast::LocalNodeId<T>,
-    body_expression_id: ast::LocalNodeId<ast::Expression>,
-) -> Option<LintFix> {
-    let declaration_span = ctx.tree.get_span(declaration_id);
-    let body_span = ctx.tree.get_span(body_expression_id);
-    let header_span = Span::new(
-        declaration_span.file,
-        declaration_span.start,
-        body_span.start,
-    );
-    let header_text = ctx.get_span_text(header_span);
-    let star_offset = header_text.find('*')?;
-
-    let marker_span = Span::new(
-        header_span.file,
-        header_span.start + star_offset as u32,
-        header_span.start + star_offset as u32 + 1,
-    );
-    let edits = ctx.edit_builder().delete(marker_span).into_edits();
-    Some(LintFix::r#unsafe("Remove generator marker").with_edits(edits))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -272,10 +235,10 @@ function* gen() {
     }
 
     #[test]
-    fn test_fix_removes_generator_marker_without_yield() {
+    fn test_reports_generator_without_fix() {
         let test = TestProgram::for_rule_without_prelude(RequireYield);
         let result = test.lint_ast(
-            "require_yield/test_fix_removes_generator_marker_without_yield.ds",
+            "require_yield/test_reports_generator_without_fix.ds",
             r#"
 function* gen() {
     return 1
@@ -284,13 +247,7 @@ function* gen() {
         );
         test.result(result)
             .assert_lint("require-yield")
-            .assert_unsafe_fixed(
-                r#"
-function gen() {
-    return 1;
-}
-"#,
-            );
+            .assert_has_no_fix("require-yield");
     }
 
     #[test]
@@ -365,10 +322,10 @@ function* gen() {
     }
 
     #[test]
-    fn test_mutation_fix_removes_generator_method_marker() {
+    fn test_reports_generator_method_without_fix() {
         let test = TestProgram::for_rule_without_prelude(RequireYield);
         let result = test.lint_ast(
-            "require_yield/test_mutation_fix_removes_generator_method_marker.ds",
+            "require_yield/test_reports_generator_method_without_fix.ds",
             r#"
 class C {
     *gen() {
@@ -379,15 +336,7 @@ class C {
         );
         test.result(result)
             .assert_lint("require-yield")
-            .assert_unsafe_fixed(
-                r#"
-class C {
-    gen() {
-        return 1;
-    }
-}
-"#,
-            );
+            .assert_has_no_fix("require-yield");
     }
 
     #[test]

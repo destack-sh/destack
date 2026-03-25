@@ -102,8 +102,41 @@ fn thrown_expression_is_undefined_identifier(
     ctx: &LintModuleDirContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let expression_text = ctx.get_span_text(ctx.get_span(expression_id)).trim();
-    expression_text == "undefined"
+    let undefined_name = ctx.program.strings.intern("undefined");
+    let expression = ctx.tree.get(expression_id);
+
+    match expression {
+        dir::Expression::TypeLiteral {
+            value: dir::TypeLiteral::Undefined,
+        } => true,
+        dir::Expression::UnresolvedPath {
+            path,
+            static_arguments,
+            ..
+        }
+        | dir::Expression::LocalReference {
+            path,
+            static_arguments,
+            ..
+        }
+        | dir::Expression::ModuleReference {
+            path,
+            static_arguments,
+            ..
+        }
+        | dir::Expression::GlobalReference {
+            path,
+            static_arguments,
+            ..
+        } => {
+            static_arguments
+                .as_ref()
+                .is_none_or(|arguments| arguments.is_empty())
+                && path.segments.len() == 1
+                && path.segments[0] == undefined_name
+        }
+        _ => false,
+    }
 }
 
 /// Build one unsafe fix by wrapping a thrown literal in Error.
@@ -260,5 +293,18 @@ throw undefined;
 throw new Error(String(undefined));
 "#,
             );
+    }
+
+    /// Keep qualified names out of bare undefined detection.
+    #[test]
+    fn test_allows_qualified_undefined_like_throw() {
+        let test = TestProgram::for_rule_without_prelude(NoThrowLiteral);
+        let result = test.lint_dir(
+            "no_throw_literal/test_allows_qualified_undefined_like_throw.ds",
+            r#"
+throw foo.undefined;
+"#,
+        );
+        test.result(result).assert_no_lint("no-throw-literal");
     }
 }
