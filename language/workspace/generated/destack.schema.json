@@ -3682,6 +3682,17 @@
           "format": "uint",
           "minimum": 0
         },
+        "cyclomaticComplexityVariant": {
+          "description": "Switch counting variant for `cyclomatic-complexity`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CyclomaticComplexityVariantJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "maxDepth": {
           "description": "Maximum nesting depth.",
           "type": [
@@ -3723,6 +3734,27 @@
           "format": "uint",
           "minimum": 0
         },
+        "maxLinesPerFunctionSkipComments": {
+          "description": "Ignore full-line comments in `max-lines-per-function`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "maxLinesPerFunctionSkipBlankLines": {
+          "description": "Ignore blank lines in `max-lines-per-function`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "maxLinesPerFunctionIncludeIifes": {
+          "description": "Include immediately invoked functions in `max-lines-per-function`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "maxNestedCallbacks": {
           "description": "Maximum callback nesting.",
           "type": [
@@ -3741,6 +3773,24 @@
           "format": "uint",
           "minimum": 0
         },
+        "maxParamsCountVoidThis": {
+          "description": "Legacy alias for void-this counting in `max-params`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "maxParamsCountThis": {
+          "description": "Count `this` parameters in `max-params`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MaxParamsCountThisJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "maxStatements": {
           "description": "Maximum statements per function.",
           "type": [
@@ -3749,6 +3799,13 @@
           ],
           "format": "uint",
           "minimum": 0
+        },
+        "maxStatementsIgnoreTopLevelFunctions": {
+          "description": "Ignore top-level functions in `max-statements`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "maxReturnStatements": {
           "description": "Maximum return statements per function.",
@@ -3815,6 +3872,41 @@
         },
         "noMultiAssignIgnoreNonDeclaration": {
           "description": "Ignore non-declaration chains in `no-multi-assign`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noUnusedExpressionsAllowShortCircuit": {
+          "description": "Allow short-circuit expressions in `no-unused-expressions`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noUnusedExpressionsAllowTernary": {
+          "description": "Allow ternary expressions in `no-unused-expressions`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noUnusedExpressionsAllowTaggedTemplates": {
+          "description": "Allow tagged templates in `no-unused-expressions`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noUnusedExpressionsEnforceForJsx": {
+          "description": "Enforce JSX-like tree expressions in `no-unused-expressions`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noUnusedExpressionsIgnoreDirectives": {
+          "description": "Ignore directive prologues in `no-unused-expressions`.",
           "type": [
             "boolean",
             "null"
@@ -4370,6 +4462,41 @@
           "description": "Rule produces errors.",
           "type": "string",
           "const": "error"
+        }
+      ]
+    },
+    "CyclomaticComplexityVariantJson": {
+      "description": "Cyclomatic-complexity variant accepted in linter JSON.",
+      "oneOf": [
+        {
+          "description": "Count each non-default switch case.",
+          "type": "string",
+          "const": "classic"
+        },
+        {
+          "description": "Count each switch once regardless of case count.",
+          "type": "string",
+          "const": "modified"
+        }
+      ]
+    },
+    "MaxParamsCountThisJson": {
+      "description": "Max-params `this` counting mode accepted in linter JSON.",
+      "oneOf": [
+        {
+          "description": "Never count `this`.",
+          "type": "string",
+          "const": "never"
+        },
+        {
+          "description": "Count `this` unless it is explicitly typed as `void`.",
+          "type": "string",
+          "const": "except-void"
+        },
+        {
+          "description": "Always count `this`.",
+          "type": "string",
+          "const": "always"
         }
       ]
     },
