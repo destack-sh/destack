@@ -3878,6 +3878,17 @@
             }
           ]
         },
+        "requireUnicodeRegexpRequireFlag": {
+          "description": "Required Unicode regex flag for `require-unicode-regexp`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UnicodeRegexpRequireFlagJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "ignoredUnusedParameterPrefixes": {
           "description": "Parameter name prefixes ignored by `no-unused-parameters`.",
           "type": [
@@ -4439,6 +4450,21 @@
           "description": "Forbid await in all contexts.",
           "type": "string",
           "const": "never"
+        }
+      ]
+    },
+    "UnicodeRegexpRequireFlagJson": {
+      "description": "Required Unicode regex flag accepted in linter JSON.",
+      "oneOf": [
+        {
+          "description": "Require the `u` flag.",
+          "type": "string",
+          "const": "u"
+        },
+        {
+          "description": "Require the `v` flag.",
+          "type": "string",
+          "const": "v"
         }
       ]
     },

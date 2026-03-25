@@ -1,5 +1,5 @@
 use destack_ast::{self as ast, Expression, ScalarLiteral};
-use destack_workspace::LintSeverity;
+use destack_workspace::{LintSeverity, UnicodeRegexpRequireFlag};
 
 use crate::rules::common::{
     expression_path_segments, expression_unwrap_parenthesized_syntax, path_is_regexp_constructor,
@@ -8,18 +8,13 @@ use crate::rules::common::{
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
 
 declare_lint! {
-    /// Require `u` or `v` flag on regular expressions.
+    /// Require a configured Unicode flag on regular expressions.
     ///
-    /// The `u` (unicode) flag enables correct handling of Unicode characters
-    /// in regular expressions. Without it, patterns may not match characters
-    /// outside the Basic Multilingual Plane correctly, and character classes
-    /// like `\w` won't match non ASCII letters.
-    ///
-    /// The `v` flag (unicodeSets) is a more powerful alternative that also
-    /// enables set notation and properties of strings.
+    /// By default this rule requires the `u` flag.
+    /// The `v` flag can be required instead through configuration.
     ///
     /// bad: `/foo/`
-    /// good: `/foo/u` or `/foo/v`
+    /// good: `/foo/u`
     #[lint(
         id = "require-unicode-regexp",
         code = "LP018",
@@ -27,7 +22,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = Always,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -44,6 +39,8 @@ impl LintRule for RequireUnicodeRegexp {
         let meta = self.meta();
         let regexp_name = ctx.strings.intern("RegExp");
         let global_qualifier_names = regexp_global_qualifier_names(ctx.strings);
+        let required_flag = ctx.options.require_unicode_regexp_require_flag;
+        let required_flag_char = required_flag.as_char();
 
         // inspect candidate expressions
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -68,11 +65,11 @@ impl LintRule for RequireUnicodeRegexp {
                 continue;
             }
 
-            // check if flags contain 'u' or 'v'
+            // check if flags contain the configured Unicode flag
             let has_unicode_flag = if let Some(flags_id) = regex_info.flags_id {
                 let flags_str = ctx.strings.get(flags_id);
                 let flags_ref = flags_str.as_ref();
-                flags_ref.contains('u') || flags_ref.contains('v')
+                flags_ref.contains(required_flag_char)
             } else {
                 false
             };
@@ -81,21 +78,32 @@ impl LintRule for RequireUnicodeRegexp {
                 if !severity.is_enabled() {
                     continue;
                 }
+
+                let message = format!(
+                    "regex should have the '{required_flag_char}' flag for proper Unicode handling"
+                );
+                let label = format!("use the '{required_flag_char}' flag for Unicode support");
+
                 let mut diagnostic = LintDiagnostic::new(
                     REQUIRE_UNICODE_REGEXP.id,
                     REQUIRE_UNICODE_REGEXP.code,
                     REQUIRE_UNICODE_REGEXP.category,
                     severity,
-                    "regex should have the 'u' or 'v' flag for proper Unicode handling",
+                    message,
                     ctx.module.file_id,
                     ctx.tree.get_span(node_id),
                 )
-                .with_label("add the 'u' flag for Unicode support");
+                .with_label(label);
 
                 // compute fixes only when requested by the runner
                 if ctx.compute_fixes
-                    && let Some(fix) =
-                        unicode_regex_fix(ctx, node_id, regexp_name, &global_qualifier_names)
+                    && let Some(fix) = unicode_regex_fix(
+                        ctx,
+                        node_id,
+                        regexp_name,
+                        &global_qualifier_names,
+                        required_flag,
+                    )
                 {
                     diagnostic = diagnostic.with_fix(fix);
                 }
@@ -164,15 +172,15 @@ fn unicode_regex_fix(
     expression_id: ast::LocalNodeId<Expression>,
     regexp_name: ast::StringId,
     global_qualifier_names: &[ast::StringId],
+    required_flag: UnicodeRegexpRequireFlag,
 ) -> Option<LintFix> {
+    let required_flag_char = required_flag.as_char();
+    let alternate_flag_char = alternate_unicode_flag(required_flag_char);
     let expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, expression_id);
     let expression = ctx.tree.get(expression_id);
 
-    // fix regex literals by appending `u`
-    if matches!(
-        expression,
-        Expression::ScalarLiteral(ScalarLiteral::RegexString { .. })
-    ) {
+    // fix regex literals by appending the required flag
+    if let Expression::ScalarLiteral(ScalarLiteral::RegexString { flags, .. }) = expression {
         let expression_span = ctx.tree.get_span(expression_id);
         let expression_text = ctx.get_span_text(expression_span);
         let expression_text: &str = expression_text;
@@ -180,13 +188,20 @@ fn unicode_regex_fix(
             return None;
         }
 
+        if flags
+            .as_ref()
+            .is_some_and(|flags_id| ctx.strings.get(*flags_id).contains(alternate_flag_char))
+        {
+            return None;
+        }
+
         // build replacement text
-        let replacement = format!("{expression_text}u");
+        let replacement = format!("{expression_text}{required_flag_char}");
         let edits = ctx
             .edit_builder()
             .replace(expression_span, replacement)
             .into_edits();
-        return Some(LintFix::safe("Add unicode regex flag").with_edits(edits));
+        return Some(LintFix::safe("Add required Unicode regex flag").with_edits(edits));
     }
 
     // fix RegExp constructors by adding or extending the flags argument
@@ -231,24 +246,30 @@ fn unicode_regex_fix(
             return None;
         }
 
-        // append the unicode flag to the existing flags literal
+        // append the required flag when there is no conflicting Unicode mode
         let flags_span = ctx.tree.get_span(*flags_expression_id);
         let flags_text = ctx.get_span_text(flags_span);
-        let replacement_flags = append_flag_to_string_literal(flags_text, 'u')?;
+        if string_literal_contains_flag(flags_text, alternate_flag_char) {
+            return None;
+        }
+        let replacement_flags = append_flag_to_string_literal(flags_text, required_flag_char)?;
         let edits = ctx
             .edit_builder()
             .replace(flags_span, replacement_flags)
             .into_edits();
-        return Some(LintFix::safe("Add unicode regex flag").with_edits(edits));
+        return Some(LintFix::safe("Add required Unicode regex flag").with_edits(edits));
     }
 
     // add a missing flags argument
     let first_argument_span = ctx.tree.get_span(first_argument_id);
     let edits = ctx
         .edit_builder()
-        .insert(first_argument_span.end, ", \"u\"")
+        .insert(
+            first_argument_span.end,
+            format!(", \"{required_flag_char}\""),
+        )
         .into_edits();
-    Some(LintFix::safe("Add unicode regex flag").with_edits(edits))
+    Some(LintFix::safe("Add required Unicode regex flag").with_edits(edits))
 }
 
 /// Append one flag character to a quoted string literal source text.
@@ -262,6 +283,31 @@ fn append_flag_to_string_literal(text: &str, flag: char) -> Option<String> {
     // keep the original quote style when appending the new flag
     let inner = &text[1..text.len() - 1];
     Some(format!("{first}{inner}{flag}{last}"))
+}
+
+/// Return the alternate Unicode regex flag.
+fn alternate_unicode_flag(required_flag: char) -> char {
+    match required_flag {
+        'u' => 'v',
+        'v' => 'u',
+        _ => unreachable!("Unicode regex flag must be u or v"),
+    }
+}
+
+/// Return true when one quoted string literal contains one flag character.
+fn string_literal_contains_flag(text: &str, flag: char) -> bool {
+    let Some(first) = text.chars().next() else {
+        return false;
+    };
+    let Some(last) = text.chars().last() else {
+        return false;
+    };
+    if (first != '\'' && first != '"') || first != last || text.len() < 2 {
+        return false;
+    }
+
+    let inner = &text[1..text.len() - 1];
+    inner.contains(flag)
 }
 
 #[cfg(test)]
