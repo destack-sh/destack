@@ -13,6 +13,10 @@ pub(crate) struct DelimiterAnalysis {
     pub follow_token_type: Option<TokenType>,
     /// Whether a top level parameter colon appears inside the group.
     pub has_top_level_parameter_colon: bool,
+    /// Whether a top level arrow appears inside the group.
+    pub has_top_level_arrow: bool,
+    /// Whether the first top level token opens a nested parenthesized expression.
+    pub starts_with_nested_parenthesis: bool,
     /// Whether the group is empty aside from newlines.
     pub is_empty: bool,
 }
@@ -131,12 +135,15 @@ impl Parser {
         let has_colon_follow = follow_token_type == Some(TokenType::Colon);
         let needs_parameter_shape_for_arrow_return = expression.is_in_arrow_return_type();
         let needs_parameter_shape_for_typed_colon = ambient.is_in_type() && has_colon_follow;
+        let needs_parameter_shape_for_ternary_colon =
+            expression.is_in_ternary_condition() && has_colon_follow;
 
         // js and ts can usually decide lambda eligibility from the token after ')'
         // skip deep shape scanning unless parameter shape data is required
         if !tracks_tuple_commas
             && !needs_parameter_shape_for_arrow_return
             && !needs_parameter_shape_for_typed_colon
+            && !needs_parameter_shape_for_ternary_colon
         {
             return Ok(DelimiterAnalysis {
                 close_index: Some(close_index),
@@ -232,20 +239,27 @@ impl Parser {
             };
             let token_type = token.token.ty;
 
+            let is_in_nested_delimiter =
+                parenthesis_depth > 0 || brace_depth > 0 || bracket_depth > 0;
+            let is_top_level = !is_in_nested_delimiter && angle_depth == 0;
+
+            // remember wrapped expression heads like `(() => x)`
+            if analysis.is_empty && is_top_level && token_type == TokenType::OpenParenthesis {
+                analysis.starts_with_nested_parenthesis = true;
+            }
+
             // detect non-empty semantic content
             if is_semantic(token_type) && token_type != TokenType::Newline {
                 analysis.is_empty = false;
             }
-
-            let is_in_nested_delimiter =
-                parenthesis_depth > 0 || brace_depth > 0 || bracket_depth > 0;
-            let is_top_level = !is_in_nested_delimiter && angle_depth == 0;
 
             if is_top_level {
                 if tracks_tuple_commas && token_type == TokenType::Comma {
                     analysis.has_top_level_comma = true;
                 } else if token_type == TokenType::Colon {
                     analysis.has_top_level_parameter_colon = true;
+                } else if matches!(token_type, TokenType::Arrow | TokenType::ArrowWide) {
+                    analysis.has_top_level_arrow = true;
                 }
             }
 
@@ -276,10 +290,9 @@ impl Parser {
                 _ => {}
             }
 
-            // in JS and TS typed lambda heads, once we see a top level parameter colon
-            // and know the group is non empty, the remaining scan cannot change lambda gating
-            if !tracks_tuple_commas && analysis.has_top_level_parameter_colon && !analysis.is_empty
-            {
+            // in JS and TS typed lambda heads, once we see one top level arrow
+            // the remaining scan cannot change lambda gating
+            if !tracks_tuple_commas && analysis.has_top_level_arrow && !analysis.is_empty {
                 break;
             }
 

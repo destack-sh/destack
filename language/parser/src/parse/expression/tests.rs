@@ -2826,7 +2826,9 @@ fn test_parse_tsx_generic_arrow_with_trailing_comma() {
 #[test]
 fn test_parse_tsx_ternary_typed_arrow_function() {
     let mut test = TestParser::new_with_options(
-        "Math.random() > 0.5 ? (): void => foo() : (): void => bar()",
+        r#"Math.random() > 0.5
+    ? (): void => foo()
+    : (): void => bar()"#,
         LanguageType::TypeScriptXml,
     );
     let mut parser = test.prepare();
@@ -2851,6 +2853,79 @@ fn test_parse_tsx_ternary_typed_arrow_function() {
                 assert_node!(parser.tree, signature.return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Void));
             });
         });
+    });
+}
+
+/// Parse ternaries with parenthesized typed arrow branches in TSX context.
+#[test]
+fn test_parse_tsx_ternary_parenthesized_typed_arrow_function() {
+    let mut test = TestParser::new_with_options(
+        r#"Math.random() > 0.5
+    ? ((): void => foo())
+    : ((): void => bar())"#,
+        LanguageType::TypeScriptXml,
+    );
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+    assert_node!(parser.tree, expr_id, Expression::If { kind, condition, then_expression, else_expression } => {
+        assert_eq!(*kind, IfKind::Ternary);
+        assert_node!(condition, IfCondition::Expression { condition } => {
+            assert_node!(parser.tree, *condition, Expression::Binary { operator, .. } => {
+                assert_eq!(*operator, BinaryOperator::GreaterThan);
+            });
+        });
+        assert_node!(parser.tree, *then_expression, Expression::Parenthesized { expression } => {
+            assert_node!(parser.tree, *expression, Expression::Declaration(declaration_id) => {
+                assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, .. } => {
+                    assert_eq!(signature.kind, FunctionKind::Lambda);
+                    assert_node!(parser.tree, signature.return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Void));
+                });
+            });
+        });
+        let else_id = else_expression.expect("expected else branch");
+        assert_node!(parser.tree, else_id, Expression::Parenthesized { expression } => {
+            assert_node!(parser.tree, *expression, Expression::Declaration(declaration_id) => {
+                assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, .. } => {
+                    assert_eq!(signature.kind, FunctionKind::Lambda);
+                    assert_node!(parser.tree, signature.return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Void));
+                });
+            });
+        });
+    });
+}
+
+/// Parse ternary typed arrows whose parameter annotations include function types.
+#[test]
+fn test_parse_typescript_ternary_typed_arrow_with_function_type_parameter() {
+    let mut test = TestParser::new_with_options(
+        r#"shouldAssert(AssertionLevel.Normal)
+    ? (nodes: Node[], test: (node: Node) => boolean, message?: string): void => assert(
+        test === undefined || every(nodes, test),
+        message || "Unexpected node.",
+        () => `Node array did not pass test '${getFunctionName(test)}'.`,
+        assertEachNode,
+    )
+    : noop"#,
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    assert_node!(parser.tree, expr_id, Expression::If { kind, then_expression, else_expression, .. } => {
+        assert_eq!(*kind, IfKind::Ternary);
+
+        // then branch
+        assert_node!(parser.tree, *then_expression, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, .. } => {
+                assert_eq!(signature.kind, FunctionKind::Lambda);
+                assert_eq!(signature.dynamic_parameters.len(), 3);
+                assert_node!(parser.tree, signature.return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Void));
+            });
+        });
+
+        // else branch
+        let else_id = else_expression.expect("expected else branch");
+        assert_expression_path!(parser, parser.tree.get(else_id), "noop");
     });
 }
 
