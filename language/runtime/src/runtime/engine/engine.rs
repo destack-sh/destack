@@ -1,37 +1,10 @@
 use std::any::Any;
 
+use destack_engine::ExecutionOutcome;
 use destack_heap as heap;
 
-use super::{
-    EngineContinuation, EngineContinuationImage, EngineImage, EngineSnapshot, EngineStats, Entry,
-};
+use super::{EngineContinuation, EngineContinuationImage, EngineImage, EngineSnapshot, Entry};
 use crate::diagnostic::RuntimeResult;
-use crate::runtime::engine::EntryReference;
-
-/// Engine output produced when execution completes.
-#[derive(Debug, Clone, Default, PartialEq)]
-pub struct EngineOutput {
-    /// Return value of the executed entrypoint.
-    pub value: heap::Value,
-    /// Execution statistics payload.
-    pub stats: EngineStats,
-    /// Number of managed allocations at end of execution.
-    pub managed_allocation_count: usize,
-    /// Number of raw allocations at end of execution.
-    pub raw_allocation_count: usize,
-}
-
-/// Execution outcome produced by one engine.
-#[derive(Debug)]
-pub enum EngineOutcome {
-    /// Execution completed with a result.
-    Completed { output: EngineOutput },
-    /// Execution yielded a continuation and resume value.
-    Yielded {
-        continuation: EngineContinuation,
-        value: heap::Value,
-    },
-}
 
 /// Execution engine used by one agent event loop.
 pub trait Engine: Any {
@@ -41,15 +14,15 @@ pub trait Engine: Any {
         memory: &mut heap::MemoryContext<'_>,
         entry: &Entry,
         args: &[heap::Value],
-    ) -> RuntimeResult<EngineOutcome>;
+    ) -> RuntimeResult<ExecutionOutcome<EngineContinuation>>;
 
     /// Run one replayable entrypoint descriptor.
     fn run_replayable_entry(
         &mut self,
         memory: &mut heap::MemoryContext<'_>,
-        entry: &EntryReference,
+        entry: &Entry,
         args: &[heap::Value],
-    ) -> RuntimeResult<EngineOutcome>;
+    ) -> RuntimeResult<ExecutionOutcome<EngineContinuation>>;
 
     /// Resume execution from a continuation.
     fn resume(
@@ -57,7 +30,7 @@ pub trait Engine: Any {
         memory: &mut heap::MemoryContext<'_>,
         continuation: EngineContinuation,
         value: heap::Value,
-    ) -> RuntimeResult<EngineOutcome>;
+    ) -> RuntimeResult<ExecutionOutcome<EngineContinuation>>;
 
     /// Capture one immutable engine image while the world is checkpoint-ready.
     fn image(&mut self) -> RuntimeResult<EngineImage>;

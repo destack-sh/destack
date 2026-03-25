@@ -10,7 +10,7 @@ use crate::runtime::AgentId;
 use crate::runtime::bindings::{
     BindingDescriptor, BindingId, BindingReplayKind, BindingReplayPayload, BindingReplayPolicy,
 };
-use crate::runtime::engine::EntryReference;
+use crate::runtime::engine::Entry;
 use crate::runtime::policy::{Effect, Rule, RuleId};
 use crate::runtime::random::RandomStreamId;
 use crate::runtime::time::WorldInstant;
@@ -442,9 +442,7 @@ fn test_record_replay_world_inputs() {
         Input::Tick,
         Input::RunEntrypoint {
             runtime_id: RuntimeId(7),
-            entry: EntryReference::Vm {
-                name: "test.entry".to_string(),
-            },
+            entry: Entry::new("test.entry"),
             args: vec![destack_heap::Value::int32(11)],
         },
         Input::RemoveRuntime {

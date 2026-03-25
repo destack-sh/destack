@@ -1,7 +1,7 @@
 use destack_heap as heap;
 use serde::{Deserialize, Serialize};
 
-use crate::runtime::engine::EntryReference;
+use crate::runtime::engine::Entry;
 
 use super::{Mutation, RuntimeId};
 
@@ -21,7 +21,7 @@ pub enum Input {
         /// Runtime identifier that owns the entrypoint execution.
         runtime_id: RuntimeId,
         /// Replayable entrypoint reference.
-        entry: EntryReference,
+        entry: Entry,
         /// Invocation arguments.
         args: Vec<heap::Value>,
     },
