@@ -340,24 +340,6 @@ pub fn is_alias_specifier(specifier: &str) -> bool {
     specifier.starts_with("@/") || specifier.starts_with("~/") || specifier.starts_with('#')
 }
 
-/// Split a specifier into its alias prefix and suffix.
-pub(crate) fn split_alias_prefix(specifier: &str) -> Option<(&str, &str)> {
-    if let Some(stripped) = specifier.strip_prefix("@/") {
-        return Some(("@/", stripped));
-    }
-    if let Some(stripped) = specifier.strip_prefix("~/") {
-        return Some(("~/", stripped));
-    }
-    if let Some(stripped) = specifier.strip_prefix("#/") {
-        return Some(("#/", stripped));
-    }
-    if let Some(stripped) = specifier.strip_prefix('#') {
-        return Some(("#", stripped));
-    }
-
-    None
-}
-
 /// Resolve a module specifier and dependency kind for an AST expression.
 pub fn module_specifier_in_expression(
     tree: &NodeTree,

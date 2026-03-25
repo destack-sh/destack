@@ -63,7 +63,7 @@ pub(crate) fn resolve_call_target(
 
             CallTarget::new(name, resolved_symbol)
         }
-        Expression::Member { left, name, .. } => {
+        Expression::Member { name, .. } => {
             let Some(name) = *name else {
                 return CallTarget::new(None, None);
             };
@@ -72,8 +72,7 @@ pub(crate) fn resolve_call_target(
             let member_name = session.strings.get(name).to_string();
 
             // resolve the member symbol when possible
-            let member_symbol =
-                resolve_member_access_symbol(session, ctx, left_expression_id, *left, name);
+            let member_symbol = resolve_member_access_symbol(ctx, left_expression_id);
 
             // return the member name and symbol
             CallTarget::new(Some(member_name), member_symbol)

@@ -226,7 +226,7 @@ fn constructor_owner_symbol(
 
 /// Resolve the symbol referenced by a call target expression.
 fn call_target_symbol(
-    session: &Session,
+    _session: &Session,
     ctx: &QueryContext<'_>,
     dir_tree: &dir::NodeTree,
     call_left: dir::LocalNodeId<dir::Expression>,
@@ -252,11 +252,11 @@ fn call_target_symbol(
     }
 
     let expression = dir_tree.get::<dir::Expression>(current);
-    if let dir::Expression::Member { left, name, .. } = expression {
-        let Some(name) = *name else {
+    if let dir::Expression::Member { name, .. } = expression {
+        let Some(_name) = *name else {
             return resolve_expression_symbol(ctx, current);
         };
-        return resolve_member_access_symbol(session, ctx, current, *left, name)
+        return resolve_member_access_symbol(ctx, current)
             .or_else(|| resolve_expression_symbol(ctx, current));
     }
 

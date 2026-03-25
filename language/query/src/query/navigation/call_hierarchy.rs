@@ -403,7 +403,7 @@ impl NodeVisitor for CallCollector<'_> {
         // check if this is a call expression
         if let Expression::Call { left, .. } = expression {
             // the left side of the call might be a reference
-            if let Some(target) = resolve_expression_symbol(&self.ctx, *left) {
+            if let Some(target) = resolve_expression_symbol(self.ctx, *left) {
                 let canonical = get_canonical_symbol(self.session, target);
                 self.calls.push((canonical, id));
             }

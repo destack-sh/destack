@@ -6,12 +6,11 @@ use destack_source::{Applicability, BatchEdit, Diagnostic, Edit, FileEdit, FileI
 use serde::{Deserialize, Serialize};
 
 use super::{extract_function, extract_variable, inline_symbol};
-use crate::assist::{CompletionContext, detect_completion_context};
 use crate::common::{
-    ImportDeclarationKey, ImportEditMode, build_import_display_path, build_import_edits_with_mode,
-    categorize_import, get_module_by_file_id, is_simple_identifier, matches_symbol_space_filter,
-    program_for_file, search_importable_symbols_for_program, sort_import_declaration_indices,
-    token_at_offset,
+    CompletionContext, ImportDeclarationKey, ImportEditMode, build_import_display_path,
+    build_import_edits_with_mode, categorize_import, detect_completion_context,
+    get_module_by_file_id, is_simple_identifier, matches_symbol_space_filter, program_for_file,
+    search_importable_symbols_for_program, sort_import_declaration_indices, token_at_offset,
 };
 use destack_dir::SymbolSpace;
 use destack_workspace::Session;

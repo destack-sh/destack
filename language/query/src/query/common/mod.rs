@@ -1,46 +1,62 @@
+mod boundary;
 mod call;
 mod container;
 mod context;
-mod cursor;
 mod declaration;
 mod docs;
+mod expression;
 mod extensions;
 mod extract;
 mod fuzzy;
+mod hole;
 mod identifier;
 mod import;
+mod lexical;
+mod member;
 mod module;
+mod namespace;
+mod nominal;
+mod object;
 mod parameters;
 mod path;
+mod position;
 mod references;
-mod resolve;
+mod scope;
 mod span;
+mod statement;
 mod symbol;
 mod symbol_kind;
-mod type_members;
 mod visible_symbols;
 
+pub(crate) use boundary::*;
 pub(crate) use call::*;
 pub(crate) use container::*;
 pub use context::*;
-pub(crate) use cursor::*;
 pub(crate) use declaration::*;
 pub(crate) use docs::*;
+pub(crate) use expression::*;
 pub(crate) use extensions::*;
 pub(crate) use extract::*;
 pub(crate) use fuzzy::*;
+pub(crate) use hole::*;
 pub(crate) use identifier::*;
 pub use import::*;
+pub(crate) use lexical::*;
+pub use member::*;
 pub use module::*;
+pub(crate) use namespace::*;
+pub(crate) use nominal::*;
+pub(crate) use object::*;
 pub use parameters::*;
 pub(crate) use path::*;
+pub(crate) use position::*;
 pub use references::*;
-pub(crate) use resolve::{
-    matches_import_clause_space_filter, resolve_expression_symbol,
-    resolve_module_id_for_import_target, resolve_module_id_for_import_target_path,
-};
+pub(crate) use scope::*;
 pub use span::*;
+pub(crate) use statement::*;
 pub use symbol::*;
+pub(crate) use symbol::{
+    is_type_symbol, matches_import_clause_space_filter, matches_symbol_space_filter,
+};
 pub use symbol_kind::*;
-pub use type_members::*;
 pub use visible_symbols::*;

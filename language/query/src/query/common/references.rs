@@ -1,22 +1,17 @@
-use std::collections::HashSet;
-
 use destack_ast as ast;
 use destack_dir::{
     self as dir, DependencyItem, DependencyKind, DependencyMode, Expression, GlobalSymbolId,
-    NodeType,
+    NodeType, Resolution,
 };
 use destack_source::{FileId, ModuleId, NodeSpanType, Span};
 
-use super::QueryContext;
-use super::resolve::{
-    resolve_expression_symbol, resolve_namespace_path_receiver_symbol,
-    resolve_namespace_receiver_symbol,
-};
+use super::namespace::resolve_path_segment_symbol;
 use super::span::{get_dir_node_main_span, get_dir_node_span};
 use super::symbol::{
-    get_canonical_symbol, get_member_access_name_span, get_namespace_path_receiver_span,
-    is_dependency_alias_for_target, resolve_member_access_symbol,
+    get_member_access_name_span, get_path_segment_span, is_dependency_alias_for_target,
+    resolve_member_access_symbol, symbol_matches_reference_target,
 };
+use super::{QueryContext, resolve_expression_symbol, resolve_namespace_receiver_symbol};
 use destack_workspace::Session;
 
 /// Options for collecting symbol references.
@@ -139,7 +134,7 @@ fn collect_expression_reference_spans(
 
                 // check for a canonical target match
                 if let Some(target_symbol) = resolved_target_symbol {
-                    if symbol_resolves_to_canonical(session, target_symbol, canonical_id) {
+                    if symbol_matches_reference_target(session, target_symbol, canonical_id) {
                         return Some(expression_id);
                     }
 
@@ -171,28 +166,45 @@ fn collect_expression_reference_spans(
         spans.push(span);
     }
 
-    // capture namespace path receivers for plain multi segment path expressions
-    for (expression_id, _expression) in dir_tree.iter_nodes_of_type::<Expression>() {
-        let Some(receiver_symbol) = resolve_namespace_path_receiver_symbol(ctx, expression_id)
-        else {
-            continue;
+    // capture plain path segments from multi segment path expressions
+    for (expression_id, expression) in dir_tree.iter_nodes_of_type::<Expression>() {
+        let path = match expression {
+            Expression::UnresolvedPath { path, .. }
+            | Expression::LocalReference { path, .. }
+            | Expression::ModuleReference { path, .. }
+            | Expression::GlobalReference { path, .. } => path,
+            _ => continue,
         };
-        if !symbol_resolves_to_canonical(session, receiver_symbol, canonical_id) {
+        if path.segments.len() < 2 {
             continue;
         }
 
-        let Some(span) = get_namespace_path_receiver_span(session, ctx, expression_id) else {
-            continue;
-        };
+        for segment_index in 0..path.segments.len() {
+            let segment_index =
+                u16::try_from(segment_index).expect("path reference segment index overflow");
 
-        if options
-            .limit_to_file
-            .is_some_and(|limit_file| span.file != limit_file)
-        {
-            continue;
+            let Some(segment_symbol) =
+                resolve_path_segment_symbol(ctx, expression_id, segment_index)
+            else {
+                continue;
+            };
+            if !symbol_matches_reference_target(session, segment_symbol, canonical_id) {
+                continue;
+            }
+
+            let Some(span) = get_path_segment_span(ctx, expression_id, segment_index) else {
+                continue;
+            };
+
+            if options
+                .limit_to_file
+                .is_some_and(|limit_file| span.file != limit_file)
+            {
+                continue;
+            }
+
+            spans.push(span);
         }
-
-        spans.push(span);
     }
 
     // capture member receiver spans when the receiver matches the target symbol
@@ -246,7 +258,7 @@ fn member_receiver_matches_target(
         return false;
     };
 
-    symbol_resolves_to_canonical(session, target_symbol, canonical_id)
+    symbol_matches_reference_target(session, target_symbol, canonical_id)
 }
 
 /// Resolve the target symbol for an expression reference.
@@ -288,53 +300,6 @@ fn expression_is_member_receiver_expression(
     )
 }
 
-/// Check whether a symbol resolves to the requested canonical id.
-fn symbol_resolves_to_canonical(
-    session: &Session,
-    symbol_id: GlobalSymbolId,
-    canonical_id: GlobalSymbolId,
-) -> bool {
-    // allow exact symbol identity matches before canonical expansion
-    if symbol_id == canonical_id {
-        return true;
-    }
-
-    // prefer the canonical symbol chain when it matches
-    if get_canonical_symbol(session, symbol_id) == canonical_id {
-        return true;
-    }
-
-    // fall back to following target symbol chains for alias symbols
-    let mut current_symbol = symbol_id;
-    let mut visited = HashSet::new();
-
-    // walk target symbols until we resolve or cycle
-    while visited.insert(current_symbol) {
-        // load the module context for the current symbol
-        let module = session.modules.get(current_symbol.module_id);
-        let module = module.as_ref();
-        let Some(ctx) = crate::query_context(session, module) else {
-            return false;
-        };
-
-        // read the next target symbol
-        let symbols = ctx.symbols();
-        let symbol = symbols.get_symbol(current_symbol.local_id);
-        let Some(target_symbol) = symbol.target_symbol else {
-            return false;
-        };
-
-        // stop when the target resolves to the requested canonical id
-        if get_canonical_symbol(session, target_symbol) == canonical_id {
-            return true;
-        }
-
-        // continue walking the target chain
-        current_symbol = target_symbol;
-    }
-
-    false
-}
 /// Resolve the best span for a reference expression.
 fn resolve_expression_reference_span(
     ctx: &QueryContext<'_>,
@@ -554,10 +519,8 @@ fn collect_member_reference_spans(
         };
 
         // resolve the member symbol through normal resolution first
-        if let Some(member_symbol) =
-            resolve_member_access_symbol(session, ctx, expression_id, *left, name)
-        {
-            if !symbol_resolves_to_canonical(session, member_symbol, canonical_id) {
+        if let Some(member_symbol) = resolve_member_access_symbol(ctx, expression_id) {
+            if !symbol_matches_reference_target(session, member_symbol, canonical_id) {
                 continue;
             }
 
@@ -566,6 +529,22 @@ fn collect_member_reference_spans(
             };
 
             // filter out spans outside the requested file
+            if let Some(limit_file) = options.limit_to_file
+                && span.file != limit_file
+            {
+                continue;
+            }
+
+            spans.push(span);
+            continue;
+        }
+
+        // accept recorded dynamic candidate matches when one member access has no single target
+        if member_resolution_matches_reference_target(session, ctx, expression_id, canonical_id) {
+            let Some(span) = get_member_access_name_span(ctx, expression_id) else {
+                continue;
+            };
+
             if let Some(limit_file) = options.limit_to_file
                 && span.file != limit_file
             {
@@ -618,6 +597,31 @@ fn collect_member_reference_spans(
     spans
 }
 
+/// Check whether one member access resolution candidate set matches the target.
+fn member_resolution_matches_reference_target(
+    session: &Session,
+    ctx: &QueryContext<'_>,
+    expression_id: dir::LocalNodeId<Expression>,
+    canonical_id: GlobalSymbolId,
+) -> bool {
+    let types = ctx.types();
+    let resolution_id = types.get_resolution_for_node(expression_id.into_global_any(ctx.module_id));
+    let Some(resolution_id) = resolution_id else {
+        return false;
+    };
+
+    let resolution = types.get_resolution(resolution_id);
+
+    // only genuinely dynamic accesses should reach this path
+    let Resolution::Dynamic { candidates, .. } = resolution else {
+        return false;
+    };
+
+    candidates.iter().any(|candidate| {
+        symbol_matches_reference_target(session, candidate.target_symbol, canonical_id)
+    })
+}
+
 /// Collect dependency item reference spans.
 fn collect_dependency_reference_spans(
     session: &Session,
@@ -632,7 +636,7 @@ fn collect_dependency_reference_spans(
             .iter_nodes_of_type::<DependencyItem>()
             .filter_map(|(item_id, item)| {
                 let target = item.target_symbol()?;
-                symbol_resolves_to_canonical(session, target, canonical_id).then_some(item_id)
+                symbol_matches_reference_target(session, target, canonical_id).then_some(item_id)
             })
             .collect()
     };

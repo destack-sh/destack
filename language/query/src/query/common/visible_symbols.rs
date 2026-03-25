@@ -2,7 +2,7 @@ use destack_dir::{
     LocalScopeId, LocalScopeMark, LocalSymbolId, StaticKey, Symbol, SymbolSpace, SymbolTable,
 };
 
-use super::resolve::matches_symbol_space_filter;
+use super::matches_symbol_space_filter;
 
 /// Information about a visible symbol.
 #[derive(Debug, Clone)]

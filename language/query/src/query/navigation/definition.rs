@@ -167,30 +167,11 @@ fn resolve_import_definition_at_offset(
             continue;
         }
 
-        let target_symbol = resolve_dependency_item_target_symbol_for_definition(&ctx, item)?;
+        let target_symbol = item.target_symbol()?;
 
         return get_symbol_definition_span(session, target_symbol);
     }
 
-    None
-}
-
-/// Resolve a dependency item target symbol for goto-definition.
-fn resolve_dependency_item_target_symbol_for_definition(
-    ctx: &QueryContext<'_>,
-    item: &DependencyItem,
-) -> Option<dir::GlobalSymbolId> {
-    // resolved items expose direct target symbols
-    if let Some(target_symbol) = item.target_symbol() {
-        return Some(target_symbol);
-    }
-
-    // unresolved items may still expose a local symbol that canonicalizes to the target
-    if let Some(local_symbol) = item.symbol() {
-        return Some(dir::GlobalSymbolId::new(ctx.module_id, local_symbol));
-    }
-
-    // unresolved import targets are treated as not-ready state
     None
 }
 
