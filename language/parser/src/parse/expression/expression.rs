@@ -399,12 +399,18 @@ impl Parser {
         };
 
         let is_colon_lambda = follow_token_type == TokenType::Colon;
+        let is_parenthesized_arrow_value = is_colon_lambda
+            && group_shape.starts_with_nested_parenthesis
+            && group_shape.has_top_level_arrow;
         let is_colon_lambda_allowed = !is_colon_lambda
             || (self.language.is_destack() || self.language.is_typescript())
                 && !self.options.is_in_before_type()
                 && !self.options.is_in_match_case()
                 && (!self.options.is_in_type() || !group_shape.has_top_level_comma);
-        if !can_parse_lambda_in_arrow_return || !is_colon_lambda_allowed {
+        if !can_parse_lambda_in_arrow_return
+            || !is_colon_lambda_allowed
+            || is_parenthesized_arrow_value
+        {
             return Ok(None);
         }
 
