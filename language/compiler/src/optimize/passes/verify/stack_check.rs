@@ -9,21 +9,22 @@ use mir::{Instruction, Value};
 use crate::OptimizeError;
 use crate::optimize::{
     AnalysisPreservation, CallTargetAnalysis, ControlFlowGraph, DiagnosticEmitter, FunctionPass,
-    Lattice, LifetimeAnalysis, PipelineContext, ResolvedLifetime, forward_dataflow,
+    Lattice, LifetimeAnalysis, LivenessAnalysis, PipelineContext, ResolvedLifetime,
+    forward_dataflow,
 };
 
 declare_pass! {
     /// Verify stack safety.
     ///
-    /// Tracks pointers to stack-allocated memory and detects escapes:
+    /// Tracks pointers to frame-local memory and detects escapes:
     /// - Return escape: returning a pointer to stack memory
     /// - Store escape: storing a stack pointer to a heap/global location
-    /// - Yield escape: yielding a stack pointer from a coroutine
+    /// - Suspend escape: yielding a stack pointer or suspending with one still live
     ///
     /// Uses forward dataflow analysis to correctly handle stack pointers that flow
     /// through control flow joins and block parameters.
     ///
-    /// Stack pointers originate from `stack.alloc` and propagate through
+    /// Frame-local pointers originate from `stack.alloc` and `local.addr`, and propagate through
     /// `field.addr`, `element.addr`, `field.set`, `element.set`, `cast`, and function
     /// calls (via lifetime analysis). Storing a stack pointer to another stack
     /// location is allowed.
@@ -436,6 +437,7 @@ impl StackPointerMap {
         &self,
         block_id: mir::LocalNodeId<mir::Block>,
         terminator: &mir::Terminator,
+        liveness: &LivenessAnalysis,
         module_id: &ModuleId,
         target_id: &TargetId,
         context: &impl DiagnosticEmitter,
@@ -457,9 +459,16 @@ impl StackPointerMap {
             | mir::Terminator::Branch { .. }
             | mir::Terminator::Check { .. } => {}
 
-            // yielding a stack pointer = escape (coroutine could be resumed after stack frame gone)
+            // yielding or resuming with live frame-local pointers is invalid
             mir::Terminator::Yield { value, .. } => {
-                if self.get(*value).is_maybe_stack() {
+                let yields_frame_local_pointer = self.get(*value).is_maybe_stack();
+                let suspends_with_live_frame_local_pointer = liveness
+                    .live_out(block_id)
+                    .iter()
+                    .copied()
+                    .any(|value| self.get(value).is_maybe_stack());
+
+                if yields_frame_local_pointer || suspends_with_live_frame_local_pointer {
                     context.emit_error(OptimizeError::LocalReferenceEscapes {
                         node: block_id
                             .into_any()
@@ -498,6 +507,7 @@ fn run_stack_check(
     cfg: &ControlFlowGraph,
     lifetime_analysis: &LifetimeAnalysis,
     call_targets: &CallTargetAnalysis,
+    liveness: &LivenessAnalysis,
     module_id: ModuleId,
     target_id: TargetId,
     context: &impl DiagnosticEmitter,
@@ -570,6 +580,7 @@ fn run_stack_check(
         current_state.check_terminator_escapes(
             block_id,
             &block.terminator,
+            liveness,
             &module_id,
             &target_id,
             context,
@@ -585,9 +596,12 @@ impl FunctionPass for StackCheck {
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // get function-level analyses
-        let cfg = {
+        let (cfg, liveness) = {
             let analyses = ctx.function_analyses(function, tree);
-            analyses.get::<ControlFlowGraph>().clone()
+            (
+                analyses.get::<ControlFlowGraph>().clone(),
+                analyses.get::<LivenessAnalysis>().clone(),
+            )
         };
 
         // get module-level lifetime analysis
@@ -601,6 +615,7 @@ impl FunctionPass for StackCheck {
             &cfg,
             &lifetime_analysis,
             &call_targets,
+            &liveness,
             ctx.module_id(),
             ctx.target_id().clone(),
             ctx,
@@ -934,6 +949,64 @@ block0:
         let mut test = TestProgram::new(input);
         test.run_pass(&StackCheck);
         test.assert_no_errors();
+    }
+
+    /// Yielding while one stack allocation stays live is detected.
+    #[test]
+    fn test_detect_stack_allocation_live_across_yield() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 1i32
+    yield v1, block1
+block1(v2: i32):
+    store v0, v2
+    v3: i32 = load v0
+    return v3
+}"#;
+
+        let mut test = TestProgram::new(input);
+        test.run_pass(&StackCheck);
+        test.assert_error(|e| matches!(e, OptimizeError::LocalReferenceEscapes { .. }));
+    }
+
+    /// Yielding after a dead stack allocation is valid.
+    #[test]
+    fn test_verify_dead_stack_allocation_before_yield() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 1i32
+    store v0, v1
+    yield v1, block1
+block1(v2: i32):
+    return v2
+}"#;
+
+        let mut test = TestProgram::new(input);
+        test.run_pass(&StackCheck);
+        test.assert_no_errors();
+    }
+
+    /// Yielding while one local address stays live is detected.
+    #[test]
+    fn test_detect_local_pointer_live_across_yield() {
+        let input = r#"function @test() -> i32 {
+    local0: i32 ; owned
+
+block0:
+    v0: i32 = iconst 1i32
+    local.set local0, v0
+    v1: ref<borrowed addrspace(stack) i32> = local.addr local0
+    yield v0, block1
+block1(v2: i32):
+    v3: i32 = load v1
+    return v3
+}"#;
+
+        let mut test = TestProgram::new(input);
+        test.run_pass(&StackCheck);
+        test.assert_error(|e| matches!(e, OptimizeError::LocalReferenceEscapes { .. }));
     }
 
     /// Stack pointer passed through block parameter is tracked.
