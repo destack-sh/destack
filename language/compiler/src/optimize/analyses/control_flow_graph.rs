@@ -1,84 +1,37 @@
-use std::collections::{HashMap, HashSet};
-
 use destack_mir as mir;
 
 use crate::optimize::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis};
 
 /// Control flow graph for a function.
-///
-/// Maps each block to its predecessors (blocks that can jump to it).
-/// Successors are already available via `Block::terminator.successors()`.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ControlFlowGraph {
-    /// Predecessors for each block.
-    predecessors: HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
+    /// The shared MIR-level control flow graph.
+    pub(super) graph: mir::ControlFlowGraph,
 }
 
 impl ControlFlowGraph {
-    /// Build a control flow graph for a function.
+    /// Build the control flow graph for one function.
     pub(crate) fn build(function: &mir::Function, tree: &mir::NodeTree) -> Self {
-        let mut predecessors: HashMap<
-            mir::LocalNodeId<mir::Block>,
-            Vec<mir::LocalNodeId<mir::Block>>,
-        > = HashMap::new();
-
-        // initialize all blocks with empty predecessor lists
-        for &block_id in &function.blocks {
-            predecessors.insert(block_id, Vec::new());
+        Self {
+            graph: mir::ControlFlowGraph::build(function, tree),
         }
-
-        // compute predecessors from successors
-        for &block_id in &function.blocks {
-            let block = tree.get(block_id);
-            for successor_id in block.terminator.successors() {
-                if let Some(preds) = predecessors.get_mut(&successor_id) {
-                    preds.push(block_id);
-                }
-            }
-        }
-
-        Self { predecessors }
     }
 
-    /// Get the predecessors of a block.
+    /// Return the predecessors of one block.
     pub fn predecessors(
         &self,
         block: mir::LocalNodeId<mir::Block>,
     ) -> &[mir::LocalNodeId<mir::Block>] {
-        self.predecessors
-            .get(&block)
-            .map(|v| v.as_slice())
-            .unwrap_or(&[])
+        self.graph.predecessors(block)
     }
 
-    /// Check if a block is reachable (has entry as ancestor or is entry).
+    /// Return whether one block is reachable from the entry block.
     pub fn is_reachable(
         &self,
         block: mir::LocalNodeId<mir::Block>,
         entry: mir::LocalNodeId<mir::Block>,
     ) -> bool {
-        if block == entry {
-            return true;
-        }
-
-        let mut worklist = vec![block];
-        let mut visited = HashSet::new();
-
-        while let Some(current) = worklist.pop() {
-            if !visited.insert(current) {
-                continue;
-            }
-
-            if current == entry {
-                return true;
-            }
-
-            if let Some(preds) = self.predecessors.get(&current) {
-                worklist.extend(preds.iter().copied());
-            }
-        }
-
-        false
+        self.graph.is_reachable(block, entry)
     }
 }
 
@@ -103,8 +56,7 @@ mod tests {
     use crate::optimize::common::tests::TestProgram;
 
     #[test]
-    fn test_cfg_linear_flow() {
-        // linear flow: block0 -> block1 -> block2
+    fn test_compute_cfg_through_function_analyses() {
         let test = TestProgram::new(
             r#"function @linear() -> void {
 block0:
@@ -118,129 +70,13 @@ block2:
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-
         let analyses = test.function_analyses(function);
         let cfg = analyses.get::<ControlFlowGraph>();
 
-        // block0 has no predecessors (entry)
         let block0 = function.entry.unwrap();
+        let block1 = function.blocks[1];
+
         assert!(cfg.predecessors(block0).is_empty());
-
-        // block1 has block0 as predecessor
-        let block1 = function.blocks[1];
         assert_eq!(cfg.predecessors(block1).len(), 1);
-
-        // block2 has block1 as predecessor
-        let block2 = function.blocks[2];
-        assert_eq!(cfg.predecessors(block2).len(), 1);
-    }
-
-    #[test]
-    fn test_cfg_branch() {
-        // branch: block0 -> block1, block0 -> block2
-        let test = TestProgram::new(
-            r#"function @test_branch(v0: bool) -> void {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    return
-block2:
-    return
-}"#,
-        );
-
-        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = test.tree.get(function_id);
-
-        let analyses = test.function_analyses(function);
-        let cfg = analyses.get::<ControlFlowGraph>();
-
-        // block1 and block2 each have block0 as predecessor
-        let block1 = function.blocks[1];
-        let block2 = function.blocks[2];
-        assert_eq!(cfg.predecessors(block1).len(), 1);
-        assert_eq!(cfg.predecessors(block2).len(), 1);
-    }
-
-    #[test]
-    fn test_cfg_diamond() {
-        // diamond: block0 -> block1, block0 -> block2, block1 -> block3, block2 -> block3
-        let test = TestProgram::new(
-            r#"function @diamond(v0: bool) -> void {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    jump block3
-block2:
-    jump block3
-block3:
-    return
-}"#,
-        );
-
-        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = test.tree.get(function_id);
-
-        let analyses = test.function_analyses(function);
-        let cfg = analyses.get::<ControlFlowGraph>();
-
-        // block3 has two predecessors: block1 and block2
-        let block3 = function.blocks[3];
-        assert_eq!(cfg.predecessors(block3).len(), 2);
-    }
-
-    #[test]
-    fn test_cfg_loop() {
-        // loop: block0 -> block1, block1 -> block1, block1 -> block2
-        let test = TestProgram::new(
-            r#"function @loop(v0: bool) -> void {
-block0(v0: bool):
-    jump block1(v0)
-block1(v1: bool):
-    branch v1, block1(v1), block2
-block2:
-    return
-}"#,
-        );
-
-        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = test.tree.get(function_id);
-
-        let analyses = test.function_analyses(function);
-        let cfg = analyses.get::<ControlFlowGraph>();
-
-        // block1 has two predecessors: block0 and block1 (self-loop)
-        let block1 = function.blocks[1];
-        assert_eq!(cfg.predecessors(block1).len(), 2);
-    }
-
-    /// Reachability follows predecessor chains from the entry.
-    #[test]
-    fn test_cfg_reachability() {
-        let program = TestProgram::new(
-            r#"function @test(v0: bool) -> i32 {
-block0(v0: bool):
-    branch v0, block1, block2
-block1:
-    v1: i32 = iconst 1i32
-    return v1
-block2:
-    unreachable
-block3:
-    v2: i32 = iconst 2i32
-    return v2
-}"#,
-        );
-
-        let function_id = program.function_id_by_name("test");
-        let function = program.tree.get(function_id);
-        let cfg = ControlFlowGraph::build(function, &program.tree);
-        let entry = function.entry.expect("missing entry");
-
-        let reachable_block = function.blocks[1];
-        let unreachable_block = function.blocks[3];
-
-        assert!(cfg.is_reachable(reachable_block, entry));
-        assert!(!cfg.is_reachable(unreachable_block, entry));
     }
 }

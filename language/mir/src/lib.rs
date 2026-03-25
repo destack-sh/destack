@@ -1,6 +1,7 @@
 #![feature(default_field_values)]
 #![allow(hidden_glob_reexports)]
 
+mod analyses;
 mod build;
 mod dump;
 mod format;
@@ -9,6 +10,7 @@ pub mod parse;
 mod tree;
 mod validate;
 
+pub use analyses::*;
 pub use build::*;
 pub use dump::*;
 pub use format::*;
