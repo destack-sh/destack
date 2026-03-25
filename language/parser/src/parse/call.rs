@@ -620,13 +620,8 @@ mod tests {
 
         // new
         assert_node!(parser.tree, expression_id, Expression::New { left, static_arguments, dynamic_arguments } => {
-            // missing constructor
             assert_node!(parser.tree, *left, Expression::Missing);
-
-            // no static arguments
             assert!(static_arguments.is_none());
-
-            // no dynamic arguments
             assert!(dynamic_arguments.is_empty());
         });
     }
