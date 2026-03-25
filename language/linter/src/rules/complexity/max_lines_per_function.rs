@@ -1,7 +1,10 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{CallableOwnerId, callable_owner_span, for_each_callable_signature};
+use crate::rules::common::{
+    CallableOwnerId, callable_owner_span, count_file_span_lines, declaration_expression,
+    expression_is_immediately_invoked, for_each_callable_signature,
+};
 use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
 
 declare_lint! {
@@ -33,6 +36,9 @@ impl LintRule for MaxLinesPerFunction {
         // resolve lint metadata, threshold, and source file
         let meta = self.meta();
         let max_lines = ctx.options.max_lines_per_function;
+        let skip_comments = ctx.options.max_lines_per_function_skip_comments;
+        let skip_blank_lines = ctx.options.max_lines_per_function_skip_blank_lines;
+        let include_iifes = ctx.options.max_lines_per_function_include_iifes;
         let file = ctx.program.files.get(ctx.module.file_id);
 
         // check all callable owners that have a body expression
@@ -42,17 +48,15 @@ impl LintRule for MaxLinesPerFunction {
                 return;
             };
 
+            // skip iifes unless they are explicitly included
+            if !include_iifes && callable_owner_is_iife(ctx, owner_id) {
+                return;
+            }
+
             // resolve owner span for line counting
             let owner_span = callable_owner_span(ctx.tree, owner_id);
-            let Some((start_line, _)) = file.get_position(owner_span.start) else {
-                return;
-            };
-            let Some((end_line, _)) = file.get_position(owner_span.end) else {
-                return;
-            };
-
-            // keep line counting inclusive like eslint
-            let line_count = (end_line - start_line + 1) as usize;
+            let line_count =
+                count_file_span_lines(&file, owner_span, skip_comments, skip_blank_lines);
             if line_count <= max_lines {
                 return;
             }
@@ -112,6 +116,18 @@ fn report_line_limit_violation<T: ast::Node>(
         )
         .with_label("consider breaking into smaller functions"),
     );
+}
+
+/// Return true when one callable owner is an immediately invoked function expression.
+fn callable_owner_is_iife(ctx: &LintAstContext<'_>, owner_id: CallableOwnerId) -> bool {
+    let CallableOwnerId::Declaration(declaration_id) = owner_id else {
+        return false;
+    };
+    let Some(expression_id) = declaration_expression(ctx.tree, ctx.parents, declaration_id) else {
+        return false;
+    };
+
+    expression_is_immediately_invoked(ctx.tree, ctx.parents, expression_id)
 }
 
 #[cfg(test)]
