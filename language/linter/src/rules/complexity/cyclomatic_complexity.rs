@@ -257,9 +257,14 @@ fn match_case_complexity(
     tree: &NodeTree,
     kind: MatchKind,
     cases: &[LocalNodeId<ast::MatchCase>],
+    variant: CyclomaticComplexityVariant,
 ) -> usize {
     // keep switch counting aligned to eslint classic variant
     if kind == MatchKind::Switch {
+        if variant == CyclomaticComplexityVariant::Modified {
+            return usize::from(!cases.is_empty());
+        }
+
         return cases
             .iter()
             .copied()
@@ -505,6 +510,48 @@ function withSwitch(value: int32): int32 {
         case 2: return 2;
         case 3: return 3;
     }
+}
+"#,
+        );
+        test.result(result).assert_lint("cyclomatic-complexity");
+    }
+
+    #[test]
+    fn test_allows_modified_switch_complexity_variant() {
+        let test =
+            TestProgram::for_rule_without_prelude(CyclomaticComplexity).with_options(|options| {
+                options.max_cyclomatic_complexity = 2;
+                options.cyclomatic_complexity_variant = CyclomaticComplexityVariant::Modified;
+            });
+        let result = test.lint_ast(
+            "cyclomatic_complexity/test_allows_modified_switch_complexity_variant.ds",
+            r#"
+function withSwitch(value: int32): int32 {
+    switch (value) {
+        case 1: return 1;
+        case 2: return 2;
+        case 3: return 3;
+        default: return 0;
+    }
+}
+"#,
+        );
+        test.result(result).assert_no_lint("cyclomatic-complexity");
+    }
+
+    #[test]
+    fn test_counts_class_field_initializer_complexity() {
+        let test = TestProgram::for_rule_without_prelude(CyclomaticComplexity)
+            .with_options(|options| options.max_cyclomatic_complexity = 1);
+        let result = test.lint_ast(
+            "cyclomatic_complexity/test_counts_class_field_initializer_complexity.ds",
+            r#"
+class Demo {
+    value = if (flag) {
+        1
+    } else {
+        2
+    };
 }
 "#,
         );

@@ -461,7 +461,8 @@ void maybeValue;
 
     #[test]
     fn test_allows_module_directive_prologue_strings() {
-        let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions);
+        let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions)
+            .with_options(|options| options.no_unused_expressions_ignore_directives = true);
         let result = test.lint_ast(
             "no_unused_expressions/test_allows_module_directive_prologue_strings.ds",
             r#"
@@ -480,6 +481,113 @@ doSomething();
             "no_unused_expressions/test_reports_string_after_non_directive_statement.ds",
             r#"
 doSomething();
+"use strict";
+"#,
+        );
+        test.result(result).assert_lint("no-unused-expressions");
+    }
+
+    #[test]
+    fn test_allows_short_circuit_when_enabled() {
+        let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions)
+            .with_options(|options| options.no_unused_expressions_allow_short_circuit = true);
+        let result = test.lint_ast(
+            "no_unused_expressions/test_allows_short_circuit_when_enabled.ds",
+            r#"
+ready && doSomething();
+"#,
+        );
+        test.result(result).assert_no_lint("no-unused-expressions");
+    }
+
+    #[test]
+    fn test_allows_ternary_when_enabled() {
+        let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions)
+            .with_options(|options| options.no_unused_expressions_allow_ternary = true);
+        let result = test.lint_ast(
+            "no_unused_expressions/test_allows_ternary_when_enabled.ds",
+            r#"
+ready ? doSomething() : doOtherThing();
+"#,
+        );
+        test.result(result).assert_no_lint("no-unused-expressions");
+    }
+
+    #[test]
+    fn test_allows_tagged_templates_when_enabled() {
+        let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions)
+            .with_options(|options| options.no_unused_expressions_allow_tagged_templates = true);
+        let result = test.lint_ast(
+            "no_unused_expressions/test_allows_tagged_templates_when_enabled.ds",
+            r#"
+sql`SELECT * FROM users`;
+"#,
+        );
+        test.result(result).assert_no_lint("no-unused-expressions");
+    }
+
+    #[test]
+    fn test_allows_tree_expression_by_default() {
+        let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions);
+        let result = test.lint_ast(
+            "no_unused_expressions/test_allows_tree_expression_by_default.ds",
+            r#"
+<View />;
+"#,
+        );
+        test.result(result).assert_no_lint("no-unused-expressions");
+    }
+
+    #[test]
+    fn test_reports_tree_expression_when_enforced() {
+        let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions)
+            .with_options(|options| options.no_unused_expressions_enforce_for_jsx = true);
+        let result = test.lint_ast(
+            "no_unused_expressions/test_reports_tree_expression_when_enforced.ds",
+            r#"
+<View />;
+"#,
+        );
+        test.result(result).assert_lint("no-unused-expressions");
+    }
+
+    #[test]
+    fn test_allows_namespace_directive_prologue_strings() {
+        let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions)
+            .with_options(|options| options.no_unused_expressions_ignore_directives = true);
+        let result = test.lint_ast(
+            "no_unused_expressions/test_allows_namespace_directive_prologue_strings.ts",
+            r#"
+namespace Demo {
+    "use strict";
+    run();
+}
+"#,
+        );
+        test.result(result).assert_no_lint("no-unused-expressions");
+    }
+
+    #[test]
+    fn test_reports_namespace_string_after_non_directive_statement() {
+        let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions);
+        let result = test.lint_ast(
+            "no_unused_expressions/test_reports_namespace_string_after_non_directive_statement.ts",
+            r#"
+namespace Demo {
+    run();
+    "use strict";
+}
+"#,
+        );
+        test.result(result).assert_lint("no-unused-expressions");
+    }
+
+    #[test]
+    fn test_reports_module_directive_when_disabled() {
+        let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions);
+        let result = test.lint_ast(
+            "no_unused_expressions/test_reports_module_directive_when_disabled.ts",
+            r#"
 "use strict";
 "#,
         );

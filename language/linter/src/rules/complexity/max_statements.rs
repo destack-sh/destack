@@ -361,4 +361,93 @@ const object = {
         // verify lint report for oversized object method
         test.result(result).assert_lint("max-statements");
     }
+
+    #[test]
+    fn test_ignores_top_level_function_declarations_when_enabled() {
+        let test = TestProgram::for_rule_without_prelude(MaxStatements).with_options(|options| {
+            options.max_statements = 1;
+            options.max_statements_ignore_top_level_functions = true;
+        });
+
+        let result = test.lint_ast(
+            "max_statements/test_ignores_top_level_function_declarations_when_enabled.ds",
+            r#"
+function outer() {
+    let x = 1;
+    let y = 2;
+}
+"#,
+        );
+
+        test.result(result).assert_no_lint("max-statements");
+    }
+
+    #[test]
+    fn test_ignores_single_top_level_wrapper_function_when_enabled() {
+        let test = TestProgram::for_rule_without_prelude(MaxStatements).with_options(|options| {
+            options.max_statements = 1;
+            options.max_statements_ignore_top_level_functions = true;
+        });
+
+        let result = test.lint_ast(
+            "max_statements/test_ignores_single_top_level_wrapper_function_when_enabled.ds",
+            r#"
+register(() => {
+    let x = 1;
+    let y = 2;
+});
+"#,
+        );
+
+        test.result(result).assert_no_lint("max-statements");
+    }
+
+    #[test]
+    fn test_reports_multiple_top_level_functions_when_enabled() {
+        let test = TestProgram::for_rule_without_prelude(MaxStatements).with_options(|options| {
+            options.max_statements = 1;
+            options.max_statements_ignore_top_level_functions = true;
+        });
+
+        let result = test.lint_ast(
+            "max_statements/test_reports_multiple_top_level_functions_when_enabled.ds",
+            r#"
+first(() => {
+    let x = 1;
+    let y = 2;
+});
+
+second(() => {
+    let a = 1;
+    let b = 2;
+});
+"#,
+        );
+
+        test.result(result)
+            .assert_lint("max-statements")
+            .assert_lint_count("max-statements", 2);
+    }
+
+    #[test]
+    fn test_ignores_single_top_level_object_method_when_enabled() {
+        let test = TestProgram::for_rule_without_prelude(MaxStatements).with_options(|options| {
+            options.max_statements = 1;
+            options.max_statements_ignore_top_level_functions = true;
+        });
+
+        let result = test.lint_ast(
+            "max_statements/test_ignores_single_top_level_object_method_when_enabled.ds",
+            r#"
+const object = {
+    method() {
+        let x = 1;
+        let y = 2;
+    }
+};
+"#,
+        );
+
+        test.result(result).assert_no_lint("max-statements");
+    }
 }
