@@ -222,7 +222,7 @@ Correct code that could be faster or use less memory.
 | `LP021` | `prefer-reserve` | Clippy | DIR |  |  | Suggestion | Prefer reserving capacity when the size is known |
 | `LP016` | `prefer-string-endswith` | Unicorn | DIR | ✓ | Sometimes | Safe | Prefer `.endsWith()` over `.slice(-n) === suffix` |
 | `LP017` | `prefer-string-startswith` | Unicorn | DIR | ✓ | Sometimes | Safe | Prefer `.startsWith()` over `.indexOf() === 0` |
-| `LP018` | `require-unicode-regexp` | ESLint | AST | ✓ | Always | Safe | Require `u` or `v` flag on regular expressions |
+| `LP018` | `require-unicode-regexp` | ESLint | AST | ✓ | Sometimes | Safe | Require configured Unicode regex flag on regular expressions |
 
 ## Style (Y)
 

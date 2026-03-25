@@ -208,6 +208,26 @@ pub enum ReturnAwaitMode {
     Never,
 }
 
+/// Required Unicode regex flag for `require-unicode-regexp`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum UnicodeRegexpRequireFlag {
+    /// Require the `u` flag.
+    #[default]
+    U,
+    /// Require the `v` flag.
+    V,
+}
+
+impl UnicodeRegexpRequireFlag {
+    /// Return the required flag character.
+    pub const fn as_char(self) -> char {
+        match self {
+            Self::U => 'u',
+            Self::V => 'v',
+        }
+    }
+}
+
 /// Warning comment term matching location for `no-warning-comments`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum WarningCommentLocation {
@@ -387,6 +407,8 @@ pub struct LinterOptions {
     pub no_fallthrough_report_unused_comment: bool,
     /// Await policy for the `return-await` rule.
     pub return_await_mode: ReturnAwaitMode,
+    /// Required Unicode regex flag for `require-unicode-regexp`.
+    pub require_unicode_regexp_require_flag: UnicodeRegexpRequireFlag,
     /// Parameter name prefixes ignored by `no-unused-parameters`.
     pub ignored_unused_parameter_prefixes: Vec<String>,
     /// Ignore destructuring aliases in `no-useless-rename`.
@@ -557,6 +579,7 @@ impl Default for LinterOptions {
             no_fallthrough_comment_pattern: None,
             no_fallthrough_report_unused_comment: false,
             return_await_mode: ReturnAwaitMode::default(),
+            require_unicode_regexp_require_flag: UnicodeRegexpRequireFlag::default(),
             ignored_unused_parameter_prefixes: vec!["_".to_string()],
             no_useless_rename_ignore_destructuring: false,
             no_useless_rename_ignore_import: false,
@@ -897,6 +920,8 @@ pub struct LinterJson {
     pub allow_single_extends_empty_interface: Option<bool>,
     /// Await policy for the `return-await` rule.
     pub return_await_mode: Option<ReturnAwaitModeJson>,
+    /// Required Unicode regex flag for `require-unicode-regexp`.
+    pub require_unicode_regexp_require_flag: Option<UnicodeRegexpRequireFlagJson>,
     /// Parameter name prefixes ignored by `no-unused-parameters`.
     pub ignored_unused_parameter_prefixes: Option<Vec<String>>,
     /// Ignore destructuring aliases in `no-useless-rename`.
@@ -1148,6 +1173,11 @@ impl LinterJson {
         }
         if let Some(return_await_mode) = self.return_await_mode {
             options.return_await_mode = return_await_mode.into();
+        }
+        if let Some(require_unicode_regexp_require_flag) = self.require_unicode_regexp_require_flag
+        {
+            options.require_unicode_regexp_require_flag =
+                require_unicode_regexp_require_flag.into();
         }
         if let Some(allow_named_functions_in_prefer_arrow_callback) =
             self.allow_named_functions_in_prefer_arrow_callback
@@ -1757,6 +1787,26 @@ impl From<ReturnAwaitModeJson> for ReturnAwaitMode {
             }
             ReturnAwaitModeJson::Always => ReturnAwaitMode::Always,
             ReturnAwaitModeJson::Never => ReturnAwaitMode::Never,
+        }
+    }
+}
+
+/// Required Unicode regex flag accepted in linter JSON.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum UnicodeRegexpRequireFlagJson {
+    /// Require the `u` flag.
+    U,
+    /// Require the `v` flag.
+    V,
+}
+
+impl From<UnicodeRegexpRequireFlagJson> for UnicodeRegexpRequireFlag {
+    fn from(value: UnicodeRegexpRequireFlagJson) -> Self {
+        match value {
+            UnicodeRegexpRequireFlagJson::U => UnicodeRegexpRequireFlag::U,
+            UnicodeRegexpRequireFlagJson::V => UnicodeRegexpRequireFlag::V,
         }
     }
 }
