@@ -4062,6 +4062,219 @@
             "null"
           ]
         },
+        "noElseReturnAllowElseIf": {
+          "description": "Allow `else if` chains in `no-else-return`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "dotNotationAllowKeywords": {
+          "description": "Allow keyword property names in `dot-notation`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "dotNotationAllowPattern": {
+          "description": "Regex pattern of property names exempt from `dot-notation`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "noExtraBooleanCastEnforceForInnerExpressions": {
+          "description": "Check nested boolean contexts in `no-extra-boolean-cast`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "eqeqeqMode": {
+          "description": "Enforcement mode for `eqeqeq`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EqeqeqModeJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "groupedAccessorPairsOrder": {
+          "description": "Ordering policy for `grouped-accessor-pairs`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GroupedAccessorPairsOrderJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "groupedAccessorPairsEnforceForTypes": {
+          "description": "Enforce `grouped-accessor-pairs` in type-only member bodies.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "eqeqeqNull": {
+          "description": "Null comparison policy for `eqeqeq`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EqeqeqNullPolicyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "operatorAssignmentMode": {
+          "description": "Enforcement mode for `operator-assignment`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OperatorAssignmentModeJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "objectShorthandMode": {
+          "description": "Enforcement mode for `object-shorthand`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ObjectShorthandModeJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "objectShorthandAvoidQuotes": {
+          "description": "Allow quoted keys to stay longform in `object-shorthand`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "objectShorthandIgnoreConstructors": {
+          "description": "Ignore constructor-like names in `object-shorthand`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "objectShorthandMethodsIgnorePattern": {
+          "description": "Regex exemption for method names in `object-shorthand`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "objectShorthandAvoidExplicitReturnArrows": {
+          "description": "Avoid shorthand for explicit return arrow values in `object-shorthand`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noUnneededTernaryDefaultAssignment": {
+          "description": "Keep default-assignment ternaries in `no-unneeded-ternary`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "preferPromiseRejectErrorsAllowEmptyReject": {
+          "description": "Allow empty Promise.reject calls in `prefer-promise-reject-errors`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "preferConstDestructuring": {
+          "description": "Destructuring reporting policy for `prefer-const`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PreferConstDestructuringJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "preferConstIgnoreReadBeforeAssign": {
+          "description": "Ignore read-before-assign bindings in `prefer-const`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "yodaMode": {
+          "description": "Enforcement mode for `yoda`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/YodaModeJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "yodaExceptRange": {
+          "description": "Allow Yoda range tests in `yoda`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "yodaOnlyEquality": {
+          "description": "Restrict `yoda` to equality operators.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "sortImportsIgnoreCase": {
+          "description": "Ignore case in `sort-imports`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "sortImportsIgnoreDeclarationSort": {
+          "description": "Ignore declaration ordering in `sort-imports`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "sortImportsIgnoreMemberSort": {
+          "description": "Ignore member ordering in `sort-imports`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "sortImportsAllowSeparatedGroups": {
+          "description": "Allow separated declaration groups in `sort-imports`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "sortImportsMemberSyntaxSortOrder": {
+          "description": "Member syntax ordering in `sort-imports`.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/SortImportsMemberSyntaxJson"
+          }
+        },
         "noConfusingVoidExpressionIgnoreVoidOperator": {
           "description": "Ignore explicit `void` wrappers in `no-confusing-void-expression`.",
           "type": [
@@ -4592,6 +4805,171 @@
           "description": "Require the `v` flag.",
           "type": "string",
           "const": "v"
+        }
+      ]
+    },
+    "EqeqeqModeJson": {
+      "description": "Eqeqeq enforcement mode accepted in linter JSON.",
+      "oneOf": [
+        {
+          "description": "Always require strict equality operators.",
+          "type": "string",
+          "const": "always"
+        },
+        {
+          "description": "Allow loose equality in the upstream smart cases.",
+          "type": "string",
+          "const": "smart"
+        },
+        {
+          "description": "Allow loose equality only for null checks.",
+          "type": "string",
+          "const": "allow-null"
+        }
+      ]
+    },
+    "GroupedAccessorPairsOrderJson": {
+      "description": "JSON form of `grouped-accessor-pairs` ordering.",
+      "oneOf": [
+        {
+          "description": "Allow either adjacent accessor order.",
+          "type": "string",
+          "const": "any-order"
+        },
+        {
+          "description": "Require getters before setters.",
+          "type": "string",
+          "const": "get-before-set"
+        },
+        {
+          "description": "Require setters before getters.",
+          "type": "string",
+          "const": "set-before-get"
+        }
+      ]
+    },
+    "EqeqeqNullPolicyJson": {
+      "description": "Eqeqeq null policy accepted in linter JSON.",
+      "oneOf": [
+        {
+          "description": "Require strict null equality.",
+          "type": "string",
+          "const": "always"
+        },
+        {
+          "description": "Require loose null equality.",
+          "type": "string",
+          "const": "never"
+        },
+        {
+          "description": "Ignore null equality style.",
+          "type": "string",
+          "const": "ignore"
+        }
+      ]
+    },
+    "OperatorAssignmentModeJson": {
+      "description": "Operator-assignment mode accepted in linter JSON.",
+      "oneOf": [
+        {
+          "description": "Require shorthand assignment where possible.",
+          "type": "string",
+          "const": "always"
+        },
+        {
+          "description": "Disallow shorthand assignment operators.",
+          "type": "string",
+          "const": "never"
+        }
+      ]
+    },
+    "ObjectShorthandModeJson": {
+      "description": "Object shorthand mode accepted in linter JSON.",
+      "oneOf": [
+        {
+          "description": "Require shorthand for methods and properties.",
+          "type": "string",
+          "const": "always"
+        },
+        {
+          "description": "Require shorthand for methods only.",
+          "type": "string",
+          "const": "methods"
+        },
+        {
+          "description": "Require shorthand for properties only.",
+          "type": "string",
+          "const": "properties"
+        },
+        {
+          "description": "Disallow shorthand methods and properties.",
+          "type": "string",
+          "const": "never"
+        },
+        {
+          "description": "Require object literals to use consistent shorthand style.",
+          "type": "string",
+          "const": "consistent"
+        },
+        {
+          "description": "Require shorthand only when every eligible property can use it.",
+          "type": "string",
+          "const": "consistent-as-needed"
+        }
+      ]
+    },
+    "PreferConstDestructuringJson": {
+      "description": "JSON form of `prefer-const` destructuring policy.",
+      "oneOf": [
+        {
+          "description": "Report any const eligible binding in a destructuring.",
+          "type": "string",
+          "const": "any"
+        },
+        {
+          "description": "Report destructuring bindings only when all are const eligible.",
+          "type": "string",
+          "const": "all"
+        }
+      ]
+    },
+    "YodaModeJson": {
+      "description": "Yoda mode accepted in linter JSON.",
+      "oneOf": [
+        {
+          "description": "Require literal comparisons in Yoda form.",
+          "type": "string",
+          "const": "always"
+        },
+        {
+          "description": "Disallow literal comparisons in Yoda form.",
+          "type": "string",
+          "const": "never"
+        }
+      ]
+    },
+    "SortImportsMemberSyntaxJson": {
+      "description": "JSON form of `sort-imports` member syntax groups.",
+      "oneOf": [
+        {
+          "description": "Side-effect import syntax.",
+          "type": "string",
+          "const": "none"
+        },
+        {
+          "description": "Namespace import syntax.",
+          "type": "string",
+          "const": "all"
+        },
+        {
+          "description": "Multiple named imports.",
+          "type": "string",
+          "const": "multiple"
+        },
+        {
+          "description": "Single default or named import.",
+          "type": "string",
+          "const": "single"
         }
       ]
     },

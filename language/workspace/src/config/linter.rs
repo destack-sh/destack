@@ -250,6 +250,103 @@ pub enum MaxParamsCountThis {
     Always,
 }
 
+/// Enforcement mode for `eqeqeq`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum EqeqeqMode {
+    /// Always require strict equality operators.
+    #[default]
+    Always,
+    /// Allow loose equality for null checks, typeof checks, and same type literals.
+    Smart,
+    /// Allow loose equality only for null checks.
+    AllowNull,
+}
+
+/// Null comparison policy for `eqeqeq`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum EqeqeqNullPolicy {
+    /// Require strict null equality.
+    #[default]
+    Always,
+    /// Require loose null equality.
+    Never,
+    /// Ignore null equality style.
+    Ignore,
+}
+
+/// Enforcement mode for `operator-assignment`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum OperatorAssignmentMode {
+    /// Require shorthand assignment where possible.
+    #[default]
+    Always,
+    /// Disallow shorthand assignment operators.
+    Never,
+}
+
+/// Enforcement mode for `object-shorthand`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum ObjectShorthandMode {
+    /// Require shorthand for methods and properties.
+    #[default]
+    Always,
+    /// Require shorthand for methods only.
+    Methods,
+    /// Require shorthand for properties only.
+    Properties,
+    /// Disallow shorthand methods and properties.
+    Never,
+    /// Require object literals to use consistent shorthand style.
+    Consistent,
+    /// Require shorthand only when every eligible property can use it.
+    ConsistentAsNeeded,
+}
+
+/// Enforcement mode for `yoda`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum YodaMode {
+    /// Require literal comparisons in Yoda form.
+    Always,
+    /// Disallow literal comparisons in Yoda form.
+    #[default]
+    Never,
+}
+
+/// Ordering policy for `grouped-accessor-pairs`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum GroupedAccessorPairsOrder {
+    /// Allow either adjacent accessor order.
+    #[default]
+    AnyOrder,
+    /// Require getters before setters.
+    GetBeforeSet,
+    /// Require setters before getters.
+    SetBeforeGet,
+}
+
+/// Member syntax groups for `sort-imports`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SortImportsMemberSyntax {
+    /// Side-effect import syntax.
+    None,
+    /// Namespace import syntax.
+    All,
+    /// Multiple named imports.
+    Multiple,
+    /// Single default or named import.
+    Single,
+}
+
+/// Destructuring policy for `prefer-const`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum PreferConstDestructuring {
+    /// Report any const eligible binding in a destructuring.
+    #[default]
+    Any,
+    /// Report destructuring bindings only when all are const eligible.
+    All,
+}
+
 /// Warning comment term matching location for `no-warning-comments`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum WarningCommentLocation {
@@ -542,6 +639,58 @@ pub struct LinterOptions {
     pub allow_named_functions_in_prefer_arrow_callback: bool,
     /// Allow unbound `this` in `prefer-arrow-callback`.
     pub allow_unbound_this_in_prefer_arrow_callback: bool,
+    /// Allow `else if` chains in `no-else-return`.
+    pub no_else_return_allow_else_if: bool,
+    /// Allow keyword property names in `dot-notation`.
+    pub dot_notation_allow_keywords: bool,
+    /// Regex pattern of property names exempt from `dot-notation`.
+    pub dot_notation_allow_pattern: Option<String>,
+    /// Check nested boolean contexts in `no-extra-boolean-cast`.
+    pub no_extra_boolean_cast_enforce_for_inner_expressions: bool,
+    /// Enforcement mode for `eqeqeq`.
+    pub eqeqeq_mode: EqeqeqMode,
+    /// Ordering policy for `grouped-accessor-pairs`.
+    pub grouped_accessor_pairs_order: GroupedAccessorPairsOrder,
+    /// Enforce `grouped-accessor-pairs` in type-only member bodies.
+    pub grouped_accessor_pairs_enforce_for_types: bool,
+    /// Null comparison policy for `eqeqeq`.
+    pub eqeqeq_null: EqeqeqNullPolicy,
+    /// Enforcement mode for `operator-assignment`.
+    pub operator_assignment_mode: OperatorAssignmentMode,
+    /// Enforcement mode for `object-shorthand`.
+    pub object_shorthand_mode: ObjectShorthandMode,
+    /// Allow quoted keys to stay longform in `object-shorthand`.
+    pub object_shorthand_avoid_quotes: bool,
+    /// Ignore constructor-like names in `object-shorthand`.
+    pub object_shorthand_ignore_constructors: bool,
+    /// Regex exemption for method names in `object-shorthand`.
+    pub object_shorthand_methods_ignore_pattern: Option<String>,
+    /// Avoid shorthand for explicit return arrow values in `object-shorthand`.
+    pub object_shorthand_avoid_explicit_return_arrows: bool,
+    /// Keep default-assignment ternaries in `no-unneeded-ternary`.
+    pub no_unneeded_ternary_default_assignment: bool,
+    /// Allow empty Promise.reject calls in `prefer-promise-reject-errors`.
+    pub prefer_promise_reject_errors_allow_empty_reject: bool,
+    /// Destructuring reporting policy for `prefer-const`.
+    pub prefer_const_destructuring: PreferConstDestructuring,
+    /// Ignore read-before-assign bindings in `prefer-const`.
+    pub prefer_const_ignore_read_before_assign: bool,
+    /// Enforcement mode for `yoda`.
+    pub yoda_mode: YodaMode,
+    /// Allow Yoda range tests in `yoda`.
+    pub yoda_except_range: bool,
+    /// Restrict `yoda` to equality operators.
+    pub yoda_only_equality: bool,
+    /// Ignore case in `sort-imports`.
+    pub sort_imports_ignore_case: bool,
+    /// Ignore declaration ordering in `sort-imports`.
+    pub sort_imports_ignore_declaration_sort: bool,
+    /// Ignore member ordering in `sort-imports`.
+    pub sort_imports_ignore_member_sort: bool,
+    /// Allow separated declaration groups in `sort-imports`.
+    pub sort_imports_allow_separated_groups: bool,
+    /// Member syntax ordering in `sort-imports`.
+    pub sort_imports_member_syntax_sort_order: Vec<SortImportsMemberSyntax>,
     /// Prefer top-level `import type` in `consistent-type-imports`.
     pub consistent_type_imports_prefer_type_imports: bool,
     /// Prefer inline `type` specifiers in `consistent-type-imports`.
@@ -688,6 +837,37 @@ impl Default for LinterOptions {
             comment_separator_heading_min_lines: 3,
             allow_named_functions_in_prefer_arrow_callback: false,
             allow_unbound_this_in_prefer_arrow_callback: true,
+            no_else_return_allow_else_if: true,
+            dot_notation_allow_keywords: true,
+            dot_notation_allow_pattern: None,
+            no_extra_boolean_cast_enforce_for_inner_expressions: false,
+            eqeqeq_mode: EqeqeqMode::default(),
+            grouped_accessor_pairs_order: GroupedAccessorPairsOrder::default(),
+            grouped_accessor_pairs_enforce_for_types: false,
+            eqeqeq_null: EqeqeqNullPolicy::default(),
+            operator_assignment_mode: OperatorAssignmentMode::default(),
+            object_shorthand_mode: ObjectShorthandMode::default(),
+            object_shorthand_avoid_quotes: false,
+            object_shorthand_ignore_constructors: false,
+            object_shorthand_methods_ignore_pattern: None,
+            object_shorthand_avoid_explicit_return_arrows: false,
+            no_unneeded_ternary_default_assignment: true,
+            prefer_promise_reject_errors_allow_empty_reject: false,
+            prefer_const_destructuring: PreferConstDestructuring::default(),
+            prefer_const_ignore_read_before_assign: false,
+            yoda_mode: YodaMode::default(),
+            yoda_except_range: false,
+            yoda_only_equality: false,
+            sort_imports_ignore_case: false,
+            sort_imports_ignore_declaration_sort: false,
+            sort_imports_ignore_member_sort: false,
+            sort_imports_allow_separated_groups: false,
+            sort_imports_member_syntax_sort_order: vec![
+                SortImportsMemberSyntax::None,
+                SortImportsMemberSyntax::All,
+                SortImportsMemberSyntax::Multiple,
+                SortImportsMemberSyntax::Single,
+            ],
             consistent_type_imports_prefer_type_imports: true,
             consistent_type_imports_prefer_inline_type_imports: false,
             consistent_type_imports_disallow_type_annotations: true,
@@ -1021,6 +1201,58 @@ pub struct LinterJson {
     pub allow_named_functions_in_prefer_arrow_callback: Option<bool>,
     /// Allow unbound `this` in `prefer-arrow-callback`.
     pub allow_unbound_this_in_prefer_arrow_callback: Option<bool>,
+    /// Allow `else if` chains in `no-else-return`.
+    pub no_else_return_allow_else_if: Option<bool>,
+    /// Allow keyword property names in `dot-notation`.
+    pub dot_notation_allow_keywords: Option<bool>,
+    /// Regex pattern of property names exempt from `dot-notation`.
+    pub dot_notation_allow_pattern: Option<String>,
+    /// Check nested boolean contexts in `no-extra-boolean-cast`.
+    pub no_extra_boolean_cast_enforce_for_inner_expressions: Option<bool>,
+    /// Enforcement mode for `eqeqeq`.
+    pub eqeqeq_mode: Option<EqeqeqModeJson>,
+    /// Ordering policy for `grouped-accessor-pairs`.
+    pub grouped_accessor_pairs_order: Option<GroupedAccessorPairsOrderJson>,
+    /// Enforce `grouped-accessor-pairs` in type-only member bodies.
+    pub grouped_accessor_pairs_enforce_for_types: Option<bool>,
+    /// Null comparison policy for `eqeqeq`.
+    pub eqeqeq_null: Option<EqeqeqNullPolicyJson>,
+    /// Enforcement mode for `operator-assignment`.
+    pub operator_assignment_mode: Option<OperatorAssignmentModeJson>,
+    /// Enforcement mode for `object-shorthand`.
+    pub object_shorthand_mode: Option<ObjectShorthandModeJson>,
+    /// Allow quoted keys to stay longform in `object-shorthand`.
+    pub object_shorthand_avoid_quotes: Option<bool>,
+    /// Ignore constructor-like names in `object-shorthand`.
+    pub object_shorthand_ignore_constructors: Option<bool>,
+    /// Regex exemption for method names in `object-shorthand`.
+    pub object_shorthand_methods_ignore_pattern: Option<String>,
+    /// Avoid shorthand for explicit return arrow values in `object-shorthand`.
+    pub object_shorthand_avoid_explicit_return_arrows: Option<bool>,
+    /// Keep default-assignment ternaries in `no-unneeded-ternary`.
+    pub no_unneeded_ternary_default_assignment: Option<bool>,
+    /// Allow empty Promise.reject calls in `prefer-promise-reject-errors`.
+    pub prefer_promise_reject_errors_allow_empty_reject: Option<bool>,
+    /// Destructuring reporting policy for `prefer-const`.
+    pub prefer_const_destructuring: Option<PreferConstDestructuringJson>,
+    /// Ignore read-before-assign bindings in `prefer-const`.
+    pub prefer_const_ignore_read_before_assign: Option<bool>,
+    /// Enforcement mode for `yoda`.
+    pub yoda_mode: Option<YodaModeJson>,
+    /// Allow Yoda range tests in `yoda`.
+    pub yoda_except_range: Option<bool>,
+    /// Restrict `yoda` to equality operators.
+    pub yoda_only_equality: Option<bool>,
+    /// Ignore case in `sort-imports`.
+    pub sort_imports_ignore_case: Option<bool>,
+    /// Ignore declaration ordering in `sort-imports`.
+    pub sort_imports_ignore_declaration_sort: Option<bool>,
+    /// Ignore member ordering in `sort-imports`.
+    pub sort_imports_ignore_member_sort: Option<bool>,
+    /// Allow separated declaration groups in `sort-imports`.
+    pub sort_imports_allow_separated_groups: Option<bool>,
+    /// Member syntax ordering in `sort-imports`.
+    pub sort_imports_member_syntax_sort_order: Option<Vec<SortImportsMemberSyntaxJson>>,
     /// Ignore explicit `void` wrappers in `no-confusing-void-expression`.
     pub no_confusing_void_expression_ignore_void_operator: Option<bool>,
     /// Ignore returned void expressions inside void-returning functions.
@@ -1124,6 +1356,28 @@ impl LinterJson {
             self.no_fallthrough_comment_pattern
                 .as_ref()
                 .map(std::slice::from_ref),
+        )?;
+        validate_regex_patterns(
+            "linter.dotNotationAllowPattern",
+            self.dot_notation_allow_pattern
+                .as_ref()
+                .map(std::slice::from_ref),
+        )?;
+        validate_regex_patterns(
+            "linter.objectShorthandMethodsIgnorePattern",
+            self.object_shorthand_methods_ignore_pattern
+                .as_ref()
+                .map(std::slice::from_ref),
+        )?;
+        validate_exact_enum_order(
+            "linter.sortImportsMemberSyntaxSortOrder",
+            self.sort_imports_member_syntax_sort_order.as_deref(),
+            &[
+                SortImportsMemberSyntaxJson::None,
+                SortImportsMemberSyntaxJson::All,
+                SortImportsMemberSyntaxJson::Multiple,
+                SortImportsMemberSyntaxJson::Single,
+            ],
         )?;
         validate_single_character_strings(
             "linter.noUselessEscapeAllowRegexCharacters",
@@ -1330,6 +1584,114 @@ impl LinterJson {
         {
             options.allow_unbound_this_in_prefer_arrow_callback =
                 allow_unbound_this_in_prefer_arrow_callback;
+        }
+        if let Some(no_else_return_allow_else_if) = self.no_else_return_allow_else_if {
+            options.no_else_return_allow_else_if = no_else_return_allow_else_if;
+        }
+        if let Some(dot_notation_allow_keywords) = self.dot_notation_allow_keywords {
+            options.dot_notation_allow_keywords = dot_notation_allow_keywords;
+        }
+        if let Some(ref dot_notation_allow_pattern) = self.dot_notation_allow_pattern {
+            options.dot_notation_allow_pattern = Some(dot_notation_allow_pattern.clone());
+        }
+        if let Some(no_extra_boolean_cast_enforce_for_inner_expressions) =
+            self.no_extra_boolean_cast_enforce_for_inner_expressions
+        {
+            options.no_extra_boolean_cast_enforce_for_inner_expressions =
+                no_extra_boolean_cast_enforce_for_inner_expressions;
+        }
+        if let Some(eqeqeq_mode) = self.eqeqeq_mode {
+            options.eqeqeq_mode = eqeqeq_mode.into();
+        }
+        if let Some(grouped_accessor_pairs_order) = self.grouped_accessor_pairs_order {
+            options.grouped_accessor_pairs_order = grouped_accessor_pairs_order.into();
+        }
+        if let Some(grouped_accessor_pairs_enforce_for_types) =
+            self.grouped_accessor_pairs_enforce_for_types
+        {
+            options.grouped_accessor_pairs_enforce_for_types =
+                grouped_accessor_pairs_enforce_for_types;
+        }
+        if let Some(eqeqeq_null) = self.eqeqeq_null {
+            options.eqeqeq_null = eqeqeq_null.into();
+        }
+        if let Some(operator_assignment_mode) = self.operator_assignment_mode {
+            options.operator_assignment_mode = operator_assignment_mode.into();
+        }
+        if let Some(object_shorthand_mode) = self.object_shorthand_mode {
+            options.object_shorthand_mode = object_shorthand_mode.into();
+        }
+        if let Some(object_shorthand_avoid_quotes) = self.object_shorthand_avoid_quotes {
+            options.object_shorthand_avoid_quotes = object_shorthand_avoid_quotes;
+        }
+        if let Some(object_shorthand_ignore_constructors) =
+            self.object_shorthand_ignore_constructors
+        {
+            options.object_shorthand_ignore_constructors = object_shorthand_ignore_constructors;
+        }
+        if let Some(ref object_shorthand_methods_ignore_pattern) =
+            self.object_shorthand_methods_ignore_pattern
+        {
+            options.object_shorthand_methods_ignore_pattern =
+                Some(object_shorthand_methods_ignore_pattern.clone());
+        }
+        if let Some(object_shorthand_avoid_explicit_return_arrows) =
+            self.object_shorthand_avoid_explicit_return_arrows
+        {
+            options.object_shorthand_avoid_explicit_return_arrows =
+                object_shorthand_avoid_explicit_return_arrows;
+        }
+        if let Some(no_unneeded_ternary_default_assignment) =
+            self.no_unneeded_ternary_default_assignment
+        {
+            options.no_unneeded_ternary_default_assignment = no_unneeded_ternary_default_assignment;
+        }
+        if let Some(prefer_promise_reject_errors_allow_empty_reject) =
+            self.prefer_promise_reject_errors_allow_empty_reject
+        {
+            options.prefer_promise_reject_errors_allow_empty_reject =
+                prefer_promise_reject_errors_allow_empty_reject;
+        }
+        if let Some(prefer_const_destructuring) = self.prefer_const_destructuring {
+            options.prefer_const_destructuring = prefer_const_destructuring.into();
+        }
+        if let Some(prefer_const_ignore_read_before_assign) =
+            self.prefer_const_ignore_read_before_assign
+        {
+            options.prefer_const_ignore_read_before_assign = prefer_const_ignore_read_before_assign;
+        }
+        if let Some(yoda_mode) = self.yoda_mode {
+            options.yoda_mode = yoda_mode.into();
+        }
+        if let Some(yoda_except_range) = self.yoda_except_range {
+            options.yoda_except_range = yoda_except_range;
+        }
+        if let Some(yoda_only_equality) = self.yoda_only_equality {
+            options.yoda_only_equality = yoda_only_equality;
+        }
+        if let Some(sort_imports_ignore_case) = self.sort_imports_ignore_case {
+            options.sort_imports_ignore_case = sort_imports_ignore_case;
+        }
+        if let Some(sort_imports_ignore_declaration_sort) =
+            self.sort_imports_ignore_declaration_sort
+        {
+            options.sort_imports_ignore_declaration_sort = sort_imports_ignore_declaration_sort;
+        }
+        if let Some(sort_imports_ignore_member_sort) = self.sort_imports_ignore_member_sort {
+            options.sort_imports_ignore_member_sort = sort_imports_ignore_member_sort;
+        }
+        if let Some(sort_imports_allow_separated_groups) = self.sort_imports_allow_separated_groups
+        {
+            options.sort_imports_allow_separated_groups = sort_imports_allow_separated_groups;
+        }
+        if let Some(ref sort_imports_member_syntax_sort_order) =
+            self.sort_imports_member_syntax_sort_order
+        {
+            options.sort_imports_member_syntax_sort_order = sort_imports_member_syntax_sort_order
+                .iter()
+                .copied()
+                .map(Into::into)
+                .collect();
         }
         if let Some(no_confusing_void_expression_ignore_void_operator) =
             self.no_confusing_void_expression_ignore_void_operator
@@ -1550,6 +1912,39 @@ fn validate_single_character_strings(
         if value.chars().count() != 1 {
             return Err(format!(
                 "invalid value in {field_name}: `{value}` must be exactly one character"
+            ));
+        }
+    }
+
+    Ok(())
+}
+
+/// Validate that one enum list is a permutation of the expected values.
+fn validate_exact_enum_order<T: PartialEq + Copy>(
+    field_name: &str,
+    values: Option<&[T]>,
+    expected_values: &[T],
+) -> Result<(), String> {
+    let Some(values) = values else {
+        return Ok(());
+    };
+
+    if values.len() != expected_values.len() {
+        return Err(format!(
+            "{field_name} must contain exactly {} values",
+            expected_values.len()
+        ));
+    }
+
+    for expected_value in expected_values {
+        let occurrences = values
+            .iter()
+            .copied()
+            .filter(|value| value == expected_value)
+            .count();
+        if occurrences != 1 {
+            return Err(format!(
+                "{field_name} must contain each member syntax value exactly once"
             ));
         }
     }
@@ -1990,6 +2385,193 @@ impl From<MaxParamsCountThisJson> for MaxParamsCountThis {
             MaxParamsCountThisJson::Never => MaxParamsCountThis::Never,
             MaxParamsCountThisJson::ExceptVoid => MaxParamsCountThis::ExceptVoid,
             MaxParamsCountThisJson::Always => MaxParamsCountThis::Always,
+        }
+    }
+}
+
+/// Eqeqeq enforcement mode accepted in linter JSON.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "kebab-case")]
+pub enum EqeqeqModeJson {
+    /// Always require strict equality operators.
+    Always,
+    /// Allow loose equality in the upstream smart cases.
+    Smart,
+    /// Allow loose equality only for null checks.
+    AllowNull,
+}
+
+impl From<EqeqeqModeJson> for EqeqeqMode {
+    fn from(value: EqeqeqModeJson) -> Self {
+        match value {
+            EqeqeqModeJson::Always => EqeqeqMode::Always,
+            EqeqeqModeJson::Smart => EqeqeqMode::Smart,
+            EqeqeqModeJson::AllowNull => EqeqeqMode::AllowNull,
+        }
+    }
+}
+
+/// Eqeqeq null policy accepted in linter JSON.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum EqeqeqNullPolicyJson {
+    /// Require strict null equality.
+    Always,
+    /// Require loose null equality.
+    Never,
+    /// Ignore null equality style.
+    Ignore,
+}
+
+impl From<EqeqeqNullPolicyJson> for EqeqeqNullPolicy {
+    fn from(value: EqeqeqNullPolicyJson) -> Self {
+        match value {
+            EqeqeqNullPolicyJson::Always => EqeqeqNullPolicy::Always,
+            EqeqeqNullPolicyJson::Never => EqeqeqNullPolicy::Never,
+            EqeqeqNullPolicyJson::Ignore => EqeqeqNullPolicy::Ignore,
+        }
+    }
+}
+
+/// Operator-assignment mode accepted in linter JSON.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum OperatorAssignmentModeJson {
+    /// Require shorthand assignment where possible.
+    Always,
+    /// Disallow shorthand assignment operators.
+    Never,
+}
+
+impl From<OperatorAssignmentModeJson> for OperatorAssignmentMode {
+    fn from(value: OperatorAssignmentModeJson) -> Self {
+        match value {
+            OperatorAssignmentModeJson::Always => OperatorAssignmentMode::Always,
+            OperatorAssignmentModeJson::Never => OperatorAssignmentMode::Never,
+        }
+    }
+}
+
+/// Object shorthand mode accepted in linter JSON.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "kebab-case")]
+pub enum ObjectShorthandModeJson {
+    /// Require shorthand for methods and properties.
+    Always,
+    /// Require shorthand for methods only.
+    Methods,
+    /// Require shorthand for properties only.
+    Properties,
+    /// Disallow shorthand methods and properties.
+    Never,
+    /// Require object literals to use consistent shorthand style.
+    Consistent,
+    /// Require shorthand only when every eligible property can use it.
+    ConsistentAsNeeded,
+}
+
+impl From<ObjectShorthandModeJson> for ObjectShorthandMode {
+    fn from(value: ObjectShorthandModeJson) -> Self {
+        match value {
+            ObjectShorthandModeJson::Always => ObjectShorthandMode::Always,
+            ObjectShorthandModeJson::Methods => ObjectShorthandMode::Methods,
+            ObjectShorthandModeJson::Properties => ObjectShorthandMode::Properties,
+            ObjectShorthandModeJson::Never => ObjectShorthandMode::Never,
+            ObjectShorthandModeJson::Consistent => ObjectShorthandMode::Consistent,
+            ObjectShorthandModeJson::ConsistentAsNeeded => ObjectShorthandMode::ConsistentAsNeeded,
+        }
+    }
+}
+
+/// Yoda mode accepted in linter JSON.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum YodaModeJson {
+    /// Require literal comparisons in Yoda form.
+    Always,
+    /// Disallow literal comparisons in Yoda form.
+    Never,
+}
+
+impl From<YodaModeJson> for YodaMode {
+    fn from(value: YodaModeJson) -> Self {
+        match value {
+            YodaModeJson::Always => YodaMode::Always,
+            YodaModeJson::Never => YodaMode::Never,
+        }
+    }
+}
+
+/// JSON form of `grouped-accessor-pairs` ordering.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "kebab-case")]
+pub enum GroupedAccessorPairsOrderJson {
+    /// Allow either adjacent accessor order.
+    AnyOrder,
+    /// Require getters before setters.
+    GetBeforeSet,
+    /// Require setters before getters.
+    SetBeforeGet,
+}
+
+impl From<GroupedAccessorPairsOrderJson> for GroupedAccessorPairsOrder {
+    fn from(value: GroupedAccessorPairsOrderJson) -> Self {
+        match value {
+            GroupedAccessorPairsOrderJson::AnyOrder => GroupedAccessorPairsOrder::AnyOrder,
+            GroupedAccessorPairsOrderJson::GetBeforeSet => GroupedAccessorPairsOrder::GetBeforeSet,
+            GroupedAccessorPairsOrderJson::SetBeforeGet => GroupedAccessorPairsOrder::SetBeforeGet,
+        }
+    }
+}
+
+/// JSON form of `sort-imports` member syntax groups.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum SortImportsMemberSyntaxJson {
+    /// Side-effect import syntax.
+    None,
+    /// Namespace import syntax.
+    All,
+    /// Multiple named imports.
+    Multiple,
+    /// Single default or named import.
+    Single,
+}
+
+impl From<SortImportsMemberSyntaxJson> for SortImportsMemberSyntax {
+    fn from(value: SortImportsMemberSyntaxJson) -> Self {
+        match value {
+            SortImportsMemberSyntaxJson::None => SortImportsMemberSyntax::None,
+            SortImportsMemberSyntaxJson::All => SortImportsMemberSyntax::All,
+            SortImportsMemberSyntaxJson::Multiple => SortImportsMemberSyntax::Multiple,
+            SortImportsMemberSyntaxJson::Single => SortImportsMemberSyntax::Single,
+        }
+    }
+}
+
+/// JSON form of `prefer-const` destructuring policy.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum PreferConstDestructuringJson {
+    /// Report any const eligible binding in a destructuring.
+    Any,
+    /// Report destructuring bindings only when all are const eligible.
+    All,
+}
+
+impl From<PreferConstDestructuringJson> for PreferConstDestructuring {
+    fn from(value: PreferConstDestructuringJson) -> Self {
+        match value {
+            PreferConstDestructuringJson::Any => PreferConstDestructuring::Any,
+            PreferConstDestructuringJson::All => PreferConstDestructuring::All,
         }
     }
 }
