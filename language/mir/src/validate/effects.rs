@@ -1,6 +1,7 @@
 use crate::{
-    CallEffects, Function, Instruction, LocalNodeId, MemoryAccessKind, MemoryAccessMetadata,
-    MemoryEffect, Repeatability, UnwindBehavior,
+    CallBehavior, CallEffects, Function, Instruction, LocalNodeId, MemoryAccessKind,
+    MemoryAccessMetadata, MemoryEffect, NodeType, PointerAttributes, Repeatability, Type,
+    UnwindBehavior,
 };
 
 use super::{ValidateAnchor, ValidateError, ValidateResult, Validator};
@@ -13,6 +14,16 @@ impl<'a> Validator<'a> {
         function_id: LocalNodeId<Function>,
         function: &Function,
     ) -> ValidateResult<()> {
+        let anchor = ValidateAnchor::node(function_id);
+
+        // type references
+        self.ensure_node_type(NodeType::Type, function.return_type.id, anchor)?;
+
+        for parameter in &function.parameters {
+            self.ensure_node_type(NodeType::Type, parameter.ty.id, anchor)?;
+        }
+
+        // metadata shape
         if function.parameter_attributes.len() != function.parameters.len() {
             return Err(ValidateError::MetadataInvariantViolation {
                 message: format!(
@@ -20,38 +31,38 @@ impl<'a> Validator<'a> {
                     function.parameters.len(),
                     function.parameter_attributes.len()
                 ),
-                anchor: ValidateAnchor::node(function_id),
+                anchor,
             });
         }
 
-        self.validate_memory_effect_invariants(
-            Some(&function.memory_effects),
-            ValidateAnchor::node(function_id),
-        )?;
-        self.validate_call_behavior_invariants(
-            Some(&function.call_behavior),
-            ValidateAnchor::node(function_id),
-        )?;
+        // memory and call behavior
+        self.validate_memory_effect_invariants(Some(&function.memory_effects), anchor)?;
+        self.validate_call_behavior_invariants(Some(&function.call_behavior), anchor)?;
+
+        // pointer attributes
         self.validate_pointer_attributes_invariants(
             "function return attributes",
             &function.return_attributes,
-            ValidateAnchor::node(function_id),
+            anchor,
         )?;
 
         for attributes in &function.parameter_attributes {
             self.validate_pointer_attributes_invariants(
                 "function parameter attributes",
                 attributes,
-                ValidateAnchor::node(function_id),
+                anchor,
             )?;
         }
 
+        // closure environment
         if let Some(env_type) = function.closure_env_type {
+            self.ensure_node_type(NodeType::Type, env_type.id, anchor)?;
+
             let env_type = self.tree.get(env_type);
-            if !matches!(env_type, crate::Type::Reference { .. }) {
+            if !matches!(env_type, Type::Reference { .. }) {
                 return Err(ValidateError::MetadataInvariantViolation {
                     message: "closure_env type must be a reference".to_string(),
-                    anchor: ValidateAnchor::node(function_id),
+                    anchor,
                 });
             }
         }
@@ -133,7 +144,7 @@ impl<'a> Validator<'a> {
     /// Validate call behavior invariants.
     pub(super) fn validate_call_behavior_invariants(
         &self,
-        behavior: Option<&crate::CallBehavior>,
+        behavior: Option<&CallBehavior>,
         anchor: ValidateAnchor,
     ) -> ValidateResult<()> {
         let Some(behavior) = behavior else {
@@ -205,7 +216,7 @@ impl<'a> Validator<'a> {
     pub(super) fn validate_pointer_attributes_invariants(
         &self,
         label: &str,
-        attributes: &crate::PointerAttributes,
+        attributes: &PointerAttributes,
         anchor: ValidateAnchor,
     ) -> ValidateResult<()> {
         if attributes.readonly && attributes.writeonly {

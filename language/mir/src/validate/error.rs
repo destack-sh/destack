@@ -1,6 +1,8 @@
 use std::fmt;
 
-use crate::{Block, Instruction, Local, LocalNodeId, LocalNodeIdAny, Node, NodeType, Value};
+use crate::{
+    Block, Instruction, Local, LocalNodeId, LocalNodeIdAny, Node, NodeTree, NodeType, Value,
+};
 
 /// Anchor for a validation error.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -13,6 +15,15 @@ impl ValidateAnchor {
     /// Create an anchor for a MIR node.
     pub fn node<T: Node>(node: LocalNodeId<T>) -> Self {
         Self { node: node.into() }
+    }
+
+    /// Create an anchor for one raw node id.
+    pub fn for_raw_node(tree: &NodeTree, node_id: u32) -> Self {
+        let node_type = tree.get_node_type(node_id);
+
+        Self {
+            node: LocalNodeIdAny::new(node_id, node_type),
+        }
     }
 }
 

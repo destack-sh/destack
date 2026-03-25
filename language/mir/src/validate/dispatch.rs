@@ -1,6 +1,7 @@
 use crate::{
-    CallSite, DevirtualizationMetadata, Function, Instruction, InterfaceDispatchEntry, ItabEntry,
-    LocalNodeId, NodeType, Terminator, Type, VtableEntry,
+    CallSite, DevirtualizationMetadata, Function, Instruction, InterfaceDispatchEntry,
+    InterfaceSlotId, ItabEntry, LocalNodeId, NodeType, Terminator, Type, Value, VtableEntry,
+    VtableSlotId,
 };
 
 use super::{ValidateAnchor, ValidateError, ValidateResult, Validator};
@@ -8,7 +9,8 @@ use super::{ValidateAnchor, ValidateError, ValidateResult, Validator};
 #[allow(clippy::type_complexity)]
 impl<'a> Validator<'a> {
     /// Validate dispatch call facts metadata table invariants.
-    pub(super) fn validate_dispatch_call_facts(&self) -> ValidateResult<()> {
+    pub(super) fn validate_dispatch(&self) -> ValidateResult<()> {
+        // callsite facts
         for (&callsite, facts) in &self.tree.dispatch_table.callsite_metadata {
             if facts.is_empty() {
                 return Err(ValidateError::MetadataInvariantViolation {
@@ -22,6 +24,7 @@ impl<'a> Validator<'a> {
                 });
             }
 
+            // callsite ownership and signature
             match callsite {
                 CallSite::Instruction(instruction_id) => {
                     self.ensure_node_type(
@@ -92,6 +95,7 @@ impl<'a> Validator<'a> {
         signature: LocalNodeId<Type>,
         facts: &DevirtualizationMetadata,
     ) -> ValidateResult<()> {
+        // declared target
         if let Some(declared_target) = facts.declared_target {
             self.validate_call_signature_matches_function(anchor, signature, declared_target)?;
         }
@@ -103,30 +107,38 @@ impl<'a> Validator<'a> {
     pub(super) fn validate_call_signature(
         &self,
         instruction_id: LocalNodeId<Instruction>,
-        destination: Option<crate::Value>,
+        destination: Option<Value>,
         argument_count: usize,
         signature: LocalNodeId<Type>,
     ) -> ValidateResult<()> {
+        let anchor = ValidateAnchor::node(instruction_id);
+
+        // signature type
+        self.ensure_node_type(NodeType::Type, signature.id, anchor)?;
+
         let Type::FunctionPointer { parameters, result } = self.tree.get(signature) else {
             return Err(ValidateError::MetadataInvariantViolation {
                 message: "call signature is not a function type".to_string(),
-                anchor: ValidateAnchor::node(instruction_id),
+                anchor,
             });
         };
 
+        // result type
+        self.ensure_node_type(NodeType::Type, result.id, anchor)?;
+
+        // argument count
         if argument_count != parameters.len() {
             return Err(ValidateError::CallArgumentCountMismatch {
                 expected: parameters.len(),
                 got: argument_count,
-                anchor: ValidateAnchor::node(instruction_id),
+                anchor,
             });
         }
 
+        // void destination
         let returns_void = matches!(self.tree.get(*result), Type::Void);
         if returns_void && destination.is_some() {
-            return Err(ValidateError::CallReturnValueNotAllowedForVoid {
-                anchor: ValidateAnchor::node(instruction_id),
-            });
+            return Err(ValidateError::CallReturnValueNotAllowedForVoid { anchor });
         }
 
         Ok(())
@@ -139,6 +151,10 @@ impl<'a> Validator<'a> {
         signature: LocalNodeId<Type>,
         function_id: LocalNodeId<Function>,
     ) -> ValidateResult<()> {
+        // node kinds
+        self.ensure_node_type(NodeType::Type, signature.id, anchor)?;
+        self.ensure_node_type(NodeType::Function, function_id.id, anchor)?;
+
         let Type::FunctionPointer { parameters, result } = self.tree.get(signature) else {
             return Err(ValidateError::MetadataInvariantViolation {
                 message: "call signature is not a function type".to_string(),
@@ -146,7 +162,15 @@ impl<'a> Validator<'a> {
             });
         };
 
+        // function signature shape
+        self.ensure_node_type(NodeType::Type, result.id, anchor)?;
+        for &parameter in parameters {
+            self.ensure_node_type(NodeType::Type, parameter.id, anchor)?;
+        }
+
         let function = self.tree.get(function_id);
+
+        // arity
         if parameters.len() != function.parameters.len() {
             return Err(ValidateError::MetadataInvariantViolation {
                 message: "call signature does not match callee".to_string(),
@@ -154,6 +178,7 @@ impl<'a> Validator<'a> {
             });
         }
 
+        // parameters
         for (parameter, signature_type) in function.parameters.iter().zip(parameters.iter()) {
             if parameter.ty != *signature_type {
                 return Err(ValidateError::MetadataInvariantViolation {
@@ -163,6 +188,7 @@ impl<'a> Validator<'a> {
             }
         }
 
+        // result
         if function.return_type != *result {
             return Err(ValidateError::MetadataInvariantViolation {
                 message: "call signature does not match callee".to_string(),
@@ -177,13 +203,14 @@ impl<'a> Validator<'a> {
     pub(super) fn validate_virtual_dispatch_slot(
         &self,
         declaring_type: LocalNodeId<Type>,
-        slot_id: crate::VtableSlotId,
+        slot_id: VtableSlotId,
         anchor: ValidateAnchor,
     ) -> ValidateResult<()> {
         let Some(vtable_id) = self.tree.type_table.vtable_id(declaring_type) else {
             return Ok(());
         };
 
+        // vtable entry
         let Some(vtable) = self.tree.dispatch_table.vtables.get(vtable_id.index()) else {
             return Err(ValidateError::MetadataInvariantViolation {
                 message: "virtual dispatch references missing vtable metadata".to_string(),
@@ -211,9 +238,10 @@ impl<'a> Validator<'a> {
     pub(super) fn validate_interface_dispatch_slot(
         &self,
         declaring_interface: LocalNodeId<Type>,
-        slot_id: crate::InterfaceSlotId,
+        slot_id: InterfaceSlotId,
         anchor: ValidateAnchor,
     ) -> ValidateResult<()> {
+        // interface shape
         if let Some(shape) = self
             .tree
             .dispatch_table
@@ -237,6 +265,7 @@ impl<'a> Validator<'a> {
             return Ok(());
         }
 
+        // itab consistency
         let mut found_itab = false;
         let mut declared_method = None;
         for (_itab_id, itab) in self.tree.dispatch_table.iter_itabs() {

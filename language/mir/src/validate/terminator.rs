@@ -9,7 +9,7 @@ use super::{ValidateAnchor, ValidateError, ValidateResult, Validator};
 
 #[allow(clippy::type_complexity)]
 impl<'a> Validator<'a> {
-    /// Validate a terminator and its successor edges.
+    /// Validate one terminator and its successor contracts.
     pub(super) fn validate_terminator(
         &self,
         function: &Function,
@@ -19,98 +19,20 @@ impl<'a> Validator<'a> {
         block_order: &HashMap<LocalNodeId<Block>, usize>,
         defined_values: &HashSet<Value>,
     ) -> ValidateResult<()> {
-        // check uses
-        for value in terminator.uses() {
-            self.ensure_defined(value, ValidateAnchor::node(block_id), defined_values)?;
-        }
+        // validate terminator inputs
+        self.validate_terminator_uses(block_id, terminator, defined_values)?;
+        self.validate_return_terminator(function, block_id, terminator)?;
 
-        // check return value presence
-        if let Terminator::Return { value } = terminator {
-            let returns_void = matches!(self.tree.get(function.return_type), Type::Void);
-
-            // reject return values for void functions
-            if returns_void && value.is_some() {
-                return Err(ValidateError::ReturnValueNotAllowedForVoid {
-                    anchor: ValidateAnchor::node(block_id),
-                });
-            }
-
-            // reject missing return values for non void functions
-            if !returns_void && value.is_none() {
-                return Err(ValidateError::ReturnValueRequiredForNonVoid {
-                    anchor: ValidateAnchor::node(block_id),
-                });
-            }
-        }
-
-        // check successors and argument counts
+        // validate terminator-specific structure
         match terminator {
-            Terminator::Return { .. } | Terminator::Unreachable => {
-                // no successors to validate
-            }
+            Terminator::Return { .. } | Terminator::Unreachable => {}
             Terminator::Throw { value } => {
-                let thrown_type_id = self.value_type_or_error(
-                    function,
-                    *value,
-                    ValidateAnchor::node(block_id),
-                    "throw",
-                )?;
-                let thrown_type = self.tree.get(thrown_type_id);
-
-                let Type::Reference {
-                    kind: ReferenceKind::Managed,
-                    ..
-                } = thrown_type
-                else {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "throw requires a managed reference payload".to_string(),
-                        anchor: ValidateAnchor::node(block_id),
-                    });
-                };
+                self.validate_throw_terminator(function, block_id, *value)?;
             }
-            Terminator::Trap { kind, payload } => match kind {
-                TrapKind::Abort => {
-                    if payload.is_some() {
-                        return Err(ValidateError::MetadataInvariantViolation {
-                            message: "trap abort does not accept a payload".to_string(),
-                            anchor: ValidateAnchor::node(block_id),
-                        });
-                    }
-                }
-                TrapKind::Panic => {
-                    let Some(payload) = payload else {
-                        return Err(ValidateError::MetadataInvariantViolation {
-                            message: "trap panic requires a payload".to_string(),
-                            anchor: ValidateAnchor::node(block_id),
-                        });
-                    };
-
-                    let payload_type_id = self.value_type_or_error(
-                        function,
-                        *payload,
-                        ValidateAnchor::node(block_id),
-                        "trap panic",
-                    )?;
-                    let payload_type = self.tree.get(payload_type_id);
-
-                    let Type::Reference {
-                        kind: ReferenceKind::Managed,
-                        mutability: Mutability::Immutable,
-                        is_nullable: false,
-                        ..
-                    } = payload_type
-                    else {
-                        return Err(ValidateError::MetadataInvariantViolation {
-                            message:
-                                "trap panic requires a non null readonly managed reference payload"
-                                    .to_string(),
-                            anchor: ValidateAnchor::node(block_id),
-                        });
-                    };
-                }
-            },
+            Terminator::Trap { kind, payload } => {
+                self.validate_trap_terminator(function, block_id, *kind, *payload)?;
+            }
             Terminator::Jump { target, arguments } => {
-                // validate jump arguments
                 self.validate_block_arguments(
                     block_id,
                     *target,
@@ -126,7 +48,6 @@ impl<'a> Validator<'a> {
                 else_arguments,
                 ..
             } => {
-                // validate branch arguments
                 self.validate_block_arguments(
                     block_id,
                     *then_target,
@@ -145,7 +66,6 @@ impl<'a> Validator<'a> {
             Terminator::Check {
                 success, failure, ..
             } => {
-                // validate check successors
                 self.validate_block_arguments(
                     block_id,
                     success.target,
@@ -167,7 +87,6 @@ impl<'a> Validator<'a> {
                 cases,
                 ..
             } => {
-                // validate switch successors
                 self.validate_block_arguments(
                     block_id,
                     *default,
@@ -182,7 +101,6 @@ impl<'a> Validator<'a> {
                 resume_arguments,
                 ..
             } => {
-                // validate yield resume arguments
                 self.validate_resume_arguments(
                     block_id,
                     *resume,
@@ -204,23 +122,17 @@ impl<'a> Validator<'a> {
                     callee_id.id,
                     ValidateAnchor::node(block_id),
                 )?;
-
                 let callee = self.tree.get(*callee_id);
-                if arguments.len() != callee.parameters.len() {
-                    return Err(ValidateError::CallArgumentCountMismatch {
-                        expected: callee.parameters.len(),
-                        got: arguments.len(),
-                        anchor: ValidateAnchor::node(block_id),
-                    });
-                }
 
-                self.validate_call_continuations(
+                self.validate_regular_call(
                     block_id,
+                    arguments.len(),
+                    callee.parameters.len(),
+                    callee.return_type,
                     *normal_target,
                     normal_arguments,
                     *unwind_target,
                     unwind_arguments,
-                    callee.return_type,
                     block_ids,
                     block_order,
                 )?;
@@ -235,44 +147,20 @@ impl<'a> Validator<'a> {
                 unwind_arguments,
                 ..
             } => {
-                let Type::FunctionPointer { parameters, result } = self.tree.get(*signature) else {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "call.indirect signature is not a function type".to_string(),
-                        anchor: ValidateAnchor::node(block_id),
-                    });
-                };
+                let anchor = ValidateAnchor::node(block_id);
+                let (parameters, result) =
+                    self.function_pointer_signature(*signature, anchor, "call.indirect signature")?;
+                self.validate_optional_environment(function, *env, block_id, "call.indirect env")?;
 
-                if let Some(env) = env {
-                    let env_type_id = self.value_type_or_error(
-                        function,
-                        *env,
-                        ValidateAnchor::node(block_id),
-                        "call.indirect env",
-                    )?;
-                    let env_type = self.tree.get(env_type_id);
-                    if !matches!(env_type, Type::Reference { .. }) {
-                        return Err(ValidateError::MetadataInvariantViolation {
-                            message: "call.indirect env must be a reference type".to_string(),
-                            anchor: ValidateAnchor::node(block_id),
-                        });
-                    }
-                }
-
-                if arguments.len() != parameters.len() {
-                    return Err(ValidateError::CallArgumentCountMismatch {
-                        expected: parameters.len(),
-                        got: arguments.len(),
-                        anchor: ValidateAnchor::node(block_id),
-                    });
-                }
-
-                self.validate_call_continuations(
+                self.validate_regular_call(
                     block_id,
+                    arguments.len(),
+                    parameters.len(),
+                    result,
                     *normal_target,
                     normal_arguments,
                     *unwind_target,
                     unwind_arguments,
-                    *result,
                     block_ids,
                     block_order,
                 )?;
@@ -288,40 +176,21 @@ impl<'a> Validator<'a> {
                 unwind_arguments,
                 ..
             } => {
-                self.ensure_node_type(
-                    NodeType::Type,
-                    declaring_type.id,
-                    ValidateAnchor::node(block_id),
-                )?;
+                let anchor = ValidateAnchor::node(block_id);
+                self.ensure_node_type(NodeType::Type, declaring_type.id, anchor)?;
+                self.validate_virtual_dispatch_slot(*declaring_type, *slot_id, anchor)?;
+                let (parameters, result) =
+                    self.function_pointer_signature(*signature, anchor, "call signature")?;
 
-                let Type::FunctionPointer { parameters, result } = self.tree.get(*signature) else {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "call signature is not a function type".to_string(),
-                        anchor: ValidateAnchor::node(block_id),
-                    });
-                };
-
-                if arguments.len() != parameters.len() {
-                    return Err(ValidateError::CallArgumentCountMismatch {
-                        expected: parameters.len(),
-                        got: arguments.len(),
-                        anchor: ValidateAnchor::node(block_id),
-                    });
-                }
-
-                self.validate_virtual_dispatch_slot(
-                    *declaring_type,
-                    *slot_id,
-                    ValidateAnchor::node(block_id),
-                )?;
-
-                self.validate_call_continuations(
+                self.validate_regular_call(
                     block_id,
+                    arguments.len(),
+                    parameters.len(),
+                    result,
                     *normal_target,
                     normal_arguments,
                     *unwind_target,
                     unwind_arguments,
-                    *result,
                     block_ids,
                     block_order,
                 )?;
@@ -337,40 +206,21 @@ impl<'a> Validator<'a> {
                 unwind_arguments,
                 ..
             } => {
-                self.ensure_node_type(
-                    NodeType::Type,
-                    declaring_type.id,
-                    ValidateAnchor::node(block_id),
-                )?;
+                let anchor = ValidateAnchor::node(block_id);
+                self.ensure_node_type(NodeType::Type, declaring_type.id, anchor)?;
+                self.validate_interface_dispatch_slot(*declaring_type, *slot_id, anchor)?;
+                let (parameters, result) =
+                    self.function_pointer_signature(*signature, anchor, "call signature")?;
 
-                let Type::FunctionPointer { parameters, result } = self.tree.get(*signature) else {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "call signature is not a function type".to_string(),
-                        anchor: ValidateAnchor::node(block_id),
-                    });
-                };
-
-                if arguments.len() != parameters.len() {
-                    return Err(ValidateError::CallArgumentCountMismatch {
-                        expected: parameters.len(),
-                        got: arguments.len(),
-                        anchor: ValidateAnchor::node(block_id),
-                    });
-                }
-
-                self.validate_interface_dispatch_slot(
-                    *declaring_type,
-                    *slot_id,
-                    ValidateAnchor::node(block_id),
-                )?;
-
-                self.validate_call_continuations(
+                self.validate_regular_call(
                     block_id,
+                    arguments.len(),
+                    parameters.len(),
+                    result,
                     *normal_target,
                     normal_arguments,
                     *unwind_target,
                     unwind_arguments,
-                    *result,
                     block_ids,
                     block_order,
                 )?;
@@ -379,33 +229,20 @@ impl<'a> Validator<'a> {
                 function: callee_id,
                 arguments,
             } => {
-                // validate tail call signatures
                 self.ensure_node_type(
                     NodeType::Function,
                     callee_id.id,
                     ValidateAnchor::node(block_id),
                 )?;
-
-                // load the callee signature
                 let callee = self.tree.get(*callee_id);
 
-                // reject mismatched argument counts
-                if arguments.len() != callee.parameters.len() {
-                    return Err(ValidateError::CallArgumentCountMismatch {
-                        expected: callee.parameters.len(),
-                        got: arguments.len(),
-                        anchor: ValidateAnchor::node(block_id),
-                    });
-                }
-
-                // reject return kind mismatches
-                let caller_returns_void = matches!(self.tree.get(function.return_type), Type::Void);
-                let callee_returns_void = matches!(self.tree.get(callee.return_type), Type::Void);
-                if caller_returns_void != callee_returns_void {
-                    return Err(ValidateError::TailCallReturnTypeMismatch {
-                        anchor: ValidateAnchor::node(block_id),
-                    });
-                }
+                self.validate_tail_call(
+                    function,
+                    block_id,
+                    arguments.len(),
+                    callee.parameters.len(),
+                    callee.return_type,
+                )?;
             }
             Terminator::TailCallIndirect {
                 arguments,
@@ -413,46 +250,26 @@ impl<'a> Validator<'a> {
                 env,
                 ..
             } => {
-                let Type::FunctionPointer { parameters, result } = self.tree.get(*signature) else {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "tailcall.indirect signature is not a function type".to_string(),
-                        anchor: ValidateAnchor::node(block_id),
-                    });
-                };
+                let anchor = ValidateAnchor::node(block_id);
+                let (parameters, result) = self.function_pointer_signature(
+                    *signature,
+                    anchor,
+                    "tailcall.indirect signature",
+                )?;
+                self.validate_optional_environment(
+                    function,
+                    *env,
+                    block_id,
+                    "tailcall.indirect env",
+                )?;
 
-                if let Some(env) = env {
-                    let env_type_id = self.value_type_or_error(
-                        function,
-                        *env,
-                        ValidateAnchor::node(block_id),
-                        "tailcall.indirect env",
-                    )?;
-                    let env_type = self.tree.get(env_type_id);
-                    if !matches!(env_type, Type::Reference { .. }) {
-                        return Err(ValidateError::MetadataInvariantViolation {
-                            message: "tailcall.indirect env must be a reference type".to_string(),
-                            anchor: ValidateAnchor::node(block_id),
-                        });
-                    }
-                }
-
-                // reject mismatched argument counts
-                if arguments.len() != parameters.len() {
-                    return Err(ValidateError::CallArgumentCountMismatch {
-                        expected: parameters.len(),
-                        got: arguments.len(),
-                        anchor: ValidateAnchor::node(block_id),
-                    });
-                }
-
-                // reject return kind mismatches
-                let caller_returns_void = matches!(self.tree.get(function.return_type), Type::Void);
-                let callee_returns_void = matches!(self.tree.get(*result), Type::Void);
-                if caller_returns_void != callee_returns_void {
-                    return Err(ValidateError::TailCallReturnTypeMismatch {
-                        anchor: ValidateAnchor::node(block_id),
-                    });
-                }
+                self.validate_tail_call(
+                    function,
+                    block_id,
+                    arguments.len(),
+                    parameters.len(),
+                    result,
+                )?;
             }
             Terminator::TailCallVirtual {
                 arguments,
@@ -461,42 +278,18 @@ impl<'a> Validator<'a> {
                 signature,
                 ..
             } => {
-                self.ensure_node_type(
-                    NodeType::Type,
-                    declaring_type.id,
-                    ValidateAnchor::node(block_id),
-                )?;
+                let anchor = ValidateAnchor::node(block_id);
+                self.ensure_node_type(NodeType::Type, declaring_type.id, anchor)?;
+                self.validate_virtual_dispatch_slot(*declaring_type, *slot_id, anchor)?;
+                let (parameters, result) =
+                    self.function_pointer_signature(*signature, anchor, "tailcall signature")?;
 
-                let Type::FunctionPointer { parameters, result } = self.tree.get(*signature) else {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "tailcall signature is not a function type".to_string(),
-                        anchor: ValidateAnchor::node(block_id),
-                    });
-                };
-
-                // reject mismatched argument counts
-                if arguments.len() != parameters.len() {
-                    return Err(ValidateError::CallArgumentCountMismatch {
-                        expected: parameters.len(),
-                        got: arguments.len(),
-                        anchor: ValidateAnchor::node(block_id),
-                    });
-                }
-
-                // reject return kind mismatches
-                let caller_returns_void = matches!(self.tree.get(function.return_type), Type::Void);
-                let callee_returns_void = matches!(self.tree.get(*result), Type::Void);
-                if caller_returns_void != callee_returns_void {
-                    return Err(ValidateError::TailCallReturnTypeMismatch {
-                        anchor: ValidateAnchor::node(block_id),
-                    });
-                }
-
-                // validate dispatch metadata
-                self.validate_virtual_dispatch_slot(
-                    *declaring_type,
-                    *slot_id,
-                    ValidateAnchor::node(block_id),
+                self.validate_tail_call(
+                    function,
+                    block_id,
+                    arguments.len(),
+                    parameters.len(),
+                    result,
                 )?;
             }
             Terminator::TailCallInterface {
@@ -506,39 +299,18 @@ impl<'a> Validator<'a> {
                 signature,
                 ..
             } => {
-                self.ensure_node_type(
-                    NodeType::Type,
-                    declaring_type.id,
-                    ValidateAnchor::node(block_id),
-                )?;
+                let anchor = ValidateAnchor::node(block_id);
+                self.ensure_node_type(NodeType::Type, declaring_type.id, anchor)?;
+                self.validate_interface_dispatch_slot(*declaring_type, *slot_id, anchor)?;
+                let (parameters, result) =
+                    self.function_pointer_signature(*signature, anchor, "tailcall signature")?;
 
-                let Type::FunctionPointer { parameters, result } = self.tree.get(*signature) else {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "tailcall signature is not a function type".to_string(),
-                        anchor: ValidateAnchor::node(block_id),
-                    });
-                };
-
-                if arguments.len() != parameters.len() {
-                    return Err(ValidateError::CallArgumentCountMismatch {
-                        expected: parameters.len(),
-                        got: arguments.len(),
-                        anchor: ValidateAnchor::node(block_id),
-                    });
-                }
-
-                let caller_returns_void = matches!(self.tree.get(function.return_type), Type::Void);
-                let callee_returns_void = matches!(self.tree.get(*result), Type::Void);
-                if caller_returns_void != callee_returns_void {
-                    return Err(ValidateError::TailCallReturnTypeMismatch {
-                        anchor: ValidateAnchor::node(block_id),
-                    });
-                }
-
-                self.validate_interface_dispatch_slot(
-                    *declaring_type,
-                    *slot_id,
-                    ValidateAnchor::node(block_id),
+                self.validate_tail_call(
+                    function,
+                    block_id,
+                    arguments.len(),
+                    parameters.len(),
+                    result,
                 )?;
             }
         }
@@ -546,101 +318,113 @@ impl<'a> Validator<'a> {
         Ok(())
     }
 
-    /// Validate normal and unwind continuations for a call terminator.
-    fn validate_call_continuations(
+    /// Validate the values used by one terminator.
+    fn validate_terminator_uses(
         &self,
-        source_block: LocalNodeId<Block>,
-        normal_target: LocalNodeId<Block>,
-        normal_arguments: &[Value],
-        unwind_target: LocalNodeId<Block>,
-        unwind_arguments: &[Value],
-        result_type: LocalNodeId<Type>,
-        block_ids: &HashSet<LocalNodeId<Block>>,
-        block_order: &HashMap<LocalNodeId<Block>, usize>,
+        block_id: LocalNodeId<Block>,
+        terminator: &Terminator,
+        defined_values: &HashSet<Value>,
     ) -> ValidateResult<()> {
-        if !block_ids.contains(&normal_target) {
-            return Err(ValidateError::UnknownBlockTarget {
-                block_id: normal_target,
-                anchor: ValidateAnchor::node(source_block),
-            });
+        for value in terminator.uses() {
+            self.ensure_defined(value, ValidateAnchor::node(block_id), defined_values)?;
         }
 
-        let normal_block = self.tree.get(normal_target);
-        let expects_result = !matches!(self.tree.get(result_type), Type::Void);
-        let expected_normal_arguments = normal_block
-            .parameters
-            .len()
-            .saturating_sub(usize::from(expects_result));
-        if normal_arguments.len() != expected_normal_arguments {
-            return Err(ValidateError::BlockArgumentCountMismatch {
-                block_label: self.block_label(normal_target, block_order),
-                expected: expected_normal_arguments,
-                got: normal_arguments.len(),
-                anchor: ValidateAnchor::node(source_block),
-            });
-        }
+        Ok(())
+    }
 
-        if expects_result {
-            let Some(result_parameter) = normal_block.parameters.first() else {
-                return Err(ValidateError::BlockArgumentCountMismatch {
-                    block_label: self.block_label(normal_target, block_order),
-                    expected: 1,
-                    got: 0,
-                    anchor: ValidateAnchor::node(source_block),
-                });
-            };
-
-            if result_parameter.ty != result_type {
-                return Err(ValidateError::MetadataInvariantViolation {
-                    message: "call normal continuation result type mismatch".to_string(),
-                    anchor: ValidateAnchor::node(source_block),
-                });
-            }
-        }
-
-        if !block_ids.contains(&unwind_target) {
-            return Err(ValidateError::UnknownBlockTarget {
-                block_id: unwind_target,
-                anchor: ValidateAnchor::node(source_block),
-            });
-        }
-
-        let unwind_block = self.tree.get(unwind_target);
-        let expected_unwind_arguments = unwind_block.parameters.len().saturating_sub(1);
-        if unwind_arguments.len() != expected_unwind_arguments {
-            return Err(ValidateError::BlockArgumentCountMismatch {
-                block_label: self.block_label(unwind_target, block_order),
-                expected: expected_unwind_arguments,
-                got: unwind_arguments.len(),
-                anchor: ValidateAnchor::node(source_block),
-            });
-        }
-
-        let Some(exception_parameter) = unwind_block.parameters.first() else {
-            return Err(ValidateError::BlockArgumentCountMismatch {
-                block_label: self.block_label(unwind_target, block_order),
-                expected: 1,
-                got: 0,
-                anchor: ValidateAnchor::node(source_block),
-            });
+    /// Validate the return contract for one terminator.
+    fn validate_return_terminator(
+        &self,
+        function: &Function,
+        block_id: LocalNodeId<Block>,
+        terminator: &Terminator,
+    ) -> ValidateResult<()> {
+        let Terminator::Return { value } = terminator else {
+            return Ok(());
         };
-        let exception_type = self.tree.get(exception_parameter.ty);
+
+        let returns_void = matches!(self.tree.get(function.return_type), Type::Void);
+        if returns_void && value.is_some() {
+            return Err(ValidateError::ReturnValueNotAllowedForVoid {
+                anchor: ValidateAnchor::node(block_id),
+            });
+        }
+
+        if !returns_void && value.is_none() {
+            return Err(ValidateError::ReturnValueRequiredForNonVoid {
+                anchor: ValidateAnchor::node(block_id),
+            });
+        }
+
+        Ok(())
+    }
+
+    /// Validate a throw terminator payload.
+    fn validate_throw_terminator(
+        &self,
+        function: &Function,
+        block_id: LocalNodeId<Block>,
+        value: Value,
+    ) -> ValidateResult<()> {
+        let anchor = ValidateAnchor::node(block_id);
+        let thrown_type_id = self.value_type_or_error(function, value, anchor, "throw")?;
+        let thrown_type = self.tree.get(thrown_type_id);
+
         let Type::Reference {
             kind: ReferenceKind::Managed,
             ..
-        } = exception_type
+        } = thrown_type
         else {
-            return Err(ValidateError::MetadataInvariantViolation {
-                message: "call unwind continuation requires a managed exception parameter"
-                    .to_string(),
-                anchor: ValidateAnchor::node(source_block),
-            });
+            return Err(self.metadata_error(anchor, "throw requires a managed reference payload"));
         };
 
         Ok(())
     }
 
-    /// Validate block argument counts for a target.
+    /// Validate a trap terminator payload.
+    fn validate_trap_terminator(
+        &self,
+        function: &Function,
+        block_id: LocalNodeId<Block>,
+        kind: TrapKind,
+        payload: Option<Value>,
+    ) -> ValidateResult<()> {
+        let anchor = ValidateAnchor::node(block_id);
+
+        match kind {
+            TrapKind::Abort => {
+                if payload.is_some() {
+                    return Err(self.metadata_error(anchor, "trap abort does not accept a payload"));
+                }
+            }
+            TrapKind::Panic => {
+                let Some(payload) = payload else {
+                    return Err(self.metadata_error(anchor, "trap panic requires a payload"));
+                };
+
+                let payload_type_id =
+                    self.value_type_or_error(function, payload, anchor, "trap panic")?;
+                let payload_type = self.tree.get(payload_type_id);
+
+                let Type::Reference {
+                    kind: ReferenceKind::Managed,
+                    mutability: Mutability::Immutable,
+                    is_nullable: false,
+                    ..
+                } = payload_type
+                else {
+                    return Err(self.metadata_error(
+                        anchor,
+                        "trap panic requires a non null readonly managed reference payload",
+                    ));
+                };
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Validate a direct call terminator.
     fn validate_block_arguments(
         &self,
         source_block: LocalNodeId<Block>,
@@ -730,6 +514,221 @@ impl<'a> Validator<'a> {
                 block_ids,
                 block_order,
             )?;
+        }
+
+        Ok(())
+    }
+
+    /// Validate one regular call terminator.
+    fn validate_regular_call(
+        &self,
+        block_id: LocalNodeId<Block>,
+        argument_count: usize,
+        parameter_count: usize,
+        result: LocalNodeId<Type>,
+        normal_target: LocalNodeId<Block>,
+        normal_arguments: &[Value],
+        unwind_target: LocalNodeId<Block>,
+        unwind_arguments: &[Value],
+        block_ids: &HashSet<LocalNodeId<Block>>,
+        block_order: &HashMap<LocalNodeId<Block>, usize>,
+    ) -> ValidateResult<()> {
+        let anchor = ValidateAnchor::node(block_id);
+
+        self.validate_call_argument_count(anchor, argument_count, parameter_count)?;
+        self.validate_call_continuations(
+            block_id,
+            normal_target,
+            normal_arguments,
+            unwind_target,
+            unwind_arguments,
+            result,
+            block_ids,
+            block_order,
+        )?;
+
+        Ok(())
+    }
+
+    /// Validate one tail call terminator.
+    fn validate_tail_call(
+        &self,
+        function: &Function,
+        block_id: LocalNodeId<Block>,
+        argument_count: usize,
+        parameter_count: usize,
+        result: LocalNodeId<Type>,
+    ) -> ValidateResult<()> {
+        let anchor = ValidateAnchor::node(block_id);
+
+        self.validate_call_argument_count(anchor, argument_count, parameter_count)?;
+        self.validate_tail_call_return_kind(function.return_type, result, anchor)?;
+
+        Ok(())
+    }
+
+    /// Validate one function-pointer signature and return its shape.
+    pub(super) fn function_pointer_signature(
+        &self,
+        signature: LocalNodeId<Type>,
+        anchor: ValidateAnchor,
+        label: &'static str,
+    ) -> ValidateResult<(&[LocalNodeId<Type>], LocalNodeId<Type>)> {
+        self.ensure_node_type(NodeType::Type, signature.id, anchor)?;
+
+        let Type::FunctionPointer { parameters, result } = self.tree.get(signature) else {
+            return Err(self.metadata_error(anchor, format!("{label} is not a function type")));
+        };
+
+        self.ensure_node_type(NodeType::Type, result.id, anchor)?;
+        for &parameter in parameters {
+            self.ensure_node_type(NodeType::Type, parameter.id, anchor)?;
+        }
+
+        Ok((parameters.as_slice(), *result))
+    }
+
+    /// Validate one optional call environment.
+    pub(super) fn validate_optional_environment(
+        &self,
+        function: &Function,
+        env: Option<Value>,
+        block_id: LocalNodeId<Block>,
+        label: &'static str,
+    ) -> ValidateResult<()> {
+        let Some(env) = env else {
+            return Ok(());
+        };
+
+        let anchor = ValidateAnchor::node(block_id);
+        self.ensure_reference_value(function, env, anchor, label)?;
+
+        Ok(())
+    }
+
+    /// Validate one call argument count.
+    pub(super) fn validate_call_argument_count(
+        &self,
+        anchor: ValidateAnchor,
+        actual: usize,
+        expected: usize,
+    ) -> ValidateResult<()> {
+        if actual != expected {
+            return Err(ValidateError::CallArgumentCountMismatch {
+                expected,
+                got: actual,
+                anchor,
+            });
+        }
+
+        Ok(())
+    }
+
+    /// Validate one tail-call return kind contract.
+    pub(super) fn validate_tail_call_return_kind(
+        &self,
+        caller_result: LocalNodeId<Type>,
+        callee_result: LocalNodeId<Type>,
+        anchor: ValidateAnchor,
+    ) -> ValidateResult<()> {
+        let caller_returns_void = matches!(self.tree.get(caller_result), Type::Void);
+        let callee_returns_void = matches!(self.tree.get(callee_result), Type::Void);
+        if caller_returns_void != callee_returns_void {
+            return Err(ValidateError::TailCallReturnTypeMismatch { anchor });
+        }
+
+        Ok(())
+    }
+
+    /// Validate normal and unwind continuations for a call terminator.
+    pub(super) fn validate_call_continuations(
+        &self,
+        source_block: LocalNodeId<Block>,
+        normal_target: LocalNodeId<Block>,
+        normal_arguments: &[Value],
+        unwind_target: LocalNodeId<Block>,
+        unwind_arguments: &[Value],
+        result_type: LocalNodeId<Type>,
+        block_ids: &HashSet<LocalNodeId<Block>>,
+        block_order: &HashMap<LocalNodeId<Block>, usize>,
+    ) -> ValidateResult<()> {
+        let anchor = ValidateAnchor::node(source_block);
+
+        if !block_ids.contains(&normal_target) {
+            return Err(ValidateError::UnknownBlockTarget {
+                block_id: normal_target,
+                anchor,
+            });
+        }
+
+        let normal_block = self.tree.get(normal_target);
+        let expects_result = !matches!(self.tree.get(result_type), Type::Void);
+
+        if expects_result && normal_block.parameters.is_empty() {
+            return Err(ValidateError::BlockArgumentCountMismatch {
+                block_label: self.block_label(normal_target, block_order),
+                expected: 1,
+                got: 0,
+                anchor,
+            });
+        }
+
+        if expects_result && normal_block.parameters[0].ty != result_type {
+            return Err(self.metadata_error(
+                anchor,
+                "call normal continuation result parameter type must match the callee result",
+            ));
+        }
+
+        let expected_normal_arguments = normal_block
+            .parameters
+            .len()
+            .saturating_sub(usize::from(expects_result));
+        if normal_arguments.len() != expected_normal_arguments {
+            return Err(ValidateError::BlockArgumentCountMismatch {
+                block_label: self.block_label(normal_target, block_order),
+                expected: expected_normal_arguments,
+                got: normal_arguments.len(),
+                anchor,
+            });
+        }
+
+        if !block_ids.contains(&unwind_target) {
+            return Err(ValidateError::UnknownBlockTarget {
+                block_id: unwind_target,
+                anchor,
+            });
+        }
+
+        let unwind_block = self.tree.get(unwind_target);
+        if unwind_block.parameters.is_empty() {
+            return Err(self.metadata_error(
+                anchor,
+                "call unwind continuation requires a managed exception parameter",
+            ));
+        }
+
+        let unwind_parameter_type = self.tree.get(unwind_block.parameters[0].ty);
+        let Type::Reference {
+            kind: ReferenceKind::Managed,
+            mutability: Mutability::Immutable,
+            is_nullable: false,
+            ..
+        } = unwind_parameter_type
+        else {
+            return Err(self.metadata_error(
+                anchor,
+                "call unwind continuation requires a managed exception parameter",
+            ));
+        };
+
+        if unwind_arguments.len() + 1 != unwind_block.parameters.len() {
+            return Err(ValidateError::BlockArgumentCountMismatch {
+                block_label: self.block_label(unwind_target, block_order),
+                expected: unwind_block.parameters.len().saturating_sub(1),
+                got: unwind_arguments.len(),
+                anchor,
+            });
         }
 
         Ok(())
