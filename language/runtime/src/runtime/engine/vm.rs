@@ -1,4 +1,4 @@
-use destack_engine::{ExecutionOutcome, ExecutionOutput, ExecutionStats};
+use destack_engine::ExecutionOutcome;
 use destack_vm::Isolate;
 use {destack_heap as heap, destack_vm as vm};
 
@@ -130,33 +130,12 @@ impl Engine for Isolate {
 /// Convert one VM execution outcome into one engine outcome.
 fn map_vm_outcome(outcome: vm::ExecutionOutcome) -> ExecutionOutcome<EngineContinuation> {
     match outcome {
-        vm::ExecutionOutcome::Completed { output } => ExecutionOutcome::Completed {
-            output: map_vm_output(output),
-        },
+        vm::ExecutionOutcome::Completed { output } => ExecutionOutcome::Completed { output },
         vm::ExecutionOutcome::Yielded { yielded } => ExecutionOutcome::Yielded {
             yielded: destack_engine::ExecutionYield {
                 continuation: EngineContinuation::Vm(yielded.continuation),
                 value: yielded.value,
             },
         },
-    }
-}
-
-/// Convert one VM execution output into one runtime engine output.
-fn map_vm_output(output: vm::ExecutionOutput) -> ExecutionOutput {
-    ExecutionOutput {
-        value: output.value,
-        stats: ExecutionStats {
-            mir_instructions_executed: output.statistics.mir_instructions_executed,
-            lowered_instructions_executed: output.statistics.lowered_instructions_executed,
-            calls_made: output.statistics.calls_made,
-            max_stack_depth: output.statistics.max_stack_depth,
-            heap_allocations: output.statistics.heap_allocations,
-            branches: output.statistics.branches(),
-            loads: output.statistics.loads(),
-            stores: output.statistics.stores(),
-        },
-        managed_allocation_count: output.managed_allocation_count,
-        raw_allocation_count: output.raw_allocation_count,
     }
 }

@@ -199,7 +199,7 @@ fn output_json(
         out.push('{');
         let _ = write!(
             out,
-            "\"category\":\"{}\",\"name\":\"{}\",\"full_name\":\"{}\",\"mops\":{:.3},\"ns_per_op\":{:.3},\"min_mops\":{:.3},\"max_mops\":{:.3},\"mir\":{},\"threaded\":{},\"calls\":{},\"stack\":{},\"alloc\":{},\"gc\":{:.4},\"freed\":{:.4},\"branches\":{},\"mem\":{},\"range\":\"{}\",\"scale\":\"{}\",",
+            "\"category\":\"{}\",\"name\":\"{}\",\"full_name\":\"{}\",\"mops\":{:.3},\"ns_per_op\":{:.3},\"min_mops\":{:.3},\"max_mops\":{:.3},\"mir\":{},\"lowered\":{},\"calls\":{},\"stack\":{},\"alloc\":{},\"gc\":{:.4},\"freed\":{:.4},\"branches\":{},\"mem\":{},\"range\":\"{}\",\"scale\":\"{}\",",
             json_escape(row.category),
             json_escape(row.name),
             json_escape(&row.full_name),
@@ -208,7 +208,7 @@ fn output_json(
             row.min_mops,
             row.max_mops,
             row.mir_instructions,
-            row.threaded_instructions,
+            row.lowered_instructions,
             row.calls,
             row.max_stack_depth,
             row.heap_allocations,
@@ -281,7 +281,7 @@ fn output_csv(
 ) {
     // emit csv header
     println!(
-        "profile,repeat,min_duration_ms,warmup_ms,target_duration_ms,calibrated,deterministic,fast,time_budget_ms,category,name,full_name,mops,ns_per_op,min_mops,max_mops,mir,threaded,calls,stack,alloc,gc,freed,branches,mem,range,scale,instruction_profile,perf_branch_misses,perf_l1_misses,perf_l1_accesses,perf_l1_miss_rate,elapsed_secs"
+        "profile,repeat,min_duration_ms,warmup_ms,target_duration_ms,calibrated,deterministic,fast,time_budget_ms,category,name,full_name,mops,ns_per_op,min_mops,max_mops,mir,lowered,calls,stack,alloc,gc,freed,branches,mem,range,scale,instruction_profile,perf_branch_misses,perf_l1_misses,perf_l1_accesses,perf_l1_miss_rate,elapsed_secs"
     );
 
     // format shared metadata
@@ -338,7 +338,7 @@ fn output_csv(
             row.min_mops,
             row.max_mops,
             row.mir_instructions,
-            row.threaded_instructions,
+            row.lowered_instructions,
             row.calls,
             row.max_stack_depth,
             row.heap_allocations,
@@ -613,8 +613,8 @@ struct BenchRow {
     max_mops: f64,
     /// Total MIR instructions for a single invocation.
     mir_instructions: u64,
-    /// Total threaded instructions for a single invocation.
-    threaded_instructions: u64,
+    /// Total lowered instructions for a single invocation.
+    lowered_instructions: u64,
     /// Function calls for a single invocation.
     calls: u64,
     /// Maximum stack depth for a single invocation.
@@ -645,8 +645,8 @@ struct StatsRow {
     full_name: String,
     /// Total MIR instructions for a single invocation.
     mir_instructions: u64,
-    /// Total threaded instructions for a single invocation.
-    threaded_instructions: u64,
+    /// Total lowered instructions for a single invocation.
+    lowered_instructions: u64,
     /// Function calls for a single invocation.
     calls: u64,
     /// Maximum stack depth for a single invocation.
@@ -663,8 +663,8 @@ struct StatsWidths {
     program: usize,
     /// Width for the mir column.
     mir: usize,
-    /// Width for the threaded column.
-    threaded: usize,
+    /// Width for the lowered column.
+    lowered: usize,
     /// Width for the calls column.
     calls: usize,
     /// Width for the stack column.
@@ -681,7 +681,7 @@ impl StatsWidths {
         // seed widths from headers
         let program = "Program".len();
         let mir = "MIR".len();
-        let threaded = "Threaded".len();
+        let lowered = "Lowered".len();
         let calls = "Calls".len();
         let stack = "Stack".len();
         let heap = "Heap".len();
@@ -691,7 +691,7 @@ impl StatsWidths {
         Self {
             program,
             mir,
-            threaded,
+            lowered,
             calls,
             stack,
             heap,
@@ -704,7 +704,7 @@ impl StatsWidths {
         // compute row widths
         let program = row.full_name.len();
         let mir = row.mir_instructions.to_string().len();
-        let threaded = row.threaded_instructions.to_string().len();
+        let lowered = row.lowered_instructions.to_string().len();
         let calls = row.calls.to_string().len();
         let stack = row.max_stack_depth.to_string().len();
         let heap = row.heap_allocations.to_string().len();
@@ -713,7 +713,7 @@ impl StatsWidths {
         // update stored widths
         self.program = self.program.max(program);
         self.mir = self.mir.max(mir);
-        self.threaded = self.threaded.max(threaded);
+        self.lowered = self.lowered.max(lowered);
         self.calls = self.calls.max(calls);
         self.stack = self.stack.max(stack);
         self.heap = self.heap.max(heap);
@@ -725,7 +725,7 @@ impl StatsWidths {
         // sum column widths
         let columns = self.program
             + self.mir
-            + self.threaded
+            + self.lowered
             + self.calls
             + self.stack
             + self.heap
@@ -1139,7 +1139,7 @@ impl Program {
         let mut shared = SharedSpace::default();
         let entry_id = self.entry_id(&isolate);
         let result = self.run_or_panic(&mut isolate, &mut heap, &mut shared, entry_id, args);
-        result.statistics.threaded_instructions_executed
+        result.stats.lowered_instructions_executed
     }
 
     /// Validate that the program produces expected output.
@@ -1223,8 +1223,8 @@ struct TableWidths {
     ns_per_op: usize,
     /// Width for the mir column.
     mir: usize,
-    /// Width for the threaded column.
-    threaded: usize,
+    /// Width for the lowered column.
+    lowered: usize,
     /// Width for the calls column.
     calls: usize,
     /// Width for the stack column.
@@ -1253,7 +1253,7 @@ impl TableWidths {
         let mops = MIN_MOPS_WIDTH.max("Mops/s".len());
         let ns_per_op = MIN_NSOP_WIDTH.max("ns/op".len());
         let mir = MIN_MIR_WIDTH.max("MIR".len());
-        let threaded = MIN_THREADED_WIDTH.max("Threaded".len());
+        let lowered = MIN_THREADED_WIDTH.max("Lowered".len());
         let calls = MIN_CALLS_WIDTH.max("Calls".len());
         let stack = MIN_STACK_WIDTH.max("Stk".len());
         let alloc = MIN_ALLOC_WIDTH.max("Alloc".len());
@@ -1270,7 +1270,7 @@ impl TableWidths {
             mops,
             ns_per_op,
             mir,
-            threaded,
+            lowered,
             calls,
             stack,
             alloc,
@@ -1290,7 +1290,7 @@ impl TableWidths {
         let mops = format!("{:.1}", row.mops).len();
         let ns_per_op = format!("{:.2}", row.ns_per_op).len();
         let mir = row.mir_instructions.to_string().len();
-        let threaded = row.threaded_instructions.to_string().len();
+        let lowered = row.lowered_instructions.to_string().len();
         let calls = row.calls.to_string().len();
         let stack = row.max_stack_depth.to_string().len();
         let alloc = row.heap_allocations.to_string().len();
@@ -1306,7 +1306,7 @@ impl TableWidths {
         self.mops = self.mops.max(mops);
         self.ns_per_op = self.ns_per_op.max(ns_per_op);
         self.mir = self.mir.max(mir);
-        self.threaded = self.threaded.max(threaded);
+        self.lowered = self.lowered.max(lowered);
         self.calls = self.calls.max(calls);
         self.stack = self.stack.max(stack);
         self.alloc = self.alloc.max(alloc);
@@ -1325,7 +1325,7 @@ impl TableWidths {
             + self.mops
             + self.ns_per_op
             + self.mir
-            + self.threaded
+            + self.lowered
             + self.calls
             + self.stack
             + self.alloc
@@ -1376,12 +1376,12 @@ fn output_table(
     // print header row
     println!();
     println!(
-        "{BOLD}{:<program_width$}{RESET}{gap}{:>mops_width$}{gap}{:>ns_per_op_width$}{gap}{:>mir_width$}{gap}{:>threaded_width$}{gap}{:>calls_width$}{gap}{:>stack_width$}{gap}{:>alloc_width$}{gap}{:>gc_width$}{gap}{:>freed_width$}{gap}{:>branches_width$}{gap}{:>mem_width$}{gap}{:>range_width$}{gap}{:<scale_width$}{RESET}",
+        "{BOLD}{:<program_width$}{RESET}{gap}{:>mops_width$}{gap}{:>ns_per_op_width$}{gap}{:>mir_width$}{gap}{:>lowered_width$}{gap}{:>calls_width$}{gap}{:>stack_width$}{gap}{:>alloc_width$}{gap}{:>gc_width$}{gap}{:>freed_width$}{gap}{:>branches_width$}{gap}{:>mem_width$}{gap}{:>range_width$}{gap}{:<scale_width$}{RESET}",
         "Program",
         "Mops/s",
         "ns/op",
         "MIR",
-        "Threaded",
+        "Lowered",
         "Calls",
         "Stk",
         "Alloc",
@@ -1395,7 +1395,7 @@ fn output_table(
         mops_width = widths.mops,
         ns_per_op_width = widths.ns_per_op,
         mir_width = widths.mir,
-        threaded_width = widths.threaded,
+        lowered_width = widths.lowered,
         calls_width = widths.calls,
         stack_width = widths.stack,
         alloc_width = widths.alloc,
@@ -1447,12 +1447,12 @@ fn output_table(
             RED
         };
         println!(
-            "{CYAN}{:<program_width$}{RESET}{gap}{mops_color}{:>mops_width$.1}{RESET}{gap}{DIM}{:>ns_per_op_width$.2}{RESET}{gap}{BOLD}{:>mir_width$}{RESET}{gap}{DIM}{:>threaded_width$}{RESET}{gap}{:>calls_width$}{gap}{:>stack_width$}{gap}{:>alloc_width$}{gap}{:>gc_width$.1}{gap}{:>freed_width$.0}{gap}{:>branches_width$}{gap}{:>mem_width$}{gap}{:>range_width$}{gap}{:<scale_width$}{RESET}",
+            "{CYAN}{:<program_width$}{RESET}{gap}{mops_color}{:>mops_width$.1}{RESET}{gap}{DIM}{:>ns_per_op_width$.2}{RESET}{gap}{BOLD}{:>mir_width$}{RESET}{gap}{DIM}{:>lowered_width$}{RESET}{gap}{:>calls_width$}{gap}{:>stack_width$}{gap}{:>alloc_width$}{gap}{:>gc_width$.1}{gap}{:>freed_width$.0}{gap}{:>branches_width$}{gap}{:>mem_width$}{gap}{:>range_width$}{gap}{:<scale_width$}{RESET}",
             row.full_name,
             row.mops,
             row.ns_per_op,
             row.mir_instructions,
-            row.threaded_instructions,
+            row.lowered_instructions,
             row.calls,
             row.max_stack_depth,
             row.heap_allocations,
@@ -1466,7 +1466,7 @@ fn output_table(
             mops_width = widths.mops,
             ns_per_op_width = widths.ns_per_op,
             mir_width = widths.mir,
-            threaded_width = widths.threaded,
+            lowered_width = widths.lowered,
             calls_width = widths.calls,
             stack_width = widths.stack,
             alloc_width = widths.alloc,
@@ -1603,7 +1603,7 @@ pub fn quick_bench_with_options(options: &BenchOptions) {
             entry
                 .program
                 .run_or_panic(&mut isolate, &mut heap, &mut shared, entry_id, &args);
-        let mut stats = result.statistics;
+        let mut stats = result.stats;
         let mut needs_gc = stats.heap_allocations > 0;
 
         // calibrate main axis if requested
@@ -1626,7 +1626,7 @@ pub fn quick_bench_with_options(options: &BenchOptions) {
                 entry
                     .program
                     .run_or_panic(&mut isolate, &mut heap, &mut shared, entry_id, &args);
-            stats = result.statistics;
+            stats = result.stats;
             needs_gc = stats.heap_allocations > 0;
         }
 
@@ -1750,7 +1750,7 @@ pub fn quick_bench_with_options(options: &BenchOptions) {
         };
 
         // assemble row data
-        let mem = stats.loads() + stats.stores();
+        let mem = stats.loads + stats.stores;
         let ns_per_op = if summary.median_mops > 0.0 {
             1000.0 / summary.median_mops
         } else {
@@ -1765,13 +1765,13 @@ pub fn quick_bench_with_options(options: &BenchOptions) {
             min_mops: summary.min_mops,
             max_mops: summary.max_mops,
             mir_instructions: stats.mir_instructions_executed,
-            threaded_instructions: stats.threaded_instructions_executed,
+            lowered_instructions: stats.lowered_instructions_executed,
             calls: stats.calls_made,
             max_stack_depth: stats.max_stack_depth,
             heap_allocations: stats.heap_allocations,
             avg_gc_collections: summary.avg_gc_collections,
             avg_gc_freed_cells: summary.avg_gc_freed_cells,
-            branches: stats.branches(),
+            branches: stats.branches,
             memory_ops: mem,
             range_label,
             scale_label,
@@ -1958,12 +1958,12 @@ pub fn print_stats(options: &BenchOptions) {
             entry
                 .program
                 .run_or_panic(&mut isolate, &mut heap, &mut shared, entry_id, &args);
-        let stats = result.statistics;
+        let stats = result.stats;
         let label = scale_label(entry.program, &args);
         rows.push(StatsRow {
             full_name: format!("{}/{}", entry.category, entry.program.name),
             mir_instructions: stats.mir_instructions_executed,
-            threaded_instructions: stats.threaded_instructions_executed,
+            lowered_instructions: stats.lowered_instructions_executed,
             calls: stats.calls_made,
             max_stack_depth: stats.max_stack_depth,
             heap_allocations: stats.heap_allocations,
@@ -1979,17 +1979,17 @@ pub fn print_stats(options: &BenchOptions) {
 
     // print header row
     println!(
-        "{BOLD}{:<program_width$}{RESET}{gap}{:>mir_width$}{gap}{:>threaded_width$}{gap}{:>calls_width$}{gap}{:>stack_width$}{gap}{:>heap_width$}{gap}{:<scale_width$}{RESET}",
+        "{BOLD}{:<program_width$}{RESET}{gap}{:>mir_width$}{gap}{:>lowered_width$}{gap}{:>calls_width$}{gap}{:>stack_width$}{gap}{:>heap_width$}{gap}{:<scale_width$}{RESET}",
         "Program",
         "MIR",
-        "Threaded",
+        "Lowered",
         "Calls",
         "Stack",
         "Heap",
         "Scale",
         program_width = widths.program,
         mir_width = widths.mir,
-        threaded_width = widths.threaded,
+        lowered_width = widths.lowered,
         calls_width = widths.calls,
         stack_width = widths.stack,
         heap_width = widths.heap,
@@ -2003,17 +2003,17 @@ pub fn print_stats(options: &BenchOptions) {
     // print rows
     for row in rows {
         println!(
-            "{CYAN}{:<program_width$}{RESET}{gap}{:>mir_width$}{gap}{DIM}{:>threaded_width$}{RESET}{gap}{:>calls_width$}{gap}{:>stack_width$}{gap}{:>heap_width$}{gap}{:<scale_width$}{RESET}",
+            "{CYAN}{:<program_width$}{RESET}{gap}{:>mir_width$}{gap}{DIM}{:>lowered_width$}{RESET}{gap}{:>calls_width$}{gap}{:>stack_width$}{gap}{:>heap_width$}{gap}{:<scale_width$}{RESET}",
             row.full_name,
             row.mir_instructions,
-            row.threaded_instructions,
+            row.lowered_instructions,
             row.calls,
             row.max_stack_depth,
             row.heap_allocations,
             row.scale_label,
             program_width = widths.program,
             mir_width = widths.mir,
-            threaded_width = widths.threaded,
+            lowered_width = widths.lowered,
             calls_width = widths.calls,
             stack_width = widths.stack,
             heap_width = widths.heap,

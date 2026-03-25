@@ -19,6 +19,7 @@ perf-counters = ["dep:perf-event"]
 [dependencies]
 # language
 destack_core = { workspace = true }
+destack_engine = { workspace = true }
 destack_heap = { workspace = true }
 destack_mir = { workspace = true }
 destack_source = { workspace = true }

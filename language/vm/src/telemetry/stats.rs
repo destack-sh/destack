@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 pub struct Statistics {
     /// Total number of MIR instructions executed (original IR).
     pub mir_instructions_executed: u64,
-    /// Total number of threaded instructions executed (after decode/fusion).
-    pub threaded_instructions_executed: u64,
+    /// Total number of lowered instructions executed.
+    pub lowered_instructions_executed: u64,
     /// Total number of function calls made.
     pub calls_made: u64,
     /// Maximum call stack depth reached.
@@ -89,6 +89,36 @@ impl Statistics {
         #[cfg(not(feature = "stats"))]
         {
             0
+        }
+    }
+}
+
+impl From<Statistics> for destack_engine::ExecutionStats {
+    fn from(stats: Statistics) -> Self {
+        Self {
+            mir_instructions_executed: stats.mir_instructions_executed,
+            lowered_instructions_executed: stats.lowered_instructions_executed,
+            calls_made: stats.calls_made,
+            max_stack_depth: stats.max_stack_depth,
+            heap_allocations: stats.heap_allocations,
+            branches: stats.branches(),
+            loads: stats.loads(),
+            stores: stats.stores(),
+        }
+    }
+}
+
+impl From<&Statistics> for destack_engine::ExecutionStats {
+    fn from(stats: &Statistics) -> Self {
+        Self {
+            mir_instructions_executed: stats.mir_instructions_executed,
+            lowered_instructions_executed: stats.lowered_instructions_executed,
+            calls_made: stats.calls_made,
+            max_stack_depth: stats.max_stack_depth,
+            heap_allocations: stats.heap_allocations,
+            branches: stats.branches(),
+            loads: stats.loads(),
+            stores: stats.stores(),
         }
     }
 }
