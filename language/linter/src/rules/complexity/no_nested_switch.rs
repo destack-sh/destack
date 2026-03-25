@@ -142,10 +142,10 @@ switch (x) {
     }
 
     #[test]
-    fn test_reports_switch_in_separate_function() {
+    fn test_allows_switch_in_separate_function() {
         let test = TestProgram::for_rule_without_prelude(NoNestedSwitch);
         let result = test.lint_ast(
-            "no_nested_switch/test_reports_switch_in_separate_function.ds",
+            "no_nested_switch/test_allows_switch_in_separate_function.ds",
             r#"
 let x = 1;
 switch (x) {
@@ -163,7 +163,7 @@ switch (x) {
 }
 "#,
         );
-        test.result(result).assert_lint("no-nested-switch");
+        test.result(result).assert_no_lint("no-nested-switch");
     }
 
     #[test]
@@ -188,10 +188,10 @@ switch (y) {
     }
 
     #[test]
-    fn test_reports_switch_in_nested_lambda_inside_switch() {
+    fn test_allows_switch_in_nested_lambda_inside_switch() {
         let test = TestProgram::for_rule_without_prelude(NoNestedSwitch);
         let result = test.lint_ast(
-            "no_nested_switch/test_reports_switch_in_nested_lambda_inside_switch.ds",
+            "no_nested_switch/test_allows_switch_in_nested_lambda_inside_switch.ds",
             r#"
 let x = 1;
 switch (x) {
@@ -208,6 +208,6 @@ switch (x) {
 }
 "#,
         );
-        test.result(result).assert_lint("no-nested-switch");
+        test.result(result).assert_no_lint("no-nested-switch");
     }
 }

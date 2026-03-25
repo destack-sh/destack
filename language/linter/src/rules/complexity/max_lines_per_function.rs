@@ -226,4 +226,77 @@ declare function foo(): void;
         );
         test.result(result).assert_no_lint("max-lines-per-function");
     }
+
+    #[test]
+    fn test_skips_comment_lines_when_enabled() {
+        let test =
+            TestProgram::for_rule_without_prelude(MaxLinesPerFunction).with_options(|options| {
+                options.max_lines_per_function = 3;
+                options.max_lines_per_function_skip_comments = true;
+            });
+        let result = test.lint_ast(
+            "max_lines_per_function/test_skips_comment_lines_when_enabled.ds",
+            r#"
+function foo() {
+    // comment
+    let x = 1;
+}
+"#,
+        );
+        test.result(result).assert_no_lint("max-lines-per-function");
+    }
+
+    #[test]
+    fn test_skips_blank_lines_when_enabled() {
+        let test =
+            TestProgram::for_rule_without_prelude(MaxLinesPerFunction).with_options(|options| {
+                options.max_lines_per_function = 3;
+                options.max_lines_per_function_skip_blank_lines = true;
+            });
+        let result = test.lint_ast(
+            "max_lines_per_function/test_skips_blank_lines_when_enabled.ds",
+            r#"
+function foo() {
+
+    let x = 1;
+}
+"#,
+        );
+        test.result(result).assert_no_lint("max-lines-per-function");
+    }
+
+    #[test]
+    fn test_ignores_iife_by_default() {
+        let test = TestProgram::for_rule_without_prelude(MaxLinesPerFunction)
+            .with_options(|options| options.max_lines_per_function = 3);
+        let result = test.lint_ast(
+            "max_lines_per_function/test_ignores_iife_by_default.ds",
+            r#"
+(function () {
+    let a = 1;
+    let b = 2;
+})();
+"#,
+        );
+        test.result(result).assert_no_lint("max-lines-per-function");
+    }
+
+    #[test]
+    fn test_checks_iife_when_enabled() {
+        let test =
+            TestProgram::for_rule_without_prelude(MaxLinesPerFunction).with_options(|options| {
+                options.max_lines_per_function = 3;
+                options.max_lines_per_function_include_iifes = true;
+            });
+        let result = test.lint_ast(
+            "max_lines_per_function/test_checks_iife_when_enabled.ds",
+            r#"
+(function () {
+    let a = 1;
+    let b = 2;
+})();
+"#,
+        );
+        test.result(result).assert_lint("max-lines-per-function");
+    }
 }

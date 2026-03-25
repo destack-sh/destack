@@ -251,4 +251,34 @@ function withTypedThis(this: Example, a: int32) {}
         );
         test.result(result).assert_lint("max-params");
     }
+
+    #[test]
+    fn test_counts_void_this_when_enabled() {
+        let test = TestProgram::for_rule_without_prelude(MaxParams).with_options(|options| {
+            options.max_params = 1;
+            options.max_params_count_this = MaxParamsCountThis::Always;
+        });
+        let result = test.lint_ast(
+            "max_params/test_counts_void_this_when_enabled.ds",
+            r#"
+function withVoidThis(this: void, a: int32) {}
+"#,
+        );
+        test.result(result).assert_lint("max-params");
+    }
+
+    #[test]
+    fn test_ignores_this_when_count_this_is_never() {
+        let test = TestProgram::for_rule_without_prelude(MaxParams).with_options(|options| {
+            options.max_params = 1;
+            options.max_params_count_this = MaxParamsCountThis::Never;
+        });
+        let result = test.lint_ast(
+            "max_params/test_ignores_this_when_count_this_is_never.ds",
+            r#"
+function withTypedThis(this: Example, a: int32) {}
+"#,
+        );
+        test.result(result).assert_no_lint("max-params");
+    }
 }
