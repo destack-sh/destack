@@ -84,24 +84,25 @@ impl Parser {
 
     /// Eat a path and return the span of its last segment.
     pub fn eat_path_with_last_span(&mut self) -> ParseResult<(Path, Span)> {
-        let (path, _first_span, last_span) = self.eat_path_with_endpoint_spans()?;
+        let (path, _segment_spans, last_span) = self.eat_path_with_endpoint_spans()?;
         Ok((path, last_span))
     }
 
-    /// Eat a path and return the spans of its first and last segments.
-    pub fn eat_path_with_endpoint_spans(&mut self) -> ParseResult<(Path, Span, Span)> {
+    /// Eat a path and return the spans of all its segments.
+    pub fn eat_path_with_segment_spans(&mut self) -> ParseResult<(Path, SmallVec<[Span; 3]>)> {
         let _timing = self.timing_scope(tags::PARSE_PATH);
         let mut segments: SmallVec<[StringId; 3]> = SmallVec::new();
+        let mut segment_spans: SmallVec<[Span; 3]> = SmallVec::new();
 
         // first identifier
         let (first, first_span) = self.eat_identifier_with_span()?;
         segments.push(first);
-        let mut last_span = first_span;
+        segment_spans.push(first_span);
 
         // single segment fast path
         let next_token_type = self.peek_token_type();
         if next_token_type != TokenType::Dot && next_token_type != TokenType::Newline {
-            return Ok((Path { segments }, first_span, last_span));
+            return Ok((Path { segments }, segment_spans));
         }
 
         // zero or more `.identifier` (ignoring newlines)
@@ -126,7 +127,7 @@ impl Parser {
                 self.bump(); // eat dot
                 let (segment, segment_span) = self.eat_identifier_with_span()?;
                 segments.push(segment);
-                last_span = segment_span;
+                segment_spans.push(segment_span);
                 continue;
             }
 
@@ -143,7 +144,17 @@ impl Parser {
             break;
         }
 
-        Ok((Path { segments }, first_span, last_span))
+        Ok((Path { segments }, segment_spans))
+    }
+
+    /// Eat a path and return the spans of its first and last segments.
+    pub fn eat_path_with_endpoint_spans(
+        &mut self,
+    ) -> ParseResult<(Path, SmallVec<[Span; 3]>, Span)> {
+        let (path, segment_spans) = self.eat_path_with_segment_spans()?;
+        let last_span = segment_spans.last().copied().expect("path has no segments");
+
+        Ok((path, segment_spans, last_span))
     }
 
     /// Eat a tree literal path.
@@ -204,24 +215,27 @@ impl Parser {
 
     /// Eat a tree literal path and return the span of its last segment.
     pub fn eat_tree_literal_path_with_last_span(&mut self) -> ParseResult<(Path, Span)> {
-        let (path, _first_span, last_span) = self.eat_tree_literal_path_with_endpoint_spans()?;
+        let (path, _segment_spans, last_span) = self.eat_tree_literal_path_with_endpoint_spans()?;
         Ok((path, last_span))
     }
 
-    /// Eat a tree literal path and return the spans of its first and last segments.
-    pub fn eat_tree_literal_path_with_endpoint_spans(&mut self) -> ParseResult<(Path, Span, Span)> {
+    /// Eat a tree literal path and return the spans of all its segments.
+    pub fn eat_tree_literal_path_with_segment_spans(
+        &mut self,
+    ) -> ParseResult<(Path, SmallVec<[Span; 3]>)> {
         let _timing = self.timing_scope(tags::PARSE_PATH);
         let mut segments: SmallVec<[StringId; 3]> = SmallVec::new();
+        let mut segment_spans: SmallVec<[Span; 3]> = SmallVec::new();
 
         // first identifier (kebab-case supported)
         let (first, first_span) = self.eat_tree_literal_identifier_with_span()?;
         segments.push(first);
-        let mut last_span = first_span;
+        segment_spans.push(first_span);
 
         // single segment fast path
         let next_token_type = self.peek_token_type();
         if next_token_type != TokenType::Dot && next_token_type != TokenType::Newline {
-            return Ok((Path { segments }, first_span, last_span));
+            return Ok((Path { segments }, segment_spans));
         }
 
         // zero or more `.identifier` (ignoring newlines)
@@ -246,7 +260,7 @@ impl Parser {
                 self.bump(); // eat dot
                 let (segment, segment_span) = self.eat_tree_literal_identifier_with_span()?;
                 segments.push(segment);
-                last_span = segment_span;
+                segment_spans.push(segment_span);
                 continue;
             }
 
@@ -263,19 +277,43 @@ impl Parser {
             break;
         }
 
-        Ok((Path { segments }, first_span, last_span))
+        Ok((Path { segments }, segment_spans))
     }
 
-    /// Record the leading and trailing identifier spans for one path expression.
+    /// Eat a tree literal path and return the spans of its first and last segments.
+    pub fn eat_tree_literal_path_with_endpoint_spans(
+        &mut self,
+    ) -> ParseResult<(Path, SmallVec<[Span; 3]>, Span)> {
+        let (path, segment_spans) = self.eat_tree_literal_path_with_segment_spans()?;
+        let last_span = segment_spans.last().copied().expect("path has no segments");
+
+        Ok((path, segment_spans, last_span))
+    }
+
+    /// Record the identifier spans for one path expression.
     pub fn set_path_expression_spans(
         &mut self,
         expression_id: LocalNodeId<Expression>,
-        first_span: Span,
-        last_span: Span,
+        segment_spans: &[Span],
     ) {
+        let first_span = *segment_spans.first().expect("path has no segments");
+        let last_span = *segment_spans.last().expect("path has no segments");
+
         self.tree.set_main_span(expression_id, last_span);
         self.tree
             .set_side_span(expression_id, NodeSpanType::Leading, first_span);
+
+        // record each path segment so semantic consumers can target the exact token
+        for (index, segment_span) in segment_spans.iter().copied().enumerate() {
+            let segment_index =
+                u16::try_from(index).expect("path expression segment index overflow");
+
+            self.tree.set_side_span(
+                expression_id,
+                NodeSpanType::Segment(segment_index),
+                segment_span,
+            );
+        }
     }
 }
 

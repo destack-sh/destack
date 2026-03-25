@@ -12,13 +12,13 @@ impl Parser {
         let _identifier_timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_IDENTIFIER);
         // fast path: single segment identifiers dominate value expressions
         let next_token_type = self.peek_next_token_type();
-        let (path, first_span, last_span) =
+        let (path, segment_spans, _last_span) =
             if next_token_type != TokenType::Dot && next_token_type != TokenType::Newline {
                 let (segment, segment_span) = self.eat_identifier_with_span()?;
                 let path = Path {
                     segments: smallvec![segment],
                 };
-                (path, segment_span, segment_span)
+                (path, smallvec![segment_span], segment_span)
             } else {
                 self.eat_path_with_endpoint_spans()
                     .for_node_type(NodeType::Expression)?
@@ -46,7 +46,7 @@ impl Parser {
                 static_arguments: None,
             };
             let receiver_id = self.insert_node(receiver, self.get_span_from(start));
-            self.set_path_expression_spans(receiver_id, first_span, last_span);
+            self.set_path_expression_spans(receiver_id, &segment_spans);
             self.eat_call(receiver_id, static_arguments, PostfixPosition::Direct)
         } else {
             let expression = Expression::Path {
@@ -54,7 +54,7 @@ impl Parser {
                 static_arguments,
             };
             let expression_id = self.insert_node(expression, self.get_span_from(start));
-            self.set_path_expression_spans(expression_id, first_span, last_span);
+            self.set_path_expression_spans(expression_id, &segment_spans);
             Ok(expression_id)
         }
     }

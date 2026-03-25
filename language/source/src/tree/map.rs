@@ -34,8 +34,29 @@ pub enum NodeSpanType {
     Main,
     /// The leading span of a node (usually its first identifier).
     Leading,
+    /// One indexed segment span of a compound node.
+    Segment(u16),
     /// The type declaration span of a node.
     Type,
+}
+
+/// One typed source part keyed by source node id and span kind.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct SourcePartKey {
+    /// The source node id that owns this source part.
+    pub source_id: u32,
+    /// The span kind within that source node.
+    pub span_type: NodeSpanType,
+}
+
+impl SourcePartKey {
+    /// Build one typed source part key.
+    pub fn new(source_id: u32, span_type: NodeSpanType) -> Self {
+        Self {
+            source_id,
+            span_type,
+        }
+    }
 }
 
 /// Side index of spans into a NodeTree.
@@ -50,7 +71,7 @@ pub struct NodeSourceMap {
     /// Presence flags for main and type spans.
     side_span_flags: Vec<u8>,
     /// Extra side spans for non-main/type spans (sparse).
-    side_spans: FxHashMap<(u32, NodeSpanType), Span>,
+    side_spans: FxHashMap<SourcePartKey, Span>,
     /// Interval tree for O(log n + k) enclosing span queries.
     /// Built lazily on first lookup and invalidated on enclosing span mutations.
     interval_tree: RwLock<Option<IntervalTree>>,
@@ -81,7 +102,7 @@ struct NodeSourceMapData {
     #[serde(default)]
     type_spans: Vec<Option<Span>>,
     #[serde(default)]
-    side_spans: FxHashMap<(u32, NodeSpanType), Span>,
+    side_spans: FxHashMap<SourcePartKey, Span>,
 }
 
 // serde view for NodeSourceMap
@@ -90,7 +111,7 @@ struct NodeSourceMapRef<'a> {
     enclosing_spans: &'a [Span],
     main_spans: Vec<Option<Span>>,
     type_spans: Vec<Option<Span>>,
-    side_spans: &'a FxHashMap<(u32, NodeSpanType), Span>,
+    side_spans: &'a FxHashMap<SourcePartKey, Span>,
 }
 
 impl Serialize for NodeSourceMap {
@@ -271,7 +292,7 @@ impl NodeSourceMap {
         self.main_spans.truncate(from_idx as usize);
         self.type_spans.truncate(from_idx as usize);
         self.side_span_flags.truncate(from_idx as usize);
-        self.side_spans.retain(|&(id, _), _| id < from_idx);
+        self.side_spans.retain(|key, _| key.source_id < from_idx);
         self.invalidate_position_index();
     }
 
@@ -307,7 +328,8 @@ impl NodeSourceMap {
                 self.side_span_flags[index] |= TYPE_SPAN_FLAG;
             }
             _ => {
-                self.side_spans.insert((node_id, span_type), span);
+                self.side_spans
+                    .insert(SourcePartKey::new(node_id, span_type), span);
             }
         }
     }
@@ -329,7 +351,10 @@ impl NodeSourceMap {
                 .copied()
                 .filter(|flags| (flags & TYPE_SPAN_FLAG) != 0)
                 .map(|_| self.type_spans[index]),
-            _ => self.side_spans.get(&(node_id, span_type)).copied(),
+            _ => self
+                .side_spans
+                .get(&SourcePartKey::new(node_id, span_type))
+                .copied(),
         }
     }
 
