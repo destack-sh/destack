@@ -145,6 +145,50 @@ main.ds:7:20 kind=parameter label=x:
 main.ds:7:23 kind=parameter label=y:
 ```
 
+### Keep inlay hints after throw recovery statements
+
+Inlay hints should still resolve later valid calls after one recovered `throw` statement.
+
+```ds
+throw
+
+function add(x: int32, y: int32): int32 {
+    return x + y;
+}
+
+const result = add(1, 2);
+```
+
+```query inlay_hints $0
+main.ds:7:13 kind=type label=: int32
+main.ds:7:20 kind=parameter label=x:
+main.ds:7:23 kind=parameter label=y:
+```
+
+### Keep inlay hints after yield star recovery statements
+
+Inlay hints should still resolve later valid calls after one recovered `yield*` statement.
+
+```ds
+function* broken() {
+    yield*
+    const value = 1;
+}
+
+function add(x: int32, y: int32): int32 {
+    return x + y;
+}
+
+const result = add(1, 2);
+```
+
+```query inlay_hints $0
+main.ds:3:16 kind=type label=: int32
+main.ds:10:13 kind=type label=: int32
+main.ds:10:20 kind=parameter label=x:
+main.ds:10:23 kind=parameter label=y:
+```
+
 ### Skip hints that repeat argument names
 
 Parameter hints should not repeat obvious argument names.

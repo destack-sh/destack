@@ -106,6 +106,39 @@ greet();
 main.ds:3:10-3:15 kind=references title=1 reference
 ```
 
+### Keep code lenses after throw recovery statements
+
+Code lenses should still resolve for later valid functions after one recovered `throw` statement.
+
+```ds
+throw
+
+function greet(): void {}
+greet();
+```
+
+```query code_lens $0
+main.ds:3:10-3:15 kind=references title=1 reference
+```
+
+### Keep code lenses after yield star recovery statements
+
+Code lenses should still resolve for later valid functions after one recovered `yield*` statement.
+
+```ds
+function* broken() {
+    yield*
+    const value = 1;
+}
+
+function greet(): void {}
+greet();
+```
+
+```query code_lens $0
+main.ds:6:10-6:15 kind=references title=1 reference
+```
+
 ## Empty Results
 
 ### Unused functions produce no lenses

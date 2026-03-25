@@ -324,6 +324,45 @@ stableLater();
 decl:stableLater
 ```
 
+### Keep declarations working after throw recovery statements
+
+Goto declaration should still work for later declarations after one recovered `throw` statement.
+
+```ds
+throw
+
+export function stableLater(): void {}
+//              ^^^^^^^^^^^ decl:stableLater
+
+stableLater();
+// ^^^^^^^^^^^ use:stableLater
+```
+
+```query goto_declaration use:stableLater
+decl:stableLater
+```
+
+### Keep declarations working after yield star recovery statements
+
+Goto declaration should still work for later declarations after one recovered `yield*` statement.
+
+```ds
+function* broken() {
+    yield*
+    const value = 1;
+}
+
+export function stableLater(): void {}
+//              ^^^^^^^^^^^ decl:stableLater
+
+stableLater();
+// ^^^^^^^^^^^ use:stableLater
+```
+
+```query goto_declaration use:stableLater
+decl:stableLater
+```
+
 ### Return no declaration for malformed unresolved member access
 
 Goto declaration should return no result when the cursor is on malformed unresolved syntax.

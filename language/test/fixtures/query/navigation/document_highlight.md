@@ -180,3 +180,44 @@ stableLater();
 main.ds:3:10-3:21 kind=write
 main.ds:5:1-5:12 kind=read
 ```
+
+### Highlight later function symbols after throw recovery statements
+
+Document highlight should still work for later valid function symbols after one recovered `throw` statement.
+
+```ds
+throw
+
+function stableLater(): void {}
+//       ^^^^^^^^^^^ def:stableLater
+
+stableLater();
+//^^^^^^^^^^^ use:stableLater
+```
+
+```query document_highlight def:stableLater
+main.ds:3:10-3:21 kind=write
+main.ds:5:1-5:12 kind=read
+```
+
+### Highlight later function symbols after yield star recovery statements
+
+Document highlight should still work for later valid function symbols after one recovered `yield*` statement.
+
+```ds
+function* broken() {
+    yield*
+    const value = 1;
+}
+
+function stableLater(): void {}
+//       ^^^^^^^^^^^ def:stableLater
+
+stableLater();
+//^^^^^^^^^^^ use:stableLater
+```
+
+```query document_highlight def:stableLater
+main.ds:6:10-6:21 kind=write
+main.ds:8:1-8:12 kind=read
+```

@@ -290,6 +290,46 @@ void: type
 greet: function
 ```
 
+### Keep semantic tokens after throw recovery statements
+
+Semantic tokens should still include later valid declarations and references after one recovered `throw` statement.
+
+```ds
+throw
+
+function greet(): void {}
+greet();
+```
+
+```query semantic_tokens $0
+greet: function [declaration]
+void: type
+greet: function
+```
+
+### Keep semantic tokens after yield star recovery statements
+
+Semantic tokens should still include later valid declarations and references after one recovered `yield*` statement.
+
+```ds
+function* broken() {
+    yield*
+    const value = 1;
+}
+
+function greet(): void {}
+greet();
+```
+
+```query semantic_tokens $0
+broken: function [declaration]
+value: variable [declaration]
+1: number
+greet: function [declaration]
+void: type
+greet: function
+```
+
 ### Class references
 
 References to classes should be highlighted as classes.

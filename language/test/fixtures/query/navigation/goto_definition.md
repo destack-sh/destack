@@ -255,6 +255,45 @@ stableLater();
 def:stableLater
 ```
 
+### Keep definitions working after throw recovery statements
+
+Goto definition should still work for later declarations after one recovered `throw` statement.
+
+```ds
+throw
+
+export function stableLater(): void {}
+//              ^^^^^^^^^^^ def:stableLater
+
+stableLater();
+// ^^^^^^^^^^^ use:stableLater
+```
+
+```query goto_definition use:stableLater
+def:stableLater
+```
+
+### Keep definitions working after yield star recovery statements
+
+Goto definition should still work for later declarations after one recovered `yield*` statement.
+
+```ds
+function* broken() {
+    yield*
+    const value = 1;
+}
+
+export function stableLater(): void {}
+//              ^^^^^^^^^^^ def:stableLater
+
+stableLater();
+// ^^^^^^^^^^^ use:stableLater
+```
+
+```query goto_definition use:stableLater
+def:stableLater
+```
+
 ## Type And Value Imports
 
 ### Resolve type-only and value imports in one module

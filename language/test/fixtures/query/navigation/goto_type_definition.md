@@ -372,6 +372,49 @@ const current: Config = { enabled: true };
 def:Config
 ```
 
+### Keep type definitions working after throw recovery statements
+
+Go to type definition should still work for later type uses after one recovered `throw` statement.
+
+```ds
+throw
+
+type Config = {
+//   ^^^^^^ def:Config
+    enabled: boolean,
+};
+
+const current: Config = { enabled: true };
+//             ^^^^^^ use:Config
+```
+
+```query goto_type_definition use:Config
+def:Config
+```
+
+### Keep type definitions working after yield star recovery statements
+
+Go to type definition should still work for later type uses after one recovered `yield*` statement.
+
+```ds
+function* broken() {
+    yield*
+    const value = 1;
+}
+
+type Config = {
+//   ^^^^^^ def:Config
+    enabled: boolean,
+};
+
+const current: Config = { enabled: true };
+//             ^^^^^^ use:Config
+```
+
+```query goto_type_definition use:Config
+def:Config
+```
+
 ### Return no type definition for malformed unresolved member access
 
 Go to type definition should return no result when the cursor is on malformed unresolved syntax.

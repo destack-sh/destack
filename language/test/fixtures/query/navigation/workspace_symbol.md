@@ -205,3 +205,32 @@ export function stableLater(): void {}
 ```query workspace_symbols stableLater
 stableLater(function) file=damaged_new.ds range=2:1-2:39
 ```
+
+### Keep later recoverable symbols after throw recovery statements
+
+Workspace symbol search should still return later declarations that survive one recovered `throw` statement.
+
+```ds:damaged_throw.ds
+throw
+export function stableLater(): void {}
+```
+
+```query workspace_symbols stableLater
+stableLater(function) file=damaged_throw.ds range=2:1-2:39
+```
+
+### Keep later recoverable symbols after yield star recovery statements
+
+Workspace symbol search should still return later declarations that survive one recovered `yield*` statement.
+
+```ds:damaged_yield_star.ds
+function* broken() {
+    yield*
+    const value = 1;
+}
+export function stableLater(): void {}
+```
+
+```query workspace_symbols stableLater
+stableLater(function) file=damaged_yield_star.ds range=5:1-5:39
+```

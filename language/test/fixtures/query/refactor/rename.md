@@ -1492,6 +1492,62 @@ export function renamedLater(): void {}
 renamedLater();
 ```
 
+### Rename valid symbols after throw recovery statements
+
+Rename should still work for later declarations after one recovered `throw` statement.
+
+```ds
+throw
+
+export function stableLater(): void {}
+//              ^^^^^^^^^^^ target:stableLater
+
+stableLater();
+//^^^^^^^^^^^ use:stableLater
+```
+
+```query rename target:stableLater "renamedLater"
+```
+
+```expected:main
+throw
+
+export function renamedLater(): void {}
+
+renamedLater();
+```
+
+### Rename valid symbols after yield star recovery statements
+
+Rename should still work for later declarations after one recovered `yield*` statement.
+
+```ds
+function* broken() {
+    yield*
+    const value = 1;
+}
+
+export function stableLater(): void {}
+//              ^^^^^^^^^^^ target:stableLater
+
+stableLater();
+//^^^^^^^^^^^ use:stableLater
+```
+
+```query rename target:stableLater "renamedLater"
+```
+
+```expected:main
+function* broken() {
+    yield*
+    const value = 1;
+}
+
+export function renamedLater(): void {}
+
+renamedLater();
+```
+
 ### Reject rename on malformed unresolved member access
 
 Rename should fail when the cursor target is malformed unresolved syntax.
