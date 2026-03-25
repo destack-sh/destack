@@ -1,9 +1,67 @@
 use super::*;
-use destack_builtin::LanguageSymbol;
+use destack_builtin::{BuiltinLibrary, LANGUAGE_LIBS, LIBRARY_LIBS, LanguageSymbol};
 use destack_dir::{
     Declaration, StaticKey, SymbolSpace, SymbolType, WellKnownSymbol, WellKnownSymbolKey,
 };
+use destack_source::DiagnosticSeverity;
 use destack_workspace::TargetId;
+
+/// Analyze one builtin library and summarize any diagnostics.
+fn analyze_builtin_library_summary(library: &BuiltinLibrary) -> Option<String> {
+    // selected builtin library
+    let test =
+        TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&[library.name]);
+    let profile = test.default_profile_id_for_root();
+
+    let resolved = test
+        .compiler
+        .run_to_completion(|compiler| compiler.require_library_environment(profile));
+    if let Err(error) = resolved {
+        return Some(format!("{}: resolve error {error:?}", library.name));
+    }
+
+    let environment = test
+        .compiler
+        .artifacts
+        .library_environment(profile)
+        .unwrap_or_else(|| panic!("expected published library environment"));
+
+    // analyze every selected module
+    for module_id in environment.modules.iter().copied() {
+        test.analyze_module(module_id);
+    }
+
+    test.compile();
+
+    let diagnostics = test.program.diagnostics.collect();
+    let highest_severity = diagnostics.highest_severity();
+    if highest_severity.is_none_or(|severity| severity < DiagnosticSeverity::Note) {
+        return None;
+    }
+
+    Some(format!(
+        "{}: {} diagnostics",
+        library.name,
+        diagnostics.len()
+    ))
+}
+
+/// Analyze every builtin library in one registry and report failures.
+fn analyze_builtin_library_registry_clean(libraries: &[BuiltinLibrary]) {
+    let mut failures = Vec::new();
+
+    for library in libraries {
+        if let Some(summary) = analyze_builtin_library_summary(library) {
+            failures.push(summary);
+        }
+    }
+
+    assert!(
+        failures.is_empty(),
+        "builtin libraries must stay clean:\n{}",
+        failures.join("\n")
+    );
+}
 
 /// Test that language item modules can be looked up correctly.
 #[test]
@@ -29,6 +87,20 @@ fn test_error_on_conflicting_builtin_lib_versions() {
     test.resolve_libs();
     test.compile();
     test.check_has_diagnostic("ER402");
+}
+
+// FUGU #Broken: many builtin library entries are not yet standalone clean in isolation
+#[test]
+#[ignore = "builtin registry inventory for standalone clean-analysis debt"]
+fn test_analyze_language_builtin_libraries_clean() {
+    analyze_builtin_library_registry_clean(LANGUAGE_LIBS);
+}
+
+// FUGU #Broken: many builtin library entries are not yet standalone clean in isolation
+#[test]
+#[ignore = "builtin registry inventory for standalone clean-analysis debt"]
+fn test_analyze_library_builtin_libraries_clean() {
+    analyze_builtin_library_registry_clean(LIBRARY_LIBS);
 }
 
 /// Resolve well known symbols from builtin libs.
