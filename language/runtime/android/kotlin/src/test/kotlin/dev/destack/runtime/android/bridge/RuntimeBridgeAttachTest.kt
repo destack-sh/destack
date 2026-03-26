@@ -10,7 +10,7 @@ import org.junit.Test
  */
 class RuntimeBridgeAttachTest {
     /**
-     * Register the document, permission, calendar, contact, intent, location, media, and notification lanes for one attached runtime host.
+     * Register the document, permission, background, calendar, contact, intent, location, media, and notification lanes for one attached runtime host.
      */
     @Test
     fun testAttachRegistersBridge() {

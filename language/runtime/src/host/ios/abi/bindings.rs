@@ -12,6 +12,7 @@ use crate::host::ios::abi::permission::callbacks::IosHostPermissionCallbacks;
 use crate::host::ios::abi::registry::{
     register_ios_bindings, resolve_ios_bindings, unregister_ios_bindings,
 };
+use crate::host::ios::abi::text::callbacks::IosHostTextCallbacks;
 
 /// iOS host bindings container for callback-backed lanes.
 #[derive(Clone, Copy, Debug, Default)]
@@ -21,6 +22,8 @@ pub(crate) struct IosHostBindings {
     pub document: IosHostDocumentCallbacks,
     /// Permission host callbacks.
     pub permission: IosHostPermissionCallbacks,
+    /// Text host callbacks.
+    pub text: IosHostTextCallbacks,
     /// Background host callbacks.
     pub background: IosHostBackgroundCallbacks,
     /// Calendar host callbacks.

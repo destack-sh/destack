@@ -10,6 +10,8 @@ import androidx.savedstate.SavedStateRegistryOwner
 import dev.destack.runtime.android.core.HostEmbedderId
 import dev.destack.runtime.android.core.HostRequestId
 import dev.destack.runtime.android.core.RuntimeHost
+import dev.destack.runtime.android.input.text.ActivityTextInputRequests
+import dev.destack.runtime.android.input.text.TextInputRequests
 import dev.destack.runtime.android.module.document.DocumentActivityResults
 import dev.destack.runtime.android.module.document.DocumentRequests
 import dev.destack.runtime.android.module.location.ActivityLocationRequests
@@ -61,6 +63,11 @@ public class ActivityEmbedder private constructor(
     public val locationRequests: LocationRequests,
 
     /**
+     * The text-input request surface attached to this activity.
+     */
+    public val textInputRequests: TextInputRequests,
+
+    /**
      * The optional state store that owns interactive-flow persistence.
      */
     private val savedInteractiveState: SavedInteractiveState? = null,
@@ -74,6 +81,9 @@ public class ActivityEmbedder private constructor(
 
         // unregister activity-result launchers
         activityResults.unregisterAll()
+
+        // detach the hidden text editor
+        (textInputRequests as? ActivityTextInputRequests)?.detach()
 
         // remove lifecycle ingress
         lifecycleOwner.lifecycle.removeObserver(lifecycleObserver)
@@ -154,7 +164,14 @@ public class ActivityEmbedder private constructor(
                 activity = lifecycleOwner as? ComponentActivity,
                 events = runtimeHost.locationEvents,
             )
+            val textInputRequests = ActivityTextInputRequests(
+                activity = lifecycleOwner as? ComponentActivity,
+                events = runtimeHost.textInputEvents,
+            )
             val lifecycleObserver = ActivityObserver(runtimeHost)
+
+            // bind the activity-backed text surface into the runtime host
+            runtimeHost.textInputRequests = textInputRequests
 
             // persist in-flight interactive flows for recreation
             savedInteractiveState?.attach(runtimeHost)
@@ -170,6 +187,7 @@ public class ActivityEmbedder private constructor(
                 permissionRequests = permissionRequests,
                 documentRequests = documentRequests,
                 locationRequests = locationRequests,
+                textInputRequests = textInputRequests,
                 savedInteractiveState = savedInteractiveState,
             )
         }

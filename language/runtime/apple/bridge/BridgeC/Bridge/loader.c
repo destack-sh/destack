@@ -26,6 +26,8 @@ static RuntimeBindings runtime_bindings = {
     .notify_intent_custom_action = NULL,
     .notify_location_sample = NULL,
     .notify_permission_result = NULL,
+    .notify_text_input_state = NULL,
+    .notify_background_event = NULL,
 };
 
 /// Resolve the shared runtime symbol handle for this process.
@@ -65,6 +67,8 @@ uint32_t resolve_runtime_bindings(RuntimeBindings *out_bindings) {
     RESOLVE_SYMBOL_ONCE(runtime_bindings.notify_intent_custom_action, NotifyIntentCustomActionFunction, handle, "destack_host_ios_notify_intent_custom_action");
     RESOLVE_SYMBOL_ONCE(runtime_bindings.notify_location_sample, NotifyLocationSampleFunction, handle, "destack_host_ios_notify_location_sample");
     RESOLVE_SYMBOL_ONCE(runtime_bindings.notify_permission_result, NotifyPermissionResultFunction, handle, "destack_host_ios_notify_permission_result");
+    RESOLVE_SYMBOL_ONCE(runtime_bindings.notify_text_input_state, NotifyTextInputStateFunction, handle, "destack_host_ios_notify_text_input_state");
+    RESOLVE_SYMBOL_ONCE(runtime_bindings.notify_background_event, NotifyBackgroundEventFunction, handle, "destack_host_ios_notify_background_event");
 
     if (
         runtime_bindings.register_runtime_bridge_bindings == NULL ||
@@ -77,7 +81,9 @@ uint32_t resolve_runtime_bindings(RuntimeBindings *out_bindings) {
         runtime_bindings.notify_intent_share_files == NULL ||
         runtime_bindings.notify_intent_custom_action == NULL ||
         runtime_bindings.notify_location_sample == NULL ||
-        runtime_bindings.notify_permission_result == NULL
+        runtime_bindings.notify_permission_result == NULL ||
+        runtime_bindings.notify_text_input_state == NULL ||
+        runtime_bindings.notify_background_event == NULL
     ) {
         return 3;
     }

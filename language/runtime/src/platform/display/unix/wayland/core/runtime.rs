@@ -11,10 +11,18 @@ use crate::platform::display::unix::wayland::event::{
     WindowEventStream,
 };
 use crate::platform::display::unix::wayland::model::{MonitorSnapshot, WaylandWindowHostState};
-use crate::platform::resource;
+use crate::platform::resource::InputTextSessionHandle;
+use crate::platform::{ResourceTable, resource};
 use crate::runtime::{
     BindingCallContext, RuntimeEventLog, RuntimeSnapshotCache, RuntimeStreamRegistry,
 };
+
+/// Callback-safe reference to the owning agent resource table.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct WaylandResourceTableRef(*const ResourceTable);
+
+unsafe impl Send for WaylandResourceTableRef {}
+unsafe impl Sync for WaylandResourceTableRef {}
 
 /// Cached gamma-ramp payload for one display.
 #[derive(Debug, Clone, Default)]
@@ -38,6 +46,8 @@ pub(crate) struct WaylandWindowDispatchToken {
 
 /// Runtime-owned Wayland display backend state.
 pub(crate) struct WaylandRuntimeState {
+    /// Agent resource table used for callback-owned text-session updates.
+    pub(crate) resources: WaylandResourceTableRef,
     /// Lazy wayland host connection state.
     pub(crate) connection_state: Mutex<Option<Arc<WaylandConnectionState>>>,
     /// Runtime-owned monitor-event log.
@@ -61,6 +71,8 @@ pub(crate) struct WaylandRuntimeState {
     pub(crate) monitor_topology_snapshot: RuntimeSnapshotCache<Vec<MonitorSnapshot>>,
     /// Cached gamma-ramp payloads keyed by stable display id.
     pub(crate) gamma_ramps_by_display_id: Mutex<HashMap<String, WaylandGammaRampSnapshot>>,
+    /// Active native text session routing keyed by runtime window handle.
+    pub(crate) active_text_sessions: Mutex<HashMap<resource::WindowHandle, InputTextSessionHandle>>,
     /// Monotonic id generator for backend-local host window identifiers.
     next_window_host_id: AtomicU64,
     /// Registered host-owned ingress observer for this runtime.
@@ -82,6 +94,7 @@ impl WaylandRuntimeState {
     /// Create one runtime-owned Wayland state value.
     pub(crate) fn from_context(_context: &BindingCallContext) -> Self {
         Self {
+            resources: WaylandResourceTableRef(&_context.agent().resources),
             connection_state: Mutex::new(None),
             monitor_events: Mutex::new(RuntimeEventLog::default()),
             monitor_event_signal: Condvar::new(),
@@ -93,10 +106,16 @@ impl WaylandRuntimeState {
             window_tokens_by_surface: Mutex::new(HashMap::new()),
             monitor_topology_snapshot: RuntimeSnapshotCache::default(),
             gamma_ramps_by_display_id: Mutex::new(HashMap::new()),
+            active_text_sessions: Mutex::new(HashMap::new()),
             next_window_host_id: AtomicU64::new(1),
             runtime_ingress_handler: OnceLock::new(),
             service_registration: OnceLock::new(),
         }
+    }
+
+    /// Borrow the agent resource table captured by this runtime.
+    pub(crate) fn resource_table(&self) -> &ResourceTable {
+        unsafe { &*self.resources.0 }
     }
 
     /// Allocate one stable monitor-event stream identifier.

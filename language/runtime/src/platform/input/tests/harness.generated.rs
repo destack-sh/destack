@@ -43,11 +43,12 @@ use crate::platform::input::{
     InputSensorEffectiveConfig, InputSensorEffectiveConfigVm, InputSensorEvent,
     InputSensorEventPayload, InputSensorEventPayloadVm, InputSensorEventVm, InputSensorKind,
     InputSensorSample, InputSensorSampleVm, InputTextEvent, InputTextEventPayload,
-    InputTextEventPayloadVm, InputTextEventVm, InputTextInputArea, InputTextInputAreaVm,
-    InputTextInputType, InputTextRange, InputTextRangeVm, InputTextSessionConfig,
-    InputTextSessionConfigVm, InputTextSessionEvent, InputTextSessionEventVm,
-    InputTextSessionState, InputTextSessionStateEvent, InputTextSessionStateEventVm,
-    InputTextSessionStateVm, InputTouchContactPhase, InputTouchContactState,
+    InputTextEventPayloadVm, InputTextEventVm, InputTextGeometry, InputTextGeometryVm,
+    InputTextInputType, InputTextRange, InputTextRangeVm, InputTextRectangle, InputTextRectangleVm,
+    InputTextSessionConfig, InputTextSessionConfigVm, InputTextSessionEvent,
+    InputTextSessionEventVm, InputTextSessionState, InputTextSessionStateEvent,
+    InputTextSessionStateEventVm, InputTextSessionStateVm, InputTextTransform2D,
+    InputTextTransform2DVm, InputTouchContactPhase, InputTouchContactState,
     InputTouchContactStateVm, InputTouchEvent, InputTouchEventPayload, InputTouchEventPayloadVm,
     InputTouchEventVm, InputTouchState, InputTouchStateVm, InputWheelDeltaMode, InputWindowTarget,
     InputWindowTargetVm, native as input_native, vm as input_vm,
@@ -2118,7 +2119,7 @@ impl<'call> InputHarnessContext<'call> {
     /// Pending composition updates are finalized or canceled according to backend policy.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, iOS, Unix, and Windows.
     /// Returns operation-level `notSupported` where text input sessions are unavailable.
     ///
     /// # Errors
@@ -2141,38 +2142,39 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Get text input area.
+    /// Get text input geometry.
     ///
-    /// Return the currently configured text input area and cursor position hint.
+    /// Return the currently configured text input geometry hint.
     /// Resolve state for one active text input session.
     ///
     /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where one window scope is unavailable.
-    /// Uses backend-specific text-area hint state tracking.
-    /// Unix terminal and Windows console backends currently support only the default focus scope.
+    /// Android, iOS, Unix, and Windows, with operation-level `notSupported` where one window scope is unavailable.
+    /// Uses backend-specific text-geometry state tracking.
+    /// Explicit window targets are used for session metadata and geometry hints when one opened window resource is provided.
     ///
     /// # Errors
-    /// Returns invalidArgument, ioNotFound, notSupported.
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    /// Returns `ioWouldBlock` until one renderer geometry hint has been supplied for the session.
     ///
     /// # Security
     /// Requires `input.text`.
     ///
     /// # Replay
     /// External, recordable.
-    pub(crate) fn destack_input_text_get_area(
+    pub(crate) fn destack_input_text_get_geometry(
         &mut self,
         session: resource::InputTextSessionHandle,
-    ) -> RuntimeResult<HarnessValue<InputTextInputArea, InputTextInputAreaVm>> {
+    ) -> RuntimeResult<HarnessValue<InputTextGeometry, InputTextGeometryVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let out =
-                    input_vm::destack_input_text_get_area(self.call_context, context, session)?;
+                    input_vm::destack_input_text_get_geometry(self.call_context, context, session)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
-                let mut out = std::mem::MaybeUninit::<InputTextInputArea>::uninit();
+                let mut out = std::mem::MaybeUninit::<InputTextGeometry>::uninit();
                 unsafe {
-                    input_native::destack_input_text_get_area(
+                    input_native::destack_input_text_get_geometry(
                         self.call_context,
                         out.as_mut_ptr(),
                         session,
@@ -2190,9 +2192,11 @@ impl<'call> InputHarnessContext<'call> {
     /// The host uses this session to attach platform IME or editing services for the selected target scope.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, iOS, Unix, and Windows.
     /// Returns operation-level `notSupported` where text input sessions or one window scope are unavailable.
-    /// Unix terminal and Windows console backends currently support only the default focus scope.
+    /// Android and iOS use the focused host text target and do not support explicit window routing.
+    /// Unix terminal and Windows console backends currently route committed cooked text through session edit-intent events.
+    /// Explicit window targets are used for session metadata and geometry hints when one opened window resource is provided.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
@@ -2239,8 +2243,11 @@ impl<'call> InputHarnessContext<'call> {
     /// Session events include host state changes, composition events, edit intents, and clipboard commands.
     ///
     /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where text-session events are unavailable.
+    /// Android, iOS, Unix, and Windows, with operation-level `notSupported` where text-session events are unavailable.
     /// Uses backend-specific IME, editing, and clipboard event queues.
+    /// Android and iOS deliver host text-state events through the focused mobile text lane.
+    /// AppKit, Wayland, and Win32 window hosts provide the strongest composition and geometry-backed behavior.
+    /// X11 window hosts and terminal or console lanes are best-effort and may emit only committed edit intents and clipboard commands.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -2275,15 +2282,16 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Set text input area.
+    /// Set text input geometry.
     ///
-    /// Set one text input area and cursor position hint for one active text input session.
-    /// Area hints are used by host IME placement when supported for the selected target scope.
+    /// Set one text input geometry hint for one active text input session.
+    /// Geometry hints are used by host IME placement when supported for the selected target scope.
     ///
     /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where text-area hints or one window scope are unavailable.
-    /// Uses backend-specific text-area hint tracking.
-    /// Unix terminal and Windows console backends currently support only the default focus scope.
+    /// Android, iOS, Unix, and Windows, with operation-level `notSupported` where text-geometry hints or one window scope are unavailable.
+    /// Android and iOS use the focused host text target and do not support explicit window routing.
+    /// Uses backend-specific text-geometry tracking.
+    /// Explicit window targets are used for session metadata and geometry hints when one opened window resource is provided.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, notSupported.
@@ -2293,19 +2301,24 @@ impl<'call> InputHarnessContext<'call> {
     ///
     /// # Replay
     /// External, recordable.
-    pub(crate) fn destack_input_text_set_area(
+    pub(crate) fn destack_input_text_set_geometry(
         &mut self,
         session: resource::InputTextSessionHandle,
-        area: HarnessValue<InputTextInputArea, InputTextInputAreaVm>,
+        geometry: HarnessValue<InputTextGeometry, InputTextGeometryVm>,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let area = area.into_vm("area")?;
-                input_vm::destack_input_text_set_area(self.call_context, context, session, area)
+                let geometry = geometry.into_vm("geometry")?;
+                input_vm::destack_input_text_set_geometry(
+                    self.call_context,
+                    context,
+                    session,
+                    geometry,
+                )
             }
             None => unsafe {
-                let area = area.into_native("area")?;
-                input_native::destack_input_text_set_area(self.call_context, session, area)
+                let geometry = geometry.into_native("geometry")?;
+                input_native::destack_input_text_set_geometry(self.call_context, session, geometry)
             },
         }
     }
@@ -2316,7 +2329,7 @@ impl<'call> InputHarnessContext<'call> {
     /// Hosts use this state to synchronize platform IME or editing services with the focused editor.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, iOS, Unix, and Windows.
     /// Returns operation-level `notSupported` where text input sessions are unavailable.
     ///
     /// # Errors
@@ -2350,8 +2363,11 @@ impl<'call> InputHarnessContext<'call> {
     /// Empty queue state is reported through ioWouldBlock.
     ///
     /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where text-session events are unavailable.
+    /// Android, iOS, Unix, and Windows, with operation-level `notSupported` where text-session events are unavailable.
     /// Uses backend-specific nonblocking IME, editing, and clipboard queue reads.
+    /// Android and iOS deliver host text-state events through the focused mobile text lane.
+    /// AppKit, Wayland, and Win32 window hosts provide the strongest composition and geometry-backed behavior.
+    /// X11 window hosts and terminal or console lanes are best-effort and may emit only committed edit intents and clipboard commands.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.

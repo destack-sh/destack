@@ -8,17 +8,16 @@ use crate::platform::core::{
 };
 use crate::platform::fs::OsPathVm;
 use crate::platform::input::{
-    ClipboardItem, ClipboardItemDescriptorVm, ClipboardItemVm, InputClipboardCommandEventVm,
-    InputCompositionEvent, InputCompositionEventPayloadVm, InputCompositionEventVm,
-    InputDeviceCapabilities, InputDeviceCapabilitiesVm, InputDeviceDescriptor,
-    InputDeviceDescriptorVm, InputEditIntentEventVm, InputEvent, InputEventMetadata,
-    InputEventMetadataVm, InputEventVm, InputGamepadState, InputGamepadStateVm,
-    InputHapticEffectParametersVm, InputHapticEffectType, InputHapticsResult,
-    InputKeyboardLayoutInfoVm, InputKeyboardState, InputKeyboardStateVm, InputMonitorEvent,
-    InputMonitorEventVm, InputPointerGrabMode, InputPointerStateVm, InputRawHidReport,
-    InputRawHidReportVm, InputReadMode, InputSensorConfigVm, InputSensorDescriptorVm,
-    InputSensorEffectiveConfigVm, InputSensorKind, InputSensorSampleVm, InputTextInputAreaVm,
-    InputTextInputType, InputTouchState, InputTouchStateVm, InputWindowTargetVm, clipboard,
+    ClipboardItem, ClipboardItemDescriptorVm, ClipboardItemVm, InputDeviceCapabilities,
+    InputDeviceCapabilitiesVm, InputDeviceDescriptor, InputDeviceDescriptorVm, InputEvent,
+    InputEventVm, InputGamepadState, InputGamepadStateVm, InputHapticEffectParametersVm,
+    InputHapticEffectType, InputHapticsResult, InputKeyboardLayoutInfoVm, InputKeyboardState,
+    InputKeyboardStateVm, InputMonitorEvent, InputMonitorEventVm, InputPointerGrabMode,
+    InputPointerStateVm, InputRawHidReport, InputRawHidReportVm, InputReadMode,
+    InputSensorConfigVm, InputSensorDescriptorVm, InputSensorEffectiveConfigVm, InputSensorKind,
+    InputSensorSampleVm, InputTextGeometry, InputTextGeometryVm, InputTextSessionConfig,
+    InputTextSessionConfigVm, InputTextSessionEventVm, InputTextSessionState,
+    InputTextSessionStateVm, InputTouchState, InputTouchStateVm, InputWindowTargetVm, clipboard,
     host as host_input,
 };
 use crate::platform::{NativeAbiCodec, VmArray, VmSlice, resource};
@@ -129,14 +128,6 @@ where
     Vm::from_value(context, value)
 }
 
-/// Convert one native event metadata payload into its VM shape.
-fn event_metadata_to_vm(
-    context: &mut destack_vm::ExternalCallContext<'_>,
-    value: InputEventMetadata,
-) -> RuntimeResult<InputEventMetadataVm> {
-    vm_value_from_native(context, value)
-}
-
 /// Convert one native capabilities payload into its VM shape.
 fn capabilities_to_vm(
     context: &mut destack_vm::ExternalCallContext<'_>,
@@ -175,24 +166,6 @@ fn raw_hid_report_to_vm(
         sequence: value.sequence,
         report_id: value.report_id,
         data,
-    })
-}
-
-/// Convert one native composition event into its VM shape.
-fn composition_event_to_vm(
-    context: &mut destack_vm::ExternalCallContext<'_>,
-    value: InputCompositionEvent,
-) -> RuntimeResult<InputCompositionEventVm> {
-    // build one VM composition event
-    Ok(InputCompositionEventVm {
-        kind: native_string_to_vm(context, value.kind)?,
-        metadata: event_metadata_to_vm(context, value.metadata)?,
-        payload: InputCompositionEventPayloadVm {
-            action: value.payload.action,
-            text: native_string_to_vm(context, value.payload.text)?,
-            selection_start: value.payload.selection_start,
-            selection_end: value.payload.selection_end,
-        },
     })
 }
 
@@ -1234,64 +1207,48 @@ pub(crate) fn destack_input_sensor_try_read(
     call_out(|out| unsafe { host_input::destack_input_sensor_try_read(binding, out, handle, kind) })
 }
 
+/// Close one text input session.
+pub(crate) fn destack_input_text_close(
+    binding: &BindingCallContext,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
+    session: resource::InputTextSessionHandle,
+) -> RuntimeResult<()> {
+    unsafe { host_input::destack_input_text_close(binding, session) }
+}
+
 /// Get text input area.
-///
-/// Return the currently configured text input area and cursor position hint.
-/// Resolve state for one opened input device and one optional window target.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` where one window scope is unavailable.
-/// Uses backend-specific text-area hint state tracking for global or window-scoped paths.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `input.text`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) fn destack_input_text_get_area(
+pub(crate) fn destack_input_text_get_geometry(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
-    handle: resource::InputDeviceHandle,
-    target: InputWindowTargetVm,
-) -> RuntimeResult<InputTextInputAreaVm> {
-    call_out(|out| unsafe { host_input::destack_input_text_get_area(binding, out, handle, target) })
+    context: &mut destack_vm::ExternalCallContext<'_>,
+    session: resource::InputTextSessionHandle,
+) -> RuntimeResult<InputTextGeometryVm> {
+    let value: InputTextGeometry = call_out(|out| unsafe {
+        host_input::destack_input_text_get_geometry(binding, out, session)
+    })?;
+
+    vm_value_from_native(context, value)
 }
 
-/// Query text input active state.
-///
-/// Return whether text input is currently active for one opened input device.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific text session status checks.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `input.text`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) fn destack_input_text_is_active(
+/// Open one text input session.
+pub(crate) fn destack_input_text_open(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
-    handle: resource::InputDeviceHandle,
-) -> RuntimeResult<bool> {
-    call_out(|out| unsafe { host_input::destack_input_text_is_active(binding, out, handle) })
+    context: &mut destack_vm::ExternalCallContext<'_>,
+    config: InputTextSessionConfigVm,
+    state: InputTextSessionStateVm,
+) -> RuntimeResult<resource::InputTextSessionHandle> {
+    let config: InputTextSessionConfig = native_value_from_vm(binding, context, config)?;
+    let state: InputTextSessionState = native_value_from_vm(binding, context, state)?;
+
+    call_out(|out| unsafe { host_input::destack_input_text_open(binding, out, config, state) })
 }
 
-/// Read one composition event.
+/// Read one text session event.
 ///
-/// Read one pending composition lifecycle event for one opened input device.
-/// Composition events represent begin, update, commit, end, and cancel transitions.
+/// Read one pending text session event for one active text session.
 ///
 /// # Platform
-/// Unix and Windows, with operation-level `notSupported` where composition events are unavailable.
-/// Uses backend-specific IME composition queues.
+/// Unix and Windows, with operation-level `notSupported` where text session events are unavailable.
+/// Uses backend-specific text or IME event delivery.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -1301,133 +1258,48 @@ pub(crate) fn destack_input_text_is_active(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) fn destack_input_text_read_composition(
+pub(crate) fn destack_input_text_read_event(
     binding: &BindingCallContext,
     context: &mut destack_vm::ExternalCallContext<'_>,
-    handle: resource::InputDeviceHandle,
-) -> RuntimeResult<InputCompositionEventVm> {
+    session: resource::InputTextSessionHandle,
+) -> RuntimeResult<InputTextSessionEventVm> {
     let value = call_out(|out| unsafe {
-        host_input::destack_input_text_read_composition(binding, out, handle)
-    })?;
-    composition_event_to_vm(context, value)
-}
-
-/// Read one clipboard command.
-pub(crate) fn destack_input_text_read_clipboard_command(
-    binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
-    handle: resource::InputDeviceHandle,
-) -> RuntimeResult<InputClipboardCommandEventVm> {
-    let value = call_out(|out| unsafe {
-        host_input::destack_input_text_read_clipboard_command(binding, out, handle)
-    })?;
-
-    vm_value_from_native(context, value)
-}
-
-/// Read one edit intent.
-pub(crate) fn destack_input_text_read_edit_intent(
-    binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
-    handle: resource::InputDeviceHandle,
-) -> RuntimeResult<InputEditIntentEventVm> {
-    let value = call_out(|out| unsafe {
-        host_input::destack_input_text_read_edit_intent(binding, out, handle)
+        host_input::destack_input_text_read_event(binding, out, session)
     })?;
 
     vm_value_from_native(context, value)
 }
 
 /// Set text input area.
-///
-/// Set one text input area and cursor position hint for one opened input device and one optional window target.
-/// Area hints are used by host IME placement when supported for the selected target scope.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` where text-area hints or one window scope are unavailable.
-/// Uses backend-specific IME candidate window placement hints for global or window-scoped paths.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `input.text`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) fn destack_input_text_set_area(
+pub(crate) fn destack_input_text_set_geometry(
     binding: &BindingCallContext,
     _context: &mut destack_vm::ExternalCallContext<'_>,
-    handle: resource::InputDeviceHandle,
-    target: InputWindowTargetVm,
-    area: InputTextInputAreaVm,
+    session: resource::InputTextSessionHandle,
+    area: InputTextGeometryVm,
 ) -> RuntimeResult<()> {
-    unsafe { host_input::destack_input_text_set_area(binding, handle, target, area) }
+    unsafe { host_input::destack_input_text_set_geometry(binding, session, area) }
 }
 
-/// Start text input.
-///
-/// Enable text input and composition dispatch for one opened input device and one optional window target.
-/// Text conversion behavior follows host IME and keyboard policy for the selected target scope.
-///
-/// # Platform
-/// Unix and Windows.
-/// Returns operation-level `notSupported` where text input sessions or one window scope are unavailable.
-/// Uses backend-specific text input activation primitives.
-/// Uses host IME activation for global or window-scoped paths.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `input.text`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) fn destack_input_text_start(
+/// Set text input state.
+pub(crate) fn destack_input_text_set_state(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
-    handle: resource::InputDeviceHandle,
-    target: InputWindowTargetVm,
-    inputtype: InputTextInputType,
+    context: &mut destack_vm::ExternalCallContext<'_>,
+    session: resource::InputTextSessionHandle,
+    state: InputTextSessionStateVm,
 ) -> RuntimeResult<()> {
-    unsafe { host_input::destack_input_text_start(binding, handle, target, inputtype) }
+    let state: InputTextSessionState = native_value_from_vm(binding, context, state)?;
+
+    unsafe { host_input::destack_input_text_set_state(binding, session, state) }
 }
 
-/// Stop text input.
+/// Poll one text session event without blocking.
 ///
-/// Disable text input and composition dispatch for one opened input device and one optional window target.
-/// Pending composition updates are finalized or canceled according to backend policy for the selected target scope.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` where one window scope is unavailable.
-/// Uses backend-specific text input deactivation primitives for global or window-scoped paths.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `input.text`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) fn destack_input_text_stop(
-    binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
-    handle: resource::InputDeviceHandle,
-    target: InputWindowTargetVm,
-) -> RuntimeResult<()> {
-    unsafe { host_input::destack_input_text_stop(binding, handle, target) }
-}
-
-/// Poll one composition event without blocking.
-///
-/// Poll one pending composition lifecycle event and return immediately when no event is queued.
+/// Poll one pending text session event and return immediately when no event is queued.
 /// Empty queue state is reported through ioWouldBlock.
 ///
 /// # Platform
-/// Unix and Windows, with operation-level `notSupported` where composition events are unavailable.
-/// Uses backend-specific nonblocking IME composition queue reads.
+/// Unix and Windows, with operation-level `notSupported` where text session events are unavailable.
+/// Uses backend-specific nonblocking text or IME event delivery.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -1437,38 +1309,13 @@ pub(crate) fn destack_input_text_stop(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) fn destack_input_text_try_read_composition(
+pub(crate) fn destack_input_text_try_read_event(
     binding: &BindingCallContext,
     context: &mut destack_vm::ExternalCallContext<'_>,
-    handle: resource::InputDeviceHandle,
-) -> RuntimeResult<InputCompositionEventVm> {
+    session: resource::InputTextSessionHandle,
+) -> RuntimeResult<InputTextSessionEventVm> {
     let value = call_out(|out| unsafe {
-        host_input::destack_input_text_try_read_composition(binding, out, handle)
-    })?;
-    composition_event_to_vm(context, value)
-}
-
-/// Poll one clipboard command without blocking.
-pub(crate) fn destack_input_text_try_read_clipboard_command(
-    binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
-    handle: resource::InputDeviceHandle,
-) -> RuntimeResult<InputClipboardCommandEventVm> {
-    let value = call_out(|out| unsafe {
-        host_input::destack_input_text_try_read_clipboard_command(binding, out, handle)
-    })?;
-
-    vm_value_from_native(context, value)
-}
-
-/// Poll one edit intent without blocking.
-pub(crate) fn destack_input_text_try_read_edit_intent(
-    binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
-    handle: resource::InputDeviceHandle,
-) -> RuntimeResult<InputEditIntentEventVm> {
-    let value = call_out(|out| unsafe {
-        host_input::destack_input_text_try_read_edit_intent(binding, out, handle)
+        host_input::destack_input_text_try_read_event(binding, out, session)
     })?;
 
     vm_value_from_native(context, value)

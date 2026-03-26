@@ -5,19 +5,30 @@ use x11rb::connection::Connection;
 
 use super::connection::X11ConnectionState;
 use super::ingress;
+use super::xlib::{X11InputContextHandle, destroy_input_context};
 use crate::diagnostic::{DiagnosticStore, RuntimeResult};
 use crate::host::core::{HostSessionRegistry, RuntimeIngressHandler};
 use crate::platform::display::unix::x11::event::{
     self as x11_event, DisplayEventRecord, MonitorEventStream, WindowEventRecord, WindowEventStream,
 };
 use crate::platform::display::unix::x11::model::{MonitorSnapshot, X11WindowHostState};
-use crate::platform::resource;
+use crate::platform::resource::InputTextSessionHandle;
+use crate::platform::{ResourceTable, resource};
 use crate::runtime::{
     BindingCallContext, RuntimeEventLog, RuntimeSnapshotCache, RuntimeStreamRegistry,
 };
 
+/// Callback-safe reference to the owning agent resource table.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct X11ResourceTableRef(*const ResourceTable);
+
+unsafe impl Send for X11ResourceTableRef {}
+unsafe impl Sync for X11ResourceTableRef {}
+
 /// Runtime-owned X11 display backend state.
 pub(crate) struct X11RuntimeState {
+    /// Agent resource table used for callback-owned text-session updates.
+    pub(crate) resources: X11ResourceTableRef,
     /// Lazy X11 connection state.
     pub(crate) connection: Mutex<Option<Arc<X11ConnectionState>>>,
     /// Runtime diagnostics store for callback and best-effort lanes.
@@ -36,6 +47,11 @@ pub(crate) struct X11RuntimeState {
     pub(crate) window_streams: RuntimeStreamRegistry<WindowEventStream>,
     /// Mapping from X11 window id to runtime dispatch payload.
     pub(crate) windows_by_xid: Mutex<HashMap<u32, X11WindowDispatchEntry>>,
+    /// Active native text session routing keyed by runtime window handle.
+    pub(crate) active_text_sessions: Mutex<HashMap<resource::WindowHandle, InputTextSessionHandle>>,
+    /// Active native X11 input contexts keyed by runtime window handle.
+    pub(crate) text_input_contexts:
+        Mutex<HashMap<resource::WindowHandle, X11TextInputContextState>>,
     /// Cached monitor topology snapshot for monitor-event delta publication.
     pub(crate) monitor_topology_snapshot: RuntimeSnapshotCache<Vec<MonitorSnapshot>>,
     /// Registered host-owned ingress observer for this runtime.
@@ -58,6 +74,46 @@ pub(crate) struct X11WindowDispatchEntry {
 pub(crate) struct X11RuntimeIngressHandler {
     /// Weak runtime state used for ingress-driven event publication.
     runtime_state: Weak<X11RuntimeState>,
+}
+
+/// Native X11 text input context state for one live runtime window.
+#[derive(Debug)]
+pub(crate) struct X11TextInputContextState {
+    /// Native XIM input context handle.
+    pub(crate) input_context: X11InputContextHandle,
+    /// Callback payload retained for the XIM lifetime.
+    pub(crate) callback_payload: *mut X11WindowTextCallbackPayload,
+    /// Whether one preedit session is currently active.
+    pub(crate) is_composing: bool,
+    /// Last published preedit string.
+    pub(crate) composition_text: String,
+    /// Last published caret offset inside the preedit string.
+    pub(crate) composition_caret: i32,
+}
+
+/// Callback payload shared with native XIM callbacks.
+#[derive(Debug)]
+pub(crate) struct X11WindowTextCallbackPayload {
+    /// Owning runtime state for the active X11 host.
+    pub(crate) runtime_state: Weak<X11RuntimeState>,
+    /// Runtime window handle associated with the active XIC.
+    pub(crate) window: resource::WindowHandle,
+}
+
+unsafe impl Send for X11TextInputContextState {}
+unsafe impl Sync for X11TextInputContextState {}
+
+impl Drop for X11TextInputContextState {
+    fn drop(&mut self) {
+        // release the native xic before freeing the callback payload
+        destroy_input_context(self.input_context);
+
+        if !self.callback_payload.is_null() {
+            unsafe {
+                drop(Box::from_raw(self.callback_payload));
+            }
+        }
+    }
 }
 
 impl RuntimeIngressHandler for X11RuntimeIngressHandler {
@@ -84,6 +140,7 @@ impl X11RuntimeState {
     /// Create one runtime-owned X11 state value.
     pub(crate) fn from_context(binding: &BindingCallContext) -> Self {
         Self {
+            resources: X11ResourceTableRef(&binding.agent().resources),
             connection: Mutex::new(None),
             diagnostics: Arc::clone(&binding.agent().diagnostics),
             monitor_events: Mutex::new(RuntimeEventLog::default()),
@@ -93,10 +150,17 @@ impl X11RuntimeState {
             monitor_streams: RuntimeStreamRegistry::default(),
             window_streams: RuntimeStreamRegistry::default(),
             windows_by_xid: Mutex::new(HashMap::new()),
+            active_text_sessions: Mutex::new(HashMap::new()),
+            text_input_contexts: Mutex::new(HashMap::new()),
             monitor_topology_snapshot: RuntimeSnapshotCache::default(),
             runtime_ingress_handler: OnceLock::new(),
             service_registration: OnceLock::new(),
         }
+    }
+
+    /// Borrow the agent resource table captured by this runtime.
+    pub(crate) fn resource_table(&self) -> &ResourceTable {
+        unsafe { &*self.resources.0 }
     }
 
     /// Allocate one stable monitor-event stream identifier.

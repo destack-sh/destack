@@ -56,7 +56,9 @@ enum RuntimeBridgeRegistry {
 
 /// One runtime-backed bridge for one attached iOS runtime host.
 @MainActor
-public final class RuntimeBridge: IntentEvents, NotificationEvents {
+public final class RuntimeBridge: BackgroundEvents, IntentEvents, NotificationEvents,
+  TextInputEvents
+{
   /// The runtime session routed through this bridge.
   public let sessionHandle: HostSessionHandle
   private let bindings: any RuntimeAbi
@@ -69,6 +71,8 @@ public final class RuntimeBridge: IntentEvents, NotificationEvents {
   let locationBridge: LocationBridge
   let mediaBridge: MediaBridge
   let notificationBridge: NotificationBridge
+  let textBridge: TextBridge
+  let backgroundBridge: BackgroundBridge
   fileprivate nonisolated(unsafe) weak var runtimeHost: RuntimeHost?
 
   /// Create one runtime bridge for one runtime session using one injected bindings surface.
@@ -108,6 +112,14 @@ public final class RuntimeBridge: IntentEvents, NotificationEvents {
       sessionHandle: sessionHandle,
       bindings: bindings,
       timestampNs: notificationTimestampNs
+    )
+    self.textBridge = TextBridge(
+      sessionHandle: sessionHandle,
+      bindings: bindings
+    )
+    self.backgroundBridge = BackgroundBridge(
+      sessionHandle: sessionHandle,
+      bindings: bindings
     )
   }
 
@@ -199,6 +211,20 @@ public final class RuntimeBridge: IntentEvents, NotificationEvents {
     _ event: RuntimeHostNotificationEvent
   ) {
     notificationBridge.sendNotificationEvent(event)
+  }
+
+  /// Send one background event into the runtime ingress path.
+  public func sendBackgroundEvent(
+    _ event: RuntimeHostBackgroundEvent
+  ) {
+    backgroundBridge.sendBackgroundEvent(event)
+  }
+
+  /// Send one text-input event into the runtime ingress path.
+  public func sendTextInputEvent(
+    _ event: RuntimeHostTextInputEvent
+  ) {
+    textBridge.sendTextInputEvent(event)
   }
 }
 

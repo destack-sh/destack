@@ -22,3 +22,9 @@ pub mod vm;
 mod windows;
 
 pub(crate) use state::*;
+#[cfg(target_os = "macos")]
+pub(crate) use unix::appkit;
+#[cfg(target_os = "linux")]
+pub(crate) use unix::wayland;
+#[cfg(target_os = "linux")]
+pub(crate) use unix::x11;

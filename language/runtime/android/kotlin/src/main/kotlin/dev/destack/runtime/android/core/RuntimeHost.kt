@@ -1,5 +1,11 @@
 package dev.destack.runtime.android.core
 
+import dev.destack.runtime.android.input.text.TextInputEvents
+import dev.destack.runtime.android.input.text.TextInputRequests
+import dev.destack.runtime.android.input.text.UnsupportedTextInputRequests
+import dev.destack.runtime.android.module.background.BackgroundEvents
+import dev.destack.runtime.android.module.background.BackgroundRequests
+import dev.destack.runtime.android.module.background.UnsupportedBackgroundRequests
 import dev.destack.runtime.android.module.calendar.CalendarRequests
 import dev.destack.runtime.android.module.document.DocumentEvents
 import dev.destack.runtime.android.module.document.DocumentRequests
@@ -53,6 +59,16 @@ public class RuntimeHost(
      * The document result surface for this embedder.
      */
     public val documentEvents: DocumentEvents,
+
+    /**
+     * The text-input ingress surface for this embedder.
+     */
+    public val textInputEvents: TextInputEvents = TextInputEvents { },
+
+    /**
+     * The background ingress surface for this embedder.
+     */
+    public val backgroundEvents: BackgroundEvents = BackgroundEvents { },
 
     /**
      * The contact request surface for this embedder.
@@ -111,6 +127,18 @@ public class RuntimeHost(
 
     private var pendingDocumentRequestId: HostRequestId? = null
     private var pendingPermissionRequest: PendingPermissionRequest? = null
+
+    /**
+     * The text-input request surface for this embedder.
+     */
+    public var textInputRequests: TextInputRequests = UnsupportedTextInputRequests
+        internal set
+
+    /**
+     * The background request surface for this embedder.
+     */
+    public var backgroundRequests: BackgroundRequests = UnsupportedBackgroundRequests
+        internal set
 
     /**
      * The current primary renderer surface for this embedder.

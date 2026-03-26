@@ -102,4 +102,15 @@ typedef DestackRustRuntimeStatus (*NotifyPermissionResultFunction)(
     bool granted
 );
 
+typedef DestackRustRuntimeStatus (*NotifyTextInputStateFunction)(
+    uint64_t session_handle,
+    uint64_t session_id,
+    DestackRustTextSessionState state
+);
+
+typedef DestackRustRuntimeStatus (*NotifyBackgroundEventFunction)(
+    uint64_t session_handle,
+    DestackRustBackgroundEvent event
+);
+
 #endif

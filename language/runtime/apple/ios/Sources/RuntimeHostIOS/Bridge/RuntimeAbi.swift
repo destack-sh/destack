@@ -11,7 +11,9 @@ struct RuntimeAbiStatus {
 }
 
 /// One low-level runtime ABI surface for one iOS host bridge.
-protocol RuntimeAbi: CalendarAbi, ContactAbi, DocumentAbi, IntentAbi, LocationAbi, MediaAbi, NotificationAbi, PermissionAbi {
+protocol RuntimeAbi: BackgroundAbi, CalendarAbi, ContactAbi, DocumentAbi, IntentAbi, LocationAbi,
+  MediaAbi, NotificationAbi, PermissionAbi, TextAbi
+{
   /// Attach one bridge instance to one runtime session.
   func attachBridge(
     sessionHandle: HostSessionHandle,
@@ -41,14 +43,6 @@ final class ProcessRuntimeAbi: RuntimeAbi, @unchecked Sendable {
           open_settings: permissionOpenSettingsCallback,
           request: permissionRequestCallback
         ),
-        contact: IosHostContactCallbacks(
-          list: contactListCallback,
-          search: contactSearchCallback,
-          read: contactReadCallback,
-          create: contactCreateCallback,
-          update: contactUpdateCallback,
-          delete_contact: contactDeleteCallback
-        ),
         calendar: IosHostCalendarCallbacks(
           list: calendarListCallback,
           event_list: calendarEventListCallback,
@@ -56,6 +50,14 @@ final class ProcessRuntimeAbi: RuntimeAbi, @unchecked Sendable {
           event_create: calendarEventCreateCallback,
           event_update: calendarEventUpdateCallback,
           event_delete: calendarEventDeleteCallback
+        ),
+        contact: IosHostContactCallbacks(
+          list: contactListCallback,
+          search: contactSearchCallback,
+          read: contactReadCallback,
+          create: contactCreateCallback,
+          update: contactUpdateCallback,
+          delete_contact: contactDeleteCallback
         ),
         intent: IosHostIntentCallbacks(
           can_open_url: intentCanOpenURLCallback,
@@ -80,6 +82,20 @@ final class ProcessRuntimeAbi: RuntimeAbi, @unchecked Sendable {
           cancel: notificationCancelCallback,
           cancel_all: notificationCancelAllCallback,
           post: notificationPostCallback
+        ),
+        text: IosHostTextCallbacks(
+          open: textOpenCallback,
+          close: textCloseCallback,
+          set_geometry: textSetGeometryCallback,
+          set_state: textSetStateCallback
+        ),
+        background: IosHostBackgroundCallbacks(
+          status: backgroundStatusCallback,
+          list: backgroundListCallback,
+          register_task: backgroundRegisterCallback,
+          unregister: backgroundUnregisterCallback,
+          trigger_test: backgroundTriggerTestCallback,
+          complete: backgroundCompleteCallback
         )
       )
     )

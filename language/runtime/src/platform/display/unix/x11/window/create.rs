@@ -137,6 +137,7 @@ pub(crate) unsafe fn window_open(
     let width = options.size_logical.width.max(1.0).round() as u16;
     let height = options.size_logical.height.max(1.0).round() as u16;
     let event_mask = EventMask::EXPOSURE
+        | EventMask::KEY_PRESS
         | EventMask::FOCUS_CHANGE
         | EventMask::STRUCTURE_NOTIFY
         | EventMask::PROPERTY_CHANGE

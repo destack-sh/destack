@@ -8,7 +8,8 @@ use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
     InputAxisMetadata, InputButtonMetadata, InputCapabilityMetadataFidelity,
     InputCapabilityMetadataOrigin, InputDeviceCapabilities, InputDeviceCapabilityKind,
-    InputDeviceDescriptor, InputDeviceKind, InputReadMode, InputTextInputArea, InputTextInputType,
+    InputDeviceDescriptor, InputDeviceKind, InputReadMode, InputTextGeometry, InputTextInputType,
+    InputTextRectangle, InputTextTransform2D,
 };
 use crate::platform::resource::{ResourceEntry, ResourceKind};
 use crate::platform::{PlatformError, resource};
@@ -133,13 +134,24 @@ pub(super) fn open_device(
                         relative_mode_enabled: false,
                         text_active: false,
                         text_input_type: InputTextInputType::Text,
-                        text_area: InputTextInputArea {
-                            x: 0,
-                            y: 0,
-                            width: 0,
-                            height: 0,
-                            cursor: 0,
-                        },
+                        text_area: Some(InputTextGeometry {
+                            local_to_target_transform: InputTextTransform2D {
+                                xx: 1.0,
+                                xy: 0.0,
+                                yx: 0.0,
+                                yy: 1.0,
+                                tx: 0.0,
+                                ty: 0.0,
+                            },
+                            editor_rectangle: InputTextRectangle {
+                                x: 0.0,
+                                y: 0.0,
+                                width: 0.0,
+                                height: 0.0,
+                            },
+                            caret_rectangle: None,
+                            composing_rectangle: None,
+                        }),
                         sensor_enabled_kinds: HashSet::new(),
                         sensor_effective_configs: HashMap::new(),
                     })
@@ -191,13 +203,24 @@ pub(super) fn open_device(
                     relative_mode_enabled: false,
                     text_active: false,
                     text_input_type: InputTextInputType::Text,
-                    text_area: InputTextInputArea {
-                        x: 0,
-                        y: 0,
-                        width: 0,
-                        height: 0,
-                        cursor: 0,
-                    },
+                    text_area: Some(InputTextGeometry {
+                        local_to_target_transform: InputTextTransform2D {
+                            xx: 1.0,
+                            xy: 0.0,
+                            yx: 0.0,
+                            yy: 1.0,
+                            tx: 0.0,
+                            ty: 0.0,
+                        },
+                        editor_rectangle: InputTextRectangle {
+                            x: 0.0,
+                            y: 0.0,
+                            width: 0.0,
+                            height: 0.0,
+                        },
+                        caret_rectangle: None,
+                        composing_rectangle: None,
+                    }),
                     sensor_enabled_kinds: HashSet::new(),
                     sensor_effective_configs: HashMap::new(),
                 })
@@ -237,13 +260,24 @@ pub(super) fn open_device(
                     relative_mode_enabled: false,
                     text_active: false,
                     text_input_type: InputTextInputType::Text,
-                    text_area: InputTextInputArea {
-                        x: 0,
-                        y: 0,
-                        width: 0,
-                        height: 0,
-                        cursor: 0,
-                    },
+                    text_area: Some(InputTextGeometry {
+                        local_to_target_transform: InputTextTransform2D {
+                            xx: 1.0,
+                            xy: 0.0,
+                            yx: 0.0,
+                            yy: 1.0,
+                            tx: 0.0,
+                            ty: 0.0,
+                        },
+                        editor_rectangle: InputTextRectangle {
+                            x: 0.0,
+                            y: 0.0,
+                            width: 0.0,
+                            height: 0.0,
+                        },
+                        caret_rectangle: None,
+                        composing_rectangle: None,
+                    }),
                     sensor_enabled_kinds: HashSet::new(),
                     sensor_effective_configs: HashMap::new(),
                 });
@@ -357,6 +391,9 @@ pub(super) fn device_capabilities(
                 supports_raw_hid: false,
                 supports_player_index: false,
             }
+        }
+        input_core::WindowsInputBackend::Window => {
+            return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
         }
         input_core::WindowsInputBackend::RawDevice => {
             let Some(raw_device) = resolved.raw_device.as_ref() else {

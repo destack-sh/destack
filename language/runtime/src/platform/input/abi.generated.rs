@@ -13469,25 +13469,23 @@ impl VmAbiCodec for InputTextEventPayloadAbi<VmAbi> {
     }
 }
 
-/// ABI struct for InputTextInputArea.
+/// ABI struct for InputTextGeometry.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct InputTextInputArea {
-    /// Area left coordinate in backend-native units.
-    pub x: i32,
-    /// Area top coordinate in backend-native units.
-    pub y: i32,
-    /// Area width in backend-native units.
-    pub width: u32,
-    /// Area height in backend-native units.
-    pub height: u32,
-    /// Cursor offset inside the text area.
-    pub cursor: i32,
+pub struct InputTextGeometry {
+    /// Transform from local editor geometry into target-local coordinates.
+    pub local_to_target_transform: InputTextTransform2D,
+    /// Full editor rectangle in local logical units.
+    pub editor_rectangle: InputTextRectangle,
+    /// Caret rectangle in local logical units when one focused insertion point is known.
+    pub caret_rectangle: Option<InputTextRectangle>,
+    /// Composing rectangle in local logical units when one active composition span is known.
+    pub composing_rectangle: Option<InputTextRectangle>,
 }
 
-pub type InputTextInputAreaVm = InputTextInputArea;
+pub type InputTextGeometryVm = InputTextGeometry;
 
-impl VmAggregateCodec for InputTextInputArea {
+impl VmAggregateCodec for InputTextGeometry {
     fn decode_with_context(
         context: &vm::ExternalCallContext<'_>,
         value: vm::Value,
@@ -13495,31 +13493,37 @@ impl VmAggregateCodec for InputTextInputArea {
         if value.tag() != vm::ValueTag::Aggregate {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
                 "value",
-                "InputTextInputArea",
+                "InputTextGeometry",
             ))
             .boxed());
         }
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
+        if slots.len() != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 5 fields",
+                "expected 4 fields",
             ))
             .boxed());
         }
-        let field_x = <i32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_y = <i32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_width = <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_height = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_cursor = <i32 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_local_to_target_transform =
+            <InputTextTransform2DVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_editor_rectangle =
+            <InputTextRectangleVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_caret_rectangle =
+            <Option<InputTextRectangleVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[2],
+            )?;
+        let field_composing_rectangle =
+            <Option<InputTextRectangleVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[3],
+            )?;
         Ok(Self {
-            x: field_x,
-            y: field_y,
-            width: field_width,
-            height: field_height,
-            cursor: field_cursor,
+            local_to_target_transform: field_local_to_target_transform,
+            editor_rectangle: field_editor_rectangle,
+            caret_rectangle: field_caret_rectangle,
+            composing_rectangle: field_composing_rectangle,
         })
     }
 
@@ -13528,11 +13532,22 @@ impl VmAggregateCodec for InputTextInputArea {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <i32 as VmAggregateCodec>::encode_with_context(self.x, context)?,
-            <i32 as VmAggregateCodec>::encode_with_context(self.y, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.width, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?,
-            <i32 as VmAggregateCodec>::encode_with_context(self.cursor, context)?,
+            <InputTextTransform2DVm as VmAggregateCodec>::encode_with_context(
+                self.local_to_target_transform,
+                context,
+            )?,
+            <InputTextRectangleVm as VmAggregateCodec>::encode_with_context(
+                self.editor_rectangle,
+                context,
+            )?,
+            <Option<InputTextRectangleVm> as VmAggregateCodec>::encode_with_context(
+                self.caret_rectangle,
+                context,
+            )?,
+            <Option<InputTextRectangleVm> as VmAggregateCodec>::encode_with_context(
+                self.composing_rectangle,
+                context,
+            )?,
         ];
         context
             .allocate_aggregate(slots)
@@ -13540,11 +13555,11 @@ impl VmAggregateCodec for InputTextInputArea {
     }
 }
 
-/// Value type for InputTextInputArea.
-pub type InputTextInputAreaValue = InputTextInputArea;
+/// Value type for InputTextGeometry.
+pub type InputTextGeometryValue = InputTextGeometry;
 
-impl NativeAbiCodec for InputTextInputArea {
-    type Value = InputTextInputAreaValue;
+impl NativeAbiCodec for InputTextGeometry {
+    type Value = InputTextGeometryValue;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(self)
@@ -13555,8 +13570,8 @@ impl NativeAbiCodec for InputTextInputArea {
     }
 }
 
-impl VmAbiCodec for InputTextInputArea {
-    type Value = InputTextInputAreaValue;
+impl VmAbiCodec for InputTextGeometry {
+    type Value = InputTextGeometryValue;
 
     fn into_value(
         self,
@@ -13573,7 +13588,7 @@ impl VmAbiCodec for InputTextInputArea {
     }
 }
 
-impl VmCollectionElement for InputTextInputArea {}
+impl VmCollectionElement for InputTextGeometry {}
 
 /// ABI struct for InputTextRange.
 #[repr(C)]
@@ -13665,6 +13680,107 @@ impl VmAbiCodec for InputTextRange {
 }
 
 impl VmCollectionElement for InputTextRange {}
+
+/// ABI struct for InputTextRectangle.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct InputTextRectangle {
+    /// Rectangle left coordinate.
+    pub x: f64,
+    /// Rectangle top coordinate.
+    pub y: f64,
+    /// Rectangle width.
+    pub width: f64,
+    /// Rectangle height.
+    pub height: f64,
+}
+
+pub type InputTextRectangleVm = InputTextRectangle;
+
+impl VmAggregateCodec for InputTextRectangle {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "InputTextRectangle",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let field_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_width = <f64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_height = <f64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        Ok(Self {
+            x: field_x,
+            y: field_y,
+            width: field_width,
+            height: field_height,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <f64 as VmAggregateCodec>::encode_with_context(self.x, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.y, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.width, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.height, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for InputTextRectangle.
+pub type InputTextRectangleValue = InputTextRectangle;
+
+impl NativeAbiCodec for InputTextRectangle {
+    type Value = InputTextRectangleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for InputTextRectangle {
+    type Value = InputTextRectangleValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+impl VmCollectionElement for InputTextRectangle {}
 
 /// ABI struct for InputTextSessionConfig.
 #[repr(C)]
@@ -14079,6 +14195,117 @@ impl VmAbiCodec for InputTextSessionStateEventAbi<VmAbi> {
         })
     }
 }
+
+/// ABI struct for InputTextTransform2D.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct InputTextTransform2D {
+    /// Matrix first-row X coefficient.
+    pub xx: f64,
+    /// Matrix first-row Y coefficient.
+    pub xy: f64,
+    /// Matrix second-row X coefficient.
+    pub yx: f64,
+    /// Matrix second-row Y coefficient.
+    pub yy: f64,
+    /// Translation X component.
+    pub tx: f64,
+    /// Translation Y component.
+    pub ty: f64,
+}
+
+pub type InputTextTransform2DVm = InputTextTransform2D;
+
+impl VmAggregateCodec for InputTextTransform2D {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "InputTextTransform2D",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 6 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 6 fields",
+            ))
+            .boxed());
+        }
+        let field_xx = <f64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_xy = <f64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_yx = <f64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_yy = <f64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_tx = <f64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_ty = <f64 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        Ok(Self {
+            xx: field_xx,
+            xy: field_xy,
+            yx: field_yx,
+            yy: field_yy,
+            tx: field_tx,
+            ty: field_ty,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <f64 as VmAggregateCodec>::encode_with_context(self.xx, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.xy, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.yx, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.yy, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.tx, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.ty, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for InputTextTransform2D.
+pub type InputTextTransform2DValue = InputTextTransform2D;
+
+impl NativeAbiCodec for InputTextTransform2D {
+    type Value = InputTextTransform2DValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for InputTextTransform2D {
+    type Value = InputTextTransform2DValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+impl VmCollectionElement for InputTextTransform2D {}
 
 /// ABI struct for InputTouchContactState.
 #[repr(C)]

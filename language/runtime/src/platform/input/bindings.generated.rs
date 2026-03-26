@@ -58,15 +58,16 @@ use crate::platform::input::{
     InputSensorEventPayload, InputSensorEventPayloadVm, InputSensorEventValue, InputSensorEventVm,
     InputSensorKind, InputSensorSample, InputSensorSampleVm, InputTextEvent, InputTextEventPayload,
     InputTextEventPayloadValue, InputTextEventPayloadVm, InputTextEventValue, InputTextEventVm,
-    InputTextInputArea, InputTextInputAreaVm, InputTextInputType, InputTextRange, InputTextRangeVm,
-    InputTextSessionConfig, InputTextSessionConfigVm, InputTextSessionEvent,
-    InputTextSessionEventValue, InputTextSessionEventVm, InputTextSessionState,
-    InputTextSessionStateEvent, InputTextSessionStateEventValue, InputTextSessionStateEventVm,
-    InputTextSessionStateValue, InputTextSessionStateVm, InputTouchContactPhase,
-    InputTouchContactState, InputTouchContactStateVm, InputTouchEvent, InputTouchEventPayload,
-    InputTouchEventPayloadVm, InputTouchEventValue, InputTouchEventVm, InputTouchState,
-    InputTouchStateValue, InputTouchStateVm, InputWheelDeltaMode, InputWindowTarget,
-    InputWindowTargetVm, InputclipboardcommandeventReplayRecord, InputcompositioneventReplayRecord,
+    InputTextGeometry, InputTextGeometryVm, InputTextInputType, InputTextRange, InputTextRangeVm,
+    InputTextRectangle, InputTextRectangleVm, InputTextSessionConfig, InputTextSessionConfigVm,
+    InputTextSessionEvent, InputTextSessionEventValue, InputTextSessionEventVm,
+    InputTextSessionState, InputTextSessionStateEvent, InputTextSessionStateEventValue,
+    InputTextSessionStateEventVm, InputTextSessionStateValue, InputTextSessionStateVm,
+    InputTextTransform2D, InputTextTransform2DVm, InputTouchContactPhase, InputTouchContactState,
+    InputTouchContactStateVm, InputTouchEvent, InputTouchEventPayload, InputTouchEventPayloadVm,
+    InputTouchEventValue, InputTouchEventVm, InputTouchState, InputTouchStateValue,
+    InputTouchStateVm, InputWheelDeltaMode, InputWindowTarget, InputWindowTargetVm,
+    InputclipboardcommandeventReplayRecord, InputcompositioneventReplayRecord,
     InputcompositioneventpayloadReplayRecord, InputdevicecapabilitiesReplayRecord,
     InputdevicedescriptorReplayRecord, InputdeviceeventReplayRecord,
     InputeditintenteventReplayRecord, InputeventReplayRecord, InputeventmetadataReplayRecord,
@@ -3925,9 +3926,9 @@ fn encode_destack_input_text_close_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.input.text.getArea.
+/// Decode arguments for destack.input.text.getGeometry.
 #[inline]
-fn decode_destack_input_text_get_area_args(
+fn decode_destack_input_text_get_geometry_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::InputTextSessionHandle,)> {
@@ -3942,21 +3943,72 @@ fn decode_destack_input_text_get_area_args(
     Ok((session,))
 }
 
-/// Encode the result for destack.input.text.getArea.
+/// Encode the result for destack.input.text.getGeometry.
 #[inline]
-fn encode_destack_input_text_get_area_result(
+fn encode_destack_input_text_get_geometry_result(
     context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<InputTextInputAreaVm>,
+    result: RuntimeResult<InputTextGeometryVm>,
 ) -> RuntimeResult<vm::Value> {
     result
         .map(|value| {
-            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.x as i64, 32));
-            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.y as i64, 32));
-            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.width as u64, 32));
-            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.height as u64, 32));
-            let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.cursor as i64, 32));
+            let field_0: RuntimeResult<vm::Value> = {
+                let field_0: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::float64(value.local_to_target_transform.xx));
+                let field_1: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::float64(value.local_to_target_transform.xy));
+                let field_2: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::float64(value.local_to_target_transform.yx));
+                let field_3: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::float64(value.local_to_target_transform.yy));
+                let field_4: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::float64(value.local_to_target_transform.tx));
+                let field_5: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::float64(value.local_to_target_transform.ty));
+                context
+                    .allocate_aggregate(vec![
+                        field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                    ])
+                    .map_err(Box::<RuntimeError>::from)
+            };
+            let field_1: RuntimeResult<vm::Value> = {
+                let field_0: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::float64(value.editor_rectangle.x));
+                let field_1: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::float64(value.editor_rectangle.y));
+                let field_2: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::float64(value.editor_rectangle.width));
+                let field_3: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::float64(value.editor_rectangle.height));
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                    .map_err(Box::<RuntimeError>::from)
+            };
+            let field_2: RuntimeResult<vm::Value> = match value.caret_rectangle {
+                Some(value) => {
+                    let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.x));
+                    let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.y));
+                    let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.width));
+                    let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.height));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                        .map_err(Box::<RuntimeError>::from)
+                }
+                None => Ok(vm::Value::VOID),
+            };
+            let field_3: RuntimeResult<vm::Value> = match value.composing_rectangle {
+                Some(value) => {
+                    let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.x));
+                    let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.y));
+                    let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.width));
+                    let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.height));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                        .map_err(Box::<RuntimeError>::from)
+                }
+                None => Ok(vm::Value::VOID),
+            };
             context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
                 .map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
@@ -4381,12 +4433,12 @@ fn encode_destack_input_text_read_event_result(
         .and_then(|value| value)
 }
 
-/// Decode arguments for destack.input.text.setArea.
+/// Decode arguments for destack.input.text.setGeometry.
 #[inline]
-fn decode_destack_input_text_set_area_args(
+fn decode_destack_input_text_set_geometry_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(resource::InputTextSessionHandle, InputTextInputAreaVm)> {
+) -> RuntimeResult<(resource::InputTextSessionHandle, InputTextGeometryVm)> {
     let session_value = arg_value(args, 0, "session", "InputTextSessionHandle")?;
     let session_inner_inner = decode_uint64(
         session_value,
@@ -4395,44 +4447,192 @@ fn decode_destack_input_text_set_area_args(
     )?;
     let session_inner = resource::ResourceId(session_inner_inner);
     let session = resource::InputTextSessionHandle(session_inner);
-    let area_value = arg_value(args, 1, "area", "InputTextInputArea")?;
-    let area = {
-        if area_value.tag() != vm::ValueTag::Aggregate {
+    let geometry_value = arg_value(args, 1, "geometry", "InputTextGeometry")?;
+    let geometry = {
+        if geometry_value.tag() != vm::ValueTag::Aggregate {
             return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "area",
-                "InputTextInputArea",
+                "geometry",
+                "InputTextGeometry",
             ))
             .boxed());
         }
         let slots = context
-            .aggregate_slots(area_value)
+            .aggregate_slots(geometry_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
+        if slots.len() != 4 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "area",
-                "expected 5 fields",
+                "geometry",
+                "expected 4 fields",
             ))
             .boxed());
         }
-        let area_x = decode_int32(slots[0], "area_x", "x")?;
-        let area_y = decode_int32(slots[1], "area_y", "y")?;
-        let area_width = decode_uint32(slots[2], "area_width", "width")?;
-        let area_height = decode_uint32(slots[3], "area_height", "height")?;
-        let area_cursor = decode_int32(slots[4], "area_cursor", "cursor")?;
-        InputTextInputAreaVm {
-            x: area_x,
-            y: area_y,
-            width: area_width,
-            height: area_height,
-            cursor: area_cursor,
+        let geometry_local_to_target_transform = {
+            if slots[0].tag() != vm::ValueTag::Aggregate {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                    "geometry_local_to_target_transform",
+                    "localToTargetTransform",
+                ))
+                .boxed());
+            }
+            let slots = context
+                .aggregate_slots(slots[0])
+                .map_err(|error| RuntimeError::from(error).boxed())?;
+            if slots.len() != 6 {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "geometry_local_to_target_transform",
+                    "expected 6 fields",
+                ))
+                .boxed());
+            }
+            let geometry_local_to_target_transform_xx =
+                decode_float64(slots[0], "geometry_local_to_target_transform_xx", "xx")?;
+            let geometry_local_to_target_transform_xy =
+                decode_float64(slots[1], "geometry_local_to_target_transform_xy", "xy")?;
+            let geometry_local_to_target_transform_yx =
+                decode_float64(slots[2], "geometry_local_to_target_transform_yx", "yx")?;
+            let geometry_local_to_target_transform_yy =
+                decode_float64(slots[3], "geometry_local_to_target_transform_yy", "yy")?;
+            let geometry_local_to_target_transform_tx =
+                decode_float64(slots[4], "geometry_local_to_target_transform_tx", "tx")?;
+            let geometry_local_to_target_transform_ty =
+                decode_float64(slots[5], "geometry_local_to_target_transform_ty", "ty")?;
+            InputTextTransform2DVm {
+                xx: geometry_local_to_target_transform_xx,
+                xy: geometry_local_to_target_transform_xy,
+                yx: geometry_local_to_target_transform_yx,
+                yy: geometry_local_to_target_transform_yy,
+                tx: geometry_local_to_target_transform_tx,
+                ty: geometry_local_to_target_transform_ty,
+            }
+        };
+        let geometry_editor_rectangle = {
+            if slots[1].tag() != vm::ValueTag::Aggregate {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                    "geometry_editor_rectangle",
+                    "editorRectangle",
+                ))
+                .boxed());
+            }
+            let slots = context
+                .aggregate_slots(slots[1])
+                .map_err(|error| RuntimeError::from(error).boxed())?;
+            if slots.len() != 4 {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "geometry_editor_rectangle",
+                    "expected 4 fields",
+                ))
+                .boxed());
+            }
+            let geometry_editor_rectangle_x =
+                decode_float64(slots[0], "geometry_editor_rectangle_x", "x")?;
+            let geometry_editor_rectangle_y =
+                decode_float64(slots[1], "geometry_editor_rectangle_y", "y")?;
+            let geometry_editor_rectangle_width =
+                decode_float64(slots[2], "geometry_editor_rectangle_width", "width")?;
+            let geometry_editor_rectangle_height =
+                decode_float64(slots[3], "geometry_editor_rectangle_height", "height")?;
+            InputTextRectangleVm {
+                x: geometry_editor_rectangle_x,
+                y: geometry_editor_rectangle_y,
+                width: geometry_editor_rectangle_width,
+                height: geometry_editor_rectangle_height,
+            }
+        };
+        let geometry_caret_rectangle = if slots[2].tag() == vm::ValueTag::Void {
+            None
+        } else {
+            let geometry_caret_rectangle_inner = {
+                if slots[2].tag() != vm::ValueTag::Aggregate {
+                    return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                        "geometry_caret_rectangle_inner",
+                        "caretRectangle",
+                    ))
+                    .boxed());
+                }
+                let slots = context
+                    .aggregate_slots(slots[2])
+                    .map_err(|error| RuntimeError::from(error).boxed())?;
+                if slots.len() != 4 {
+                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                        "geometry_caret_rectangle_inner",
+                        "expected 4 fields",
+                    ))
+                    .boxed());
+                }
+                let geometry_caret_rectangle_inner_x =
+                    decode_float64(slots[0], "geometry_caret_rectangle_inner_x", "x")?;
+                let geometry_caret_rectangle_inner_y =
+                    decode_float64(slots[1], "geometry_caret_rectangle_inner_y", "y")?;
+                let geometry_caret_rectangle_inner_width =
+                    decode_float64(slots[2], "geometry_caret_rectangle_inner_width", "width")?;
+                let geometry_caret_rectangle_inner_height =
+                    decode_float64(slots[3], "geometry_caret_rectangle_inner_height", "height")?;
+                InputTextRectangleVm {
+                    x: geometry_caret_rectangle_inner_x,
+                    y: geometry_caret_rectangle_inner_y,
+                    width: geometry_caret_rectangle_inner_width,
+                    height: geometry_caret_rectangle_inner_height,
+                }
+            };
+            Some(geometry_caret_rectangle_inner)
+        };
+        let geometry_composing_rectangle = if slots[3].tag() == vm::ValueTag::Void {
+            None
+        } else {
+            let geometry_composing_rectangle_inner = {
+                if slots[3].tag() != vm::ValueTag::Aggregate {
+                    return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                        "geometry_composing_rectangle_inner",
+                        "composingRectangle",
+                    ))
+                    .boxed());
+                }
+                let slots = context
+                    .aggregate_slots(slots[3])
+                    .map_err(|error| RuntimeError::from(error).boxed())?;
+                if slots.len() != 4 {
+                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                        "geometry_composing_rectangle_inner",
+                        "expected 4 fields",
+                    ))
+                    .boxed());
+                }
+                let geometry_composing_rectangle_inner_x =
+                    decode_float64(slots[0], "geometry_composing_rectangle_inner_x", "x")?;
+                let geometry_composing_rectangle_inner_y =
+                    decode_float64(slots[1], "geometry_composing_rectangle_inner_y", "y")?;
+                let geometry_composing_rectangle_inner_width = decode_float64(
+                    slots[2],
+                    "geometry_composing_rectangle_inner_width",
+                    "width",
+                )?;
+                let geometry_composing_rectangle_inner_height = decode_float64(
+                    slots[3],
+                    "geometry_composing_rectangle_inner_height",
+                    "height",
+                )?;
+                InputTextRectangleVm {
+                    x: geometry_composing_rectangle_inner_x,
+                    y: geometry_composing_rectangle_inner_y,
+                    width: geometry_composing_rectangle_inner_width,
+                    height: geometry_composing_rectangle_inner_height,
+                }
+            };
+            Some(geometry_composing_rectangle_inner)
+        };
+        InputTextGeometryVm {
+            local_to_target_transform: geometry_local_to_target_transform,
+            editor_rectangle: geometry_editor_rectangle,
+            caret_rectangle: geometry_caret_rectangle,
+            composing_rectangle: geometry_composing_rectangle,
         }
     };
-    Ok((session, area))
+    Ok((session, geometry))
 }
 
-/// Encode the result for destack.input.text.setArea.
+/// Encode the result for destack.input.text.setGeometry.
 #[inline]
-fn encode_destack_input_text_set_area_result(
+fn encode_destack_input_text_set_geometry_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -5141,11 +5341,11 @@ struct InputTextCloseReplayRecord {
     pub result: Result<(), TraceError>,
 }
 
-/// Replay payload for destack.input.text.getArea.
+/// Replay payload for destack.input.text.getGeometry.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct InputTextGetAreaReplayRecord {
+struct InputTextGetGeometryReplayRecord {
     /// Replay result payload.
-    pub result: Result<InputTextInputArea, TraceError>,
+    pub result: Result<InputTextGeometry, TraceError>,
 }
 
 /// Replay payload for destack.input.text.open.
@@ -5162,9 +5362,9 @@ struct InputTextReadEventReplayRecord {
     pub result: Result<InputtextsessioneventReplayRecord, TraceError>,
 }
 
-/// Replay payload for destack.input.text.setArea.
+/// Replay payload for destack.input.text.setGeometry.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct InputTextSetAreaReplayRecord {
+struct InputTextSetGeometryReplayRecord {
     /// Replay result payload.
     pub result: Result<(), TraceError>,
 }
@@ -6072,10 +6272,10 @@ pub(crate) const INPUT_TEXT_CLOSE: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptor for destack.input.text.getArea.
-pub(crate) const INPUT_TEXT_GET_AREA: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.input.text.getArea",
-    "export function textGetArea(session: InputTextSessionHandle): Result<InputTextInputArea, PlatformError>",
+/// Binding descriptor for destack.input.text.getGeometry.
+pub(crate) const INPUT_TEXT_GET_GEOMETRY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.input.text.getGeometry",
+    "export function textGetGeometry(session: InputTextSessionHandle): Result<InputTextGeometry, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["input.text"],
@@ -6114,10 +6314,10 @@ pub(crate) const INPUT_TEXT_READ_EVENT: BindingDescriptor = BindingDescriptor::e
     .with_namespace("input")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptor for destack.input.text.setArea.
-pub(crate) const INPUT_TEXT_SET_AREA: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.input.text.setArea",
-    "export function textSetArea(session: InputTextSessionHandle, area: InputTextInputArea): Result<void, PlatformError>",
+/// Binding descriptor for destack.input.text.setGeometry.
+pub(crate) const INPUT_TEXT_SET_GEOMETRY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.input.text.setGeometry",
+    "export function textSetGeometry(session: InputTextSessionHandle, geometry: InputTextGeometry): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["input.text"],
@@ -6420,9 +6620,9 @@ pub(crate) const INPUT_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_input_text_close as *const (),
         ),
         NativeBinding::new(
-            INPUT_TEXT_GET_AREA,
-            "destack.input.text.getArea",
-            destack_input_text_get_area as *const (),
+            INPUT_TEXT_GET_GEOMETRY,
+            "destack.input.text.getGeometry",
+            destack_input_text_get_geometry as *const (),
         ),
         NativeBinding::new(
             INPUT_TEXT_OPEN,
@@ -6435,9 +6635,9 @@ pub(crate) const INPUT_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_input_text_read_event as *const (),
         ),
         NativeBinding::new(
-            INPUT_TEXT_SET_AREA,
-            "destack.input.text.setArea",
-            destack_input_text_set_area as *const (),
+            INPUT_TEXT_SET_GEOMETRY,
+            "destack.input.text.setGeometry",
+            destack_input_text_set_geometry as *const (),
         ),
         NativeBinding::new(
             INPUT_TEXT_SET_STATE,
@@ -15978,41 +16178,97 @@ fn destack_input_text_close_replay(
 }
 
 #[inline]
-fn destack_input_text_get_area_replay(
+fn destack_input_text_get_geometry_replay(
     binding: &BindingCallContext,
     world: RuntimeWorld,
-    out: *mut InputTextInputArea,
+    out: *mut InputTextGeometry,
     session: resource::InputTextSessionHandle,
 ) -> RuntimeResult<()> {
     let _ = &session;
 
     binding.trace().run_binding_without_context(
-        INPUT_TEXT_GET_AREA,
-        binding.replay_payload_for(INPUT_TEXT_GET_AREA)?,
+        INPUT_TEXT_GET_GEOMETRY,
+        binding.replay_payload_for(INPUT_TEXT_GET_GEOMETRY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_text_get_area(binding, out, session)
+                platform_native::destack_input_text_get_geometry(binding, out, session)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_input_text_get_area(binding, out, session)
+                platform_simulation_native::destack_input_text_get_geometry(binding, out, session)
             },
         },
         |result| {
             if let Ok(()) = result {
-                let result_value: InputTextInputArea = unsafe { out.read() };
-                let result_recorded_x = result_value.x;
-                let result_recorded_y = result_value.y;
-                let result_recorded_width = result_value.width;
-                let result_recorded_height = result_value.height;
-                let result_recorded_cursor = result_value.cursor;
-                let result_recorded = InputTextInputArea {
-                    x: result_recorded_x,
-                    y: result_recorded_y,
-                    width: result_recorded_width,
-                    height: result_recorded_height,
-                    cursor: result_recorded_cursor,
+                let result_value: InputTextGeometry = unsafe { out.read() };
+                let result_recorded_local_to_target_transform_xx =
+                    result_value.local_to_target_transform.xx;
+                let result_recorded_local_to_target_transform_xy =
+                    result_value.local_to_target_transform.xy;
+                let result_recorded_local_to_target_transform_yx =
+                    result_value.local_to_target_transform.yx;
+                let result_recorded_local_to_target_transform_yy =
+                    result_value.local_to_target_transform.yy;
+                let result_recorded_local_to_target_transform_tx =
+                    result_value.local_to_target_transform.tx;
+                let result_recorded_local_to_target_transform_ty =
+                    result_value.local_to_target_transform.ty;
+                let result_recorded_local_to_target_transform = InputTextTransform2D {
+                    xx: result_recorded_local_to_target_transform_xx,
+                    xy: result_recorded_local_to_target_transform_xy,
+                    yx: result_recorded_local_to_target_transform_yx,
+                    yy: result_recorded_local_to_target_transform_yy,
+                    tx: result_recorded_local_to_target_transform_tx,
+                    ty: result_recorded_local_to_target_transform_ty,
                 };
-                let payload = InputTextGetAreaReplayRecord {
+                let result_recorded_editor_rectangle_x = result_value.editor_rectangle.x;
+                let result_recorded_editor_rectangle_y = result_value.editor_rectangle.y;
+                let result_recorded_editor_rectangle_width = result_value.editor_rectangle.width;
+                let result_recorded_editor_rectangle_height = result_value.editor_rectangle.height;
+                let result_recorded_editor_rectangle = InputTextRectangle {
+                    x: result_recorded_editor_rectangle_x,
+                    y: result_recorded_editor_rectangle_y,
+                    width: result_recorded_editor_rectangle_width,
+                    height: result_recorded_editor_rectangle_height,
+                };
+                let result_recorded_caret_rectangle =
+                    if let Some(value) = result_value.caret_rectangle {
+                        let result_recorded_caret_rectangle_inner_x = value.x;
+                        let result_recorded_caret_rectangle_inner_y = value.y;
+                        let result_recorded_caret_rectangle_inner_width = value.width;
+                        let result_recorded_caret_rectangle_inner_height = value.height;
+                        let result_recorded_caret_rectangle_inner = InputTextRectangle {
+                            x: result_recorded_caret_rectangle_inner_x,
+                            y: result_recorded_caret_rectangle_inner_y,
+                            width: result_recorded_caret_rectangle_inner_width,
+                            height: result_recorded_caret_rectangle_inner_height,
+                        };
+                        Some(result_recorded_caret_rectangle_inner)
+                    } else {
+                        None
+                    };
+                let result_recorded_composing_rectangle =
+                    if let Some(value) = result_value.composing_rectangle {
+                        let result_recorded_composing_rectangle_inner_x = value.x;
+                        let result_recorded_composing_rectangle_inner_y = value.y;
+                        let result_recorded_composing_rectangle_inner_width = value.width;
+                        let result_recorded_composing_rectangle_inner_height = value.height;
+                        let result_recorded_composing_rectangle_inner = InputTextRectangle {
+                            x: result_recorded_composing_rectangle_inner_x,
+                            y: result_recorded_composing_rectangle_inner_y,
+                            width: result_recorded_composing_rectangle_inner_width,
+                            height: result_recorded_composing_rectangle_inner_height,
+                        };
+                        Some(result_recorded_composing_rectangle_inner)
+                    } else {
+                        None
+                    };
+                let result_recorded = InputTextGeometry {
+                    local_to_target_transform: result_recorded_local_to_target_transform,
+                    editor_rectangle: result_recorded_editor_rectangle,
+                    caret_rectangle: result_recorded_caret_rectangle,
+                    composing_rectangle: result_recorded_composing_rectangle,
+                };
+                let payload = InputTextGetGeometryReplayRecord {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -16021,7 +16277,7 @@ fn destack_input_text_get_area_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(TraceError::from(error.as_ref()));
-                    InputTextGetAreaReplayRecord { result }
+                    InputTextGetGeometryReplayRecord { result }
                 };
                 return Ok(Some(payload));
             }
@@ -16032,17 +16288,72 @@ fn destack_input_text_get_area_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native_x = value.x;
-                    let value_native_y = value.y;
-                    let value_native_width = value.width;
-                    let value_native_height = value.height;
-                    let value_native_cursor = value.cursor;
-                    let value_native = InputTextInputArea {
-                        x: value_native_x,
-                        y: value_native_y,
-                        width: value_native_width,
-                        height: value_native_height,
-                        cursor: value_native_cursor,
+                    let value_native_local_to_target_transform_xx =
+                        value.local_to_target_transform.xx;
+                    let value_native_local_to_target_transform_xy =
+                        value.local_to_target_transform.xy;
+                    let value_native_local_to_target_transform_yx =
+                        value.local_to_target_transform.yx;
+                    let value_native_local_to_target_transform_yy =
+                        value.local_to_target_transform.yy;
+                    let value_native_local_to_target_transform_tx =
+                        value.local_to_target_transform.tx;
+                    let value_native_local_to_target_transform_ty =
+                        value.local_to_target_transform.ty;
+                    let value_native_local_to_target_transform = InputTextTransform2D {
+                        xx: value_native_local_to_target_transform_xx,
+                        xy: value_native_local_to_target_transform_xy,
+                        yx: value_native_local_to_target_transform_yx,
+                        yy: value_native_local_to_target_transform_yy,
+                        tx: value_native_local_to_target_transform_tx,
+                        ty: value_native_local_to_target_transform_ty,
+                    };
+                    let value_native_editor_rectangle_x = value.editor_rectangle.x;
+                    let value_native_editor_rectangle_y = value.editor_rectangle.y;
+                    let value_native_editor_rectangle_width = value.editor_rectangle.width;
+                    let value_native_editor_rectangle_height = value.editor_rectangle.height;
+                    let value_native_editor_rectangle = InputTextRectangle {
+                        x: value_native_editor_rectangle_x,
+                        y: value_native_editor_rectangle_y,
+                        width: value_native_editor_rectangle_width,
+                        height: value_native_editor_rectangle_height,
+                    };
+                    let value_native_caret_rectangle = if let Some(value) = value.caret_rectangle {
+                        let value_native_caret_rectangle_inner_x = value.x;
+                        let value_native_caret_rectangle_inner_y = value.y;
+                        let value_native_caret_rectangle_inner_width = value.width;
+                        let value_native_caret_rectangle_inner_height = value.height;
+                        let value_native_caret_rectangle_inner = InputTextRectangle {
+                            x: value_native_caret_rectangle_inner_x,
+                            y: value_native_caret_rectangle_inner_y,
+                            width: value_native_caret_rectangle_inner_width,
+                            height: value_native_caret_rectangle_inner_height,
+                        };
+                        Some(value_native_caret_rectangle_inner)
+                    } else {
+                        None
+                    };
+                    let value_native_composing_rectangle =
+                        if let Some(value) = value.composing_rectangle {
+                            let value_native_composing_rectangle_inner_x = value.x;
+                            let value_native_composing_rectangle_inner_y = value.y;
+                            let value_native_composing_rectangle_inner_width = value.width;
+                            let value_native_composing_rectangle_inner_height = value.height;
+                            let value_native_composing_rectangle_inner = InputTextRectangle {
+                                x: value_native_composing_rectangle_inner_x,
+                                y: value_native_composing_rectangle_inner_y,
+                                width: value_native_composing_rectangle_inner_width,
+                                height: value_native_composing_rectangle_inner_height,
+                            };
+                            Some(value_native_composing_rectangle_inner)
+                        } else {
+                            None
+                        };
+                    let value_native = InputTextGeometry {
+                        local_to_target_transform: value_native_local_to_target_transform,
+                        editor_rectangle: value_native_editor_rectangle,
+                        caret_rectangle: value_native_caret_rectangle,
+                        composing_rectangle: value_native_composing_rectangle,
                     };
                     unsafe { out.write(value_native) };
                     Ok(())
@@ -16768,29 +17079,31 @@ fn destack_input_text_read_event_replay(
 }
 
 #[inline]
-fn destack_input_text_set_area_replay(
+fn destack_input_text_set_geometry_replay(
     binding: &BindingCallContext,
     world: RuntimeWorld,
     session: resource::InputTextSessionHandle,
-    area: InputTextInputArea,
+    geometry: InputTextGeometry,
 ) -> RuntimeResult<()> {
-    let _ = (&session, &area);
+    let _ = (&session, &geometry);
 
     binding.trace().run_binding_without_context(
-        INPUT_TEXT_SET_AREA,
-        binding.replay_payload_for(INPUT_TEXT_SET_AREA)?,
+        INPUT_TEXT_SET_GEOMETRY,
+        binding.replay_payload_for(INPUT_TEXT_SET_GEOMETRY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_text_set_area(binding, session, area)
+                platform_native::destack_input_text_set_geometry(binding, session, geometry)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_input_text_set_area(binding, session, area)
+                platform_simulation_native::destack_input_text_set_geometry(
+                    binding, session, geometry,
+                )
             },
         },
         |result| {
             if let Ok(()) = result {
                 let result_recorded = ();
-                let payload = InputTextSetAreaReplayRecord {
+                let payload = InputTextSetGeometryReplayRecord {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -16799,7 +17112,7 @@ fn destack_input_text_set_area_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(TraceError::from(error.as_ref()));
-                    InputTextSetAreaReplayRecord { result }
+                    InputTextSetGeometryReplayRecord { result }
                 };
                 return Ok(Some(payload));
             }
@@ -18491,9 +18804,9 @@ pub(crate) unsafe extern "C" fn destack_input_text_close(
     })
 }
 
-#[unsafe(export_name = "destack.input.text.getArea")]
-pub(crate) unsafe extern "C" fn destack_input_text_get_area(
-    out: *mut InputTextInputArea,
+#[unsafe(export_name = "destack.input.text.getGeometry")]
+pub(crate) unsafe extern "C" fn destack_input_text_get_geometry(
+    out: *mut InputTextGeometry,
     session: resource::InputTextSessionHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -18503,8 +18816,8 @@ pub(crate) unsafe extern "C" fn destack_input_text_get_area(
         let _ = (&out, &session);
 
         let (world, _binding_hook_guard) =
-            context.on_before_binding_resolve_world(INPUT_TEXT_GET_AREA)?;
-        destack_input_text_get_area_replay(context, world, out, session)
+            context.on_before_binding_resolve_world(INPUT_TEXT_GET_GEOMETRY)?;
+        destack_input_text_get_geometry_replay(context, world, out, session)
     })
 }
 
@@ -18543,17 +18856,17 @@ pub(crate) unsafe extern "C" fn destack_input_text_read_event(
     })
 }
 
-#[unsafe(export_name = "destack.input.text.setArea")]
-pub(crate) unsafe extern "C" fn destack_input_text_set_area(
+#[unsafe(export_name = "destack.input.text.setGeometry")]
+pub(crate) unsafe extern "C" fn destack_input_text_set_geometry(
     session: resource::InputTextSessionHandle,
-    area: InputTextInputArea,
+    geometry: InputTextGeometry,
 ) -> RuntimeStatus {
     native_call(|context| {
-        let _ = (&session, &area);
+        let _ = (&session, &geometry);
 
         let (world, _binding_hook_guard) =
-            context.on_before_binding_resolve_world(INPUT_TEXT_SET_AREA)?;
-        destack_input_text_set_area_replay(context, world, session, area)
+            context.on_before_binding_resolve_world(INPUT_TEXT_SET_GEOMETRY)?;
+        destack_input_text_set_geometry_replay(context, world, session, geometry)
     })
 }
 
@@ -29684,41 +29997,97 @@ fn destack_input_text_close_vm_replay(
 }
 
 #[inline]
-fn destack_input_text_get_area_vm_replay(
+fn destack_input_text_get_geometry_vm_replay(
     binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     session: resource::InputTextSessionHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = binding.trace().run_binding(
-        INPUT_TEXT_GET_AREA,
-        binding.replay_payload_for(INPUT_TEXT_GET_AREA)?,
+        INPUT_TEXT_GET_GEOMETRY,
+        binding.replay_payload_for(INPUT_TEXT_GET_GEOMETRY)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_input_text_get_area(binding, context, session)
+                platform_vm::destack_input_text_get_geometry(binding, context, session)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_input_text_get_area(binding, context, session)
+                platform_simulation_vm::destack_input_text_get_geometry(binding, context, session)
             }
         },
         |context, result| {
             let _ = &context;
             if let Ok(value) = result {
-                let result_value: InputTextInputAreaVm = value.clone();
-                let result_recorded_x = result_value.x;
-                let result_recorded_y = result_value.y;
-                let result_recorded_width = result_value.width;
-                let result_recorded_height = result_value.height;
-                let result_recorded_cursor = result_value.cursor;
-                let result_recorded = InputTextInputArea {
-                    x: result_recorded_x,
-                    y: result_recorded_y,
-                    width: result_recorded_width,
-                    height: result_recorded_height,
-                    cursor: result_recorded_cursor,
+                let result_value: InputTextGeometryVm = value.clone();
+                let result_recorded_local_to_target_transform_xx =
+                    result_value.local_to_target_transform.xx;
+                let result_recorded_local_to_target_transform_xy =
+                    result_value.local_to_target_transform.xy;
+                let result_recorded_local_to_target_transform_yx =
+                    result_value.local_to_target_transform.yx;
+                let result_recorded_local_to_target_transform_yy =
+                    result_value.local_to_target_transform.yy;
+                let result_recorded_local_to_target_transform_tx =
+                    result_value.local_to_target_transform.tx;
+                let result_recorded_local_to_target_transform_ty =
+                    result_value.local_to_target_transform.ty;
+                let result_recorded_local_to_target_transform = InputTextTransform2D {
+                    xx: result_recorded_local_to_target_transform_xx,
+                    xy: result_recorded_local_to_target_transform_xy,
+                    yx: result_recorded_local_to_target_transform_yx,
+                    yy: result_recorded_local_to_target_transform_yy,
+                    tx: result_recorded_local_to_target_transform_tx,
+                    ty: result_recorded_local_to_target_transform_ty,
                 };
-                let payload = InputTextGetAreaReplayRecord {
+                let result_recorded_editor_rectangle_x = result_value.editor_rectangle.x;
+                let result_recorded_editor_rectangle_y = result_value.editor_rectangle.y;
+                let result_recorded_editor_rectangle_width = result_value.editor_rectangle.width;
+                let result_recorded_editor_rectangle_height = result_value.editor_rectangle.height;
+                let result_recorded_editor_rectangle = InputTextRectangle {
+                    x: result_recorded_editor_rectangle_x,
+                    y: result_recorded_editor_rectangle_y,
+                    width: result_recorded_editor_rectangle_width,
+                    height: result_recorded_editor_rectangle_height,
+                };
+                let result_recorded_caret_rectangle =
+                    if let Some(value) = result_value.caret_rectangle {
+                        let result_recorded_caret_rectangle_inner_x = value.x;
+                        let result_recorded_caret_rectangle_inner_y = value.y;
+                        let result_recorded_caret_rectangle_inner_width = value.width;
+                        let result_recorded_caret_rectangle_inner_height = value.height;
+                        let result_recorded_caret_rectangle_inner = InputTextRectangle {
+                            x: result_recorded_caret_rectangle_inner_x,
+                            y: result_recorded_caret_rectangle_inner_y,
+                            width: result_recorded_caret_rectangle_inner_width,
+                            height: result_recorded_caret_rectangle_inner_height,
+                        };
+                        Some(result_recorded_caret_rectangle_inner)
+                    } else {
+                        None
+                    };
+                let result_recorded_composing_rectangle =
+                    if let Some(value) = result_value.composing_rectangle {
+                        let result_recorded_composing_rectangle_inner_x = value.x;
+                        let result_recorded_composing_rectangle_inner_y = value.y;
+                        let result_recorded_composing_rectangle_inner_width = value.width;
+                        let result_recorded_composing_rectangle_inner_height = value.height;
+                        let result_recorded_composing_rectangle_inner = InputTextRectangle {
+                            x: result_recorded_composing_rectangle_inner_x,
+                            y: result_recorded_composing_rectangle_inner_y,
+                            width: result_recorded_composing_rectangle_inner_width,
+                            height: result_recorded_composing_rectangle_inner_height,
+                        };
+                        Some(result_recorded_composing_rectangle_inner)
+                    } else {
+                        None
+                    };
+                let result_recorded = InputTextGeometry {
+                    local_to_target_transform: result_recorded_local_to_target_transform,
+                    editor_rectangle: result_recorded_editor_rectangle,
+                    caret_rectangle: result_recorded_caret_rectangle,
+                    composing_rectangle: result_recorded_composing_rectangle,
+                };
+                let payload = InputTextGetGeometryReplayRecord {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -29727,7 +30096,7 @@ fn destack_input_text_get_area_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(TraceError::from(error.as_ref()));
-                    InputTextGetAreaReplayRecord { result }
+                    InputTextGetGeometryReplayRecord { result }
                 };
                 return Ok(Some(payload));
             }
@@ -29739,17 +30108,66 @@ fn destack_input_text_get_area_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result_x = value.x;
-                    let vm_result_y = value.y;
-                    let vm_result_width = value.width;
-                    let vm_result_height = value.height;
-                    let vm_result_cursor = value.cursor;
-                    let vm_result = InputTextInputArea {
-                        x: vm_result_x,
-                        y: vm_result_y,
-                        width: vm_result_width,
-                        height: vm_result_height,
-                        cursor: vm_result_cursor,
+                    let vm_result_local_to_target_transform_xx = value.local_to_target_transform.xx;
+                    let vm_result_local_to_target_transform_xy = value.local_to_target_transform.xy;
+                    let vm_result_local_to_target_transform_yx = value.local_to_target_transform.yx;
+                    let vm_result_local_to_target_transform_yy = value.local_to_target_transform.yy;
+                    let vm_result_local_to_target_transform_tx = value.local_to_target_transform.tx;
+                    let vm_result_local_to_target_transform_ty = value.local_to_target_transform.ty;
+                    let vm_result_local_to_target_transform = InputTextTransform2D {
+                        xx: vm_result_local_to_target_transform_xx,
+                        xy: vm_result_local_to_target_transform_xy,
+                        yx: vm_result_local_to_target_transform_yx,
+                        yy: vm_result_local_to_target_transform_yy,
+                        tx: vm_result_local_to_target_transform_tx,
+                        ty: vm_result_local_to_target_transform_ty,
+                    };
+                    let vm_result_editor_rectangle_x = value.editor_rectangle.x;
+                    let vm_result_editor_rectangle_y = value.editor_rectangle.y;
+                    let vm_result_editor_rectangle_width = value.editor_rectangle.width;
+                    let vm_result_editor_rectangle_height = value.editor_rectangle.height;
+                    let vm_result_editor_rectangle = InputTextRectangle {
+                        x: vm_result_editor_rectangle_x,
+                        y: vm_result_editor_rectangle_y,
+                        width: vm_result_editor_rectangle_width,
+                        height: vm_result_editor_rectangle_height,
+                    };
+                    let vm_result_caret_rectangle = if let Some(value) = value.caret_rectangle {
+                        let vm_result_caret_rectangle_inner_x = value.x;
+                        let vm_result_caret_rectangle_inner_y = value.y;
+                        let vm_result_caret_rectangle_inner_width = value.width;
+                        let vm_result_caret_rectangle_inner_height = value.height;
+                        let vm_result_caret_rectangle_inner = InputTextRectangle {
+                            x: vm_result_caret_rectangle_inner_x,
+                            y: vm_result_caret_rectangle_inner_y,
+                            width: vm_result_caret_rectangle_inner_width,
+                            height: vm_result_caret_rectangle_inner_height,
+                        };
+                        Some(vm_result_caret_rectangle_inner)
+                    } else {
+                        None
+                    };
+                    let vm_result_composing_rectangle =
+                        if let Some(value) = value.composing_rectangle {
+                            let vm_result_composing_rectangle_inner_x = value.x;
+                            let vm_result_composing_rectangle_inner_y = value.y;
+                            let vm_result_composing_rectangle_inner_width = value.width;
+                            let vm_result_composing_rectangle_inner_height = value.height;
+                            let vm_result_composing_rectangle_inner = InputTextRectangle {
+                                x: vm_result_composing_rectangle_inner_x,
+                                y: vm_result_composing_rectangle_inner_y,
+                                width: vm_result_composing_rectangle_inner_width,
+                                height: vm_result_composing_rectangle_inner_height,
+                            };
+                            Some(vm_result_composing_rectangle_inner)
+                        } else {
+                            None
+                        };
+                    let vm_result = InputTextGeometry {
+                        local_to_target_transform: vm_result_local_to_target_transform,
+                        editor_rectangle: vm_result_editor_rectangle,
+                        caret_rectangle: vm_result_caret_rectangle,
+                        composing_rectangle: vm_result_composing_rectangle,
                     };
                     Ok(vm_result)
                 }
@@ -29757,7 +30175,7 @@ fn destack_input_text_get_area_vm_replay(
             }
         },
     );
-    let result = encode_destack_input_text_get_area_result(context, result)?;
+    let result = encode_destack_input_text_get_geometry_result(context, result)?;
     Ok(result)
 }
 
@@ -30664,30 +31082,30 @@ fn destack_input_text_read_event_vm_replay(
 }
 
 #[inline]
-fn destack_input_text_set_area_vm_replay(
+fn destack_input_text_set_geometry_vm_replay(
     binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     session: resource::InputTextSessionHandle,
-    area: InputTextInputAreaVm,
+    geometry: InputTextGeometryVm,
 ) -> RuntimeResult<vm::Value> {
     let result = binding.trace().run_binding(
-        INPUT_TEXT_SET_AREA,
-        binding.replay_payload_for(INPUT_TEXT_SET_AREA)?,
+        INPUT_TEXT_SET_GEOMETRY,
+        binding.replay_payload_for(INPUT_TEXT_SET_GEOMETRY)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_input_text_set_area(binding, context, session, area)
+                platform_vm::destack_input_text_set_geometry(binding, context, session, geometry)
             }
-            RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_input_text_set_area(binding, context, session, area)
-            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_input_text_set_geometry(
+                binding, context, session, geometry,
+            ),
         },
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_recorded = ();
-                let payload = InputTextSetAreaReplayRecord {
+                let payload = InputTextSetGeometryReplayRecord {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -30696,7 +31114,7 @@ fn destack_input_text_set_area_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(TraceError::from(error.as_ref()));
-                    InputTextSetAreaReplayRecord { result }
+                    InputTextSetGeometryReplayRecord { result }
                 };
                 return Ok(Some(payload));
             }
@@ -30712,7 +31130,7 @@ fn destack_input_text_set_area_vm_replay(
             }
         },
     );
-    let result = encode_destack_input_text_set_area_result(context, result)?;
+    let result = encode_destack_input_text_set_geometry_result(context, result)?;
     Ok(result)
 }
 
@@ -32872,16 +33290,16 @@ pub(crate) fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate
         binding!(
             registry,
             isolate,
-            INPUT_TEXT_GET_AREA,
+            INPUT_TEXT_GET_GEOMETRY,
             move |context, args| {
                 with_binding_call_context(|binding| {
                     // decode args
-                    let (session,) = decode_destack_input_text_get_area_args(context, args)?;
+                    let (session,) = decode_destack_input_text_get_geometry_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        binding.on_before_binding_resolve_world(INPUT_TEXT_GET_AREA)?;
-                    destack_input_text_get_area_vm_replay(binding, context, world, session)
+                        binding.on_before_binding_resolve_world(INPUT_TEXT_GET_GEOMETRY)?;
+                    destack_input_text_get_geometry_vm_replay(binding, context, world, session)
                 })
                 .map_err(Into::into)
             }
@@ -32924,16 +33342,19 @@ pub(crate) fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate
         binding!(
             registry,
             isolate,
-            INPUT_TEXT_SET_AREA,
+            INPUT_TEXT_SET_GEOMETRY,
             move |context, args| {
                 with_binding_call_context(|binding| {
                     // decode args
-                    let (session, area) = decode_destack_input_text_set_area_args(context, args)?;
+                    let (session, geometry) =
+                        decode_destack_input_text_set_geometry_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        binding.on_before_binding_resolve_world(INPUT_TEXT_SET_AREA)?;
-                    destack_input_text_set_area_vm_replay(binding, context, world, session, area)
+                        binding.on_before_binding_resolve_world(INPUT_TEXT_SET_GEOMETRY)?;
+                    destack_input_text_set_geometry_vm_replay(
+                        binding, context, world, session, geometry,
+                    )
                 })
                 .map_err(Into::into)
             }

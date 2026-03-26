@@ -35,6 +35,7 @@ pub(crate) fn handle_x11_event(
         Event::ClientMessage(value) => Some(value.window),
         Event::DestroyNotify(value) => Some(value.window),
         Event::ConfigureNotify(value) => Some(value.window),
+        Event::KeyPress(value) => Some(value.event),
         Event::MapNotify(value) => Some(value.window),
         Event::UnmapNotify(value) => Some(value.window),
         Event::FocusIn(value) => Some(value.event),
@@ -60,6 +61,60 @@ pub(crate) fn handle_x11_event(
         return;
     };
     let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+
+    // process one text-driving key press before the general window state logic
+    if let Event::KeyPress(value) = &event_value {
+        match super::super::text::handle_window_text_key_press(
+            runtime_state,
+            connection_state,
+            window_handle,
+            value,
+        ) {
+            Ok(true) => return,
+            Ok(false) => {}
+            Err(error) => {
+                runtime_state.diagnostics.warn(
+                    "display",
+                    "destack.display.window.eventRead",
+                    format!("x11 text key handling failed: {error}"),
+                    None,
+                );
+            }
+        }
+    }
+
+    // synchronize one native text host focus transition before publishing window focus state
+    if let Event::FocusIn(value) = &event_value {
+        if let Err(error) = super::super::text::handle_window_text_focus_in(
+            runtime_state,
+            connection_state,
+            window_handle,
+            value,
+        ) {
+            runtime_state.diagnostics.warn(
+                "display",
+                "destack.display.window.eventRead",
+                format!("x11 text focus-in handling failed: {error}"),
+                None,
+            );
+        }
+    }
+
+    if let Event::FocusOut(value) = &event_value {
+        if let Err(error) = super::super::text::handle_window_text_focus_out(
+            runtime_state,
+            connection_state,
+            window_handle,
+            value,
+        ) {
+            runtime_state.diagnostics.warn(
+                "display",
+                "destack.display.window.eventRead",
+                format!("x11 text focus-out handling failed: {error}"),
+                None,
+            );
+        }
+    }
 
     // process one client-message event
     if let Event::ClientMessage(value) = event_value {
@@ -171,11 +226,34 @@ pub(crate) fn handle_x11_event(
     // process one window-destroy event
     if let Event::DestroyNotify(_) = event_value {
         if !host_state.destroyed_emitted {
+            let removed_text_context = runtime_state
+                .text_input_contexts
+                .lock()
+                .unwrap_or_else(|error| error.into_inner())
+                .remove(&window_handle);
+
             host_state.destroyed_emitted = true;
             host_state.visibility = WindowVisibility::Hidden;
             host_state.focused = false;
             runtime_state.unregister_xid(xid);
             drop(host_state);
+
+            if removed_text_context
+                .as_ref()
+                .is_some_and(|context| context.is_composing || !context.composition_text.is_empty())
+            {
+                let _ = crate::platform::input::host::notify_x11_window_end_composition(
+                    runtime_state,
+                    window_handle,
+                );
+            }
+
+            runtime_state
+                .active_text_sessions
+                .lock()
+                .unwrap_or_else(|error| error.into_inner())
+                .remove(&window_handle);
+
             event::publish_window_destroyed(runtime_state, window_handle);
         }
         return;

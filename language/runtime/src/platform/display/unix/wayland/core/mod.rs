@@ -12,6 +12,7 @@ mod registry;
 mod runtime;
 mod seat;
 mod service;
+mod text;
 
 pub(crate) use super::constants::*;
 pub(crate) use capability::backend_descriptor_state;
@@ -27,3 +28,4 @@ pub(crate) use protocol::*;
 pub(crate) use query::*;
 pub(crate) use runtime::*;
 pub(crate) use service::*;
+pub(crate) use text::*;

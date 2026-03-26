@@ -15,14 +15,33 @@ use crate::platform::display::windows::win32::event::{
 };
 use crate::platform::display::windows::win32::model::{MonitorSnapshot, Win32WindowHostState};
 use crate::platform::display::windows::win32::{core, publish_monitor_topology_deltas};
-use crate::platform::resource;
+use crate::platform::resource::{self, InputTextSessionHandle, ResourceTable};
+use crate::runtime::world::World;
 use crate::runtime::{
     BindingCallContext, RuntimeEventLog, RuntimeSnapshotCache, RuntimeStreamRegistry,
 };
 
+/// Callback-safe reference to the owning agent resource table.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct Win32ResourceTableRef(*const ResourceTable);
+
+unsafe impl Send for Win32ResourceTableRef {}
+unsafe impl Sync for Win32ResourceTableRef {}
+
+/// Callback-safe reference to the owning runtime world.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct Win32WorldRef(*const World);
+
+unsafe impl Send for Win32WorldRef {}
+unsafe impl Sync for Win32WorldRef {}
+
 /// Runtime-owned mutable state for the Win32 display backend.
 #[derive(Debug)]
 pub(crate) struct Win32RuntimeState {
+    /// Agent resource table used for callback-owned input-session updates.
+    pub(crate) resources: Win32ResourceTableRef,
+    /// Runtime world used for callback-owned resource-table updates.
+    pub(crate) world: Win32WorldRef,
     /// Shared global cursor visibility state.
     pub(crate) cursor_visible_state: Mutex<Option<bool>>,
     /// Per-window cursor policy lanes used to derive process-global cursor state.
@@ -47,6 +66,8 @@ pub(crate) struct Win32RuntimeState {
     pub(crate) window_event_signal: Condvar,
     /// Registered window-event streams for this runtime.
     pub(crate) window_streams: RuntimeStreamRegistry<WindowEventStream>,
+    /// Active native text session routing keyed by runtime window handle.
+    pub(crate) active_text_sessions: Mutex<HashMap<resource::WindowHandle, InputTextSessionHandle>>,
     /// Registered host-owned ingress observer for this runtime.
     runtime_ingress_handler: OnceLock<Arc<Win32RuntimeIngressHandler>>,
     /// One-time Win32 service registration guard for this runtime.
@@ -56,14 +77,24 @@ pub(crate) struct Win32RuntimeState {
 impl Default for Win32RuntimeState {
     /// Create one default Win32 runtime state.
     fn default() -> Self {
-        Self::new(Arc::new(DiagnosticStore::default()))
+        Self::new(
+            Arc::new(DiagnosticStore::default()),
+            Win32ResourceTableRef(std::ptr::null()),
+            Win32WorldRef(std::ptr::null()),
+        )
     }
 }
 
 impl Win32RuntimeState {
     /// Create one Win32 runtime state with explicit diagnostics storage.
-    fn new(diagnostics: Arc<DiagnosticStore>) -> Self {
+    fn new(
+        diagnostics: Arc<DiagnosticStore>,
+        resources: Win32ResourceTableRef,
+        world: Win32WorldRef,
+    ) -> Self {
         Self {
+            resources,
+            world,
             cursor_visible_state: Mutex::new(None),
             cursor_policy_by_window: Mutex::new(HashMap::new()),
             next_cursor_policy_sequence: AtomicU64::new(1),
@@ -76,6 +107,7 @@ impl Win32RuntimeState {
             window_events: Mutex::new(RuntimeEventLog::default()),
             window_event_signal: Condvar::new(),
             window_streams: RuntimeStreamRegistry::default(),
+            active_text_sessions: Mutex::new(HashMap::new()),
             runtime_ingress_handler: OnceLock::new(),
             service_registration: OnceLock::new(),
         }
@@ -100,6 +132,18 @@ impl Win32RuntimeState {
     /// Allocate one stable window-event stream identifier.
     pub(crate) fn next_window_stream_id(&self) -> u64 {
         self.window_streams.next_stream_id()
+    }
+
+    /// Borrow the agent resource table captured by this runtime.
+    pub(crate) fn resource_table(&self) -> &ResourceTable {
+        // safety: the agent owns the resource table for the lifetime of the runtime state
+        unsafe { &*self.resources.0 }
+    }
+
+    /// Borrow the runtime world captured by this runtime.
+    pub(crate) fn world(&self) -> &World {
+        // safety: the world outlives the runtime state for the lifetime of the agent
+        unsafe { &*self.world.0 }
     }
 
     /// Register one monitor-event stream for this runtime.
@@ -311,7 +355,13 @@ pub(crate) fn runtime_state(context: &BindingCallContext) -> Arc<Win32RuntimeSta
         .agent()
         .platform_state
         .display
-        .win32_runtime_state(|| Win32RuntimeState::new(diagnostics));
+        .win32_runtime_state(|| {
+            Win32RuntimeState::new(
+                diagnostics,
+                Win32ResourceTableRef(&context.agent().resources),
+                Win32WorldRef(context.world()),
+            )
+        });
 
     // keep the host message loop registration service-backed
     runtime_state.ensure_service_registration(context);

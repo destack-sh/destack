@@ -11,3 +11,4 @@ pub(crate) mod media;
 pub(crate) mod notification;
 pub(crate) mod permission;
 pub(crate) mod registry;
+pub(crate) mod text;

@@ -38,7 +38,7 @@ extension ProcessRuntimeAbi {
     event: RuntimeHostIntentEvent
   ) -> RuntimeAbiStatus {
     switch event.payload {
-    case let .openURL(url):
+    case .openURL(let url):
       return withNativeStringRef(event.source) { source in
         withNativeStringRef(url) { url in
           let status = destack_runtime_host_ios_notify_intent_open_url(
@@ -52,7 +52,7 @@ extension ProcessRuntimeAbi {
         }
       }
 
-    case let .openFile(path, contentType):
+    case .openFile(let path, let contentType):
       return withNativeStringRef(event.source) { source in
         withNativeStringRef(path) { path in
           withNativeStringRef(contentType) { contentType in
@@ -70,7 +70,7 @@ extension ProcessRuntimeAbi {
         }
       }
 
-    case let .shareText(text, contentType):
+    case .shareText(let text, let contentType):
       return withNativeStringRef(event.source) { source in
         withNativeStringRef(text) { text in
           withNativeStringRef(contentType) { contentType in
@@ -88,7 +88,7 @@ extension ProcessRuntimeAbi {
         }
       }
 
-    case let .shareFiles(paths, contentType):
+    case .shareFiles(let paths, let contentType):
       return withNativeStringRef(event.source) { source in
         withNativeStringSlice(paths) { paths in
           withNativeStringRef(contentType) { contentType in
@@ -106,7 +106,7 @@ extension ProcessRuntimeAbi {
         }
       }
 
-    case let .customAction(action, url, paths, text, contentType):
+    case .customAction(let action, let url, let paths, let text, let contentType):
       return withNativeStringRef(event.source) { source in
         withNativeStringRef(action) { action in
           withNativeStringRef(url) { url in

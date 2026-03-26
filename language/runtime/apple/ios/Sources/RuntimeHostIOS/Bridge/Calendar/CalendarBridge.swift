@@ -569,7 +569,10 @@ private func decodeCalendarAttendees(
 
   let buffer = UnsafeBufferPointer(start: data, count: Int(values.len))
   return buffer.compactMap { value in
-    guard let responseStatus = RuntimeHostCalendarParticipantStatus(rawValue: value.response_status.rawValue) else {
+    guard
+      let responseStatus = RuntimeHostCalendarParticipantStatus(
+        rawValue: value.response_status.rawValue)
+    else {
       return nil
     }
 
@@ -902,7 +905,8 @@ private func encodeCalendarAttendees(
         email: encodeOptionalCalendarString(value.email, arena: arena),
         optional: value.optional,
         organizer: value.organizer,
-        response_status: DestackRustCalendarParticipantStatus(rawValue: value.responseStatus.rawValue)
+        response_status: DestackRustCalendarParticipantStatus(
+          rawValue: value.responseStatus.rawValue)
       )
     }
   }
@@ -965,9 +969,10 @@ private func encodeCalendarEvent(
   arena: CalendarBridgeArena
 ) -> DestackRustCalendarEvent {
   let hasRecurrenceRule = value.recurrenceRule != nil
-  let recurrenceRule = value.recurrenceRule.map { rule in
-    encodeCalendarRecurrenceRule(rule, arena: arena)
-  } ?? DestackRustCalendarRecurrenceRule()
+  let recurrenceRule =
+    value.recurrenceRule.map { rule in
+      encodeCalendarRecurrenceRule(rule, arena: arena)
+    } ?? DestackRustCalendarRecurrenceRule()
 
   let hasAttendees = value.attendees != nil
   let attendees = encodeCalendarAttendees(value.attendees ?? [], arena: arena)

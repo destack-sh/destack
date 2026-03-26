@@ -1,6 +1,10 @@
 use super::{HostRequestRequirement, request_requirements};
 use crate::host::core::HostRequest;
-use crate::platform::os::abi_generated::DocumentPickOptionsValue;
+use crate::platform::os::abi_generated::{
+    BackgroundConflictPolicyValue, BackgroundNetworkRequirementValue, BackgroundTaskOptionsValue,
+    BackgroundTaskScheduleKindValue, BackgroundTaskScheduleValue, BackgroundTriggerKindValue,
+    DocumentPickOptionsValue,
+};
 use destack_artifact::Platform;
 
 /// Resolve no declaration requirements for document picker requests.
@@ -66,4 +70,35 @@ fn test_request_requirements_leave_non_android_file_share_declaration_free() {
     let requirements = request_requirements(Platform::Windows, &request);
 
     assert_eq!(requirements, Vec::new());
+}
+
+/// Resolve one declared task identifier requirement for iOS background registration.
+#[test]
+fn test_request_requirements_require_ios_background_task_identifier() {
+    let request = HostRequest::OsBackgroundRegister {
+        options: BackgroundTaskOptionsValue {
+            identifier: "sync".to_string(),
+            trigger: BackgroundTriggerKindValue::Processing,
+            schedule: BackgroundTaskScheduleValue {
+                kind: BackgroundTaskScheduleKindValue::Recurring,
+                earliest_begin_unix_ns: None,
+                repeat_interval_ns: Some(60_000_000_000),
+            },
+            network: BackgroundNetworkRequirementValue::Connected,
+            requires_charging: false,
+            requires_idle: false,
+            conflict_policy: BackgroundConflictPolicyValue::Replace,
+        },
+    };
+
+    // mobile background registration requires both execution support and a declared identifier
+    let requirements = request_requirements(Platform::IOS, &request);
+
+    assert_eq!(
+        requirements,
+        vec![
+            HostRequestRequirement::BackgroundExecution,
+            HostRequestRequirement::BackgroundTaskIdentifier("sync".to_string()),
+        ]
+    );
 }

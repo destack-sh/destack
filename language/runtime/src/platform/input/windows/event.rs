@@ -308,6 +308,7 @@ fn map_console_record(
             if is_text {
                 payload.text = InputTextEventPayload {
                     text: binding.store_string(text.as_deref().unwrap_or("")),
+                    is_composing: false,
                 };
             } else {
                 payload.key = InputKeyEventPayload {
@@ -800,6 +801,50 @@ fn pop_pending_console_record(
     }
 }
 
+/// Read one committed console text event for one text session.
+pub(super) fn read_console_text_event(
+    binding: &BindingCallContext,
+    input_binding: &mut input_core::WindowsInputBinding,
+    host_handle: HANDLE,
+    nonblocking: bool,
+    operation: &'static str,
+) -> RuntimeResult<InputEvent> {
+    // require cooked console mode so host text records stay translated
+    if input_binding.read_mode != InputReadMode::Cooked {
+        return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
+    }
+
+    // keep consuming console records until one committed text payload arrives
+    loop {
+        let Some(pending_record) = input_binding.pending_console_records.pop_front() else {
+            let pending_record =
+                read_console_record_from_host(host_handle, nonblocking, operation)?;
+            push_bounded_console_record(&mut input_binding.pending_console_records, pending_record);
+            continue;
+        };
+
+        let mapped = map_console_record(
+            binding,
+            pending_record.record,
+            input_core::WINDOWS_INPUT_DEVICE_ID,
+            input_binding.read_mode,
+            input_binding.console_button_state,
+            pending_record.timestamp_ns,
+        );
+        let Some(mapped) = mapped else {
+            continue;
+        };
+
+        if let Some(next_button_state) = mapped.next_button_state {
+            input_binding.console_button_state = next_button_state;
+        }
+
+        if let InputEvent::InputTextEvent(event) = mapped.event {
+            return Ok(InputEvent::InputTextEvent(event));
+        }
+    }
+}
+
 /// Read one input event from console or raw queues.
 pub(super) fn read_event(
     binding: &BindingCallContext,
@@ -876,6 +921,9 @@ pub(super) fn read_event(
                     event.pending_button_transitions,
                     None,
                 )
+            }
+            input_core::WindowsInputBackend::Window => {
+                return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
             }
             // delegate per-device raw streams to the dedicated worker queues
             input_core::WindowsInputBackend::RawDevice => {
@@ -1096,6 +1144,10 @@ pub(super) fn set_read_mode(
 
                 Ok(())
             }
+            input_core::WindowsInputBackend::Window => Err(RuntimeError::from(
+                PlatformError::not_supported("destack.input.event.setReadMode"),
+            )
+            .boxed()),
             input_core::WindowsInputBackend::RawDevice => {
                 // raw-input devices only support raw mode
                 if mode == InputReadMode::Cooked {

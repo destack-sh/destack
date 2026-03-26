@@ -18,7 +18,7 @@ use super::cursor::{cursor_name, refresh_cursor_policy_best_effort, remove_curso
 use super::drop::unregister_window_drop_target;
 use super::geometry::{apply_aspect_ratio_on_sizing, refresh_window_snapshot, window_class_name};
 use crate::platform::display::windows::win32::core::Win32WindowDispatchEntry;
-use crate::platform::display::windows::win32::{core, event};
+use crate::platform::display::windows::win32::{core, event, handle_window_text_message};
 
 /// Apply one incoming host message to cached runtime state and publish state deltas.
 fn apply_window_message_snapshot(
@@ -203,6 +203,20 @@ pub(crate) unsafe extern "system" fn display_window_proc(
             }
             return 1;
         }
+    }
+
+    // route native window text and ime messages into active text sessions
+    if let Some(entry) = Win32WindowDispatchEntry::from_hwnd(hwnd)
+        && let Some(result) = handle_win32_window_text_message(
+            &entry.runtime_state,
+            entry.window,
+            hwnd,
+            message,
+            wparam,
+            lparam,
+        )?
+    {
+        return result;
     }
 
     // mirror host message deltas into cached runtime state

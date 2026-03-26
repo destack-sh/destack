@@ -8,7 +8,7 @@ mod window;
 
 pub(crate) use core::{
     AppKitDisplayService, AppKitRuntimeState, appkit_display_service, backend_available,
-    backend_descriptor_state,
+    backend_descriptor_state, runtime_state,
 };
 pub(crate) use event::*;
 pub(crate) use monitor::*;

@@ -30,6 +30,9 @@ fn requirement_satisfied(
 ) -> bool {
     match requirement {
         HostRequestRequirement::BackgroundExecution => !app.background.modes.is_empty(),
+        HostRequestRequirement::BackgroundTaskIdentifier(identifier) => {
+            app.background.task_identifiers.contains(identifier)
+        }
         HostRequestRequirement::Permission(permission) => app.permissions.contains(permission),
         HostRequestRequirement::NotificationAuthorization => {
             app.notifications.enabled
@@ -49,6 +52,9 @@ fn requirement_message(requirement: &HostRequestRequirement) -> String {
     match requirement {
         HostRequestRequirement::BackgroundExecution => {
             "declare one background.modes entry".to_string()
+        }
+        HostRequestRequirement::BackgroundTaskIdentifier(identifier) => {
+            format!("declare background.taskIdentifiers for `{identifier}`")
         }
         HostRequestRequirement::Permission(permission) => {
             format!("declare permissions.{}", permission_name(*permission))

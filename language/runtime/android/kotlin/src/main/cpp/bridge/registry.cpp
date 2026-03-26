@@ -12,6 +12,8 @@
 #include "notification/runtime.h"
 #include "permission/methods.h"
 #include "permission/runtime.h"
+#include "text/methods.h"
+#include "text/runtime.h"
 #include "loader.h"
 #include "registry.h"
 
@@ -84,11 +86,13 @@ Java_dev_destack_runtime_android_bridge_ProcessRuntimeAbi_nativeAttachBridge(
     bool has_location_methods = resolve_location_methods(env, bridge);
     bool has_media_methods = resolve_media_methods(env, bridge);
     bool has_notification_methods = resolve_notification_methods(env, bridge);
+    bool has_text_methods = resolve_text_methods(env, bridge);
 
     if (!(has_document_methods && has_permission_methods && has_calendar_methods &&
             has_contact_methods &&
             has_intent_methods &&
             has_location_methods && has_media_methods &&
+            has_text_methods &&
             has_notification_methods)) {
         return static_cast<jint>(HOST_STATUS_FAILED);
     }
@@ -145,6 +149,12 @@ Java_dev_destack_runtime_android_bridge_ProcessRuntimeAbi_nativeAttachBridge(
             .cancel = call_notification_cancel_for_session,
             .cancel_all = call_notification_cancel_all_for_session,
             .post = call_notification_post_for_session,
+        },
+        .text = {
+            .open = call_text_open_for_session,
+            .close = call_text_close_for_session,
+            .set_geometry = call_text_set_geometry_for_session,
+            .set_state = call_text_set_state_for_session,
         },
     };
 

@@ -19,6 +19,8 @@ RuntimeBindings runtime_bindings = {
     .notify_intent_custom_action = nullptr,
     .notify_permission_result = nullptr,
     .notify_location_sample = nullptr,
+    .notify_text_input_state = nullptr,
+    .notify_background_event = nullptr,
 };
 
 template <typename SymbolFunction>
@@ -69,6 +71,8 @@ uint32_t resolve_runtime_bindings(RuntimeBindings *out_bindings) {
     resolve_symbol_once(&runtime_bindings.notify_intent_custom_action, handle, "destack_host_android_notify_intent_custom_action");
     resolve_symbol_once(&runtime_bindings.notify_permission_result, handle, "destack_host_android_notify_permission_result");
     resolve_symbol_once(&runtime_bindings.notify_location_sample, handle, "destack_host_android_notify_location_sample");
+    resolve_symbol_once(&runtime_bindings.notify_text_input_state, handle, "destack_host_android_notify_text_input_state");
+    resolve_symbol_once(&runtime_bindings.notify_background_event, handle, "destack_host_android_notify_background_event");
 
     if (
         runtime_bindings.register_runtime_bridge_bindings == nullptr ||
@@ -81,7 +85,9 @@ uint32_t resolve_runtime_bindings(RuntimeBindings *out_bindings) {
         runtime_bindings.notify_intent_share_files == nullptr ||
         runtime_bindings.notify_intent_custom_action == nullptr ||
         runtime_bindings.notify_permission_result == nullptr ||
-        runtime_bindings.notify_location_sample == nullptr
+        runtime_bindings.notify_location_sample == nullptr ||
+        runtime_bindings.notify_text_input_state == nullptr ||
+        runtime_bindings.notify_background_event == nullptr
     ) {
         return HOST_STATUS_NOT_FOUND;
     }

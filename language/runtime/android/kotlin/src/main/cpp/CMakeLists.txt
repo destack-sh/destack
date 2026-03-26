@@ -13,6 +13,8 @@ add_library(
     bridge/intent/methods.cpp
     bridge/location/runtime.cpp
     bridge/location/methods.cpp
+    bridge/text/runtime.cpp
+    bridge/text/methods.cpp
     bridge/jni.cpp
     bridge/loader.cpp
     bridge/media/methods.cpp

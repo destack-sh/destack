@@ -27,6 +27,10 @@ struct RuntimeBindings {
     NotifyPermissionResultFunction notify_permission_result;
     /// The runtime function that receives one location sample.
     NotifyLocationSampleFunction notify_location_sample;
+    /// The runtime function that receives one text-input state event.
+    NotifyTextInputStateFunction notify_text_input_state;
+    /// The runtime function that receives one background event.
+    NotifyBackgroundEventFunction notify_background_event;
 };
 
 /// Resolve the runtime bridge bindings from the current process.

@@ -7,7 +7,8 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::input::{
     InputAxisMetadata, InputButtonMetadata, InputCapabilityMetadataFidelity,
     InputCapabilityMetadataOrigin, InputDeviceCapabilities, InputDeviceCapabilityKind,
-    InputDeviceDescriptor, InputDeviceKind, InputReadMode, InputTextInputArea, InputTextInputType,
+    InputDeviceDescriptor, InputDeviceKind, InputReadMode, InputTextGeometry, InputTextInputType,
+    InputTextRectangle, InputTextTransform2D,
 };
 use crate::platform::resource::ResourceEntry;
 use crate::platform::{PlatformError, resource};
@@ -255,13 +256,24 @@ pub(crate) unsafe fn destack_input_open(
         },
         text_active: false,
         text_input_type: InputTextInputType::Text,
-        text_area: InputTextInputArea {
-            x: 0,
-            y: 0,
-            width: 0,
-            height: 0,
-            cursor: 0,
-        },
+        text_area: Some(InputTextGeometry {
+            local_to_target_transform: InputTextTransform2D {
+                xx: 1.0,
+                xy: 0.0,
+                yx: 0.0,
+                yy: 1.0,
+                tx: 0.0,
+                ty: 0.0,
+            },
+            editor_rectangle: InputTextRectangle {
+                x: 0.0,
+                y: 0.0,
+                width: 0.0,
+                height: 0.0,
+            },
+            caret_rectangle: None,
+            composing_rectangle: None,
+        }),
         gamepad_player_index_override: None,
         relative_mode_enabled: false,
         last_pointer_x: 0.0,
