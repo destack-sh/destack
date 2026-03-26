@@ -6,7 +6,7 @@ use destack_source::{BatchEdit, Edit, File, FileEdit, FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
 
 use crate::ast::{get_module_by_file_id, span_for_dir_node};
-use crate::core::QueryContext;
+use crate::core::{QueryContext, SessionQueryIndexExt};
 use crate::dir::{
     find_symbol_at_offset, get_canonical_symbol, resolve_expression_symbol,
     resolve_member_access_symbol,
@@ -101,8 +101,20 @@ pub fn change_signature(
             .push(Edit::replace(param_span, new_params.clone()));
     }
 
-    // update call sites across all modules
-    for module in session.modules.iter() {
+    // narrow the scan to modules that actually call the target
+    let mut candidate_modules = HashSet::new();
+    for entry in session.call_index_entries_for_callee(canonical_id) {
+        candidate_modules.insert(entry.module_id);
+    }
+    if let Some(owner_symbol) = constructor_owner {
+        for entry in session.call_index_entries_for_callee(owner_symbol) {
+            candidate_modules.insert(entry.module_id);
+        }
+    }
+
+    // update call sites across candidate modules only
+    for module_id in candidate_modules {
+        let module = session.modules.get(module_id);
         let module = module.as_ref();
         let Some(ctx) = crate::core::query_context(session, module) else {
             continue;

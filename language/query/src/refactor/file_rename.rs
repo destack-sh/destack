@@ -5,13 +5,10 @@ use std::sync::Arc;
 use destack_resolver::{SpecifierPolicy, match_specifier_rename, rewrite_specifier_for_rename};
 use destack_source::{BatchEdit, Edit, File, FileEdit, FileId, ModuleId, PathExt, Span};
 use serde::{Deserialize, Serialize};
-use {destack_ast as ast, destack_dir as dir};
 
 use crate::ast::string_literal_span_in_enclosing;
-use crate::core::{QueryContext, with_ast_query_for_module};
-use crate::dir::module_specifier_in_expression;
-use destack_artifact::ImportEdgeKind;
-use destack_workspace::Session;
+use crate::core::{SessionQueryIndexExt, with_ast_query_for_module};
+use destack_workspace::{Session, SpecifierIndexEntry};
 
 /// A file rename entry for refactor queries.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -99,10 +96,21 @@ pub fn rename_files(session: &Session, renames: &[FileRenameEntry]) -> Option<Fi
     // collect edits grouped by file id
     let mut edits_by_file: HashMap<FileId, Vec<Edit>> = HashMap::new();
 
-    // scan modules for import and re export targets
-    for module_ref in session.modules.iter() {
-        let module = module_ref.as_ref();
-        let query_context = crate::core::query_context(session, module);
+    // collect candidate specifier entries from the workspace index
+    let specifier_entries =
+        session.specifier_index_entries_for_rename_paths(rename_map.keys().cloned());
+    let mut entries_by_module: HashMap<ModuleId, Vec<SpecifierIndexEntry>> = HashMap::new();
+    for entry in specifier_entries {
+        entries_by_module
+            .entry(entry.module_id)
+            .or_default()
+            .push(entry);
+    }
+
+    // apply edits per owning module
+    for (module_id, entries) in entries_by_module {
+        let module = session.modules.get(module_id);
+        let module = module.as_ref();
 
         // resolve file content for literal edits
         let Some(file) = file_for_rename(session, module.file_id) else {
@@ -110,51 +118,9 @@ pub fn rename_files(session: &Session, renames: &[FileRenameEntry]) -> Option<Fi
         };
 
         let Some(()) = with_ast_query_for_module(session, module, |ast| {
-            let mut dir_targets = HashMap::new();
-            if let Some(ctx) = query_context.as_ref() {
-                let dir_tree = ctx.dir().tree();
-                for (expr_id, expression) in dir_tree.iter_nodes_of_type::<dir::Expression>() {
-                    let target_module = match expression {
-                        dir::Expression::Import { target_module, .. }
-                        | dir::Expression::ReExport { target_module, .. } => Some(*target_module),
-                        _ => None,
-                    };
-                    let Some(target_module) = target_module else {
-                        continue;
-                    };
-
-                    let source_id = dir_tree.get_source(expr_id.id);
-                    dir_targets.insert(source_id, target_module);
-                }
-            }
-
-            for expr_id in ast.tree().iter_nodes::<ast::Expression>() {
-                // resolve the module specifier and dependency kind
-                let expression = ast.tree().get(expr_id);
-                let Some((target, kind)) = module_specifier_in_expression(ast.tree(), expression)
-                else {
-                    continue;
-                };
-
-                // resolve the specifier text
-                let specifier_text = ast.strings().get(target).to_string();
-
-                // resolve the target module id
-                let target_module_id = if let Some(ctx) = query_context.as_ref() {
-                    resolve_rename_target_module_id(
-                        session,
-                        ctx,
-                        &dir_targets,
-                        expr_id.id,
-                        &specifier_text,
-                        kind,
-                    )
-                } else {
-                    None
-                };
-
+            for entry in &entries {
                 // resolve the updated specifier text
-                let rename_match = if let Some(target_module_id) = target_module_id {
+                let rename_match = if let Some(target_module_id) = entry.target_module_id {
                     // prefer the semantic target path when it is available
                     let target_module = session.modules.get(target_module_id);
                     let target_module = target_module.as_ref();
@@ -166,7 +132,7 @@ pub fn rename_files(session: &Session, renames: &[FileRenameEntry]) -> Option<Fi
                         &specifier_policy,
                         &rename_map,
                         file.path.as_deref(),
-                        &specifier_text,
+                        &entry.specifier,
                         target_module.path.as_deref(),
                         package.name.as_deref(),
                         package.path.as_deref(),
@@ -176,7 +142,7 @@ pub fn rename_files(session: &Session, renames: &[FileRenameEntry]) -> Option<Fi
                         &specifier_policy,
                         &rename_map,
                         file.path.as_deref(),
-                        &specifier_text,
+                        &entry.specifier,
                         None,
                         None,
                         None,
@@ -189,24 +155,24 @@ pub fn rename_files(session: &Session, renames: &[FileRenameEntry]) -> Option<Fi
                 // rewrite the literal text using the matched rename
                 let updated_specifier = rewrite_specifier_for_rename(
                     file.path.as_deref(),
-                    &specifier_text,
+                    &entry.specifier,
                     &rename_match,
                 );
                 let Some(updated_specifier) = updated_specifier else {
                     continue;
                 };
-                if updated_specifier == specifier_text {
+                if updated_specifier == entry.specifier {
                     continue;
                 }
 
                 // resolve the string literal span for the import target
-                let ast_span = ast.source_map().get_main_or_enclosing(expr_id.id);
+                let ast_span = ast.source_map().get_main_or_enclosing(entry.ast_node_id);
                 let enclosing = Span::new(module.file_id, ast_span.start, ast_span.end);
                 let span = string_literal_span_in_enclosing(
                     &file,
                     ast.tokens(),
                     enclosing,
-                    &specifier_text,
+                    &entry.specifier,
                 )
                 .unwrap_or(enclosing);
                 let literal = file.span_str(span);
@@ -240,51 +206,6 @@ pub fn rename_files(session: &Session, renames: &[FileRenameEntry]) -> Option<Fi
     }
 
     Some(FileRenameResult::from_edits(batch_edit))
-}
-
-/// Resolve a module id for a rename target.
-fn resolve_rename_target_module_id(
-    session: &Session,
-    ctx: &QueryContext,
-    dir_targets: &HashMap<u32, dir::ModuleTarget>,
-    ast_node_id: u32,
-    specifier: &str,
-    kind: ast::DependencyKind,
-) -> Option<ModuleId> {
-    // prefer resolved dir targets when available
-    if let Some(target_module) = dir_targets.get(&ast_node_id)
-        && let dir::ModuleTarget::Module(module_id) = target_module
-    {
-        return Some(*module_id);
-    }
-
-    // check the dir import cache for resolved modules
-    let target_id = session.strings.intern(specifier);
-    let cache_key = (
-        Some(ctx.module_id()),
-        target_id,
-        ImportEdgeKind::Import,
-        None,
-    );
-    if let Some(targets) = ctx
-        .dir()
-        .resolved()
-        .imported_modules
-        .get(&cache_key)
-        .copied()
-    {
-        let dependency_kind = match kind {
-            ast::DependencyKind::Type => dir::DependencyKind::Type,
-            ast::DependencyKind::Value => dir::DependencyKind::Value,
-        };
-        if let Some(module_target) = targets.for_kind(dependency_kind)
-            && let Some(module_id) = module_target.module_id()
-        {
-            return Some(module_id);
-        }
-    }
-
-    None
 }
 
 /// Resolve file content for file rename edits.

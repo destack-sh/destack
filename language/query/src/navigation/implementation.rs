@@ -7,11 +7,12 @@ use destack_source::{FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
 
 use crate::ast::{get_node_tree_main_span, sort_and_dedup_spans};
+use crate::core::SessionQueryIndexExt;
 use crate::dir::{
     find_symbol_at_offset, get_canonical_symbol, get_symbol_definition_span,
     resolve_nominal_symbol_from_type_expression,
 };
-use destack_workspace::Session;
+use destack_workspace::{NominalRelationKind, Session};
 
 /// Result of a goto implementation query.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -126,44 +127,20 @@ pub fn goto_implementation(
     // initialize the result spans
     let mut locations = Vec::new();
 
-    // search all modules for types that implement or extend this symbol
-    for module in session.modules.iter() {
-        // resolve query context for each module
-        let module = module.as_ref();
-        let Some(ctx) = crate::core::query_context(session, module) else {
-            continue;
-        };
+    // match cached direct edges against the target symbol set
+    for target_symbol in target_symbols {
+        let entries = session.nominal_index_entries_for_target(target_symbol);
 
-        // check all lineages in this module
-        {
-            let types = ctx.dir().types();
-            for (symbol_id, lineage) in types.iter_lineages() {
-                // check if this type implements or extends the target symbol
-                let matches = if is_interface {
-                    lineage.implements.iter().any(|symbol| {
-                        let candidates = collect_target_symbols(session, *symbol);
-                        candidates
-                            .iter()
-                            .any(|candidate| target_symbols.contains(candidate))
-                    })
-                } else {
-                    lineage
-                        .extends
-                        .map(|symbol| {
-                            let candidates = collect_target_symbols(session, symbol);
-                            candidates
-                                .iter()
-                                .any(|candidate| target_symbols.contains(candidate))
-                        })
-                        .unwrap_or(false)
-                };
+        for entry in entries {
+            let matches = if is_interface {
+                entry.relation == NominalRelationKind::Implements
+            } else {
+                entry.relation == NominalRelationKind::Extends
+            };
 
-                if matches {
-                    // get the span of the implementing type's declaration
-                    if let Some(span) = get_symbol_definition_span(session, symbol_id) {
-                        locations.push(span);
-                    }
-                }
+            if matches && let Some(span) = get_symbol_definition_span(session, entry.source_symbol)
+            {
+                locations.push(span);
             }
         }
     }

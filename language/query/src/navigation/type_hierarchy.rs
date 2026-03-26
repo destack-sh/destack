@@ -2,11 +2,12 @@ use destack_dir::{GlobalSymbolId, SymbolType};
 use destack_source::{FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
 
+use crate::core::SessionQueryIndexExt;
 use crate::dir::{
     find_symbol_at_offset, get_canonical_symbol, get_symbol_declaration_span,
     get_symbol_definition_span, resolve_symbol_name,
 };
-use destack_workspace::Session;
+use destack_workspace::{NominalRelationKind, Session};
 
 /// An item in the type hierarchy.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -190,23 +191,20 @@ pub fn subtypes(session: &Session, item: &TypeHierarchyItem) -> Vec<TypeHierarch
     // collect all subtype symbol ids first, then convert
     let mut subtype_ids: Vec<GlobalSymbolId> = Vec::new();
 
-    // search all modules for types that extend/implement this type
-    for module in session.modules.iter() {
-        let module = module.as_ref();
-        let Some(ctx) = crate::core::query_context(session, module) else {
-            continue;
-        };
-        let types = ctx.dir().types();
+    // search cached direct nominal edges across the session
+    let entries = session.nominal_index_entries_for_target(canonical_id);
 
-        for (symbol_id, lineage) in types.iter_lineages() {
-            // check if this type extends or implements our target
-            let is_subtype = lineage.directly_extends(canonical_id)
-                || lineage.directly_implements(canonical_id)
-                || lineage.directly_embeds(canonical_id);
+    for entry in entries {
+        let matches = entry.target_symbol == canonical_id
+            && matches!(
+                entry.relation,
+                NominalRelationKind::Extends
+                    | NominalRelationKind::Implements
+                    | NominalRelationKind::Embeds
+            );
 
-            if is_subtype {
-                subtype_ids.push(symbol_id);
-            }
+        if matches {
+            subtype_ids.push(entry.source_symbol);
         }
     }
 

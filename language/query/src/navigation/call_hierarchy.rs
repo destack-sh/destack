@@ -1,17 +1,14 @@
 use std::collections::HashMap;
 
-use destack_dir::{
-    self as dir, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, NodeTree, NodeVisitor,
-    NodeVisitorOptions, Resolution, SymbolType, walk_expression,
-};
+use destack_dir::{GlobalSymbolId, SymbolType};
 use destack_source::{FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
 
-use crate::ast::{get_node_tree_span, sort_and_dedup_spans};
-use crate::core::QueryContext;
+use crate::ast::sort_and_dedup_spans;
+use crate::core::SessionQueryIndexExt;
 use crate::dir::{
     find_symbol_at_offset, get_canonical_symbol, get_symbol_declaration_span,
-    get_symbol_definition_span, resolve_expression_symbol, resolve_symbol_name,
+    get_symbol_definition_span, resolve_symbol_name,
 };
 use destack_workspace::Session;
 
@@ -156,84 +153,25 @@ pub fn incoming_calls(
     item: &CallHierarchyItem,
 ) -> Vec<CallHierarchyIncomingCall> {
     let canonical_id = get_canonical_symbol(session, item.symbol_id);
-    let mut incoming: Vec<CallHierarchyIncomingCall> = Vec::new();
-
-    // find all call expressions that target this function
-    for module in session.modules.iter() {
-        let module = module.as_ref();
-        let Some(ctx) = crate::core::query_context(session, module) else {
+    let mut incoming_by_caller: HashMap<GlobalSymbolId, Vec<Span>> = HashMap::new();
+    for entry in session.call_index_entries_for_callee(canonical_id) {
+        let Some(caller_symbol) = entry.caller_symbol else {
             continue;
         };
-        let module_id = ctx.module_id();
-        let call_sites_by_function: HashMap<GlobalSymbolId, Vec<Span>> = {
-            let dir_tree = ctx.dir().tree();
-            let types = ctx.dir().types();
 
-            // collect call sites and their containing functions
-            let mut call_sites_by_function: HashMap<GlobalSymbolId, Vec<Span>> = HashMap::new();
+        incoming_by_caller
+            .entry(caller_symbol)
+            .or_default()
+            .push(entry.span);
+    }
 
-            // check call expressions for direct and resolved targets
-            let resolution_matches = |expression_id: LocalNodeId<Expression>| {
-                let node_id = GlobalNodeIdAny {
-                    module_id,
-                    local_id: expression_id.into(),
-                };
-                let Some(resolution_id) = types.get_resolution_for_node(node_id) else {
-                    return false;
-                };
-                let resolution = types.get_resolution(resolution_id);
-                let candidates = match resolution {
-                    Resolution::Static { candidate, .. } => std::slice::from_ref(candidate),
-                    Resolution::Dynamic { candidates, .. } => candidates.as_slice(),
-                    _ => return false,
-                };
-                candidates.iter().any(|candidate| {
-                    get_canonical_symbol(session, candidate.target_symbol) == canonical_id
-                })
-            };
-
-            for (expr_id, expr) in dir_tree.iter_nodes_of_type::<Expression>() {
-                let Expression::Call { left, .. } = expr else {
-                    continue;
-                };
-
-                let mut matches = false;
-                if let Some(target) = resolve_expression_symbol(ctx.dir(), *left) {
-                    let target_canonical = get_canonical_symbol(session, target);
-                    matches = target_canonical == canonical_id;
-                }
-
-                if !matches && (resolution_matches(expr_id) || resolution_matches(*left)) {
-                    matches = true;
-                }
-
-                if !matches {
-                    continue;
-                }
-
-                let call_span = get_node_tree_span(ctx.ast(), ctx.dir().tree(), expr_id.into());
-
-                if let Some(containing_fn) =
-                    find_containing_function(dir_tree, module_id, expr_id.into())
-                {
-                    call_sites_by_function
-                        .entry(containing_fn)
-                        .or_default()
-                        .push(call_span);
-                }
-            }
-
-            call_sites_by_function
-        };
-
-        // convert to incoming calls
-        for (fn_symbol_id, call_spans) in call_sites_by_function {
-            if let Some(fn_item) = call_hierarchy_item_from_symbol(session, fn_symbol_id) {
-                incoming.push(CallHierarchyIncomingCall {
-                    from: fn_item,
-                    from_ranges: call_spans,
-                });
-            }
+    let mut incoming = Vec::new();
+    for (caller_symbol, call_spans) in incoming_by_caller {
+        if let Some(caller_item) = call_hierarchy_item_from_symbol(session, caller_symbol) {
+            incoming.push(CallHierarchyIncomingCall {
+                from: caller_item,
+                from_ranges: call_spans,
+            });
         }
     }
 
@@ -255,50 +193,15 @@ pub fn outgoing_calls(
     item: &CallHierarchyItem,
 ) -> Vec<CallHierarchyOutgoingCall> {
     let canonical_id = get_canonical_symbol(session, item.symbol_id);
-
-    // get the module containing this function
-    let module = session.modules.get(canonical_id.module_id);
-    let module = module.as_ref();
-    let Some(ctx) = crate::core::query_context(session, module) else {
-        return Vec::new();
-    };
-    let calls_with_spans: HashMap<GlobalSymbolId, Vec<Span>> = {
-        let dir_tree = ctx.dir().tree();
-        let symbols = ctx.dir().symbols();
-
-        // find the declaration for this symbol
-        let symbol = symbols.get_symbol(canonical_id.local_id);
-        let Some(primary_decl) = symbol.primary_declaration else {
-            return Vec::new();
-        };
-
-        // get the function's body expression
-        let decl_id: dir::LocalNodeId<dir::Declaration> = match primary_decl.try_into() {
-            Ok(id) => id,
-            Err(_) => return Vec::new(),
-        };
-        let decl = dir_tree.get::<dir::Declaration>(decl_id);
-        let dir::Declaration::Function { body, .. } = decl else {
-            return Vec::new();
-        };
-        let Some(body_id) = body else {
-            return Vec::new();
-        };
-
-        // collect all call expressions in the body
-        let mut collector = CallCollector::new(session, &ctx);
-        let body_expr = dir_tree.get::<Expression>(*body_id);
-        collector.visit_expression(dir_tree, *body_id, body_expr);
-
-        // get spans for collected calls
-        let mut calls_with_spans: HashMap<GlobalSymbolId, Vec<Span>> = HashMap::new();
-        for (target_id, expr_id) in collector.calls {
-            let span = get_node_tree_span(ctx.ast(), ctx.dir().tree(), expr_id.into());
-            calls_with_spans.entry(target_id).or_default().push(span);
-        }
+    let mut calls_with_spans: HashMap<GlobalSymbolId, Vec<Span>> = HashMap::new();
+    for entry in session.call_index_entries_for_caller(canonical_id) {
+        let callee_symbol = get_canonical_symbol(session, entry.callee_symbol);
 
         calls_with_spans
-    };
+            .entry(callee_symbol)
+            .or_default()
+            .push(entry.span);
+    }
 
     // convert to outgoing calls
     let mut outgoing = Vec::new();
@@ -355,80 +258,6 @@ fn call_kind_rank(kind: CallHierarchyKind) -> u8 {
         CallHierarchyKind::Method => 1,
         CallHierarchyKind::Constructor => 2,
     }
-}
-
-/// Visitor that collects Call expressions and their targets.
-struct CallCollector<'a> {
-    session: &'a Session,
-    ctx: &'a QueryContext,
-    calls: Vec<(GlobalSymbolId, LocalNodeId<Expression>)>,
-    options: NodeVisitorOptions,
-}
-
-impl<'a> CallCollector<'a> {
-    /// Create a call collector for one query pass.
-    fn new(session: &'a Session, ctx: &'a QueryContext) -> Self {
-        Self {
-            session,
-            ctx,
-            calls: Vec::new(),
-            options: NodeVisitorOptions::default(),
-        }
-    }
-}
-
-impl NodeVisitor for CallCollector<'_> {
-    /// Return node visitor options for call collection.
-    fn options(&self) -> &NodeVisitorOptions {
-        &self.options
-    }
-
-    /// Visit expressions and record call targets.
-    fn visit_expression(
-        &mut self,
-        tree: &NodeTree,
-        id: LocalNodeId<Expression>,
-        expression: &Expression,
-    ) {
-        // check if this is a call expression
-        if let Expression::Call { left, .. } = expression {
-            // the left side of the call might be a reference
-            if let Some(target) = resolve_expression_symbol(self.ctx.dir(), *left) {
-                let canonical = get_canonical_symbol(self.session, target);
-                self.calls.push((canonical, id));
-            }
-        }
-
-        // continue walking
-        walk_expression(self, tree, id, expression);
-    }
-}
-
-/// Find the containing function for a given expression.
-fn find_containing_function(
-    dir_tree: &dir::NodeTree,
-    module_id: destack_source::ModuleId,
-    node_id: dir::LocalNodeIdAny,
-) -> Option<GlobalSymbolId> {
-    // walk up the parent chain to find a function declaration
-    let mut current = Some(node_id);
-
-    while let Some(node) = current {
-        if node.ty == dir::NodeType::Declaration {
-            let decl_id: dir::LocalNodeId<dir::Declaration> = node.try_into().ok()?;
-            let decl = dir_tree.get::<dir::Declaration>(decl_id);
-            if matches!(decl, dir::Declaration::Function { .. }) {
-                let symbol_id = decl.symbol();
-                return Some(GlobalSymbolId {
-                    module_id,
-                    local_id: symbol_id,
-                });
-            }
-        }
-        current = dir_tree.get_parent(node.id);
-    }
-
-    None
 }
 
 /// Convert a symbol ID to a CallHierarchyItem.

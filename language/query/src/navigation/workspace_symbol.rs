@@ -1,15 +1,10 @@
-use destack_dir as dir;
 use destack_source::{FileId, Span};
 use serde::{Deserialize, Serialize};
 
-use crate::ast::try_span_for_dir_node;
-use crate::core::QueryContext;
+use crate::core::SessionQueryIndexExt;
 use crate::core::fuzzy::score_completion;
-use crate::dir::{
-    SymbolKind, container_name_for_node, declaration_display_name, declaration_symbol_kind,
-    is_synthetic_function_keyword_field, member_key_name, member_symbol_kind,
-};
-use destack_workspace::{ModuleSource, Session};
+use crate::dir::SymbolKind;
+use destack_workspace::{Session, SymbolIndexEntry, SymbolIndexKind};
 
 /// A symbol in the workspace (flat list for workspace symbol search).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -56,86 +51,18 @@ pub fn workspace_symbols(
     // normalize query input
     let query = query.trim();
 
-    // search all modules
-    for module in session.modules.iter() {
-        let module = module.as_ref();
+    // collect candidate entries from the workspace symbol index
+    let entries = session.search_workspace_symbol_entries(query);
 
-        // skip builtin modules
-        if module.source != ModuleSource::User {
-            continue;
-        }
-
-        // resolve query context for the module
-        let Some(ctx) = crate::core::query_context(session, module) else {
+    // score the cached entries in memory
+    for entry in entries {
+        let Some(score) =
+            score_workspace_symbol(&entry.name, entry.container_name.as_deref(), query)
+        else {
             continue;
         };
 
-        let dir_tree = ctx.dir().tree();
-
-        // iterate through all declarations
-        for (declaration_id, declaration) in dir_tree.iter_nodes_of_type::<dir::Declaration>() {
-            // get the declaration name
-            let name = declaration_display_name(&session.strings, declaration);
-
-            // get the declaration kind
-            let kind = declaration_symbol_kind(declaration);
-
-            // resolve container by walking up the parent chain
-            let container = container_name_for_node(dir_tree, &session.strings, declaration_id.id);
-
-            // resolve the declaration span
-            let Some(range) = workspace_symbol_range(&ctx, dir_tree, declaration_id.id) else {
-                continue;
-            };
-
-            // score declaration match
-            if let Some(score) = score_workspace_symbol(&name, container.as_deref(), query) {
-                scored_symbols.push((
-                    score,
-                    WorkspaceSymbol {
-                        name: name.clone(),
-                        kind,
-                        file: ctx.file_id(),
-                        range,
-                        container: container.clone(),
-                    },
-                ));
-            }
-
-            // collect member symbols with the declaration as container
-            if let Some(member_ids) = declaration.member_ids() {
-                for member_id in member_ids {
-                    let Some(member_symbol) =
-                        member_to_workspace_symbol(session, &ctx, dir_tree, *member_id, &name)
-                    else {
-                        continue;
-                    };
-
-                    if let Some(score) =
-                        score_workspace_symbol(&member_symbol.name, Some(&name), query)
-                    {
-                        scored_symbols.push((score, member_symbol));
-                    }
-                }
-            }
-
-            // collect enum field symbols with the enum as container
-            if let dir::Declaration::Enum { fields, .. } = declaration {
-                for field_id in fields {
-                    let Some(field_symbol) =
-                        enum_field_to_workspace_symbol(session, &ctx, dir_tree, *field_id, &name)
-                    else {
-                        continue;
-                    };
-
-                    if let Some(score) =
-                        score_workspace_symbol(&field_symbol.name, Some(&name), query)
-                    {
-                        scored_symbols.push((score, field_symbol));
-                    }
-                }
-            }
-        }
+        scored_symbols.push((score, workspace_symbol_from_index_entry(entry)));
     }
 
     // sort by score descending, then name and location for deterministic results
@@ -189,74 +116,31 @@ fn score_workspace_symbol(name: &str, _container: Option<&str>, query: &str) -> 
     score_completion(name, query).map(|matched| matched.score)
 }
 
-/// Convert a member to a workspace symbol.
-fn member_to_workspace_symbol(
-    session: &Session,
-    ctx: &QueryContext,
-    dir_tree: &dir::NodeTree,
-    member_id: dir::LocalNodeId<dir::Member>,
-    container_name: &str,
-) -> Option<WorkspaceSymbol> {
-    // resolve the member node
-    let member = dir_tree.get::<dir::Member>(member_id);
-
-    // resolve the member name from its key
-    let key = member.key()?;
-    let name = member_key_name(session, key)?;
-
-    // resolve the member kind
-    let kind = member_symbol_kind(member)?;
-
-    // resolve the member span
-    let range = workspace_symbol_range(ctx, dir_tree, member_id.id)?;
-
-    // skip synthetic function keyword fields for methods
-    if is_synthetic_function_keyword_field(member, &name, range) {
-        return None;
+/// Convert one cached symbol entry to a workspace symbol.
+fn workspace_symbol_from_index_entry(entry: SymbolIndexEntry) -> WorkspaceSymbol {
+    WorkspaceSymbol {
+        name: entry.name,
+        kind: symbol_kind_from_index_kind(entry.kind),
+        file: entry.file_id,
+        range: entry.range,
+        container: entry.container_name,
     }
-
-    Some(WorkspaceSymbol {
-        name,
-        kind,
-        file: ctx.file_id(),
-        range,
-        container: Some(container_name.to_string()),
-    })
 }
 
-/// Convert an enum field to a workspace symbol.
-fn enum_field_to_workspace_symbol(
-    session: &Session,
-    ctx: &QueryContext,
-    dir_tree: &dir::NodeTree,
-    field_id: dir::LocalNodeId<dir::EnumField>,
-    container_name: &str,
-) -> Option<WorkspaceSymbol> {
-    // resolve the enum field node
-    let field = dir_tree.get::<dir::EnumField>(field_id);
-
-    // resolve the field name
-    let name = session.strings.get(field.name).to_string();
-
-    // resolve the field span
-    let range = workspace_symbol_range(ctx, dir_tree, field_id.id)?;
-
-    // return the enum field symbol
-    Some(WorkspaceSymbol {
-        name,
-        kind: SymbolKind::EnumMember,
-        file: ctx.file_id(),
-        range,
-        container: Some(container_name.to_string()),
-    })
-}
-
-/// Resolve one workspace symbol range without failing the whole query on bad source ids.
-fn workspace_symbol_range(
-    ctx: &QueryContext,
-    dir_tree: &dir::NodeTree,
-    node_id: u32,
-) -> Option<Span> {
-    let node_id = dir::LocalNodeIdAny::new(node_id, dir_tree.get_node_type(node_id));
-    try_span_for_dir_node(ctx.ast(), dir_tree, node_id)
+/// Map one symbol index kind to the public workspace symbol kind.
+fn symbol_kind_from_index_kind(kind: SymbolIndexKind) -> SymbolKind {
+    match kind {
+        SymbolIndexKind::Namespace => SymbolKind::Namespace,
+        SymbolIndexKind::Class => SymbolKind::Class,
+        SymbolIndexKind::Method => SymbolKind::Method,
+        SymbolIndexKind::Field => SymbolKind::Field,
+        SymbolIndexKind::Enum => SymbolKind::Enum,
+        SymbolIndexKind::Interface => SymbolKind::Interface,
+        SymbolIndexKind::Function => SymbolKind::Function,
+        SymbolIndexKind::Variable => SymbolKind::Variable,
+        SymbolIndexKind::Constant => SymbolKind::Constant,
+        SymbolIndexKind::EnumMember => SymbolKind::EnumMember,
+        SymbolIndexKind::Struct => SymbolKind::Struct,
+        SymbolIndexKind::TypeParameter => SymbolKind::TypeParameter,
+    }
 }

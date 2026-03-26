@@ -2,6 +2,7 @@ use destack_source::{FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
 
 use crate::ast::sort_and_dedup_spans;
+use crate::core::SessionQueryIndexExt;
 use crate::dir::{
     ReferenceCollectionOptions, collect_symbol_references_in_context, find_symbol_at_offset,
     get_canonical_symbol, get_symbol_definition_span, get_symbol_local_definition_span,
@@ -134,8 +135,9 @@ fn find_references_to_symbol(
         limit_to_file: None,
     };
 
-    // collect references across all modules
-    for module in session.modules.iter() {
+    // collect references across candidate modules only
+    for module_id in session.reference_index_modules_for_target(canonical_id) {
+        let module = session.modules.get(module_id);
         let module = module.as_ref();
         let Some(ctx) = crate::core::query_context(session, module) else {
             continue;
