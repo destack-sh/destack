@@ -1,11 +1,12 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_artifact::ArtifactKey;
 use destack_compiler::{Compiler, CompilerOptions};
-use destack_source::{File, FileId, FileSystem, FileType, MemoryFileSystem, Uri};
-use destack_workspace::{ProfileId, Session};
+use destack_query::SessionQueryIndexExt;
+use destack_source::{File, FileId, FileType, MemoryFileSystem, ModuleId, Uri};
+use destack_workspace::{ProfileId, Program, Session};
 
 use super::{TestMarkers, parse_markers};
 use crate::core::SharedMemoryWorkspace;
@@ -33,7 +34,7 @@ pub struct QueryTestSession {
     pub root: PathBuf,
     /// The primary file id.
     pub file_id: FileId,
-    /// The extracted markers (from primary file).
+    /// The extracted markers across every test file.
     pub markers: TestMarkers,
     /// The clean source (without markers, from primary file).
     pub source: String,
@@ -45,96 +46,52 @@ impl QueryTestSession {
     /// Create a test session from source with markers.
     pub fn from_source(source: &str) -> Self {
         let workspace = SharedMemoryWorkspace::new("/test");
-        let fs = workspace.fs();
+        let memory_fs = workspace.fs();
         let root = workspace.root().to_path_buf();
         let session = workspace.session();
 
-        // register the test file
-        let uri = Uri::from_string("file:///test/test.ds");
-        let file_id = session.files.next_id();
+        // parse markers before compiling the file
+        let (clean_source, markers) = parse_markers(FileId(0), source);
+        let clean_files = vec![("test.ds".to_string(), clean_source, markers)];
 
-        // parse markers and get clean source
-        let (clean_source, markers) = parse_markers(file_id, source);
-
-        // write clean source to memory fs
-        let _ = fs.write(&root.join("test.ds"), clean_source.as_bytes());
-
-        // register with session
-        let program = session.add_root(root.clone());
-        program.register_inline_module(uri, clean_source.clone(), FileType::Destack);
-
-        let mut files = HashMap::new();
-        files.insert(
+        Self::from_clean_files_with_session(
+            clean_files,
             "test.ds".to_string(),
-            TestFile {
-                file_id,
-                name: "test.ds".to_string(),
-                markers: markers.clone(),
-                source: clean_source.clone(),
-            },
-        );
-
-        Self {
             session,
+            memory_fs,
             root,
-            file_id,
-            markers,
-            source: clean_source,
-            files,
-        }
+            QueryTestProfileMode::Default,
+        )
     }
 
     /// Create a test session from multiple files.
     pub fn from_files(input_files: &[(&str, &str)]) -> Self {
         let workspace = SharedMemoryWorkspace::new("/test");
-        let fs = workspace.fs();
+        let memory_fs = workspace.fs();
         let root = workspace.root().to_path_buf();
         let session = workspace.session();
-        let program = session.add_root(root.clone());
+        let mut clean_files = Vec::new();
+        let mut primary_name = None;
 
-        let mut primary_file_id = None;
-        let mut primary_markers = TestMarkers::default();
-        let mut primary_source = String::new();
-        let mut files = HashMap::new();
-
+        // parse every file before compiling any module
         for (name, source) in input_files {
-            let uri = Uri::from_string(format!("file:///test/{name}"));
-            let file_id = session.files.next_id();
+            let (clean_source, markers) = parse_markers(FileId(0), source);
 
-            let (clean_source, markers) = parse_markers(file_id, source);
-
-            let _ = fs.write(
-                &PathBuf::from(format!("/test/{name}")),
-                clean_source.as_bytes(),
-            );
-            program.register_inline_module(uri, clean_source.clone(), FileType::Destack);
-
-            files.insert(
-                name.to_string(),
-                TestFile {
-                    file_id,
-                    name: name.to_string(),
-                    markers: markers.clone(),
-                    source: clean_source.clone(),
-                },
-            );
-
-            // first file is primary
-            if primary_file_id.is_none() {
-                primary_file_id = Some(file_id);
-                primary_markers = markers;
-                primary_source = clean_source;
+            if primary_name.is_none() {
+                primary_name = Some((*name).to_string());
             }
+
+            clean_files.push(((*name).to_string(), clean_source, markers));
         }
 
-        Self {
+        Self::from_clean_files_with_session(
+            clean_files,
+            primary_name.expect("expected at least one query test file"),
             session,
+            memory_fs,
             root,
-            file_id: primary_file_id.unwrap(),
-            markers: primary_markers,
-            source: primary_source,
-            files,
-        }
+            QueryTestProfileMode::Default,
+        )
     }
 
     /// Create a test session from a markdown test case.
@@ -166,7 +123,39 @@ impl QueryTestSession {
             clean_files.push((file.path.clone(), clean_source, markers));
         }
 
-        // populate filesystem with clean sources
+        // find the primary file for this query case
+        let primary_name = select_primary_file_path(test, &clean_files).to_string();
+
+        Self::from_clean_files_with_session(
+            clean_files,
+            primary_name,
+            session,
+            memory_fs,
+            root,
+            QueryTestProfileMode::MdTest(test),
+        )
+    }
+
+    /// Get a file by name.
+    pub fn file(&self, name: &str) -> Option<&TestFile> {
+        self.files.get(name)
+    }
+
+    /// Get markers from a specific file.
+    pub fn markers_for(&self, name: &str) -> Option<&TestMarkers> {
+        self.files.get(name).map(|f| &f.markers)
+    }
+
+    /// Build one compiled query test session from clean files.
+    fn from_clean_files_with_session(
+        clean_files: Vec<(String, String, TestMarkers)>,
+        primary_name: String,
+        session: Arc<Session>,
+        memory_fs: Arc<MemoryFileSystem>,
+        root: PathBuf,
+        profile_mode: QueryTestProfileMode<'_>,
+    ) -> Self {
+        // populate the in-memory filesystem first
         for (path, clean_source, _) in &clean_files {
             let file_path = root.join(path);
             memory_fs
@@ -174,89 +163,28 @@ impl QueryTestSession {
                 .expect("failed to add test file");
         }
 
+        // build and index the compiled module set
         let program = session.add_root(root.clone());
-
-        // create compiler and run analysis
-        let mut compiler = Compiler::new(
-            session.clone(),
-            program.clone(),
-            CompilerOptions {
-                load_libraries: false,
-                workers: 1,
-                ..Default::default()
-            },
+        let main_path = root.join(&primary_name);
+        let modules_by_path = compile_and_index_query_modules(
+            &session,
+            &program,
+            &root,
+            &clean_files,
+            &main_path,
+            profile_mode,
         );
 
-        // find the primary file for this query case
-        let primary_name = select_primary_file_path(test, &clean_files);
-        let main_path = root.join(primary_name);
-
-        // resolve and compile the main module
-        let main_module_id = compiler
-            .resolve_path_to_module(&main_path)
-            .expect("failed to resolve module");
-
-        let (profile, load_libraries) =
-            select_profile_for_mdtest(&program, main_module_id, test, false);
-        compiler.options.load_libraries = load_libraries;
-
-        // resolve all test modules so auto import queries can see exports
-        let mut module_ids = vec![main_module_id];
-        let mut modules_by_path = HashMap::new();
-        modules_by_path.insert(main_path.clone(), main_module_id);
-        for (path, _, _) in &clean_files {
-            let file_path = root.join(path);
-            if file_path == main_path {
-                continue;
-            }
-
-            if let Ok(other_module_id) = compiler.resolve_path_to_module(&file_path) {
-                modules_by_path.insert(file_path, other_module_id);
-                module_ids.push(other_module_id);
-            }
-        }
-
-        module_ids.sort();
-        module_ids.dedup();
-
-        let mut profiles_by_module = HashMap::<_, std::collections::HashSet<ProfileId>>::new();
-        for module_id in &module_ids {
-            let default_profile = program.default_profile_id_for_module(*module_id);
-            let profiles = profiles_by_module.entry(*module_id).or_default();
-            profiles.insert(default_profile);
-            profiles.insert(profile);
-        }
-
-        for (module_id, profiles) in &profiles_by_module {
-            for profile in profiles {
-                // compile every test module through both analyzed and resolved dir
-                // so semantic queries see a consistent prebuilt query context
-                compiler.enqueue(ArtifactKey::DirAnalyzed {
-                    module: *module_id,
-                    profile: *profile,
-                });
-                compiler.enqueue(ArtifactKey::DirResolved {
-                    module: *module_id,
-                    profile: *profile,
-                });
-            }
-        }
-
-        compiler.compile();
-
-        drop(compiler);
-
-        // build TestFile structs with actual file IDs from compiled modules
         let mut files = HashMap::new();
         let mut all_markers = TestMarkers::default();
         let mut primary_file_id = None;
         let mut primary_source = None;
 
+        // rebuild file metadata with the compiled file ids
         for (path, clean_source, markers) in &clean_files {
             let file_path = root.join(path);
             let file_uri = Uri::from_path(&file_path);
 
-            // prefer the resolved module file id when this file compiled as a module
             let file_id = if let Some(module_id) = modules_by_path.get(&file_path) {
                 let module = program.modules.get(*module_id);
                 module.file_id
@@ -264,7 +192,6 @@ impl QueryTestSession {
                 ensure_test_file_id(&session, &file_path, &file_uri, clean_source)
             };
 
-            // update marker spans with correct file_id
             for range in &markers.ranges {
                 all_markers.ranges.push(super::RangeMarker {
                     name: range.name.clone(),
@@ -272,12 +199,14 @@ impl QueryTestSession {
                     target: range.target.clone(),
                 });
             }
+
             for cursor in &markers.cursors {
                 all_markers.cursors.push(super::CursorMarker {
                     index: cursor.index,
                     offset: cursor.offset,
                 });
             }
+
             files.insert(
                 path.clone(),
                 TestFile {
@@ -288,8 +217,7 @@ impl QueryTestSession {
                 },
             );
 
-            // keep the exposed primary file aligned with the compiled main module
-            if path == primary_name {
+            if path == &primary_name {
                 primary_file_id = Some(file_id);
                 primary_source = Some(clean_source.clone());
             }
@@ -308,16 +236,14 @@ impl QueryTestSession {
             files,
         }
     }
+}
 
-    /// Get a file by name.
-    pub fn file(&self, name: &str) -> Option<&TestFile> {
-        self.files.get(name)
-    }
-
-    /// Get markers from a specific file.
-    pub fn markers_for(&self, name: &str) -> Option<&TestMarkers> {
-        self.files.get(name).map(|f| &f.markers)
-    }
+/// The profile-selection mode for one query test session.
+enum QueryTestProfileMode<'a> {
+    /// Compile every module through its default profile only.
+    Default,
+    /// Compile using the mdtest-selected profile in addition to the default profile.
+    MdTest(&'a MdTestCase),
 }
 
 /// Select the primary source file for a markdown query case.
@@ -407,6 +333,92 @@ pub fn test_session(source: &str) -> QueryTestSession {
 /// Convenience function to create a multi-file test session.
 pub fn test_session_multi(files: &[(&str, &str)]) -> QueryTestSession {
     QueryTestSession::from_files(files)
+}
+
+/// Resolve, compile, and index one query test module set.
+fn compile_and_index_query_modules(
+    session: &Arc<Session>,
+    program: &Arc<Program>,
+    root: &Path,
+    clean_files: &[(String, String, TestMarkers)],
+    main_path: &PathBuf,
+    profile_mode: QueryTestProfileMode<'_>,
+) -> HashMap<PathBuf, ModuleId> {
+    let mut compiler = Compiler::new(
+        session.clone(),
+        program.clone(),
+        CompilerOptions {
+            load_libraries: false,
+            workers: 1,
+            ..Default::default()
+        },
+    );
+
+    // resolve the primary module first
+    let main_module_id = compiler
+        .resolve_path_to_module(main_path)
+        .expect("failed to resolve module");
+
+    let mut module_ids = vec![main_module_id];
+    let mut modules_by_path = HashMap::new();
+    modules_by_path.insert(main_path.to_path_buf(), main_module_id);
+
+    // resolve the rest of the module set
+    for (path, _, _) in clean_files {
+        let file_path = root.join(path);
+        if &file_path == main_path {
+            continue;
+        }
+
+        if let Ok(module_id) = compiler.resolve_path_to_module(&file_path) {
+            modules_by_path.insert(file_path, module_id);
+            module_ids.push(module_id);
+        }
+    }
+
+    module_ids.sort();
+    module_ids.dedup();
+
+    // choose the profile set for every compiled module
+    let mut profiles_by_module = HashMap::<ModuleId, HashSet<ProfileId>>::new();
+    let extra_profile = match profile_mode {
+        QueryTestProfileMode::Default => None,
+        QueryTestProfileMode::MdTest(test) => {
+            let (profile, load_libraries) =
+                select_profile_for_mdtest(program, main_module_id, test, false);
+            compiler.options.load_libraries = load_libraries;
+            Some(profile)
+        }
+    };
+
+    for module_id in &module_ids {
+        let default_profile = program.default_profile_id_for_module(*module_id);
+        let profiles = profiles_by_module.entry(*module_id).or_default();
+        profiles.insert(default_profile);
+
+        if let Some(profile) = extra_profile {
+            profiles.insert(profile);
+        }
+    }
+
+    // compile both analyzed and resolved dir for every relevant profile
+    for (module_id, profiles) in &profiles_by_module {
+        for profile in profiles {
+            compiler.enqueue(ArtifactKey::DirAnalyzed {
+                module: *module_id,
+                profile: *profile,
+            });
+            compiler.enqueue(ArtifactKey::DirResolved {
+                module: *module_id,
+                profile: *profile,
+            });
+        }
+    }
+
+    compiler.compile();
+    session.index_query_modules(module_ids.iter().copied());
+
+    modules_by_path
 }
 
 /// Ensure the session has a registered file id for a test file.

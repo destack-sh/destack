@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use destack_query::SessionQueryIndexExt;
 use destack_resolver::{CachePolicy, ResolveOptions, Resolver};
 use destack_source::{FileType, FileWatchEvent, FileWatchEventKind};
 use destack_workspace::FileUpdate;
@@ -344,6 +345,10 @@ impl LanguageService {
                 detail: error.to_string(),
             })?;
 
+        // drop stale query index slices before any follow up analysis
+        self.session
+            .remove_query_modules(invalidation.modules.iter().copied());
+
         // refresh config state when config files changed
         let mut messages = Vec::new();
         if self.should_refresh_configs(&program, &invalidation, path) {
@@ -362,6 +367,10 @@ impl LanguageService {
         let mut updates = vec![build_update(&program, module_id, file_id, invalidation)?];
         self.analyze_updates(&program, &compiler, &mut updates)?;
 
+        // warm query indexes for the analyzed modules
+        let module_ids = updates.iter().filter_map(|update| update.module_id);
+        self.session.index_query_modules(module_ids);
+
         // advance semantic revision after the update is fully applied
         self.bump_revision_for_root(&program.cwd)?;
 
@@ -369,7 +378,7 @@ impl LanguageService {
     }
 
     /// Rescan tracked files for a single program.
-    fn rescan_program(
+    pub(super) fn rescan_program(
         &self,
         handle: &WorkspaceHandle,
         analyze: bool,
@@ -437,6 +446,10 @@ impl LanguageService {
                 }
             };
 
+            // drop stale query index slices before follow up analysis
+            self.session
+                .remove_query_modules(invalidation.modules.iter().copied());
+
             let module_id = program.modules.get_id_by_file_id(file_id);
             match build_update(program, module_id, file_id, invalidation) {
                 Ok(update) => updates.push(update),
@@ -458,6 +471,10 @@ impl LanguageService {
         // run incremental analysis when requested
         if analyze {
             self.analyze_updates(program, handle.compiler.as_ref(), &mut updates)?;
+
+            // warm query indexes for the analyzed modules
+            let module_ids = updates.iter().filter_map(|update| update.module_id);
+            self.session.index_query_modules(module_ids);
         }
 
         // map internal updates to public records

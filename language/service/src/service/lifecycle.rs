@@ -36,7 +36,7 @@ impl LanguageService {
     /// Ensure the workspace root is opened.
     pub fn open_workspace_root(&self, root: PathBuf) -> Result<(), LanguageServiceError> {
         // ensure handle registration is atomic per root
-        match self.handle_ids_by_root.entry(root.clone()) {
+        let (handle_id, created_program) = match self.handle_ids_by_root.entry(root.clone()) {
             Entry::Occupied(_) => {
                 return Ok(());
             }
@@ -44,15 +44,34 @@ impl LanguageService {
                 // allocate and register a stable handle id
                 let handle_id = self.next_handle_id.fetch_add(1, Ordering::Relaxed);
                 let handle_id = WorkspaceHandleId(handle_id);
+                let created_program = self.session.get_program(root.as_path()).is_none();
 
                 // create a workspace handle for this root
                 let handle = self.build_workspace_handle(handle_id, root.clone());
                 self.handles_by_id.insert(handle_id, Arc::new(handle));
                 entry.insert(handle_id);
+                (handle_id, created_program)
             }
+        };
+
+        // prime the root before serving any queries
+        let handle = self.workspace_handle_for_id(handle_id)?;
+        let _mutation_guard = handle.enter_mutation();
+        let rescan = self.rescan_program(&handle, true);
+        let Err(error) = rescan else {
+            handle.bump_revision();
+            return Ok(());
+        };
+
+        // rollback a failed root open so service and session state stay consistent
+        self.handles_by_id.remove(&handle_id);
+        self.handle_ids_by_root.remove(root.as_path());
+
+        if created_program {
+            self.session.remove_root(root.as_path());
         }
 
-        Ok(())
+        Err(error)
     }
 
     /// Close an opened workspace root.

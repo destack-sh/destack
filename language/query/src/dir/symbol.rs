@@ -14,11 +14,13 @@ use super::namespace::{resolve_namespace_receiver_symbol, resolve_path_segment_s
 use super::nominal::resolve_member_access_symbol;
 use crate::ast::{
     get_module_by_file_id, get_node_tree_main_span, get_node_tree_span, token_at_offset,
-    token_span_at_offset,
+    token_span_at_offset, try_span_for_dir_node,
 };
-use crate::core::{AstQuery, DirQuery, with_ast_and_resolved_for_module};
+use crate::core::{
+    AstQuery, DirQuery, QueryContext, SessionQueryIndexExt, with_ast_and_resolved_for_module,
+};
 use destack_artifact::DirResolved;
-use destack_workspace::Session;
+use destack_workspace::{Session, SymbolIndexEntry, SymbolIndexKind};
 
 /// Result of finding a symbol at an offset.
 #[derive(Debug, Clone)]
@@ -1214,6 +1216,158 @@ pub(crate) fn resolve_symbol_name(
         .map(|name_id| session.strings.get(name_id).to_string())
 }
 
+/// Build symbol index entries for one module.
+pub(crate) fn build_symbol_index_entries_for_module(
+    session: &Session,
+    module: &destack_workspace::Module,
+) -> Vec<SymbolIndexEntry> {
+    let Some(ctx) = crate::core::query_context(session, module) else {
+        return Vec::new();
+    };
+
+    let dir_tree = ctx.dir().tree();
+    let mut entries = Vec::new();
+
+    // declarations, members, enum fields
+    for (declaration_id, declaration) in dir_tree.iter_nodes_of_type::<dir::Declaration>() {
+        let name = super::declaration_display_name(&session.strings, declaration);
+        let kind = symbol_index_kind_for_declaration(declaration);
+        let container_name =
+            super::container_name_for_node(dir_tree, &session.strings, declaration_id.id);
+
+        let Some(range) = symbol_index_range(&ctx, dir_tree, declaration_id.id) else {
+            continue;
+        };
+
+        entries.push(SymbolIndexEntry {
+            name: name.clone(),
+            kind,
+            module_id: module.id,
+            file_id: ctx.file_id(),
+            range,
+            container_name: container_name.clone(),
+        });
+
+        if let Some(member_ids) = declaration.member_ids() {
+            for member_id in member_ids {
+                let Some(entry) =
+                    member_to_symbol_index_entry(session, &ctx, dir_tree, *member_id, &name)
+                else {
+                    continue;
+                };
+
+                entries.push(entry);
+            }
+        }
+
+        if let dir::Declaration::Enum { fields, .. } = declaration {
+            for field_id in fields {
+                let Some(entry) =
+                    enum_field_to_symbol_index_entry(session, &ctx, dir_tree, *field_id, &name)
+                else {
+                    continue;
+                };
+
+                entries.push(entry);
+            }
+        }
+    }
+
+    entries
+}
+
+/// Map one declaration to the symbol index kind.
+fn symbol_index_kind_for_declaration(declaration: &dir::Declaration) -> SymbolIndexKind {
+    match declaration {
+        dir::Declaration::Global { .. } => SymbolIndexKind::Namespace,
+        dir::Declaration::Function { .. } => SymbolIndexKind::Function,
+        dir::Declaration::Struct { .. } => SymbolIndexKind::Struct,
+        dir::Declaration::Class { .. } => SymbolIndexKind::Class,
+        dir::Declaration::Interface { .. } => SymbolIndexKind::Interface,
+        dir::Declaration::Enum { .. } => SymbolIndexKind::Enum,
+        dir::Declaration::Namespace { .. } => SymbolIndexKind::Namespace,
+        dir::Declaration::Type { .. } => SymbolIndexKind::TypeParameter,
+        dir::Declaration::ImportAlias { .. } => SymbolIndexKind::Variable,
+        dir::Declaration::Extension { .. } => SymbolIndexKind::Class,
+    }
+}
+
+/// Convert one member to one symbol index entry.
+fn member_to_symbol_index_entry(
+    session: &Session,
+    ctx: &QueryContext,
+    dir_tree: &dir::NodeTree,
+    member_id: dir::LocalNodeId<dir::Member>,
+    container_name: &str,
+) -> Option<SymbolIndexEntry> {
+    // member node
+    let member = dir_tree.get::<dir::Member>(member_id);
+
+    // member key and kind
+    let key = member.key()?;
+    let name = super::member_key_name(session, key)?;
+    let kind = symbol_index_kind_for_member(member)?;
+
+    // member range
+    let range = symbol_index_range(ctx, dir_tree, member_id.id)?;
+
+    // skip synthetic function keyword fields for methods
+    if super::is_synthetic_function_keyword_field(member, &name, range) {
+        return None;
+    }
+
+    Some(SymbolIndexEntry {
+        name,
+        kind,
+        module_id: ctx.module_id(),
+        file_id: ctx.file_id(),
+        range,
+        container_name: Some(container_name.to_string()),
+    })
+}
+
+/// Convert one enum field to one symbol index entry.
+fn enum_field_to_symbol_index_entry(
+    session: &Session,
+    ctx: &QueryContext,
+    dir_tree: &dir::NodeTree,
+    field_id: dir::LocalNodeId<dir::EnumField>,
+    container_name: &str,
+) -> Option<SymbolIndexEntry> {
+    // field node and range
+    let field = dir_tree.get::<dir::EnumField>(field_id);
+    let range = symbol_index_range(ctx, dir_tree, field_id.id)?;
+
+    Some(SymbolIndexEntry {
+        name: session.strings.get(field.name).to_string(),
+        kind: SymbolIndexKind::EnumMember,
+        module_id: ctx.module_id(),
+        file_id: ctx.file_id(),
+        range,
+        container_name: Some(container_name.to_string()),
+    })
+}
+
+/// Map one member to the symbol index kind.
+fn symbol_index_kind_for_member(member: &dir::Member) -> Option<SymbolIndexKind> {
+    match member {
+        dir::Member::Type { .. } => Some(SymbolIndexKind::TypeParameter),
+        dir::Member::ComptimeConst { .. } => Some(SymbolIndexKind::Constant),
+        dir::Member::Field { .. } => Some(SymbolIndexKind::Field),
+        dir::Member::Method { .. } => Some(SymbolIndexKind::Method),
+        dir::Member::Embed { .. }
+        | dir::Member::StaticBlock { .. }
+        | dir::Member::ComptimeBlock { .. }
+        | dir::Member::Error { .. } => None,
+    }
+}
+
+/// Resolve one symbol index range without failing the whole query on bad source ids.
+fn symbol_index_range(ctx: &QueryContext, dir_tree: &dir::NodeTree, node_id: u32) -> Option<Span> {
+    let node_id = dir::LocalNodeIdAny::new(node_id, dir_tree.get_node_type(node_id));
+    try_span_for_dir_node(ctx.ast(), dir_tree, node_id)
+}
+
 /// Resolve the local alias text for explicit import aliases.
 pub(crate) fn resolve_local_import_alias_name(
     session: &Session,
@@ -1332,7 +1486,8 @@ pub(crate) fn collect_default_import_alias_symbols_for_export(
 ) -> Vec<dir::GlobalSymbolId> {
     let mut symbols = Vec::new();
 
-    for module in session.modules.iter() {
+    for module_id in session.reference_index_modules_for_target(canonical_id) {
+        let module = session.modules.get(module_id);
         let module = module.as_ref();
         if !module.is_user() {
             continue;

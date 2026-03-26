@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use destack_ast as ast;
 use destack_dir::{
     self as dir, DependencyItem, DependencyKind, DependencyMode, Expression, GlobalSymbolId,
@@ -8,13 +10,13 @@ use destack_source::{FileId, ModuleId, NodeSpanType, Span};
 use super::namespace::resolve_path_segment_symbol;
 use super::nominal::resolve_member_access_symbol;
 use super::symbol::{
-    get_member_access_name_span, get_path_segment_span, is_dependency_alias_for_target,
-    symbol_matches_reference_target,
+    get_canonical_symbol, get_member_access_name_span, get_path_segment_span,
+    is_dependency_alias_for_target, symbol_matches_reference_target,
 };
 use super::{resolve_expression_symbol, resolve_namespace_receiver_symbol};
 use crate::ast::{get_node_tree_main_span, get_node_tree_span};
 use crate::core::{AstQuery, DirQuery};
-use destack_workspace::Session;
+use destack_workspace::{Module, Session};
 
 /// Options for collecting symbol references.
 #[derive(Debug, Clone, Copy)]
@@ -35,6 +37,107 @@ pub(crate) struct ReferenceCollectionOptions<'a> {
     pub target_name: Option<&'a str>,
     /// An optional file filter for collected spans.
     pub limit_to_file: Option<FileId>,
+}
+
+/// Build reference index target keys for one module.
+pub(crate) fn build_reference_index_entries_for_module(
+    session: &Session,
+    module: &Module,
+) -> Vec<GlobalSymbolId> {
+    let Some(ctx) = crate::core::query_context(session, module) else {
+        return Vec::new();
+    };
+
+    let mut targets = HashSet::new();
+    let dir = ctx.dir();
+    let dir_tree = dir.tree();
+
+    // expressions
+    for (expression_id, expression) in dir_tree.iter_nodes_of_type::<Expression>() {
+        if let Some(target_symbol) =
+            resolve_expression_target_symbol(dir, expression_id, expression)
+        {
+            insert_reference_target_keys(session, &mut targets, target_symbol);
+        }
+
+        if let Expression::Member { left, .. } = expression
+            && let Some(receiver_symbol) = resolve_namespace_receiver_symbol(dir, *left)
+        {
+            insert_reference_target_keys(session, &mut targets, receiver_symbol);
+        }
+
+        if let Expression::Member { .. } = expression
+            && let Some(member_symbol) = resolve_member_access_symbol(dir, expression_id)
+        {
+            insert_reference_target_keys(session, &mut targets, member_symbol);
+        }
+
+        let resolution_id = dir
+            .types()
+            .get_resolution_for_node(expression_id.into_global_any(dir.module_id()));
+        if let Some(resolution_id) = resolution_id {
+            let resolution = dir.types().get_resolution(resolution_id);
+            match resolution {
+                Resolution::Static { candidate, .. } => {
+                    insert_reference_target_keys(session, &mut targets, candidate.target_symbol);
+                }
+                Resolution::Dynamic { candidates, .. }
+                | Resolution::Unresolved { candidates, .. } => {
+                    for candidate in candidates {
+                        insert_reference_target_keys(
+                            session,
+                            &mut targets,
+                            candidate.target_symbol,
+                        );
+                    }
+                }
+                Resolution::Builtin { .. } => {}
+            }
+        }
+
+        match expression {
+            Expression::UnresolvedPath { path, .. }
+            | Expression::LocalReference { path, .. }
+            | Expression::ModuleReference { path, .. }
+            | Expression::GlobalReference { path, .. } => {
+                for segment_index in 0..path.segments.len() {
+                    let segment_index =
+                        u16::try_from(segment_index).expect("path segment index overflow");
+
+                    if let Some(segment_symbol) =
+                        resolve_path_segment_symbol(dir, expression_id, segment_index)
+                    {
+                        insert_reference_target_keys(session, &mut targets, segment_symbol);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    // dependency items
+    for (_item_id, item) in dir_tree.iter_nodes_of_type::<DependencyItem>() {
+        if let Some(local_symbol) = item.symbol() {
+            let symbol_id = GlobalSymbolId::new(dir.module_id(), local_symbol);
+            insert_reference_target_keys(session, &mut targets, symbol_id);
+        }
+
+        if let Some(target_symbol) = item.target_symbol() {
+            insert_reference_target_keys(session, &mut targets, target_symbol);
+        }
+    }
+
+    targets.into_iter().collect()
+}
+
+/// Insert the usable reference target keys for one observed symbol.
+fn insert_reference_target_keys(
+    session: &Session,
+    targets: &mut HashSet<GlobalSymbolId>,
+    symbol_id: GlobalSymbolId,
+) {
+    targets.insert(symbol_id);
+    targets.insert(get_canonical_symbol(session, symbol_id));
 }
 
 /// Collect symbol references within a query context.
