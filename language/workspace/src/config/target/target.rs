@@ -28,148 +28,6 @@ use super::output::*;
 /// Default output directory for targets.
 pub const DEFAULT_OUT_DIR: &str = "dist";
 
-fn default_target_outputs(
-    emit: EmitFormat,
-    is_assembled: bool,
-    declaration: bool,
-    source_map_mode: Option<SourceMapMode>,
-    has_manifest: bool,
-) -> TargetOutputs {
-    let mut outputs = TargetOutputs::new();
-
-    // primary emitted surface
-    let primary_name = match emit {
-        EmitFormat::Native | EmitFormat::Wasm => TargetOutputName::Binary,
-        EmitFormat::Html => TargetOutputName::Document,
-        EmitFormat::Js | EmitFormat::Ts => {
-            if is_assembled {
-                TargetOutputName::Entry
-            } else {
-                TargetOutputName::Module
-            }
-        }
-    };
-    let primary_topology = match emit {
-        EmitFormat::Native | EmitFormat::Wasm | EmitFormat::Html => TargetOutputTopology::File,
-        EmitFormat::Js | EmitFormat::Ts => {
-            if is_assembled {
-                TargetOutputTopology::Collection
-            } else {
-                TargetOutputTopology::Directory
-            }
-        }
-    };
-    outputs.insert(
-        primary_name.as_str(),
-        TargetOutputOptions {
-            kind: primary_name.kind(),
-            topology: primary_topology,
-            is_public: true,
-        },
-    );
-
-    // declarations
-    if declaration {
-        outputs.insert(
-            TargetOutputName::Types.as_str(),
-            TargetOutputOptions {
-                kind: TargetOutputKind::Types,
-                topology: primary_topology,
-                is_public: true,
-            },
-        );
-    }
-
-    // source maps
-    if source_map_mode.is_some_and(SourceMapMode::emits_output) {
-        outputs.insert(
-            TargetOutputName::Maps.as_str(),
-            TargetOutputOptions {
-                kind: TargetOutputKind::Maps,
-                topology: primary_topology,
-                is_public: false,
-            },
-        );
-    }
-
-    // manifest sidecar
-    if has_manifest {
-        outputs.insert(
-            TargetOutputName::Manifest.as_str(),
-            TargetOutputOptions {
-                kind: TargetOutputKind::Manifest,
-                topology: TargetOutputTopology::Collection,
-                is_public: true,
-            },
-        );
-    }
-
-    outputs
-}
-
-fn resolved_bundle_mode(
-    explicit_mode: Option<BundleMode>,
-    discovery: TargetDiscovery,
-    entry_count: usize,
-    emit: EmitFormat,
-    out_file: bool,
-    bundle: &TargetBundle,
-) -> BundleMode {
-    if out_file || emit.is_single_file() {
-        return BundleMode::SingleFile;
-    }
-
-    if let Some(explicit_mode) = explicit_mode {
-        return explicit_mode;
-    }
-
-    if bundle.preserve_modules {
-        return BundleMode::PreserveModules;
-    }
-
-    if !bundle.manual_chunks.is_empty() {
-        return BundleMode::Chunked;
-    }
-
-    if discovery == TargetDiscovery::Entry && entry_count > 1 {
-        return BundleMode::Chunked;
-    }
-
-    match discovery {
-        TargetDiscovery::Entry => BundleMode::SingleFile,
-        TargetDiscovery::Include => BundleMode::PreserveModules,
-    }
-}
-
-fn is_assembled_target(
-    explicit_bundle_mode: Option<BundleMode>,
-    discovery: TargetDiscovery,
-    entry_count: usize,
-    app: &TargetAppDeclaration,
-    emit: EmitFormat,
-    bundle: &TargetBundle,
-    out_file: bool,
-) -> bool {
-    let bundle_mode = resolved_bundle_mode(
-        explicit_bundle_mode,
-        discovery,
-        entry_count,
-        emit,
-        out_file,
-        bundle,
-    );
-
-    if out_file || emit.is_single_file() {
-        return true;
-    }
-
-    if !app.is_empty() {
-        return true;
-    }
-
-    bundle_mode.uses_entry_output_layout()
-}
-
 /// A build target configuration.
 ///
 /// Can be constructed from `destack.json` or programmatically.
@@ -1818,4 +1676,149 @@ pub struct TargetJson {
     pub check_failure: Option<CheckFailurePolicyJson>,
     /// Global allocator selection.
     pub allocator: Option<AllocatorJson>,
+}
+
+/// Returns the default target outputs for a given emit configuration.
+fn default_target_outputs(
+    emit: EmitFormat,
+    is_assembled: bool,
+    declaration: bool,
+    source_map_mode: Option<SourceMapMode>,
+    has_manifest: bool,
+) -> TargetOutputs {
+    let mut outputs = TargetOutputs::new();
+
+    // primary emitted surface
+    let primary_name = match emit {
+        EmitFormat::Native | EmitFormat::Wasm => TargetOutputName::Binary,
+        EmitFormat::Html => TargetOutputName::Document,
+        EmitFormat::Js | EmitFormat::Ts => {
+            if is_assembled {
+                TargetOutputName::Entry
+            } else {
+                TargetOutputName::Module
+            }
+        }
+    };
+    let primary_topology = match emit {
+        EmitFormat::Native | EmitFormat::Wasm | EmitFormat::Html => TargetOutputTopology::File,
+        EmitFormat::Js | EmitFormat::Ts => {
+            if is_assembled {
+                TargetOutputTopology::Collection
+            } else {
+                TargetOutputTopology::Directory
+            }
+        }
+    };
+    outputs.insert(
+        primary_name.as_str(),
+        TargetOutputOptions {
+            kind: primary_name.kind(),
+            topology: primary_topology,
+            is_public: true,
+        },
+    );
+
+    // declarations
+    if declaration {
+        outputs.insert(
+            TargetOutputName::Types.as_str(),
+            TargetOutputOptions {
+                kind: TargetOutputKind::Types,
+                topology: primary_topology,
+                is_public: true,
+            },
+        );
+    }
+
+    // source maps
+    if source_map_mode.is_some_and(SourceMapMode::emits_output) {
+        outputs.insert(
+            TargetOutputName::Maps.as_str(),
+            TargetOutputOptions {
+                kind: TargetOutputKind::Maps,
+                topology: primary_topology,
+                is_public: false,
+            },
+        );
+    }
+
+    // manifest sidecar
+    if has_manifest {
+        outputs.insert(
+            TargetOutputName::Manifest.as_str(),
+            TargetOutputOptions {
+                kind: TargetOutputKind::Manifest,
+                topology: TargetOutputTopology::Collection,
+                is_public: true,
+            },
+        );
+    }
+
+    outputs
+}
+
+/// Resolves the bundle mode for a target.
+fn resolved_bundle_mode(
+    explicit_mode: Option<BundleMode>,
+    discovery: TargetDiscovery,
+    entry_count: usize,
+    emit: EmitFormat,
+    out_file: bool,
+    bundle: &TargetBundle,
+) -> BundleMode {
+    if out_file || emit.is_single_file() {
+        return BundleMode::SingleFile;
+    }
+
+    if let Some(explicit_mode) = explicit_mode {
+        return explicit_mode;
+    }
+
+    if bundle.preserve_modules {
+        return BundleMode::PreserveModules;
+    }
+
+    if !bundle.manual_chunks.is_empty() {
+        return BundleMode::Chunked;
+    }
+
+    if discovery == TargetDiscovery::Entry && entry_count > 1 {
+        return BundleMode::Chunked;
+    }
+
+    match discovery {
+        TargetDiscovery::Entry => BundleMode::SingleFile,
+        TargetDiscovery::Include => BundleMode::PreserveModules,
+    }
+}
+
+/// Returns `true` if the target is an assembled target (i.e. it uses entry output layout).
+fn is_assembled_target(
+    explicit_bundle_mode: Option<BundleMode>,
+    discovery: TargetDiscovery,
+    entry_count: usize,
+    app: &TargetAppDeclaration,
+    emit: EmitFormat,
+    bundle: &TargetBundle,
+    out_file: bool,
+) -> bool {
+    let bundle_mode = resolved_bundle_mode(
+        explicit_bundle_mode,
+        discovery,
+        entry_count,
+        emit,
+        out_file,
+        bundle,
+    );
+
+    if out_file || emit.is_single_file() {
+        return true;
+    }
+
+    if !app.is_empty() {
+        return true;
+    }
+
+    bundle_mode.uses_entry_output_layout()
 }

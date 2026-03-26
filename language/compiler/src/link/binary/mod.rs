@@ -1,6 +1,6 @@
-mod native;
-mod plan;
-mod render;
-mod wasm;
+mod link;
+mod linker;
+#[cfg(test)]
+mod tests;
 
-pub(crate) use plan::BinaryLinkPlan;
+pub(crate) use linker::BinaryLinker;
