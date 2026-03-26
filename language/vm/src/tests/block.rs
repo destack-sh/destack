@@ -3,7 +3,10 @@ use destack_mir::parse::{ParseOptions, Parser};
 use destack_source::FileId;
 
 use crate::diagnostic::Error;
-use crate::tests::{create_isolate, run_mir, run_mir_expect, run_mir_ok};
+use crate::tests::{
+    assert_runtime_error, assert_runtime_error_matches, create_isolate, run_mir, run_mir_expect,
+    run_mir_ok,
+};
 use crate::{Isolate, IsolateOptions};
 use destack_heap::{Heap, MemoryContext, SharedSpace, Value};
 
@@ -127,9 +130,8 @@ block0:
     return v0
 }"#;
     let result = run_mir(mir, "infinite", &[]);
-    assert!(result.is_err());
-    let err = result.unwrap_err();
-    assert!(matches!(err.error, Error::StackOverflow));
+
+    assert_runtime_error(result, Error::StackOverflow);
 }
 
 /// Infinite loop triggers step limit exceeded error.
@@ -142,9 +144,8 @@ block0:
     jump block0
 }"#;
     let result = run_mir(mir, "infinite_loop", &[]);
-    assert!(result.is_err());
-    let err = result.unwrap_err();
-    assert!(matches!(err.error, Error::StepLimitExceeded));
+
+    assert_runtime_error(result, Error::StepLimitExceeded);
 }
 
 /// Void functions return without a value.
@@ -277,9 +278,8 @@ block0(v0: fn(i32) -> i32, v1: i32):
         "caller",
         &[Value::int32(999), Value::int32(21)],
     );
-    assert!(result.is_err());
-    let err = result.unwrap_err();
-    assert!(matches!(err.error, Error::TypeMismatch { .. }));
+
+    assert_runtime_error_matches!(result, Error::TypeMismatch { .. });
 }
 
 /// Tail calls reuse the current frame without growing the stack.
@@ -411,7 +411,6 @@ block0:
     unreachable
 }"#;
     let result = run_mir(mir, "unreachable_fn", &[]);
-    assert!(result.is_err());
-    let err = result.unwrap_err();
-    assert!(matches!(err.error, Error::Unreachable));
+
+    assert_runtime_error(result, Error::Unreachable);
 }

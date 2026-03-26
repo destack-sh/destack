@@ -26,6 +26,8 @@ pub struct Frame {
     pub(crate) block_index: usize,
     /// Program counter within the current block.
     pub(crate) resume_pc: usize,
+    /// The pending transfer owned by this frame while one callee runs.
+    pub(crate) transfer: Option<engine::FrameTransfer>,
     /// Base offset into the interpreter value stack.
     pub(crate) value_base: usize,
     /// Count of SSA values in this frame.
@@ -37,7 +39,7 @@ pub struct Frame {
     /// Stack-allocated value buffers, freed when the frame pops.
     pub(crate) stack_values: Vec<Option<ValueBuffer>>,
     /// Closure environment pointer for this frame.
-    pub(crate) closure_env: Value,
+    pub(crate) environment: Value,
 }
 
 impl Frame {
@@ -54,7 +56,7 @@ impl Frame {
         value_count: usize,
         local_base: usize,
         local_count: usize,
-        closure_env: Value,
+        environment: Value,
     ) -> Self {
         // assemble frame state
         Self {
@@ -66,12 +68,13 @@ impl Frame {
             current_block: entry_block,
             block_index,
             resume_pc: 0,
+            transfer: None,
             value_base,
             value_count,
             local_base,
             local_count,
             stack_values: Vec::new(),
-            closure_env,
+            environment,
         }
     }
 
@@ -234,7 +237,7 @@ impl Frame {
 
         let closure_slot = local_start + self.local_count as u32;
         if slot == closure_slot {
-            return Some(self.closure_env);
+            return Some(self.environment);
         }
 
         None
@@ -294,11 +297,11 @@ impl Frame {
             }
         }
 
-        // closure environment
-        if let Some(slot) = layout.closure_environment_slot
+        // function environment
+        if let Some(slot) = layout.environment_slot
             && layout.contains_managed_references(slot)
         {
-            Self::collect_pointers_from_value(&self.closure_env, roots);
+            Self::collect_pointers_from_value(&self.environment, roots);
         }
 
         // dynamic stack allocations
@@ -335,12 +338,13 @@ impl Frame {
             current_block: self.current_block,
             block_index: self.block_index,
             resume_pc: self.resume_pc,
+            transfer: self.transfer.clone(),
             value_base: self.value_base,
             value_count: self.value_count,
             local_base: self.local_base,
             local_count: self.local_count,
             stack_values,
-            closure_env: self.closure_env,
+            environment: self.environment,
         }
     }
 
@@ -353,12 +357,13 @@ impl Frame {
             current_block: self.current_block,
             block_index: self.block_index,
             resume_pc: self.resume_pc,
+            transfer: self.transfer.clone(),
             value_base: self.value_base,
             value_count: self.value_count,
             local_base: self.local_base,
             local_count: self.local_count,
             stack_values: self.stack_values.clone(),
-            closure_env: self.closure_env,
+            environment: self.environment,
         }
     }
 
@@ -404,12 +409,13 @@ impl Frame {
             current_block: image.current_block,
             block_index: image.block_index,
             resume_pc: image.resume_pc,
+            transfer: image.transfer.clone(),
             value_base: image.value_base,
             value_count: image.value_count,
             local_base: image.local_base,
             local_count: image.local_count,
             stack_values: image.stack_values.clone(),
-            closure_env: image.closure_env,
+            environment: image.environment,
         })
     }
 }

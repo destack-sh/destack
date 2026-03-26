@@ -5,8 +5,8 @@ use {destack_engine as engine, destack_mir as mir};
 
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::executable::{
-    ArgumentRange, ControlFlow, CopyPair, CopyRange, FunctionTarget, INVALID_FUNCTION_INDEX,
-    INVALID_VALUE_ID, is_invalid_value,
+    ArgumentRange, CopyPair, CopyRange, FunctionTarget, INVALID_FUNCTION_INDEX, INVALID_VALUE_ID,
+    Transfer, is_invalid_value,
 };
 use destack_heap::{Value, ValueTag};
 
@@ -448,10 +448,10 @@ impl Interpreter {
     ) -> bool {
         let safepoint = executable
             .safepoint_for_resume_point(resume_point)
-            .unwrap_or_else(|| panic!("missing safepoint for resume point: {:?}", resume_point));
+            .unwrap_or_else(|| panic!("missing safepoint for resume point: {resume_point:?}"));
         let safepoint = executable
             .safepoint(safepoint)
-            .unwrap_or_else(|| panic!("missing safepoint entry for id: {:?}", safepoint));
+            .unwrap_or_else(|| panic!("missing safepoint entry for id: {safepoint:?}"));
         let materialization_map = safepoint.materialization_map.unwrap_or_else(|| {
             panic!(
                 "missing materialization map for safepoint: {:?}",
@@ -461,10 +461,7 @@ impl Interpreter {
         let materialization_map = executable
             .materialization_map(materialization_map)
             .unwrap_or_else(|| {
-                panic!(
-                    "missing materialization map entry for id: {:?}",
-                    materialization_map
-                )
+                panic!("missing materialization map entry for id: {materialization_map:?}")
             });
         let materialization_frame = &materialization_map.frames[0];
 
@@ -519,6 +516,854 @@ impl Interpreter {
         }
 
         Ok(())
+    }
+
+    /// Apply one jump transfer within the current frame.
+    fn apply_jump_transfer(
+        &mut self,
+        current_func: &crate::executable::Function,
+        target: u32,
+        copies: CopyRange,
+    ) -> RuntimeResult<()> {
+        // bind block parameters into the target block
+        let target_block = &current_func.blocks[target as usize];
+        let frame = self
+            .call_stack
+            .last()
+            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+        copy_values_with_plan(
+            &mut self.value_stack,
+            frame,
+            frame,
+            copies,
+            current_func.copy_pool.as_slice(),
+        );
+
+        // advance the current frame to the target block
+        let frame = self
+            .call_stack
+            .last_mut()
+            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+        frame.block_index = target as usize;
+        frame.block_ptr = NonNull::from(target_block);
+        frame.current_block = target_block.mir_block;
+
+        Ok(())
+    }
+
+    /// Apply one semantic resume point to one existing frame.
+    fn apply_resume_point_to_frame(
+        &mut self,
+        executable: &Executable,
+        frame_index: usize,
+        resume_point_id: engine::ResumePointId,
+        resume_value: Option<Value>,
+    ) -> RuntimeResult<()> {
+        // resolve the semantic resume metadata first
+        let resume_point = executable
+            .resume_point(resume_point_id)
+            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+        let resume_transfer = resume_point
+            .transfer
+            .and_then(|resume_transfer| executable.resume_transfer(resume_transfer))
+            .cloned();
+        let resume_block = resume_point.block;
+        let instruction_offset = resume_point.instruction_offset as usize;
+        let expected_function = resume_point.function;
+
+        // resolve the frame and lowered target block
+        let frame = self
+            .call_stack
+            .get(frame_index)
+            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+        if frame.function != expected_function {
+            return Err(RuntimeError::new(Error::InvalidInstruction));
+        }
+
+        let function = unsafe { frame.function_ptr.as_ref() };
+        let target_index = function
+            .blocks
+            .iter()
+            .position(|candidate| candidate.mir_block == resume_block)
+            .ok_or_else(|| {
+                RuntimeError::new(Error::UndefinedBlock {
+                    block: resume_block,
+                })
+            })?;
+        let target_block = &function.blocks[target_index];
+
+        // bind resume copies and the optional resumed value
+        let frame = self
+            .call_stack
+            .get_mut(frame_index)
+            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+        if let Some(resume_transfer) = &resume_transfer {
+            copy_resume_values(&mut self.value_stack, frame, &resume_transfer.copies)?;
+        }
+
+        if let Some(resume_value_slot) =
+            resume_transfer.and_then(|resume_transfer| resume_transfer.resume_value)
+        {
+            let Some(resume_value) = resume_value else {
+                return Err(RuntimeError::new(Error::InvalidInstruction));
+            };
+            frame.set_value(&mut self.value_stack, resume_value_slot, resume_value);
+        }
+
+        // advance the frame to the resumed position
+        frame.block_index = target_index;
+        frame.block_ptr = NonNull::from(target_block);
+        frame.current_block = resume_block;
+        frame.resume_pc = instruction_offset;
+
+        Ok(())
+    }
+
+    /// Apply one semantic resume point on the resumed caller frame.
+    fn apply_resume_point_transfer(
+        &mut self,
+        executable: &Executable,
+        resume_point_id: engine::ResumePointId,
+        value: Value,
+    ) -> RuntimeResult<()> {
+        let frame_index = self
+            .call_stack
+            .len()
+            .checked_sub(1)
+            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+
+        self.apply_resume_point_to_frame(executable, frame_index, resume_point_id, Some(value))
+    }
+
+    /// Apply one call transfer from the current frame.
+    #[allow(clippy::too_many_arguments)]
+    fn apply_call_transfer(
+        &mut self,
+        executable: &Executable,
+        options: &IsolateOptions,
+        string_interner: &mut StringInterner,
+        externals: &std::collections::HashMap<String, ExternalFn>,
+        externals_by_id: &mut Vec<Option<ExternalFnPtr>>,
+        memory: &mut destack_heap::MemoryContext<'_>,
+        current_func: &crate::executable::Function,
+        function: u32,
+        callee_index: u32,
+        destination: mir::Value,
+        arguments: ArgumentRange,
+        env: Option<Value>,
+        copies: Option<CopyRange>,
+        resume_pc: usize,
+        collect_stats: bool,
+    ) -> RuntimeResult<()> {
+        // resolve the target function and callable kind
+        let function_id = mir::LocalNodeId::<mir::Function>::new(function);
+        let resolved_target = if callee_index == INVALID_FUNCTION_INDEX {
+            Self::functions(executable).resolve(function_id)
+        } else {
+            Some(FunctionTarget::Lowered(callee_index))
+        };
+
+        // execute imported callables through the external registry
+        if matches!(resolved_target, Some(FunctionTarget::Import)) {
+            let caller = self
+                .call_stack
+                .last()
+                .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+
+            let args = if let Some(copies) = copies {
+                collect_argument_values_from_copies(
+                    &self.value_stack,
+                    caller,
+                    current_func.copy_pool.as_slice(),
+                    copies,
+                )
+            } else {
+                collect_argument_values_range(
+                    &self.value_stack,
+                    caller,
+                    current_func.argument_pool.as_slice(),
+                    arguments,
+                )
+            };
+
+            let handler =
+                self.external_for_id(executable, externals, externals_by_id, function_id)?;
+
+            let result = {
+                let memory = memory.reborrow();
+                let mut context = ExternalCallContext::new(string_interner, memory);
+                (unsafe { handler.as_ref() })(&mut context, &args)
+            }
+            .map_err(|error| self.make_error(executable, error))?;
+
+            let frame = self
+                .call_stack
+                .last_mut()
+                .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+            let return_destination = executable
+                .return_destination_for_position(
+                    frame.function,
+                    frame.current_block,
+                    resume_pc as u32,
+                )
+                .unwrap_or(destination);
+            if !is_invalid_value(return_destination) {
+                frame.set_value(&mut self.value_stack, return_destination, result);
+            }
+            frame.resume_pc = resume_pc;
+
+            return Ok(());
+        }
+
+        // require one lowered callee target
+        let callee_index = match resolved_target {
+            Some(FunctionTarget::Lowered(index)) => index,
+            Some(FunctionTarget::Import) | None => {
+                return Err(self.make_error(
+                    executable,
+                    Error::UndefinedFunction {
+                        function: function_id,
+                    },
+                ));
+            }
+        };
+        let callee_ptr = Self::functions(executable)
+            .get_ptr_by_index(callee_index)
+            .ok_or_else(|| {
+                RuntimeError::new(Error::UndefinedFunction {
+                    function: function_id,
+                })
+            })?;
+        let (entry, entry_block_id, entry_block_ptr, value_count, local_count) = unsafe {
+            let callee = callee_ptr.as_ref();
+            let entry = callee.entry;
+            let entry_block = &callee.blocks[entry as usize];
+
+            (
+                entry,
+                entry_block.mir_block,
+                NonNull::from(entry_block),
+                callee.value_count,
+                callee.local_count,
+            )
+        };
+
+        // check stack limits before pushing the callee frame
+        if self.call_stack.len() >= options.limits.max_stack_depth {
+            return Err(self.make_error(executable, Error::StackOverflow));
+        }
+
+        // record the caller resume position
+        let caller_frame = self
+            .call_stack
+            .last_mut()
+            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+        let caller_info = (caller_frame.value_base, caller_frame.value_count);
+        caller_frame.resume_pc = resume_pc;
+
+        // allocate the callee frame storage
+        let value_base = self.value_stack.len();
+        let local_base = self.local_stack.len();
+        self.value_stack
+            .resize(value_base + value_count, Value::VOID);
+        self.local_stack
+            .resize(local_base + local_count, Value::VOID);
+        let new_frame = Frame::new(
+            unsafe { callee_ptr.as_ref().frame_layout },
+            function_id,
+            callee_ptr,
+            entry_block_ptr,
+            entry_block_id,
+            entry as usize,
+            value_base,
+            value_count,
+            local_base,
+            local_count,
+            env.unwrap_or(Value::VOID),
+        );
+
+        // bind the callee parameters from the caller frame
+        let caller = self
+            .call_stack
+            .last()
+            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+        debug_assert!(
+            caller.value_base == caller_info.0 && caller.value_count == caller_info.1,
+            "caller frame moved while binding arguments"
+        );
+        if let Some(copies) = copies {
+            copy_values_with_plan(
+                &mut self.value_stack,
+                caller,
+                &new_frame,
+                copies,
+                current_func.copy_pool.as_slice(),
+            );
+        } else {
+            let callee = unsafe { callee_ptr.as_ref() };
+            copy_values_between_frames(
+                &mut self.value_stack,
+                caller,
+                &new_frame,
+                callee.argument_pool.as_slice(),
+                callee.parameters,
+                current_func.argument_pool.as_slice(),
+                arguments,
+            );
+        }
+
+        // push the callee frame onto the stack
+        self.call_stack.push(new_frame);
+        if collect_stats {
+            self.statistics.calls_made += 1;
+            self.statistics.max_stack_depth =
+                self.statistics.max_stack_depth.max(self.call_stack.len());
+        }
+
+        Ok(())
+    }
+
+    /// Apply one exceptional call transfer from the current frame.
+    #[allow(clippy::too_many_arguments)]
+    fn apply_call_branch_transfer(
+        &mut self,
+        executable: &Executable,
+        options: &IsolateOptions,
+        string_interner: &mut StringInterner,
+        externals: &std::collections::HashMap<String, ExternalFn>,
+        externals_by_id: &mut Vec<Option<ExternalFnPtr>>,
+        memory: &mut destack_heap::MemoryContext<'_>,
+        current_func: &crate::executable::Function,
+        function: u32,
+        callee_index: u32,
+        arguments: ArgumentRange,
+        env: Option<Value>,
+        normal_resume_point: engine::ResumePointId,
+        unwind_resume_point: engine::ResumePointId,
+        collect_stats: bool,
+    ) -> RuntimeResult<()> {
+        // resolve the target function and callable kind
+        let function_id = mir::LocalNodeId::<mir::Function>::new(function);
+        let resolved_target = if callee_index == INVALID_FUNCTION_INDEX {
+            Self::functions(executable).resolve(function_id)
+        } else {
+            Some(FunctionTarget::Lowered(callee_index))
+        };
+
+        // execute imported callables through the external registry
+        if matches!(resolved_target, Some(FunctionTarget::Import)) {
+            let caller = self
+                .call_stack
+                .last()
+                .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+            let args = collect_argument_values_range(
+                &self.value_stack,
+                caller,
+                current_func.argument_pool.as_slice(),
+                arguments,
+            );
+
+            let handler =
+                self.external_for_id(executable, externals, externals_by_id, function_id)?;
+            let result = {
+                let memory = memory.reborrow();
+                let mut context = ExternalCallContext::new(string_interner, memory);
+                (unsafe { handler.as_ref() })(&mut context, &args)
+            }
+            .map_err(|error| self.make_error(executable, error))?;
+
+            self.apply_resume_point_transfer(executable, normal_resume_point, result)?;
+            return Ok(());
+        }
+
+        // require one lowered callee target
+        let callee_index = match resolved_target {
+            Some(FunctionTarget::Lowered(index)) => index,
+            Some(FunctionTarget::Import) | None => {
+                return Err(self.make_error(
+                    executable,
+                    Error::UndefinedFunction {
+                        function: function_id,
+                    },
+                ));
+            }
+        };
+        let callee_ptr = Self::functions(executable)
+            .get_ptr_by_index(callee_index)
+            .ok_or_else(|| {
+                RuntimeError::new(Error::UndefinedFunction {
+                    function: function_id,
+                })
+            })?;
+        let (entry, entry_block_id, entry_block_ptr, value_count, local_count) = unsafe {
+            let callee = callee_ptr.as_ref();
+            let entry = callee.entry;
+            let entry_block = &callee.blocks[entry as usize];
+
+            (
+                entry,
+                entry_block.mir_block,
+                NonNull::from(entry_block),
+                callee.value_count,
+                callee.local_count,
+            )
+        };
+
+        // check stack limits before pushing the callee frame
+        if self.call_stack.len() >= options.limits.max_stack_depth {
+            return Err(self.make_error(executable, Error::StackOverflow));
+        }
+
+        // record the pending branch continuation on the caller frame
+        let caller_frame = self
+            .call_stack
+            .last_mut()
+            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+        let caller_info = (caller_frame.value_base, caller_frame.value_count);
+        caller_frame.resume_pc = current_func.blocks[caller_frame.block_index]
+            .instructions
+            .len();
+        caller_frame.transfer = Some(engine::FrameTransfer::Call(engine::CallTransfer::Branch {
+            normal_resume_point,
+            unwind_resume_point,
+        }));
+
+        // allocate the callee frame storage
+        let value_base = self.value_stack.len();
+        let local_base = self.local_stack.len();
+        self.value_stack
+            .resize(value_base + value_count, Value::VOID);
+        self.local_stack
+            .resize(local_base + local_count, Value::VOID);
+        let new_frame = Frame::new(
+            unsafe { callee_ptr.as_ref().frame_layout },
+            function_id,
+            callee_ptr,
+            entry_block_ptr,
+            entry_block_id,
+            entry as usize,
+            value_base,
+            value_count,
+            local_base,
+            local_count,
+            env.unwrap_or(Value::VOID),
+        );
+
+        // bind the callee parameters from the caller frame
+        let caller = self
+            .call_stack
+            .last()
+            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+        debug_assert!(
+            caller.value_base == caller_info.0 && caller.value_count == caller_info.1,
+            "caller frame moved while binding arguments"
+        );
+        let callee = unsafe { callee_ptr.as_ref() };
+        copy_values_between_frames(
+            &mut self.value_stack,
+            caller,
+            &new_frame,
+            callee.argument_pool.as_slice(),
+            callee.parameters,
+            current_func.argument_pool.as_slice(),
+            arguments,
+        );
+
+        // push the callee frame onto the stack
+        self.call_stack.push(new_frame);
+        if collect_stats {
+            self.statistics.calls_made += 1;
+            self.statistics.max_stack_depth =
+                self.statistics.max_stack_depth.max(self.call_stack.len());
+        }
+
+        Ok(())
+    }
+
+    /// Apply one tail call transfer on the current frame.
+    #[allow(clippy::too_many_arguments)]
+    fn apply_tail_call_transfer(
+        &mut self,
+        executable: &Executable,
+        externals: &std::collections::HashMap<String, ExternalFn>,
+        externals_by_id: &mut Vec<Option<ExternalFnPtr>>,
+        string_interner: &mut StringInterner,
+        memory: &mut destack_heap::MemoryContext<'_>,
+        current_func: &crate::executable::Function,
+        function: u32,
+        callee_index: u32,
+        arguments: ArgumentRange,
+        env: Option<Value>,
+        copies: Option<CopyRange>,
+        collect_stats: bool,
+    ) -> RuntimeResult<Option<ExecutionOutcome>> {
+        // resolve the tail-call arguments from the current frame
+        let function_id = mir::LocalNodeId::<mir::Function>::new(function);
+        let caller = self
+            .call_stack
+            .last()
+            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+        let argument_values = if let Some(copies) = copies {
+            collect_argument_values_from_copies(
+                &self.value_stack,
+                caller,
+                current_func.copy_pool.as_slice(),
+                copies,
+            )
+        } else {
+            collect_argument_values_range(
+                &self.value_stack,
+                caller,
+                current_func.argument_pool.as_slice(),
+                arguments,
+            )
+        };
+
+        // execute imported tail calls through the external registry
+        if matches!(
+            Self::functions(executable).resolve(function_id),
+            Some(FunctionTarget::Import)
+        ) {
+            let handler =
+                self.external_for_id(executable, externals, externals_by_id, function_id)?;
+            let result = {
+                let memory = memory.reborrow();
+                let mut context = ExternalCallContext::new(string_interner, memory);
+                (unsafe { handler.as_ref() })(&mut context, &argument_values)
+            }
+            .map_err(|error| self.make_error(executable, error))?;
+
+            let frame = self
+                .call_stack
+                .pop()
+                .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+            self.value_stack.truncate(frame.value_base);
+            self.local_stack.truncate(frame.local_base);
+
+            if self.call_stack.is_empty() {
+                return Ok(Some(self.finish_execution(memory.heap_ref(), result)));
+            }
+
+            let caller = self
+                .call_stack
+                .last_mut()
+                .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+            if let Some(destination) = executable.return_destination_for_position(
+                caller.function,
+                caller.current_block,
+                caller.resume_pc as u32,
+            ) {
+                caller.set_value(&mut self.value_stack, destination, result);
+            }
+
+            return Ok(None);
+        }
+
+        // require one lowered tail-call target
+        let callee_index = match if callee_index == INVALID_FUNCTION_INDEX {
+            Self::functions(executable).resolve(function_id)
+        } else {
+            Some(FunctionTarget::Lowered(callee_index))
+        } {
+            Some(FunctionTarget::Lowered(index)) => index,
+            Some(FunctionTarget::Import) | None => {
+                return Err(self.make_error(
+                    executable,
+                    Error::UndefinedFunction {
+                        function: function_id,
+                    },
+                ));
+            }
+        };
+        let callee_ptr = Self::functions(executable)
+            .get_ptr_by_index(callee_index)
+            .ok_or_else(|| {
+                RuntimeError::new(Error::UndefinedFunction {
+                    function: function_id,
+                })
+            })?;
+        let (entry, entry_block_id, entry_block_ptr, value_count, local_count) = unsafe {
+            let callee = callee_ptr.as_ref();
+            let entry = callee.entry;
+            let entry_block = &callee.blocks[entry as usize];
+
+            (
+                entry,
+                entry_block.mir_block,
+                NonNull::from(entry_block),
+                callee.value_count,
+                callee.local_count,
+            )
+        };
+
+        // reuse the current frame for the tail call
+        let frame = self
+            .call_stack
+            .last_mut()
+            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+        let value_base = frame.value_base;
+        let local_base = frame.local_base;
+        let value_end = value_base + value_count;
+        let local_end = local_base + local_count;
+
+        frame.stack_values.clear();
+
+        resize_and_clear_stack(&mut self.value_stack, value_base, value_end);
+        resize_and_clear_stack(&mut self.local_stack, local_base, local_end);
+
+        frame.function = function_id;
+        frame.function_ptr = callee_ptr;
+        frame.block_ptr = entry_block_ptr;
+        frame.entry_block = entry_block_id;
+        frame.current_block = entry_block_id;
+        frame.block_index = entry as usize;
+        frame.resume_pc = 0;
+        frame.transfer = None;
+        frame.value_count = value_count;
+        frame.local_count = local_count;
+        frame.environment = env.unwrap_or(Value::VOID);
+
+        let callee = unsafe { callee_ptr.as_ref() };
+        bind_parameters_from_values(
+            &mut self.value_stack,
+            frame,
+            callee.argument_pool.as_slice(),
+            callee.parameters,
+            &argument_values,
+        );
+
+        if collect_stats {
+            self.statistics.calls_made += 1;
+        }
+
+        Ok(None)
+    }
+
+    /// Apply one yield transfer and return the yielded outcome.
+    fn apply_yield_transfer(
+        &mut self,
+        executable: &Executable,
+        isolate_id: u64,
+        value: Value,
+        resume_point: engine::ResumePointId,
+    ) -> RuntimeResult<ExecutionOutcome> {
+        // capture the yield state from the current frame
+        let frame_index = self.call_stack.len() - 1;
+        let yield_state = YieldState {
+            frame_index,
+            resume_point,
+        };
+
+        // reject frame-local state that cannot cross suspension
+        self.ensure_suspendable_state(executable, &yield_state)
+            .map_err(|error| self.make_error(executable, error))?;
+
+        // externalize the continuation and return the yielded value
+        let continuation = self.suspend_continuation(isolate_id, yield_state);
+        let yielded = ExecutionYield {
+            value,
+            continuation,
+        };
+
+        Ok(ExecutionOutcome::Yielded { yielded })
+    }
+
+    /// Apply one return transfer.
+    fn apply_return_transfer(
+        &mut self,
+        executable: &Executable,
+        memory: &destack_heap::MemoryContext<'_>,
+        value: Value,
+    ) -> RuntimeResult<Option<ExecutionOutcome>> {
+        // pop the completed frame and release its storage
+        let frame = self
+            .call_stack
+            .pop()
+            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+        self.value_stack.truncate(frame.value_base);
+        self.local_stack.truncate(frame.local_base);
+
+        // complete execution when the outermost frame returns
+        if self.call_stack.is_empty() {
+            return Ok(Some(self.finish_execution(memory.heap_ref(), value)));
+        }
+
+        // write the return value back into the resumed caller slot
+        let caller = self
+            .call_stack
+            .last_mut()
+            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+        let transfer = caller.transfer.take();
+        match transfer {
+            Some(engine::FrameTransfer::Call(engine::CallTransfer::Branch {
+                normal_resume_point,
+                ..
+            })) => {
+                let _ = caller;
+
+                self.apply_resume_point_transfer(executable, normal_resume_point, value)?;
+            }
+            None => {
+                if let Some(destination) = executable.return_destination_for_position(
+                    caller.function,
+                    caller.current_block,
+                    caller.resume_pc as u32,
+                ) {
+                    caller.set_value(&mut self.value_stack, destination, value);
+                }
+            }
+        }
+
+        Ok(None)
+    }
+
+    /// Apply one thrown exception value through pending call continuations.
+    fn apply_throw_transfer(
+        &mut self,
+        executable: &Executable,
+        value: Value,
+    ) -> RuntimeResult<Option<ExecutionOutcome>> {
+        // unwind frames until one caller accepts the exception locally
+        loop {
+            let frame = self
+                .call_stack
+                .pop()
+                .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+            self.value_stack.truncate(frame.value_base);
+            self.local_stack.truncate(frame.local_base);
+
+            if self.call_stack.is_empty() {
+                return Err(self.make_error(
+                    executable,
+                    Error::Panic {
+                        message: format!("uncaught exception: {value:?}"),
+                    },
+                ));
+            }
+
+            let transfer = self
+                .call_stack
+                .last_mut()
+                .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?
+                .transfer
+                .take();
+            match transfer {
+                Some(engine::FrameTransfer::Call(engine::CallTransfer::Branch {
+                    unwind_resume_point,
+                    ..
+                })) => {
+                    self.apply_resume_point_transfer(executable, unwind_resume_point, value)?;
+                    return Ok(None);
+                }
+                None => continue,
+            }
+        }
+    }
+
+    /// Apply one control transfer produced by instruction execution.
+    #[allow(clippy::too_many_arguments)]
+    fn apply_transfer(
+        &mut self,
+        isolate_id: u64,
+        executable: &Executable,
+        options: &IsolateOptions,
+        string_interner: &mut StringInterner,
+        externals: &std::collections::HashMap<String, ExternalFn>,
+        externals_by_id: &mut Vec<Option<ExternalFnPtr>>,
+        memory: &mut destack_heap::MemoryContext<'_>,
+        current_func: &crate::executable::Function,
+        transfer: Transfer,
+        collect_stats: bool,
+    ) -> RuntimeResult<Option<ExecutionOutcome>> {
+        match transfer {
+            Transfer::Jump { block, copies } => {
+                self.apply_jump_transfer(current_func, block, copies)?;
+                Ok(None)
+            }
+            Transfer::Call {
+                function,
+                callee_index,
+                destination,
+                arguments,
+                env,
+                copies,
+                resume_pc,
+            } => {
+                self.apply_call_transfer(
+                    executable,
+                    options,
+                    string_interner,
+                    externals,
+                    externals_by_id,
+                    memory,
+                    current_func,
+                    function,
+                    callee_index,
+                    destination,
+                    arguments,
+                    env,
+                    copies,
+                    resume_pc,
+                    collect_stats,
+                )?;
+                Ok(None)
+            }
+            Transfer::CallBranch {
+                function,
+                callee_index,
+                arguments,
+                env,
+                normal_resume_point,
+                unwind_resume_point,
+            } => {
+                self.apply_call_branch_transfer(
+                    executable,
+                    options,
+                    string_interner,
+                    externals,
+                    externals_by_id,
+                    memory,
+                    current_func,
+                    function,
+                    callee_index,
+                    arguments,
+                    env,
+                    normal_resume_point,
+                    unwind_resume_point,
+                    collect_stats,
+                )?;
+                Ok(None)
+            }
+            Transfer::TailCall {
+                function,
+                callee_index,
+                arguments,
+                env,
+                copies,
+            } => self.apply_tail_call_transfer(
+                executable,
+                externals,
+                externals_by_id,
+                string_interner,
+                memory,
+                current_func,
+                function,
+                callee_index,
+                arguments,
+                env,
+                copies,
+                collect_stats,
+            ),
+            Transfer::Yield {
+                value,
+                resume_point,
+            } => self
+                .apply_yield_transfer(executable, isolate_id, value, resume_point)
+                .map(Some),
+            Transfer::Throw(value) => self.apply_throw_transfer(executable, value),
+            Transfer::Return(value) => self.apply_return_transfer(executable, memory, value),
+            Transfer::Error(error) => Err(self.make_error(executable, error)),
+        }
     }
 
     /// Execute a function by name.
@@ -778,47 +1623,17 @@ impl Interpreter {
         resume_value: Value,
     ) -> RuntimeResult<ExecutionOutcome> {
         // load the frame to resume
-        let frame = self
-            .call_stack
-            .get_mut(yield_state.frame_index)
-            .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
-
-        let resume_point = executable
-            .resume_point(yield_state.resume_point)
-            .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
-
-        // resolve the current function and resume block
-        let function = unsafe { frame.function_ptr.as_ref() };
-        let resume_block_index = function
-            .blocks
-            .iter()
-            .position(|block| block.mir_block == resume_point.block)
-            .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
-        let resume_block = function
-            .blocks
-            .get(resume_block_index)
-            .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
-        let resume_transfer = resume_point
-            .transfer
-            .and_then(|resume_transfer| executable.resume_transfer(resume_transfer));
-
-        // bind resume arguments
-        if let Some(resume_transfer) = resume_transfer {
-            copy_resume_values(&mut self.value_stack, frame, &resume_transfer.copies)?;
-        }
-
-        // bind resumed value after explicit arguments
-        if let Some(resume_value_slot) =
-            resume_transfer.and_then(|resume_transfer| resume_transfer.resume_value)
-        {
-            frame.set_value(&mut self.value_stack, resume_value_slot, resume_value);
-        }
-
-        // update frame block metadata
-        frame.block_index = resume_block_index;
-        frame.block_ptr = NonNull::from(resume_block);
-        frame.current_block = resume_block.mir_block;
-        frame.resume_pc = resume_point.instruction_offset as usize;
+        self.apply_resume_point_to_frame(
+            executable,
+            yield_state.frame_index,
+            yield_state.resume_point,
+            Some(resume_value),
+        )
+        .map_err(|error| RuntimeError {
+            error: Error::InvalidContinuation,
+            call_stack: error.call_stack,
+            anchor: error.anchor,
+        })?;
 
         // continue execution
         self.execute_loop(
@@ -1013,7 +1828,7 @@ impl Interpreter {
             let block_len = block.instructions.len();
 
             // execute block starting from resume_pc
-            let control = {
+            let transfer = {
                 let frame_index = self.call_stack.len() - 1;
                 let mut state = ExecutionState::new(
                     executable,
@@ -1048,443 +1863,20 @@ impl Interpreter {
                 unsafe { frame.function_ptr.as_ref() }
             };
 
-            // handle control flow
-            match control {
-                ControlFlow::Jump {
-                    block: target,
-                    copies,
-                } => {
-                    // bind block parameters for target block
-                    let target_block = &current_func.blocks[target as usize];
-                    let frame = self
-                        .call_stack
-                        .last()
-                        .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-                    copy_values_with_plan(
-                        &mut self.value_stack,
-                        frame,
-                        frame,
-                        copies,
-                        current_func.copy_pool.as_slice(),
-                    );
-
-                    // update current block
-                    let frame = self
-                        .call_stack
-                        .last_mut()
-                        .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-                    frame.block_index = target as usize;
-                    frame.block_ptr = NonNull::from(target_block);
-                    frame.current_block = target_block.mir_block;
-                }
-
-                ControlFlow::Call {
-                    function,
-                    callee_index,
-                    destination,
-                    arguments,
-                    env,
-                    copies,
-                    resume_pc,
-                } => {
-                    // resolve target function id
-                    let function_id = mir::LocalNodeId::<mir::Function>::new(function);
-
-                    // resolve the callable target
-                    let resolved_target = if callee_index == INVALID_FUNCTION_INDEX {
-                        Self::functions(executable).resolve(function_id)
-                    } else {
-                        Some(FunctionTarget::Lowered(callee_index))
-                    };
-
-                    // execute imported callables through the external registry
-                    if matches!(resolved_target, Some(FunctionTarget::Import)) {
-                        let caller = self
-                            .call_stack
-                            .last()
-                            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-
-                        // resolve arguments from caller
-                        let args = if let Some(copies) = copies {
-                            collect_argument_values_from_copies(
-                                &self.value_stack,
-                                caller,
-                                current_func.copy_pool.as_slice(),
-                                copies,
-                            )
-                        } else {
-                            collect_argument_values_range(
-                                &self.value_stack,
-                                caller,
-                                current_func.argument_pool.as_slice(),
-                                arguments,
-                            )
-                        };
-
-                        // resolve external handler
-                        let handler = self.external_for_id(
-                            executable,
-                            externals,
-                            externals_by_id,
-                            function_id,
-                        )?;
-
-                        // execute external handler
-                        // safety: handler pointer is stable for interpreter lifetime
-                        let handler = unsafe { handler.as_ref() };
-                        let result = {
-                            let memory = memory.reborrow();
-                            let mut context = ExternalCallContext::new(string_interner, memory);
-                            handler(&mut context, &args)
-                        }
-                        .map_err(|e| self.make_error(executable, e))?;
-
-                        // store result and continue from resume_pc
-                        let frame = self
-                            .call_stack
-                            .last_mut()
-                            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-                        let return_destination = executable
-                            .return_destination_for_position(
-                                frame.function,
-                                frame.current_block,
-                                resume_pc as u32,
-                            )
-                            .unwrap_or(destination);
-                        if !is_invalid_value(return_destination) {
-                            frame.set_value(&mut self.value_stack, return_destination, result);
-                        }
-                        frame.resume_pc = resume_pc;
-                        continue;
-                    }
-
-                    let callee_index = match resolved_target {
-                        Some(FunctionTarget::Lowered(index)) => index,
-                        Some(FunctionTarget::Import) | None => {
-                            return Err(self.make_error(
-                                executable,
-                                Error::UndefinedFunction {
-                                    function: function_id,
-                                },
-                            ));
-                        }
-                    };
-                    let callee_ptr = Self::functions(executable)
-                        .get_ptr_by_index(callee_index)
-                        .ok_or_else(|| {
-                            RuntimeError::new(Error::UndefinedFunction {
-                                function: function_id,
-                            })
-                        })?;
-                    let (entry, entry_block_id, entry_block_ptr, value_count, local_count) = unsafe {
-                        let callee = callee_ptr.as_ref();
-                        let entry = callee.entry;
-                        let entry_block = &callee.blocks[entry as usize];
-
-                        (
-                            entry,
-                            entry_block.mir_block,
-                            NonNull::from(entry_block),
-                            callee.value_count,
-                            callee.local_count,
-                        )
-                    };
-
-                    // check stack overflow
-                    if self.call_stack.len() >= options.limits.max_stack_depth {
-                        return Err(self.make_error(executable, Error::StackOverflow));
-                    }
-
-                    // store resume position in the caller frame
-                    let caller_frame = self
-                        .call_stack
-                        .last_mut()
-                        .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-                    let caller_info = (caller_frame.value_base, caller_frame.value_count);
-                    caller_frame.resume_pc = resume_pc;
-
-                    // create new frame for callee
-                    let value_base = self.value_stack.len();
-                    let local_base = self.local_stack.len();
-                    self.value_stack
-                        .resize(value_base + value_count, Value::VOID);
-                    self.local_stack
-                        .resize(local_base + local_count, Value::VOID);
-                    let new_frame = Frame::new(
-                        unsafe { callee_ptr.as_ref().frame_layout },
-                        function_id,
-                        callee_ptr,
-                        entry_block_ptr,
-                        entry_block_id,
-                        entry as usize,
-                        value_base,
-                        value_count,
-                        local_base,
-                        local_count,
-                        env.unwrap_or(Value::VOID),
-                    );
-
-                    // bind callee's parameters
-                    let caller = self
-                        .call_stack
-                        .last()
-                        .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-                    debug_assert!(
-                        caller.value_base == caller_info.0 && caller.value_count == caller_info.1,
-                        "caller frame moved while binding arguments"
-                    );
-                    if let Some(copies) = copies {
-                        // copy with precomputed plan
-                        copy_values_with_plan(
-                            &mut self.value_stack,
-                            caller,
-                            &new_frame,
-                            copies,
-                            current_func.copy_pool.as_slice(),
-                        );
-                    } else {
-                        // copy with parameter slices
-                        let callee = unsafe { callee_ptr.as_ref() };
-                        copy_values_between_frames(
-                            &mut self.value_stack,
-                            caller,
-                            &new_frame,
-                            callee.argument_pool.as_slice(),
-                            callee.parameters,
-                            current_func.argument_pool.as_slice(),
-                            arguments,
-                        );
-                    }
-                    // push callee frame
-                    self.call_stack.push(new_frame);
-                    if collect_stats {
-                        self.statistics.calls_made += 1;
-                        self.statistics.max_stack_depth =
-                            self.statistics.max_stack_depth.max(self.call_stack.len());
-                    }
-                }
-
-                ControlFlow::TailCall {
-                    function,
-                    callee_index,
-                    arguments,
-                    env,
-                    copies,
-                } => {
-                    // resolve target function id
-                    let function_id = mir::LocalNodeId::<mir::Function>::new(function);
-
-                    // collect argument values from the current frame
-                    let caller = self
-                        .call_stack
-                        .last()
-                        .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-                    let argument_values = if let Some(copies) = copies {
-                        collect_argument_values_from_copies(
-                            &self.value_stack,
-                            caller,
-                            current_func.copy_pool.as_slice(),
-                            copies,
-                        )
-                    } else {
-                        collect_argument_values_range(
-                            &self.value_stack,
-                            caller,
-                            current_func.argument_pool.as_slice(),
-                            arguments,
-                        )
-                    };
-
-                    // execute imported callables through the external registry
-                    if matches!(
-                        Self::functions(executable).resolve(function_id),
-                        Some(FunctionTarget::Import)
-                    ) {
-                        // resolve external handler
-                        let handler = self.external_for_id(
-                            executable,
-                            externals,
-                            externals_by_id,
-                            function_id,
-                        )?;
-
-                        // execute external handler
-                        // safety: handler pointer is stable for interpreter lifetime
-                        let handler = unsafe { handler.as_ref() };
-                        let result = {
-                            let memory = memory.reborrow();
-                            let mut context = ExternalCallContext::new(string_interner, memory);
-                            handler(&mut context, &argument_values)
-                        }
-                        .map_err(|e| self.make_error(executable, e))?;
-
-                        // pop completed frame
-                        let frame = self
-                            .call_stack
-                            .pop()
-                            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-                        self.value_stack.truncate(frame.value_base);
-                        self.local_stack.truncate(frame.local_base);
-
-                        // if stack is empty, execution is complete
-                        if self.call_stack.is_empty() {
-                            return Ok(self.finish_execution(memory.heap_ref(), result));
-                        }
-
-                        // store return value in the resumed caller slot
-                        let caller = self
-                            .call_stack
-                            .last_mut()
-                            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-                        if let Some(destination) = executable.return_destination_for_position(
-                            caller.function,
-                            caller.current_block,
-                            caller.resume_pc as u32,
-                        ) {
-                            caller.set_value(&mut self.value_stack, destination, result);
-                        }
-                        continue;
-                    }
-
-                    let callee_index = match if callee_index == INVALID_FUNCTION_INDEX {
-                        Self::functions(executable).resolve(function_id)
-                    } else {
-                        Some(FunctionTarget::Lowered(callee_index))
-                    } {
-                        Some(FunctionTarget::Lowered(index)) => index,
-                        Some(FunctionTarget::Import) | None => {
-                            return Err(self.make_error(
-                                executable,
-                                Error::UndefinedFunction {
-                                    function: function_id,
-                                },
-                            ));
-                        }
-                    };
-                    let callee_ptr = Self::functions(executable)
-                        .get_ptr_by_index(callee_index)
-                        .ok_or_else(|| {
-                            RuntimeError::new(Error::UndefinedFunction {
-                                function: function_id,
-                            })
-                        })?;
-                    let (entry, entry_block_id, entry_block_ptr, value_count, local_count) = unsafe {
-                        let callee = callee_ptr.as_ref();
-                        let entry = callee.entry;
-                        let entry_block = &callee.blocks[entry as usize];
-
-                        (
-                            entry,
-                            entry_block.mir_block,
-                            NonNull::from(entry_block),
-                            callee.value_count,
-                            callee.local_count,
-                        )
-                    };
-
-                    // reuse the current frame for the tail call
-                    let frame = self
-                        .call_stack
-                        .last_mut()
-                        .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-                    let value_base = frame.value_base;
-                    let local_base = frame.local_base;
-                    let value_end = value_base + value_count;
-                    let local_end = local_base + local_count;
-
-                    // clear frame-local stack allocations
-                    frame.stack_values.clear();
-
-                    // resize stacks to callee requirements
-                    resize_and_clear_stack(&mut self.value_stack, value_base, value_end);
-                    resize_and_clear_stack(&mut self.local_stack, local_base, local_end);
-
-                    // update frame metadata
-                    frame.function = function_id;
-                    frame.function_ptr = callee_ptr;
-                    frame.block_ptr = entry_block_ptr;
-                    frame.entry_block = entry_block_id;
-                    frame.current_block = entry_block_id;
-                    frame.block_index = entry as usize;
-                    frame.resume_pc = 0;
-                    frame.value_count = value_count;
-                    frame.local_count = local_count;
-                    frame.closure_env = env.unwrap_or(Value::VOID);
-
-                    // bind callee parameters
-                    let callee = unsafe { callee_ptr.as_ref() };
-                    bind_parameters_from_values(
-                        &mut self.value_stack,
-                        frame,
-                        callee.argument_pool.as_slice(),
-                        callee.parameters,
-                        &argument_values,
-                    );
-
-                    // update statistics
-                    if collect_stats {
-                        self.statistics.calls_made += 1;
-                    }
-                }
-
-                ControlFlow::Yield {
-                    value,
-                    resume_point,
-                } => {
-                    // capture yield state
-                    let frame_index = self.call_stack.len() - 1;
-                    let yield_state = YieldState {
-                        frame_index,
-                        resume_point,
-                    };
-
-                    // reject stack-local state that cannot cross suspension
-                    self.ensure_suspendable_state(executable, &yield_state)
-                        .map_err(|error| self.make_error(executable, error))?;
-
-                    // externalize continuation state
-                    let continuation = self.suspend_continuation(isolate_id, yield_state);
-
-                    // return yielded value
-                    let yielded = ExecutionYield {
-                        value,
-                        continuation,
-                    };
-                    return Ok(ExecutionOutcome::Yielded { yielded });
-                }
-
-                ControlFlow::Return(value) => {
-                    // pop completed frame
-                    let frame = self
-                        .call_stack
-                        .pop()
-                        .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-                    self.value_stack.truncate(frame.value_base);
-                    self.local_stack.truncate(frame.local_base);
-
-                    // if stack is empty, execution is complete
-                    if self.call_stack.is_empty() {
-                        return Ok(self.finish_execution(memory.heap_ref(), value));
-                    }
-
-                    // store return value in the resumed caller slot
-                    let caller = self
-                        .call_stack
-                        .last_mut()
-                        .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-                    if let Some(destination) = executable.return_destination_for_position(
-                        caller.function,
-                        caller.current_block,
-                        caller.resume_pc as u32,
-                    ) {
-                        caller.set_value(&mut self.value_stack, destination, value);
-                    }
-                }
-
-                ControlFlow::Error(e) => {
-                    // return runtime error
-                    return Err(self.make_error(executable, e));
-                }
+            // apply the transfer and stop when it exits execution
+            if let Some(outcome) = self.apply_transfer(
+                isolate_id,
+                executable,
+                options,
+                string_interner,
+                externals,
+                externals_by_id,
+                memory,
+                current_func,
+                transfer,
+                collect_stats,
+            )? {
+                return Ok(outcome);
             }
         }
     }

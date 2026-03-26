@@ -1,5 +1,5 @@
 use crate::diagnostic::Error;
-use crate::tests::{run_mir, run_mir_expect};
+use crate::tests::{assert_runtime_error, run_mir, run_mir_expect};
 use destack_heap::Value;
 
 /// Integer addition produces the sum of two i32 values.
@@ -309,8 +309,8 @@ block0(v0: i32):
     return v2
 }"#;
     let result = run_mir(mir, "div_zero", &[Value::int32(10)]);
-    assert!(result.is_err());
-    assert!(matches!(result.unwrap_err().error, Error::DivisionByZero));
+
+    assert_runtime_error(result, Error::DivisionByZero);
 }
 
 /// Not-equal comparison returns true for different values.

@@ -170,10 +170,10 @@ fn capture_continuation_frame(
     // validate the fixed-slot materialization contract for this resume point
     let safepoint = executable
         .safepoint_for_resume_point(resume_point)
-        .unwrap_or_else(|| panic!("missing safepoint for resume point: {:?}", resume_point));
+        .unwrap_or_else(|| panic!("missing safepoint for resume point: {resume_point:?}"));
     let safepoint = executable
         .safepoint(safepoint)
-        .unwrap_or_else(|| panic!("missing safepoint entry for id: {:?}", safepoint));
+        .unwrap_or_else(|| panic!("missing safepoint entry for id: {safepoint:?}"));
     let materialization_map = safepoint.materialization_map.unwrap_or_else(|| {
         panic!(
             "missing materialization map for safepoint: {:?}",
@@ -183,10 +183,7 @@ fn capture_continuation_frame(
     let materialization_map = executable
         .materialization_map(materialization_map)
         .unwrap_or_else(|| {
-            panic!(
-                "missing materialization map entry for id: {:?}",
-                materialization_map
-            )
+            panic!("missing materialization map entry for id: {materialization_map:?}")
         });
 
     debug_assert_eq!(
@@ -222,6 +219,7 @@ fn capture_continuation_frame(
     engine::FrameImage {
         frame_layout: frame.frame_layout,
         resume_point,
+        transfer: frame.transfer.clone(),
         slots,
     }
 }
@@ -311,7 +309,7 @@ fn restore_frame_image(
         local_stack.push(restore_slot_value(slot));
     }
 
-    let closure_env = if let Some(slot) = layout.closure_environment_slot {
+    let environment = if let Some(slot) = layout.environment_slot {
         let slot = image
             .slots
             .get(slot as usize)
@@ -332,13 +330,14 @@ fn restore_frame_image(
         value_slice.len(),
         local_base,
         local_slice.len(),
-        closure_env,
+        environment,
     );
 
     frame.current_block = resume_point.block;
     frame.block_index = block_index;
     frame.block_ptr = std::ptr::NonNull::from(block);
     frame.resume_pc = resume_point.instruction_offset as usize;
+    frame.transfer = image.transfer.clone();
     frame.stack_values = Vec::new();
 
     Ok(frame)

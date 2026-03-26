@@ -1,6 +1,7 @@
 use crate::diagnostic::Error;
 use crate::tests::{
-    create_aggregate, create_isolate, run_mir, run_mir_expect, run_mir_ok, run_mir_with_ok,
+    assert_runtime_error_matches, create_aggregate, create_isolate, run_mir, run_mir_expect,
+    run_mir_ok, run_mir_with_ok,
 };
 use destack_heap::{RawPointer, ReferenceMap, STRING_TYPE_ALIAS, Value, ValueTag};
 use destack_mir::parse::{ParseOptions, Parser};
@@ -49,10 +50,10 @@ block0(v0: ref<raw addrspace(shared) i32>):
 
     // run and capture the error
     let pointer = Value::raw_pointer(RawPointer::new(1));
-    let err = run_mir(mir, "store_shared", &[pointer]).expect_err("expected failure");
+    let result = run_mir(mir, "store_shared", &[pointer]);
 
     // confirm the address space is rejected
-    assert!(matches!(err.error, Error::UnsupportedAddressSpace { .. }));
+    assert_runtime_error_matches!(result, Error::UnsupportedAddressSpace { .. });
 }
 
 /// Store rejects mismatched address space pointers.
@@ -69,10 +70,10 @@ block0(v0: ref<raw addrspace(stack) i32>):
 
     // run with a heap pointer to trigger mismatch
     let pointer = Value::raw_pointer(RawPointer::new(1));
-    let err = run_mir(mir, "store_stack", &[pointer]).expect_err("expected failure");
+    let result = run_mir(mir, "store_stack", &[pointer]);
 
     // confirm the address space mismatch
-    assert!(matches!(err.error, Error::InvalidAddressSpace { .. }));
+    assert_runtime_error_matches!(result, Error::InvalidAddressSpace { .. });
 }
 
 /// External VM contexts can allocate and mutate explicit shared-memory regions.
@@ -356,9 +357,7 @@ block0(v0: [i32; 3], v1: i64):
         );
         vec![arr, Value::uint64(100)]
     });
-    assert!(result.is_err());
-    let err = result.unwrap_err();
-    assert!(matches!(err.error, Error::InvalidArrayAccess { .. }));
+    assert_runtime_error_matches!(result, Error::InvalidArrayAccess { .. });
 }
 
 /// Exceeding the managed allocation limit produces an allocation error.
@@ -380,9 +379,7 @@ block2:
     return
 }"#;
     let result = run_mir(mir, "alloc_many", &[]);
-    assert!(result.is_err());
-    let err = result.unwrap_err();
-    assert!(matches!(err.error, Error::AllocationFailed));
+    assert_runtime_error_matches!(result, Error::AllocationFailed);
 }
 
 /// Raw allocation creates one raw allocation and returns a raw pointer.
@@ -430,9 +427,7 @@ block0:
     return
 }"#;
     let result = run_mir(mir, "double_free", &[]);
-    assert!(result.is_err());
-    let err = result.unwrap_err();
-    assert!(matches!(err.error, Error::InvalidManagedReference));
+    assert_runtime_error_matches!(result, Error::InvalidManagedReference);
 }
 
 /// String header fields expose UTF-16 and UTF-8 lengths.
@@ -533,9 +528,7 @@ block0(v0: ref<raw readonly i32>):
     return v1
 }"#;
     let result = run_mir(mir, "null_load", &[Value::raw_pointer(RawPointer::NULL)]);
-    assert!(result.is_err());
-    let err = result.unwrap_err();
-    assert!(matches!(err.error, Error::NullPointerDereference));
+    assert_runtime_error_matches!(result, Error::NullPointerDereference);
 }
 
 /// Null raw pointer store produces an error.
@@ -552,9 +545,7 @@ block0(v0: ref<raw i32>, v1: i32):
         "null_store",
         &[Value::raw_pointer(RawPointer::NULL), Value::int32(42)],
     );
-    assert!(result.is_err());
-    let err = result.unwrap_err();
-    assert!(matches!(err.error, Error::NullPointerDereference));
+    assert_runtime_error_matches!(result, Error::NullPointerDereference);
 }
 
 /// Use-after-free on raw pointer produces an error.
@@ -571,7 +562,5 @@ block0:
     return v2
 }"#;
     let result = run_mir(mir, "use_after_free", &[]);
-    assert!(result.is_err());
-    let err = result.unwrap_err();
-    assert!(matches!(err.error, Error::InvalidManagedReference));
+    assert_runtime_error_matches!(result, Error::InvalidManagedReference);
 }

@@ -1,6 +1,6 @@
 use destack_mir as mir;
 
-use crate::{FrameValue, ResumePointId};
+use crate::{FrameTransfer, FrameValue, ResumePointId};
 
 /// The identifier for one frame layout table entry.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
@@ -13,8 +13,8 @@ pub enum FrameSlotKind {
     Value,
     /// One mutable local slot.
     Local,
-    /// The closure environment slot.
-    ClosureEnvironment,
+    /// The function environment slot.
+    Environment,
 }
 
 /// The originating MIR entity represented by one frame slot.
@@ -24,8 +24,8 @@ pub enum FrameSlotSource {
     Value(mir::Value),
     /// One mutable local slot.
     Local(mir::LocalNodeId<mir::Local>),
-    /// The closure environment slot.
-    ClosureEnvironment,
+    /// The function environment slot.
+    Environment,
 }
 
 /// The runtime payload class stored in one frame slot.
@@ -86,8 +86,8 @@ pub struct FrameLayout {
     pub value_slots: std::ops::Range<u32>,
     /// The mutable local slot range in layout order.
     pub local_slots: std::ops::Range<u32>,
-    /// The closure environment slot when present.
-    pub closure_environment_slot: Option<u32>,
+    /// The function environment slot when present.
+    pub environment_slot: Option<u32>,
 }
 
 impl FrameLayout {
@@ -111,6 +111,8 @@ pub struct FrameImage {
     pub frame_layout: FrameLayoutId,
     /// The current resume point for this activation.
     pub resume_point: ResumePointId,
+    /// The pending transfer owned by this frame when another frame is active.
+    pub transfer: Option<FrameTransfer>,
     /// The logical slot payloads in layout order.
     pub slots: Vec<FrameValue>,
 }

@@ -15,8 +15,8 @@ pub(crate) use super::super::state::{Frame, resize_and_clear_stack};
 pub(crate) use super::run::copy_values_with_plan;
 pub(crate) use super::{instruction, next};
 pub(crate) use crate::executable::{
-    ArgumentRange, ConstValue, ControlFlow, CopyRange, Function, FunctionTarget,
-    INVALID_FUNCTION_INDEX, INVALID_VALUE_ID, Instruction, InstructionData, UNKNOWN_FIELD_COUNT,
+    ArgumentRange, ConstValue, CopyRange, Function, FunctionTarget, INVALID_FUNCTION_INDEX,
+    INVALID_VALUE_ID, Instruction, InstructionData, Transfer as ControlFlow, UNKNOWN_FIELD_COUNT,
     UNKNOWN_SLOT_COUNT, is_invalid_value,
 };
 pub(crate) use crate::interpreter::ExecutionState;

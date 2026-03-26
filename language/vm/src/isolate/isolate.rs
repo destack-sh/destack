@@ -55,6 +55,7 @@ impl fmt::Debug for Isolate {
     }
 }
 
+#[allow(clippy::arc_with_non_send_sync)]
 impl Isolate {
     /// Create a new isolate from one shared immutable image.
     pub fn new(image: Arc<IsolateImage>) -> RuntimeResult<Self> {

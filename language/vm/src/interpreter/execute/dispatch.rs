@@ -1,4 +1,4 @@
-use crate::executable::{ControlFlow, Instruction, InstructionOperation};
+use crate::executable::{Instruction, InstructionOperation, Transfer};
 use crate::interpreter::ExecutionState;
 
 /// Dispatch one lowered instruction through the interpreter execute surface.
@@ -6,7 +6,7 @@ pub(crate) fn dispatch_instruction(
     state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     match block[pc].operation {
         InstructionOperation::AddConstInt => super::handle_add_const_int(state, block, pc),
         InstructionOperation::AddConstUint => super::handle_add_const_uint(state, block, pc),
@@ -39,9 +39,19 @@ pub(crate) fn dispatch_instruction(
         InstructionOperation::Branch => super::handle_branch(state, block, pc),
         InstructionOperation::BranchBool => super::handle_branch_bool(state, block, pc),
         InstructionOperation::Call => super::handle_call(state, block, pc),
+        InstructionOperation::CallBranch => super::handle_call_branch(state, block, pc),
         InstructionOperation::CallIndirect => super::handle_call_indirect(state, block, pc),
+        InstructionOperation::CallIndirectBranch => {
+            super::handle_call_indirect_branch(state, block, pc)
+        }
         InstructionOperation::CallInterface => super::handle_call_interface(state, block, pc),
+        InstructionOperation::CallInterfaceBranch => {
+            super::handle_call_interface_branch(state, block, pc)
+        }
         InstructionOperation::CallVirtual => super::handle_call_virtual(state, block, pc),
+        InstructionOperation::CallVirtualBranch => {
+            super::handle_call_virtual_branch(state, block, pc)
+        }
         InstructionOperation::Cast => super::handle_cast(state, block, pc),
         InstructionOperation::CompareAndBranch => {
             super::handle_compare_and_branch(state, block, pc)
@@ -153,7 +163,10 @@ pub(crate) fn dispatch_instruction(
         InstructionOperation::FieldStoreRaw => super::handle_field_store_raw(state, block, pc),
         InstructionOperation::FieldStoreStack => super::handle_field_store_stack(state, block, pc),
         InstructionOperation::FunctionAddr => super::handle_function_addr(state, block, pc),
-        InstructionOperation::FunctionEnv => super::handle_function_env(state, block, pc),
+        InstructionOperation::FunctionValue => super::handle_function_value(state, block, pc),
+        InstructionOperation::FunctionEnvironment => {
+            super::handle_function_environment(state, block, pc)
+        }
         InstructionOperation::GeConstInt => super::handle_ge_const_int(state, block, pc),
         InstructionOperation::GeConstUint => super::handle_ge_const_uint(state, block, pc),
         InstructionOperation::GeInt => super::handle_ge_int(state, block, pc),
@@ -254,6 +267,7 @@ pub(crate) fn dispatch_instruction(
         InstructionOperation::TensorTranspose => super::handle_tensor_transpose(state, block, pc),
         InstructionOperation::TensorView => super::handle_tensor_view(state, block, pc),
         InstructionOperation::Trap => super::handle_trap(state, block, pc),
+        InstructionOperation::Throw => super::handle_throw(state, block, pc),
         InstructionOperation::Unary => super::handle_unary(state, block, pc),
         InstructionOperation::UnaryBool => super::handle_unary_bool(state, block, pc),
         InstructionOperation::UnaryElementwise => super::handle_unary_elementwise(state, block, pc),
