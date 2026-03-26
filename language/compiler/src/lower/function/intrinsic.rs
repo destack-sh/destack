@@ -139,7 +139,7 @@ impl FunctionLowerer<'_> {
             Some(name_id) => name_id,
             None => return Ok(None),
         };
-        let name = self.env.strings.get(name_id);
+        let name = self.context.strings.get(name_id);
 
         // intrinsics are free functions for now
         if resolution_receiver.is_some() {
@@ -458,7 +458,7 @@ impl FunctionLowerer<'_> {
     ) -> LowerResult<Vec<mir::Value>> {
         let mut arguments = Vec::with_capacity(dynamic_arguments.len());
         for argument_id in dynamic_arguments {
-            let argument = self.env.dir_tree.get(*argument_id);
+            let argument = self.context.dir_tree.get(*argument_id);
             if !matches!(argument, dir::Argument::Positional { .. }) {
                 return Err(self.error(expression_id, "unsupported non-positional argument"));
             }
@@ -577,7 +577,7 @@ impl FunctionLowerer<'_> {
         expression_id: LocalNodeId<Expression>,
         argument_id: LocalNodeId<dir::Argument>,
     ) -> LowerResult<LocalNodeId<Expression>> {
-        let argument = self.env.dir_tree.get(argument_id);
+        let argument = self.context.dir_tree.get(argument_id);
         if !matches!(argument, dir::Argument::Positional { .. }) {
             return Err(self.error(expression_id, "unsupported non-positional argument"));
         }
@@ -740,11 +740,11 @@ impl FunctionLowerer<'_> {
         argument_id: LocalNodeId<Expression>,
     ) -> LowerResult<bool> {
         let mut current = argument_id;
-        while let Expression::Parenthesized { expression } = self.env.dir_tree.get(current) {
+        while let Expression::Parenthesized { expression } = self.context.dir_tree.get(current) {
             current = *expression;
         }
 
-        match self.env.dir_tree.get(current) {
+        match self.context.dir_tree.get(current) {
             Expression::ScalarLiteral {
                 value: dir::ScalarLiteral::Boolean(value),
             } => Ok(*value),
@@ -762,7 +762,7 @@ impl FunctionLowerer<'_> {
         argument_id: LocalNodeId<Expression>,
     ) -> LowerResult<StringRef<'_>> {
         let mut current = argument_id;
-        while let Expression::Parenthesized { expression } = self.env.dir_tree.get(current) {
+        while let Expression::Parenthesized { expression } = self.context.dir_tree.get(current) {
             current = *expression;
         }
 
@@ -772,10 +772,10 @@ impl FunctionLowerer<'_> {
                 "atomic intrinsic metadata must be enum members",
             ));
         };
-        let symbol = self.env.symbols.get_symbol(symbol.local_id);
+        let symbol = self.context.symbols.get_symbol(symbol.local_id);
         let name_id = symbol
             .name()
             .ok_or_else(|| self.error(expression_id, "enum member missing name"))?;
-        Ok(self.env.strings.get(name_id))
+        Ok(self.context.strings.get(name_id))
     }
 }

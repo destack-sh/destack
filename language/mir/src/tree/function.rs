@@ -34,12 +34,9 @@ impl AllocationMode {
     }
 }
 
-/// The kind of coroutine a function represents.
-///
-/// Coroutines are functions that can suspend and resume execution.
-/// This includes generators, async functions, and async generators.
+/// The suspension kind for one function.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum CoroutineKind {
+pub enum SuspensionKind {
     /// Generator function (`function*`).
     /// Yields values to the caller, who controls resumption via `.next()`.
     /// Returns an `Iterator<T>`.
@@ -54,13 +51,13 @@ pub enum CoroutineKind {
     AsyncGenerator,
 }
 
-impl CoroutineKind {
+impl SuspensionKind {
     /// Text representation for formatting/parsing.
     pub fn to_str(self) -> &'static str {
         match self {
-            CoroutineKind::Generator => "generator",
-            CoroutineKind::Async => "async",
-            CoroutineKind::AsyncGenerator => "async_generator",
+            SuspensionKind::Generator => "generator",
+            SuspensionKind::Async => "async",
+            SuspensionKind::AsyncGenerator => "async_generator",
         }
     }
 
@@ -68,13 +65,13 @@ impl CoroutineKind {
     pub fn is_generator(self) -> bool {
         matches!(
             self,
-            CoroutineKind::Generator | CoroutineKind::AsyncGenerator
+            SuspensionKind::Generator | SuspensionKind::AsyncGenerator
         )
     }
 
     /// Whether this coroutine awaits promises (async or async generator).
     pub fn is_async(self) -> bool {
-        matches!(self, CoroutineKind::Async | CoroutineKind::AsyncGenerator)
+        matches!(self, SuspensionKind::Async | SuspensionKind::AsyncGenerator)
     }
 }
 
@@ -190,6 +187,7 @@ impl TryFrom<&str> for ExecutionStage {
         }
     }
 }
+
 /// A function in MIR.
 ///
 /// Functions are the top-level compilation unit, containing:
@@ -224,16 +222,16 @@ pub struct Function {
     pub linkage: Linkage,
     /// Memory allocation restrictions for this function.
     pub allocation: AllocationMode,
-    /// The kind of coroutine, if this function is a coroutine.
-    pub coroutine: Option<CoroutineKind>,
+    /// The suspension kind when this function can suspend.
+    pub suspension: Option<SuspensionKind>,
     /// The execution model for GPU kernels.
     pub execution_model: Option<ExecutionModel>,
     /// The execution stage within the pipeline.
     pub execution_stage: Option<ExecutionStage>,
     /// The workgroup size for compute kernels.
     pub workgroup_size: Option<[u32; 3]>,
-    /// The closure environment parameter type for this function.
-    pub closure_env_type: Option<LocalNodeId<Type>>,
+    /// The hidden environment type for this function when present.
+    pub environment: Option<LocalNodeId<Type>>,
     /// Local variables (stack-allocated slots for mutable bindings).
     pub locals: Vec<LocalNodeId<Local>>,
     /// All basic blocks in this function.
@@ -276,11 +274,11 @@ impl Function {
             return_attributes: PointerAttributes::default(),
             linkage: Linkage::Local,
             allocation: AllocationMode::Any,
-            coroutine: None,
+            suspension: None,
             execution_model: None,
             execution_stage: None,
             workgroup_size: None,
-            closure_env_type: None,
+            environment: None,
             locals: Vec::new(),
             blocks: Vec::new(),
             entry: None,
@@ -318,11 +316,11 @@ impl Function {
             return_attributes: PointerAttributes::default(),
             linkage: Linkage::Local,
             allocation: AllocationMode::Any,
-            coroutine: None,
+            suspension: None,
             execution_model: None,
             execution_stage: None,
             workgroup_size: None,
-            closure_env_type: None,
+            environment: None,
             locals: Vec::new(),
             blocks: Vec::new(),
             entry: Some(entry),
@@ -357,11 +355,11 @@ impl Function {
             return_attributes: PointerAttributes::default(),
             linkage: Linkage::Import,
             allocation: AllocationMode::Any,
-            coroutine: None,
+            suspension: None,
             execution_model: None,
             execution_stage: None,
             workgroup_size: None,
-            closure_env_type: None,
+            environment: None,
             locals: Vec::new(),
             blocks: Vec::new(),
             entry: None,
@@ -436,15 +434,15 @@ impl Function {
         self
     }
 
-    /// Set the coroutine kind and return self (builder pattern).
-    pub fn with_coroutine(mut self, coroutine: CoroutineKind) -> Self {
-        self.coroutine = Some(coroutine);
+    /// Set the suspension kind and return self (builder pattern).
+    pub fn with_suspension(mut self, kind: SuspensionKind) -> Self {
+        self.suspension = Some(kind);
         self
     }
 
-    /// Check if this function is a coroutine (generator, async, or async generator).
-    pub fn is_coroutine(&self) -> bool {
-        self.coroutine.is_some()
+    /// Check if this function can suspend.
+    pub fn is_suspendable(&self) -> bool {
+        self.suspension.is_some()
     }
 
     /// Check if this function is imported (defined elsewhere).

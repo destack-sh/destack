@@ -7,8 +7,8 @@ use destack_dir::{
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::{
-    AddressTakenBindings, FunctionEnv, FunctionLowerer, FunctionState, LowerError, LowerResult,
-    Terminates,
+    AddressTakenBindings, FunctionLowerer, FunctionLoweringContext, FunctionState, LowerError,
+    LowerResult, Terminates,
 };
 
 use crate::lower::ModuleLowerer;
@@ -221,7 +221,7 @@ impl ModuleLowerer<'_> {
             // resolve capture layouts early for closure values
             if body.is_some() {
                 let symbol_id = descriptor.symbol.into_global(self.module_id);
-                self.closure_env_layout_for_symbol(symbol_id)?;
+                self.function_environment_layout_for_symbol(symbol_id)?;
                 self.enqueue_function_declaration(declaration_id);
             }
         }
@@ -507,7 +507,7 @@ impl ModuleLowerer<'_> {
         let name = self.function_name_for_descriptor(descriptor)?;
 
         // resolve capture layout
-        let capture_layout = self.closure_env_layout_for_symbol(symbol_id)?;
+        let capture_layout = self.function_environment_layout_for_symbol(symbol_id)?;
 
         // resolve return type
         let return_type = self.resolve_function_return_type(declaration_id)?;
@@ -587,8 +587,9 @@ impl ModuleLowerer<'_> {
             return Ok(function_id);
         }
 
-        // resolve shared closure environment metadata
-        let empty_closure_env_pointer_type = self.empty_closure_env_pointer_type();
+        // resolve shared function environment metadata
+        let empty_function_environment_pointer_type =
+            self.empty_function_environment_pointer_type();
 
         // build the function body
         let mut builder = self.builder.function_body(function_id);
@@ -600,8 +601,8 @@ impl ModuleLowerer<'_> {
         builder.set_return_lifetime(return_lifetime);
         builder.set_allocation_mode(allocation_mode);
 
-        // build function env
-        let env = FunctionEnv {
+        // build lowering context
+        let context = FunctionLoweringContext {
             module_id: self.module_id,
             profile: self.profile,
             program: &self.compiler.program,
@@ -630,11 +631,11 @@ impl ModuleLowerer<'_> {
             type_lowerer: &self.type_lowerer,
             return_type,
             symbol: symbol_id,
-            closure_env_layouts: &self.closure_env_layouts,
-            empty_closure_env_pointer_type,
+            function_environment_layouts: &self.function_environment_layouts,
+            empty_function_environment_pointer_type,
         };
         let state = FunctionState::new(builder, address_taken);
-        let mut function_lowerer = FunctionLowerer::new(env, state);
+        let mut function_lowerer = FunctionLowerer::new(context, state);
 
         // capture explicit or captured this symbols when present
         function_lowerer.state.bindings.this_symbol = this_symbol;
@@ -653,11 +654,14 @@ impl ModuleLowerer<'_> {
         let entry_block = function_lowerer.state.builder.block();
         function_lowerer.state.builder.switch_to_block(entry_block);
 
-        // seed closure environment when captured
+        // seed function environment when captured
         if let Some(layout) = capture_layout {
             let env_ref_type = layout.env_pointer_type;
-            let env_value = function_lowerer.state.builder.function_env(env_ref_type);
-            function_lowerer.state.bindings.closure_env = Some(env_value);
+            let env_value = function_lowerer
+                .state
+                .builder
+                .function_environment(env_ref_type);
+            function_lowerer.state.bindings.environment = Some(env_value);
         }
 
         // add parameter locals
@@ -957,8 +961,9 @@ impl ModuleLowerer<'_> {
         // resolve the implicit this symbol
         let this_symbol = self.resolve_this_symbol_for_function(method_symbol, signature);
 
-        // resolve shared closure environment metadata
-        let empty_closure_env_pointer_type = self.empty_closure_env_pointer_type();
+        // resolve shared function environment metadata
+        let empty_function_environment_pointer_type =
+            self.empty_function_environment_pointer_type();
         let instance = self.symbol_instance_key(method_symbol);
 
         // build the function and register bindings
@@ -1009,7 +1014,7 @@ impl ModuleLowerer<'_> {
         };
 
         // create function lowerer
-        let env = FunctionEnv {
+        let context = FunctionLoweringContext {
             module_id: self.module_id,
             profile: self.profile,
             program: &self.compiler.program,
@@ -1038,11 +1043,11 @@ impl ModuleLowerer<'_> {
             type_lowerer: &self.type_lowerer,
             return_type,
             symbol: method_symbol,
-            closure_env_layouts: &self.closure_env_layouts,
-            empty_closure_env_pointer_type,
+            function_environment_layouts: &self.function_environment_layouts,
+            empty_function_environment_pointer_type,
         };
         let state = FunctionState::new(builder, address_taken);
-        let mut function_lowerer = FunctionLowerer::new(env, state);
+        let mut function_lowerer = FunctionLowerer::new(context, state);
 
         // capture explicit or captured this symbols when present
         function_lowerer.state.bindings.this_symbol = this_symbol;

@@ -60,7 +60,7 @@ impl FunctionLowerer<'_> {
                 self.state.builder.fconst(0.0, width)
             }
             mir::Type::Isize | mir::Type::Usize | mir::Type::TypeDescriptor | mir::Type::TypeId => {
-                let pointer_bits = self.env.type_lowerer.pointer_width_bits();
+                let pointer_bits = self.context.type_lowerer.pointer_width_bits();
                 let width =
                     u8::try_from(pointer_bits).map_err(|_| LowerError::UnsupportedConstruct {
                         node,
@@ -71,14 +71,14 @@ impl FunctionLowerer<'_> {
                 self.state.builder.iconst(0, width, signed)
             }
             mir::Type::Reference { .. } => {
-                let pointer_bits = self.env.type_lowerer.pointer_bytes() * 8;
+                let pointer_bits = self.context.type_lowerer.pointer_bytes() * 8;
                 let zero = self.state.builder.iconst(0, pointer_bits, false);
                 self.state
                     .builder
                     .cast(mir::CastOperator::IntToPointer, zero, ty)
             }
             mir::Type::TensorReference { .. } => {
-                let pointer_bits = self.env.type_lowerer.pointer_bytes() * 8;
+                let pointer_bits = self.context.type_lowerer.pointer_bytes() * 8;
                 let zero = self.state.builder.iconst(0, pointer_bits, false);
                 self.state
                     .builder
@@ -106,17 +106,18 @@ impl FunctionLowerer<'_> {
                 self.state.builder.tuple(ty, values)
             }
             mir::Type::Struct { .. } => {
-                let layout = self.env.type_lowerer.layout_for_type_or_error(ty, node)?;
+                let layout = self
+                    .context
+                    .type_lowerer
+                    .layout_for_type_or_error(ty, node)?;
                 let mut values = Vec::with_capacity(layout.fields.len());
                 for field in &layout.fields {
                     values.push(self.zero_value_for_type_inner(field.ty, node, visiting)?);
                 }
                 self.state.builder.struct_(ty, values)
             }
-            mir::Type::FunctionValue {
-                signature,
-                environment,
-            } => {
+            mir::Type::FunctionValue { signature } => {
+                let environment = self.state.builder.tree().function_value_environment_type();
                 let signature_value = self.zero_value_for_type_inner(signature, node, visiting)?;
                 let environment_value =
                     self.zero_value_for_type_inner(environment, node, visiting)?;
@@ -129,7 +130,7 @@ impl FunctionLowerer<'_> {
                 self.state.builder.bitcast(inner_value, ty)
             }
             mir::Type::FunctionPointer { .. } => {
-                let pointer_bits = self.env.type_lowerer.pointer_bytes() * 8;
+                let pointer_bits = self.context.type_lowerer.pointer_bytes() * 8;
                 let zero = self.state.builder.iconst(0, pointer_bits, false);
                 self.state
                     .builder

@@ -318,8 +318,6 @@ pub enum Type {
     FunctionValue {
         /// The bare function pointer signature.
         signature: LocalNodeId<Type>,
-        /// The captured environment reference type.
-        environment: LocalNodeId<Type>,
     },
 }
 

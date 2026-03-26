@@ -4220,7 +4220,6 @@ block0:
                 }
                 mir::Terminator::CallIndirect {
                     callee: _,
-                    env: _,
                     arguments: _,
                     signature: _,
                     normal_target,
@@ -4433,7 +4432,6 @@ block0:
                 }
                 | mir::Terminator::CallIndirect {
                     callee: _,
-                    env: _,
                     arguments: _,
                     signature: _,
                     normal_target: _,

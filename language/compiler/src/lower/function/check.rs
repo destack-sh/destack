@@ -9,27 +9,27 @@ use super::{FunctionLowerer, RUNTIME_CHECK_MESSAGES};
 impl FunctionLowerer<'_> {
     /// Return true when overflow checks are enabled.
     pub(crate) fn overflow_checks_enabled(&self) -> bool {
-        self.env.checks.overflow
+        self.context.checks.overflow
     }
 
     /// Return true when bounds checks are enabled.
     pub(crate) fn bounds_checks_enabled(&self) -> bool {
-        self.env.checks.bounds
+        self.context.checks.bounds
     }
 
     /// Return true when null checks are enabled.
     pub(crate) fn null_checks_enabled(&self) -> bool {
-        self.env.checks.null
+        self.context.checks.null
     }
 
     /// Return true when division checks are enabled.
     pub(crate) fn division_checks_enabled(&self) -> bool {
-        self.env.checks.division
+        self.context.checks.division
     }
 
     /// Return true when shift checks are enabled.
     pub(crate) fn shift_checks_enabled(&self) -> bool {
-        self.env.checks.shift
+        self.context.checks.shift
     }
 
     /// Emit a check terminator with a configured failure block.
@@ -104,8 +104,8 @@ impl FunctionLowerer<'_> {
         let mir::Type::Array { length, .. } = self.state.builder.tree().get(array_type) else {
             return Err(LowerError::UnsupportedConstruct {
                 node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
                 message: "bounds checks require a sized array type".to_string(),
             });
         };
@@ -114,8 +114,8 @@ impl FunctionLowerer<'_> {
         let Some((width, is_signed)) = self.integer_scalar_info(index_expression_id)? else {
             return Err(LowerError::UnsupportedConstruct {
                 node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
                 message: "bounds checks require an integer index".to_string(),
             });
         };
@@ -124,14 +124,14 @@ impl FunctionLowerer<'_> {
         let length_value =
             i64::try_from(*length).map_err(|_| LowerError::UnsupportedConstruct {
                 node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
                 message: "array length exceeds bounds check limits".to_string(),
             })?;
         let width = u8::try_from(width).map_err(|_| LowerError::UnsupportedConstruct {
             node: expression_id
-                .into_global_any(self.env.module_id)
-                .into_anchored(Some(self.env.profile)),
+                .into_global_any(self.context.module_id)
+                .into_anchored(Some(self.context.profile)),
             message: "index width exceeds bounds check limits".to_string(),
         })?;
         let length_const = self.state.builder.iconst(length_value, width, is_signed);
@@ -194,18 +194,18 @@ impl FunctionLowerer<'_> {
         }
 
         // convert to integer for null comparison
-        let pointer_bits = u16::from(self.env.type_lowerer.pointer_bytes()) * 8;
+        let pointer_bits = u16::from(self.context.type_lowerer.pointer_bytes()) * 8;
         let pointer_bits =
             u8::try_from(pointer_bits).map_err(|_| LowerError::UnsupportedConstruct {
                 node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
                 message: "pointer width exceeds null check limits".to_string(),
             })?;
         let pointer_value = self.state.builder.cast(
             mir::CastOperator::PointerToInt,
             value,
-            self.env.type_lowerer.ty_usize,
+            self.context.type_lowerer.ty_usize,
         );
         let zero = self.state.builder.iconst(0, pointer_bits, false);
         let condition =
@@ -233,7 +233,7 @@ impl FunctionLowerer<'_> {
         self.state.builder.switch_to_block(failure_block);
 
         // emit the configured failure behavior
-        match self.env.checks.failure {
+        match self.context.checks.failure {
             CheckFailurePolicy::Trap | CheckFailurePolicy::Abort => {
                 self.state.builder.trap_abort();
             }

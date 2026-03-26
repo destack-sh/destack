@@ -577,7 +577,8 @@ pub fn expression_key_from_instruction(
         | mir::Instruction::ElementSet { .. }
         | mir::Instruction::GlobalAddr { .. }
         | mir::Instruction::FunctionAddr { .. }
-        | mir::Instruction::FunctionEnv { .. }
+        | mir::Instruction::FunctionValue { .. }
+        | mir::Instruction::FunctionEnvironment { .. }
         | mir::Instruction::LocalAddr { .. }
         | mir::Instruction::FieldAddr { .. }
         | mir::Instruction::ElementAddr { .. }

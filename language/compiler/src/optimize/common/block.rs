@@ -64,14 +64,12 @@ pub fn terminator_uses(term: &mir::Terminator, value: mir::Value) -> bool {
         }
         mir::Terminator::CallIndirect {
             callee,
-            env,
             arguments,
             normal_arguments,
             unwind_arguments,
             ..
         } => {
             *callee == value
-                || env.as_ref().is_some_and(|env| *env == value)
                 || arguments.contains(&value)
                 || normal_arguments.contains(&value)
                 || unwind_arguments.contains(&value)
@@ -109,15 +107,8 @@ pub fn terminator_uses(term: &mir::Terminator, value: mir::Value) -> bool {
             ..
         } => *receiver == value || arguments.contains(&value),
         mir::Terminator::TailCallIndirect {
-            callee,
-            env,
-            arguments,
-            ..
-        } => {
-            *callee == value
-                || env.as_ref().is_some_and(|env| *env == value)
-                || arguments.contains(&value)
-        }
+            callee, arguments, ..
+        } => *callee == value || arguments.contains(&value),
     }
 }
 
@@ -188,16 +179,12 @@ pub fn terminator_used_values(term: &mir::Terminator) -> Vec<mir::Value> {
         }
         mir::Terminator::CallIndirect {
             callee,
-            env,
             arguments,
             normal_arguments,
             unwind_arguments,
             ..
         } => {
             let mut values = vec![*callee];
-            if let Some(env) = env {
-                values.push(*env);
-            }
             values.extend(arguments.iter().copied());
             values.extend(normal_arguments.iter().copied());
             values.extend(unwind_arguments.iter().copied());
@@ -241,15 +228,9 @@ pub fn terminator_used_values(term: &mir::Terminator) -> Vec<mir::Value> {
             values
         }
         mir::Terminator::TailCallIndirect {
-            callee,
-            env,
-            arguments,
-            ..
+            callee, arguments, ..
         } => {
             let mut values = vec![*callee];
-            if let Some(env) = env {
-                values.push(*env);
-            }
             values.extend(arguments.iter().copied());
             values
         }
@@ -1164,16 +1145,12 @@ pub fn collect_block_uses(block: &mir::Block, tree: &mir::NodeTree) -> Vec<mir::
         }
         mir::Terminator::CallIndirect {
             callee,
-            env,
             arguments,
             normal_arguments,
             unwind_arguments,
             ..
         } => {
             uses.push(*callee);
-            if let Some(env) = env {
-                uses.push(*env);
-            }
             uses.extend(arguments.iter().copied());
             uses.extend(normal_arguments.iter().copied());
             uses.extend(unwind_arguments.iter().copied());
@@ -1855,7 +1832,6 @@ pub fn terminator_substitute_uses(
         },
         mir::Terminator::CallIndirect {
             callee,
-            env,
             arguments,
             signature,
             normal_target,
@@ -1864,7 +1840,6 @@ pub fn terminator_substitute_uses(
             unwind_arguments,
         } => mir::Terminator::CallIndirect {
             callee: substitute(callee),
-            env: env.map(|value| substitute(&value)),
             arguments: arguments.iter().map(&substitute).collect(),
             signature: *signature,
             normal_target: *normal_target,
@@ -1957,12 +1932,10 @@ pub fn terminator_substitute_uses(
         },
         mir::Terminator::TailCallIndirect {
             callee,
-            env,
             arguments,
             signature,
         } => mir::Terminator::TailCallIndirect {
             callee: substitute(callee),
-            env: env.map(|value| substitute(&value)),
             arguments: arguments.iter().map(&substitute).collect(),
             signature: *signature,
         },

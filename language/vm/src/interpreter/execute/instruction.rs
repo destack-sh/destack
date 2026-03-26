@@ -56,7 +56,8 @@ fn store_packed_value(
 #[inline(always)]
 pub(crate) fn managed_packed_slot_base(handle: ManagedReference) -> Result<usize, Error> {
     let byte_offset = handle.byte_offset();
-    if byte_offset % Value::BYTE_LEN != 0 {
+
+    if !byte_offset.is_multiple_of(Value::BYTE_LEN) {
         return Err(Error::InvalidManagedReference);
     }
 
@@ -1282,43 +1283,32 @@ fn aggregate_component_info(
 
             Ok((element_type, element_offset))
         }
-        mir::Type::FunctionValue {
-            signature,
-            environment,
-        } => {
+        mir::Type::FunctionValue { signature } => {
             let layout = tree.type_layout(ty).ok_or(Error::InvalidManagedReference)?;
+            let environment = tree.function_value_environment_type();
 
             // function values use semantic component order, not concrete field order
-            match index {
-                0 => {
-                    let field = layout
-                        .fields
-                        .iter()
-                        .find(|field| field.ty == *signature)
-                        .ok_or(Error::InvalidFieldAccess {
-                            index,
-                            field_count: layout.fields.len(),
-                        })?;
-
-                    Ok((*signature, field.offset as usize))
+            let component_type = match index {
+                0 => *signature,
+                1 => environment,
+                _ => {
+                    return Err(Error::InvalidFieldAccess {
+                        index,
+                        field_count: 2,
+                    });
                 }
-                1 => {
-                    let field = layout
-                        .fields
-                        .iter()
-                        .find(|field| field.ty == *environment)
-                        .ok_or(Error::InvalidFieldAccess {
-                            index,
-                            field_count: layout.fields.len(),
-                        })?;
-
-                    Ok((*environment, field.offset as usize))
-                }
-                _ => Err(Error::InvalidFieldAccess {
+            };
+            let field = layout
+                .fields
+                .iter()
+                .find(|field| field.source_index == Some(index))
+                .or_else(|| layout.fields.get(index as usize))
+                .ok_or(Error::InvalidFieldAccess {
                     index,
-                    field_count: 2,
-                }),
-            }
+                    field_count: layout.fields.len(),
+                })?;
+
+            Ok((component_type, field.offset as usize))
         }
         mir::Type::Vector { element, .. } => {
             let element_size = raw_type_size(tree, *element)?;
@@ -1403,7 +1393,7 @@ fn compute_tensor_element_count(
 }
 
 /// Read one aggregate value into semantic component values.
-fn aggregate_component_values(
+pub(crate) fn aggregate_component_values(
     state: &ExecutionState<'_, '_>,
     value: Value,
     expected_count: usize,

@@ -201,8 +201,8 @@ pub enum LayoutType {
         /// The byte offset of the table pointer.
         table_offset: u32,
     },
-    /// Closure environment layout.
-    ClosureEnv,
+    /// Function environment layout.
+    FunctionEnvironment,
     /// Function value layout.
     FunctionValue,
 }

@@ -135,6 +135,126 @@ block0:
     );
 }
 
+/// Reject direct calls to functions that require an environment.
+#[test]
+fn test_reject_direct_call_to_environment_function() {
+    let source = r#"#[environment(ref<managed i32>)]
+function @callee() -> i32 {
+block0:
+    v0: ref<managed i32> = function.environment
+    v1: i32 = load v0
+    return v1
+}
+
+function @caller() -> i32 {
+block0:
+    v0: i32 = call @callee() -> fn() -> i32
+    return v0
+}"#;
+
+    let error = parse_error(source);
+    assert_eq!(
+        error.message,
+        "metadata invariant violation: direct call cannot target a function with an environment"
+    );
+}
+
+/// Reject tail calls to functions that require an environment.
+#[test]
+fn test_reject_tail_call_to_environment_function() {
+    let source = r#"#[environment(ref<managed i32>)]
+function @callee() -> i32 {
+block0:
+    v0: ref<managed i32> = function.environment
+    v1: i32 = load v0
+    return v1
+}
+
+function @caller() -> i32 {
+block0:
+    tailcall @callee()
+}"#;
+
+    let error = parse_error(source);
+    assert_eq!(
+        error.message,
+        "metadata invariant violation: direct call cannot target a function with an environment"
+    );
+}
+
+/// Reject taking a plain function address for an environment function.
+#[test]
+fn test_reject_function_addr_for_environment_function() {
+    let source = r#"#[environment(ref<managed i32>)]
+function @callee() -> i32 {
+block0:
+    v0: ref<managed i32> = function.environment
+    v1: i32 = load v0
+    return v1
+}
+
+function @caller(v0: ref<managed i32>) -> i32 {
+block0(v0: ref<managed i32>):
+    v1: fn() -> i32 = function.addr @callee
+    return v0
+}"#;
+
+    let error = parse_error(source);
+    assert_eq!(
+        error.message,
+        "metadata invariant violation: function.addr cannot target a function with an environment"
+    );
+}
+
+/// Reject function.value when the environment operand type mismatches.
+#[test]
+fn test_reject_function_value_environment_type_mismatch() {
+    let source = r#"#[environment(ref<managed i32>)]
+function @callee() -> i32 {
+block0:
+    v0: ref<managed i32> = function.environment
+    v1: i32 = load v0
+    return v1
+}
+
+function @caller(v0: ref<managed i64>) -> i32 {
+block0(v0: ref<managed i64>):
+    v1: fnvalue<fn() -> i32> = function.value @callee, v0
+    return v0
+}"#;
+
+    let error = parse_error(source);
+    assert_eq!(
+        error.message,
+        "metadata invariant violation: function.value environment type mismatch"
+    );
+}
+
+/// Reject field projection on opaque callable values.
+#[test]
+fn test_reject_field_get_on_function_value() {
+    let source = r#"#[environment(ref<managed i32>)]
+function @callee() -> i32 {
+block0:
+    v0: ref<managed i32> = function.environment
+    v1: i32 = load v0
+    return v1
+}
+
+function @caller(v0: ref<managed i32>) -> fn() -> i32 {
+block0(v0: ref<managed i32>):
+    v1: fnvalue<fn() -> i32> = function.value @callee, v0
+    v2: fn() -> i32 = field.get v1, 0
+    return v2
+}"#;
+
+    let error = parse_error(source);
+    assert_eq!(
+        error.message,
+        "metadata invariant violation: field.get does not support fnvalue"
+    );
+}
+
 /// Reject local references that are not declared in the function.
 #[test]
 fn test_reject_local_reference_not_in_function() {
@@ -469,12 +589,12 @@ fn test_reject_function_return_type_wrong_node_kind() {
     );
 }
 
-/// Reject malformed closure env type ids.
+/// Reject malformed function environment type ids.
 #[test]
-fn test_reject_function_closure_env_type_wrong_node_kind() {
+fn test_reject_function_environment_type_wrong_node_kind() {
     let mut tree = NodeTree::new();
     let pool = StringPool::new();
-    let name = pool.intern("bad_closure_env_type");
+    let name = pool.intern("bad_environment_type");
 
     let void_type = tree.insert_type(Type::Void);
     let block_id = tree.insert(Block {
@@ -484,7 +604,7 @@ fn test_reject_function_closure_env_type_wrong_node_kind() {
     });
 
     let mut function = Function::local(name, Vec::new(), void_type, block_id);
-    function.closure_env_type = Some(LocalNodeId::new(block_id.id));
+    function.environment = Some(LocalNodeId::new(block_id.id));
     function.blocks = vec![block_id];
     function.entry = Some(block_id);
     let function_id = tree.insert(function);

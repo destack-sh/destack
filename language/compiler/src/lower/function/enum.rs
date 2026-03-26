@@ -31,12 +31,16 @@ impl FunctionLowerer<'_> {
     ) -> LowerResult<Option<(mir::Value, mir::LocalNodeId<mir::Type>)>> {
         // anchor diagnostics to the current expression
         let node = expression_id
-            .into_global_any(self.env.module_id)
-            .into_anchored(Some(self.env.profile));
+            .into_global_any(self.context.module_id)
+            .into_anchored(Some(self.context.profile));
 
         // resolve the enum field value when this symbol is a field
-        let Some(EnumFieldValueDescriptor { backing, value }) =
-            enum_field_value_for_symbol(self.env.compiler, self.env.profile, member_symbol, node)?
+        let Some(EnumFieldValueDescriptor { backing, value }) = enum_field_value_for_symbol(
+            self.context.compiler,
+            self.context.profile,
+            member_symbol,
+            node,
+        )?
         else {
             return Ok(None);
         };
@@ -73,7 +77,7 @@ impl FunctionLowerer<'_> {
     ) -> LowerResult<mir::Value> {
         // ensure the enum backing type is integer
         let scalar = self
-            .env
+            .context
             .type_lowerer
             .scalar_type_for_enum_backing(backing)
             .ok_or_else(|| LowerError::UnsupportedConstruct {

@@ -215,9 +215,31 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )?;
                 format_function_reference(*function, f)
             }
-            Instruction::FunctionEnv { destination } => {
+            Instruction::FunctionValue {
+                destination,
+                function,
+                environment,
+            } => {
                 format_typed_destination(*destination, f)?;
-                write!(f, [space(), token("="), space(), token("function.env")])
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("function.value"),
+                        space()
+                    ]
+                )?;
+                format_function_reference(*function, f)?;
+                write!(f, [token(","), space(), environment])
+            }
+            Instruction::FunctionEnvironment { destination } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [space(), token("="), space(), token("function.environment")]
+                )
             }
 
             Instruction::Load {
@@ -1254,7 +1276,6 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
             Instruction::CallIndirect {
                 destination,
                 callee,
-                env,
                 arguments,
                 signature,
                 ..
@@ -1265,7 +1286,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 }
                 write!(f, [token("call.indirect"), space(), callee])?;
                 let args = f.context().tree.get_arguments(*arguments);
-                format_value_list_with_env(args, *env, f)?;
+                format_value_list(args, f)?;
                 write!(f, [space(), token("->"), space(), signature])
             }
 
@@ -1536,33 +1557,6 @@ fn format_value_list<'a>(values: &[Value], f: &mut MirFormatter<'a, '_>) -> Form
         }
         write!(f, [val])?;
     }
-    write!(f, [token(")")])
-}
-
-/// Format a parenthesized list of values with an optional env argument.
-fn format_value_list_with_env<'a>(
-    values: &[Value],
-    env: Option<Value>,
-    f: &mut MirFormatter<'a, '_>,
-) -> FormatResult<()> {
-    write!(f, [token("(")])?;
-
-    let mut needs_comma = false;
-    for value in values {
-        if needs_comma {
-            write!(f, [token(","), space()])?;
-        }
-        write!(f, [value])?;
-        needs_comma = true;
-    }
-
-    if let Some(env) = env {
-        if needs_comma {
-            write!(f, [token(","), space()])?;
-        }
-        write!(f, [token("env"), token("="), env])?;
-    }
-
     write!(f, [token(")")])
 }
 

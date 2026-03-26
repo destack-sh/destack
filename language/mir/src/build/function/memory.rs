@@ -112,7 +112,7 @@ impl<'a> FunctionBuilder<'a> {
         });
     }
 
-    /// Resolve a field type for a struct, tuple, or function value aggregate.
+    /// Resolve a field type for a struct or tuple aggregate.
     pub(super) fn field_type_for_aggregate(
         &self,
         aggregate_type: LocalNodeId<Type>,
@@ -128,15 +128,8 @@ impl<'a> FunctionBuilder<'a> {
                 .get(index as usize)
                 .copied()
                 .unwrap_or_else(|| panic!("field index out of bounds")),
-            Type::FunctionValue {
-                signature,
-                environment,
-            } => match index {
-                0 => *signature,
-                1 => *environment,
-                _ => panic!("field index out of bounds"),
-            },
-            _ => panic!("field access expects struct, tuple, or fnvalue"),
+            Type::FunctionValue { .. } => panic!("field access does not support fnvalue"),
+            _ => panic!("field access expects struct or tuple"),
         }
     }
 
@@ -186,6 +179,12 @@ impl<'a> FunctionBuilder<'a> {
         let signature_type = self.tree.get(signature);
         match signature_type {
             Type::FunctionPointer { result, .. } => *result,
+            Type::FunctionValue { signature, .. } => {
+                let Type::FunctionPointer { result, .. } = self.tree.get(*signature) else {
+                    panic!("fnvalue must carry a function pointer signature");
+                };
+                *result
+            }
             _ => panic!("call expects function pointer signature"),
         }
     }

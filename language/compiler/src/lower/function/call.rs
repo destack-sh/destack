@@ -55,8 +55,8 @@ impl FunctionLowerer<'_> {
         )?;
         let value = value.ok_or_else(|| LowerError::UnsupportedConstruct {
             node: expression_id
-                .into_global_any(self.env.module_id)
-                .into_anchored(Some(self.env.profile)),
+                .into_global_any(self.context.module_id)
+                .into_anchored(Some(self.context.profile)),
             message: "call returned no value".to_string(),
         })?;
 
@@ -96,8 +96,8 @@ impl FunctionLowerer<'_> {
             self.get_resolution(expression_id)
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
                     node: expression_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
                     message: "call expression missing Resolution (Analyze issue)".to_string(),
                 })?;
         let Resolution::Static {
@@ -107,8 +107,8 @@ impl FunctionLowerer<'_> {
         else {
             return Err(LowerError::UnsupportedConstruct {
                 node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
                 message: "call resolution must be static before Lower".to_string(),
             });
         };
@@ -129,8 +129,8 @@ impl FunctionLowerer<'_> {
         if static_arguments.is_some() {
             return Err(LowerError::UnsupportedConstruct {
                 node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
                 message: "static arguments are only supported for intrinsic calls".to_string(),
             })?;
         }
@@ -139,7 +139,10 @@ impl FunctionLowerer<'_> {
         if target_symbol.ty() != dir::SymbolType::Function
             && self.function_for_symbol(target_symbol).is_none()
             && let Some(type_id) = self.type_for_expression(*left)
-            && matches!(self.env.types.get_type(type_id), dir::Type::Function { .. })
+            && matches!(
+                self.context.types.get_type(type_id),
+                dir::Type::Function { .. }
+            )
         {
             let (closure_value, closure_type) = self.lower_value_expression(*left)?;
             return self.lower_closure_call(
@@ -153,11 +156,11 @@ impl FunctionLowerer<'_> {
 
         // lower calls to captured functions via closure values
         let has_captures = self
-            .env
+            .context
             .captures
             .capture_set(target_symbol)
             .is_some_and(|set| !set.captures.is_empty());
-        if self.env.symbols.get_symbol(target_symbol.local_id).ty == dir::SymbolType::Function
+        if self.context.symbols.get_symbol(target_symbol.local_id).ty == dir::SymbolType::Function
             && has_captures
         {
             let (closure_value, closure_type) = self.lower_value_expression(*left)?;
@@ -174,7 +177,7 @@ impl FunctionLowerer<'_> {
         let is_static = self.is_static_method_symbol(target_symbol);
         let (function_id, receiver_value, receiver_type_id) = {
             // check if this is a method call (left is Member)
-            let left_expr = self.env.dir_tree.get(*left);
+            let left_expr = self.context.dir_tree.get(*left);
             let mut receiver_type_id = if is_static { None } else { resolution_receiver };
             let receiver_value = if !is_static
                 && resolution_receiver.is_some()
@@ -201,8 +204,8 @@ impl FunctionLowerer<'_> {
             let function_id = self.function_for_symbol(target_symbol).ok_or_else(|| {
                 LowerError::UnsupportedConstruct {
                     node: expression_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
                     message: "missing function for resolved target symbol".to_string(),
                 }
             })?;
@@ -232,12 +235,12 @@ impl FunctionLowerer<'_> {
             arguments.push(receiver);
         }
         for argument_id in dynamic_arguments {
-            let argument = self.env.dir_tree.get(*argument_id);
+            let argument = self.context.dir_tree.get(*argument_id);
             if !matches!(argument, dir::Argument::Positional { .. }) {
                 return Err(LowerError::UnsupportedConstruct {
                     node: expression_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
                     message: "unsupported non-positional argument".to_string(),
                 })?;
             }
@@ -247,16 +250,16 @@ impl FunctionLowerer<'_> {
 
         // emit call when we have a static resolution
         let result_type = self.lower_type_for_expression(expression_id)?;
-        let returns_void = result_type == self.env.type_lowerer.ty_void;
+        let returns_void = result_type == self.context.type_lowerer.ty_void;
         let signature = self.signature_type_for_function(expression_id, function_id)?;
-        let is_binding_call =
-            self.env.binding_abi_lowering && self.env.binding_symbols.contains(&target_symbol);
+        let is_binding_call = self.context.binding_abi_lowering
+            && self.context.binding_symbols.contains(&target_symbol);
         if is_binding_call {
             if dispatch_receiver.is_some() {
                 return Err(LowerError::UnsupportedConstruct {
                     node: expression_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
                     message: "binding calls cannot be method calls".to_string(),
                 });
             }
@@ -358,8 +361,8 @@ impl FunctionLowerer<'_> {
         if returns_void && matches!(kind, CallKind::Expression) {
             return Err(LowerError::UnsupportedConstruct {
                 node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
                 message: "call returned no value".to_string(),
             });
         }
@@ -376,23 +379,24 @@ impl FunctionLowerer<'_> {
         result_type: mir::LocalNodeId<mir::Type>,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         let result_type_id = self.type_for_expression_or_error(expression_id)?;
-        let result_info = resolve_result_union(self.env.types, self.env.strings, result_type_id)
-            .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
-                message: "binding return type must be Result<T, PlatformError>".to_string(),
-            })?;
+        let result_info =
+            resolve_result_union(self.context.types, self.context.strings, result_type_id)
+                .ok_or_else(|| LowerError::UnsupportedConstruct {
+                    node: expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                    message: "binding return type must be Result<T, PlatformError>".to_string(),
+                })?;
 
         let union_layout = self
-            .env
+            .context
             .type_lowerer
             .union_layout(result_info.union_type)
             .ok_or_else(|| self.missing_type_error(expression_id))?;
 
-        let ok_is_void = is_void_type(self.env.types, result_info.ok_value_type);
+        let ok_is_void = is_void_type(self.context.types, result_info.ok_value_type);
         let ok_value_mir_type = if ok_is_void {
-            self.env.type_lowerer.ty_void
+            self.context.type_lowerer.ty_void
         } else {
             self.cached_type_for_id(expression_id, result_info.ok_value_type)?
         };
@@ -401,13 +405,13 @@ impl FunctionLowerer<'_> {
         let err_value_mir_type =
             self.cached_type_for_id(expression_id, result_info.err_value_type)?;
 
-        let status_layout = self
-            .env
-            .runtime_status_layout
-            .ok_or_else(|| LowerError::Internal {
-                module: self.env.module_id,
-                message: "binding ABI call is missing RuntimeStatus layout".to_string(),
-            })?;
+        let status_layout =
+            self.context
+                .runtime_status_layout
+                .ok_or_else(|| LowerError::Internal {
+                    module: self.context.module_id,
+                    message: "binding ABI call is missing RuntimeStatus layout".to_string(),
+                })?;
 
         let mut call_args = Vec::with_capacity(arguments.len() + (!ok_is_void as usize));
         let ok_out_ptr = if ok_is_void {
@@ -435,8 +439,8 @@ impl FunctionLowerer<'_> {
             .call(function_id, signature, call_args)
             .ok_or_else(|| LowerError::UnsupportedConstruct {
                 node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
                 message: "binding call returned no status value".to_string(),
             })?;
 
@@ -455,8 +459,8 @@ impl FunctionLowerer<'_> {
         self.state.builder.branch(is_ok, ok_block, err_block);
 
         let anchor = expression_id
-            .into_global_any(self.env.module_id)
-            .into_anchored(Some(self.env.profile));
+            .into_global_any(self.context.module_id)
+            .into_anchored(Some(self.context.profile));
 
         // ok branch
         self.state.builder.switch_to_block(ok_block);
@@ -464,7 +468,7 @@ impl FunctionLowerer<'_> {
             None
         } else {
             let out_ptr = ok_out_ptr.ok_or_else(|| LowerError::Internal {
-                module: self.env.module_id,
+                module: self.context.module_id,
                 message: "binding ok value missing out pointer".to_string(),
             })?;
             Some(self.state.builder.load(out_ptr, ok_value_mir_type))
@@ -496,10 +500,10 @@ impl FunctionLowerer<'_> {
             .builder
             .field_get(status_value, status_layout.error_id_field_index);
         let take_function =
-            self.env
+            self.context
                 .take_platform_error_function
                 .ok_or_else(|| LowerError::Internal {
-                    module: self.env.module_id,
+                    module: self.context.module_id,
                     message: "binding ABI call is missing takePlatformError".to_string(),
                 })?;
         let take_signature = self.signature_type_for_function(expression_id, take_function)?;
@@ -524,8 +528,8 @@ impl FunctionLowerer<'_> {
             )
             .ok_or_else(|| LowerError::UnsupportedConstruct {
                 node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
                 message: "takePlatformError returned no status value".to_string(),
             })?;
         let error_value = self.state.builder.load(error_out_ptr, err_value_mir_type);
@@ -560,7 +564,7 @@ impl FunctionLowerer<'_> {
         expression_id: LocalNodeId<Expression>,
         type_id: dir::LocalTypeId,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
-        self.env
+        self.context
             .type_lowerer
             .cached_type(type_id)
             .ok_or_else(|| self.missing_type_error(expression_id))
@@ -575,15 +579,15 @@ impl FunctionLowerer<'_> {
         value: Option<mir::Value>,
     ) -> LowerResult<mir::Value> {
         let anchor = expression_id
-            .into_global_any(self.env.module_id)
-            .into_anchored(Some(self.env.profile));
+            .into_global_any(self.context.module_id)
+            .into_anchored(Some(self.context.profile));
         let layout = self
-            .env
+            .context
             .type_lowerer
             .layout_for_type_or_error(struct_mir_type, anchor)?;
 
-        let kind_name = self.env.strings.intern("kind");
-        let value_name = self.env.strings.intern(value_field);
+        let kind_name = self.context.strings.intern("kind");
+        let value_name = self.context.strings.intern(value_field);
         let (kind_value, _) = self.string_literal_value(kind_literal)?;
 
         let mut fields = Vec::with_capacity(layout.fields.len());
@@ -635,34 +639,22 @@ impl FunctionLowerer<'_> {
         kind: CallKind,
     ) -> LowerResult<(Option<mir::Value>, mir::LocalNodeId<mir::Type>)> {
         let anchor = expression_id
-            .into_global_any(self.env.module_id)
-            .into_anchored(Some(self.env.profile));
-        let layout = self
-            .env
+            .into_global_any(self.context.module_id)
+            .into_anchored(Some(self.context.profile));
+
+        self.context
             .type_lowerer
             .layout_for_type_or_error(closure_type, anchor)?;
-        let fn_index = layout
-            .field_index_by_source(0)
-            .ok_or_else(|| self.error(expression_id, "missing closure function field"))?;
-        let env_index = layout
-            .field_index_by_source(1)
-            .ok_or_else(|| self.error(expression_id, "missing closure env field"))?;
-        let fn_field = layout
-            .field(fn_index)
-            .ok_or_else(|| self.error(expression_id, "missing closure function field"))?;
-
-        let fn_ptr = self.state.builder.field_get(closure_value, fn_index);
-        let env_ptr = self.state.builder.field_get(closure_value, env_index);
 
         // build arguments for the indirect call
         let mut arguments = Vec::with_capacity(dynamic_arguments.len());
         for argument_id in dynamic_arguments {
-            let argument = self.env.dir_tree.get(*argument_id);
+            let argument = self.context.dir_tree.get(*argument_id);
             if !matches!(argument, dir::Argument::Positional { .. }) {
                 return Err(LowerError::UnsupportedConstruct {
                     node: expression_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
                     message: "unsupported non-positional argument".to_string(),
                 })?;
             }
@@ -672,17 +664,17 @@ impl FunctionLowerer<'_> {
 
         // call indirect
         let result_type = self.lower_type_for_expression(expression_id)?;
-        let returns_void = result_type == self.env.type_lowerer.ty_void;
+        let returns_void = result_type == self.context.type_lowerer.ty_void;
         let value = if returns_void {
             self.state
                 .builder
-                .call_indirect_void(fn_ptr, Some(env_ptr), fn_field.ty, arguments);
+                .call_indirect_void(closure_value, closure_type, arguments);
             None
         } else {
             Some(
                 self.state
                     .builder
-                    .call_indirect(fn_ptr, Some(env_ptr), fn_field.ty, arguments),
+                    .call_indirect(closure_value, closure_type, arguments),
             )
         };
 
@@ -690,8 +682,8 @@ impl FunctionLowerer<'_> {
         if returns_void && matches!(kind, CallKind::Expression) {
             return Err(LowerError::UnsupportedConstruct {
                 node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
                 message: "call returned no value".to_string(),
             });
         }
@@ -706,7 +698,7 @@ impl FunctionLowerer<'_> {
         function_id: mir::LocalNodeId<mir::Function>,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         let signature = self
-            .env
+            .context
             .function_signature_types
             .get(&function_id)
             .copied()
@@ -731,7 +723,7 @@ impl FunctionLowerer<'_> {
 
         // resolve interface reference layout
         let layout = self
-            .env
+            .context
             .type_lowerer
             .interface_ref_layout(receiver_type_id)
             .ok_or_else(|| self.missing_type_error(expression_id))?;

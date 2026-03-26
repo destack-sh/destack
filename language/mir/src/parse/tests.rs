@@ -36,7 +36,7 @@ block0:
 #[test]
 fn test_roundtrip_function_value_type() {
     roundtrip(
-        r#"type @Callable = fnvalue<fn(i32) -> i32, ref?<managed void>>
+        r#"type @Callable = fnvalue<fn(i32) -> i32>
 function @use(v0: @Callable) -> @Callable {
 block0(v0: @Callable):
     return v0
@@ -236,16 +236,21 @@ block0:
 }
 
 #[test]
-fn test_roundtrip_function_env() {
+fn test_roundtrip_function_environment() {
     roundtrip(
-        r#"extern function @callee(i32) -> i32
-#[closure_env(ref<managed void>)]
+        r#"#[environment(ref<managed void>)]
+function @callee(v0: i32) -> i32 {
+block0(v0: i32):
+    v1: ref<managed void> = function.environment
+    return v0
+}
+#[environment(ref<managed void>)]
 function @caller() -> i32 {
 block0:
-    v0: ref<managed void> = function.env
-    v1: fn(i32) -> i32 = function.addr @callee
+    v0: ref<managed void> = function.environment
+    v1: fnvalue<fn(i32) -> i32> = function.value @callee, v0
     v2: i32 = iconst 1i32
-    v3: i32 = call.indirect v1(v2, env=v0) -> fn(i32) -> i32
+    v3: i32 = call.indirect v1(v2) -> fnvalue<fn(i32) -> i32>
     return v3
 }"#,
     );

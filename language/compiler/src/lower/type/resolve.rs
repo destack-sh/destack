@@ -12,15 +12,15 @@ impl FunctionLowerer<'_> {
     pub(crate) fn missing_type_error(&self, expression_id: LocalNodeId<Expression>) -> LowerError {
         LowerError::MissingType {
             node: expression_id
-                .into_global_any(self.env.module_id)
-                .into_anchored(Some(self.env.profile)),
+                .into_global_any(self.context.module_id)
+                .into_anchored(Some(self.context.profile)),
         }
     }
 
     /// Create a MissingType error for the given node.
     pub(crate) fn missing_type_error_for_node(&self, node_id: GlobalNodeIdAny) -> LowerError {
         LowerError::MissingType {
-            node: node_id.into_anchored(Some(self.env.profile)),
+            node: node_id.into_anchored(Some(self.context.profile)),
         }
     }
 
@@ -40,31 +40,31 @@ impl FunctionLowerer<'_> {
         let type_id = self.unwrap_value_type_id(type_id);
 
         // return cached types when available
-        if let Some(mir_type) = self.env.type_lowerer.cached_type(type_id) {
+        if let Some(mir_type) = self.context.type_lowerer.cached_type(type_id) {
             return Ok(mir_type);
         }
 
         // resolve scalar types directly when possible
         if let Some(scalar_type) = self.scalar_type_for_expression(expression_id) {
             return match scalar_type {
-                ScalarType::Bool => Some(self.env.type_lowerer.ty_bool),
-                ScalarType::SignedInt { width: 32 } => Some(self.env.type_lowerer.ty_i32),
-                ScalarType::SignedInt { width: 64 } => Some(self.env.type_lowerer.ty_i64),
-                ScalarType::UnsignedInt { width: 32 } => Some(self.env.type_lowerer.ty_u32),
+                ScalarType::Bool => Some(self.context.type_lowerer.ty_bool),
+                ScalarType::SignedInt { width: 32 } => Some(self.context.type_lowerer.ty_i32),
+                ScalarType::SignedInt { width: 64 } => Some(self.context.type_lowerer.ty_i64),
+                ScalarType::UnsignedInt { width: 32 } => Some(self.context.type_lowerer.ty_u32),
                 ScalarType::UnsignedInt { width }
-                    if width == self.env.type_lowerer.pointer_width_bits() =>
+                    if width == self.context.type_lowerer.pointer_width_bits() =>
                 {
-                    Some(self.env.type_lowerer.ty_usize)
+                    Some(self.context.type_lowerer.ty_usize)
                 }
-                ScalarType::Float { width: 32 } => Some(self.env.type_lowerer.ty_f32),
-                ScalarType::Float { width: 64 } => Some(self.env.type_lowerer.ty_f64),
+                ScalarType::Float { width: 32 } => Some(self.context.type_lowerer.ty_f32),
+                ScalarType::Float { width: 64 } => Some(self.context.type_lowerer.ty_f64),
                 _ => None,
             }
             .ok_or_else(|| self.missing_type_error(expression_id));
         }
 
         // resolve primitive string directly
-        let dir_type = self.env.types.get_type(type_id);
+        let dir_type = self.context.types.get_type(type_id);
         if matches!(
             dir_type,
             dir::Type::TypeLiteral {
@@ -72,7 +72,7 @@ impl FunctionLowerer<'_> {
             }
         ) {
             return self
-                .env
+                .context
                 .type_lowerer
                 .string_type()
                 .ok_or_else(|| self.missing_type_error(expression_id));
@@ -91,11 +91,14 @@ impl FunctionLowerer<'_> {
 
         // handle enum backing scalars
         if let Some(backing) = self.enum_backing_type_for_type(type_id) {
-            return self.env.type_lowerer.scalar_type_for_enum_backing(backing);
+            return self
+                .context
+                .type_lowerer
+                .scalar_type_for_enum_backing(backing);
         }
 
-        let dir_type = self.env.types.get_type(type_id);
-        self.env.type_lowerer.scalar_type_for_dir_type(dir_type)
+        let dir_type = self.context.types.get_type(type_id);
+        self.context.type_lowerer.scalar_type_for_dir_type(dir_type)
     }
 
     /// Resolve the DIR type id for a typed expression.
@@ -121,7 +124,7 @@ impl FunctionLowerer<'_> {
         &self,
         node_id: GlobalNodeIdAny,
     ) -> LowerResult<dir::LocalTypeId> {
-        self.env
+        self.context
             .types
             .get_signature_type_for_node(node_id)
             .ok_or_else(|| self.missing_type_error_for_node(node_id))
@@ -132,8 +135,8 @@ impl FunctionLowerer<'_> {
         &self,
         expression_id: LocalNodeId<Expression>,
     ) -> Option<dir::LocalTypeId> {
-        let node_id = expression_id.into_global_any(self.env.module_id);
-        self.env.types.get_declared_or_inferred_type_id(node_id)
+        let node_id = expression_id.into_global_any(self.context.module_id);
+        self.context.types.get_declared_or_inferred_type_id(node_id)
     }
 
     /// Resolve the type id encoded in a type expression node.
@@ -142,7 +145,7 @@ impl FunctionLowerer<'_> {
         expression_id: LocalNodeId<Expression>,
     ) -> Option<dir::LocalTypeId> {
         // read the type expression node
-        let expression = self.env.dir_tree.get(expression_id);
+        let expression = self.context.dir_tree.get(expression_id);
 
         // use the explicit type id when available
         if let Expression::Type { value } = expression {
@@ -154,25 +157,25 @@ impl FunctionLowerer<'_> {
         | Expression::ModuleReference { target_symbol, .. }
         | Expression::GlobalReference { target_symbol, .. } = expression
         {
-            if let Some(instance_type_id) = self.env.types.get_instance_type_id(*target_symbol) {
+            if let Some(instance_type_id) = self.context.types.get_instance_type_id(*target_symbol)
+            {
                 return Some(instance_type_id);
             }
 
             if let Some(type_id) = self
-                .env
+                .context
                 .types
-                .get_type_id_for_symbol(self.env.symbols, *target_symbol)
+                .get_type_id_for_symbol(self.context.symbols, *target_symbol)
             {
                 return Some(type_id);
             }
         }
 
         // fall back to declared or inferred type ids
-        let type_id = self
-            .env
-            .types
-            .get_declared_or_inferred_type_id(expression_id.into_global_any(self.env.module_id))?;
-        match self.env.types.get_type(type_id) {
+        let type_id = self.context.types.get_declared_or_inferred_type_id(
+            expression_id.into_global_any(self.context.module_id),
+        )?;
+        match self.context.types.get_type(type_id) {
             dir::Type::Value { value } => Some(*value),
             _ => Some(type_id),
         }
@@ -184,7 +187,7 @@ impl FunctionLowerer<'_> {
         type_id: dir::LocalTypeId,
     ) -> Option<GlobalSymbolId> {
         // match the dir type to find a class symbol
-        match self.env.types.get_type(type_id) {
+        match self.context.types.get_type(type_id) {
             // accept direct class references
             dir::Type::Reference { symbol, .. } if symbol.ty() == dir::SymbolType::Class => {
                 Some(*symbol)
@@ -203,7 +206,7 @@ impl FunctionLowerer<'_> {
     /// Strip value wrapper types from a type id.
     pub(crate) fn unwrap_value_type_id(&self, type_id: dir::LocalTypeId) -> dir::LocalTypeId {
         // unwrap value type nodes until a concrete type is reached
-        let dir_type = self.env.types.get_type(type_id);
+        let dir_type = self.context.types.get_type(type_id);
         match dir_type {
             dir::Type::Value { value } => self.unwrap_value_type_id(*value),
             _ => type_id,
@@ -221,28 +224,28 @@ impl FunctionLowerer<'_> {
         let right_type_id = self.unwrap_value_type_id(right_type_id);
 
         // fast path: structural or nominal equivalence
-        if dir::are_types_equal(left_type_id, right_type_id, self.env.types) {
+        if dir::are_types_equal(left_type_id, right_type_id, self.context.types) {
             return true;
         }
 
         // match nominal references against their instance types
-        let left_instance = match self.env.types.get_type(left_type_id) {
-            dir::Type::Reference { symbol, .. } => self.env.types.get_instance_type_id(*symbol),
+        let left_instance = match self.context.types.get_type(left_type_id) {
+            dir::Type::Reference { symbol, .. } => self.context.types.get_instance_type_id(*symbol),
             _ => None,
         };
         if let Some(left_instance) = left_instance
-            && dir::are_types_equal(left_instance, right_type_id, self.env.types)
+            && dir::are_types_equal(left_instance, right_type_id, self.context.types)
         {
             return true;
         }
 
         // match instance types against nominal references
-        let right_instance = match self.env.types.get_type(right_type_id) {
-            dir::Type::Reference { symbol, .. } => self.env.types.get_instance_type_id(*symbol),
+        let right_instance = match self.context.types.get_type(right_type_id) {
+            dir::Type::Reference { symbol, .. } => self.context.types.get_instance_type_id(*symbol),
             _ => None,
         };
         if let Some(right_instance) = right_instance
-            && dir::are_types_equal(left_type_id, right_instance, self.env.types)
+            && dir::are_types_equal(left_type_id, right_instance, self.context.types)
         {
             return true;
         }
@@ -256,19 +259,19 @@ impl FunctionLowerer<'_> {
         type_id: dir::LocalTypeId,
     ) -> Option<dir::EnumBackingType> {
         // accept direct enum references
-        if let dir::Type::Reference { symbol, .. } = self.env.types.get_type(type_id)
+        if let dir::Type::Reference { symbol, .. } = self.context.types.get_type(type_id)
             && symbol.ty() == dir::SymbolType::Enum
         {
-            return self.env.types.get_enum_backing_type(*symbol);
+            return self.context.types.get_enum_backing_type(*symbol);
         }
 
         // accept enum instance types
-        let symbol = self.env.types.symbol_for_instance_type(type_id)?;
+        let symbol = self.context.types.symbol_for_instance_type(type_id)?;
         if symbol.ty() != dir::SymbolType::Enum {
             return None;
         }
 
-        self.env.types.get_enum_backing_type(symbol)
+        self.context.types.get_enum_backing_type(symbol)
     }
 
     /// Resolve a local binding for a symbol reference.
@@ -284,8 +287,8 @@ impl FunctionLowerer<'_> {
             .get(&target_symbol)
             .ok_or_else(|| LowerError::UnsupportedConstruct {
                 node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
                 message: "missing local reference target symbol".to_string(),
             })?;
 
@@ -299,13 +302,13 @@ impl FunctionLowerer<'_> {
         target_symbol: GlobalSymbolId,
     ) -> LowerResult<GlobalBinding> {
         let binding = self
-            .env
+            .context
             .globals_by_symbol
             .get(&target_symbol)
             .ok_or_else(|| LowerError::UnsupportedConstruct {
                 node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
                 message: "unresolved symbol reference".to_string(),
             })?;
 
@@ -319,8 +322,8 @@ impl FunctionLowerer<'_> {
         &self,
         expression_id: LocalNodeId<Expression>,
     ) -> Option<&Resolution> {
-        let node_id = expression_id.into_global_any(self.env.module_id);
-        let resolution_id = self.env.types.get_resolution_for_node(node_id)?;
-        Some(self.env.types.get_resolution(resolution_id))
+        let node_id = expression_id.into_global_any(self.context.module_id);
+        let resolution_id = self.context.types.get_resolution_for_node(node_id)?;
+        Some(self.context.types.get_resolution(resolution_id))
     }
 }

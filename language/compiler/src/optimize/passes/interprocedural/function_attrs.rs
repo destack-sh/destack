@@ -421,7 +421,7 @@ fn compute_function_summary(
     }
 
     // build the call behavior summary
-    let noreturn = function.coroutine.is_none() && !has_return;
+    let noreturn = function.suspension.is_none() && !has_return;
     let call_behavior = behavior_builder.finish(noreturn);
 
     FunctionSummary {

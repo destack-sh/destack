@@ -26,10 +26,9 @@ impl Parser<'_> {
             Type::Array {
                 element, length, ..
             } => self.record_array_layout(type_id, *element, *length),
-            Type::FunctionValue {
-                signature,
-                environment,
-            } => self.record_function_value_layout(type_id, *signature, *environment),
+            Type::FunctionValue { signature } => {
+                self.record_function_value_layout(type_id, *signature)
+            }
             _ => Ok(()),
         }
     }
@@ -178,8 +177,8 @@ impl Parser<'_> {
         &mut self,
         type_id: LocalNodeId<Type>,
         signature: LocalNodeId<Type>,
-        environment: LocalNodeId<Type>,
     ) -> ParseResult<()> {
+        let environment = self.tree.ensure_function_value_environment_type();
         let components = [signature, environment];
         let mut layout_fields = Vec::with_capacity(components.len());
         let mut offset = 0u32;

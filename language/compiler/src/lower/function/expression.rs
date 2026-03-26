@@ -14,7 +14,7 @@ impl FunctionLowerer<'_> {
         // walk implicit wrappers to the underlying expression
         let mut current_id = expression_id;
         loop {
-            match self.env.dir_tree.get(current_id) {
+            match self.context.dir_tree.get(current_id) {
                 Expression::Parenthesized { expression } => current_id = *expression,
                 Expression::Cast {
                     value,
@@ -53,21 +53,21 @@ impl FunctionLowerer<'_> {
         if let Some(value) =
             self.lower_union_discriminant_comparison(expression_id, left, operator, right)?
         {
-            return Ok((value, self.env.type_lowerer.ty_bool));
+            return Ok((value, self.context.type_lowerer.ty_bool));
         }
 
         // handle union literal comparisons
         if let Some(value) =
             self.lower_union_literal_comparison(expression_id, left, operator, right)?
         {
-            return Ok((value, self.env.type_lowerer.ty_bool));
+            return Ok((value, self.context.type_lowerer.ty_bool));
         }
 
         // handle nullable reference comparisons
         if let Some(value) =
             self.lower_nullable_reference_comparison(expression_id, left, operator, right)?
         {
-            return Ok((value, self.env.type_lowerer.ty_bool));
+            return Ok((value, self.context.type_lowerer.ty_bool));
         }
 
         // lower operands and types
@@ -167,7 +167,7 @@ impl FunctionLowerer<'_> {
 
         // comparisons produce bool, others preserve operand type
         let ty = if op.is_comparison() {
-            self.env.type_lowerer.ty_bool
+            self.context.type_lowerer.ty_bool
         } else {
             result_type
         };
@@ -192,20 +192,20 @@ impl FunctionLowerer<'_> {
         ) {
             return Err(LowerError::UnsupportedConstruct {
                 node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
                 message: "unsupported type binary operator".to_string(),
             });
         }
 
         // require runtime check metadata from Analyze
         let runtime_check_kind = self
-            .env
+            .context
             .types
-            .get_runtime_check_kind(expression_id.into_global_any(self.env.module_id));
+            .get_runtime_check_kind(expression_id.into_global_any(self.context.module_id));
         let Some(runtime_check_kind) = runtime_check_kind else {
             return Err(LowerError::Internal {
-                module: self.env.module_id,
+                module: self.context.module_id,
                 message: "missing runtime check metadata for type guard".to_string(),
             });
         };
@@ -213,15 +213,15 @@ impl FunctionLowerer<'_> {
         // handle constant guards early
         if let dir::RuntimeCheckKind::Constant(value) = runtime_check_kind {
             let value = self.state.builder.bconst(value);
-            return Ok((value, self.env.type_lowerer.ty_bool));
+            return Ok((value, self.context.type_lowerer.ty_bool));
         }
 
         // reject type descriptor guards until RTTI is lowered (#Incomplete)
         if runtime_check_kind == dir::RuntimeCheckKind::TypeDescriptor {
             return Err(LowerError::UnsupportedConstruct {
                 node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
                 message: "type descriptor checks are not lowered yet".to_string(),
             });
         }
@@ -237,23 +237,23 @@ impl FunctionLowerer<'_> {
         // exact or nominally equivalent matches are always true
         if self.are_type_ids_equivalent(left_type_id, target_type_id) {
             let value = self.state.builder.bconst(true);
-            return Ok((value, self.env.type_lowerer.ty_bool));
+            return Ok((value, self.context.type_lowerer.ty_bool));
         }
 
         // union types use the tag field for runtime checks
         let is_union_value = matches!(
-            self.env.types.get_type(left_type_id),
+            self.context.types.get_type(left_type_id),
             dir::Type::Union { .. }
         );
         if runtime_check_kind == dir::RuntimeCheckKind::UnionTag && !is_union_value {
             return Err(LowerError::Internal {
-                module: self.env.module_id,
+                module: self.context.module_id,
                 message: "runtime check metadata expected union value".to_string(),
             });
         }
         if is_union_value {
             let layout = self
-                .env
+                .context
                 .type_lowerer
                 .union_layout(left_type_id)
                 .ok_or_else(|| self.missing_type_error(expression_id))?;
@@ -265,7 +265,7 @@ impl FunctionLowerer<'_> {
                 .position(|element| self.are_type_ids_equivalent(*element, target_type_id))
             else {
                 let value = self.state.builder.bconst(false);
-                return Ok((value, self.env.type_lowerer.ty_bool));
+                return Ok((value, self.context.type_lowerer.ty_bool));
             };
 
             // build the tag constant
@@ -277,8 +277,8 @@ impl FunctionLowerer<'_> {
                 _ => {
                     return Err(LowerError::UnsupportedConstruct {
                         node: expression_id
-                            .into_global_any(self.env.module_id)
-                            .into_anchored(Some(self.env.profile)),
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
                         message: "union tag must be an integer type".to_string(),
                     });
                 }
@@ -305,13 +305,13 @@ impl FunctionLowerer<'_> {
                 self.state
                     .builder
                     .binary_op(mir::BinaryOperator::Equal, tag_value, tag_const);
-            return Ok((cmp, self.env.type_lowerer.ty_bool));
+            return Ok((cmp, self.context.type_lowerer.ty_bool));
         }
 
         Err(LowerError::UnsupportedConstruct {
             node: expression_id
-                .into_global_any(self.env.module_id)
-                .into_anchored(Some(self.env.profile)),
+                .into_global_any(self.context.module_id)
+                .into_anchored(Some(self.context.profile)),
             message: "unsupported type check".to_string(),
         })
     }
@@ -322,7 +322,7 @@ impl FunctionLowerer<'_> {
         expression_id: LocalNodeId<Expression>,
     ) -> LowerResult<dir::LocalTypeId> {
         // prefer nominal newtype references over instance types
-        let expression = self.env.dir_tree.get(expression_id);
+        let expression = self.context.dir_tree.get(expression_id);
         if let Expression::LocalReference { target_symbol, .. }
         | Expression::ModuleReference { target_symbol, .. }
         | Expression::GlobalReference { target_symbol, .. } = expression
@@ -368,10 +368,10 @@ impl FunctionLowerer<'_> {
                 ScalarType::UnsignedInt { width: *width }
             }),
             mir::Type::Isize => Some(ScalarType::SignedInt {
-                width: self.env.type_lowerer.pointer_width_bits(),
+                width: self.context.type_lowerer.pointer_width_bits(),
             }),
             mir::Type::Usize => Some(ScalarType::UnsignedInt {
-                width: self.env.type_lowerer.pointer_width_bits(),
+                width: self.context.type_lowerer.pointer_width_bits(),
             }),
             mir::Type::Float { width } => Some(ScalarType::Float { width: *width }),
             _ => None,
@@ -438,8 +438,8 @@ impl FunctionLowerer<'_> {
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
                     node: expression_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
                     message: "unsupported numeric cast in binary expression".to_string(),
                 });
             }
@@ -472,8 +472,10 @@ impl FunctionLowerer<'_> {
         let right = self.unwrap_expression(right);
 
         // match nullable comparisons with null literals
-        let (value_id, literal) = match (self.env.dir_tree.get(left), self.env.dir_tree.get(right))
-        {
+        let (value_id, literal) = match (
+            self.context.dir_tree.get(left),
+            self.context.dir_tree.get(right),
+        ) {
             (Expression::TypeLiteral { value }, _) => (right, value),
             (_, Expression::TypeLiteral { value }) => (left, value),
             _ => return Ok(None),
@@ -502,8 +504,8 @@ impl FunctionLowerer<'_> {
 
         // build the null literal
         let node = expression_id
-            .into_global_any(self.env.module_id)
-            .into_anchored(Some(self.env.profile));
+            .into_global_any(self.context.module_id)
+            .into_anchored(Some(self.context.profile));
         let null_value = self.zero_value_for_type(value_type, node)?;
 
         // emit the comparison
@@ -541,8 +543,8 @@ impl FunctionLowerer<'_> {
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
                     node: expression_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
                     message: "unsupported overflow operator".to_string(),
                 });
             }
@@ -605,8 +607,8 @@ impl FunctionLowerer<'_> {
         ) {
             return Err(LowerError::UnsupportedConstruct {
                 node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
                 message: "unsupported division operator".to_string(),
             });
         }
@@ -636,8 +638,8 @@ impl FunctionLowerer<'_> {
                 _ => {
                     return Err(LowerError::UnsupportedConstruct {
                         node: expression_id
-                            .into_global_any(self.env.module_id)
-                            .into_anchored(Some(self.env.profile)),
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
                         message: "unsupported integer width for overflow checks".to_string(),
                     });
                 }
@@ -693,23 +695,23 @@ impl FunctionLowerer<'_> {
         ) {
             return Err(LowerError::UnsupportedConstruct {
                 node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
                 message: "unsupported shift operator".to_string(),
             });
         }
 
         let bit_width = u8::try_from(left_width).map_err(|_| LowerError::UnsupportedConstruct {
             node: expression_id
-                .into_global_any(self.env.module_id)
-                .into_anchored(Some(self.env.profile)),
+                .into_global_any(self.context.module_id)
+                .into_anchored(Some(self.context.profile)),
             message: "shift width exceeds check constraint limits".to_string(),
         })?;
         let shift_width =
             u8::try_from(shift_width).map_err(|_| LowerError::UnsupportedConstruct {
                 node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
                 message: "shift amount width exceeds check constraint limits".to_string(),
             })?;
         let bit_width_value =
@@ -782,8 +784,8 @@ impl FunctionLowerer<'_> {
         // require else branch for value expressions
         let else_id = else_id.ok_or_else(|| LowerError::UnsupportedConstruct {
             node: expression_id
-                .into_global_any(self.env.module_id)
-                .into_anchored(Some(self.env.profile)),
+                .into_global_any(self.context.module_id)
+                .into_anchored(Some(self.context.profile)),
             message: "conditional expression requires else branch".to_string(),
         })?;
 

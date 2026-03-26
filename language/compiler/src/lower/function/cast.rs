@@ -42,8 +42,8 @@ impl FunctionLowerer<'_> {
                 _ => {
                     return Err(LowerError::UnsupportedConstruct {
                         node: expression_id
-                            .into_global_any(self.env.module_id)
-                            .into_anchored(Some(self.env.profile)),
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
                         message: "unsupported int widen cast".to_string(),
                     })?;
                 }
@@ -58,8 +58,8 @@ impl FunctionLowerer<'_> {
                 _ => {
                     return Err(LowerError::UnsupportedConstruct {
                         node: expression_id
-                            .into_global_any(self.env.module_id)
-                            .into_anchored(Some(self.env.profile)),
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
                         message: "unsupported int to float cast".to_string(),
                     })?;
                 }
@@ -70,8 +70,8 @@ impl FunctionLowerer<'_> {
                 _ => {
                     return Err(LowerError::UnsupportedConstruct {
                         node: expression_id
-                            .into_global_any(self.env.module_id)
-                            .into_anchored(Some(self.env.profile)),
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
                         message: "unsupported float to int cast".to_string(),
                     })?;
                 }
@@ -83,15 +83,15 @@ impl FunctionLowerer<'_> {
                 let source_scalar_type =
                     source_scalar_type.ok_or_else(|| LowerError::UnsupportedConstruct {
                         node: expression_id
-                            .into_global_any(self.env.module_id)
-                            .into_anchored(Some(self.env.profile)),
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
                         message: "unsupported enum cast source type".to_string(),
                     })?;
                 let target_scalar_type =
                     target_scalar_type.ok_or_else(|| LowerError::UnsupportedConstruct {
                         node: expression_id
-                            .into_global_any(self.env.module_id)
-                            .into_anchored(Some(self.env.profile)),
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
                         message: "unsupported enum cast target type".to_string(),
                     })?;
                 return self.int_cast_operator_for_scalar(
@@ -101,11 +101,11 @@ impl FunctionLowerer<'_> {
                 );
             }
             dir::CastOperator::EnumToString | dir::CastOperator::StringToEnum => {
-                let string_type = self.env.type_lowerer.string_type().ok_or_else(|| {
+                let string_type = self.context.type_lowerer.string_type().ok_or_else(|| {
                     LowerError::UnsupportedConstruct {
                         node: expression_id
-                            .into_global_any(self.env.module_id)
-                            .into_anchored(Some(self.env.profile)),
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
                         message: "missing builtin String layout (load library/native)".to_string(),
                     }
                 })?;
@@ -114,8 +114,8 @@ impl FunctionLowerer<'_> {
                 if source_type != string_type || target_type != string_type {
                     return Err(LowerError::UnsupportedConstruct {
                         node: expression_id
-                            .into_global_any(self.env.module_id)
-                            .into_anchored(Some(self.env.profile)),
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
                         message: "enum string cast requires string types".to_string(),
                     });
                 }
@@ -125,8 +125,8 @@ impl FunctionLowerer<'_> {
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
                     node: expression_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
                     message: format!("unsupported cast operator '{operator:?}'"),
                 })?;
             }
@@ -165,7 +165,7 @@ impl FunctionLowerer<'_> {
         // resolve the source and target dir types
         let source_type_id = self.type_for_expression_or_error(value_id)?;
         let target_type_id = self.type_for_expression_or_error(expression_id)?;
-        let target_dir_type = self.env.types.get_type(target_type_id);
+        let target_dir_type = self.context.types.get_type(target_type_id);
 
         // handle interface upcasts
         if let dir::Type::Reference { symbol, .. } = target_dir_type
@@ -221,7 +221,7 @@ impl FunctionLowerer<'_> {
 
         // resolve the source dir type
         let source_type_id = self.type_for_expression_or_error(value_id)?;
-        let source_dir_type = self.env.types.get_type(source_type_id);
+        let source_dir_type = self.context.types.get_type(source_type_id);
 
         // handle interface downcasts by extracting object pointers
         if let dir::Type::Reference { symbol, .. } = source_dir_type
@@ -229,7 +229,7 @@ impl FunctionLowerer<'_> {
         {
             // resolve interface reference layout
             let layout = self
-                .env
+                .context
                 .type_lowerer
                 .interface_ref_layout(source_type_id)
                 .ok_or_else(|| self.missing_type_error(expression_id))?;
@@ -311,13 +311,13 @@ impl FunctionLowerer<'_> {
 
         // resolve union layout metadata
         let layout = self
-            .env
+            .context
             .type_lowerer
             .union_layout(target_type_id)
             .ok_or_else(|| self.missing_type_error(expression_id))?;
 
         // skip when the source is already the target union type
-        if dir::are_types_equal(source_type_id, target_type_id, self.env.types) {
+        if dir::are_types_equal(source_type_id, target_type_id, self.context.types) {
             let (value, _source_mir_type) = self.lower_value_expression(value_id)?;
             return Ok((value, target_mir_type));
         }
@@ -329,8 +329,8 @@ impl FunctionLowerer<'_> {
             .position(|element| self.type_ids_equivalent(*element, source_type_id))
             .ok_or_else(|| LowerError::UnsupportedConstruct {
                 node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
                 message: "union upcast missing matching element".to_string(),
             })?;
 
@@ -343,8 +343,8 @@ impl FunctionLowerer<'_> {
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
                     node: expression_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
                     message: "union tag must be an integer type".to_string(),
                 });
             }
@@ -356,7 +356,7 @@ impl FunctionLowerer<'_> {
 
         // resolve literals that do not carry payload data
         let is_nullish_literal = matches!(
-            self.env.types.get_type(source_type_id),
+            self.context.types.get_type(source_type_id),
             dir::Type::TypeLiteral {
                 value: dir::TypeLiteral::Null | dir::TypeLiteral::Undefined,
             }
@@ -364,8 +364,8 @@ impl FunctionLowerer<'_> {
 
         // build the union payload
         let node = expression_id
-            .into_global_any(self.env.module_id)
-            .into_anchored(Some(self.env.profile));
+            .into_global_any(self.context.module_id)
+            .into_anchored(Some(self.context.profile));
         let payload = if is_nullish_literal {
             // zero payload for null or undefined
             self.union_payload_zero_value(layout, node)?
@@ -423,7 +423,7 @@ impl FunctionLowerer<'_> {
 
         // resolve union layout metadata
         let layout = self
-            .env
+            .context
             .type_lowerer
             .union_layout(source_type_id)
             .ok_or_else(|| self.missing_type_error(expression_id))?;
@@ -436,8 +436,8 @@ impl FunctionLowerer<'_> {
 
         // load the payload as the target type
         let node = expression_id
-            .into_global_any(self.env.module_id)
-            .into_anchored(Some(self.env.profile));
+            .into_global_any(self.context.module_id)
+            .into_anchored(Some(self.context.profile));
         let value = match layout.payload_kind {
             UnionPayloadKind::Inline => self.inline_union_payload_to_value(
                 layout.payload_type,
@@ -485,22 +485,27 @@ impl FunctionLowerer<'_> {
         value_id: LocalNodeId<Expression>,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         let target_type_id = self.type_for_expression_or_error(expression_id)?;
-        if self.env.type_lowerer.union_layout(target_type_id).is_some() {
+        if self
+            .context
+            .type_lowerer
+            .union_layout(target_type_id)
+            .is_some()
+        {
             return self.lower_union_upcast(expression_id, value_id);
         }
 
         // reject undefined in nullable reference casts
         let source_type_id = self.type_for_expression_or_error(value_id)?;
         if matches!(
-            self.env.types.get_type(source_type_id),
+            self.context.types.get_type(source_type_id),
             dir::Type::TypeLiteral {
                 value: dir::TypeLiteral::Undefined
             }
         ) {
             return Err(LowerError::UnsupportedConstruct {
                 node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
                 message: "nullable upcast does not accept undefined".to_string(),
             });
         }
@@ -509,23 +514,23 @@ impl FunctionLowerer<'_> {
         let mir::Type::Reference { .. } = self.state.builder.tree().get(target_mir_type) else {
             return Err(LowerError::UnsupportedConstruct {
                 node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
                 message: "nullable upcast requires a reference target".to_string(),
             });
         };
 
         // handle null literals without lowering a payload value
         let is_null_literal = matches!(
-            self.env.types.get_type(source_type_id),
+            self.context.types.get_type(source_type_id),
             dir::Type::TypeLiteral {
                 value: dir::TypeLiteral::Null,
             }
         );
         let value = if is_null_literal {
             let node = expression_id
-                .into_global_any(self.env.module_id)
-                .into_anchored(Some(self.env.profile));
+                .into_global_any(self.context.module_id)
+                .into_anchored(Some(self.context.profile));
             self.zero_value_for_type(target_mir_type, node)?
         } else {
             let (value, _source_type) = self.lower_value_expression(value_id)?;
@@ -554,7 +559,12 @@ impl FunctionLowerer<'_> {
         value_id: LocalNodeId<Expression>,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         let source_type_id = self.type_for_expression_or_error(value_id)?;
-        if self.env.type_lowerer.union_layout(source_type_id).is_some() {
+        if self
+            .context
+            .type_lowerer
+            .union_layout(source_type_id)
+            .is_some()
+        {
             return self.lower_union_downcast(expression_id, value_id);
         }
 
@@ -563,8 +573,8 @@ impl FunctionLowerer<'_> {
         let mir::Type::Reference { .. } = self.state.builder.tree().get(target_mir_type) else {
             return Err(LowerError::UnsupportedConstruct {
                 node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
                 message: "nullable downcast requires a reference target".to_string(),
             });
         };
@@ -611,13 +621,13 @@ impl FunctionLowerer<'_> {
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // resolve interface reference layout
         let layout = self
-            .env
+            .context
             .type_lowerer
             .interface_ref_layout(target_type_id)
             .ok_or_else(|| self.missing_type_error(expression_id))?;
 
         // resolve the concrete symbol for the source type
-        let source_dir_type = self.env.types.get_type(source_type_id);
+        let source_dir_type = self.context.types.get_type(source_type_id);
         let concrete_symbol = self
             .concrete_symbol_for_type(source_type_id)
             .or_else(|| self.concrete_symbol_for_expression(value_id));
@@ -630,8 +640,8 @@ impl FunctionLowerer<'_> {
             ) {
                 return Err(LowerError::UnsupportedConstruct {
                     node: expression_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
                     message: "FUGU #Broken: interface to interface upcast requires RTTI"
                         .to_string(),
                 });
@@ -639,22 +649,22 @@ impl FunctionLowerer<'_> {
 
             return Err(LowerError::UnsupportedConstruct {
                 node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
                 message: "interface upcast requires a concrete symbol".to_string(),
             });
         };
 
         // resolve the itab id for the concrete and interface pair
         let itab_id = self
-            .env
+            .context
             .interface_itab_ids
             .get(&(concrete_symbol, interface_symbol))
             .copied()
             .ok_or_else(|| LowerError::UnsupportedConstruct {
                 node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
                 message: "missing interface itab for concrete type".to_string(),
             })?;
 
@@ -663,7 +673,7 @@ impl FunctionLowerer<'_> {
             self.object_pointer_for_instance(value, source_mir_type, layout.object_type);
 
         // encode the itab id as a pointer sized value
-        let tag_width = self.env.type_lowerer.pointer_width_bits() as u8;
+        let tag_width = self.context.type_lowerer.pointer_width_bits() as u8;
         let itab_value = self
             .state
             .builder
@@ -696,8 +706,8 @@ impl FunctionLowerer<'_> {
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
                     node: expression_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
                     message: "unsupported enum cast source type".to_string(),
                 });
             }
@@ -707,8 +717,8 @@ impl FunctionLowerer<'_> {
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
                     node: expression_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
                     message: "unsupported enum cast target type".to_string(),
                 });
             }
@@ -789,7 +799,7 @@ impl FunctionLowerer<'_> {
     /// Resolve the concrete symbol for a nominal instance type.
     fn concrete_symbol_for_type(&self, type_id: dir::LocalTypeId) -> Option<dir::GlobalSymbolId> {
         // walk the type tree to find a nominal class or struct
-        match self.env.types.get_type(type_id) {
+        match self.context.types.get_type(type_id) {
             dir::Type::Reference { symbol, .. }
                 if matches!(
                     symbol.ty(),
@@ -812,7 +822,7 @@ impl FunctionLowerer<'_> {
         expression_id: LocalNodeId<Expression>,
     ) -> Option<dir::GlobalSymbolId> {
         // peel parenthesized expressions
-        let expression = self.env.dir_tree.get(expression_id);
+        let expression = self.context.dir_tree.get(expression_id);
         match expression {
             Expression::Parenthesized { expression } => {
                 self.concrete_symbol_for_expression(*expression)

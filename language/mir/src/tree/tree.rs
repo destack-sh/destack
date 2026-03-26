@@ -6,11 +6,11 @@ use destack_source::Span;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ArgumentSlice, Attribute, Block, CallSite, DataLayout, DebugTable, DevirtualizationMetadata,
-    DispatchTable, Field, Function, Global, Instruction, InterfaceDispatchShape, Itab, ItabId,
-    Layout, LayoutId, Local, LocalNodeId, MemoryTable, Node, NodeType, ProvenanceId,
-    ProvenanceKind, ProvenanceReason, ProvenanceTable, Type, TypeAlias, TypeCache, TypeLineage,
-    TypeTable, Value, Vtable, VtableId,
+    AddressSpace, ArgumentSlice, Attribute, Block, CallSite, DataLayout, DebugTable,
+    DevirtualizationMetadata, DispatchTable, Field, Function, Global, Instruction,
+    InterfaceDispatchShape, Itab, ItabId, Layout, LayoutId, Local, LocalNodeId, MemoryTable,
+    Mutability, Node, NodeType, ProvenanceId, ProvenanceKind, ProvenanceReason, ProvenanceTable,
+    ReferenceKind, Type, TypeAlias, TypeCache, TypeLineage, TypeTable, Value, Vtable, VtableId,
 };
 
 /// MIR node tree for a single module.
@@ -382,6 +382,71 @@ impl NodeTree {
         }
 
         panic!("missing float type id for width {width}");
+    }
+
+    /// Return the canonical storage type for the hidden environment field in `fnvalue`.
+    pub fn function_value_environment_type(&self) -> LocalNodeId<Type> {
+        let void_type = if let Some(type_id) = self.type_table.void_type() {
+            type_id
+        } else if let Some(type_id) = self.find_type_by_predicate(|ty| matches!(ty, Type::Void)) {
+            type_id
+        } else {
+            panic!("missing void type for fnvalue environment storage");
+        };
+
+        if let Some(type_id) = self.find_type_by_predicate(|ty| {
+            matches!(
+                ty,
+                Type::Reference {
+                    kind: ReferenceKind::Managed,
+                    address_space: AddressSpace::Generic,
+                    mutability: Mutability::Mutable,
+                    pointee,
+                    is_nullable: true,
+                } if *pointee == void_type
+            )
+        }) {
+            return type_id;
+        }
+
+        panic!("missing canonical fnvalue environment storage type");
+    }
+
+    /// Ensure the canonical storage type for the hidden environment field in `fnvalue`.
+    pub fn ensure_function_value_environment_type(&mut self) -> LocalNodeId<Type> {
+        // reuse or create the canonical void type
+        let void_type = if let Some(type_id) = self.type_table.void_type() {
+            type_id
+        } else if let Some(type_id) = self.find_type_by_predicate(|ty| matches!(ty, Type::Void)) {
+            type_id
+        } else {
+            self.insert_type(Type::Void)
+        };
+
+        // reuse the canonical erased environment reference when present
+        if let Some(type_id) = self.find_type_by_predicate(|ty| {
+            matches!(
+                ty,
+                Type::Reference {
+                    kind: ReferenceKind::Managed,
+                    address_space: AddressSpace::Generic,
+                    mutability: Mutability::Mutable,
+                    pointee,
+                    is_nullable: true,
+                } if *pointee == void_type
+            )
+        }) {
+            return type_id;
+        }
+
+        // otherwise create the canonical erased environment reference
+        self.insert_type(Type::Reference {
+            kind: ReferenceKind::Managed,
+            address_space: AddressSpace::Generic,
+            mutability: Mutability::Mutable,
+            pointee: void_type,
+            is_nullable: true,
+        })
     }
 
     /// Return module pointer size in bytes.

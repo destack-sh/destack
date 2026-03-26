@@ -856,7 +856,8 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Instruction::GlobalAddr { .. }
             | mir::Instruction::GlobalConst { .. }
             | mir::Instruction::FunctionAddr { .. }
-            | mir::Instruction::FunctionEnv { .. }
+            | mir::Instruction::FunctionValue { .. }
+            | mir::Instruction::FunctionEnvironment { .. }
             | mir::Instruction::LocalAddr { .. }
             | mir::Instruction::FieldGet { .. }
             | mir::Instruction::FieldAddr { .. }
@@ -1069,8 +1070,8 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Instruction::CallInterface { arguments, .. } => {
                 self.call_effects(instruction, *arguments, None)
             }
-            mir::Instruction::CallIndirect { arguments, env, .. } => {
-                self.call_effects(instruction, *arguments, *env)
+            mir::Instruction::CallIndirect { arguments, .. } => {
+                self.call_effects(instruction, *arguments, None)
             }
             mir::Instruction::RawFree { .. }
             | mir::Instruction::RawDrop { .. }

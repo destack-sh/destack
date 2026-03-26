@@ -6,30 +6,33 @@ use crate::lower::lower_mutability;
 use crate::lower::r#type::{FieldInput, FieldLayoutKind, LayoutPolicy, StructLayout};
 use crate::{LowerError, LowerResult, ModuleLowerer};
 
-// suffix for closure environment metadata names
-const CLOSURE_ENV_METADATA_SUFFIX: &str = "#env";
+// suffix for function environment metadata names
+const FUNCTION_ENVIRONMENT_METADATA_SUFFIX: &str = "#environment";
 
-/// A lowered closure environment layout.
+/// A lowered function environment layout.
 #[derive(Debug, Clone)]
-pub(crate) struct ClosureEnvLayout {
+pub(crate) struct FunctionEnvironmentLayout {
     /// The MIR struct type for the environment.
     pub(crate) env_type: mir::LocalNodeId<mir::Type>,
     /// The MIR reference type for the environment pointer.
     pub(crate) env_pointer_type: mir::LocalNodeId<mir::Type>,
     /// The ordered fields stored in the environment.
-    pub(crate) fields: Vec<ClosureEnvField>,
+    pub(crate) fields: Vec<FunctionEnvironmentField>,
 }
 
-impl ClosureEnvLayout {
+impl FunctionEnvironmentLayout {
     /// Find the field metadata for a captured symbol.
-    pub(crate) fn field_for_symbol(&self, symbol: GlobalSymbolId) -> Option<&ClosureEnvField> {
+    pub(crate) fn field_for_symbol(
+        &self,
+        symbol: GlobalSymbolId,
+    ) -> Option<&FunctionEnvironmentField> {
         self.fields.iter().find(|field| field.symbol == symbol)
     }
 }
 
-/// A single field inside a closure environment.
+/// A single field inside one function environment.
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct ClosureEnvField {
+pub(crate) struct FunctionEnvironmentField {
     /// The captured symbol stored in this field.
     pub(crate) symbol: GlobalSymbolId,
     /// The capture mode for this field.
@@ -41,13 +44,13 @@ pub(crate) struct ClosureEnvField {
 }
 
 impl ModuleLowerer<'_> {
-    /// Resolve a closure environment layout for a function symbol.
-    pub(crate) fn closure_env_layout_for_symbol(
+    /// Resolve a function environment layout for a function symbol.
+    pub(crate) fn function_environment_layout_for_symbol(
         &mut self,
         symbol: GlobalSymbolId,
-    ) -> LowerResult<Option<ClosureEnvLayout>> {
+    ) -> LowerResult<Option<FunctionEnvironmentLayout>> {
         // return cached layouts when available
-        if let Some(layout) = self.closure_env_layouts.get(&symbol) {
+        if let Some(layout) = self.function_environment_layouts.get(&symbol) {
             return Ok(Some(layout.clone()));
         }
 
@@ -79,11 +82,11 @@ impl ModuleLowerer<'_> {
             let Some(index) = layout.field_index_by_source(capture.symbol.local_id.id) else {
                 return Err(LowerError::Internal {
                     module: self.module_id,
-                    message: "missing closure environment field in computed layout".to_string(),
+                    message: "missing function environment field in computed layout".to_string(),
                 });
             };
 
-            fields.push(ClosureEnvField {
+            fields.push(FunctionEnvironmentField {
                 symbol: capture.symbol,
                 kind: capture.kind,
                 index,
@@ -95,11 +98,11 @@ impl ModuleLowerer<'_> {
             .type_lowerer
             .create_struct_type(&layout, &mut self.builder);
 
-        // assign a metadata name for the closure environment type (manually, synthetic type)
+        // assign a metadata name for the function environment type
         let metadata_name = self
             .symbol_path_name(symbol)
-            .map(|name| format!("{name}{CLOSURE_ENV_METADATA_SUFFIX}"))
-            .unwrap_or_else(|| format!("closure_env#{}", symbol.local_id.id));
+            .map(|name| format!("{name}{FUNCTION_ENVIRONMENT_METADATA_SUFFIX}"))
+            .unwrap_or_else(|| format!("environment#{}", symbol.local_id.id));
         let metadata_name = self.builder.intern(&metadata_name);
         self.builder
             .tree_mut()
@@ -107,7 +110,7 @@ impl ModuleLowerer<'_> {
             .ensure_display_name(env_type, metadata_name);
 
         // record layout metadata for the env type
-        self.insert_layout_entry(env_type, mir::LayoutType::ClosureEnv, &layout);
+        self.insert_layout_entry(env_type, mir::LayoutType::FunctionEnvironment, &layout);
         self.type_lowerer.set_layout(env_type, layout);
 
         // build the managed env pointer type
@@ -120,17 +123,18 @@ impl ModuleLowerer<'_> {
         );
 
         // cache the env layout for the function
-        let env_layout = ClosureEnvLayout {
+        let env_layout = FunctionEnvironmentLayout {
             env_type,
             env_pointer_type,
             fields,
         };
-        self.closure_env_layouts.insert(symbol, env_layout.clone());
+        self.function_environment_layouts
+            .insert(symbol, env_layout.clone());
 
         Ok(Some(env_layout))
     }
 
-    /// Lower a captured binding into a closure environment field.
+    /// Lower a captured binding into a function environment field.
     fn capture_field_for_binding(
         &mut self,
         capture: CapturedBinding,
@@ -187,9 +191,9 @@ impl ModuleLowerer<'_> {
             .unwrap_or_else(|| self.compiler.program.strings.intern("capture"))
     }
 
-    /// Resolve a canonical empty environment type for closures.
-    pub(crate) fn empty_closure_env_type(&mut self) -> mir::LocalNodeId<mir::Type> {
-        if let Some(env_type) = self.empty_closure_env_type {
+    /// Resolve a canonical empty function environment type.
+    pub(crate) fn empty_function_environment_type(&mut self) -> mir::LocalNodeId<mir::Type> {
+        if let Some(env_type) = self.empty_function_environment_type {
             return env_type;
         }
 
@@ -205,18 +209,20 @@ impl ModuleLowerer<'_> {
             mir::AddressSpace::Generic,
             true,
         );
-        self.empty_closure_env_type = Some(env_type);
-        self.empty_closure_env_pointer_type = Some(env_pointer_type);
+        self.empty_function_environment_type = Some(env_type);
+        self.empty_function_environment_pointer_type = Some(env_pointer_type);
         env_type
     }
 
-    /// Resolve a canonical empty environment pointer type for closures.
-    pub(crate) fn empty_closure_env_pointer_type(&mut self) -> mir::LocalNodeId<mir::Type> {
-        if let Some(env_type) = self.empty_closure_env_pointer_type {
+    /// Resolve a canonical empty function environment pointer type.
+    pub(crate) fn empty_function_environment_pointer_type(
+        &mut self,
+    ) -> mir::LocalNodeId<mir::Type> {
+        if let Some(env_type) = self.empty_function_environment_pointer_type {
             return env_type;
         }
 
-        let env_type = self.empty_closure_env_type();
+        let env_type = self.empty_function_environment_type();
         let env_pointer_type = self.builder.type_reference(
             mir::ReferenceKind::Managed,
             env_type,
@@ -224,7 +230,7 @@ impl ModuleLowerer<'_> {
             mir::AddressSpace::Generic,
             true,
         );
-        self.empty_closure_env_pointer_type = Some(env_pointer_type);
+        self.empty_function_environment_pointer_type = Some(env_pointer_type);
         env_pointer_type
     }
 

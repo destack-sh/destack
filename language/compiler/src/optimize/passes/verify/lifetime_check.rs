@@ -607,8 +607,8 @@ fn apply_instruction_effects(
             assign_origin_if_borrowed(state, *destination, origins, tree, types);
         }
 
-        // function.env is an implicit parameter, treat as unknown origin
-        Instruction::FunctionEnv { destination } => {
+        // function.environment is an implicit parameter, treat as unknown origin
+        Instruction::FunctionEnvironment { destination } => {
             assign_origin_if_borrowed(
                 state,
                 *destination,
@@ -647,6 +647,16 @@ fn apply_instruction_effects(
                 tree,
                 types,
             );
+        }
+
+        // function values preserve the environment origin
+        Instruction::FunctionValue {
+            destination,
+            environment,
+            ..
+        } => {
+            let origins = state.value_origin(*environment);
+            assign_origin_if_borrowed(state, *destination, origins, tree, types);
         }
 
         // locals are local borrows

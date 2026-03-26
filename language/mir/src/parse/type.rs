@@ -166,13 +166,9 @@ impl<'a> Parser<'a> {
                 self.bump();
                 self.eat_token(TokenType::LessThan)?;
                 let signature = self.parse_type()?;
-                self.eat_token(TokenType::Comma)?;
-                let environment = self.parse_type()?;
                 self.eat_token(TokenType::GreaterThan)?;
-                Type::FunctionValue {
-                    signature,
-                    environment,
-                }
+                self.tree.ensure_function_value_environment_type();
+                Type::FunctionValue { signature }
             }
             TokenType::OpenBrace => {
                 self.bump();

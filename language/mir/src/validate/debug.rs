@@ -216,7 +216,13 @@ impl<'a> Validator<'a> {
         // bindings
         for binding in &self.tree.debug_table.bindings {
             self.ensure_node_type(NodeType::Type, binding.ty.id, self.module_anchor())?;
-            scope_functions[binding.scope.index()];
+
+            if binding.scope.index() >= scope_functions.len() {
+                return Err(ValidateError::MetadataInvariantViolation {
+                    message: "debug binding scope references a missing scope".to_string(),
+                    anchor: self.module_anchor(),
+                });
+            }
         }
 
         for (&binding_id, ranges) in &self.tree.debug_table.binding_location_ranges {
@@ -432,7 +438,7 @@ impl<'a> Validator<'a> {
         function_id: LocalNodeId<Function>,
         binding_type: LocalNodeId<Type>,
         local_functions: &HashMap<LocalNodeId<Local>, LocalNodeId<Function>>,
-        instruction_positions: &HashMap<LocalNodeId<Instruction>, InstructionPosition>,
+        _instruction_positions: &HashMap<LocalNodeId<Instruction>, InstructionPosition>,
     ) -> ValidateResult<()> {
         match location {
             DebugValueLocation::Value(value) => {
@@ -532,7 +538,7 @@ impl<'a> Validator<'a> {
                         function_id,
                         binding_type,
                         local_functions,
-                        instruction_positions,
+                        _instruction_positions,
                     )?;
                     next_offset = fragment.offset_bytes.saturating_add(fragment.size_bytes);
                 }

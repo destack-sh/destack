@@ -9,9 +9,9 @@ use destack_workspace::{CheckFailurePolicy, Module, ProfileId, TargetId};
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::lower::{
-    AddressTakenBindings, BuiltinTypeLayouts, FunctionEnv, FunctionLowerer, FunctionState,
-    InstanceKey, RuntimeCheckConfig, StructLayout, TypeLowerer, collect_expression_string_literals,
-    string_literal_global_name_for_content,
+    AddressTakenBindings, BuiltinTypeLayouts, FunctionLowerer, FunctionLoweringContext,
+    FunctionState, InstanceKey, RuntimeCheckConfig, StructLayout, TypeLowerer,
+    collect_expression_string_literals, string_literal_global_name_for_content,
 };
 use crate::{Compiler, ExecuteError, ExecuteResult, LowerError, ModuleLowerer};
 
@@ -146,10 +146,10 @@ struct ComptimeLowerer<'a> {
     dispatch_call_name: StringId,
     /// Interned name for the dynamic constructor dispatcher.
     dispatch_construct_name: StringId,
-    /// Cached empty closure env type.
-    empty_closure_env_type: Option<mir::LocalNodeId<mir::Type>>,
-    /// Cached empty closure env pointer type.
-    empty_closure_env_pointer_type: Option<mir::LocalNodeId<mir::Type>>,
+    /// Cached empty function environment type.
+    empty_function_environment_type: Option<mir::LocalNodeId<mir::Type>>,
+    /// Cached empty function environment pointer type.
+    empty_function_environment_pointer_type: Option<mir::LocalNodeId<mir::Type>>,
 }
 
 impl<'a> ComptimeLowerer<'a> {
@@ -205,8 +205,8 @@ impl<'a> ComptimeLowerer<'a> {
             string_literal_globals: HashMap::new(),
             dispatch_call_name,
             dispatch_construct_name,
-            empty_closure_env_type: None,
-            empty_closure_env_pointer_type: None,
+            empty_function_environment_type: None,
+            empty_function_environment_pointer_type: None,
         })
     }
 
@@ -254,7 +254,7 @@ impl<'a> ComptimeLowerer<'a> {
         let virtual_method_slots_by_key = HashMap::new();
         let vtable_globals_by_symbol = HashMap::new();
         let function_signature_types = HashMap::new();
-        let closure_env_layouts = HashMap::new();
+        let function_environment_layouts = HashMap::new();
         let binding_symbols = HashSet::new();
 
         // resolve cached intrinsic bindings when available
@@ -264,8 +264,9 @@ impl<'a> ComptimeLowerer<'a> {
             .intrinsic_environment(self.profile)
             .map(|environment| environment.intrinsics.clone());
 
-        // build the empty closure env type
-        let empty_closure_env_pointer_type = self.empty_closure_env_pointer_type();
+        // build the empty function environment type
+        let empty_function_environment_pointer_type =
+            self.empty_function_environment_pointer_type();
 
         // build a synthetic function to evaluate the expression
         let function_symbol =
@@ -273,7 +274,7 @@ impl<'a> ComptimeLowerer<'a> {
         let function_builder = self.builder.function("comptime", &[], return_type);
 
         // create function lowerer
-        let env = FunctionEnv {
+        let context = FunctionLoweringContext {
             module_id: self.module.id,
             profile: self.profile,
             program: &self.compiler.program,
@@ -309,11 +310,11 @@ impl<'a> ComptimeLowerer<'a> {
             type_lowerer: &self.type_lowerer,
             return_type,
             symbol: function_symbol,
-            closure_env_layouts: &closure_env_layouts,
-            empty_closure_env_pointer_type,
+            function_environment_layouts: &function_environment_layouts,
+            empty_function_environment_pointer_type,
         };
         let state = FunctionState::new(function_builder, AddressTakenBindings::empty());
-        let mut function_lowerer = FunctionLowerer::new(env, state);
+        let mut function_lowerer = FunctionLowerer::new(context, state);
 
         // create entry block
         let entry_block = function_lowerer.state.builder.block();
@@ -424,13 +425,13 @@ impl<'a> ComptimeLowerer<'a> {
         Ok(return_type)
     }
 
-    /// Get or create the empty closure env type for comptime lowering.
-    fn empty_closure_env_type(&mut self) -> mir::LocalNodeId<mir::Type> {
-        if let Some(env_type) = self.empty_closure_env_type {
+    /// Get or create the empty function environment type for comptime lowering.
+    fn empty_function_environment_type(&mut self) -> mir::LocalNodeId<mir::Type> {
+        if let Some(env_type) = self.empty_function_environment_type {
             return env_type;
         }
 
-        // build the empty closure env type
+        // build the empty function environment type
         let empty_env_layout = StructLayout::empty();
         let env_type = self
             .type_lowerer
@@ -443,21 +444,21 @@ impl<'a> ComptimeLowerer<'a> {
             mir::AddressSpace::Generic,
             false,
         );
-        self.empty_closure_env_type = Some(env_type);
-        self.empty_closure_env_pointer_type = Some(env_pointer_type);
+        self.empty_function_environment_type = Some(env_type);
+        self.empty_function_environment_pointer_type = Some(env_pointer_type);
 
         env_type
     }
 
-    /// Get or create the empty closure env pointer type for comptime lowering.
-    fn empty_closure_env_pointer_type(&mut self) -> mir::LocalNodeId<mir::Type> {
-        // reuse cached env pointer type
-        if let Some(env_pointer_type) = self.empty_closure_env_pointer_type {
+    /// Get or create the empty function environment pointer type for comptime lowering.
+    fn empty_function_environment_pointer_type(&mut self) -> mir::LocalNodeId<mir::Type> {
+        // reuse cached function environment pointer type
+        if let Some(env_pointer_type) = self.empty_function_environment_pointer_type {
             return env_pointer_type;
         }
 
-        // build the env pointer type
-        let env_type = self.empty_closure_env_type();
+        // build the function environment pointer type
+        let env_type = self.empty_function_environment_type();
         let env_pointer_type = self.builder.type_reference(
             mir::ReferenceKind::Managed,
             env_type,
@@ -465,7 +466,7 @@ impl<'a> ComptimeLowerer<'a> {
             mir::AddressSpace::Generic,
             false,
         );
-        self.empty_closure_env_pointer_type = Some(env_pointer_type);
+        self.empty_function_environment_pointer_type = Some(env_pointer_type);
 
         env_pointer_type
     }

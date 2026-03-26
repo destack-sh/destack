@@ -106,7 +106,7 @@ export newtype noManaged = ();
 /// ```
 export newtype stackOnly = ();
 
-/// Capture policy string for closure environments.
+/// Capture policy string for function environments.
 export type CapturePolicy = "byValue" | "byReference" | "byMove";
 
 /// Capture kind string for individual bindings.

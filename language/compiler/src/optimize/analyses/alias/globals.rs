@@ -99,7 +99,7 @@ impl GlobalsAA {
                             }
                         }
                     }
-                    mir::Instruction::CallIndirect { arguments, env, .. } => {
+                    mir::Instruction::CallIndirect { arguments, .. } => {
                         let args = tree.get_arguments(*arguments);
                         for &arg in args {
                             if let Some(global) =
@@ -107,11 +107,6 @@ impl GlobalsAA {
                             {
                                 address_taken.insert(global);
                             }
-                        }
-                        if let Some(global) =
-                            env.and_then(|env| Self::get_global_base(env, &info.definitions, tree))
-                        {
-                            address_taken.insert(global);
                         }
                     }
 

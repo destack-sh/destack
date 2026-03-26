@@ -9,9 +9,9 @@ use destack_heap::{LayoutId, ReferenceMap, ReferenceMeta, Value};
 
 use super::{ArgumentRange, CopyRange, Function, SwitchRange};
 
-/// Control flow actions that exit the tail-call chain.
+/// Control transfer requested by one lowered instruction.
 #[derive(Debug)]
-pub(crate) enum ControlFlow {
+pub(crate) enum Transfer {
     /// Jump to another block.
     Jump {
         /// Target block index.
@@ -29,12 +29,27 @@ pub(crate) enum ControlFlow {
         destination: mir::Value,
         /// Arguments to pass.
         arguments: ArgumentRange,
-        /// Optional closure environment to pass.
+        /// Optional function environment to pass.
         env: Option<Value>,
         /// Copy plan for callee parameters.
         copies: Option<CopyRange>,
         /// PC to resume at after call returns.
         resume_pc: usize,
+    },
+    /// Call another function and branch on normal or unwind completion.
+    CallBranch {
+        /// Function to call.
+        function: u32,
+        /// Lowered function index when available.
+        callee_index: u32,
+        /// Arguments to pass.
+        arguments: ArgumentRange,
+        /// Optional function environment to pass.
+        env: Option<Value>,
+        /// The normal continuation resume point.
+        normal_resume_point: engine::ResumePointId,
+        /// The unwind continuation resume point.
+        unwind_resume_point: engine::ResumePointId,
     },
     /// Tail call another function.
     TailCall {
@@ -44,7 +59,7 @@ pub(crate) enum ControlFlow {
         callee_index: u32,
         /// Arguments to pass.
         arguments: ArgumentRange,
-        /// Optional closure environment to pass.
+        /// Optional function environment to pass.
         env: Option<Value>,
         /// Copy plan for callee parameters.
         copies: Option<CopyRange>,
@@ -56,6 +71,8 @@ pub(crate) enum ControlFlow {
         /// The semantic resume point used by this yield.
         resume_point: engine::ResumePointId,
     },
+    /// Throw one managed exception value.
+    Throw(Value),
     /// Return from current function.
     Return(Value),
     /// Runtime error.
@@ -115,12 +132,20 @@ pub(crate) enum InstructionOperation {
     BranchBool,
     /// Dispatch operation for `call`.
     Call,
+    /// Dispatch operation for `call.branch`.
+    CallBranch,
     /// Dispatch operation for `call_indirect`.
     CallIndirect,
+    /// Dispatch operation for `call_indirect.branch`.
+    CallIndirectBranch,
     /// Dispatch operation for `call_interface`.
     CallInterface,
+    /// Dispatch operation for `call_interface.branch`.
+    CallInterfaceBranch,
     /// Dispatch operation for `call_virtual`.
     CallVirtual,
+    /// Dispatch operation for `call_virtual.branch`.
+    CallVirtualBranch,
     /// Dispatch operation for `cast`.
     Cast,
     /// Dispatch operation for `compare_and_branch`.
@@ -231,8 +256,10 @@ pub(crate) enum InstructionOperation {
     FieldStoreStack,
     /// Dispatch operation for `function_addr`.
     FunctionAddr,
-    /// Dispatch operation for `function_env`.
-    FunctionEnv,
+    /// Dispatch operation for `function_value`.
+    FunctionValue,
+    /// Dispatch operation for `function_environment`.
+    FunctionEnvironment,
     /// Dispatch operation for `ge_const_int`.
     GeConstInt,
     /// Dispatch operation for `ge_const_uint`.
@@ -417,6 +444,8 @@ pub(crate) enum InstructionOperation {
     TensorView,
     /// Dispatch operation for `trap`.
     Trap,
+    /// Dispatch operation for `throw`.
+    Throw,
     /// Dispatch operation for `unary`.
     Unary,
     /// Dispatch operation for `unary_bool`.
@@ -566,6 +595,15 @@ pub(crate) enum InstructionData {
         copies: CopyRange,
     },
 
+    /// Function call terminator with explicit normal and unwind continuations.
+    CallBranch {
+        function: u32,
+        callee_index: u32,
+        arguments: ArgumentRange,
+        normal_resume_point: engine::ResumePointId,
+        unwind_resume_point: engine::ResumePointId,
+    },
+
     /// Virtual method call.
     CallVirtual {
         dest: mir::Value,
@@ -573,6 +611,16 @@ pub(crate) enum InstructionData {
         managed_pointee: Option<mir::LocalNodeId<mir::Type>>,
         slot_id: u32,
         arguments: ArgumentRange,
+    },
+
+    /// Virtual method call terminator with explicit normal and unwind continuations.
+    CallVirtualBranch {
+        receiver: mir::Value,
+        managed_pointee: Option<mir::LocalNodeId<mir::Type>>,
+        slot_id: u32,
+        arguments: ArgumentRange,
+        normal_resume_point: engine::ResumePointId,
+        unwind_resume_point: engine::ResumePointId,
     },
 
     /// Interface method call.
@@ -584,12 +632,33 @@ pub(crate) enum InstructionData {
         arguments: ArgumentRange,
     },
 
+    /// Interface method call terminator with explicit normal and unwind continuations.
+    CallInterfaceBranch {
+        receiver: mir::Value,
+        managed_pointee: Option<mir::LocalNodeId<mir::Type>>,
+        slot_id: u32,
+        arguments: ArgumentRange,
+        normal_resume_point: engine::ResumePointId,
+        unwind_resume_point: engine::ResumePointId,
+    },
+
     /// Indirect function call.
     CallIndirect {
         dest: mir::Value,
         callee: mir::Value,
-        env: Option<mir::Value>,
+        signature: mir::LocalNodeId<mir::Type>,
         arguments: ArgumentRange,
+        cached_function: Cell<Option<u32>>,
+        cached_index: Cell<Option<u32>>,
+    },
+
+    /// Indirect call terminator with explicit normal and unwind continuations.
+    CallIndirectBranch {
+        callee: mir::Value,
+        signature: mir::LocalNodeId<mir::Type>,
+        arguments: ArgumentRange,
+        normal_resume_point: engine::ResumePointId,
+        unwind_resume_point: engine::ResumePointId,
         cached_function: Cell<Option<u32>>,
         cached_index: Cell<Option<u32>>,
     },
@@ -620,8 +689,15 @@ pub(crate) enum InstructionData {
     /// Get a function pointer.
     FunctionAddr { dest: mir::Value, function: u32 },
 
-    /// Load the closure environment pointer.
-    FunctionEnv { dest: mir::Value },
+    /// Build a callable value from code and environment.
+    FunctionValue {
+        dest: mir::Value,
+        function: u32,
+        environment: mir::Value,
+    },
+
+    /// Load the function environment pointer.
+    FunctionEnvironment { dest: mir::Value },
 
     /// Fused global address + load.
     GlobalLoad { dest: mir::Value, global: u32 },
@@ -1166,6 +1242,9 @@ pub(crate) enum InstructionData {
         payload: mir::Value,
     },
 
+    /// Throw one managed exception object.
+    Throw { value: mir::Value },
+
     /// Unreachable code.
     Unreachable,
 
@@ -1201,7 +1280,7 @@ pub(crate) enum InstructionData {
     /// Indirect tail call.
     TailCallIndirect {
         callee: mir::Value,
-        env: Option<mir::Value>,
+        signature: mir::LocalNodeId<mir::Type>,
         arguments: ArgumentRange,
         cached_function: Cell<Option<u32>>,
         cached_ptr: Cell<Option<NonNull<Function>>>,
@@ -1224,16 +1303,21 @@ impl InstructionData {
             InstructionData::Cast { .. } => "cast",
             InstructionData::Select { .. } => "select",
             InstructionData::Call { .. } => "call",
+            InstructionData::CallBranch { .. } => "call_branch",
             InstructionData::CallVirtual { .. } => "call_virtual",
+            InstructionData::CallVirtualBranch { .. } => "call_virtual_branch",
             InstructionData::CallInterface { .. } => "call_interface",
+            InstructionData::CallInterfaceBranch { .. } => "call_interface_branch",
             InstructionData::CallIndirect { .. } => "call_indirect",
+            InstructionData::CallIndirectBranch { .. } => "call_indirect_branch",
             InstructionData::LocalGet { .. } => "local_get",
             InstructionData::LocalAddr { .. } => "local_addr",
             InstructionData::LocalSet { .. } => "local_set",
             InstructionData::GlobalAddr { .. } => "global_addr",
             InstructionData::GlobalConst { .. } => "global_const",
             InstructionData::FunctionAddr { .. } => "function_addr",
-            InstructionData::FunctionEnv { .. } => "function_env",
+            InstructionData::FunctionValue { .. } => "function_value",
+            InstructionData::FunctionEnvironment { .. } => "function_environment",
             InstructionData::GlobalLoad { .. } => "global_load",
             InstructionData::GlobalStore { .. } => "global_store",
             InstructionData::Load { .. } => "load",
@@ -1300,6 +1384,7 @@ impl InstructionData {
             InstructionData::CompareAndBranchConst { .. } => "compare_and_branch_const",
             InstructionData::Switch { .. } => "switch",
             InstructionData::SwitchTable { .. } => "switch_table",
+            InstructionData::Throw { .. } => "throw",
             InstructionData::Trap { .. } => "trap",
             InstructionData::Unreachable => "unreachable",
             InstructionData::TailCall { .. } => "tail_call",

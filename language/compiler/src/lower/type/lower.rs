@@ -62,8 +62,8 @@ pub(crate) struct TypeLowerer {
     pub(crate) ty_f64: mir::LocalNodeId<mir::Type>,
     /// Cached MIR string reference type.
     pub(crate) ty_string: Option<mir::LocalNodeId<mir::Type>>,
-    /// Cached MIR closure environment pointer type.
-    pub(crate) closure_env_pointer_type: mir::LocalNodeId<mir::Type>,
+    /// Cached MIR function environment pointer type.
+    pub(crate) function_environment_pointer_type: mir::LocalNodeId<mir::Type>,
     /// Cached union layout metadata by DIR type id.
     pub(crate) union_cache: HashMap<dir::LocalTypeId, UnionLayout>,
     /// Cached interface reference layouts by DIR type id.
@@ -88,7 +88,7 @@ impl TypeLowerer {
         let pointer_width_bits = u16::from(pointer_bytes) * 8;
         let layout_policy = TypeLayoutPolicy::for_target(pointer_bytes);
         let ty_void = builder.type_void();
-        let closure_env_pointer_type = builder.type_reference(
+        let function_environment_pointer_type = builder.type_reference(
             mir::ReferenceKind::Managed,
             ty_void,
             mir::Mutability::Mutable,
@@ -114,7 +114,7 @@ impl TypeLowerer {
             ty_f32: builder.type_f32(),
             ty_f64: builder.type_f64(),
             ty_string: None,
-            closure_env_pointer_type,
+            function_environment_pointer_type,
             union_cache: HashMap::new(),
             interface_ref_cache: HashMap::new(),
             function_signature_types: HashMap::new(),
@@ -157,9 +157,9 @@ impl TypeLowerer {
         self.pointer_width_bits
     }
 
-    /// Return the canonical closure environment pointer type.
-    pub(crate) fn closure_env_pointer_type(&self) -> mir::LocalNodeId<mir::Type> {
-        self.closure_env_pointer_type
+    /// Return the canonical function environment pointer type.
+    pub(crate) fn function_environment_pointer_type(&self) -> mir::LocalNodeId<mir::Type> {
+        self.function_environment_pointer_type
     }
 
     /// Resolve a field name to its index for a given aggregate type.
@@ -562,7 +562,7 @@ impl TypeLowerer {
         let signature =
             self.lower_function_signature_type(types, type_id, module_id, node, builder)?;
 
-        let env_pointer_type = self.closure_env_pointer_type();
+        let env_pointer_type = self.function_environment_pointer_type();
         let signature_type = builder.tree().get(signature);
         let env_type = builder.tree().get(env_pointer_type);
         let (signature_size, signature_align) =
@@ -571,7 +571,7 @@ impl TypeLowerer {
 
         let fn_name = builder.intern(FUNCTION_PTR_FIELD);
         let env_name = builder.intern(ENV_FIELD);
-        let fields = vec![
+        let mut fields = vec![
             FieldInput {
                 name: fn_name,
                 ty: signature,
@@ -590,8 +590,11 @@ impl TypeLowerer {
             },
         ];
 
+        let mir_type = builder.type_function_value(signature);
+        let function_value_environment_type = builder.tree().function_value_environment_type();
+        fields[1].ty = function_value_environment_type;
+
         let layout = self.compute_struct_layout(fields, LayoutPolicy::Optimized);
-        let mir_type = builder.type_function_value(signature, env_pointer_type);
         self.set_layout(mir_type, layout);
         Ok(mir_type)
     }

@@ -323,9 +323,9 @@ impl<'a> ModuleLowerer<'a> {
             signature.params.push(cir::AbiParam::new(ty));
         }
 
-        // closure environment parameter (when used)
-        if let Some(env_type) = function.closure_env_type {
-            let ty = lower_type(tree, env_type, pointer_bytes)?;
+        // function environment parameter when used
+        if let Some(environment) = function.environment {
+            let ty = lower_type(tree, environment, pointer_bytes)?;
             signature.params.push(cir::AbiParam::new(ty));
         }
 

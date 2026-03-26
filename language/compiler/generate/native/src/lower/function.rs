@@ -37,10 +37,10 @@ pub(crate) struct FunctionLowerer<'a> {
     global_map: HashMap<mir::LocalNodeId<mir::Global>, cir::GlobalValue>,
     /// Pointer size in bytes for this target.
     pointer_bytes: u8,
-    /// Closure environment type when function.env is used.
-    env_type: Option<mir::LocalNodeId<mir::Type>>,
-    /// Cranelift value for the closure environment parameter.
-    env_param: Option<cir::Value>,
+    /// Function environment type when function.environment is used.
+    environment_type: Option<mir::LocalNodeId<mir::Type>>,
+    /// Cranelift value for the function environment parameter.
+    environment_param: Option<cir::Value>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -67,8 +67,8 @@ impl<'a> FunctionLowerer<'a> {
             function_ref_map: HashMap::new(),
             global_map: HashMap::new(),
             pointer_bytes,
-            env_type: None,
-            env_param: None,
+            environment_type: None,
+            environment_param: None,
         }
     }
 
@@ -81,8 +81,8 @@ impl<'a> FunctionLowerer<'a> {
         let mut block_map: HashMap<mir::LocalNodeId<mir::Block>, cir::Block> = HashMap::new();
         let mut local_map: HashMap<mir::LocalNodeId<mir::Local>, cir::StackSlot> = HashMap::new();
 
-        // capture closure env type before lowering
-        self.env_type = self.function.closure_env_type;
+        // capture function environment type before lowering
+        self.environment_type = self.function.environment;
 
         // phase 0.5: pre-declare all referenced functions in the current function
         // (must be done before creating the FunctionBuilder)
@@ -138,8 +138,9 @@ impl<'a> FunctionLowerer<'a> {
                 {
                     self.declare_function_ref(*function, target)?;
                 }
-                // function address declarations
-                if let mir::Instruction::FunctionAddr { function, .. } = inst
+                // function value declarations
+                if let mir::Instruction::FunctionAddr { function, .. }
+                | mir::Instruction::FunctionValue { function, .. } = inst
                     && !self.function_ref_map.contains_key(function)
                 {
                     self.declare_function_ref(*function, target)?;
@@ -235,11 +236,10 @@ impl<'a> FunctionLowerer<'a> {
             value_map.insert(param.value, value);
         }
 
-        // append closure environment parameter when present
-        if let Some(env_type) = self.env_type {
-            let ty = lower_type(self.tree, env_type, self.pointer_bytes)?;
-            let env_param = builder.append_block_param(entry_block, ty);
-            self.env_param = Some(env_param);
+        // append the function environment parameter when present
+        if self.environment_type.is_some() {
+            let environment_param = builder.append_block_param(entry_block, self.pointer_type());
+            self.environment_param = Some(environment_param);
         }
 
         // now add MIR block parameters for non-entry blocks
@@ -452,15 +452,87 @@ impl<'a> FunctionLowerer<'a> {
                 let address = builder.ins().func_addr(self.pointer_type(), *function_ref);
                 value_map.insert(*destination, address);
             }
+            mir::Instruction::FunctionValue {
+                destination,
+                function,
+                environment,
+            } => {
+                let destination_type =
+                    self.value_type_or_error(*destination, instruction_id.into_any())?;
+                let mir::Type::FunctionValue { .. } = self.tree.get(destination_type) else {
+                    return Err(CodegenCraneliftError::Internal {
+                        message: "function.value result must be a callable value".into(),
+                    });
+                };
 
-            // function_env: load closure environment parameter
-            mir::Instruction::FunctionEnv { destination } => {
-                let env_param = self
-                    .env_param
-                    .ok_or_else(|| CodegenCraneliftError::Internal {
-                        message: "function.env used without env parameter".to_string(),
-                    })?;
-                value_map.insert(*destination, env_param);
+                let function_ref = self.function_ref_map.get(function).ok_or_else(|| {
+                    CodegenCraneliftError::Internal {
+                        message: format!("function {function:?} not declared"),
+                    }
+                })?;
+                let code_value = builder.ins().func_addr(self.pointer_type(), *function_ref);
+                let environment_value = value_map[environment];
+                let environment_value =
+                    if builder.func.dfg.value_type(environment_value) == self.pointer_type() {
+                        environment_value
+                    } else {
+                        builder.ins().bitcast(
+                            self.pointer_type(),
+                            cir::MemFlags::new(),
+                            environment_value,
+                        )
+                    };
+                let function_node = (*function).into_any();
+
+                // allocate the callable aggregate and store semantic components
+                let layout = compute_type_layout(self.tree, destination_type, self.pointer_bytes)?;
+                let align_shift = layout.alignment.trailing_zeros() as u8;
+                let slot = builder.create_sized_stack_slot(cir::StackSlotData::new(
+                    cir::StackSlotKind::ExplicitSlot,
+                    layout.size,
+                    align_shift,
+                ));
+                let slot_addr = builder.ins().stack_addr(self.pointer_type(), slot, 0);
+
+                let (function_offset, _function_type) =
+                    self.aggregate_field_offset_and_type(destination_type, 0, function_node)?;
+                let (environment_offset, _environment_type) =
+                    self.aggregate_field_offset_and_type(destination_type, 1, function_node)?;
+
+                builder.ins().store(
+                    cir::MemFlags::new(),
+                    code_value,
+                    slot_addr,
+                    function_offset as i32,
+                );
+                builder.ins().store(
+                    cir::MemFlags::new(),
+                    environment_value,
+                    slot_addr,
+                    environment_offset as i32,
+                );
+                value_map.insert(*destination, slot_addr);
+            }
+
+            // function.environment: load the hidden environment parameter
+            mir::Instruction::FunctionEnvironment { destination } => {
+                let environment_param =
+                    self.environment_param
+                        .ok_or_else(|| CodegenCraneliftError::Internal {
+                            message: "function.environment used without environment parameter"
+                                .to_string(),
+                        })?;
+                let destination_type =
+                    self.value_type_or_error(*destination, instruction_id.into_any())?;
+                let destination_ty = lower_type(self.tree, destination_type, self.pointer_bytes)?;
+                let environment_value = if destination_ty == self.pointer_type() {
+                    environment_param
+                } else {
+                    builder
+                        .ins()
+                        .bitcast(destination_ty, cir::MemFlags::new(), environment_param)
+                };
+                value_map.insert(*destination, environment_value);
             }
 
             // load: memory read through pointer
@@ -514,52 +586,12 @@ impl<'a> FunctionLowerer<'a> {
                 // aggregate type
                 let aggregate_type_id =
                     self.value_type_or_error(*aggregate, instruction_id.into_any())?;
-                let aggregate_type = self.tree.get(aggregate_type_id);
-
                 // field offset and type
-                let (field_offset, field_type_id) = match aggregate_type {
-                    mir::Type::Struct {
-                        fields,
-                        copyability: _,
-                    } => {
-                        fields.get(*index as usize).ok_or_else(|| {
-                            CodegenCraneliftError::out_of_bounds(
-                                instruction_id.into_any(),
-                                *index,
-                                fields.len(),
-                            )
-                        })?;
-                        self.struct_field_offset_and_type(
-                            aggregate_type_id,
-                            *index,
-                            instruction_id.into_any(),
-                        )?
-                    }
-                    mir::Type::Tuple {
-                        elements,
-                        copyability: _,
-                    } => {
-                        let element_type_id = elements.get(*index as usize).ok_or_else(|| {
-                            CodegenCraneliftError::out_of_bounds(
-                                instruction_id.into_any(),
-                                *index,
-                                elements.len(),
-                            )
-                        })?;
-                        let offset = compute_tuple_element_offset(
-                            self.tree,
-                            elements,
-                            *index,
-                            self.pointer_bytes,
-                        )?;
-                        (offset, *element_type_id)
-                    }
-                    _ => {
-                        return Err(CodegenCraneliftError::Internal {
-                            message: "FieldGet on non-aggregate type".into(),
-                        });
-                    }
-                };
+                let (field_offset, field_type_id) = self.aggregate_field_offset_and_type(
+                    aggregate_type_id,
+                    *index,
+                    instruction_id.into_any(),
+                )?;
 
                 // load from aggregate_ptr + offset
                 let field_type = lower_type(self.tree, field_type_id, self.pointer_bytes)?;
@@ -584,46 +616,17 @@ impl<'a> FunctionLowerer<'a> {
                 let aggregate_type_id =
                     self.value_type_or_error(*aggregate, instruction_id.into_any())?;
                 let aggregate_type = self.tree.get(aggregate_type_id);
-                let (aggregate_layout_type_id, aggregate_layout) = match aggregate_type {
-                    mir::Type::Reference { pointee, .. } => (*pointee, self.tree.get(*pointee)),
-                    _ => (aggregate_type_id, aggregate_type),
+                let aggregate_layout_type_id = match aggregate_type {
+                    mir::Type::Reference { pointee, .. } => *pointee,
+                    _ => aggregate_type_id,
                 };
 
                 // field offset and type
-                let field_offset = match aggregate_layout {
-                    mir::Type::Struct {
-                        fields,
-                        copyability: _,
-                    } => {
-                        fields.get(*index as usize).ok_or_else(|| {
-                            CodegenCraneliftError::out_of_bounds(
-                                instruction_id.into_any(),
-                                *index,
-                                fields.len(),
-                            )
-                        })?;
-                        let (field_offset, _field_type) = self.struct_field_offset_and_type(
-                            aggregate_layout_type_id,
-                            *index,
-                            instruction_id.into_any(),
-                        )?;
-                        field_offset
-                    }
-                    mir::Type::Tuple {
-                        elements,
-                        copyability: _,
-                    } => compute_tuple_element_offset(
-                        self.tree,
-                        elements,
-                        *index,
-                        self.pointer_bytes,
-                    )?,
-                    _ => {
-                        return Err(CodegenCraneliftError::Internal {
-                            message: "FieldAddr on non-aggregate type".into(),
-                        });
-                    }
-                };
+                let (field_offset, _field_type) = self.aggregate_field_offset_and_type(
+                    aggregate_layout_type_id,
+                    *index,
+                    instruction_id.into_any(),
+                )?;
 
                 // pointer arithmetic on the aggregate pointer
                 let aggregate_ptr = value_map[aggregate];
@@ -646,46 +649,17 @@ impl<'a> FunctionLowerer<'a> {
                 let aggregate_type_id =
                     self.value_type_or_error(*aggregate, instruction_id.into_any())?;
                 let aggregate_type = self.tree.get(aggregate_type_id);
-                let (aggregate_layout_type_id, aggregate_layout) = match aggregate_type {
-                    mir::Type::Reference { pointee, .. } => (*pointee, self.tree.get(*pointee)),
-                    _ => (aggregate_type_id, aggregate_type),
+                let aggregate_layout_type_id = match aggregate_type {
+                    mir::Type::Reference { pointee, .. } => *pointee,
+                    _ => aggregate_type_id,
                 };
 
                 // field
-                let field_offset = match aggregate_layout {
-                    mir::Type::Struct {
-                        fields,
-                        copyability: _,
-                    } => {
-                        fields.get(*index as usize).ok_or_else(|| {
-                            CodegenCraneliftError::out_of_bounds(
-                                instruction_id.into_any(),
-                                *index,
-                                fields.len(),
-                            )
-                        })?;
-                        let (field_offset, _field_type) = self.struct_field_offset_and_type(
-                            aggregate_layout_type_id,
-                            *index,
-                            instruction_id.into_any(),
-                        )?;
-                        field_offset
-                    }
-                    mir::Type::Tuple {
-                        elements,
-                        copyability: _,
-                    } => compute_tuple_element_offset(
-                        self.tree,
-                        elements,
-                        *index,
-                        self.pointer_bytes,
-                    )?,
-                    _ => {
-                        return Err(CodegenCraneliftError::Internal {
-                            message: "FieldSet on non-aggregate type".into(),
-                        });
-                    }
-                };
+                let (field_offset, _field_type) = self.aggregate_field_offset_and_type(
+                    aggregate_layout_type_id,
+                    *index,
+                    instruction_id.into_any(),
+                )?;
 
                 // store to aggregate_ptr + offset
                 let aggregate_ptr = value_map[aggregate];
@@ -812,6 +786,11 @@ impl<'a> FunctionLowerer<'a> {
                 ..
             } => {
                 let callee = self.tree.get(*function);
+                if callee.environment.is_some() {
+                    return Err(CodegenCraneliftError::Internal {
+                        message: "direct call cannot target a function with an environment".into(),
+                    });
+                }
                 let function_ref = self.function_ref_map.get(function).ok_or_else(|| {
                     CodegenCraneliftError::Internal {
                         message: format!("function {function:?} not declared"),
@@ -820,14 +799,7 @@ impl<'a> FunctionLowerer<'a> {
 
                 // gather argument values
                 let args = self.tree.get_arguments(*arguments);
-                let mut argument_values: Vec<cir::Value> =
-                    args.iter().map(|v| value_map[v]).collect();
-
-                // append a null env when the callee expects a closure environment
-                if let Some(env_type) = callee.closure_env_type {
-                    let env_value = self.null_env_value(env_type, builder)?;
-                    argument_values.push(env_value);
-                }
+                let argument_values: Vec<cir::Value> = args.iter().map(|v| value_map[v]).collect();
 
                 // make the call
                 let call_instruction = builder.ins().call(*function_ref, &argument_values);
@@ -845,24 +817,19 @@ impl<'a> FunctionLowerer<'a> {
             mir::Instruction::CallIndirect {
                 destination,
                 callee,
-                env,
                 arguments,
                 signature,
                 ..
             } => {
-                let env_type = env.map(|value| self.function.require_value_type(value));
-                let sig_ref = self.build_indirect_call_signature(
-                    *signature,
-                    env_type,
-                    builder,
-                    "indirect call",
-                )?;
-                let callee_value = value_map[callee];
+                let sig_ref =
+                    self.build_indirect_call_signature(*signature, builder, "indirect call")?;
+                let (callee_value, environment_value) =
+                    self.lower_indirect_callable(*callee, *signature, &value_map, builder)?;
                 let args = self.tree.get_arguments(*arguments);
                 let mut argument_values: Vec<cir::Value> =
                     args.iter().map(|v| value_map[v]).collect();
-                if let Some(env) = env {
-                    argument_values.push(value_map[env]);
+                if let Some(environment_value) = environment_value {
+                    argument_values.push(environment_value);
                 }
 
                 // make the call
@@ -921,24 +888,22 @@ impl<'a> FunctionLowerer<'a> {
                 ));
             }
 
-            // struct: allocate stack slot and store each field at its offset
+            // struct/function value: allocate stack slot and store each field at its offset
             mir::Instruction::Struct {
                 destination,
                 ty,
                 fields,
             } => {
-                let struct_type = self.tree.get(*ty);
-
-                // get field definitions and values
-                let field_defs = match struct_type {
-                    mir::Type::Struct { fields, .. } => fields,
+                let field_values = self.tree.get_arguments(*fields);
+                let field_count = match self.tree.get(*ty) {
+                    mir::Type::Struct { fields, .. } => fields.len(),
+                    mir::Type::FunctionValue { .. } => 2,
                     _ => {
                         return Err(CodegenCraneliftError::Internal {
-                            message: "Struct instruction with non-struct type".into(),
+                            message: "Struct instruction with non-aggregate type".into(),
                         });
                     }
                 };
-                let field_values = self.tree.get_arguments(*fields);
 
                 // compute layout and allocate stack slot
                 let layout = compute_type_layout(self.tree, *ty, self.pointer_bytes)?;
@@ -951,28 +916,22 @@ impl<'a> FunctionLowerer<'a> {
                 let slot_addr = builder.ins().stack_addr(self.pointer_type(), slot, 0);
 
                 // store each field at its offset
-                // NOTE: we compute offsets here rather than using field.offset because
-                // the MIR parser doesn't always provide correct offsets for inline types
-                let mut offset = 0u32;
-                for (field_def_id, field_value) in field_defs.iter().zip(field_values.iter()) {
-                    let field_def = self.tree.get(*field_def_id);
-                    let field_layout =
-                        compute_type_layout(self.tree, field_def.ty, self.pointer_bytes)?;
+                if field_values.len() != field_count {
+                    return Err(CodegenCraneliftError::Internal {
+                        message: "Struct instruction field count mismatch".into(),
+                    });
+                }
 
-                    // align to field's alignment
-                    if field_layout.alignment > 0 {
-                        let misalignment = offset % field_layout.alignment;
-                        if misalignment != 0 {
-                            offset += field_layout.alignment - misalignment;
-                        }
-                    }
-
+                for (index, field_value) in field_values.iter().enumerate() {
+                    let (offset, _field_type) = self.aggregate_field_offset_and_type(
+                        *ty,
+                        index as u32,
+                        instruction_id.into_any(),
+                    )?;
                     let value = value_map[field_value];
                     builder
                         .ins()
                         .store(cir::MemFlags::new(), value, slot_addr, offset as i32);
-
-                    offset += field_layout.size;
                 }
 
                 value_map.insert(*destination, slot_addr);
@@ -1273,6 +1232,11 @@ impl<'a> FunctionLowerer<'a> {
                 arguments,
             } => {
                 let callee = self.tree.get(*function);
+                if callee.environment.is_some() {
+                    return Err(CodegenCraneliftError::Internal {
+                        message: "direct call cannot target a function with an environment".into(),
+                    });
+                }
                 let function_ref = self.function_ref_map.get(function).ok_or_else(|| {
                     CodegenCraneliftError::Internal {
                         message: format!("function {function:?} not declared"),
@@ -1280,14 +1244,8 @@ impl<'a> FunctionLowerer<'a> {
                 })?;
 
                 // gather argument values
-                let mut argument_values: Vec<cir::Value> =
+                let argument_values: Vec<cir::Value> =
                     arguments.iter().map(|v| value_map[v]).collect();
-
-                // append a null env when the callee expects a closure environment
-                if let Some(env_type) = callee.closure_env_type {
-                    let env_value = self.null_env_value(env_type, builder)?;
-                    argument_values.push(env_value);
-                }
 
                 // emit return_call
                 builder.ins().return_call(*function_ref, &argument_values);
@@ -1296,18 +1254,17 @@ impl<'a> FunctionLowerer<'a> {
             // tail call indirect: return_call_indirect (indirect tail call)
             mir::Terminator::TailCallIndirect {
                 callee,
-                env,
                 arguments,
                 signature,
             } => {
-                let env_type = env.map(|value| self.function.require_value_type(value));
                 let sig_ref =
-                    self.build_indirect_call_signature(*signature, env_type, builder, "tail call")?;
-                let callee_value = value_map[callee];
+                    self.build_indirect_call_signature(*signature, builder, "tail call")?;
+                let (callee_value, environment_value) =
+                    self.lower_indirect_callable(*callee, *signature, &value_map, builder)?;
                 let mut argument_values: Vec<cir::Value> =
                     arguments.iter().map(|v| value_map[v]).collect();
-                if let Some(env) = env {
-                    argument_values.push(value_map[env]);
+                if let Some(environment_value) = environment_value {
+                    argument_values.push(environment_value);
                 }
                 builder
                     .ins()
@@ -1432,25 +1389,24 @@ impl<'a> FunctionLowerer<'a> {
         }
     }
 
-    /// Build a null environment value for direct calls into closures.
-    fn null_env_value(
-        &self,
-        env_type: mir::LocalNodeId<mir::Type>,
-        builder: &mut FunctionBuilder<'_>,
-    ) -> CodegenCraneliftResult<cir::Value> {
-        let env_clif_type = lower_type(self.tree, env_type, self.pointer_bytes)?;
-        let null_value = builder.ins().iconst(env_clif_type, 0);
-        Ok(null_value)
-    }
-
     /// Build a Cranelift signature for an indirect call from a function type.
     fn build_indirect_call_signature(
         &self,
         signature: mir::LocalNodeId<mir::Type>,
-        env_type: Option<mir::LocalNodeId<mir::Type>>,
         builder: &mut FunctionBuilder<'_>,
         error_context: &str,
     ) -> CodegenCraneliftResult<cir::SigRef> {
+        // callable abi
+        let (signature, has_environment) = match self.tree.get(signature) {
+            mir::Type::FunctionPointer { .. } => (signature, None),
+            mir::Type::FunctionValue { signature } => (*signature, Some(())),
+            _ => {
+                return Err(CodegenCraneliftError::Internal {
+                    message: format!("{error_context} signature is not a function type"),
+                });
+            }
+        };
+
         // extract function pointer params and result
         let mir::Type::FunctionPointer { parameters, result } = self.tree.get(signature) else {
             return Err(CodegenCraneliftError::Internal {
@@ -1465,9 +1421,10 @@ impl<'a> FunctionLowerer<'a> {
             let ty = lower_type(self.tree, *param_ty, self.pointer_bytes)?;
             signature.params.push(cir::AbiParam::new(ty));
         }
-        if let Some(env_type) = env_type {
-            let ty = lower_type(self.tree, env_type, self.pointer_bytes)?;
-            signature.params.push(cir::AbiParam::new(ty));
+        if has_environment.is_some() {
+            signature
+                .params
+                .push(cir::AbiParam::new(self.pointer_type()));
         }
         let result_type = self.tree.get(*result);
         if !matches!(result_type, mir::Type::Void) {
@@ -1476,6 +1433,68 @@ impl<'a> FunctionLowerer<'a> {
         }
 
         Ok(builder.import_signature(signature))
+    }
+
+    /// Lower one callable value into code and optional environment operands.
+    fn lower_indirect_callable(
+        &self,
+        callee: mir::Value,
+        signature: mir::LocalNodeId<mir::Type>,
+        value_map: &HashMap<mir::Value, cir::Value>,
+        builder: &mut FunctionBuilder<'_>,
+    ) -> CodegenCraneliftResult<(cir::Value, Option<cir::Value>)> {
+        // plain function pointer
+        if matches!(self.tree.get(signature), mir::Type::FunctionPointer { .. }) {
+            let callee_value = value_map[&callee];
+            return Ok((callee_value, None));
+        }
+
+        // closure callable aggregate
+        let mir::Type::FunctionValue {
+            signature: function_type,
+        } = self.tree.get(signature)
+        else {
+            return Err(CodegenCraneliftError::Internal {
+                message: "indirect call signature is not a function type".into(),
+            });
+        };
+        let environment = self.tree.function_value_environment_type();
+
+        let callee_value = value_map[&callee];
+        let signature_node = signature.into_any();
+        let (function_offset, function_field_type) =
+            self.aggregate_field_offset_and_type(signature, 0, signature_node)?;
+        let (environment_offset, environment_field_type) =
+            self.aggregate_field_offset_and_type(signature, 1, signature_node)?;
+
+        if function_field_type != *function_type {
+            return Err(CodegenCraneliftError::Internal {
+                message: "function value code field type mismatch".into(),
+            });
+        }
+
+        if environment_field_type != environment {
+            return Err(CodegenCraneliftError::Internal {
+                message: "function value environment field type mismatch".into(),
+            });
+        }
+
+        let function_ty = lower_type(self.tree, *function_type, self.pointer_bytes)?;
+        let environment_ty = self.pointer_type();
+        let function_value = builder.ins().load(
+            function_ty,
+            cir::MemFlags::new(),
+            callee_value,
+            function_offset as i32,
+        );
+        let environment_value = builder.ins().load(
+            environment_ty,
+            cir::MemFlags::new(),
+            callee_value,
+            environment_offset as i32,
+        );
+
+        Ok((function_value, Some(environment_value)))
     }
 
     /// Get or declare a global value reference for use in this function.
@@ -1585,38 +1604,50 @@ impl<'a> FunctionLowerer<'a> {
         }
     }
 
-    /// Resolve a struct field offset and type from canonical layout metadata.
-    fn struct_field_offset_and_type(
+    /// Resolve an aggregate field offset and type from canonical layout metadata.
+    fn aggregate_field_offset_and_type(
         &self,
-        struct_type: mir::LocalNodeId<mir::Type>,
+        aggregate_type: mir::LocalNodeId<mir::Type>,
         index: u32,
         node: mir::LocalNodeIdAny,
     ) -> CodegenCraneliftResult<(u32, mir::LocalNodeId<mir::Type>)> {
-        let mir::Type::Struct { fields, .. } = self.tree.get(struct_type) else {
-            return Err(CodegenCraneliftError::Internal {
-                message: "struct field lookup on non-struct type".into(),
-            });
+        let field_type = match self.tree.get(aggregate_type) {
+            mir::Type::Struct { fields, .. } => {
+                let field_id = fields.get(index as usize).ok_or_else(|| {
+                    CodegenCraneliftError::out_of_bounds(node, index, fields.len())
+                })?;
+                self.tree.get(*field_id).ty
+            }
+            mir::Type::Tuple { elements, .. } => *elements
+                .get(index as usize)
+                .ok_or_else(|| CodegenCraneliftError::out_of_bounds(node, index, elements.len()))?,
+            mir::Type::FunctionValue { signature } => match index {
+                0 => *signature,
+                1 => self.tree.function_value_environment_type(),
+                _ => return Err(CodegenCraneliftError::out_of_bounds(node, index, 2)),
+            },
+            _ => {
+                return Err(CodegenCraneliftError::Internal {
+                    message: "aggregate field lookup on non-aggregate type".into(),
+                });
+            }
         };
 
-        let field_id = fields
-            .get(index as usize)
-            .ok_or_else(|| CodegenCraneliftError::out_of_bounds(node, index, fields.len()))?;
-        let field_type = self.tree.get(*field_id).ty;
-
-        let layout = self
-            .tree
-            .type_table
-            .type_layout(struct_type)
-            .ok_or_else(|| {
-                CodegenCraneliftError::unsupported_type("missing struct layout metadata", node)
-            })?;
-        let layout_field = layout.fields.get(index as usize).ok_or_else(|| {
-            CodegenCraneliftError::out_of_bounds(node, index, layout.fields.len())
+        let layout = self.tree.type_layout(aggregate_type).ok_or_else(|| {
+            CodegenCraneliftError::unsupported_type("missing aggregate layout metadata", node)
         })?;
+        let layout_field = layout
+            .fields
+            .iter()
+            .find(|field| field.source_index == Some(index))
+            .or_else(|| layout.fields.get(index as usize))
+            .ok_or_else(|| {
+                CodegenCraneliftError::out_of_bounds(node, index, layout.fields.len())
+            })?;
 
         if layout_field.ty != field_type {
             return Err(CodegenCraneliftError::Internal {
-                message: "struct layout field type mismatch".into(),
+                message: "aggregate layout field type mismatch".into(),
             });
         }
 

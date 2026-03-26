@@ -106,6 +106,7 @@ impl<'a> Validator<'a> {
                 function: callee, ..
             } => {
                 self.validate_call_signature_matches_function(anchor, signature, *callee)?;
+                self.validate_direct_call_environment(anchor, *callee)?;
             }
             Instruction::CallVirtual {
                 declaring_type,
@@ -121,10 +122,16 @@ impl<'a> Validator<'a> {
             } => {
                 self.validate_interface_dispatch_slot(*declaring_type, *slot_id, anchor)?;
             }
-            Instruction::CallIndirect { env, .. } => {
-                if let Some(env) = env {
-                    self.ensure_reference_value(function, *env, anchor, "call.indirect env")?;
-                }
+            Instruction::CallIndirect {
+                callee, signature, ..
+            } => {
+                self.validate_indirect_callee_signature(
+                    function,
+                    *callee,
+                    *signature,
+                    anchor,
+                    "call.indirect callee",
+                )?;
             }
             _ => {}
         }
@@ -1134,6 +1141,14 @@ impl<'a> Validator<'a> {
                 };
 
                 let target_function = self.tree.get(*target);
+                if target_function.environment.is_some() {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "function.addr cannot target a function with an environment"
+                            .to_string(),
+                        anchor,
+                    });
+                }
+
                 if target_function.parameters.len() != parameters.len() {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "function.addr result parameter count mismatch".to_string(),
@@ -1159,28 +1174,99 @@ impl<'a> Validator<'a> {
                     });
                 }
             }
-            Instruction::FunctionEnv { destination } => {
+            Instruction::FunctionValue {
+                destination,
+                function: target,
+                environment,
+            } => {
                 let destination_type_id = self.value_type_or_error(
                     function,
                     *destination,
                     anchor,
-                    "function.env result",
+                    "function.value result",
+                )?;
+                let destination_type = self.tree.get(destination_type_id);
+                let Type::FunctionValue { signature, .. } = destination_type else {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "function.value result must be a callable value".to_string(),
+                        anchor,
+                    });
+                };
+                let Type::FunctionPointer { parameters, result } = self.tree.get(*signature) else {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "function.value signature must be a function pointer".to_string(),
+                        anchor,
+                    });
+                };
+
+                let target_function = self.tree.get(*target);
+                let target_environment = target_function.environment.ok_or_else(|| {
+                    ValidateError::MetadataInvariantViolation {
+                        message: "function.value target requires an environment".to_string(),
+                        anchor,
+                    }
+                })?;
+
+                let actual_environment_type = self.value_type_or_error(
+                    function,
+                    *environment,
+                    anchor,
+                    "function.value environment",
+                )?;
+                if !self.types_equivalent(actual_environment_type, target_environment) {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "function.value environment type mismatch".to_string(),
+                        anchor,
+                    });
+                }
+
+                if target_function.parameters.len() != parameters.len() {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "function.value result parameter count mismatch".to_string(),
+                        anchor,
+                    });
+                }
+
+                for (parameter, signature_type) in
+                    target_function.parameters.iter().zip(parameters.iter())
+                {
+                    if parameter.ty != *signature_type {
+                        return Err(ValidateError::MetadataInvariantViolation {
+                            message: "function.value result parameter types mismatch".to_string(),
+                            anchor,
+                        });
+                    }
+                }
+
+                if target_function.return_type != *result {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "function.value result return type mismatch".to_string(),
+                        anchor,
+                    });
+                }
+            }
+            Instruction::FunctionEnvironment { destination } => {
+                let destination_type_id = self.value_type_or_error(
+                    function,
+                    *destination,
+                    anchor,
+                    "function.environment result",
                 )?;
                 self.reference_type(
                     destination_type_id,
                     anchor,
-                    "function.env result must be a reference type",
+                    "function.environment result must be a reference type",
                 )?;
 
-                let env_type = function.closure_env_type.ok_or_else(|| {
+                let environment = function.environment.ok_or_else(|| {
                     ValidateError::MetadataInvariantViolation {
-                        message: "function.env requires a closure_env type".to_string(),
+                        message: "function.environment requires an environment".to_string(),
                         anchor,
                     }
                 })?;
-                if env_type != destination_type_id {
+                if environment != destination_type_id {
                     return Err(ValidateError::MetadataInvariantViolation {
-                        message: "function.env type mismatch".to_string(),
+                        message: "function.environment type mismatch".to_string(),
                         anchor,
                     });
                 }
@@ -1603,9 +1689,21 @@ impl<'a> Validator<'a> {
                     anchor,
                 )?;
             }
-            Instruction::Call { signature, .. } | Instruction::CallIndirect { signature, .. } => {
+            Instruction::Call { signature, .. } => {
                 self.ensure_node_type(NodeType::Type, signature.id, anchor)?;
                 if !matches!(self.tree.get(*signature), Type::FunctionPointer { .. }) {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "call signature is not a function type".to_string(),
+                        anchor,
+                    });
+                }
+            }
+            Instruction::CallIndirect { signature, .. } => {
+                self.ensure_node_type(NodeType::Type, signature.id, anchor)?;
+                if !matches!(
+                    self.tree.get(*signature),
+                    Type::FunctionPointer { .. } | Type::FunctionValue { .. }
+                ) {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "call signature is not a function type".to_string(),
                         anchor,
@@ -1829,26 +1927,21 @@ impl<'a> Validator<'a> {
 
                 Ok(*element_type)
             }
-            Type::FunctionValue {
-                signature,
-                environment,
-            } => match index {
-                0 => Ok(*signature),
-                1 => Ok(*environment),
-                _ => Err(ValidateError::MetadataInvariantViolation {
-                    message: format!(
-                        "{operation} field index {index} out of bounds for fnvalue with 2 fields"
-                    ),
-                    anchor,
-                }),
-            },
+            Type::FunctionValue { .. } => Err(ValidateError::MetadataInvariantViolation {
+                message: format!("{operation} does not support fnvalue"),
+                anchor,
+            }),
             Type::Reference { pointee, .. } => {
                 let pointee_type = *pointee;
                 let pointee = self.tree.get(pointee_type);
 
                 match pointee {
-                    Type::Struct { .. } | Type::Tuple { .. } | Type::FunctionValue { .. } => self
+                    Type::Struct { .. } | Type::Tuple { .. } => self
                         .field_type_for_projection_target(pointee_type, index, anchor, operation),
+                    Type::FunctionValue { .. } => Err(ValidateError::MetadataInvariantViolation {
+                        message: format!("{operation} does not support fnvalue"),
+                        anchor,
+                    }),
                     _ if index == 0 => Ok(pointee_type),
                     _ => Err(ValidateError::MetadataInvariantViolation {
                         message: format!(
@@ -1859,7 +1952,7 @@ impl<'a> Validator<'a> {
                 }
             }
             _ => Err(ValidateError::MetadataInvariantViolation {
-                message: format!("{operation} expects a struct, tuple, or fnvalue aggregate"),
+                message: format!("{operation} expects a struct or tuple aggregate"),
                 anchor,
             }),
         }
@@ -1962,7 +2055,7 @@ impl<'a> Validator<'a> {
     }
 
     /// Check whether two type ids are structurally equivalent.
-    fn types_equivalent(
+    pub(super) fn types_equivalent(
         &self,
         left_type: LocalNodeId<Type>,
         right_type: LocalNodeId<Type>,
@@ -2190,20 +2283,11 @@ impl<'a> Validator<'a> {
             (
                 Type::FunctionValue {
                     signature: left_signature,
-                    environment: left_environment,
                 },
                 Type::FunctionValue {
                     signature: right_signature,
-                    environment: right_environment,
                 },
-            ) => {
-                self.types_equivalent_inner(*left_signature, *right_signature, seen_pairs)
-                    && self.types_equivalent_inner(
-                        *left_environment,
-                        *right_environment,
-                        seen_pairs,
-                    )
-            }
+            ) => self.types_equivalent_inner(*left_signature, *right_signature, seen_pairs),
             _ => false,
         }
     }

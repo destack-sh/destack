@@ -997,14 +997,11 @@ fn check_instruction(
                 checker.check_move_while_borrowed(arg, instruction_id, context);
             }
         }
-        Instruction::CallIndirect { arguments, env, .. } => {
-            // callee and env are used, not moved
+        Instruction::CallIndirect { arguments, .. } => {
+            // callee is used, not moved
             let args = checker.tree.get_arguments(*arguments);
             for &arg in args {
                 checker.check_move_while_borrowed(arg, instruction_id, context);
-            }
-            if let Some(env) = env {
-                checker.check_move_while_borrowed(*env, instruction_id, context);
             }
         }
 

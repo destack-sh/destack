@@ -379,13 +379,10 @@ fn collect_written_globals(
                     continue;
                 }
 
-                if let mir::Instruction::CallIndirect { arguments, env, .. } = instruction
+                if let mir::Instruction::CallIndirect { arguments, .. } = instruction
                     && call_writes_memory(tree, instruction)
                 {
-                    let mut args = tree.get_arguments(*arguments).to_vec();
-                    if let Some(env) = env {
-                        args.push(*env);
-                    }
+                    let args = tree.get_arguments(*arguments).to_vec();
                     if any_argument_global_values(&args, &definitions, addr_info, tree) {
                         written.extend(globals_from_values(&args, &definitions, addr_info, tree));
                         continue;
@@ -634,14 +631,7 @@ fn terminator_write_arguments(
             arguments,
             ..
         } => function_memory_writes_from_tree(tree, *function).then(|| arguments.clone()),
-        mir::Terminator::CallIndirect { arguments, env, .. } => {
-            let mut values = arguments.clone();
-            if let Some(env) = env {
-                values.push(*env);
-            }
-
-            Some(values)
-        }
+        mir::Terminator::CallIndirect { arguments, .. } => Some(arguments.clone()),
         mir::Terminator::CallVirtual {
             receiver,
             arguments,
@@ -682,14 +672,7 @@ fn terminator_write_arguments(
             function,
             arguments,
         } => function_memory_writes_from_tree(tree, *function).then(|| arguments.clone()),
-        mir::Terminator::TailCallIndirect { arguments, env, .. } => {
-            let mut values = arguments.clone();
-            if let Some(env) = env {
-                values.push(*env);
-            }
-
-            Some(values)
-        }
+        mir::Terminator::TailCallIndirect { arguments, .. } => Some(arguments.clone()),
         _ => None,
     }
 }

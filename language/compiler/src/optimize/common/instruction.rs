@@ -61,7 +61,8 @@ pub fn instruction_is_pure(instruction: &Instruction) -> bool {
         Instruction::GlobalConst { .. }
         | Instruction::GlobalAddr { .. }
         | Instruction::FunctionAddr { .. }
-        | Instruction::FunctionEnv { .. } => true,
+        | Instruction::FunctionValue { .. }
+        | Instruction::FunctionEnvironment { .. } => true,
 
         // borrow producing address computations are not speculatable
         Instruction::FieldAddr { .. }
@@ -219,7 +220,8 @@ pub fn instruction_has_side_effects(instruction: &Instruction) -> bool {
         | Instruction::GlobalConst { .. }
         | Instruction::GlobalAddr { .. }
         | Instruction::FunctionAddr { .. }
-        | Instruction::FunctionEnv { .. }
+        | Instruction::FunctionValue { .. }
+        | Instruction::FunctionEnvironment { .. }
         | Instruction::LocalAddr { .. }
         | Instruction::Assume { .. } => false,
 
@@ -1006,14 +1008,12 @@ pub fn instruction_substitute_uses(
         mir::Instruction::CallIndirect {
             destination,
             callee,
-            env,
             arguments,
             signature,
             effects,
         } => mir::Instruction::CallIndirect {
             destination: *destination,
             callee: substitute(callee),
-            env: env.map(|value| substitute(&value)),
             arguments: *arguments,
             signature: *signature,
             effects: effects.clone(),
@@ -1037,13 +1037,14 @@ pub fn instruction_substitute_uses(
         | mir::Instruction::LocalGet { .. }
         | mir::Instruction::GlobalAddr { .. }
         | mir::Instruction::FunctionAddr { .. }
+        | mir::Instruction::FunctionValue { .. }
         | mir::Instruction::LocalAddr { .. }
         | mir::Instruction::GlobalConst { .. }
         | mir::Instruction::Struct { .. }
         | mir::Instruction::Tuple { .. }
         | mir::Instruction::Array { .. }
         | mir::Instruction::Call { .. }
-        | mir::Instruction::FunctionEnv { .. }
+        | mir::Instruction::FunctionEnvironment { .. }
         | mir::Instruction::ManagedAlloc { .. }
         | mir::Instruction::RawAlloc { .. }
         | mir::Instruction::StackAlloc { .. }
@@ -1458,14 +1459,12 @@ pub fn instruction_substitute_uses_in_tree(
         mir::Instruction::CallIndirect {
             destination,
             callee,
-            env,
             arguments,
             signature,
             effects,
         } => mir::Instruction::CallIndirect {
             destination: *destination,
             callee: substitute(*callee),
-            env: env.map(substitute),
             arguments: substitute_arguments(*arguments),
             signature: *signature,
             effects: effects.clone(),
@@ -2109,9 +2108,20 @@ pub fn instruction_map(
             destination: remap(*destination),
             function: *function,
         },
-        mir::Instruction::FunctionEnv { destination } => mir::Instruction::FunctionEnv {
+        mir::Instruction::FunctionValue {
+            destination,
+            function,
+            environment,
+        } => mir::Instruction::FunctionValue {
             destination: remap(*destination),
+            function: *function,
+            environment: remap(*environment),
         },
+        mir::Instruction::FunctionEnvironment { destination } => {
+            mir::Instruction::FunctionEnvironment {
+                destination: remap(*destination),
+            }
+        }
         mir::Instruction::LocalAddr {
             destination,
             local,
@@ -2496,14 +2506,12 @@ pub fn instruction_map(
         mir::Instruction::CallIndirect {
             destination,
             callee,
-            env,
             arguments,
             signature,
             effects,
         } => mir::Instruction::CallIndirect {
             destination: destination.map(remap),
             callee: remap(*callee),
-            env: env.map(remap),
             arguments: remap_arguments(*arguments),
             signature: *signature,
             effects: effects.clone(),
@@ -2769,9 +2777,20 @@ pub fn instruction_map_with_locals(
             destination: remap(*destination),
             function: *function,
         },
-        mir::Instruction::FunctionEnv { destination } => mir::Instruction::FunctionEnv {
+        mir::Instruction::FunctionValue {
+            destination,
+            function,
+            environment,
+        } => mir::Instruction::FunctionValue {
             destination: remap(*destination),
+            function: *function,
+            environment: remap(*environment),
         },
+        mir::Instruction::FunctionEnvironment { destination } => {
+            mir::Instruction::FunctionEnvironment {
+                destination: remap(*destination),
+            }
+        }
         mir::Instruction::LocalAddr {
             destination,
             local,
@@ -3265,14 +3284,12 @@ pub fn instruction_map_with_locals(
         mir::Instruction::CallIndirect {
             destination,
             callee,
-            env,
             arguments,
             signature,
             effects,
         } => mir::Instruction::CallIndirect {
             destination: destination.map(remap),
             callee: remap(*callee),
-            env: env.map(remap),
             arguments: remap_arguments(*arguments),
             signature: *signature,
             effects: effects.clone(),
@@ -3526,7 +3543,6 @@ pub fn terminator_remap(
         }
         mir::Terminator::CallIndirect {
             callee,
-            env,
             arguments,
             normal_target,
             normal_arguments,
@@ -3535,9 +3551,6 @@ pub fn terminator_remap(
             ..
         } => {
             remap_value(callee);
-            if let Some(env) = env {
-                remap_value(env);
-            }
             remap_args(arguments);
             remap_target(normal_target);
             remap_args(normal_arguments);
@@ -3598,15 +3611,9 @@ pub fn terminator_remap(
             remap_args(arguments);
         }
         mir::Terminator::TailCallIndirect {
-            callee,
-            env,
-            arguments,
-            ..
+            callee, arguments, ..
         } => {
             remap_value(callee);
-            if let Some(env) = env {
-                remap_value(env);
-            }
             remap_args(arguments);
         }
     }

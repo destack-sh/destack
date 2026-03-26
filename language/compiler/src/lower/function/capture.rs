@@ -3,47 +3,55 @@ use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult};
 
-use crate::lower::{ClosureEnvField, ClosureEnvLayout, FunctionLowerer, lower_mutability};
+use crate::lower::{
+    FunctionEnvironmentField, FunctionEnvironmentLayout, FunctionLowerer, lower_mutability,
+};
 
 impl FunctionLowerer<'_> {
-    /// Resolve the closure environment layout for this function when captured.
-    pub(crate) fn closure_env_layout(&self) -> Option<&ClosureEnvLayout> {
-        self.env.closure_env_layouts.get(&self.env.symbol)
+    /// Resolve the function environment layout for this function when captured.
+    pub(crate) fn function_environment_layout(&self) -> Option<&FunctionEnvironmentLayout> {
+        self.context
+            .function_environment_layouts
+            .get(&self.context.symbol)
     }
 
     /// Resolve a captured field definition for a symbol.
     pub(crate) fn capture_field_for_symbol(
         &self,
         symbol: GlobalSymbolId,
-    ) -> Option<ClosureEnvField> {
-        let layout = self.closure_env_layout()?;
+    ) -> Option<FunctionEnvironmentField> {
+        let layout = self.function_environment_layout()?;
         layout.field_for_symbol(symbol).copied()
     }
 
-    /// Resolve the typed closure environment pointer value.
-    pub(crate) fn closure_env_value(
+    /// Resolve the typed function environment pointer value.
+    pub(crate) fn function_environment_value(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<mir::Value> {
         self.state
             .bindings
-            .closure_env
+            .environment
             .ok_or_else(|| LowerError::UnsupportedConstruct {
                 node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
-                message: "missing closure environment".to_string(),
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
+                message: "missing function environment".to_string(),
             })
     }
 
-    /// Build a closure environment value for a target function symbol.
-    pub(crate) fn build_closure_env_for_symbol(
+    /// Build a function environment value for a target function symbol.
+    pub(crate) fn build_function_environment_for_symbol(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         target_symbol: GlobalSymbolId,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // allocate and populate the environment when captures exist
-        if let Some(env_layout) = self.env.closure_env_layouts.get(&target_symbol) {
+        if let Some(env_layout) = self
+            .context
+            .function_environment_layouts
+            .get(&target_symbol)
+        {
             let env_ref_type = env_layout.env_pointer_type;
             let env_value = self
                 .state
@@ -87,19 +95,19 @@ impl FunctionLowerer<'_> {
             return Ok((env_value, env_ref_type));
         }
 
-        // otherwise use the canonical empty env pointer
-        let env_ref_type = self.env.empty_closure_env_pointer_type;
+        // otherwise use the canonical empty function environment pointer
+        let env_ref_type = self.context.empty_function_environment_pointer_type;
         let env_value = self.state.builder.null(env_ref_type);
         Ok((env_value, env_ref_type))
     }
 
-    /// Resolve the address of a captured field inside the closure environment.
+    /// Resolve the address of a captured field inside the function environment.
     pub(crate) fn capture_field_addr(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        field: &ClosureEnvField,
+        field: &FunctionEnvironmentField,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
-        let env_value = self.closure_env_value(expression_id)?;
+        let env_value = self.function_environment_value(expression_id)?;
         let field_addr_type = self.state.builder.type_reference(
             mir::ReferenceKind::Managed,
             field.ty,
@@ -118,7 +126,7 @@ impl FunctionLowerer<'_> {
     pub(crate) fn captured_binding_value(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        field: &ClosureEnvField,
+        field: &FunctionEnvironmentField,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         let (field_addr, _) = self.capture_field_addr(expression_id, field)?;
 
@@ -137,7 +145,7 @@ impl FunctionLowerer<'_> {
             mir::Type::Reference { pointee, .. } => *pointee,
             _ => {
                 return Err(LowerError::Internal {
-                    module: self.env.module_id,
+                    module: self.context.module_id,
                     message: "capture reference field missing reference type".to_string(),
                 });
             }
@@ -150,7 +158,7 @@ impl FunctionLowerer<'_> {
     pub(crate) fn store_captured_binding(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        field: &ClosureEnvField,
+        field: &FunctionEnvironmentField,
         value: mir::Value,
     ) -> LowerResult<()> {
         let (field_addr, _) = self.capture_field_addr(expression_id, field)?;
@@ -174,7 +182,7 @@ impl FunctionLowerer<'_> {
     pub(crate) fn borrow_captured_binding(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        field: &ClosureEnvField,
+        field: &FunctionEnvironmentField,
         mutability: Option<dir::Mutability>,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // by reference: forward the stored pointer
@@ -206,8 +214,8 @@ impl FunctionLowerer<'_> {
         Ok((value, result_type))
     }
 
-    /// Record the closure env type on a function used as a closure value.
-    pub(crate) fn set_closure_env_type(
+    /// Record the function environment type on one function used as a closure value.
+    pub(crate) fn set_function_environment(
         &mut self,
         expression_id: LocalNodeId<dir::Expression>,
         function_id: mir::LocalNodeId<mir::Function>,
@@ -215,13 +223,13 @@ impl FunctionLowerer<'_> {
     ) -> LowerResult<()> {
         // update the function metadata in the shared node tree
         let function = self.state.builder.tree_mut().get_mut(function_id);
-        match function.closure_env_type {
+        match function.environment {
             Some(existing) if existing != env_type => {
-                return Err(self.error(expression_id, "mismatched closure env type"));
+                return Err(self.error(expression_id, "mismatched function environment type"));
             }
             Some(_) => {}
             None => {
-                function.closure_env_type = Some(env_type);
+                function.environment = Some(env_type);
             }
         }
 

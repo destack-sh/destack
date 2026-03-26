@@ -22,7 +22,7 @@ impl FunctionLowerer<'_> {
     fn static_index_literal(&self, expression_id: LocalNodeId<Expression>) -> LowerResult<usize> {
         // require a compile time integer literal
         let index_expression = self.unwrap_expression(expression_id);
-        match self.env.dir_tree.get(index_expression) {
+        match self.context.dir_tree.get(index_expression) {
             Expression::ScalarLiteral {
                 value: dir::ScalarLiteral::Integer(value),
             }
@@ -94,26 +94,26 @@ impl FunctionLowerer<'_> {
 
         // resolve field index through the type lowerer
         let field_index = self
-            .env
+            .context
             .type_lowerer
             .field_index_for_type(
                 aggregate_type,
                 field_name,
-                self.env.strings,
+                self.context.strings,
                 self.state.builder.tree(),
             )
             .ok_or_else(|| LowerError::UnsupportedConstruct {
                 node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
                 message: "field not found in aggregate type".to_string(),
             })?;
 
         // ensure constructor fields are initialized before read
-        if matches!(self.env.dir_tree.get(left_id), Expression::This) {
+        if matches!(self.context.dir_tree.get(left_id), Expression::This) {
             let node = expression_id
-                .into_global_any(self.env.module_id)
-                .into_anchored(Some(self.env.profile));
+                .into_global_any(self.context.module_id)
+                .into_anchored(Some(self.context.profile));
             self.require_constructor_field_initialized(node, field_index as u32, field_name)?;
         }
 
@@ -338,8 +338,8 @@ impl FunctionLowerer<'_> {
             self.function_for_symbol(target_symbol)
                 .ok_or_else(|| LowerError::MissingFunction {
                     node: expression_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
                     symbol: target_symbol,
                 })?;
 
@@ -373,8 +373,8 @@ impl FunctionLowerer<'_> {
                         );
                         let value = value.ok_or_else(|| LowerError::UnsupportedConstruct {
                             node: expression_id
-                                .into_global_any(self.env.module_id)
-                                .into_anchored(Some(self.env.profile)),
+                                .into_global_any(self.context.module_id)
+                                .into_anchored(Some(self.context.profile)),
                             message: "getter call returned no value".to_string(),
                         })?;
                         return Ok((value, result_type));
@@ -394,8 +394,8 @@ impl FunctionLowerer<'_> {
                         );
                         let value = value.ok_or_else(|| LowerError::UnsupportedConstruct {
                             node: expression_id
-                                .into_global_any(self.env.module_id)
-                                .into_anchored(Some(self.env.profile)),
+                                .into_global_any(self.context.module_id)
+                                .into_anchored(Some(self.context.profile)),
                             message: "getter call returned no value".to_string(),
                         })?;
                         return Ok((value, result_type));
@@ -408,8 +408,8 @@ impl FunctionLowerer<'_> {
         let value = self.state.builder.call(function_id, signature, arguments);
         let value = value.ok_or_else(|| LowerError::UnsupportedConstruct {
             node: expression_id
-                .into_global_any(self.env.module_id)
-                .into_anchored(Some(self.env.profile)),
+                .into_global_any(self.context.module_id)
+                .into_anchored(Some(self.context.profile)),
             message: "getter call returned no value".to_string(),
         })?;
 
@@ -455,8 +455,8 @@ impl FunctionLowerer<'_> {
             self.function_for_symbol(target_symbol)
                 .ok_or_else(|| LowerError::MissingFunction {
                     node: expression_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
                     symbol: target_symbol,
                 })?;
 
@@ -542,7 +542,7 @@ impl FunctionLowerer<'_> {
 
         // handle array indexing
         if matches!(
-            self.env.types.get_type(left_type_id),
+            self.context.types.get_type(left_type_id),
             Type::Array { .. } | Type::ArraySized { .. }
         ) {
             // lower the array value and index
@@ -585,8 +585,8 @@ impl FunctionLowerer<'_> {
                 _ => {
                     return Err(LowerError::UnsupportedConstruct {
                         node: expression_id
-                            .into_global_any(self.env.module_id)
-                            .into_anchored(Some(self.env.profile)),
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
                         message: "index signatures are not supported for native lowering"
                             .to_string(),
                     });
