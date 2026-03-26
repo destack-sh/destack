@@ -1,11 +1,5 @@
 import { normalizePageSlug } from "./page-sections.ds";
 
-const pageDescriptions = {
-    overview: "Review workspace configuration and owner settings",
-    settings: "Inspect editors, notifications, and access controls",
-    activity: "Track job history, retries, and audit events",
-};
-
 /** The page title for the workspace document entry. */
 export const pageTitle = "Workspace Overview";
 
@@ -18,5 +12,13 @@ export function pageHeading(slug = "overview") {
 export function getPageSummary(slug = "overview") {
     const normalizedSlug = normalizePageSlug(slug);
 
-    return pageDescriptions[normalizedSlug];
+    if (normalizedSlug == "settings") {
+        return "Inspect editors, notifications, and access controls";
+    }
+
+    if (normalizedSlug == "activity") {
+        return "Track job history, retries, and audit events";
+    }
+
+    return "Review workspace configuration and owner settings";
 }

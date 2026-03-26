@@ -1,0 +1,19 @@
+{
+    "name": "script-single-file-document-loaders-inline",
+    "targets": {
+        "preview": {
+            "emit": "js",
+            "entry": ["src/app.ts"],
+            "outFile": "dist/preview/app.js",
+            "bundle": {
+                "assets": {
+                    "mode": "inline"
+                },
+                "output": {
+                    "sourcemap": "external",
+                    "manifest": true
+                }
+            }
+        }
+    }
+}

@@ -1,42 +1,37 @@
 const pageSections = ["overview", "settings", "activity"];
-const pageDescriptions = {
-    overview: "Review workspace configuration and owner settings",
-    settings: "Inspect editors, notifications, and access controls",
-    activity: "Track job history, retries, and audit events",
-};
-
-export const pageTitle = "Workspace Overview";
-
 export function normalizePageSlug(slug = "overview") {
-    const normalizedSlug = pageSections.includes(slug) ? slug : "overview";
-
-    return normalizedSlug;
+    return pageSections.includes(slug) ? slug : "overview";
 }
-
 export function getSectionBadge(slug = "overview") {
     const normalizedSlug = normalizePageSlug(slug);
-
     if (normalizedSlug === "activity") {
         return "live";
     }
-
     return "guide";
 }
 
+export const pageTitle = "Workspace Overview";
 export function pageHeading(slug = "overview") {
     return `${pageTitle}: ${normalizePageSlug(slug)}`;
 }
-
-export function pageSummary(slug = "overview") {
+export function getPageSummary(slug = "overview") {
     const normalizedSlug = normalizePageSlug(slug);
-
-    return pageDescriptions[normalizedSlug];
+    if (normalizedSlug == "settings") {
+        return "Inspect editors, notifications, and access controls";
+    }
+    if (normalizedSlug == "activity") {
+        return "Track job history, retries, and audit events";
+    }
+    return "Review workspace configuration and owner settings";
 }
 
+export { pageTitle, pageHeading };
+export function pageSummary(slug = "overview") {
+    return getPageSummary(slug);
+}
 export function pageSectionBadge(slug = "overview") {
     return getSectionBadge(slug);
 }
-
 export function pageSectionPath(slug = "overview") {
     return `/reference/${normalizePageSlug(slug)}`;
 }
