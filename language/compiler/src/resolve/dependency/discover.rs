@@ -6,6 +6,7 @@ use destack_workspace::{
 };
 
 use crate::Compiler;
+
 impl Compiler {
     /// Discover modules from entry points.
     pub(crate) fn discover_entry_modules(
@@ -23,6 +24,7 @@ impl Compiler {
             entry_resolution: EntryResolutionMode::Strict,
             manifest_entry_targets: &manifest_entry_targets,
         };
+
         self.repository.entry_module_ids(
             revision,
             package_id,

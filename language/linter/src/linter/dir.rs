@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    Ast, DirAnalyzed, DirResolved, ImportEdgeKind, LanguageEnvironment, LibraryEnvironment, Loader,
-    ModuleGraph, WellKnownSymbols,
+    Ast, DirAnalyzed, DirResolved, LanguageEnvironment, LibraryEnvironment, Loader,
+    ModuleEdgeRelation, ModuleGraph, WellKnownSymbols,
 };
 use destack_ast::StringId;
 use destack_builtin::LanguageSymbol;
@@ -72,7 +72,12 @@ pub struct LintModuleDirContext<'a> {
     pub namespace_exports: Vec<dir::ModuleTarget>,
     /// Resolved import specifiers to module ids (keyed by (relative_module, specifier, edge, loader)).
     pub imported_modules: IndexMap<
-        (Option<ModuleId>, StringId, ImportEdgeKind, Option<Loader>),
+        (
+            Option<ModuleId>,
+            StringId,
+            ModuleEdgeRelation,
+            Option<Loader>,
+        ),
         dir::ModuleResolution,
     >,
     /// Exported symbols by key (space, name).
@@ -118,7 +123,12 @@ impl<'a> LintModuleDirContext<'a> {
         default_symbol: dir::LocalSymbolId,
         namespace_exports: Vec<dir::ModuleTarget>,
         imported_modules: IndexMap<
-            (Option<ModuleId>, StringId, ImportEdgeKind, Option<Loader>),
+            (
+                Option<ModuleId>,
+                StringId,
+                ModuleEdgeRelation,
+                Option<Loader>,
+            ),
             dir::ModuleResolution,
         >,
         exported_symbols: IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::Export>,

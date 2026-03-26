@@ -640,7 +640,7 @@ impl Compiler {
         // match direct resolve import edge semantics
         let is_typescript_commonjs = source_module.module_format.is_commonjs()
             && source_module.language_type.is_typescript();
-        let edge_kind =
+        let edge_relation =
             Self::import_edge_kind_for_dependency(dependency.source, is_typescript_commonjs);
 
         if let Ok(targets) = self.resolve_specifier_to_module_resolution(
@@ -648,7 +648,7 @@ impl Compiler {
             profile_id,
             target,
             Some(module_id),
-            edge_kind,
+            edge_relation,
             None,
         ) {
             return Ok(targets);

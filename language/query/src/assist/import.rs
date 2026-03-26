@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use destack_artifact::ImportEdgeKind;
+use destack_artifact::ModuleEdgeRelation;
 use destack_source::{ModuleId, Span};
 use destack_workspace::Repository;
 use {destack_ast as ast, destack_dir as dir};
@@ -109,7 +109,7 @@ fn resolved_import_target_module(
     let cache_key = (
         Some(dir.module_id()),
         target_id,
-        ImportEdgeKind::Import,
+        ModuleEdgeRelation::Import,
         None,
     );
     let targets = dir.resolved().imported_modules.get(&cache_key).copied()?;

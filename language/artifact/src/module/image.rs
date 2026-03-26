@@ -8,7 +8,7 @@ use indexmap::IndexMap;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
-use crate::{ImportEdgeKind, Loader};
+use crate::{Loader, ModuleEdgeRelation};
 
 /// Self-contained image form for one live artifact value.
 pub trait Image: Serialize + DeserializeOwned + Sized {
@@ -238,7 +238,7 @@ where
 impl_passthrough_field!(
     ModuleId,
     ProfileId,
-    ImportEdgeKind,
+    ModuleEdgeRelation,
     Loader,
     dir::LocalNodeIdAny,
     dir::LocalScopeId,

@@ -1,16 +1,19 @@
-use destack_source::{ModuleId, ProfileId};
+use destack_source::{ModuleId, ModuleVersion, ProfileId};
 use indexmap::map::Entry;
 use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 
-/// The resolution semantics for one import edge.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub enum ImportEdgeKind {
-    /// Import-like edge semantics (`import`, `export from`, `import()`).
-    #[default]
-    Import,
-    /// Require-like edge semantics (`require`, `import = require`).
-    Require,
+use crate::{ModuleEdge, ModuleEdgeRelation, ModuleKind};
+
+/// The metadata tracked for one module node in the graph.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ModuleMetadata {
+    /// The semantic kind of this module.
+    pub kind: ModuleKind,
+    /// The version snapshot captured for this module.
+    pub version: ModuleVersion,
+    /// The outgoing dependency edges from this module.
+    pub dependencies: IndexSet<ModuleEdge>,
 }
 
 /// Module dependency graph for a profile.
@@ -18,10 +21,10 @@ pub enum ImportEdgeKind {
 pub struct ModuleGraph {
     /// The profile id for this graph.
     pub profile_id: ProfileId,
-    /// Module dependencies keyed by module id.
-    pub dependencies: IndexMap<ModuleId, IndexSet<ModuleId>>,
-    /// Reverse dependencies keyed by module id.
-    pub dependents: IndexMap<ModuleId, IndexSet<ModuleId>>,
+    /// Module metadata keyed by module id.
+    pub modules: IndexMap<ModuleId, ModuleMetadata>,
+    /// Reverse dependency edges keyed by target module id.
+    pub dependents: IndexMap<ModuleId, IndexSet<ModuleEdge>>,
 }
 
 impl ModuleGraph {
@@ -29,7 +32,7 @@ impl ModuleGraph {
     pub fn new(profile_id: ProfileId) -> Self {
         Self {
             profile_id,
-            dependencies: IndexMap::new(),
+            modules: IndexMap::new(),
             dependents: IndexMap::new(),
         }
     }
@@ -39,78 +42,147 @@ impl ModuleGraph {
         self == other
     }
 
-    /// Update the dependencies for a module.
-    pub fn update_module(&mut self, module_id: ModuleId, dependencies: Vec<ModuleId>) {
+    /// Update one module and its outgoing dependency edges.
+    pub fn update_module(
+        &mut self,
+        module_id: ModuleId,
+        module_kind: ModuleKind,
+        module_version: ModuleVersion,
+        dependencies: Vec<ModuleEdge>,
+    ) {
         // normalize and sort dependency list
         let mut sorted = dependencies;
         sorted.sort_unstable();
         sorted.dedup();
 
         // snapshot previous dependencies for reverse updates
-        let previous = self.dependencies.get(&module_id).cloned();
+        let previous = self
+            .modules
+            .get(&module_id)
+            .map(|metadata| metadata.dependencies.clone());
 
         // update dependency set
         let mut next_set = IndexSet::new();
-        for dep in sorted {
-            next_set.insert(dep);
+        for dependency in sorted {
+            next_set.insert(dependency);
         }
-        self.dependencies.insert(module_id, next_set.clone());
+        self.modules.insert(
+            module_id,
+            ModuleMetadata {
+                kind: module_kind,
+                version: module_version,
+                dependencies: next_set.clone(),
+            },
+        );
 
         // remove stale reverse edges
         if let Some(previous) = previous {
-            for dep in previous {
-                if next_set.contains(&dep) {
+            for dependency in previous {
+                if next_set.contains(&dependency) {
                     continue;
                 }
-                if let Some(entry) = self.dependents.get_mut(&dep) {
-                    entry.shift_remove(&module_id);
+                if let Some(entry) = self.dependents.get_mut(&dependency.target) {
+                    entry.shift_remove(&dependency.reverse_for(module_id));
                     if entry.is_empty() {
-                        self.dependents.shift_remove(&dep);
+                        self.dependents.shift_remove(&dependency.target);
                     }
                 }
             }
         }
 
         // add new reverse edges
-        for dep in next_set {
-            match self.dependents.entry(dep) {
+        for dependency in next_set {
+            let reverse_edge = dependency.reverse_for(module_id);
+            match self.dependents.entry(dependency.target) {
                 Entry::Occupied(mut entry) => {
-                    entry.get_mut().insert(module_id);
+                    entry.get_mut().insert(reverse_edge);
                 }
                 Entry::Vacant(entry) => {
                     let mut set = IndexSet::new();
-                    set.insert(module_id);
+                    set.insert(reverse_edge);
                     entry.insert(set);
                 }
             }
         }
     }
 
-    /// Get the dependency list for a module.
-    pub fn dependencies_for(&self, module_id: ModuleId) -> Vec<ModuleId> {
-        self.dependencies
+    /// Update one module with plain import like dependencies.
+    pub fn update_module_dependencies(
+        &mut self,
+        module_id: ModuleId,
+        module_kind: ModuleKind,
+        module_version: ModuleVersion,
+        dependencies: Vec<ModuleId>,
+    ) {
+        let edges = dependencies
+            .into_iter()
+            .map(|module_id| ModuleEdge::new(module_id, ModuleEdgeRelation::Import))
+            .collect();
+
+        self.update_module(module_id, module_kind, module_version, edges);
+    }
+
+    /// Return the registered kind for one module when available.
+    pub fn module_kind_for(&self, module_id: ModuleId) -> Option<ModuleKind> {
+        self.modules.get(&module_id).map(|metadata| metadata.kind)
+    }
+
+    /// Return the registered version for one module when available.
+    pub fn module_version_for(&self, module_id: ModuleId) -> Option<ModuleVersion> {
+        self.modules
             .get(&module_id)
-            .map(|deps| deps.iter().copied().collect())
+            .map(|metadata| metadata.version)
+    }
+
+    /// Return the dependency edges for one module.
+    pub fn dependency_edges_for(&self, module_id: ModuleId) -> Vec<ModuleEdge> {
+        self.modules
+            .get(&module_id)
+            .map(|metadata| metadata.dependencies.iter().copied().collect())
             .unwrap_or_default()
     }
 
-    /// Get the dependent list for a module.
-    pub fn dependents_for(&self, module_id: ModuleId) -> Vec<ModuleId> {
+    /// Return the dependency list for one module.
+    pub fn dependencies_for(&self, module_id: ModuleId) -> Vec<ModuleId> {
+        let mut dependencies = self
+            .dependency_edges_for(module_id)
+            .into_iter()
+            .map(|dependency| dependency.target)
+            .collect::<Vec<_>>();
+        dependencies.sort_unstable();
+        dependencies.dedup();
+        dependencies
+    }
+
+    /// Return the dependent edges for one module.
+    pub fn dependent_edges_for(&self, module_id: ModuleId) -> Vec<ModuleEdge> {
         self.dependents
             .get(&module_id)
-            .map(|deps| deps.iter().copied().collect())
+            .map(|dependencies| dependencies.iter().copied().collect())
             .unwrap_or_default()
+    }
+
+    /// Return the dependent list for one module.
+    pub fn dependents_for(&self, module_id: ModuleId) -> Vec<ModuleId> {
+        let mut dependents = self
+            .dependent_edges_for(module_id)
+            .into_iter()
+            .map(|dependency| dependency.target)
+            .collect::<Vec<_>>();
+        dependents.sort_unstable();
+        dependents.dedup();
+        dependents
     }
 
     /// Remove a module from the graph.
     pub fn remove_module(&mut self, module_id: ModuleId) {
         // remove forward dependencies and clean reverse edges
-        if let Some(dependencies) = self.dependencies.shift_remove(&module_id) {
-            for dependency in dependencies {
-                if let Some(entry) = self.dependents.get_mut(&dependency) {
-                    entry.shift_remove(&module_id);
+        if let Some(metadata) = self.modules.shift_remove(&module_id) {
+            for dependency in metadata.dependencies {
+                if let Some(entry) = self.dependents.get_mut(&dependency.target) {
+                    entry.shift_remove(&dependency.reverse_for(module_id));
                     if entry.is_empty() {
-                        self.dependents.shift_remove(&dependency);
+                        self.dependents.shift_remove(&dependency.target);
                     }
                 }
             }
@@ -119,11 +191,10 @@ impl ModuleGraph {
         // remove reverse dependencies and clean forward edges
         if let Some(dependents) = self.dependents.shift_remove(&module_id) {
             for dependent in dependents {
-                if let Some(entry) = self.dependencies.get_mut(&dependent) {
-                    entry.shift_remove(&module_id);
-                    if entry.is_empty() {
-                        self.dependencies.shift_remove(&dependent);
-                    }
+                if let Some(metadata) = self.modules.get_mut(&dependent.target) {
+                    metadata
+                        .dependencies
+                        .shift_remove(&dependent.reverse_for(module_id));
                 }
             }
         }

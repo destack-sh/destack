@@ -13,7 +13,7 @@ use crate::{
     AnalyzeError, AnalyzeOptions, AnalyzeResult, AnalyzeWarning, Assignability, BreakTargetKind,
     Compiler, FlowContext, InferState,
 };
-use destack_artifact::ImportEdgeKind;
+use destack_artifact::ModuleEdgeRelation;
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
     Addressability, Argument, BindingKind, BindingOperator, Block, CastOperator, CastSource,
@@ -4432,7 +4432,7 @@ impl Compiler {
                             profile,
                             None,
                             *target,
-                            ImportEdgeKind::Import,
+                            ModuleEdgeRelation::Import,
                             None,
                         )
                     })

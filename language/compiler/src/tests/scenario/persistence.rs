@@ -136,7 +136,7 @@ export const value: number = dep;
         .unwrap_or_else(|| panic!("expected persisted module graph image"));
 
     // compare the graph shape without live profile ids
-    assert_eq!(loaded.dependencies, expected.dependencies);
+    assert_eq!(loaded.modules, expected.modules);
     assert_eq!(loaded.dependents, expected.dependents);
 }
 

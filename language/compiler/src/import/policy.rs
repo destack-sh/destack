@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use destack_artifact::ImportEdgeKind;
+use destack_artifact::ModuleEdgeRelation;
 use destack_dir::DependencyKind;
 use destack_resolver::{
     ResolveOptions, TypeScriptOptionsDiscovery, TypeScriptOptionsLocation,
@@ -31,7 +31,7 @@ pub struct ImportResolveContext {
     /// The source language of the importing module.
     pub source_language_type: Option<LanguageType>,
     /// The edge semantics for this dependency.
-    pub edge_kind: ImportEdgeKind,
+    pub edge_relation: ModuleEdgeRelation,
 }
 
 impl ImportResolveContext {
@@ -48,7 +48,7 @@ impl ImportResolveContext {
 
     /// Return true when this request resolves a require-like edge.
     pub fn is_require_edge(self) -> bool {
-        self.edge_kind == ImportEdgeKind::Require
+        self.edge_relation.is_require_like()
     }
 
     /// Return whether one default import may fall back to a CommonJS namespace symbol.
@@ -58,8 +58,7 @@ impl ImportResolveContext {
         is_typescript_commonjs_default_interop_enabled: bool,
     ) -> bool {
         // only value imports on import edges may use default namespace interop
-        if self.dependency_kind != DependencyKind::Value || self.edge_kind != ImportEdgeKind::Import
-        {
+        if self.dependency_kind != DependencyKind::Value || !self.edge_relation.is_import_like() {
             return false;
         }
 
@@ -323,7 +322,7 @@ mod tests {
     };
     use std::path::{Path, PathBuf};
 
-    use destack_artifact::ImportEdgeKind;
+    use destack_artifact::ModuleEdgeRelation;
     use destack_dir::DependencyKind;
     use destack_resolver::{ResolveOptions, TypeScriptOptionsDiscovery};
     use destack_source::LanguageType;
@@ -335,7 +334,7 @@ mod tests {
         let context = ImportResolveContext {
             dependency_kind: DependencyKind::Value,
             source_language_type: None,
-            edge_kind: ImportEdgeKind::Import,
+            edge_relation: ModuleEdgeRelation::Import,
         };
         let options = materialize_import_resolve_options(&ResolveOptions::blank(), context);
 
@@ -356,7 +355,7 @@ mod tests {
         let context = ImportResolveContext {
             dependency_kind: DependencyKind::Type,
             source_language_type: Some(LanguageType::TypeScript),
-            edge_kind: ImportEdgeKind::Import,
+            edge_relation: ModuleEdgeRelation::Import,
         };
         let options = materialize_import_resolve_options(&ResolveOptions::blank(), context);
 
@@ -377,7 +376,7 @@ mod tests {
         let context = ImportResolveContext {
             dependency_kind: DependencyKind::Value,
             source_language_type: None,
-            edge_kind: ImportEdgeKind::Import,
+            edge_relation: ModuleEdgeRelation::Import,
         };
 
         let options = materialize_import_resolve_options(&base, context);
@@ -393,7 +392,7 @@ mod tests {
         let context = ImportResolveContext {
             dependency_kind: DependencyKind::Value,
             source_language_type: None,
-            edge_kind: ImportEdgeKind::Import,
+            edge_relation: ModuleEdgeRelation::Import,
         };
 
         let options = materialize_import_resolve_options(&base, context);
@@ -412,7 +411,7 @@ mod tests {
         let context = ImportResolveContext {
             dependency_kind: DependencyKind::Value,
             source_language_type: Some(LanguageType::JavaScript),
-            edge_kind: ImportEdgeKind::Require,
+            edge_relation: ModuleEdgeRelation::Require,
         };
 
         let options = materialize_import_resolve_options(&base, context);
@@ -428,7 +427,7 @@ mod tests {
         let context = ImportResolveContext {
             dependency_kind: DependencyKind::Value,
             source_language_type: Some(LanguageType::JavaScript),
-            edge_kind: ImportEdgeKind::Import,
+            edge_relation: ModuleEdgeRelation::Import,
         };
 
         let options = materialize_import_resolve_options(&base, context);
@@ -557,7 +556,7 @@ mod tests {
         let context = ImportResolveContext {
             dependency_kind: DependencyKind::Value,
             source_language_type: Some(LanguageType::JavaScript),
-            edge_kind: ImportEdgeKind::Import,
+            edge_relation: ModuleEdgeRelation::Import,
         };
 
         let allowed =
@@ -572,7 +571,7 @@ mod tests {
         let context = ImportResolveContext {
             dependency_kind: DependencyKind::Value,
             source_language_type: Some(LanguageType::JavaScript),
-            edge_kind: ImportEdgeKind::Import,
+            edge_relation: ModuleEdgeRelation::Import,
         };
 
         let allowed = context.allows_commonjs_default_namespace_import(None, false);
@@ -586,7 +585,7 @@ mod tests {
         let context = ImportResolveContext {
             dependency_kind: DependencyKind::Value,
             source_language_type: Some(LanguageType::TypeScript),
-            edge_kind: ImportEdgeKind::Import,
+            edge_relation: ModuleEdgeRelation::Import,
         };
 
         let allowed = context.allows_commonjs_default_namespace_import(
@@ -603,7 +602,7 @@ mod tests {
         let context = ImportResolveContext {
             dependency_kind: DependencyKind::Value,
             source_language_type: Some(LanguageType::TypeScript),
-            edge_kind: ImportEdgeKind::Import,
+            edge_relation: ModuleEdgeRelation::Import,
         };
         let options = TsCompilerOptions {
             es_module_interop: true,
@@ -624,7 +623,7 @@ mod tests {
         let context = ImportResolveContext {
             dependency_kind: DependencyKind::Value,
             source_language_type: Some(LanguageType::TypeScript),
-            edge_kind: ImportEdgeKind::Import,
+            edge_relation: ModuleEdgeRelation::Import,
         };
         let options = TsCompilerOptions {
             module_resolution: ModuleResolution::Node16,
@@ -645,7 +644,7 @@ mod tests {
         let context = ImportResolveContext {
             dependency_kind: DependencyKind::Value,
             source_language_type: Some(LanguageType::JavaScript),
-            edge_kind: ImportEdgeKind::Import,
+            edge_relation: ModuleEdgeRelation::Import,
         };
 
         let allowed =

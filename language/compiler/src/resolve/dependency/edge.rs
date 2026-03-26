@@ -2,7 +2,9 @@ use crate::{
     Compiler, ImportResolveContext, ResolveError, ResolveMode, ResolveResult, ResolveWarning,
     typescript_commonjs_default_interop_is_enabled,
 };
-use destack_artifact::{DirPrepared, DirResolved, ImportEdgeKind, ImportedModuleTable, Runtime};
+use destack_artifact::{
+    DirPrepared, DirResolved, ImportedModuleTable, ModuleEdgeRelation, Runtime,
+};
 use destack_ast::StringId;
 use destack_builtin::resolve_profile_builtin_library_name;
 use destack_dir::{DependencyKind, DependencySource, ModuleResolution, ModuleTarget};
@@ -173,7 +175,7 @@ impl Compiler {
         profile: ProfileId,
         resolve_target: StringId,
         source_module: Option<ModuleId>,
-        edge_kind: ImportEdgeKind,
+        edge_relation: ModuleEdgeRelation,
         loader_override: Option<destack_artifact::Loader>,
         kind: DependencyKind,
     ) -> Option<(ModuleTarget, ModuleResolution)> {
@@ -183,7 +185,7 @@ impl Compiler {
                 profile,
                 resolve_target,
                 source_module,
-                edge_kind,
+                edge_relation,
                 loader_override,
             )
             .ok()?;
@@ -231,18 +233,18 @@ impl Compiler {
     pub(crate) fn import_edge_kind_for_dependency(
         source: DependencySource,
         is_typescript_commonjs: bool,
-    ) -> ImportEdgeKind {
+    ) -> ModuleEdgeRelation {
         // preserve require style edges from source syntax
         match source {
             DependencySource::ImportEquals | DependencySource::RequireCall => {
-                ImportEdgeKind::Require
+                ModuleEdgeRelation::Require
             }
 
             // lower static ts commonjs imports through require conditions
             DependencySource::ImportStatement | DependencySource::ExportStatement
                 if is_typescript_commonjs =>
             {
-                ImportEdgeKind::Require
+                ModuleEdgeRelation::Require
             }
 
             // keep esm edges, directives, and runtime imports as import conditions
@@ -252,7 +254,7 @@ impl Compiler {
             | DependencySource::ReferenceLibDirective
             | DependencySource::ExportStatement
             | DependencySource::ImportCall
-            | DependencySource::ValueExpression => ImportEdgeKind::Import,
+            | DependencySource::ValueExpression => ModuleEdgeRelation::Import,
         }
     }
 
@@ -324,7 +326,7 @@ impl Compiler {
         &self,
         module: &Module,
         source: DependencySource,
-    ) -> ImportEdgeKind {
+    ) -> ModuleEdgeRelation {
         let is_typescript_commonjs =
             module.module_format.is_commonjs() && module.language_type.is_typescript();
 
@@ -338,17 +340,17 @@ impl Compiler {
         profile: ProfileId,
         imported_modules: Option<&ImportedModuleTable>,
         target: StringId,
-        edge_kind: ImportEdgeKind,
+        edge_relation: ModuleEdgeRelation,
         loader_override: Option<destack_artifact::Loader>,
     ) -> Option<ModuleResolution> {
         if let Some(imported_modules) = imported_modules {
             let source_module = Some(module_id);
-            let cache_key = (source_module, target, edge_kind, loader_override);
+            let cache_key = (source_module, target, edge_relation, loader_override);
             return imported_modules.get(&cache_key).copied();
         }
 
         let source_module = Some(module_id);
-        let cache_key = (source_module, target, edge_kind, loader_override);
+        let cache_key = (source_module, target, edge_relation, loader_override);
         let snapshot = self.dir_resolved(module_id, profile)?;
         snapshot.imported_modules.get(&cache_key).copied()
     }
@@ -517,8 +519,8 @@ impl Compiler {
         kind: DependencyKind,
     ) -> ResolveResult<ModuleTarget> {
         let source_module = Some(module.id);
-        let edge_kind = self.import_edge_kind(module, source);
-        let cache_key = (source_module, target, edge_kind, None);
+        let edge_relation = self.import_edge_kind(module, source);
+        let cache_key = (source_module, target, edge_relation, None);
 
         // check if already resolved in the resolved snapshot
         if let Some(targets) = dir.imported_modules.get(&cache_key)
@@ -547,8 +549,8 @@ impl Compiler {
         loader_override: Option<destack_artifact::Loader>,
     ) -> ResolveResult<ModuleTarget> {
         let source_module = Some(module.id);
-        let edge_kind = self.import_edge_kind(module, source);
-        let cache_key = (source_module, target, edge_kind, loader_override);
+        let edge_relation = self.import_edge_kind(module, source);
+        let cache_key = (source_module, target, edge_relation, loader_override);
 
         // check if already resolved locally
         if let Some(targets) = imported_modules.get(&cache_key)
@@ -586,8 +588,8 @@ impl Compiler {
         loader_override: Option<destack_artifact::Loader>,
     ) -> ResolveResult<ModuleTarget> {
         let source_module = Some(module.id);
-        let edge_kind = self.import_edge_kind(module, source);
-        let cache_key = (source_module, target, edge_kind, loader_override);
+        let edge_relation = self.import_edge_kind(module, source);
+        let cache_key = (source_module, target, edge_relation, loader_override);
 
         // check if already resolved in the prepared snapshot
         if let Some(targets) = dir.imported_modules.get(&cache_key)
@@ -623,7 +625,7 @@ impl Compiler {
         loader_override: Option<destack_artifact::Loader>,
     ) -> ResolveResult<ImportResolutionResult> {
         let source_module = Some(module.id);
-        let edge_kind = self.import_edge_kind(module, source);
+        let edge_relation = self.import_edge_kind(module, source);
 
         // resolve reference lib directives through builtin library loading
         if source == DependencySource::ReferenceLibDirective {
@@ -702,7 +704,7 @@ impl Compiler {
             profile,
             resolve_target,
             source_module,
-            edge_kind,
+            edge_relation,
             loader_override,
             kind,
         ) {
@@ -1078,7 +1080,7 @@ impl Compiler {
         let context = ImportResolveContext {
             dependency_kind: kind,
             source_language_type: Some(module.language_type),
-            edge_kind: self.import_edge_kind(module, source),
+            edge_relation: self.import_edge_kind(module, source),
         };
 
         // read target runtime format
