@@ -7,39 +7,41 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::os::tests::OsHarnessContext;
 use crate::platform::os::{
-    BackgroundEvent, BackgroundEventMetadata, BackgroundEventMetadataVm,
-    BackgroundEventOpenOptions, BackgroundEventOpenOptionsVm, BackgroundEventVm, BackgroundStatus,
-    BackgroundTaskDescriptor, BackgroundTaskDescriptorVm, BackgroundTaskExpiredEvent,
-    BackgroundTaskExpiredEventVm, BackgroundTaskOptions, BackgroundTaskOptionsVm,
-    BackgroundTaskReadyEvent, BackgroundTaskReadyEventVm, BackgroundTaskResult,
-    BackgroundTriggerKind, CalendarAbsoluteReminder, CalendarAbsoluteReminderVm, CalendarAccess,
-    CalendarAttendee, CalendarAttendeeVm, CalendarAvailability, CalendarDescriptor,
-    CalendarDescriptorVm, CalendarEvent, CalendarEventDraft, CalendarEventDraftVm,
-    CalendarEventQuery, CalendarEventQueryVm, CalendarEventVm, CalendarParticipantStatus,
-    CalendarRecurrenceFrequency, CalendarRecurrenceRule, CalendarRecurrenceRuleVm,
-    CalendarRecurrenceWeekday, CalendarRecurrenceWeekdayVm, CalendarRelativeReminder,
-    CalendarRelativeReminderVm, CalendarReminder, CalendarReminderVm, Contact, ContactAddress,
-    ContactAddressVm, ContactDraft, ContactDraftVm, ContactEmail, ContactEmailVm, ContactName,
-    ContactNameVm, ContactOrganization, ContactOrganizationVm, ContactPage, ContactPageVm,
-    ContactPhone, ContactPhoneVm, ContactQuery, ContactQueryVm, ContactVm, CredentialAccessibility,
-    CredentialAuthenticationMechanism, CredentialAuthenticationOptions,
-    CredentialAuthenticationOptionsVm, CredentialAuthenticationPolicy,
-    CredentialAuthenticationRequirement, CredentialAuthenticationResult,
-    CredentialAuthenticationResultVm, CredentialQuery, CredentialQueryVm, CredentialRecord,
-    CredentialRecordVm, CredentialWriteOptions, CredentialWriteOptionsVm, DocumentAccess,
-    DocumentDescriptor, DocumentDescriptorVm, DocumentPickOptions, DocumentPickOptionsVm,
-    HostIdentity, HostIdentityVm, IntentCustomActionEvent, IntentCustomActionEventVm,
-    IntentCustomActionPayload, IntentCustomActionPayloadVm, IntentEvent, IntentEventMetadata,
-    IntentEventMetadataVm, IntentEventVm, IntentOpenFileEvent, IntentOpenFileEventVm,
-    IntentOpenFilePayload, IntentOpenFilePayloadVm, IntentOpenOptions, IntentOpenOptionsVm,
-    IntentOpenUrlEvent, IntentOpenUrlEventVm, IntentOpenUrlPayload, IntentOpenUrlPayloadVm,
-    IntentShareFilesEvent, IntentShareFilesEventVm, IntentShareFilesPayload,
-    IntentShareFilesPayloadVm, IntentShareTextEvent, IntentShareTextEventVm,
-    IntentShareTextPayload, IntentShareTextPayloadVm, LifecycleBackgroundEvent,
-    LifecycleBackgroundEventVm, LifecycleEvent, LifecycleEventMetadata, LifecycleEventMetadataVm,
-    LifecycleEventVm, LifecycleForegroundEvent, LifecycleForegroundEventVm, LifecycleLaunchEvent,
-    LifecycleLaunchEventVm, LifecycleLowMemoryEvent, LifecycleLowMemoryEventVm,
-    LifecycleLowMemoryPayload, LifecycleLowMemoryPayloadVm, LifecycleLowPowerModeChangedEvent,
+    BackgroundConflictPolicy, BackgroundEvent, BackgroundEventMetadata, BackgroundEventMetadataVm,
+    BackgroundEventOpenOptions, BackgroundEventOpenOptionsVm, BackgroundEventVm,
+    BackgroundNetworkRequirement, BackgroundStatus, BackgroundTaskDescriptor,
+    BackgroundTaskDescriptorVm, BackgroundTaskExpiredEvent, BackgroundTaskExpiredEventVm,
+    BackgroundTaskOptions, BackgroundTaskOptionsVm, BackgroundTaskReadyEvent,
+    BackgroundTaskReadyEventVm, BackgroundTaskResult, BackgroundTaskSchedule,
+    BackgroundTaskScheduleKind, BackgroundTaskScheduleVm, BackgroundTriggerKind,
+    CalendarAbsoluteReminder, CalendarAbsoluteReminderVm, CalendarAccess, CalendarAttendee,
+    CalendarAttendeeVm, CalendarAvailability, CalendarDescriptor, CalendarDescriptorVm,
+    CalendarEvent, CalendarEventDraft, CalendarEventDraftVm, CalendarEventQuery,
+    CalendarEventQueryVm, CalendarEventVm, CalendarParticipantStatus, CalendarRecurrenceFrequency,
+    CalendarRecurrenceRule, CalendarRecurrenceRuleVm, CalendarRecurrenceWeekday,
+    CalendarRecurrenceWeekdayVm, CalendarRelativeReminder, CalendarRelativeReminderVm,
+    CalendarReminder, CalendarReminderVm, Contact, ContactAddress, ContactAddressVm, ContactDraft,
+    ContactDraftVm, ContactEmail, ContactEmailVm, ContactName, ContactNameVm, ContactOrganization,
+    ContactOrganizationVm, ContactPage, ContactPageVm, ContactPhone, ContactPhoneVm, ContactQuery,
+    ContactQueryVm, ContactVm, CredentialAccessibility, CredentialAuthenticationMechanism,
+    CredentialAuthenticationOptions, CredentialAuthenticationOptionsVm,
+    CredentialAuthenticationPolicy, CredentialAuthenticationRequirement,
+    CredentialAuthenticationResult, CredentialAuthenticationResultVm, CredentialQuery,
+    CredentialQueryVm, CredentialRecord, CredentialRecordVm, CredentialWriteOptions,
+    CredentialWriteOptionsVm, DocumentAccess, DocumentDescriptor, DocumentDescriptorVm,
+    DocumentPickOptions, DocumentPickOptionsVm, HostIdentity, HostIdentityVm,
+    IntentCustomActionEvent, IntentCustomActionEventVm, IntentCustomActionPayload,
+    IntentCustomActionPayloadVm, IntentEvent, IntentEventMetadata, IntentEventMetadataVm,
+    IntentEventVm, IntentOpenFileEvent, IntentOpenFileEventVm, IntentOpenFilePayload,
+    IntentOpenFilePayloadVm, IntentOpenOptions, IntentOpenOptionsVm, IntentOpenUrlEvent,
+    IntentOpenUrlEventVm, IntentOpenUrlPayload, IntentOpenUrlPayloadVm, IntentShareFilesEvent,
+    IntentShareFilesEventVm, IntentShareFilesPayload, IntentShareFilesPayloadVm,
+    IntentShareTextEvent, IntentShareTextEventVm, IntentShareTextPayload, IntentShareTextPayloadVm,
+    LifecycleBackgroundEvent, LifecycleBackgroundEventVm, LifecycleEvent, LifecycleEventMetadata,
+    LifecycleEventMetadataVm, LifecycleEventVm, LifecycleForegroundEvent,
+    LifecycleForegroundEventVm, LifecycleLaunchEvent, LifecycleLaunchEventVm,
+    LifecycleLowMemoryEvent, LifecycleLowMemoryEventVm, LifecycleLowMemoryPayload,
+    LifecycleLowMemoryPayloadVm, LifecycleLowPowerModeChangedEvent,
     LifecycleLowPowerModeChangedEventVm, LifecycleLowPowerPayload, LifecycleLowPowerPayloadVm,
     LifecyclePauseEvent, LifecyclePauseEventVm, LifecycleResumeEvent, LifecycleResumeEventVm,
     LifecycleState, LifecycleTerminateEvent, LifecycleTerminateEventVm, LoadAverage, LoadAverageVm,
@@ -134,6 +136,11 @@ impl<'call> OsHarnessContext<'call> {
     /// Report completion for one scheduled background-task execution.
     ///
     /// Submit final execution status for one scheduled task execution token.
+    /// Success finalizes this execution.
+    /// Retry asks the host to retry this one execution sooner than the next scheduled occurrence when supported.
+    /// Failure finalizes this execution without an earlier retry.
+    /// One-shot registrations end after one definitive success or failure.
+    /// Recurring registrations continue on their regular schedule after one definitive success or failure.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -377,7 +384,7 @@ impl<'call> OsHarnessContext<'call> {
 
     /// Register one background task.
     ///
-    /// Create or replace one background-task registration for this runtime identity.
+    /// Create one background-task registration or resolve one existing identifier according to the selected registration policy.
     ///
     /// # Platform
     /// Unix and Windows.

@@ -10,13 +10,15 @@
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::os::{
-    BackgroundEvent, BackgroundEventMetadata, BackgroundEventMetadataValue,
-    BackgroundEventMetadataVm, BackgroundEventOpenOptions, BackgroundEventOpenOptionsVm,
-    BackgroundEventValue, BackgroundEventVm, BackgroundStatus, BackgroundTaskDescriptor,
+    BackgroundConflictPolicy, BackgroundEvent, BackgroundEventMetadata,
+    BackgroundEventMetadataValue, BackgroundEventMetadataVm, BackgroundEventOpenOptions,
+    BackgroundEventOpenOptionsVm, BackgroundEventValue, BackgroundEventVm,
+    BackgroundNetworkRequirement, BackgroundStatus, BackgroundTaskDescriptor,
     BackgroundTaskDescriptorValue, BackgroundTaskDescriptorVm, BackgroundTaskExpiredEvent,
     BackgroundTaskExpiredEventValue, BackgroundTaskExpiredEventVm, BackgroundTaskOptions,
     BackgroundTaskOptionsVm, BackgroundTaskReadyEvent, BackgroundTaskReadyEventValue,
-    BackgroundTaskReadyEventVm, BackgroundTaskResult, BackgroundTriggerKind,
+    BackgroundTaskReadyEventVm, BackgroundTaskResult, BackgroundTaskSchedule,
+    BackgroundTaskScheduleKind, BackgroundTaskScheduleVm, BackgroundTriggerKind,
     BackgroundeventReplayRecord, BackgroundeventmetadataReplayRecord,
     BackgroundtaskdescriptorReplayRecord, BackgroundtaskexpiredeventReplayRecord,
     BackgroundtaskreadyeventReplayRecord, CalendarAbsoluteReminder, CalendarAbsoluteReminderVm,
@@ -593,10 +595,10 @@ fn decode_destack_os_background_register_args(
         let slots = context
             .aggregate_slots(options_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 9 {
+        if slots.len() != 7 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "options",
-                "expected 9 fields",
+                "expected 7 fields",
             ))
             .boxed());
         }
@@ -613,34 +615,100 @@ fn decode_destack_os_background_register_args(
                 .boxed());
             }
         };
-        let options_minimum_interval_ns =
-            decode_uint64(slots[2], "options_minimum_interval_ns", "minimumIntervalNs")?;
-        let options_earliest_begin_unix_ns = decode_uint64(
-            slots[3],
-            "options_earliest_begin_unix_ns",
-            "earliestBeginUnixNs",
-        )?;
-        let options_requires_network =
-            decode_bool(slots[4], "options_requires_network", "requiresNetwork")?;
-        let options_requires_unmetered_network = decode_bool(
-            slots[5],
-            "options_requires_unmetered_network",
-            "requiresUnmeteredNetwork",
-        )?;
+        let options_schedule = {
+            if slots[2].tag() != vm::ValueTag::Aggregate {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                    "options_schedule",
+                    "schedule",
+                ))
+                .boxed());
+            }
+            let slots = context
+                .aggregate_slots(slots[2])
+                .map_err(|error| RuntimeError::from(error).boxed())?;
+            if slots.len() != 3 {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "options_schedule",
+                    "expected 3 fields",
+                ))
+                .boxed());
+            }
+            let options_schedule_kind_raw =
+                decode_int32(slots[0], "options_schedule_kind_raw", "kind")?;
+            let options_schedule_kind = match options_schedule_kind_raw {
+                1i32 => BackgroundTaskScheduleKind::Once,
+                2i32 => BackgroundTaskScheduleKind::Recurring,
+                _ => {
+                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                        "options_schedule_kind",
+                        "unknown BackgroundTaskScheduleKind value",
+                    ))
+                    .boxed());
+                }
+            };
+            let options_schedule_earliest_begin_unix_ns = if slots[1].tag() == vm::ValueTag::Void {
+                None
+            } else {
+                let options_schedule_earliest_begin_unix_ns_inner = decode_uint64(
+                    slots[1],
+                    "options_schedule_earliest_begin_unix_ns_inner",
+                    "earliestBeginUnixNs",
+                )?;
+                Some(options_schedule_earliest_begin_unix_ns_inner)
+            };
+            let options_schedule_repeat_interval_ns = if slots[2].tag() == vm::ValueTag::Void {
+                None
+            } else {
+                let options_schedule_repeat_interval_ns_inner = decode_uint64(
+                    slots[2],
+                    "options_schedule_repeat_interval_ns_inner",
+                    "repeatIntervalNs",
+                )?;
+                Some(options_schedule_repeat_interval_ns_inner)
+            };
+            BackgroundTaskScheduleVm {
+                kind: options_schedule_kind,
+                earliest_begin_unix_ns: options_schedule_earliest_begin_unix_ns,
+                repeat_interval_ns: options_schedule_repeat_interval_ns,
+            }
+        };
+        let options_network_raw = decode_int32(slots[3], "options_network_raw", "network")?;
+        let options_network = match options_network_raw {
+            1i32 => BackgroundNetworkRequirement::None,
+            2i32 => BackgroundNetworkRequirement::Connected,
+            3i32 => BackgroundNetworkRequirement::Unmetered,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "options_network",
+                    "unknown BackgroundNetworkRequirement value",
+                ))
+                .boxed());
+            }
+        };
         let options_requires_charging =
-            decode_bool(slots[6], "options_requires_charging", "requiresCharging")?;
-        let options_requires_idle = decode_bool(slots[7], "options_requires_idle", "requiresIdle")?;
-        let options_persisted = decode_bool(slots[8], "options_persisted", "persisted")?;
+            decode_bool(slots[4], "options_requires_charging", "requiresCharging")?;
+        let options_requires_idle = decode_bool(slots[5], "options_requires_idle", "requiresIdle")?;
+        let options_conflict_policy_raw =
+            decode_int32(slots[6], "options_conflict_policy_raw", "conflictPolicy")?;
+        let options_conflict_policy = match options_conflict_policy_raw {
+            1i32 => BackgroundConflictPolicy::Replace,
+            2i32 => BackgroundConflictPolicy::Keep,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "options_conflict_policy",
+                    "unknown BackgroundConflictPolicy value",
+                ))
+                .boxed());
+            }
+        };
         BackgroundTaskOptionsVm {
             identifier: options_identifier,
             trigger: options_trigger,
-            minimum_interval_ns: options_minimum_interval_ns,
-            earliest_begin_unix_ns: options_earliest_begin_unix_ns,
-            requires_network: options_requires_network,
-            requires_unmetered_network: options_requires_unmetered_network,
+            schedule: options_schedule,
+            network: options_network,
             requires_charging: options_requires_charging,
             requires_idle: options_requires_idle,
-            persisted: options_persisted,
+            conflict_policy: options_conflict_policy,
         }
     };
     Ok((options,))
@@ -9244,46 +9312,46 @@ fn destack_os_background_list_replay(
         OS_BACKGROUND_LIST,
         binding.replay_payload_for(OS_BACKGROUND_LIST)?,
         || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_background_list(binding, out)
-            },
-            RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_background_list(binding, out)
-            },
+            RuntimeWorld::Host => unsafe { platform_native::destack_os_background_list(binding, out) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_os_background_list(binding, out) },
         },
         |result| {
             if let Ok(()) = result {
                 let result_value: NativeArray<BackgroundTaskDescriptor> = unsafe { out.read() };
                 let mut result_recorded = Vec::new();
                 for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
-                    let result_recorded_item_recorded_identifier =
-                        unsafe { result_recorded_item.identifier.as_str()? }.to_string();
+                    let result_recorded_item_recorded_identifier = unsafe { result_recorded_item.identifier.as_str()? }.to_string();
                     let result_recorded_item_recorded_trigger = result_recorded_item.trigger;
-                    let result_recorded_item_recorded_minimum_interval_ns =
-                        result_recorded_item.minimum_interval_ns;
-                    let result_recorded_item_recorded_earliest_begin_unix_ns =
-                        result_recorded_item.earliest_begin_unix_ns;
-                    let result_recorded_item_recorded_requires_network =
-                        result_recorded_item.requires_network;
-                    let result_recorded_item_recorded_requires_unmetered_network =
-                        result_recorded_item.requires_unmetered_network;
-                    let result_recorded_item_recorded_requires_charging =
-                        result_recorded_item.requires_charging;
-                    let result_recorded_item_recorded_requires_idle =
-                        result_recorded_item.requires_idle;
-                    let result_recorded_item_recorded_persisted = result_recorded_item.persisted;
+                    let result_recorded_item_recorded_schedule_kind = result_recorded_item.schedule.kind;
+                    let result_recorded_item_recorded_schedule_earliest_begin_unix_ns = if let Some(value) = result_recorded_item.schedule.earliest_begin_unix_ns {
+                        let result_recorded_item_recorded_schedule_earliest_begin_unix_ns_inner = value;
+                        Some(result_recorded_item_recorded_schedule_earliest_begin_unix_ns_inner)
+                    } else {
+                        None
+                    };
+                    let result_recorded_item_recorded_schedule_repeat_interval_ns = if let Some(value) = result_recorded_item.schedule.repeat_interval_ns {
+                        let result_recorded_item_recorded_schedule_repeat_interval_ns_inner = value;
+                        Some(result_recorded_item_recorded_schedule_repeat_interval_ns_inner)
+                    } else {
+                        None
+                    };
+                    let result_recorded_item_recorded_schedule = BackgroundTaskSchedule {
+                        kind: result_recorded_item_recorded_schedule_kind,
+                        earliest_begin_unix_ns: result_recorded_item_recorded_schedule_earliest_begin_unix_ns,
+                        repeat_interval_ns: result_recorded_item_recorded_schedule_repeat_interval_ns,
+                    };
+                    let result_recorded_item_recorded_network = result_recorded_item.network;
+                    let result_recorded_item_recorded_requires_charging = result_recorded_item.requires_charging;
+                    let result_recorded_item_recorded_requires_idle = result_recorded_item.requires_idle;
+                    let result_recorded_item_recorded_conflict_policy = result_recorded_item.conflict_policy;
                     let result_recorded_item_recorded = BackgroundtaskdescriptorReplayRecord {
                         identifier: result_recorded_item_recorded_identifier,
                         trigger: result_recorded_item_recorded_trigger,
-                        minimum_interval_ns: result_recorded_item_recorded_minimum_interval_ns,
-                        earliest_begin_unix_ns:
-                            result_recorded_item_recorded_earliest_begin_unix_ns,
-                        requires_network: result_recorded_item_recorded_requires_network,
-                        requires_unmetered_network:
-                            result_recorded_item_recorded_requires_unmetered_network,
+                        schedule: result_recorded_item_recorded_schedule,
+                        network: result_recorded_item_recorded_network,
                         requires_charging: result_recorded_item_recorded_requires_charging,
                         requires_idle: result_recorded_item_recorded_requires_idle,
-                        persisted: result_recorded_item_recorded_persisted,
+                        conflict_policy: result_recorded_item_recorded_conflict_policy,
                     };
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -9296,7 +9364,9 @@ fn destack_os_background_list_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(TraceError::from(error.as_ref()));
-                    OsBackgroundListReplayRecord { result }
+                    OsBackgroundListReplayRecord {
+                        result,
+                    }
                 };
                 return Ok(Some(payload));
             }
@@ -9309,32 +9379,38 @@ fn destack_os_background_list_replay(
                 Ok(value) => {
                     let mut value_native_values = Vec::new();
                     for value_native_item in value.iter().cloned() {
-                        let value_native_decoded_identifier =
-                            binding.store_string(value_native_item.identifier.as_str());
+                        let value_native_decoded_identifier = binding.store_string(value_native_item.identifier.as_str());
                         let value_native_decoded_trigger = value_native_item.trigger;
-                        let value_native_decoded_minimum_interval_ns =
-                            value_native_item.minimum_interval_ns;
-                        let value_native_decoded_earliest_begin_unix_ns =
-                            value_native_item.earliest_begin_unix_ns;
-                        let value_native_decoded_requires_network =
-                            value_native_item.requires_network;
-                        let value_native_decoded_requires_unmetered_network =
-                            value_native_item.requires_unmetered_network;
-                        let value_native_decoded_requires_charging =
-                            value_native_item.requires_charging;
+                        let value_native_decoded_schedule_kind = value_native_item.schedule.kind;
+                        let value_native_decoded_schedule_earliest_begin_unix_ns = if let Some(value) = value_native_item.schedule.earliest_begin_unix_ns {
+                            let value_native_decoded_schedule_earliest_begin_unix_ns_inner = value;
+                            Some(value_native_decoded_schedule_earliest_begin_unix_ns_inner)
+                        } else {
+                            None
+                        };
+                        let value_native_decoded_schedule_repeat_interval_ns = if let Some(value) = value_native_item.schedule.repeat_interval_ns {
+                            let value_native_decoded_schedule_repeat_interval_ns_inner = value;
+                            Some(value_native_decoded_schedule_repeat_interval_ns_inner)
+                        } else {
+                            None
+                        };
+                        let value_native_decoded_schedule = BackgroundTaskSchedule {
+                            kind: value_native_decoded_schedule_kind,
+                            earliest_begin_unix_ns: value_native_decoded_schedule_earliest_begin_unix_ns,
+                            repeat_interval_ns: value_native_decoded_schedule_repeat_interval_ns,
+                        };
+                        let value_native_decoded_network = value_native_item.network;
+                        let value_native_decoded_requires_charging = value_native_item.requires_charging;
                         let value_native_decoded_requires_idle = value_native_item.requires_idle;
-                        let value_native_decoded_persisted = value_native_item.persisted;
+                        let value_native_decoded_conflict_policy = value_native_item.conflict_policy;
                         let value_native_decoded = BackgroundTaskDescriptor {
                             identifier: value_native_decoded_identifier,
                             trigger: value_native_decoded_trigger,
-                            minimum_interval_ns: value_native_decoded_minimum_interval_ns,
-                            earliest_begin_unix_ns: value_native_decoded_earliest_begin_unix_ns,
-                            requires_network: value_native_decoded_requires_network,
-                            requires_unmetered_network:
-                                value_native_decoded_requires_unmetered_network,
+                            schedule: value_native_decoded_schedule,
+                            network: value_native_decoded_network,
                             requires_charging: value_native_decoded_requires_charging,
                             requires_idle: value_native_decoded_requires_idle,
-                            persisted: value_native_decoded_persisted,
+                            conflict_policy: value_native_decoded_conflict_policy,
                         };
                         value_native_values.push(value_native_decoded);
                     }
@@ -16269,10 +16345,10 @@ fn destack_os_background_list_vm_replay(
         OS_BACKGROUND_LIST,
         binding.replay_payload_for(OS_BACKGROUND_LIST)?,
         context,
-        |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_os_background_list(binding, context),
-            RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_os_background_list(binding, context)
+        |context| {
+            match world {
+                RuntimeWorld::Host => platform_vm::destack_os_background_list(binding, context),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_os_background_list(binding, context),
             }
         },
         |context, result| {
@@ -16283,122 +16359,87 @@ fn destack_os_background_list_vm_replay(
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item = {
-                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
-                            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                                "result_recorded_item",
-                                "item",
-                            ))
-                            .boxed());
-                        }
-                        let slots = context
-                            .aggregate_slots(result_recorded_item_value)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        if slots.len() != 9 {
-                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                                "result_recorded_item",
-                                "expected 9 fields",
-                            ))
-                            .boxed());
-                        }
-                        let result_recorded_item_identifier = decode_string(
-                            slots[0],
-                            "result_recorded_item_identifier",
-                            "identifier",
-                        )?;
-                        let result_recorded_item_trigger_raw =
-                            decode_int32(slots[1], "result_recorded_item_trigger_raw", "trigger")?;
-                        let result_recorded_item_trigger = match result_recorded_item_trigger_raw {
-                            1i32 => BackgroundTriggerKind::AppRefresh,
-                            2i32 => BackgroundTriggerKind::Processing,
-                            _ => {
-                                return Err(RuntimeError::from(
-                                    PlatformError::invalid_argument_value(
-                                        "result_recorded_item_trigger",
-                                        "unknown BackgroundTriggerKind value",
-                                    ),
-                                )
-                                .boxed());
+                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item", "item")).boxed()); }
+                        let slots = context.aggregate_slots(result_recorded_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
+                        if slots.len() != 7 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item", "expected 7 fields")).boxed()); }
+                        let result_recorded_item_identifier = decode_string(slots[0], "result_recorded_item_identifier", "identifier")?;
+                        let result_recorded_item_trigger_raw = decode_int32(slots[1], "result_recorded_item_trigger_raw", "trigger")?;
+                        let result_recorded_item_trigger = match result_recorded_item_trigger_raw { 1i32 => BackgroundTriggerKind::AppRefresh, 2i32 => BackgroundTriggerKind::Processing , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_trigger", "unknown BackgroundTriggerKind value")).boxed()), };
+                        let result_recorded_item_schedule = {
+                            if slots[2].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_schedule", "schedule")).boxed()); }
+                            let slots = context.aggregate_slots(slots[2]).map_err(|error| RuntimeError::from(error).boxed())?;
+                            if slots.len() != 3 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_schedule", "expected 3 fields")).boxed()); }
+                            let result_recorded_item_schedule_kind_raw = decode_int32(slots[0], "result_recorded_item_schedule_kind_raw", "kind")?;
+                            let result_recorded_item_schedule_kind = match result_recorded_item_schedule_kind_raw { 1i32 => BackgroundTaskScheduleKind::Once, 2i32 => BackgroundTaskScheduleKind::Recurring , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_schedule_kind", "unknown BackgroundTaskScheduleKind value")).boxed()), };
+                            let result_recorded_item_schedule_earliest_begin_unix_ns = if slots[1].tag() == vm::ValueTag::Void {
+                                None
+                            } else {
+                                let result_recorded_item_schedule_earliest_begin_unix_ns_inner = decode_uint64(slots[1], "result_recorded_item_schedule_earliest_begin_unix_ns_inner", "earliestBeginUnixNs")?;
+                                Some(result_recorded_item_schedule_earliest_begin_unix_ns_inner)
+                            };
+                            let result_recorded_item_schedule_repeat_interval_ns = if slots[2].tag() == vm::ValueTag::Void {
+                                None
+                            } else {
+                                let result_recorded_item_schedule_repeat_interval_ns_inner = decode_uint64(slots[2], "result_recorded_item_schedule_repeat_interval_ns_inner", "repeatIntervalNs")?;
+                                Some(result_recorded_item_schedule_repeat_interval_ns_inner)
+                            };
+                            BackgroundTaskScheduleVm {
+                                kind: result_recorded_item_schedule_kind,
+                                earliest_begin_unix_ns: result_recorded_item_schedule_earliest_begin_unix_ns,
+                                repeat_interval_ns: result_recorded_item_schedule_repeat_interval_ns,
                             }
                         };
-                        let result_recorded_item_minimum_interval_ns = decode_uint64(
-                            slots[2],
-                            "result_recorded_item_minimum_interval_ns",
-                            "minimumIntervalNs",
-                        )?;
-                        let result_recorded_item_earliest_begin_unix_ns = decode_uint64(
-                            slots[3],
-                            "result_recorded_item_earliest_begin_unix_ns",
-                            "earliestBeginUnixNs",
-                        )?;
-                        let result_recorded_item_requires_network = decode_bool(
-                            slots[4],
-                            "result_recorded_item_requires_network",
-                            "requiresNetwork",
-                        )?;
-                        let result_recorded_item_requires_unmetered_network = decode_bool(
-                            slots[5],
-                            "result_recorded_item_requires_unmetered_network",
-                            "requiresUnmeteredNetwork",
-                        )?;
-                        let result_recorded_item_requires_charging = decode_bool(
-                            slots[6],
-                            "result_recorded_item_requires_charging",
-                            "requiresCharging",
-                        )?;
-                        let result_recorded_item_requires_idle = decode_bool(
-                            slots[7],
-                            "result_recorded_item_requires_idle",
-                            "requiresIdle",
-                        )?;
-                        let result_recorded_item_persisted =
-                            decode_bool(slots[8], "result_recorded_item_persisted", "persisted")?;
+                        let result_recorded_item_network_raw = decode_int32(slots[3], "result_recorded_item_network_raw", "network")?;
+                        let result_recorded_item_network = match result_recorded_item_network_raw { 1i32 => BackgroundNetworkRequirement::None, 2i32 => BackgroundNetworkRequirement::Connected, 3i32 => BackgroundNetworkRequirement::Unmetered , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_network", "unknown BackgroundNetworkRequirement value")).boxed()), };
+                        let result_recorded_item_requires_charging = decode_bool(slots[4], "result_recorded_item_requires_charging", "requiresCharging")?;
+                        let result_recorded_item_requires_idle = decode_bool(slots[5], "result_recorded_item_requires_idle", "requiresIdle")?;
+                        let result_recorded_item_conflict_policy_raw = decode_int32(slots[6], "result_recorded_item_conflict_policy_raw", "conflictPolicy")?;
+                        let result_recorded_item_conflict_policy = match result_recorded_item_conflict_policy_raw { 1i32 => BackgroundConflictPolicy::Replace, 2i32 => BackgroundConflictPolicy::Keep , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_conflict_policy", "unknown BackgroundConflictPolicy value")).boxed()), };
                         BackgroundTaskDescriptorVm {
                             identifier: result_recorded_item_identifier,
                             trigger: result_recorded_item_trigger,
-                            minimum_interval_ns: result_recorded_item_minimum_interval_ns,
-                            earliest_begin_unix_ns: result_recorded_item_earliest_begin_unix_ns,
-                            requires_network: result_recorded_item_requires_network,
-                            requires_unmetered_network:
-                                result_recorded_item_requires_unmetered_network,
+                            schedule: result_recorded_item_schedule,
+                            network: result_recorded_item_network,
                             requires_charging: result_recorded_item_requires_charging,
                             requires_idle: result_recorded_item_requires_idle,
-                            persisted: result_recorded_item_persisted,
+                            conflict_policy: result_recorded_item_conflict_policy,
                         }
                     };
                     let result_recorded_item_recorded_identifier = {
-                        let result_recorded_item_recorded_identifier_ref = context
-                            .string_ref(result_recorded_item.identifier)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_recorded_item_recorded_identifier_ref
-                            .as_str()
-                            .to_string()
+                        let result_recorded_item_recorded_identifier_ref = context.string_ref(result_recorded_item.identifier).map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_item_recorded_identifier_ref.as_str().to_string()
                     };
                     let result_recorded_item_recorded_trigger = result_recorded_item.trigger;
-                    let result_recorded_item_recorded_minimum_interval_ns =
-                        result_recorded_item.minimum_interval_ns;
-                    let result_recorded_item_recorded_earliest_begin_unix_ns =
-                        result_recorded_item.earliest_begin_unix_ns;
-                    let result_recorded_item_recorded_requires_network =
-                        result_recorded_item.requires_network;
-                    let result_recorded_item_recorded_requires_unmetered_network =
-                        result_recorded_item.requires_unmetered_network;
-                    let result_recorded_item_recorded_requires_charging =
-                        result_recorded_item.requires_charging;
-                    let result_recorded_item_recorded_requires_idle =
-                        result_recorded_item.requires_idle;
-                    let result_recorded_item_recorded_persisted = result_recorded_item.persisted;
+                    let result_recorded_item_recorded_schedule_kind = result_recorded_item.schedule.kind;
+                    let result_recorded_item_recorded_schedule_earliest_begin_unix_ns = if let Some(value) = result_recorded_item.schedule.earliest_begin_unix_ns {
+                        let result_recorded_item_recorded_schedule_earliest_begin_unix_ns_inner = value;
+                        Some(result_recorded_item_recorded_schedule_earliest_begin_unix_ns_inner)
+                    } else {
+                        None
+                    };
+                    let result_recorded_item_recorded_schedule_repeat_interval_ns = if let Some(value) = result_recorded_item.schedule.repeat_interval_ns {
+                        let result_recorded_item_recorded_schedule_repeat_interval_ns_inner = value;
+                        Some(result_recorded_item_recorded_schedule_repeat_interval_ns_inner)
+                    } else {
+                        None
+                    };
+                    let result_recorded_item_recorded_schedule = BackgroundTaskSchedule {
+                        kind: result_recorded_item_recorded_schedule_kind,
+                        earliest_begin_unix_ns: result_recorded_item_recorded_schedule_earliest_begin_unix_ns,
+                        repeat_interval_ns: result_recorded_item_recorded_schedule_repeat_interval_ns,
+                    };
+                    let result_recorded_item_recorded_network = result_recorded_item.network;
+                    let result_recorded_item_recorded_requires_charging = result_recorded_item.requires_charging;
+                    let result_recorded_item_recorded_requires_idle = result_recorded_item.requires_idle;
+                    let result_recorded_item_recorded_conflict_policy = result_recorded_item.conflict_policy;
                     let result_recorded_item_recorded = BackgroundtaskdescriptorReplayRecord {
                         identifier: result_recorded_item_recorded_identifier,
                         trigger: result_recorded_item_recorded_trigger,
-                        minimum_interval_ns: result_recorded_item_recorded_minimum_interval_ns,
-                        earliest_begin_unix_ns:
-                            result_recorded_item_recorded_earliest_begin_unix_ns,
-                        requires_network: result_recorded_item_recorded_requires_network,
-                        requires_unmetered_network:
-                            result_recorded_item_recorded_requires_unmetered_network,
+                        schedule: result_recorded_item_recorded_schedule,
+                        network: result_recorded_item_recorded_network,
                         requires_charging: result_recorded_item_recorded_requires_charging,
                         requires_idle: result_recorded_item_recorded_requires_idle,
-                        persisted: result_recorded_item_recorded_persisted,
+                        conflict_policy: result_recorded_item_recorded_conflict_policy,
                     };
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -16411,7 +16452,9 @@ fn destack_os_background_list_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(TraceError::from(error.as_ref()));
-                    OsBackgroundListReplayRecord { result }
+                    OsBackgroundListReplayRecord {
+                        result,
+                    }
                 };
                 return Ok(Some(payload));
             }
@@ -16425,32 +16468,38 @@ fn destack_os_background_list_vm_replay(
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
                     for vm_result_item in value.iter().cloned() {
-                        let vm_result_item_value_identifier = context
-                            .string_handle(vm_result_item.identifier.as_str())
-                            .map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_item_value_identifier = context.string_handle(vm_result_item.identifier.as_str()).map_err(Box::<RuntimeError>::from)?;
                         let vm_result_item_value_trigger = vm_result_item.trigger;
-                        let vm_result_item_value_minimum_interval_ns =
-                            vm_result_item.minimum_interval_ns;
-                        let vm_result_item_value_earliest_begin_unix_ns =
-                            vm_result_item.earliest_begin_unix_ns;
-                        let vm_result_item_value_requires_network = vm_result_item.requires_network;
-                        let vm_result_item_value_requires_unmetered_network =
-                            vm_result_item.requires_unmetered_network;
-                        let vm_result_item_value_requires_charging =
-                            vm_result_item.requires_charging;
+                        let vm_result_item_value_schedule_kind = vm_result_item.schedule.kind;
+                        let vm_result_item_value_schedule_earliest_begin_unix_ns = if let Some(value) = vm_result_item.schedule.earliest_begin_unix_ns {
+                            let vm_result_item_value_schedule_earliest_begin_unix_ns_inner = value;
+                            Some(vm_result_item_value_schedule_earliest_begin_unix_ns_inner)
+                        } else {
+                            None
+                        };
+                        let vm_result_item_value_schedule_repeat_interval_ns = if let Some(value) = vm_result_item.schedule.repeat_interval_ns {
+                            let vm_result_item_value_schedule_repeat_interval_ns_inner = value;
+                            Some(vm_result_item_value_schedule_repeat_interval_ns_inner)
+                        } else {
+                            None
+                        };
+                        let vm_result_item_value_schedule = BackgroundTaskSchedule {
+                            kind: vm_result_item_value_schedule_kind,
+                            earliest_begin_unix_ns: vm_result_item_value_schedule_earliest_begin_unix_ns,
+                            repeat_interval_ns: vm_result_item_value_schedule_repeat_interval_ns,
+                        };
+                        let vm_result_item_value_network = vm_result_item.network;
+                        let vm_result_item_value_requires_charging = vm_result_item.requires_charging;
                         let vm_result_item_value_requires_idle = vm_result_item.requires_idle;
-                        let vm_result_item_value_persisted = vm_result_item.persisted;
+                        let vm_result_item_value_conflict_policy = vm_result_item.conflict_policy;
                         let vm_result_item_value = BackgroundTaskDescriptorVm {
                             identifier: vm_result_item_value_identifier,
                             trigger: vm_result_item_value_trigger,
-                            minimum_interval_ns: vm_result_item_value_minimum_interval_ns,
-                            earliest_begin_unix_ns: vm_result_item_value_earliest_begin_unix_ns,
-                            requires_network: vm_result_item_value_requires_network,
-                            requires_unmetered_network:
-                                vm_result_item_value_requires_unmetered_network,
+                            schedule: vm_result_item_value_schedule,
+                            network: vm_result_item_value_network,
                             requires_charging: vm_result_item_value_requires_charging,
                             requires_idle: vm_result_item_value_requires_idle,
-                            persisted: vm_result_item_value_persisted,
+                            conflict_policy: vm_result_item_value_conflict_policy,
                         };
                         vm_result_values.push(vm_result_item_value);
                     }

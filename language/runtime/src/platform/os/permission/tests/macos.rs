@@ -5,7 +5,9 @@ use destack_workspace::{RuntimeAppPermission, RuntimeOptions};
 use crate::diagnostic::RuntimeResult;
 use crate::host::core::HostSessionId;
 use crate::host::macos::request::location::{MacosLocationHooks, set_macos_location_test_hooks};
-use crate::platform::os::tests::with_configured_harness_context;
+use crate::platform::os::tests::{
+    decode_permission_entries_value, with_configured_harness_context,
+};
 use crate::platform::os::{Permission, PermissionState};
 
 /// Shared macOS location-permission-test mutex that serializes the process-global hook slot.
@@ -36,7 +38,14 @@ fn test_permission_request_routes_macos_location_permission_hook() {
     let _guard = LocationPermissionHookGuard;
 
     with_configured_harness_context(enable_location_declaration, |mut context| {
-        let state = context.destack_os_permission_request(Permission::Location)?;
+        let handle = context.destack_os_permission_request_open(Permission::Location)?;
+        let entries = context.destack_os_permission_request_read(handle, 0)?;
+        context.destack_os_permission_request_close(handle)?;
+        let entries = decode_permission_entries_value(&mut context, entries)?;
+        let state = entries
+            .first()
+            .expect("permission request should return one result entry")
+            .state;
 
         assert_eq!(state, PermissionState::Granted);
 
