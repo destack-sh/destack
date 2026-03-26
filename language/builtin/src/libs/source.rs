@@ -28,8 +28,8 @@ pub enum BuiltinRuntime {
     WasmJs,
     /// WASM with WASI (wasmtime, wasmer, etc.).
     WasmWasi,
-    /// Native hosted runtime (OS services available).
-    NativeHosted,
+    /// Native managed runtime (main runtime with OS services available).
+    NativeManaged,
     /// Native freestanding runtime (no OS services assumed).
     NativeFreestanding,
     /// Native embedded runtime (freestanding with tight constraints).

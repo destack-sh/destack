@@ -353,7 +353,7 @@ def runtime_variants(values: Iterable[str]) -> list[str]:
         "worker": "BuiltinRuntime::Worker",
         "wasm_js": "BuiltinRuntime::WasmJs",
         "wasm_wasi": "BuiltinRuntime::WasmWasi",
-        "native_hosted": "BuiltinRuntime::NativeHosted",
+        "native_managed": "BuiltinRuntime::NativeManaged",
         "native_freestanding": "BuiltinRuntime::NativeFreestanding",
         "native_embedded": "BuiltinRuntime::NativeEmbedded",
     }

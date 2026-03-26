@@ -320,7 +320,7 @@ impl RuntimeGenerator {
     fn profile_key(&self) -> ProfileKey {
         ProfileKey::new(
             EmitFormat::Native,
-            Runtime::NativeHosted,
+            Runtime::NativeManaged,
             self.host_platform(),
             None,
             None,

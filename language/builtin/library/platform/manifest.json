@@ -3,7 +3,7 @@
     "sourceSets": {
         "platform": {
             "auto": "platform/**/*.ds",
-            "runtimes": ["native_hosted", "native_freestanding", "native_embedded"],
+            "runtimes": ["native_managed", "native_freestanding", "native_embedded"],
             "outputs": ["native"]
         }
     },

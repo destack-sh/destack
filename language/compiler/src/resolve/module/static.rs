@@ -1322,7 +1322,7 @@ fn runtime_name(runtime: Runtime) -> &'static str {
         Runtime::Worker => "worker",
         Runtime::WasmJs => "wasm-js",
         Runtime::WasmWasi => "wasm-wasi",
-        Runtime::NativeHosted => "native-hosted",
+        Runtime::NativeManaged => "native-managed",
         Runtime::NativeFreestanding => "native-freestanding",
         Runtime::NativeEmbedded => "native-embedded",
     }

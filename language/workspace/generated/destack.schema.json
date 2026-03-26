@@ -12043,7 +12043,7 @@
       "type": "object",
       "properties": {
         "runtime": {
-          "description": "Runtime environment (browser, node, wasm-wasi, native-hosted, etc.).",
+          "description": "Runtime environment (browser, node, wasm-wasi, native-managed, etc.).",
           "anyOf": [
             {
               "$ref": "#/$defs/RuntimeConfigJson"

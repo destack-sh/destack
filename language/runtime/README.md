@@ -2,7 +2,7 @@
 
 The runtime is how Destack actually does anything interesting beyond pure computation.
 The Destack runtime integrates VM and or native execution with scheduling, platform and host bindings, simulation, telemetry, and all the other runtime machinery.
-At the native-hosted layer, the runtime owns semantics and policy while host shells own framework integration and native reality.
+At the native-managed layer, the runtime owns semantics and policy while host shells own framework integration and native reality.
 The long term goal is still Web++ and Node++ shaped semantics, but the native runtime architecture is its own host embedding problem.
 Destack should also default to its own renderer, more like a browser engine or game engine, not a native-view composition framework.
 
@@ -77,7 +77,7 @@ pub enum OsPathValue {
 The low-level `platform` bindings are not meant to be used _directly_ by general userland - though they are accessible to advanced users - but instead through the higher-level `destack:*` library, which is essentially a `node:*` shaped higher level API with all the same functionality.
 And because Destack tries to follow web standards closely, all the low level binding modules are also organized around the same concepts, even though they go much deeper (and wider).
 
-For native-hosted targets, these bindings are bridged through host shells rather than exposed directly as an application architecture.
+For native-managed targets, these bindings are bridged through host shells rather than exposed directly as an application architecture.
 Android and Apple are the most important native-shell targets here.
 Browser JS, Node, Deno, and Bun are not the same runtime architecture.
 That native integration should normally attach one Destack-rendered host surface per runtime session and only use native views as explicit host features or optional native-view islands.
