@@ -12,7 +12,7 @@ use crate::{
     NodeTree, NodeTreeImpl, ReferenceKind, TensorDimension, TensorLayout, Type, TypeAlias, Value,
 };
 
-use super::types::format_type_expanded;
+use super::r#type::format_type_expanded;
 
 pub type MirFormatter<'a, 'buf> = Formatter<'buf, MirFormatContext<'a>>;
 
@@ -748,13 +748,9 @@ fn type_key_for_alias(
             let result = type_key_for_alias(tree, strings, *result);
             format!("fn({params}) -> {result}")
         }
-        Type::FunctionValue {
-            signature,
-            environment,
-        } => {
+        Type::FunctionValue { signature, .. } => {
             let signature = type_key_for_alias(tree, strings, *signature);
-            let environment = type_key_for_alias(tree, strings, *environment);
-            format!("fnvalue<{signature}, {environment}>")
+            format!("fnvalue<{signature}>")
         }
     }
 }
@@ -1001,12 +997,8 @@ fn record_type_use_inner(
             }
             record_type_use_inner(tree, *result, counts, visited);
         }
-        Type::FunctionValue {
-            signature,
-            environment,
-        } => {
+        Type::FunctionValue { signature } => {
             record_type_use_inner(tree, *signature, counts, visited);
-            record_type_use_inner(tree, *environment, counts, visited);
         }
         Type::Void
         | Type::Boolean
@@ -1203,18 +1195,8 @@ fn collect_alias_dependencies(
                 }
                 record_dependency(*result, root, alias_types, &mut dependencies, &mut stack);
             }
-            Type::FunctionValue {
-                signature,
-                environment,
-            } => {
+            Type::FunctionValue { signature } => {
                 record_dependency(*signature, root, alias_types, &mut dependencies, &mut stack);
-                record_dependency(
-                    *environment,
-                    root,
-                    alias_types,
-                    &mut dependencies,
-                    &mut stack,
-                );
             }
             Type::Void
             | Type::Boolean

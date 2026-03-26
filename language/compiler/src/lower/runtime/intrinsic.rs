@@ -36,11 +36,11 @@ impl FunctionLowerer<'_> {
     ) -> LowerResult<Option<dir::StringId>> {
         // resolve the intrinsic name through the registry
         resolve_intrinsic_binding_name_id(
-            self.env.module_id,
-            self.env.profile,
-            self.env.compiler,
-            self.env.symbols,
-            self.env.well_known_intrinsics,
+            self.context.module_id,
+            self.context.profile,
+            self.context.compiler,
+            self.context.symbols,
+            self.context.well_known_intrinsics,
             target_symbol,
         )
     }

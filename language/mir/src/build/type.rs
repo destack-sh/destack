@@ -335,14 +335,8 @@ impl ModuleBuilder {
     }
 
     /// Create a callable function value type.
-    pub fn type_function_value(
-        &mut self,
-        signature: LocalNodeId<Type>,
-        environment: LocalNodeId<Type>,
-    ) -> LocalNodeId<Type> {
-        self.tree.insert_type(Type::FunctionValue {
-            signature,
-            environment,
-        })
+    pub fn type_function_value(&mut self, signature: LocalNodeId<Type>) -> LocalNodeId<Type> {
+        self.tree.ensure_function_value_environment_type();
+        self.tree.insert_type(Type::FunctionValue { signature })
     }
 }

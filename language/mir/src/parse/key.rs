@@ -106,10 +106,7 @@ pub(super) enum TypeKey {
         result: LocalNodeId<Type>,
     },
     /// Callable closure value.
-    FunctionValue {
-        signature: LocalNodeId<Type>,
-        environment: LocalNodeId<Type>,
-    },
+    FunctionValue { signature: LocalNodeId<Type> },
 }
 
 impl TypeKey {
@@ -213,12 +210,8 @@ impl TypeKey {
                 parameters: parameters.clone(),
                 result: *result,
             },
-            Type::FunctionValue {
-                signature,
-                environment,
-            } => TypeKey::FunctionValue {
+            Type::FunctionValue { signature } => TypeKey::FunctionValue {
                 signature: *signature,
-                environment: *environment,
             },
         }
     }

@@ -608,7 +608,7 @@ fn test_type_construction() {
     let array_type = module.type_array(i32_type, 10, Copyability::Trivial);
     let tuple_type = module.type_tuple(vec![i32_type, i64_type], Copyability::Trivial);
     let function_pointer_type = module.type_function_pointer(vec![i32_type], i32_type);
-    let function_value_type = module.type_function_value(function_pointer_type, pointer_type);
+    let function_value_type = module.type_function_value(function_pointer_type);
 
     // verify types
     let (tree, _strings) = module.finish_immutable();

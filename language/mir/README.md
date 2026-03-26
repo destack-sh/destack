@@ -77,7 +77,7 @@ Instructions perform "operations" and may produce SSA `Value`s.
 | Selection | `select` (conditional value without branching) |
 | Local variables | `local.get`, `local.set`, `local.addr` |
 | Globals | `global.addr`, `global.const` |
-| Functions | `function.addr`, `function.env` |
+| Functions | `function.addr`, `function.environment` |
 | Memory | `load`, `store`, `raw.drop`, `stack.drop` |
 | Aggregates | `struct`, `tuple`, `array`, `field.get`, `field.set`, `field.addr`, `element.get`, `element.set`, `element.addr` |
 | Vector | `vector.*` (splat, extract, insert, shuffle, select, reduce, compare, convert) |
@@ -115,7 +115,7 @@ SSA values are immutable.
 To mutate, allocate a `Local` and use `local.get` or `local.set` (or just use a new value).
 
 `field.addr` and `element.addr` produce a reference to a field or element.
-Pointer-producing instructions (`local.addr`, `global.addr`, `function.env`, `managed.alloc`, `raw.alloc`, `stack.alloc`, `field.addr`, `element.addr`) define typed SSA values.
+Pointer-producing instructions (`local.addr`, `global.addr`, `function.environment`, `managed.alloc`, `raw.alloc`, `stack.alloc`, `field.addr`, `element.addr`) define typed SSA values.
 `global.addr` returns `ref<raw addrspace(global) T>` and `stack.alloc` returns `ref<raw addrspace(stack) T>`.
 `load` defines a typed SSA value for the loaded result.
 `cast` includes an explicit target type argument.
@@ -478,7 +478,7 @@ block1(v1: i32):    // resumed with value from .next(arg) or resolved promise
     ...
 ```
 
-The `CoroutineKind` (Generator, Async, AsyncGenerator) tells codegen what wrapper to generate.
+The `SuspensionKind` (Generator, Async, AsyncGenerator) tells codegen what wrapper to generate.
 Resume arguments appear as normal block arguments, with the resumed value appended after them.
 
 

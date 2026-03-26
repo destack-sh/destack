@@ -149,7 +149,7 @@ impl FunctionLowerer<'_> {
         let tag_index = layout
             .element_types
             .iter()
-            .position(|element| dir::are_types_equal(*element, variant_type_id, self.env.types))
+            .position(|element| dir::are_types_equal(*element, variant_type_id, self.context.types))
             .ok_or_else(|| LowerError::UnsupportedConstruct {
                 node,
                 message: "union variant is not a member of the union type".to_string(),
@@ -233,12 +233,12 @@ impl FunctionLowerer<'_> {
                 is_signed: signed,
             } => Ok(self.state.builder.iconst(0, *width as u8, *signed)),
             mir::Type::Usize => {
-                let width = self.env.type_lowerer.pointer_width_bits() as u8;
+                let width = self.context.type_lowerer.pointer_width_bits() as u8;
                 let zero = self.state.builder.iconst(0, width, false);
                 Ok(self.state.builder.bitcast(zero, element_type))
             }
             mir::Type::Isize => {
-                let width = self.env.type_lowerer.pointer_width_bits() as u8;
+                let width = self.context.type_lowerer.pointer_width_bits() as u8;
                 let zero = self.state.builder.iconst(0, width, true);
                 Ok(self.state.builder.bitcast(zero, element_type))
             }
@@ -274,7 +274,10 @@ impl FunctionLowerer<'_> {
         let right = self.unwrap_expression(right);
 
         // match member access against a scalar literal
-        let literal_value = match (self.env.dir_tree.get(left), self.env.dir_tree.get(right)) {
+        let literal_value = match (
+            self.context.dir_tree.get(left),
+            self.context.dir_tree.get(right),
+        ) {
             (Expression::ScalarLiteral { value }, Expression::Member { .. })
             | (Expression::ScalarLiteral { value }, Expression::PrivateMember { .. }) => {
                 (right, DiscriminantLiteralValue::Scalar(value))
@@ -306,7 +309,7 @@ impl FunctionLowerer<'_> {
             left: receiver_id,
             name,
             static_arguments,
-        }) = self.env.dir_tree.get(member_id)
+        }) = self.context.dir_tree.get(member_id)
         else {
             return Ok(None);
         };
@@ -328,8 +331,8 @@ impl FunctionLowerer<'_> {
 
         // canonicalize the literal key
         let node = expression_id
-            .into_global_any(self.env.module_id)
-            .into_anchored(Some(self.env.profile));
+            .into_global_any(self.context.module_id)
+            .into_anchored(Some(self.context.profile));
         let key = match literal_value {
             DiscriminantLiteralValue::Scalar(literal) => {
                 DiscriminantKey::from_scalar_literal(literal, node)?.ok_or_else(|| {
@@ -455,14 +458,19 @@ impl FunctionLowerer<'_> {
         // resolve union operand
         let left_type_id = self.type_for_expression_or_error(left)?;
         let right_type_id = self.type_for_expression_or_error(right)?;
-        let (union_expr, literal_expr_id, union_type_id) =
-            if matches!(self.env.types.get_type(left_type_id), Type::Union { .. }) {
-                (left, right, left_type_id)
-            } else if matches!(self.env.types.get_type(right_type_id), Type::Union { .. }) {
-                (right, left, right_type_id)
-            } else {
-                return Ok(None);
-            };
+        let (union_expr, literal_expr_id, union_type_id) = if matches!(
+            self.context.types.get_type(left_type_id),
+            Type::Union { .. }
+        ) {
+            (left, right, left_type_id)
+        } else if matches!(
+            self.context.types.get_type(right_type_id),
+            Type::Union { .. }
+        ) {
+            (right, left, right_type_id)
+        } else {
+            return Ok(None);
+        };
 
         // resolve literal expression
         let Some(literal_value) = self.union_literal_value(literal_expr_id) else {
@@ -471,7 +479,7 @@ impl FunctionLowerer<'_> {
 
         // ensure the union layout is available
         let union_mir_type = self.lower_type_for_expression(union_expr)?;
-        let layout = match self.env.type_lowerer.union_layout(union_type_id) {
+        let layout = match self.context.type_lowerer.union_layout(union_type_id) {
             Some(layout) => layout,
             None => {
                 let union_mir_type = self.state.builder.tree().get(union_mir_type);
@@ -487,8 +495,8 @@ impl FunctionLowerer<'_> {
 
         // resolve the union tag index for the literal element
         let node = expression_id
-            .into_global_any(self.env.module_id)
-            .into_anchored(Some(self.env.profile));
+            .into_global_any(self.context.module_id)
+            .into_anchored(Some(self.context.profile));
         let tag_index = self.union_tag_index_for_literal(layout, &literal_value, node)?;
 
         // lower the union value
@@ -519,7 +527,7 @@ impl FunctionLowerer<'_> {
         expression_id: LocalNodeId<Expression>,
     ) -> Option<UnionLiteralValue> {
         // resolve literal expressions used in union comparisons
-        let expression = self.env.dir_tree.get(expression_id);
+        let expression = self.context.dir_tree.get(expression_id);
         match expression {
             Expression::ScalarLiteral { value } => Some(UnionLiteralValue::Scalar(value.clone())),
             Expression::TypeLiteral {
@@ -543,7 +551,7 @@ impl FunctionLowerer<'_> {
             .element_types
             .iter()
             .position(
-                |element| match (self.env.types.get_type(*element), literal) {
+                |element| match (self.context.types.get_type(*element), literal) {
                     (
                         Type::TypeLiteral {
                             value: TypeLiteral::ScalarLiteral(value),
@@ -603,7 +611,7 @@ impl FunctionLowerer<'_> {
             left,
             operator,
             right,
-        } = self.env.dir_tree.get(condition_id)
+        } = self.context.dir_tree.get(condition_id)
         else {
             return Ok(false);
         };
@@ -646,14 +654,14 @@ impl FunctionLowerer<'_> {
     ) -> Option<(dir::LocalTypeId, UnionLayout, UnionDiscriminantField)> {
         // resolve the receiver type
         let receiver_type_id = self.type_for_expression(receiver_id)?;
-        let receiver_type = self.env.types.get_type(receiver_type_id);
+        let receiver_type = self.context.types.get_type(receiver_type_id);
         if !matches!(receiver_type, Type::Union { .. }) {
             return None;
         }
 
         // require discriminant metadata for this union
         let layout = self
-            .env
+            .context
             .type_lowerer
             .union_layout(receiver_type_id)?
             .clone();
@@ -703,13 +711,13 @@ impl FunctionLowerer<'_> {
         let result_type = self.lower_type_for_expression(expression_id)?;
         let result_type_id = self.type_for_expression_or_error(expression_id)?;
         let result_layout = self
-            .env
+            .context
             .type_lowerer
             .union_layout(result_type_id)
             .ok_or_else(|| LowerError::UnsupportedConstruct {
                 node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
                 message: "missing union layout for discriminant field".to_string(),
             })?;
 
@@ -787,21 +795,21 @@ impl FunctionLowerer<'_> {
             .position(|element| self.type_ids_equivalent(*element, literal.type_id))
             .ok_or_else(|| LowerError::UnsupportedConstruct {
                 node: self
-                    .env
+                    .context
                     .types
                     .get_type_source(union_type_id)
-                    .into_global(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
+                    .into_global(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
                 message: "missing union element for discriminant literal".to_string(),
             })?;
 
         // build the literal payload
         let node = self
-            .env
+            .context
             .types
             .get_type_source(union_type_id)
-            .into_global(self.env.module_id)
-            .into_anchored(Some(self.env.profile));
+            .into_global(self.context.module_id)
+            .into_anchored(Some(self.context.profile));
         let (literal_value, literal_type) =
             self.lower_value_for_discriminant_literal(literal, node)?;
 
@@ -841,11 +849,11 @@ impl FunctionLowerer<'_> {
         else {
             return Err(LowerError::UnsupportedConstruct {
                 node: self
-                    .env
+                    .context
                     .types
                     .get_type_source(layout.element_types[0])
-                    .into_global(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
+                    .into_global(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
                 message: "union tag must be an integer type".to_string(),
             });
         };
@@ -865,27 +873,27 @@ impl FunctionLowerer<'_> {
         match &literal.value {
             DiscriminantValue::Boolean(value) => {
                 let value = self.state.builder.bconst(*value);
-                Ok((value, self.env.type_lowerer.ty_bool))
+                Ok((value, self.context.type_lowerer.ty_bool))
             }
             DiscriminantValue::Number { value } => {
-                let dir_type = self.env.types.get_type(literal.type_id);
-                let scalar = self.env.type_lowerer.scalar_type_for_dir_type(dir_type);
+                let dir_type = self.context.types.get_type(literal.type_id);
+                let scalar = self.context.type_lowerer.scalar_type_for_dir_type(dir_type);
                 match scalar {
                     Some(ScalarType::SignedInt { width }) => {
                         let value = self.state.builder.iconst(*value as i64, width as u8, true);
                         let ty = if width == 64 {
-                            self.env.type_lowerer.ty_i64
+                            self.context.type_lowerer.ty_i64
                         } else {
-                            self.env.type_lowerer.ty_i32
+                            self.context.type_lowerer.ty_i32
                         };
                         Ok((value, ty))
                     }
                     Some(ScalarType::Float { width }) => {
                         let value = self.state.builder.fconst(*value, width as u8);
                         let ty = if width == 32 {
-                            self.env.type_lowerer.ty_f32
+                            self.context.type_lowerer.ty_f32
                         } else {
-                            self.env.type_lowerer.ty_f64
+                            self.context.type_lowerer.ty_f64
                         };
                         Ok((value, ty))
                     }

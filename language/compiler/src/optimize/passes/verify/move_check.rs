@@ -314,16 +314,12 @@ impl<'a> MoveCheckContext<'a> {
             }
             mir::Terminator::CallIndirect {
                 callee,
-                env,
                 arguments,
                 normal_arguments,
                 unwind_arguments,
                 ..
             } => {
                 self.check_use(state, *callee, None, block_id, context);
-                if let Some(env) = env {
-                    self.check_use(state, *env, None, block_id, context);
-                }
                 for &arg in arguments
                     .iter()
                     .chain(normal_arguments.iter())
@@ -385,15 +381,9 @@ impl<'a> MoveCheckContext<'a> {
                 }
             }
             mir::Terminator::TailCallIndirect {
-                callee,
-                env,
-                arguments,
-                ..
+                callee, arguments, ..
             } => {
                 self.check_use(state, *callee, None, block_id, context);
-                if let Some(env) = env {
-                    self.check_use(state, *env, None, block_id, context);
-                }
                 for &arg in arguments {
                     self.check_use(state, arg, None, block_id, context);
                 }

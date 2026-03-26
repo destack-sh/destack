@@ -122,7 +122,9 @@ impl<'a> Validator<'a> {
                     callee_id.id,
                     ValidateAnchor::node(block_id),
                 )?;
+                let anchor = ValidateAnchor::node(block_id);
                 let callee = self.tree.get(*callee_id);
+                self.validate_direct_call_environment(anchor, *callee_id)?;
 
                 self.validate_regular_call(
                     block_id,
@@ -139,7 +141,7 @@ impl<'a> Validator<'a> {
             }
             Terminator::CallIndirect {
                 signature,
-                env,
+                callee,
                 arguments,
                 normal_target,
                 normal_arguments,
@@ -149,8 +151,14 @@ impl<'a> Validator<'a> {
             } => {
                 let anchor = ValidateAnchor::node(block_id);
                 let (parameters, result) =
-                    self.function_pointer_signature(*signature, anchor, "call.indirect signature")?;
-                self.validate_optional_environment(function, *env, block_id, "call.indirect env")?;
+                    self.indirect_call_signature(*signature, anchor, "call.indirect signature")?;
+                self.validate_indirect_callee_signature(
+                    function,
+                    *callee,
+                    *signature,
+                    anchor,
+                    "call.indirect callee",
+                )?;
 
                 self.validate_regular_call(
                     block_id,
@@ -235,6 +243,7 @@ impl<'a> Validator<'a> {
                     ValidateAnchor::node(block_id),
                 )?;
                 let callee = self.tree.get(*callee_id);
+                self.validate_direct_call_environment(ValidateAnchor::node(block_id), *callee_id)?;
 
                 self.validate_tail_call(
                     function,
@@ -247,20 +256,21 @@ impl<'a> Validator<'a> {
             Terminator::TailCallIndirect {
                 arguments,
                 signature,
-                env,
+                callee,
                 ..
             } => {
                 let anchor = ValidateAnchor::node(block_id);
-                let (parameters, result) = self.function_pointer_signature(
+                let (parameters, result) = self.indirect_call_signature(
                     *signature,
                     anchor,
                     "tailcall.indirect signature",
                 )?;
-                self.validate_optional_environment(
+                self.validate_indirect_callee_signature(
                     function,
-                    *env,
-                    block_id,
-                    "tailcall.indirect env",
+                    *callee,
+                    *signature,
+                    anchor,
+                    "tailcall.indirect callee",
                 )?;
 
                 self.validate_tail_call(
@@ -567,13 +577,23 @@ impl<'a> Validator<'a> {
         Ok(())
     }
 
-    /// Validate one function-pointer signature and return its shape.
-    pub(super) fn function_pointer_signature(
+    /// Validate one indirect-call signature and return its shape.
+    pub(super) fn indirect_call_signature(
         &self,
         signature: LocalNodeId<Type>,
         anchor: ValidateAnchor,
         label: &'static str,
     ) -> ValidateResult<(&[LocalNodeId<Type>], LocalNodeId<Type>)> {
+        self.ensure_node_type(NodeType::Type, signature.id, anchor)?;
+
+        let signature = match self.tree.get(signature) {
+            Type::FunctionPointer { .. } => signature,
+            Type::FunctionValue { signature, .. } => *signature,
+            _ => {
+                return Err(self.metadata_error(anchor, format!("{label} is not a function type")));
+            }
+        };
+
         self.ensure_node_type(NodeType::Type, signature.id, anchor)?;
 
         let Type::FunctionPointer { parameters, result } = self.tree.get(signature) else {
@@ -588,20 +608,33 @@ impl<'a> Validator<'a> {
         Ok((parameters.as_slice(), *result))
     }
 
-    /// Validate one optional call environment.
-    pub(super) fn validate_optional_environment(
+    /// Validate one plain function-pointer signature and return its shape.
+    pub(super) fn function_pointer_signature(
+        &self,
+        signature: LocalNodeId<Type>,
+        anchor: ValidateAnchor,
+        label: &'static str,
+    ) -> ValidateResult<(&[LocalNodeId<Type>], LocalNodeId<Type>)> {
+        if matches!(self.tree.get(signature), Type::FunctionValue { .. }) {
+            return Err(self.metadata_error(anchor, format!("{label} is not a function pointer")));
+        }
+
+        self.indirect_call_signature(signature, anchor, label)
+    }
+
+    /// Validate one indirect callee against the declared call abi.
+    pub(super) fn validate_indirect_callee_signature(
         &self,
         function: &Function,
-        env: Option<Value>,
-        block_id: LocalNodeId<Block>,
+        callee: Value,
+        signature: LocalNodeId<Type>,
+        anchor: ValidateAnchor,
         label: &'static str,
     ) -> ValidateResult<()> {
-        let Some(env) = env else {
-            return Ok(());
-        };
-
-        let anchor = ValidateAnchor::node(block_id);
-        self.ensure_reference_value(function, env, anchor, label)?;
+        let actual_type = self.value_type_or_error(function, callee, anchor, label)?;
+        if !self.types_equivalent(actual_type, signature) {
+            return Err(self.metadata_error(anchor, format!("{label} type mismatch")));
+        }
 
         Ok(())
     }

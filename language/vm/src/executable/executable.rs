@@ -181,9 +181,6 @@ impl fmt::Debug for Executable {
 struct ExecutableBuilder {
     tree: mir::NodeTree,
     strings: ImmutableStringPool,
-    next_frame_layout_id: engine::FrameLayoutId,
-    next_resume_point_id: engine::ResumePointId,
-    next_resume_transfer_id: engine::ResumeTransferId,
     frame_layouts: Vec<engine::FrameLayout>,
     frame_layout_id_by_function: HashMap<mir::LocalNodeId<mir::Function>, engine::FrameLayoutId>,
     resume_points: Vec<engine::ResumePoint>,
@@ -207,9 +204,6 @@ impl ExecutableBuilder {
         Self {
             tree,
             strings,
-            next_frame_layout_id: engine::FrameLayoutId(0),
-            next_resume_point_id: engine::ResumePointId(0),
-            next_resume_transfer_id: engine::ResumeTransferId(0),
             frame_layouts: Vec::new(),
             frame_layout_id_by_function: HashMap::new(),
             resume_points: Vec::new(),
@@ -337,13 +331,17 @@ impl ExecutableBuilder {
         function_id: mir::LocalNodeId<mir::Function>,
         function_indices: &HashMap<mir::LocalNodeId<mir::Function>, u32>,
     ) -> Function {
-        let function = self.tree.get(function_id);
-
         // derive the logical frame shape before lowering
-        let frame_layout = self.build_frame_layout(function_id, function);
-        let liveness = mir::FunctionLiveness::build(function, &self.tree);
-        let (yield_resume_points, resume_points, resume_transfers) =
-            self.build_yield_resume_data(function_id, function, frame_layout.id);
+        let frame_layout = {
+            let function = self.tree.get(function_id);
+            self.build_frame_layout(function_id, function)
+        };
+        let liveness = {
+            let function = self.tree.get(function_id);
+            mir::FunctionLiveness::build(function, &self.tree)
+        };
+        let (yield_resume_points, exceptional_call_resume_points) =
+            self.build_resume_points(function_id, &frame_layout, &liveness);
 
         // lower the function with the preassigned yield resume ids
         let lowered_function = lower_function(
@@ -351,6 +349,7 @@ impl ExecutableBuilder {
             function_id,
             frame_layout.id,
             &yield_resume_points,
+            &exceptional_call_resume_points,
             function_indices,
         )
         .unwrap_or_else(|| panic!("failed to lower executable function: {function_id:?}"));
@@ -359,13 +358,6 @@ impl ExecutableBuilder {
         self.frame_layout_id_by_function
             .insert(function_id, frame_layout.id);
         self.frame_layouts.push(frame_layout.clone());
-        self.resume_transfers
-            .extend(resume_transfers.iter().cloned());
-
-        // append the preassigned yield resume points
-        for resume_point in &resume_points {
-            self.append_resume_point(&frame_layout, &liveness, resume_point);
-        }
 
         // append the generic lowered pc resume points
         for block in &lowered_function.blocks {
@@ -390,14 +382,6 @@ impl ExecutableBuilder {
                 self.append_resume_point(&frame_layout, &liveness, &resume_point);
             }
         }
-
-        // reserve the next dense ids for the following function
-        self.next_frame_layout_id = engine::FrameLayoutId(self.next_frame_layout_id.0 + 1);
-        self.next_resume_point_id =
-            engine::ResumePointId(self.next_resume_point_id.0 + resume_points.len() as u32);
-        self.next_resume_transfer_id = engine::ResumeTransferId(
-            self.next_resume_transfer_id.0 + resume_transfers.len() as u32,
-        );
 
         lowered_function
     }
@@ -435,95 +419,215 @@ impl ExecutableBuilder {
         }
         let local_slots = local_start..slots.len() as u32;
 
-        // closure environment slot
-        let closure_environment_slot = function.closure_env_type.map(|closure_env_type| {
+        // function environment slot
+        let environment_slot = function.environment.map(|environment| {
             let slot = slots.len() as u32;
             slots.push(engine::FrameSlot {
-                kind: engine::FrameSlotKind::ClosureEnvironment,
-                source: engine::FrameSlotSource::ClosureEnvironment,
-                ty: closure_env_type,
-                value_class: frame_slot_value_class_from_type(&self.tree, closure_env_type),
+                kind: engine::FrameSlotKind::Environment,
+                source: engine::FrameSlotSource::Environment,
+                ty: environment,
+                value_class: frame_slot_value_class_from_type(&self.tree, environment),
             });
             slot
         });
 
         engine::FrameLayout {
-            id: self.next_frame_layout_id,
+            id: engine::FrameLayoutId(self.frame_layouts.len() as u32),
             function: function_id,
             slots,
             value_slots,
             local_slots,
-            closure_environment_slot,
+            environment_slot,
         }
     }
 
-    /// Build the yield resume ids and transfers for one function.
-    fn build_yield_resume_data(
-        &self,
+    /// Build the semantic resume lookups for one function.
+    fn build_resume_points(
+        &mut self,
         function_id: mir::LocalNodeId<mir::Function>,
-        function: &mir::Function,
-        frame_layout: engine::FrameLayoutId,
+        frame_layout: &engine::FrameLayout,
+        liveness: &mir::FunctionLiveness,
     ) -> (
         HashMap<mir::LocalNodeId<mir::Block>, engine::ResumePointId>,
-        Vec<engine::ResumePoint>,
-        Vec<engine::ResumeTransfer>,
+        HashMap<mir::LocalNodeId<mir::Block>, (engine::ResumePointId, engine::ResumePointId)>,
     ) {
+        let block_ids = self.tree.get(function_id).blocks.clone();
         let mut yield_resume_points = HashMap::new();
-        let mut resume_points = Vec::new();
-        let mut resume_transfers = Vec::new();
+        let mut exceptional_call_resume_points = HashMap::new();
 
-        // assign one semantic resume point to each yield edge
-        for block_id in &function.blocks {
-            let block = self.tree.get(*block_id);
+        // assign semantic resume points to suspension and exceptional call edges
+        for block_id in block_ids {
+            let yield_edge = {
+                let block = self.tree.get(block_id);
 
-            let mir::Terminator::Yield {
-                resume,
-                resume_arguments,
-                ..
-            } = &block.terminator
-            else {
-                continue;
+                match &block.terminator {
+                    mir::Terminator::Yield {
+                        resume,
+                        resume_arguments,
+                        ..
+                    } => Some((*resume, resume_arguments.clone())),
+                    _ => None,
+                }
             };
 
-            let resume_block = self.tree.get(*resume);
-            let copies = resume_block
-                .parameters
-                .iter()
-                .zip(resume_arguments.iter())
-                .map(|(parameter, argument)| engine::ResumeCopy {
-                    source: *argument,
-                    destination: parameter.value,
-                })
-                .collect();
-            let resume_value = resume_block
-                .parameters
-                .get(resume_arguments.len())
-                .map(|parameter| parameter.value);
+            // yield resumes into one single continuation block
+            if let Some((resume, resume_arguments)) = yield_edge {
+                // yield resumes may bind one trailing resume value
+                let resume_value = self.infer_resume_value(resume, resume_arguments.len());
+                let resume_point_id = self.append_resume_entry(
+                    function_id,
+                    frame_layout,
+                    liveness,
+                    resume,
+                    &resume_arguments,
+                    resume_value,
+                );
 
-            let transfer_id = engine::ResumeTransferId(
-                self.next_resume_transfer_id.0 + resume_transfers.len() as u32,
-            );
-            resume_transfers.push(engine::ResumeTransfer {
-                id: transfer_id,
-                copies,
-                resume_value,
-            });
+                yield_resume_points.insert(block_id, resume_point_id);
+                continue;
+            }
 
-            let resume_point_id =
-                engine::ResumePointId(self.next_resume_point_id.0 + resume_points.len() as u32);
-            resume_points.push(engine::ResumePoint {
-                id: resume_point_id,
-                function: function_id,
-                frame_layout,
-                block: *resume,
-                instruction_offset: 0,
-                mir_instruction_offset: 0,
-                transfer: Some(transfer_id),
-            });
-            yield_resume_points.insert(*block_id, resume_point_id);
+            let exceptional_call_edge = {
+                let block = self.tree.get(block_id);
+
+                match &block.terminator {
+                    mir::Terminator::Call {
+                        normal_target,
+                        normal_arguments,
+                        unwind_target,
+                        unwind_arguments,
+                        ..
+                    }
+                    | mir::Terminator::CallIndirect {
+                        normal_target,
+                        normal_arguments,
+                        unwind_target,
+                        unwind_arguments,
+                        ..
+                    }
+                    | mir::Terminator::CallVirtual {
+                        normal_target,
+                        normal_arguments,
+                        unwind_target,
+                        unwind_arguments,
+                        ..
+                    }
+                    | mir::Terminator::CallInterface {
+                        normal_target,
+                        normal_arguments,
+                        unwind_target,
+                        unwind_arguments,
+                        ..
+                    } => Some((
+                        *normal_target,
+                        normal_arguments.clone(),
+                        *unwind_target,
+                        unwind_arguments.clone(),
+                    )),
+                    _ => None,
+                }
+            };
+
+            // exceptional call continuations branch to one normal or unwind resume point
+            if let Some((normal_target, normal_arguments, unwind_target, unwind_arguments)) =
+                exceptional_call_edge
+            {
+                // normal and unwind edges may each bind one trailing implicit value
+                let normal_resume_value =
+                    self.infer_resume_value(normal_target, normal_arguments.len());
+                let normal_resume_point_id = self.append_resume_entry(
+                    function_id,
+                    frame_layout,
+                    liveness,
+                    normal_target,
+                    &normal_arguments,
+                    normal_resume_value,
+                );
+
+                let unwind_resume_value =
+                    self.infer_resume_value(unwind_target, unwind_arguments.len());
+                let unwind_resume_point_id = self.append_resume_entry(
+                    function_id,
+                    frame_layout,
+                    liveness,
+                    unwind_target,
+                    &unwind_arguments,
+                    unwind_resume_value,
+                );
+
+                exceptional_call_resume_points
+                    .insert(block_id, (normal_resume_point_id, unwind_resume_point_id));
+            }
         }
 
-        (yield_resume_points, resume_points, resume_transfers)
+        (yield_resume_points, exceptional_call_resume_points)
+    }
+
+    /// Return the trailing implicit resume value for one edge when present.
+    fn infer_resume_value(
+        &self,
+        block: mir::LocalNodeId<mir::Block>,
+        explicit_argument_count: usize,
+    ) -> Option<mir::Value> {
+        let resume_block = self.tree.get(block);
+
+        // block edges bind the implicit transferred value after explicit arguments
+        if resume_block.parameters.len() == explicit_argument_count + 1 {
+            return resume_block
+                .parameters
+                .last()
+                .map(|parameter| parameter.value);
+        }
+
+        None
+    }
+
+    /// Append one semantic resume point and transfer for one block entry.
+    fn append_resume_entry(
+        &mut self,
+        function_id: mir::LocalNodeId<mir::Function>,
+        frame_layout: &engine::FrameLayout,
+        liveness: &mir::FunctionLiveness,
+        block: mir::LocalNodeId<mir::Block>,
+        arguments: &[mir::Value],
+        resume_value: Option<mir::Value>,
+    ) -> engine::ResumePointId {
+        let resume_block = self.tree.get(block);
+        let copy_parameters = if resume_value.is_some() {
+            &resume_block.parameters[..resume_block.parameters.len() - 1]
+        } else {
+            &resume_block.parameters[..]
+        };
+        let copies = copy_parameters
+            .iter()
+            .zip(arguments.iter())
+            .map(|(parameter, argument)| engine::ResumeCopy {
+                source: *argument,
+                destination: parameter.value,
+            })
+            .collect();
+
+        let transfer_id = engine::ResumeTransferId(self.resume_transfers.len() as u32);
+        self.resume_transfers.push(engine::ResumeTransfer {
+            id: transfer_id,
+            copies,
+            resume_value,
+        });
+
+        let resume_point_id = engine::ResumePointId(self.resume_points.len() as u32);
+        let resume_point = engine::ResumePoint {
+            id: resume_point_id,
+            function: function_id,
+            frame_layout: frame_layout.id,
+            block,
+            instruction_offset: 0,
+            mir_instruction_offset: 0,
+            transfer: Some(transfer_id),
+        };
+
+        self.append_resume_point(frame_layout, liveness, &resume_point);
+
+        resume_point_id
     }
 
     /// Append one semantic resume point and its attached metadata.
@@ -646,7 +750,7 @@ impl ExecutableBuilder {
             return materialized_locals.contains(&local);
         }
 
-        // closure environment slot
-        layout.closure_environment_slot == Some(slot)
+        // function environment slot
+        layout.environment_slot == Some(slot)
     }
 }

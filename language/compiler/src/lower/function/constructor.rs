@@ -118,7 +118,7 @@ impl FunctionLowerer<'_> {
         }
 
         // report reads before initialization
-        let field_name = self.env.strings.get(field_name).to_string();
+        let field_name = self.context.strings.get(field_name).to_string();
         Err(LowerError::UnsupportedConstruct {
             node,
             message: format!("constructor field '{field_name}' read before initialization"),
@@ -154,7 +154,7 @@ impl FunctionLowerer<'_> {
 
         // build the error message
         let message = if let Some(name) = missing_field {
-            let field_name = self.env.strings.get(name).to_string();
+            let field_name = self.context.strings.get(name).to_string();
             format!("constructor field '{field_name}' not initialized")
         } else {
             "constructor fields not initialized".to_string()

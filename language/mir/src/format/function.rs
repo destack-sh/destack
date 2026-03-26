@@ -255,19 +255,19 @@ fn format_function_attributes<'a>(
         )?;
     }
 
-    let has_closure_env = attributes.iter().any(|attr| {
+    let has_environment = attributes.iter().any(|attr| {
         let name = f.context().strings.get(attr.name);
-        name == "closure_env"
+        name == "environment"
     });
-    if !has_closure_env && let Some(env_type) = function.closure_env_type {
+    if !has_environment && let Some(environment) = function.environment {
         write!(
             f,
             [
                 token("#"),
                 token("["),
-                token("closure_env"),
+                token("environment"),
                 token("("),
-                env_type,
+                environment,
                 token(")"),
                 token("]"),
                 hard_line_break()

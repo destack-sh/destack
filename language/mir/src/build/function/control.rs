@@ -128,7 +128,6 @@ impl<'a> FunctionBuilder<'a> {
     pub fn call_indirect_branch(
         &mut self,
         callee: Value,
-        env: Option<Value>,
         signature: LocalNodeId<Type>,
         argument_values: Vec<Value>,
         normal_block: LocalNodeId<Block>,
@@ -143,7 +142,6 @@ impl<'a> FunctionBuilder<'a> {
         let block = self.tree.get_mut(block_id);
         block.terminator = Terminator::CallIndirect {
             callee,
-            env,
             arguments: argument_values,
             signature,
             normal_target: normal_block,
@@ -297,7 +295,6 @@ impl<'a> FunctionBuilder<'a> {
     pub fn tail_call_indirect(
         &mut self,
         callee: Value,
-        env: Option<Value>,
         signature: LocalNodeId<Type>,
         argument_values: Vec<Value>,
     ) {
@@ -305,7 +302,6 @@ impl<'a> FunctionBuilder<'a> {
         let block = self.tree.get_mut(block);
         block.terminator = Terminator::TailCallIndirect {
             callee,
-            env,
             arguments: argument_values,
             signature,
         };

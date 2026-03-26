@@ -194,12 +194,11 @@ impl<'a> Parser<'a> {
                 }
             }
             "call.indirect" => {
-                let (callee, arguments, env, signature) = self.parse_indirect_call_target()?;
+                let (callee, arguments, signature) = self.parse_indirect_call_target()?;
                 let arguments = self.tree.add_arguments(&arguments);
                 Instruction::CallIndirect {
                     destination,
                     callee,
-                    env,
                     arguments,
                     signature,
                     effects: None,
@@ -338,7 +337,17 @@ impl<'a> Parser<'a> {
                             function,
                         }
                     }
-                    "function.env" => Instruction::FunctionEnv { destination },
+                    "function.value" => {
+                        let function = self.parse_function_reference()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let environment = self.parse_value()?;
+                        Instruction::FunctionValue {
+                            destination,
+                            function,
+                            environment,
+                        }
+                    }
+                    "function.environment" => Instruction::FunctionEnvironment { destination },
 
                     // memory operations
                     "load" => {
@@ -1500,13 +1509,13 @@ impl<'a> Parser<'a> {
     /// Parse one indirect call target and signature.
     pub(super) fn parse_indirect_call_target(
         &mut self,
-    ) -> ParseResult<(Value, Vec<Value>, Option<Value>, LocalNodeId<Type>)> {
+    ) -> ParseResult<(Value, Vec<Value>, LocalNodeId<Type>)> {
         let callee = self.parse_value()?;
-        let (arguments, env) = self.parse_call_arguments_with_env()?;
+        let arguments = self.parse_call_arguments()?;
         self.eat_token(TokenType::Arrow)?;
         let signature = self.parse_type()?;
 
-        Ok((callee, arguments, env, signature))
+        Ok((callee, arguments, signature))
     }
 
     /// Parse one atomic ordering, scope, memory scope, and semantics suffix.

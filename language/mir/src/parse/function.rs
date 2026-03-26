@@ -24,7 +24,7 @@ impl<'a> Parser<'a> {
         let mut execution_model = None;
         let mut execution_stage = None;
         let mut workgroup_size = None;
-        let mut closure_env_type = None;
+        let mut environment_type = None;
 
         // inspect attributes
         for attribute in attributes {
@@ -103,10 +103,10 @@ impl<'a> Parser<'a> {
 
                     workgroup_size = Some(self.parse_workgroup_size(&attribute.args)?);
                 }
-                "closure_env" => {
-                    if closure_env_type.is_some() {
+                "environment" => {
+                    if environment_type.is_some() {
                         return Err(ParseError::new(
-                            "duplicate closure_env attribute",
+                            "duplicate environment attribute",
                             self.pos(),
                         ));
                     }
@@ -115,12 +115,12 @@ impl<'a> Parser<'a> {
                         AttributeArgs::Value(AttributeValue::Type(value)) => *value,
                         _ => {
                             return Err(ParseError::new(
-                                "closure_env expects a type value",
+                                "environment expects a type value",
                                 self.pos(),
                             ));
                         }
                     };
-                    closure_env_type = Some(env_type);
+                    environment_type = Some(env_type);
                 }
                 _ => {}
             }
@@ -130,7 +130,7 @@ impl<'a> Parser<'a> {
             execution_model,
             execution_stage,
             workgroup_size,
-            closure_env_type,
+            environment_type,
         ))
     }
 
@@ -154,7 +154,7 @@ impl<'a> Parser<'a> {
         self.current_function = Some(function_id);
 
         // function metadata
-        let (execution_model, execution_stage, workgroup_size, closure_env_type) =
+        let (execution_model, execution_stage, workgroup_size, environment_type) =
             self.resolve_function_attributes(&attributes)?;
 
         // parameters
@@ -208,11 +208,11 @@ impl<'a> Parser<'a> {
                 return_attributes: PointerAttributes::default(),
                 linkage,
                 allocation: AllocationMode::Any, // #Incomplete: set proper MIR allocation mode?
-                coroutine: None,
+                suspension: None,
                 execution_model,
                 execution_stage,
                 workgroup_size,
-                closure_env_type,
+                environment: environment_type,
                 locals: Vec::new(),
                 blocks: Vec::new(),
                 entry: None,
@@ -254,7 +254,7 @@ impl<'a> Parser<'a> {
         function.execution_model = execution_model;
         function.execution_stage = execution_stage;
         function.workgroup_size = workgroup_size;
-        function.closure_env_type = closure_env_type;
+        function.environment = environment_type;
 
         // body
         self.eat_token(TokenType::OpenBrace)?;
@@ -758,22 +758,20 @@ impl<'a> Parser<'a> {
             }
             TokenType::TailCallIndirect => {
                 self.bump();
-                let (callee, arguments, env, signature) = self.parse_indirect_call_target()?;
+                let (callee, arguments, signature) = self.parse_indirect_call_target()?;
                 Ok(Terminator::TailCallIndirect {
                     callee,
-                    env,
                     arguments,
                     signature,
                 })
             }
             TokenType::CallIndirect => {
                 self.bump();
-                let (callee, arguments, env, signature) = self.parse_indirect_call_target()?;
+                let (callee, arguments, signature) = self.parse_indirect_call_target()?;
                 let (normal_target, normal_arguments, unwind_target, unwind_arguments) =
                     self.parse_call_continuations()?;
                 Ok(Terminator::CallIndirect {
                     callee,
-                    env,
                     arguments,
                     signature,
                     normal_target,

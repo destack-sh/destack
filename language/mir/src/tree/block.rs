@@ -238,7 +238,7 @@ pub enum Terminator {
     ///
     /// For generators: `yield value` suspends and returns value to caller.
     /// For async: `await promise` suspends until promise resolves.
-    /// The `CoroutineKind` on the function determines the exact semantics.
+    /// The function suspension kind determines the exact semantics.
     Yield {
         /// The value to yield (for generators) or the promise to await (for async).
         value: Value,
@@ -277,10 +277,8 @@ pub enum Terminator {
     /// The unwind target receives the thrown managed exception object as its
     /// leading block parameter.
     CallIndirect {
-        /// The function pointer to call.
+        /// The callable value to call.
         callee: Value,
-        /// Optional closure environment to pass to the callee.
-        env: Option<Value>,
         /// The arguments to pass to the callee.
         arguments: Vec<Value>,
         /// The signature type for the callee.
@@ -383,10 +381,8 @@ pub enum Terminator {
     /// The callee's return value becomes this function's return value.
     /// Codegen can reuse the current stack frame.
     TailCallIndirect {
-        /// The function pointer to tail call.
+        /// The callable value to tail call.
         callee: Value,
-        /// Optional closure environment to pass to the callee.
-        env: Option<Value>,
         /// The arguments to pass.
         arguments: Vec<Value>,
         /// The signature type for the callee.
@@ -540,16 +536,12 @@ impl Terminator {
             }
             Terminator::CallIndirect {
                 callee,
-                env,
                 arguments,
                 normal_arguments,
                 unwind_arguments,
                 ..
             } => {
                 let mut uses = smallvec![*callee];
-                if let Some(env) = env {
-                    uses.push(*env);
-                }
                 uses.extend(arguments.iter().copied());
                 uses.extend(normal_arguments.iter().copied());
                 uses.extend(unwind_arguments.iter().copied());
@@ -580,15 +572,9 @@ impl Terminator {
             Terminator::Unreachable => smallvec![],
             Terminator::TailCall { arguments, .. } => arguments.iter().copied().collect(),
             Terminator::TailCallIndirect {
-                callee,
-                env,
-                arguments,
-                ..
+                callee, arguments, ..
             } => {
                 let mut uses = smallvec![*callee];
-                if let Some(env) = env {
-                    uses.push(*env);
-                }
                 uses.extend(arguments.iter().copied());
                 uses
             }

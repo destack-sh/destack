@@ -1579,13 +1579,13 @@ const x = 10
 const f = (y: int) => x + y  // captures x
 ```
 
-Lowers to a closure environment plus a function pointer to the original function.
+Lowers to a function environment plus a function pointer to the original function.
 The captured environment stores:
 - `x: int64`
 
 The MIR function value pairs the function pointer with the environment:
 - `fnPtr: FunctionPointer`
-- `env: ManagedReference<ClosureEnv>`
+- `env: ManagedReference<FunctionEnvironment>`
 
 In MIR text this uses `fnvalue<fn(...) -> ..., env_type>` for the callable value type.
 
@@ -1600,8 +1600,8 @@ Captured variables are stored in the closure struct in declaration order (order 
 The struct is alignment-packed to minimize size.
 Interior pointers are used for reference captures.
 
-The closure body reads its environment via `function.env`.
-Closure calls load `fnPtr` and `env`, then call with `call.indirect` and `env=`.
+The closure body reads its environment via `function.environment`.
+Closure calls use a `fnvalue<fn(...) -> ..., env_type>` callable value with `call.indirect`.
 Direct calls to the original function do not carry an environment.
 
 ### Copy Elision and Move Semantics

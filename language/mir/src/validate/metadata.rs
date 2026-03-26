@@ -336,7 +336,7 @@ impl<'a> Validator<'a> {
                     LayoutType::Struct
                     | LayoutType::Union { .. }
                     | LayoutType::Interface { .. }
-                    | LayoutType::ClosureEnv,
+                    | LayoutType::FunctionEnvironment,
                 ) => {
                     if fields.len() != layout.fields.len() {
                         return Err(ValidateError::MetadataInvariantViolation {
@@ -357,13 +357,7 @@ impl<'a> Validator<'a> {
                         }
                     }
                 }
-                (
-                    Type::FunctionValue {
-                        signature,
-                        environment,
-                    },
-                    LayoutType::FunctionValue,
-                ) => {
+                (Type::FunctionValue { signature }, LayoutType::FunctionValue) => {
                     if layout.fields.len() != 2 {
                         return Err(ValidateError::MetadataInvariantViolation {
                             message: "function value layout must have exactly two fields"
@@ -372,7 +366,8 @@ impl<'a> Validator<'a> {
                         });
                     }
 
-                    if layout.fields[0].ty != *signature || layout.fields[1].ty != *environment {
+                    let environment = self.tree.function_value_environment_type();
+                    if layout.fields[0].ty != *signature || layout.fields[1].ty != environment {
                         return Err(ValidateError::MetadataInvariantViolation {
                             message: "function value layout field types do not match signature and environment"
                                 .to_string(),

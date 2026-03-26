@@ -74,10 +74,10 @@ pub(crate) fn compute_type_layout(
         | Type::Reference { .. }
         | Type::FunctionPointer { .. } => TypeLayout::natural(pointer_bytes as u32),
 
-        Type::FunctionValue {
-            signature,
-            environment,
-        } => compute_tuple_layout(tree, &[*signature, *environment], pointer_bytes),
+        Type::FunctionValue { signature } => {
+            let environment = tree.function_value_environment_type();
+            compute_tuple_layout(tree, &[*signature, environment], pointer_bytes)
+        }
 
         Type::Array {
             element,

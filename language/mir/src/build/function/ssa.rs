@@ -253,10 +253,13 @@ impl<'a> FunctionBuilder<'a> {
                 | Instruction::GlobalAddr { .. }
                 | Instruction::GlobalConst { .. }
                 | Instruction::FunctionAddr { .. }
-                | Instruction::FunctionEnv { .. }
                 | Instruction::ManagedAlloc { .. }
                 | Instruction::RawAlloc { .. }
                 | Instruction::StackAlloc { .. } => {}
+                Instruction::FunctionValue { environment, .. } => {
+                    Self::replace_value_in_slot(environment, from, to);
+                }
+                Instruction::FunctionEnvironment { .. } => {}
                 Instruction::Binary { left, right, .. } => {
                     Self::replace_value_in_slot(left, from, to);
                     Self::replace_value_in_slot(right, from, to);
@@ -298,11 +301,8 @@ impl<'a> FunctionBuilder<'a> {
                 } => {
                     Self::replace_value_in_slot(argument, from, to);
                 }
-                Instruction::CallIndirect { callee, env, .. } => {
+                Instruction::CallIndirect { callee, .. } => {
                     Self::replace_value_in_slot(callee, from, to);
-                    if let Some(env) = env {
-                        Self::replace_value_in_slot(env, from, to);
-                    }
                 }
                 Instruction::VectorExtract { vector, index, .. } => {
                     Self::replace_value_in_slot(vector, from, to);
@@ -561,16 +561,12 @@ impl<'a> FunctionBuilder<'a> {
             }
             Terminator::CallIndirect {
                 callee,
-                env,
                 arguments,
                 normal_arguments,
                 unwind_arguments,
                 ..
             } => {
                 Self::replace_value_in_slot(callee, from, to);
-                if let Some(env) = env {
-                    Self::replace_value_in_slot(env, from, to);
-                }
 
                 Self::replace_values_in_slice(arguments, from, to);
                 Self::replace_values_in_slice(normal_arguments, from, to);
@@ -608,15 +604,9 @@ impl<'a> FunctionBuilder<'a> {
                 Self::replace_values_in_slice(arguments, from, to);
             }
             Terminator::TailCallIndirect {
-                callee,
-                env,
-                arguments,
-                ..
+                callee, arguments, ..
             } => {
                 Self::replace_value_in_slot(callee, from, to);
-                if let Some(env) = env {
-                    Self::replace_value_in_slot(env, from, to);
-                }
                 Self::replace_values_in_slice(arguments, from, to);
             }
             Terminator::TailCallVirtual {

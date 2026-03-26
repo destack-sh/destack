@@ -124,23 +124,6 @@ impl<'a> Validator<'a> {
         Ok(())
     }
 
-    /// Ensure one value has a reference type.
-    pub(super) fn ensure_reference_value(
-        &self,
-        function: &Function,
-        value: Value,
-        anchor: ValidateAnchor,
-        label: &'static str,
-    ) -> ValidateResult<()> {
-        let value_type_id = self.value_type_or_error(function, value, anchor, label)?;
-        let value_type = self.tree.get(value_type_id);
-        if !matches!(value_type, Type::Reference { .. }) {
-            return Err(self.metadata_error(anchor, format!("{label} must be a reference type")));
-        }
-
-        Ok(())
-    }
-
     /// Ensure a node id points at the expected node type.
     pub(super) fn ensure_node_type(
         &self,

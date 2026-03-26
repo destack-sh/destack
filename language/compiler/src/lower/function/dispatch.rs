@@ -80,7 +80,7 @@ impl FunctionLowerer<'_> {
         receiver_type_id: dir::LocalTypeId,
     ) -> Option<GlobalSymbolId> {
         // resolve the receiver type
-        let dir_type = self.env.types.get_type(receiver_type_id);
+        let dir_type = self.context.types.get_type(receiver_type_id);
         match dir_type {
             dir::Type::Reference { symbol, .. } if symbol.ty() == dir::SymbolType::Interface => {
                 Some(*symbol)
@@ -102,14 +102,14 @@ impl FunctionLowerer<'_> {
     ) -> LowerResult<u32> {
         // load interface slots for dispatch
         let slots = self
-            .env
+            .context
             .interface_slots_by_symbol
             .get(&interface_symbol)
             .map(|slots| slots.as_slice())
             .ok_or_else(|| LowerError::UnsupportedConstruct {
                 node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
                 message: "interface dispatch layout missing".to_string(),
             })?;
 
@@ -122,15 +122,15 @@ impl FunctionLowerer<'_> {
                 return false;
             };
             *name == method_key.name()
-                && dir::are_types_equal(*signature, method_key.signature(), self.env.types)
+                && dir::are_types_equal(*signature, method_key.signature(), self.context.types)
         });
 
         // require a matching slot
         let Some(slot_index) = slot_index else {
             return Err(LowerError::UnsupportedConstruct {
                 node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
                 message: "interface method slot missing".to_string(),
             });
         };
@@ -150,7 +150,7 @@ impl FunctionLowerer<'_> {
 
         // resolve the declaring mir type
         let declaring_type = self
-            .env
+            .context
             .type_lowerer
             .cached_type(interface_type_id)
             .ok_or_else(|| self.missing_type_error(expression_id))?;
@@ -165,22 +165,22 @@ impl FunctionLowerer<'_> {
         symbol: GlobalSymbolId,
     ) -> LowerResult<MethodKey> {
         // require a local symbol for now
-        if symbol.module_id != self.env.module_id {
+        if symbol.module_id != self.context.module_id {
             return Err(LowerError::UnsupportedConstruct {
                 node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
                 message: "interface dispatch across modules is not supported".to_string(),
             });
         }
 
         // resolve the primary declaration node
-        let symbol_entry = self.env.symbols.get_symbol(symbol.local_id);
+        let symbol_entry = self.context.symbols.get_symbol(symbol.local_id);
         let Some(primary) = symbol_entry.primary_declaration else {
             return Err(LowerError::UnsupportedConstruct {
                 node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
                 message: "member symbol missing declaration".to_string(),
             });
         };
@@ -188,40 +188,40 @@ impl FunctionLowerer<'_> {
         // resolve the member or property node
         let (dynamic_key, signature, node_id) =
             if let Ok(member_id) = primary.local_id.try_into_typed::<dir::Member>() {
-                let member = self.env.dir_tree.get(member_id);
+                let member = self.context.dir_tree.get(member_id);
                 let dir::Member::Method { key, signature, .. } = member else {
                     return Err(LowerError::UnsupportedConstruct {
                         node: expression_id
-                            .into_global_any(self.env.module_id)
-                            .into_anchored(Some(self.env.profile)),
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
                         message: "member symbol is not a method".to_string(),
                     });
                 };
                 (
                     key,
                     signature,
-                    member_id.into_global_any(self.env.module_id),
+                    member_id.into_global_any(self.context.module_id),
                 )
             } else if let Ok(property_id) = primary.local_id.try_into_typed::<dir::Property>() {
-                let property = self.env.dir_tree.get(property_id);
+                let property = self.context.dir_tree.get(property_id);
                 let dir::Property::Method { key, signature, .. } = property else {
                     return Err(LowerError::UnsupportedConstruct {
                         node: expression_id
-                            .into_global_any(self.env.module_id)
-                            .into_anchored(Some(self.env.profile)),
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
                         message: "property symbol is not a method".to_string(),
                     });
                 };
                 (
                     key,
                     signature,
-                    property_id.into_global_any(self.env.module_id),
+                    property_id.into_global_any(self.context.module_id),
                 )
             } else {
                 return Err(LowerError::UnsupportedConstruct {
                     node: expression_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
                     message: "member symbol is not a method".to_string(),
                 });
             };
@@ -229,15 +229,15 @@ impl FunctionLowerer<'_> {
         // resolve the method name
         let method_name = match (dynamic_key, signature.mode) {
             (Some(dir::DynamicKey::Name(name)), _) => *name,
-            (None, Some(dir::FunctionMode::Call)) => self.env.dispatch_call_name,
+            (None, Some(dir::FunctionMode::Call)) => self.context.dispatch_call_name,
             (None, Some(dir::FunctionMode::Constructor | dir::FunctionMode::New)) => {
-                self.env.dispatch_construct_name
+                self.context.dispatch_construct_name
             }
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
                     node: expression_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
                     message: "method must have a static name".to_string(),
                 });
             }
@@ -259,7 +259,7 @@ impl FunctionLowerer<'_> {
         class_symbol: GlobalSymbolId,
         method_key: MethodKey,
     ) -> Option<u32> {
-        self.env
+        self.context
             .virtual_method_slots_by_key
             .get(&(class_symbol, method_key))
             .copied()
@@ -276,8 +276,8 @@ impl FunctionLowerer<'_> {
             .class_symbol_for_type(receiver_type_id)
             .ok_or_else(|| LowerError::UnsupportedConstruct {
                 node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
                 message: "virtual dispatch requires a class receiver".to_string(),
             })?;
 
@@ -287,7 +287,7 @@ impl FunctionLowerer<'_> {
 
         // resolve the declaring mir type
         let mir_type = self
-            .env
+            .context
             .type_lowerer
             .cached_type(instance_type_id)
             .ok_or_else(|| self.missing_type_error(expression_id))?;

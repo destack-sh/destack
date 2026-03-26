@@ -37,7 +37,7 @@ impl FunctionLowerer<'_> {
         );
 
         // lower the reference target to an address when possible
-        match self.env.dir_tree.get(right) {
+        match self.context.dir_tree.get(right) {
             Expression::Parenthesized { expression } => {
                 self.lower_reference_of_expression(expression_id, mutability, *expression)
             }
@@ -69,7 +69,7 @@ impl FunctionLowerer<'_> {
                         Ok((value, result_type))
                     }
                     LocalStorage::Variable(_) => Err(LowerError::Internal {
-                        module: self.env.module_id,
+                        module: self.context.module_id,
                         message: "local borrow requires addressable storage".to_string(),
                     }),
                 }
@@ -98,7 +98,7 @@ impl FunctionLowerer<'_> {
                             Ok((value, result_type))
                         }
                         LocalStorage::Variable(_) => Err(LowerError::Internal {
-                            module: self.env.module_id,
+                            module: self.context.module_id,
                             message: "this borrow requires addressable storage".to_string(),
                         }),
                     };
@@ -112,8 +112,8 @@ impl FunctionLowerer<'_> {
 
                 Err(LowerError::UnsupportedConstruct {
                     node: expression_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
                     message: "this reference outside of method context".to_string(),
                 })
             }
@@ -149,7 +149,7 @@ impl FunctionLowerer<'_> {
                         }
                         LocalStorage::Variable(_) => {
                             return Err(LowerError::Internal {
-                                module: self.env.module_id,
+                                module: self.context.module_id,
                                 message: "local borrow requires addressable storage".to_string(),
                             });
                         }
@@ -174,8 +174,8 @@ impl FunctionLowerer<'_> {
                 if static_arguments.is_some() {
                     return Err(LowerError::UnsupportedConstruct {
                         node: expression_id
-                            .into_global_any(self.env.module_id)
-                            .into_anchored(Some(self.env.profile)),
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
                         message: "static arguments on member borrows are not supported".to_string(),
                     });
                 }
@@ -188,23 +188,23 @@ impl FunctionLowerer<'_> {
 
                 // resolve field index through the type lowerer
                 let field_index = self
-                    .env
+                    .context
                     .type_lowerer
                     .field_index_for_type(
                         aggregate_type,
                         name.ok_or_else(|| LowerError::UnsupportedConstruct {
                             node: expression_id
-                                .into_global_any(self.env.module_id)
-                                .into_anchored(Some(self.env.profile)),
+                                .into_global_any(self.context.module_id)
+                                .into_anchored(Some(self.context.profile)),
                             message: "missing member name".to_string(),
                         })?,
-                        self.env.strings,
+                        self.context.strings,
                         self.state.builder.tree(),
                     )
                     .ok_or_else(|| LowerError::UnsupportedConstruct {
                         node: expression_id
-                            .into_global_any(self.env.module_id)
-                            .into_anchored(Some(self.env.profile)),
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
                         message: "field not found in aggregate type".to_string(),
                     })?;
 
@@ -218,8 +218,8 @@ impl FunctionLowerer<'_> {
             Expression::Index { left, right } => {
                 let index_expr = right.ok_or_else(|| LowerError::UnsupportedConstruct {
                     node: expression_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
                     message: "missing index expression".to_string(),
                 })?;
 

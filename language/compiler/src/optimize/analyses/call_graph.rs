@@ -275,8 +275,6 @@ enum SignatureType {
     FunctionValue {
         /// The bare function pointer signature.
         signature: Box<SignatureType>,
-        /// The captured environment type.
-        environment: Box<SignatureType>,
     },
 }
 
@@ -410,12 +408,8 @@ impl SignatureType {
 
                 SignatureType::FunctionPointer { parameters, result }
             }
-            mir::Type::FunctionValue {
-                signature,
-                environment,
-            } => SignatureType::FunctionValue {
+            mir::Type::FunctionValue { signature } => SignatureType::FunctionValue {
                 signature: Box::new(SignatureType::from_type(tree, *signature)),
-                environment: Box::new(SignatureType::from_type(tree, *environment)),
             },
         }
     }

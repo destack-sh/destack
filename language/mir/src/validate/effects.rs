@@ -54,14 +54,14 @@ impl<'a> Validator<'a> {
             )?;
         }
 
-        // closure environment
-        if let Some(env_type) = function.closure_env_type {
-            self.ensure_node_type(NodeType::Type, env_type.id, anchor)?;
+        // function environment
+        if let Some(environment) = function.environment {
+            self.ensure_node_type(NodeType::Type, environment.id, anchor)?;
 
-            let env_type = self.tree.get(env_type);
-            if !matches!(env_type, Type::Reference { .. }) {
+            let environment_type = self.tree.get(environment);
+            if !matches!(environment_type, Type::Reference { .. }) {
                 return Err(ValidateError::MetadataInvariantViolation {
-                    message: "closure_env type must be a reference".to_string(),
+                    message: "function environment type must be a reference".to_string(),
                     anchor,
                 });
             }

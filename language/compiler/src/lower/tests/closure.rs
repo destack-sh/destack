@@ -28,18 +28,16 @@ function applyIdentity(input: int32): int32 {
         module_id,
         "native",
         r#"
-type @fn#param.int32#return.int32 = fnvalue<fn(i32) -> i32, ref?<managed void>>
+type @fn#param.int32#return.int32 = fnvalue<fn(i32) -> i32>
 
 function @makeIdentity() -> @fn#param.int32#return.int32 {
 block0:
-    v0: fn(i32) -> i32 = function.addr @makeIdentity.lambda#7
-    v1: ref?<managed {  }> = iconst null
-    v2: ref?<managed void> = bitcast v1 -> ref?<managed void>
-    v3: @fn#param.int32#return.int32 = struct @fn#param.int32#return.int32 (v0, v2)
-    return v3
+    v0: ref?<managed {  }> = iconst null
+    v1: fnvalue<fn(i32) -> i32> = function.value @makeIdentity.lambda#7, v0
+    return v1
 }
 
-#[closure_env(ref?<managed {  }>)]
+#[environment(ref?<managed {  }>)]
 function @makeIdentity.lambda#7(v0: i32) -> i32 {
 block0(v0: i32):
     return v0
@@ -48,10 +46,8 @@ block0(v0: i32):
 function @applyIdentity(v0: i32) -> i32 {
 block0(v0: i32):
     v1: @fn#param.int32#return.int32 = call @makeIdentity() -> fn() -> @fn#param.int32#return.int32
-    v2: fn(i32) -> i32 = field.get v1, 0
-    v3: ref?<managed void> = field.get v1, 1
-    v4: i32 = call.indirect v2(v0, env=v3) -> fn(i32) -> i32
-    return v4
+    v2: i32 = call.indirect v1(v0) -> @fn#param.int32#return.int32
+    return v2
 }
         "#,
     );
@@ -92,25 +88,23 @@ function applyAdder(input: int32): int32 {
         module_id,
         "native",
         r#"
-type @fn#param.int32#return.int32 = fnvalue<fn(i32) -> i32, ref?<managed void>>
-type @closure_env#9 = { base: i32 }
+type @fn#param.int32#return.int32 = fnvalue<fn(i32) -> i32>
+type @environment#9 = { base: i32 }
 
 function @makeAdder() -> @fn#param.int32#return.int32 {
 block0:
     v0: i32 = iconst 5i32
-    v1: fn(i32) -> i32 = function.addr @makeAdder.lambda#9
-    v2: ref<managed @closure_env#9> = managed.alloc @closure_env#9
-    v3: ref<managed i32> = field.addr v2, 0
-    store v3, v0
-    v4: ref?<managed void> = bitcast v2 -> ref?<managed void>
-    v5: @fn#param.int32#return.int32 = struct @fn#param.int32#return.int32 (v1, v4)
-    return v5
+    v1: ref<managed @environment#9> = managed.alloc @environment#9
+    v2: ref<managed i32> = field.addr v1, 0
+    store v2, v0
+    v3: fnvalue<fn(i32) -> i32> = function.value @makeAdder.lambda#9, v1
+    return v3
 }
 
-#[closure_env(ref<managed @closure_env#9>)]
+#[environment(ref<managed @environment#9>)]
 function @makeAdder.lambda#9(v0: i32) -> i32 {
 block0(v0: i32):
-    v1: ref<managed @closure_env#9> = function.env
+    v1: ref<managed @environment#9> = function.environment
     v2: ref<managed i32> = field.addr v1, 0
     v3: i32 = load v2
     v4: i32 = trunc v3 -> i32
@@ -121,10 +115,8 @@ block0(v0: i32):
 function @applyAdder(v0: i32) -> i32 {
 block0(v0: i32):
     v1: @fn#param.int32#return.int32 = call @makeAdder() -> fn() -> @fn#param.int32#return.int32
-    v2: fn(i32) -> i32 = field.get v1, 0
-    v3: ref?<managed void> = field.get v1, 1
-    v4: i32 = call.indirect v2(v0, env=v3) -> fn(i32) -> i32
-    return v4
+    v2: i32 = call.indirect v1(v0) -> @fn#param.int32#return.int32
+    return v2
 }
         "#,
     );
@@ -168,28 +160,26 @@ function runCounter(): int32 {
         module_id,
         "native",
         r#"
-type @fn#return.int32 = fnvalue<fn() -> i32, ref?<managed void>>
-type @closure_env#8 = { count: ref<managed i32> }
+type @fn#return.int32 = fnvalue<fn() -> i32>
+type @environment#8 = { count: ref<managed i32> }
 
 function @makeCounter() -> @fn#return.int32 {
 block0:
     v0: i32 = iconst 0i32
     v1: ref<managed i32> = managed.alloc i32
     store v1, v0
-    v2: fn() -> i32 = function.addr @makeCounter.lambda#8
-    v3: ref<managed @closure_env#8> = managed.alloc @closure_env#8
-    v4: ref<managed ref<managed i32>> = field.addr v3, 0
-    v5: ref<managed i32> = bitcast v1 -> ref<managed i32>
-    store v4, v5
-    v6: ref?<managed void> = bitcast v3 -> ref?<managed void>
-    v7: @fn#return.int32 = struct @fn#return.int32 (v2, v6)
-    return v7
+    v2: ref<managed @environment#8> = managed.alloc @environment#8
+    v3: ref<managed ref<managed i32>> = field.addr v2, 0
+    v4: ref<managed i32> = bitcast v1 -> ref<managed i32>
+    store v3, v4
+    v5: fnvalue<fn() -> i32> = function.value @makeCounter.lambda#8, v2
+    return v5
 }
 
-#[closure_env(ref<managed @closure_env#8>)]
+#[environment(ref<managed @environment#8>)]
 function @makeCounter.lambda#8() -> i32 {
 block0:
-    v0: ref<managed @closure_env#8> = function.env
+    v0: ref<managed @environment#8> = function.environment
     v1: ref<managed ref<managed i32>> = field.addr v0, 0
     v2: ref<managed i32> = load v1
     v3: i32 = load v2
@@ -207,10 +197,8 @@ block0:
 function @runCounter() -> i32 {
 block0:
     v0: @fn#return.int32 = call @makeCounter() -> fn() -> @fn#return.int32
-    v1: fn() -> i32 = field.get v0, 0
-    v2: ref?<managed void> = field.get v0, 1
-    v3: i32 = call.indirect v1(env=v2) -> fn() -> i32
-    return v3
+    v1: i32 = call.indirect v0() -> @fn#return.int32
+    return v1
 }
         "#,
     );

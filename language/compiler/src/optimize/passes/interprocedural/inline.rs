@@ -578,7 +578,7 @@ fn should_inline(
     if callee.entry.is_none() {
         return false;
     }
-    if callee.coroutine.is_some() {
+    if callee.suspension.is_some() {
         return false;
     }
     if callee.parameters.len() != argument_count {
@@ -1317,7 +1317,8 @@ fn instruction_cost(instruction: &mir::Instruction, tree: &mir::NodeTree) -> u64
         | mir::Instruction::LocalSet { .. }
         | mir::Instruction::GlobalAddr { .. }
         | mir::Instruction::FunctionAddr { .. }
-        | mir::Instruction::FunctionEnv { .. }
+        | mir::Instruction::FunctionValue { .. }
+        | mir::Instruction::FunctionEnvironment { .. }
         | mir::Instruction::LocalAddr { .. }
         | mir::Instruction::GlobalConst { .. }
         | mir::Instruction::Assume { .. } => INLINE_COST_SIMPLE,

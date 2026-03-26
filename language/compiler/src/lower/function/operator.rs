@@ -98,8 +98,8 @@ impl FunctionLowerer<'_> {
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
                     node: expression_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
                     message: format!("unsupported binary operator '{operator:?}'"),
                 });
             }
@@ -141,8 +141,8 @@ impl FunctionLowerer<'_> {
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
                     node: expression_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
                     message: format!("unsupported unary operator '{operator:?}'"),
                 });
             }
@@ -181,11 +181,11 @@ impl FunctionLowerer<'_> {
         let (lhs_value, lhs_type) = self.lower_value_expression(left_id)?;
 
         // verify LHS is boolean
-        if lhs_type != self.env.type_lowerer.ty_bool {
+        if lhs_type != self.context.type_lowerer.ty_bool {
             return Err(LowerError::UnsupportedConstruct {
                 node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
                 message: "logical operator requires boolean operands".to_string(),
             });
         }
@@ -196,7 +196,10 @@ impl FunctionLowerer<'_> {
         let merge_block = self.state.builder.block();
 
         // create a variable to hold the result (SSA construction will merge)
-        let result_variable = self.state.builder.variable(self.env.type_lowerer.ty_bool);
+        let result_variable = self
+            .state
+            .builder
+            .variable(self.context.type_lowerer.ty_bool);
 
         // branch based on operator semantics
         match operator {
@@ -215,8 +218,8 @@ impl FunctionLowerer<'_> {
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
                     node: expression_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
                     message: format!("unexpected logical operator '{operator:?}'"),
                 });
             }
@@ -239,11 +242,11 @@ impl FunctionLowerer<'_> {
         let (rhs_value, rhs_type) = self.lower_value_expression(right_id)?;
 
         // verify RHS is boolean
-        if rhs_type != self.env.type_lowerer.ty_bool {
+        if rhs_type != self.context.type_lowerer.ty_bool {
             return Err(LowerError::UnsupportedConstruct {
                 node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
                 message: "logical operator requires boolean operands".to_string(),
             });
         }
@@ -258,6 +261,6 @@ impl FunctionLowerer<'_> {
         self.state.builder.switch_to_block(merge_block);
         let result_value = self.state.builder.use_variable(result_variable);
 
-        Ok((result_value, self.env.type_lowerer.ty_bool))
+        Ok((result_value, self.context.type_lowerer.ty_bool))
     }
 }

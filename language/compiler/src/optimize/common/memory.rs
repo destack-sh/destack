@@ -295,7 +295,6 @@ pub fn collect_non_escaping_stack_allocs(
             }
             mir::Terminator::CallIndirect {
                 callee,
-                env,
                 arguments,
                 normal_arguments,
                 unwind_arguments,
@@ -310,17 +309,6 @@ pub fn collect_non_escaping_stack_allocs(
                     &stack_allocs,
                     &mut escaping,
                 );
-                if let Some(env) = env {
-                    record_stack_escape(
-                        *env,
-                        definitions,
-                        &local_defs,
-                        &param_defs,
-                        tree,
-                        &stack_allocs,
-                        &mut escaping,
-                    );
-                }
                 for &arg in arguments
                     .iter()
                     .chain(normal_arguments.iter())
@@ -416,10 +404,7 @@ pub fn collect_non_escaping_stack_allocs(
                 }
             }
             mir::Terminator::TailCallIndirect {
-                callee,
-                env,
-                arguments,
-                ..
+                callee, arguments, ..
             } => {
                 record_stack_escape(
                     *callee,
@@ -430,17 +415,6 @@ pub fn collect_non_escaping_stack_allocs(
                     &stack_allocs,
                     &mut escaping,
                 );
-                if let Some(env) = env {
-                    record_stack_escape(
-                        *env,
-                        definitions,
-                        &local_defs,
-                        &param_defs,
-                        tree,
-                        &stack_allocs,
-                        &mut escaping,
-                    );
-                }
                 for &arg in arguments {
                     record_stack_escape(
                         arg,

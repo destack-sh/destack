@@ -387,7 +387,7 @@ fn clone_function_as_impl(
     impl_function.return_lifetime = original.return_lifetime.clone();
     impl_function.linkage = mir::Linkage::Local;
     impl_function.allocation = original.allocation;
-    impl_function.coroutine = original.coroutine;
+    impl_function.suspension = original.suspension;
     impl_function.locals = original.locals.clone();
     impl_function.blocks = impl_blocks;
     impl_function.value_types = original.value_types.clone();
@@ -490,7 +490,6 @@ fn remap_terminator_blocks(
         },
         mir::Terminator::CallIndirect {
             callee,
-            env,
             arguments,
             signature,
             normal_target,
@@ -499,7 +498,6 @@ fn remap_terminator_blocks(
             unwind_arguments,
         } => mir::Terminator::CallIndirect {
             callee: *callee,
-            env: *env,
             arguments: arguments.clone(),
             signature: *signature,
             normal_target: block_map
@@ -1334,7 +1332,6 @@ fn transform_sibling_tail_call(
         mir::Instruction::CallIndirect {
             destination,
             callee,
-            env,
             arguments,
             signature,
             ..
@@ -1352,7 +1349,6 @@ fn transform_sibling_tail_call(
 
             // extract call info before mutating
             let callee_value = *callee;
-            let env_value = *env;
             let call_args: Vec<mir::Value> = tree.get_arguments(*arguments).to_vec();
 
             // rewrite the block: remove call, replace return with TailCallIndirect
@@ -1362,7 +1358,6 @@ fn transform_sibling_tail_call(
 
             let new_terminator = mir::Terminator::TailCallIndirect {
                 callee: callee_value,
-                env: env_value,
                 arguments: call_args,
                 signature: *signature,
             };

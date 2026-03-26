@@ -691,6 +691,10 @@ pub(super) fn lower_function(
     func_id: mir::LocalNodeId<mir::Function>,
     frame_layout: destack_engine::FrameLayoutId,
     yield_resume_points: &HashMap<mir::LocalNodeId<mir::Block>, destack_engine::ResumePointId>,
+    exceptional_call_resume_points: &HashMap<
+        mir::LocalNodeId<mir::Block>,
+        (destack_engine::ResumePointId, destack_engine::ResumePointId),
+    >,
     function_indices: &HashMap<mir::LocalNodeId<mir::Function>, u32>,
 ) -> Option<Function> {
     // load function
@@ -703,21 +707,6 @@ pub(super) fn lower_function(
 
     // read entry block
     let entry_block = func.entry?;
-
-    // reject exception edges until the interpreter supports them
-    for block_id in &func.blocks {
-        let block = tree.get(*block_id);
-        if matches!(
-            block.terminator,
-            mir::Terminator::Call { .. }
-                | mir::Terminator::CallIndirect { .. }
-                | mir::Terminator::CallVirtual { .. }
-                | mir::Terminator::CallInterface { .. }
-        ) {
-            // TODO #Incomplete: support exception edges in VM
-            return None;
-        }
-    }
 
     // prepare block index mapping
     let mut block_index_map: HashMap<mir::LocalNodeId<mir::Block>, usize> = HashMap::new();
@@ -859,6 +848,7 @@ pub(super) fn lower_function(
             func_id,
             entry_index,
             yield_resume_points,
+            exceptional_call_resume_points,
             function_indices,
             &value_kinds,
             &value_uses,
@@ -878,7 +868,7 @@ pub(super) fn lower_function(
         frame_layout,
         parameters,
         entry: entry_index,
-        blocks: blocks,
+        blocks,
         argument_pool,
         switch_case_pool,
         copy_pool,
@@ -899,6 +889,10 @@ fn lower_block(
     current_function: mir::LocalNodeId<mir::Function>,
     entry_block: u32,
     yield_resume_points: &HashMap<mir::LocalNodeId<mir::Block>, destack_engine::ResumePointId>,
+    exceptional_call_resume_points: &HashMap<
+        mir::LocalNodeId<mir::Block>,
+        (destack_engine::ResumePointId, destack_engine::ResumePointId),
+    >,
     function_indices: &HashMap<mir::LocalNodeId<mir::Function>, u32>,
     value_kinds: &ValueKinds,
     value_uses: &[u32],
@@ -985,8 +979,10 @@ fn lower_block(
             entry_block,
             mir_block,
             yield_resume_points,
+            exceptional_call_resume_points,
             function_indices,
             value_kinds,
+            value_types,
             argument_pool,
             switch_case_pool,
             copy_pool,
@@ -1720,7 +1716,7 @@ fn lower_instruction(
         mir::Instruction::CallIndirect {
             destination,
             callee,
-            env,
+            signature,
             arguments,
             ..
         } => {
@@ -1730,7 +1726,7 @@ fn lower_instruction(
                 data: InstructionData::CallIndirect {
                     dest: pack_optional_value(*destination),
                     callee: *callee,
-                    env: *env,
+                    signature: *signature,
                     arguments: args,
                     cached_function: Cell::new(None),
                     cached_index: Cell::new(None),
@@ -1817,9 +1813,21 @@ fn lower_instruction(
                 function: function.id,
             },
         },
-        mir::Instruction::FunctionEnv { destination } => Instruction {
-            operation: InstructionOperation::FunctionEnv,
-            data: InstructionData::FunctionEnv { dest: *destination },
+        mir::Instruction::FunctionValue {
+            destination,
+            function,
+            environment,
+        } => Instruction {
+            operation: InstructionOperation::FunctionValue,
+            data: InstructionData::FunctionValue {
+                dest: *destination,
+                function: function.id,
+                environment: *environment,
+            },
+        },
+        mir::Instruction::FunctionEnvironment { destination } => Instruction {
+            operation: InstructionOperation::FunctionEnvironment,
+            data: InstructionData::FunctionEnvironment { dest: *destination },
         },
         mir::Instruction::Load {
             destination,
@@ -2946,7 +2954,11 @@ fn infer_instruction_kind(
                 result: function.return_type,
             })
         }
-        mir::Instruction::FunctionEnv { destination } => value_kinds.get(*destination),
+        mir::Instruction::FunctionValue { destination, .. } => {
+            let ty = value_type_for_value(*destination, value_types);
+            Some(kind_from_type(tree, ty))
+        }
+        mir::Instruction::FunctionEnvironment { destination } => value_kinds.get(*destination),
         mir::Instruction::Load { result_type, .. } => Some(kind_from_type(tree, *result_type)),
         mir::Instruction::FieldGet {
             aggregate, index, ..
@@ -3902,8 +3914,13 @@ fn lower_terminator(
     entry_block: u32,
     current_block: mir::LocalNodeId<mir::Block>,
     yield_resume_points: &HashMap<mir::LocalNodeId<mir::Block>, destack_engine::ResumePointId>,
+    exceptional_call_resume_points: &HashMap<
+        mir::LocalNodeId<mir::Block>,
+        (destack_engine::ResumePointId, destack_engine::ResumePointId),
+    >,
     function_indices: &HashMap<mir::LocalNodeId<mir::Function>, u32>,
     value_kinds: &ValueKinds,
+    value_types: &[mir::LocalNodeId<mir::Type>],
     argument_pool: &mut Vec<mir::Value>,
     switch_case_pool: &mut Vec<SwitchCase>,
     copy_pool: &mut Vec<CopyPair>,
@@ -4094,17 +4111,116 @@ fn lower_terminator(
             }
         }
 
-        mir::Terminator::Throw { .. } => Instruction {
-            operation: InstructionOperation::Unreachable,
-            data: InstructionData::Unreachable,
+        mir::Terminator::Throw { value } => Instruction {
+            operation: InstructionOperation::Throw,
+            data: InstructionData::Throw {
+                value: pack_optional_value(Some(*value)),
+            },
         },
 
-        // exception edges are rejected during threading, so reaching one here is a bug
-        mir::Terminator::Call { .. }
-        | mir::Terminator::CallIndirect { .. }
-        | mir::Terminator::CallVirtual { .. }
-        | mir::Terminator::CallInterface { .. } => {
-            panic!("exceptional call terminators are not supported in the interpreter yet")
+        mir::Terminator::Call {
+            function,
+            arguments,
+            ..
+        } => {
+            let args = push_argument_range(argument_pool, arguments);
+            let &(normal_resume_point, unwind_resume_point) = exceptional_call_resume_points
+                .get(&current_block)
+                .unwrap_or_else(|| {
+                    panic!("missing exceptional call resume points for block: {current_block:?}")
+                });
+            let callee_index = lookup_function_index(function_indices, *function)
+                .unwrap_or(INVALID_FUNCTION_INDEX);
+
+            Instruction {
+                operation: InstructionOperation::CallBranch,
+                data: InstructionData::CallBranch {
+                    function: function.id,
+                    callee_index,
+                    arguments: args,
+                    normal_resume_point,
+                    unwind_resume_point,
+                },
+            }
+        }
+
+        mir::Terminator::CallIndirect {
+            callee,
+            signature,
+            arguments,
+            ..
+        } => {
+            let arguments = push_argument_range(argument_pool, arguments);
+            let &(normal_resume_point, unwind_resume_point) = exceptional_call_resume_points
+                .get(&current_block)
+                .unwrap_or_else(|| {
+                    panic!("missing exceptional call resume points for block: {current_block:?}")
+                });
+
+            Instruction {
+                operation: InstructionOperation::CallIndirectBranch,
+                data: InstructionData::CallIndirectBranch {
+                    callee: *callee,
+                    signature: *signature,
+                    arguments,
+                    normal_resume_point,
+                    unwind_resume_point,
+                    cached_function: Cell::new(None),
+                    cached_index: Cell::new(None),
+                },
+            }
+        }
+
+        mir::Terminator::CallVirtual {
+            receiver,
+            slot_id,
+            arguments,
+            ..
+        } => {
+            let arguments = push_argument_range(argument_pool, arguments);
+            let &(normal_resume_point, unwind_resume_point) = exceptional_call_resume_points
+                .get(&current_block)
+                .unwrap_or_else(|| {
+                    panic!("missing exceptional call resume points for block: {current_block:?}")
+                });
+
+            Instruction {
+                operation: InstructionOperation::CallVirtualBranch,
+                data: InstructionData::CallVirtualBranch {
+                    receiver: *receiver,
+                    managed_pointee: managed_pointee_type_for_value(tree, value_types, *receiver),
+                    slot_id: slot_id.0,
+                    arguments,
+                    normal_resume_point,
+                    unwind_resume_point,
+                },
+            }
+        }
+
+        mir::Terminator::CallInterface {
+            receiver,
+            slot_id,
+            arguments,
+            ..
+        } => {
+            let arguments = push_argument_range(argument_pool, arguments);
+            let &(normal_resume_point, unwind_resume_point) = exceptional_call_resume_points
+                .get(&current_block)
+                .unwrap_or_else(|| {
+                    panic!("missing exceptional call resume points for block: {current_block:?}")
+                });
+
+            Instruction {
+                operation: InstructionOperation::CallInterfaceBranch,
+                data: InstructionData::CallInterfaceBranch {
+                    receiver: *receiver,
+                    managed_pointee: managed_pointee_type_for_value(tree, value_types, *receiver),
+                    slot_id: slot_id.0,
+                    arguments,
+                    normal_resume_point,
+                    unwind_resume_point,
+                },
+            }
         }
 
         mir::Terminator::TailCall {
@@ -4141,7 +4257,7 @@ fn lower_terminator(
 
         mir::Terminator::TailCallIndirect {
             callee,
-            env,
+            signature,
             arguments,
             ..
         } => {
@@ -4150,7 +4266,7 @@ fn lower_terminator(
                 operation: InstructionOperation::TailCallIndirect,
                 data: InstructionData::TailCallIndirect {
                     callee: *callee,
-                    env: *env,
+                    signature: *signature,
                     arguments: args,
                     cached_function: Cell::new(None),
                     cached_ptr: Cell::new(None),

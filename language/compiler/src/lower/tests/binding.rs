@@ -376,7 +376,7 @@ function borrowGreeter(greeter: Greeter): &Greeter {
         r#"
 type @Greeter = { @object: ref<managed readonly void>, @itab: usize }
 
-extern function @Greeter.greet({ greet: fnvalue<fn() -> i32, ref?<managed void>> }) -> i32
+extern function @Greeter.greet({ greet: fnvalue<fn() -> i32> }) -> i32
 
 function @borrowGreeter(v0: @Greeter) -> ref<borrowed @Greeter> {
     local0: @Greeter ; owned, readonly

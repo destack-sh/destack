@@ -474,8 +474,8 @@ impl OwnershipAnalysis {
                 state.mark_owned(*destination);
                 self.set_origin_for_destination(state, *destination, Some(*local), tree);
             }
-            // function.env reads the closure environment pointer
-            Instruction::FunctionEnv { destination } => {
+            // function.environment reads the hidden environment pointer
+            Instruction::FunctionEnvironment { destination } => {
                 state.mark_owned(*destination);
                 self.set_origin_for_destination(state, *destination, None, tree);
             }
@@ -495,17 +495,12 @@ impl OwnershipAnalysis {
                     self.set_origin_for_destination(state, dest, None, tree);
                 }
             }
-            Instruction::CallIndirect { arguments, env, .. } => {
+            Instruction::CallIndirect { arguments, .. } => {
                 let args = tree.get_arguments(*arguments);
                 for &arg in args {
                     if !self.value_is_copy(arg, tree) {
                         state.mark_moved_with_source(arg, at.clone());
                     }
-                }
-                if let Some(env) = env
-                    && !self.value_is_copy(*env, tree)
-                {
-                    state.mark_moved_with_source(*env, at.clone());
                 }
                 if let Some(dest) = inst.destination() {
                     state.mark_owned(dest);
@@ -552,6 +547,17 @@ impl OwnershipAnalysis {
                     if !self.value_is_copy(field, tree) {
                         state.mark_moved_with_source(field, at.clone());
                     }
+                }
+                state.mark_owned(*destination);
+                self.set_origin_for_destination(state, *destination, None, tree);
+            }
+            Instruction::FunctionValue {
+                destination,
+                environment,
+                ..
+            } => {
+                if !self.value_is_copy(*environment, tree) {
+                    state.mark_moved_with_source(*environment, at);
                 }
                 state.mark_owned(*destination);
                 self.set_origin_for_destination(state, *destination, None, tree);
@@ -853,7 +859,6 @@ impl OwnershipAnalysis {
             }
             mir::Terminator::CallIndirect {
                 callee,
-                env,
                 arguments,
                 normal_arguments,
                 unwind_arguments,
@@ -861,11 +866,6 @@ impl OwnershipAnalysis {
             } => {
                 if !self.value_is_copy(*callee, tree) {
                     state.mark_moved_with_source(*callee, at.clone());
-                }
-                if let Some(env) = env
-                    && !self.value_is_copy(*env, tree)
-                {
-                    state.mark_moved_with_source(*env, at.clone());
                 }
                 for &arg in arguments
                     .iter()
@@ -943,18 +943,10 @@ impl OwnershipAnalysis {
                 }
             }
             mir::Terminator::TailCallIndirect {
-                callee,
-                env,
-                arguments,
-                ..
+                callee, arguments, ..
             } => {
                 if !self.value_is_copy(*callee, tree) {
                     state.mark_moved_with_source(*callee, at.clone());
-                }
-                if let Some(env) = env
-                    && !self.value_is_copy(*env, tree)
-                {
-                    state.mark_moved_with_source(*env, at.clone());
                 }
                 for &arg in arguments {
                     if !self.value_is_copy(arg, tree) {
@@ -1288,8 +1280,8 @@ fn process_instruction(
         | Instruction::AtomicFence { .. }
         | Instruction::Barrier { .. } => {}
 
-        // function.env reads the closure environment pointer
-        Instruction::FunctionEnv { destination } => {
+        // function.environment reads the hidden environment pointer
+        Instruction::FunctionEnvironment { destination } => {
             state.mark_owned(*destination);
             set_origin_if_move_only(state, *destination, None, tree, value_types);
         }
@@ -1366,6 +1358,15 @@ fn process_instruction(
             for &field in field_values {
                 state.mark_moved_if_not_copy_with_source(field, at.clone(), tree, value_types);
             }
+            state.mark_owned(*destination);
+            set_origin_if_move_only(state, *destination, None, tree, value_types);
+        }
+        Instruction::FunctionValue {
+            destination,
+            environment,
+            ..
+        } => {
+            state.mark_moved_if_not_copy_with_source(*environment, at, tree, value_types);
             state.mark_owned(*destination);
             set_origin_if_move_only(state, *destination, None, tree, value_types);
         }
@@ -1645,16 +1646,12 @@ fn process_terminator(
         }
         mir::Terminator::CallIndirect {
             callee,
-            env,
             arguments,
             normal_arguments,
             unwind_arguments,
             ..
         } => {
             state.mark_moved_if_not_copy_with_source(*callee, at.clone(), tree, value_types);
-            if let Some(env) = env {
-                state.mark_moved_if_not_copy_with_source(*env, at.clone(), tree, value_types);
-            }
             for &arg in arguments
                 .iter()
                 .chain(normal_arguments.iter())
@@ -1719,15 +1716,9 @@ fn process_terminator(
             }
         }
         mir::Terminator::TailCallIndirect {
-            callee,
-            env,
-            arguments,
-            ..
+            callee, arguments, ..
         } => {
             state.mark_moved_if_not_copy_with_source(*callee, at.clone(), tree, value_types);
-            if let Some(env) = env {
-                state.mark_moved_if_not_copy_with_source(*env, at.clone(), tree, value_types);
-            }
             for &arg in arguments {
                 state.mark_moved_if_not_copy_with_source(arg, at.clone(), tree, value_types);
             }

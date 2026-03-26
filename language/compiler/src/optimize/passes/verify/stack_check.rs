@@ -210,14 +210,13 @@ impl StackPointerMap {
                 destination: Some(dest),
                 arguments,
                 signature,
-                env,
                 ..
             } => {
                 let args = tree.get_arguments(*arguments);
                 if let Some(targets) = call_targets.targets_for_instruction(instruction_id) {
                     self.apply_call_targets(*dest, args, targets, lifetime_analysis);
                 } else {
-                    self.apply_signature_lifetime(*dest, *signature, tree, args, *env);
+                    self.apply_signature_lifetime(*dest, *signature, tree, args, None);
                 }
             }
             // calls without destination: nothing to track

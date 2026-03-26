@@ -30,7 +30,7 @@ impl FunctionLowerer<'_> {
         // lower each element value
         let mut element_values = Vec::with_capacity(elements.len());
         for element_id in elements {
-            let element = self.env.dir_tree.get(*element_id);
+            let element = self.context.dir_tree.get(*element_id);
             match element {
                 dir::Argument::Positional { value, .. } | dir::Argument::Labeled { value, .. } => {
                     let (value, _) = self.lower_value_expression(*value)?;
@@ -39,8 +39,8 @@ impl FunctionLowerer<'_> {
                 _ => {
                     return Err(LowerError::UnsupportedConstruct {
                         node: expression_id
-                            .into_global_any(self.env.module_id)
-                            .into_anchored(Some(self.env.profile)),
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
                         message: "unsupported tuple element kind".to_string(),
                     })?;
                 }
@@ -76,7 +76,7 @@ impl FunctionLowerer<'_> {
         // lower each element value
         let mut element_values = Vec::with_capacity(elements.len());
         for element_id in elements {
-            let element = self.env.dir_tree.get(*element_id);
+            let element = self.context.dir_tree.get(*element_id);
             match element {
                 dir::Argument::Positional { value, .. } => {
                     let (value, _) = self.lower_value_expression(*value)?;
@@ -85,8 +85,8 @@ impl FunctionLowerer<'_> {
                 _ => {
                     return Err(LowerError::UnsupportedConstruct {
                         node: expression_id
-                            .into_global_any(self.env.module_id)
-                            .into_anchored(Some(self.env.profile)),
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
                         message: "unsupported array element kind".to_string(),
                     })?;
                 }
@@ -124,10 +124,10 @@ impl FunctionLowerer<'_> {
 
         // get the cached layout for this struct type
         let node = expression_id
-            .into_global_any(self.env.module_id)
-            .into_anchored(Some(self.env.profile));
+            .into_global_any(self.context.module_id)
+            .into_anchored(Some(self.context.profile));
         let layout = self
-            .env
+            .context
             .type_lowerer
             .layout_for_type_or_error(struct_type, node)?;
 
@@ -137,7 +137,7 @@ impl FunctionLowerer<'_> {
 
         // lower each property and place in correct field slot
         for property_id in properties {
-            let property = self.env.dir_tree.get(*property_id);
+            let property = self.context.dir_tree.get(*property_id);
             match property {
                 dir::Property::Field { key, value, .. } => {
                     // get the property key
@@ -145,8 +145,8 @@ impl FunctionLowerer<'_> {
                         .as_ref()
                         .ok_or_else(|| LowerError::UnsupportedConstruct {
                             node: expression_id
-                                .into_global_any(self.env.module_id)
-                                .into_anchored(Some(self.env.profile)),
+                                .into_global_any(self.context.module_id)
+                                .into_anchored(Some(self.context.profile)),
                             message: "struct field missing key".to_string(),
                         })?;
 
@@ -157,8 +157,8 @@ impl FunctionLowerer<'_> {
                     // get the initializer value
                     let value_expr = value.ok_or_else(|| LowerError::UnsupportedConstruct {
                         node: expression_id
-                            .into_global_any(self.env.module_id)
-                            .into_anchored(Some(self.env.profile)),
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
                         message: "struct field missing initializer".to_string(),
                     })?;
 
@@ -169,8 +169,8 @@ impl FunctionLowerer<'_> {
                     if field_values[field_index].is_some() {
                         return Err(LowerError::UnsupportedConstruct {
                             node: expression_id
-                                .into_global_any(self.env.module_id)
-                                .into_anchored(Some(self.env.profile)),
+                                .into_global_any(self.context.module_id)
+                                .into_anchored(Some(self.context.profile)),
                             message: "duplicate struct field".to_string(),
                         });
                     }
@@ -181,8 +181,8 @@ impl FunctionLowerer<'_> {
                 dir::Property::Spread { .. } => {
                     return Err(LowerError::UnsupportedConstruct {
                         node: expression_id
-                            .into_global_any(self.env.module_id)
-                            .into_anchored(Some(self.env.profile)),
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
                         message: "spread properties not yet supported".to_string(),
                     });
                 }
@@ -190,16 +190,16 @@ impl FunctionLowerer<'_> {
                 dir::Property::Method { .. } => {
                     return Err(LowerError::UnsupportedConstruct {
                         node: expression_id
-                            .into_global_any(self.env.module_id)
-                            .into_anchored(Some(self.env.profile)),
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
                         message: "method properties in object literals not supported".to_string(),
                     });
                 }
                 dir::Property::Error { .. } => {
                     return Err(LowerError::UnsupportedConstruct {
                         node: expression_id
-                            .into_global_any(self.env.module_id)
-                            .into_anchored(Some(self.env.profile)),
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
                         message: "error properties in object literals not supported".to_string(),
                     });
                 }
@@ -229,8 +229,8 @@ impl FunctionLowerer<'_> {
             .map(|(i, v)| {
                 v.ok_or_else(|| LowerError::UnsupportedConstruct {
                     node: expression_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
                     message: format!("struct field {i} not initialized"),
                 })
             })
@@ -270,8 +270,8 @@ impl FunctionLowerer<'_> {
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
                     node: expression_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
                     message: "tagged scalar expression requires a newtype".to_string(),
                 });
             }
@@ -284,8 +284,8 @@ impl FunctionLowerer<'_> {
         ) {
             return Err(LowerError::UnsupportedConstruct {
                 node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
                 message: "tuple newtypes require a tagged tuple expression".to_string(),
             });
         }
@@ -297,8 +297,8 @@ impl FunctionLowerer<'_> {
         if value_type != inner_type {
             return Err(LowerError::UnsupportedConstruct {
                 node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
                 message: "newtype payload type does not match inner type".to_string(),
             });
         }
@@ -339,8 +339,8 @@ impl FunctionLowerer<'_> {
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
                     node: expression_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
                     message: "tagged tuple expression requires a newtype".to_string(),
                 });
             }
@@ -352,8 +352,8 @@ impl FunctionLowerer<'_> {
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
                     node: expression_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
                     message: "tagged tuple expression requires a tuple newtype".to_string(),
                 });
             }
@@ -362,7 +362,7 @@ impl FunctionLowerer<'_> {
         // lower each element value
         let mut element_values = Vec::with_capacity(elements.len());
         for element_id in elements {
-            let element = self.env.dir_tree.get(*element_id);
+            let element = self.context.dir_tree.get(*element_id);
             match element {
                 dir::Argument::Positional { value, .. } | dir::Argument::Labeled { value, .. } => {
                     let (value, _) = self.lower_value_expression(*value)?;
@@ -371,8 +371,8 @@ impl FunctionLowerer<'_> {
                 _ => {
                     return Err(LowerError::UnsupportedConstruct {
                         node: expression_id
-                            .into_global_any(self.env.module_id)
-                            .into_anchored(Some(self.env.profile)),
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
                         message: "unsupported tuple newtype element kind".to_string(),
                     })?;
                 }
@@ -383,8 +383,8 @@ impl FunctionLowerer<'_> {
         if element_values.len() != tuple_elements.len() {
             return Err(LowerError::UnsupportedConstruct {
                 node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
                 message: "tuple newtype arity does not match inner type".to_string(),
             });
         }
@@ -427,8 +427,8 @@ impl FunctionLowerer<'_> {
         {
             return Err(LowerError::UnsupportedConstruct {
                 node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
                 message: "static arguments are not supported".to_string(),
             });
         }
@@ -437,24 +437,24 @@ impl FunctionLowerer<'_> {
         if let Some(constructor_id) = self.explicit_constructor_member_for_expression(expression_id)
         {
             // load the constructor member
-            let constructor = self.env.dir_tree.get(constructor_id);
+            let constructor = self.context.dir_tree.get(constructor_id);
             // require a constructor method member
             let dir::Member::Method { symbol, .. } = constructor else {
                 return Err(LowerError::UnsupportedConstruct {
                     node: constructor_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
                     message: "unsupported constructor member".to_string(),
                 });
             };
 
-            let constructor_symbol = symbol.into_global(self.env.module_id);
+            let constructor_symbol = symbol.into_global(self.context.module_id);
             let function_id = self
                 .function_for_symbol(constructor_symbol)
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
                     node: constructor_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
                     message: "missing constructor function".to_string(),
                 })?;
 
@@ -464,13 +464,13 @@ impl FunctionLowerer<'_> {
             // lower constructor arguments
             let mut arguments = Vec::with_capacity(dynamic_arguments.len());
             for argument_id in dynamic_arguments {
-                let argument = self.env.dir_tree.get(*argument_id);
+                let argument = self.context.dir_tree.get(*argument_id);
                 // reject non positional constructor arguments
                 if !matches!(argument, dir::Argument::Positional { .. }) {
                     return Err(LowerError::UnsupportedConstruct {
                         node: expression_id
-                            .into_global_any(self.env.module_id)
-                            .into_anchored(Some(self.env.profile)),
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
                         message: "unsupported non positional constructor argument".to_string(),
                     });
                 }
@@ -485,8 +485,8 @@ impl FunctionLowerer<'_> {
                 .call(function_id, signature, arguments)
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
                     node: expression_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
                     message: "constructor returned no value".to_string(),
                 })?;
 
@@ -503,11 +503,11 @@ impl FunctionLowerer<'_> {
         };
 
         // get the cached layout for this struct type
-        let layout = self.env.type_lowerer.layout_for_type_or_error(
+        let layout = self.context.type_lowerer.layout_for_type_or_error(
             instance_type,
             expression_id
-                .into_global_any(self.env.module_id)
-                .into_anchored(Some(self.env.profile)),
+                .into_global_any(self.context.module_id)
+                .into_anchored(Some(self.context.profile)),
         )?;
 
         // match arguments to fields in source order
@@ -521,8 +521,8 @@ impl FunctionLowerer<'_> {
         if dynamic_arguments.len() != field_count {
             return Err(LowerError::UnsupportedConstruct {
                 node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
                 message: "constructor argument count does not match field count".to_string(),
             });
         }
@@ -530,13 +530,13 @@ impl FunctionLowerer<'_> {
         // initialize field values array in layout order
         let mut field_values: Vec<Option<mir::Value>> = vec![None; layout.fields.len()];
         for (source_index, argument_id) in dynamic_arguments.iter().enumerate() {
-            let argument = self.env.dir_tree.get(*argument_id);
+            let argument = self.context.dir_tree.get(*argument_id);
             // reject non positional constructor arguments
             let dir::Argument::Positional { value, .. } = argument else {
                 return Err(LowerError::UnsupportedConstruct {
                     node: expression_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
                     message: "unsupported non positional constructor argument".to_string(),
                 });
             };
@@ -550,8 +550,8 @@ impl FunctionLowerer<'_> {
                 .map(|index| index as usize)
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
                     node: expression_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
                     message: "constructor field index out of bounds".to_string(),
                 })?;
 
@@ -559,8 +559,8 @@ impl FunctionLowerer<'_> {
             if field_values[layout_index].is_some() {
                 return Err(LowerError::UnsupportedConstruct {
                     node: expression_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
                     message: "duplicate constructor field".to_string(),
                 });
             }
@@ -575,8 +575,8 @@ impl FunctionLowerer<'_> {
 
         // fill synthetic fields with default values
         let node = expression_id
-            .into_global_any(self.env.module_id)
-            .into_anchored(Some(self.env.profile));
+            .into_global_any(self.context.module_id)
+            .into_anchored(Some(self.context.profile));
         let mut vtable_value = None;
         for (index, field) in layout.fields.iter().enumerate() {
             // fill synthetic fields that are not initialized
@@ -594,8 +594,8 @@ impl FunctionLowerer<'_> {
             .map(|(index, value)| {
                 value.ok_or_else(|| LowerError::UnsupportedConstruct {
                     node: expression_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
                     message: format!("constructor field {index} not initialized"),
                 })
             })
@@ -614,8 +614,8 @@ impl FunctionLowerer<'_> {
             Some(_) => {
                 return Err(LowerError::UnsupportedConstruct {
                     node: expression_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
                     message: "unsupported reference kind for constructor".to_string(),
                 });
             }
@@ -702,27 +702,27 @@ impl FunctionLowerer<'_> {
                     .map(|i| i as usize)
                     .ok_or_else(|| LowerError::UnsupportedConstruct {
                         node: expression_id
-                            .into_global_any(self.env.module_id)
-                            .into_anchored(Some(self.env.profile)),
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
                         message: "struct field not found".to_string(),
                     })
             }
             dir::DynamicKey::Private(_) => Err(LowerError::UnsupportedConstruct {
                 node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
                 message: "private field key not supported in struct layout".to_string(),
             }),
             dir::DynamicKey::Number(num_str) => {
                 // parse numeric key as source index
-                let index_str = self.env.strings.get(*num_str);
+                let index_str = self.context.strings.get(*num_str);
                 let source_index: u32 =
                     index_str
                         .parse()
                         .map_err(|_| LowerError::UnsupportedConstruct {
                             node: expression_id
-                                .into_global_any(self.env.module_id)
-                                .into_anchored(Some(self.env.profile)),
+                                .into_global_any(self.context.module_id)
+                                .into_anchored(Some(self.context.profile)),
                             message: "invalid numeric field key".to_string(),
                         })?;
                 // map source index to layout index
@@ -731,8 +731,8 @@ impl FunctionLowerer<'_> {
                     .map(|i| i as usize)
                     .ok_or_else(|| LowerError::UnsupportedConstruct {
                         node: expression_id
-                            .into_global_any(self.env.module_id)
-                            .into_anchored(Some(self.env.profile)),
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
                         message: "field index out of bounds".to_string(),
                     })
             }
@@ -740,8 +740,8 @@ impl FunctionLowerer<'_> {
                 // reject computed property keys
                 Err(LowerError::UnsupportedConstruct {
                     node: expression_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
                     message: "computed property keys not supported".to_string(),
                 })
             }
@@ -755,7 +755,7 @@ impl FunctionLowerer<'_> {
     ) -> Option<LocalNodeId<dir::Member>> {
         // prefer the constructor symbol from the new expression target
         if let Some(target_symbol) = self.constructor_target_symbol_for_expression(expression_id)
-            && target_symbol.module_id == self.env.module_id
+            && target_symbol.module_id == self.context.module_id
             && let Some(constructor) = self.explicit_constructor_member_for_symbol(target_symbol)
         {
             return Some(constructor);
@@ -765,13 +765,13 @@ impl FunctionLowerer<'_> {
         let type_id = self.type_for_expression(expression_id)?;
         let type_id = self.unwrap_value_type_id(type_id);
         // require a nominal reference type
-        let symbol = match self.env.types.get_type(type_id) {
+        let symbol = match self.context.types.get_type(type_id) {
             dir::Type::Reference { symbol, .. } => *symbol,
             _ => return None,
         };
 
         // skip remote symbols
-        if symbol.module_id != self.env.module_id {
+        if symbol.module_id != self.context.module_id {
             return None;
         }
 
@@ -783,11 +783,11 @@ impl FunctionLowerer<'_> {
         &self,
         expression_id: LocalNodeId<Expression>,
     ) -> Option<GlobalSymbolId> {
-        let Expression::New { left, .. } = self.env.dir_tree.get(expression_id) else {
+        let Expression::New { left, .. } = self.context.dir_tree.get(expression_id) else {
             return None;
         };
 
-        match self.env.dir_tree.get(*left) {
+        match self.context.dir_tree.get(*left) {
             Expression::LocalReference { target_symbol, .. }
             | Expression::ModuleReference { target_symbol, .. }
             | Expression::GlobalReference { target_symbol, .. } => Some(*target_symbol),
@@ -803,7 +803,7 @@ impl FunctionLowerer<'_> {
         // scan declarations for explicit constructors
         let declaration_ids = self.declaration_ids_for_symbol(symbol);
         for declaration_id in declaration_ids {
-            let declaration = self.env.dir_tree.get(declaration_id);
+            let declaration = self.context.dir_tree.get(declaration_id);
             // select struct or class members
             let members = match declaration {
                 dir::Declaration::Struct { members, .. }
@@ -812,7 +812,7 @@ impl FunctionLowerer<'_> {
             };
 
             for member_id in members {
-                let member = self.env.dir_tree.get(*member_id);
+                let member = self.context.dir_tree.get(*member_id);
                 let dir::Member::Method { key, signature, .. } = member else {
                     continue;
                 };
@@ -838,12 +838,12 @@ impl FunctionLowerer<'_> {
         symbol: dir::GlobalSymbolId,
     ) -> Vec<LocalNodeId<dir::Declaration>> {
         // read the symbol entry for declaration lists
-        let symbol_entry = self.env.symbols.get_symbol(symbol.local_id);
+        let symbol_entry = self.context.symbols.get_symbol(symbol.local_id);
         let mut declaration_ids = Vec::new();
 
         // add the primary declaration first
         if let Some(primary) = symbol_entry.primary_declaration
-            && primary.module_id == self.env.module_id
+            && primary.module_id == self.context.module_id
             && let Ok(local_id) = primary.local_id.try_into_typed::<dir::Declaration>()
         {
             declaration_ids.push(local_id);
@@ -852,7 +852,7 @@ impl FunctionLowerer<'_> {
         // add secondary declarations in order
         if let Some(secondary) = symbol_entry.secondary_declarations.as_deref() {
             for declaration_id in secondary {
-                if declaration_id.module_id != self.env.module_id {
+                if declaration_id.module_id != self.context.module_id {
                     continue;
                 }
                 if let Ok(local_id) = declaration_id.local_id.try_into_typed::<dir::Declaration>() {

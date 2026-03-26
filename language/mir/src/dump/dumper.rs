@@ -467,9 +467,20 @@ impl<'a> Dumper<'a> {
                 self.write(" = function.addr ");
                 self.write(&self.format_function_id(*function));
             }
-            Instruction::FunctionEnv { destination } => {
+            Instruction::FunctionValue {
+                destination,
+                function,
+                environment,
+            } => {
                 self.write_colored(&self.format_value(*destination), Color::Green);
-                self.write(" = function.env");
+                self.write(" = function.value ");
+                self.write(&self.format_function_id(*function));
+                self.write(", ");
+                self.write(&self.format_value(*environment));
+            }
+            Instruction::FunctionEnvironment { destination } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = function.environment");
             }
 
             Instruction::Load {
@@ -1401,7 +1412,6 @@ impl<'a> Dumper<'a> {
             Instruction::CallIndirect {
                 destination,
                 callee,
-                env,
                 arguments,
                 signature,
                 ..
@@ -1419,13 +1429,6 @@ impl<'a> Dumper<'a> {
                         self.write(", ");
                     }
                     self.write(&self.format_value(*arg));
-                }
-                if let Some(env) = env {
-                    if !args.is_empty() {
-                        self.write(", ");
-                    }
-                    self.write("env=");
-                    self.write(&self.format_value(*env));
                 }
                 self.write(")");
                 self.write(" -> ");
@@ -1967,13 +1970,13 @@ impl<'a> Dumper<'a> {
 
             Terminator::CallIndirect {
                 callee,
-                env,
                 arguments,
                 signature,
                 normal_target,
                 normal_arguments,
                 unwind_target,
                 unwind_arguments,
+                ..
             } => {
                 self.write_colored("call.indirect", Color::Red);
                 self.write(" ");
@@ -1984,13 +1987,6 @@ impl<'a> Dumper<'a> {
                         self.write(", ");
                     }
                     self.write(&self.format_value(*arg));
-                }
-                if let Some(env) = env {
-                    if !arguments.is_empty() {
-                        self.write(", ");
-                    }
-                    self.write("env=");
-                    self.write(&self.format_value(*env));
                 }
                 self.write(")");
                 self.write(" -> ");
@@ -2168,9 +2164,9 @@ impl<'a> Dumper<'a> {
 
             Terminator::TailCallIndirect {
                 callee,
-                env,
                 arguments,
                 signature,
+                ..
             } => {
                 self.write_colored("tailcall.indirect", Color::Red);
                 self.write(" ");
@@ -2181,13 +2177,6 @@ impl<'a> Dumper<'a> {
                         self.write(", ");
                     }
                     self.write(&self.format_value(*arg));
-                }
-                if let Some(env) = env {
-                    if !arguments.is_empty() {
-                        self.write(", ");
-                    }
-                    self.write("env=");
-                    self.write(&self.format_value(*env));
                 }
                 self.write(")");
                 self.write(" -> ");

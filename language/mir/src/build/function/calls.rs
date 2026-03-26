@@ -211,25 +211,42 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
-    /// Load the closure environment pointer for the current function.
-    pub fn function_env(&mut self, env_type: LocalNodeId<Type>) -> Value {
-        // record the closure env type on the function metadata
+    /// Construct a callable value for one function and environment.
+    pub fn function_value(
+        &mut self,
+        function: LocalNodeId<Function>,
+        signature: LocalNodeId<Type>,
+        environment: Value,
+    ) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::FunctionValue {
+            destination,
+            function,
+            environment,
+        });
+        self.define_value(destination, signature);
+        destination
+    }
+
+    /// Load the hidden environment pointer for the current function.
+    pub fn function_environment(&mut self, environment_type: LocalNodeId<Type>) -> Value {
+        // record the hidden environment type on the function metadata
         {
             let function = self.tree.get_mut(self.function_id);
-            match function.closure_env_type {
-                Some(existing) if existing != env_type => {
-                    panic!("mismatched closure env types for function.env");
+            match function.environment {
+                Some(existing) if existing != environment_type => {
+                    panic!("mismatched environment types for function.environment");
                 }
                 Some(_) => {}
                 None => {
-                    function.closure_env_type = Some(env_type);
+                    function.environment = Some(environment_type);
                 }
             }
         }
 
         let destination = self.allocate_value();
-        self.insert_instruction(Instruction::FunctionEnv { destination });
-        self.define_value(destination, env_type);
+        self.insert_instruction(Instruction::FunctionEnvironment { destination });
+        self.define_value(destination, environment_type);
         destination
     }
 
@@ -237,7 +254,6 @@ impl<'a> FunctionBuilder<'a> {
     pub fn call_indirect(
         &mut self,
         callee: Value,
-        env: Option<Value>,
         signature: LocalNodeId<Type>,
         args: Vec<Value>,
     ) -> Value {
@@ -247,7 +263,6 @@ impl<'a> FunctionBuilder<'a> {
         self.insert_instruction(Instruction::CallIndirect {
             destination: Some(destination),
             callee,
-            env,
             arguments,
             signature,
             effects: None,
@@ -260,7 +275,6 @@ impl<'a> FunctionBuilder<'a> {
     pub fn call_indirect_void(
         &mut self,
         callee: Value,
-        env: Option<Value>,
         signature: LocalNodeId<Type>,
         args: Vec<Value>,
     ) {
@@ -268,7 +282,6 @@ impl<'a> FunctionBuilder<'a> {
         self.insert_instruction(Instruction::CallIndirect {
             destination: None,
             callee,
-            env,
             arguments,
             signature,
             effects: None,

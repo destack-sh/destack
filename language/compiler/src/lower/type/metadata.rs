@@ -270,13 +270,13 @@ impl ModuleLowerer<'_> {
         else if matches!(self.types.get_type(type_id), dir::Type::Function { .. }) {
             mir::LayoutType::FunctionValue
         }
-        // mark closure environments explicitly when present
+        // mark function environments explicitly when present
         else if self
-            .closure_env_layouts
+            .function_environment_layouts
             .values()
             .any(|env_layout| env_layout.env_type == mir_type)
         {
-            mir::LayoutType::ClosureEnv
+            mir::LayoutType::FunctionEnvironment
         }
         // default to plain struct layout
         else {

@@ -214,20 +214,9 @@ fn format_type_inner<'a>(
             }
             write!(f, [token(")"), space(), token("->"), space(), result])
         }
-        Type::FunctionValue {
-            signature,
-            environment,
-        } => write!(
-            f,
-            [
-                token("fnvalue<"),
-                signature,
-                token(","),
-                space(),
-                environment,
-                token(">")
-            ]
-        ),
+        Type::FunctionValue { signature, .. } => {
+            write!(f, [token("fnvalue<"), signature, token(">")])
+        }
     }
 }
 

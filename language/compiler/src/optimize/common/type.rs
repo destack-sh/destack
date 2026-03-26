@@ -90,10 +90,7 @@ pub enum TypeKey {
         result: Box<TypeKey>,
     },
     /// Callable closure value type.
-    FunctionValue {
-        signature: Box<TypeKey>,
-        environment: Box<TypeKey>,
-    },
+    FunctionValue { signature: Box<TypeKey> },
     /// Recursive reference to a previously visited type id.
     Recursive { id: mir::LocalNodeId<mir::Type> },
 }
@@ -244,12 +241,8 @@ impl TypeKey {
                     result: Box::new(Self::from_type_inner(*result, tree, visiting)),
                 }
             }
-            mir::Type::FunctionValue {
-                signature,
-                environment,
-            } => TypeKey::FunctionValue {
+            mir::Type::FunctionValue { signature } => TypeKey::FunctionValue {
                 signature: Box::new(Self::from_type_inner(*signature, tree, visiting)),
-                environment: Box::new(Self::from_type_inner(*environment, tree, visiting)),
             },
         };
 
@@ -499,20 +492,11 @@ fn types_are_equal_inner(
                 && types_are_equal_inner(*r1, *r2, tree, visiting)
         }
 
-        // function values: compare signature and environment types
+        // function values: compare signatures
         (
-            mir::Type::FunctionValue {
-                signature: s1,
-                environment: e1,
-            },
-            mir::Type::FunctionValue {
-                signature: s2,
-                environment: e2,
-            },
-        ) => {
-            types_are_equal_inner(*s1, *s2, tree, visiting)
-                && types_are_equal_inner(*e1, *e2, tree, visiting)
-        }
+            mir::Type::FunctionValue { signature: s1 },
+            mir::Type::FunctionValue { signature: s2 },
+        ) => types_are_equal_inner(*s1, *s2, tree, visiting),
 
         // different type variants are never equal
         _ => false,

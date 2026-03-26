@@ -65,7 +65,7 @@ impl FunctionLowerer<'_> {
             && self.state.bindings.locals_by_symbol.contains_key(&symbol)
         {
             return Err(LowerError::UnsupportedConstruct {
-                node: node_id.into_anchored(self.env.module_id, Some(self.env.profile)),
+                node: node_id.into_anchored(self.context.module_id, Some(self.context.profile)),
                 message: "duplicate this binding".to_string(),
             });
         }
@@ -146,7 +146,7 @@ impl FunctionLowerer<'_> {
         &self,
         receiver_id: dir::LocalNodeId<dir::Expression>,
     ) -> bool {
-        let symbol = match self.env.dir_tree.get(receiver_id) {
+        let symbol = match self.context.dir_tree.get(receiver_id) {
             Expression::LocalReference { target_symbol, .. }
             | Expression::ModuleReference { target_symbol, .. }
             | Expression::GlobalReference { target_symbol, .. } => *target_symbol,

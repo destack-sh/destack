@@ -116,6 +116,18 @@ impl<'a> Validator<'a> {
         // signature type
         self.ensure_node_type(NodeType::Type, signature.id, anchor)?;
 
+        let signature = match self.tree.get(signature) {
+            Type::FunctionPointer { .. } => signature,
+            Type::FunctionValue { signature, .. } => *signature,
+            _ => {
+                return Err(ValidateError::MetadataInvariantViolation {
+                    message: "call signature is not a function type".to_string(),
+                    anchor,
+                });
+            }
+        };
+        self.ensure_node_type(NodeType::Type, signature.id, anchor)?;
+
         let Type::FunctionPointer { parameters, result } = self.tree.get(signature) else {
             return Err(ValidateError::MetadataInvariantViolation {
                 message: "call signature is not a function type".to_string(),
@@ -307,6 +319,23 @@ impl<'a> Validator<'a> {
 
         if !found_itab {
             return Ok(());
+        }
+
+        Ok(())
+    }
+
+    /// Reject direct calls to functions that require a hidden environment.
+    pub(super) fn validate_direct_call_environment(
+        &self,
+        anchor: ValidateAnchor,
+        function_id: LocalNodeId<Function>,
+    ) -> ValidateResult<()> {
+        let function = self.tree.get(function_id);
+        if function.environment.is_some() {
+            return Err(ValidateError::MetadataInvariantViolation {
+                message: "direct call cannot target a function with an environment".to_string(),
+                anchor,
+            });
         }
 
         Ok(())

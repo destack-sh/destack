@@ -4,7 +4,7 @@ mod context;
 mod function;
 mod global;
 mod instruction;
-mod types;
+mod r#type;
 mod value;
 
 #[cfg(test)]

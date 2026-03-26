@@ -13,9 +13,9 @@ use {destack_dir as dir, destack_mir as mir};
 use crate::{ArtifactRequirementError, Compiler, LowerError, LowerResult};
 
 use crate::lower::{
-    BuiltinTypeLayouts, ClosureEnvLayout, GlobalBinding, InstanceKey, InterfaceEntry, MethodKey,
-    RUNTIME_CHECK_MESSAGES, RuntimeCheckConfig, RuntimeStatusLayout, TypeCacheEntry, TypeLowerer,
-    VtableGlobal,
+    BuiltinTypeLayouts, FunctionEnvironmentLayout, GlobalBinding, InstanceKey, InterfaceEntry,
+    MethodKey, RUNTIME_CHECK_MESSAGES, RuntimeCheckConfig, RuntimeStatusLayout, TypeCacheEntry,
+    TypeLowerer, VtableGlobal,
 };
 
 /// Context for lowering a DIR module to MIR.
@@ -58,12 +58,12 @@ pub(crate) struct ModuleLowerer<'a> {
     pub(crate) globals_by_symbol: HashMap<GlobalSymbolId, GlobalBinding>,
     /// Map string literal contents to MIR globals.
     pub(crate) string_literal_globals: HashMap<StringId, mir::LocalNodeId<mir::Global>>,
-    /// Map closure environment layouts by function symbol.
-    pub(crate) closure_env_layouts: HashMap<GlobalSymbolId, ClosureEnvLayout>,
-    /// Cached empty closure environment type.
-    pub(crate) empty_closure_env_type: Option<mir::LocalNodeId<mir::Type>>,
-    /// Cached empty closure environment pointer type.
-    pub(crate) empty_closure_env_pointer_type: Option<mir::LocalNodeId<mir::Type>>,
+    /// Map function environment layouts by function symbol.
+    pub(crate) function_environment_layouts: HashMap<GlobalSymbolId, FunctionEnvironmentLayout>,
+    /// Cached empty function environment type.
+    pub(crate) empty_function_environment_type: Option<mir::LocalNodeId<mir::Type>>,
+    /// Cached empty function environment pointer type.
+    pub(crate) empty_function_environment_pointer_type: Option<mir::LocalNodeId<mir::Type>>,
     /// Lower and cache DIR types into MIR types.
     pub(crate) type_lowerer: TypeLowerer,
     /// Synthetic name for call signatures in dispatch tables.
@@ -203,9 +203,9 @@ impl<'a> ModuleLowerer<'a> {
             function_signature_types: HashMap::new(),
             globals_by_symbol: HashMap::new(),
             string_literal_globals: HashMap::new(),
-            closure_env_layouts: HashMap::new(),
-            empty_closure_env_type: None,
-            empty_closure_env_pointer_type: None,
+            function_environment_layouts: HashMap::new(),
+            empty_function_environment_type: None,
+            empty_function_environment_pointer_type: None,
             type_lowerer,
             dispatch_call_name,
             dispatch_construct_name,
