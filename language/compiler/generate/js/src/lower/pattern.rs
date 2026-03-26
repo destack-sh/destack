@@ -33,6 +33,54 @@ impl ModuleLowerer<'_> {
                 self.tree
                     .insert_from_source(pattern, self.module.id, pattern_id)
             }
+            dir::Pattern::Array { fields } => {
+                let mut elements = Vec::with_capacity(fields.len());
+                for field_id in fields {
+                    let field = self.dir_tree.get(*field_id);
+                    let element = match field {
+                        dir::PatternField::Positional { pattern, default } => {
+                            if default.is_some() {
+                                return Err(CodegenJsError::UnsupportedConstruct {
+                                    node: pattern_id.into_global_any(self.module.id),
+                                    message: Some(
+                                        "array pattern defaults are not lowered to js".to_string(),
+                                    ),
+                                });
+                            }
+
+                            self.lower_pattern(*pattern)?
+                        }
+                        dir::PatternField::Elision => {
+                            let pattern = Pattern::Hole;
+                            self.tree
+                                .insert_from_source(pattern, self.module.id, *field_id)
+                        }
+                        _ => {
+                            return Err(CodegenJsError::UnsupportedConstruct {
+                                node: pattern_id.into_global_any(self.module.id),
+                                message: Some(
+                                    "complex array patterns are not lowered to js".to_string(),
+                                ),
+                            });
+                        }
+                    };
+
+                    elements.push(element);
+                }
+
+                let pattern = Pattern::Array { elements };
+                self.tree
+                    .insert_from_source(pattern, self.module.id, pattern_id)
+            }
+            dir::Pattern::Object { fields } | dir::Pattern::TaggedObject { ty: _, fields } => {
+                let fields = fields
+                    .iter()
+                    .map(|field| self.lower_pattern_field(*field))
+                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
+                let pattern = Pattern::Object { fields };
+                self.tree
+                    .insert_from_source(pattern, self.module.id, pattern_id)
+            }
             _ => {
                 return Err(CodegenJsError::UnsupportedConstruct {
                     node: pattern_id.into_global_any(self.module.id),

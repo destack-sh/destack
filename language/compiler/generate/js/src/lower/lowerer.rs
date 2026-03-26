@@ -3,7 +3,7 @@
 //! The `ModuleLowerer` converts elaborated DIR (Destack IR) into a JavaScript AST.
 //! This is the emission stage for JS and TS targets.
 
-use destack_artifact::Ast;
+use destack_artifact::{Ast, DirPatched};
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_dir::{SymbolTable, TypeTable};
@@ -92,20 +92,17 @@ impl<'a> ModuleLowerer<'a> {
         module: &'a Module,
         ast: &'a Ast,
         source_strings: &'a StringPool,
-        dir_tree: &'a dir::NodeTree,
-        dir_roots: &'a Vec<dir::LocalNodeId<dir::Expression>>,
-        symbols: &'a SymbolTable,
-        types: &'a TypeTable,
+        dir: &'a DirPatched,
         target: &'a Target,
     ) -> Self {
         Self {
             module,
             ast,
             source_strings,
-            dir_tree,
-            dir_roots,
-            symbols,
-            types,
+            dir_tree: dir.tree.as_ref(),
+            dir_roots: dir.roots.as_ref(),
+            symbols: dir.symbols.as_ref(),
+            types: dir.types.as_ref(),
             target,
             tree: JsTree::new(),
             roots: Vec::new(),

@@ -1,7 +1,6 @@
 use crate::{
-    CodegenJsError, CodegenJsResult, CodegenJsResultExt, Expression, Generics, Heritage,
-    LocalNodeId, ModuleLowerer, Mutability, PrimitiveType, Type, TypeBinaryOperator, TypeLiteral,
-    TypeUnaryOperator,
+    CodegenJsError, CodegenJsResult, Generics, Heritage, LocalNodeId, ModuleLowerer, Mutability,
+    PrimitiveType, Type, TypeBinaryOperator, TypeLiteral, TypeUnaryOperator,
 };
 use destack_dir as dir;
 
@@ -35,12 +34,22 @@ impl ModuleLowerer<'_> {
         let extends_types = heritage
             .extends_types
             .as_ref()
-            .map(|_extends_types| todo!())
+            .map(|extends_types| {
+                extends_types
+                    .iter()
+                    .map(|extends_type| self.lower_expression_as_type(*extends_type))
+                    .collect::<Result<Vec<_>, CodegenJsError>>()
+            })
             .transpose()?;
         let implements_types = heritage
             .implements_types
             .as_ref()
-            .map(|_implements_types| todo!())
+            .map(|implements_types| {
+                implements_types
+                    .iter()
+                    .map(|implements_type| self.lower_expression_as_type(*implements_type))
+                    .collect::<Result<Vec<_>, CodegenJsError>>()
+            })
             .transpose()?;
         let heritage = Heritage {
             extends_types,
@@ -168,14 +177,7 @@ impl ModuleLowerer<'_> {
                 self.tree
                     .insert_from_source_any(ty, self.module.id, source_id)
             }
-            dir::Type::Unevaluated(expression) => {
-                let expression = self
-                    .lower_expression(*expression)
-                    .expect_node::<Expression>(expression.into_global_any(self.module.id), self)?;
-                let ty = Type::Expression(expression);
-                self.tree
-                    .insert_from_source_any(ty, self.module.id, source_id)
-            }
+            dir::Type::Unevaluated(expression) => self.lower_expression_as_type(*expression)?,
 
             dir::Type::Unary { operator, right } => {
                 let operator = self.lower_type_unary_operator(ty_id, *operator)?;

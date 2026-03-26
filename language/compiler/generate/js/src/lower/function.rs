@@ -78,9 +78,10 @@ impl ModuleLowerer<'_> {
             .iter()
             .map(|parameter| self.lower_parameter(*parameter))
             .collect::<Result<Vec<_>, CodegenJsError>>()?;
-        let return_type = function_signature.return_type.map(|_| {
-            todo!("generate return type");
-        });
+        let return_type = function_signature
+            .return_type
+            .map(|return_type| self.lower_expression_as_type(return_type))
+            .transpose()?;
         Ok(FunctionSignature {
             abstraction,
             asynchrony,
