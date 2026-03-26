@@ -175,7 +175,9 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
                 // modifiers
                 format_binding_modifiers_postfix_maybe(f, *modifiers)?;
                 // type
-                if let Some(ty) = ty {
+                if f.context().include_types()
+                    && let Some(ty) = ty
+                {
                     write!(f, [token(":"), space(), ty])?;
                 }
                 // default
@@ -196,7 +198,9 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
                 // modifiers
                 format_binding_modifiers_postfix_maybe(f, *modifiers)?;
                 // type
-                if let Some(ty) = ty {
+                if f.context().include_types()
+                    && let Some(ty) = ty
+                {
                     write!(f, [token(":"), space(), ty])?;
                 }
                 // default
@@ -216,7 +220,9 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
                 // name
                 write!(f, [name])?;
                 // type
-                if let Some(ty) = ty {
+                if f.context().include_types()
+                    && let Some(ty) = ty
+                {
                     write!(f, [token(":"), space(), ty])?;
                 }
             }
@@ -232,7 +238,9 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
                 // pattern
                 write!(f, [pattern])?;
                 // type
-                if let Some(ty) = ty {
+                if f.context().include_types()
+                    && let Some(ty) = ty
+                {
                     write!(f, [token(":"), space(), ty])?;
                 }
             }

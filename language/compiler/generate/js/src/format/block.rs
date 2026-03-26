@@ -9,7 +9,20 @@ pub(crate) fn format_block_of_statements<'ast>(
     f: &mut CodegenJsFormatter<'ast, '_>,
     statements: &Vec<LocalNodeId<Statement>>,
 ) -> FormatResult<()> {
-    f.join_with(hard_line_break()).entries(statements).finish()
+    for (index, statement_id) in statements.iter().enumerate() {
+        if index > 0 {
+            write!(f, [hard_line_break()])?;
+        }
+
+        write!(f, [*statement_id])?;
+
+        let statement = f.context().tree.get(*statement_id);
+        if statement.needs_semicolon() {
+            write!(f, [token(";")])?;
+        }
+    }
+
+    Ok(())
 }
 
 impl<'ast> FormatNode<'ast, Block> for Block {

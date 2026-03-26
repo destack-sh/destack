@@ -165,7 +165,9 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                 // modifiers
                 format_binding_modifiers_postfix_maybe(f, *modifiers)?;
                 // return type
-                if let Some(return_type) = signature.return_type {
+                if f.context().include_types()
+                    && let Some(return_type) = signature.return_type
+                {
                     write!(f, [token(":"), space(), return_type])?;
                 }
                 // body
@@ -268,7 +270,9 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                 // modifiers
                 format_binding_modifiers_postfix_maybe(f, *modifiers)?;
                 // return type
-                if let Some(return_type) = signature.return_type {
+                if f.context().include_types()
+                    && let Some(return_type) = signature.return_type
+                {
                     write!(f, [token(":"), space(), return_type])?;
                 }
                 // body
