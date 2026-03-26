@@ -1,15 +1,48 @@
 {
   "files": [
     {
-      "path": "src/application.js",
+      "path": "app.js",
       "type": "chunk",
       "loader": "js",
-      "input": "src/application.ts",
+      "input": "src/app.ts",
       "isEntry": true,
+      "isDynamicEntry": false,
+      "imports": [
+        "./navigation/routes.js",
+        "./navigation/labels.js"
+      ]
+    },
+    {
+      "path": "app.map",
+      "type": "asset",
+      "loader": "map"
+    },
+    {
+      "path": "navigation/labels.js",
+      "type": "chunk",
+      "loader": "js",
+      "input": "src/navigation/labels.ts",
+      "isEntry": false,
+      "isDynamicEntry": false,
+      "imports": [
+        "./routes.js"
+      ]
+    },
+    {
+      "path": "navigation/labels.map",
+      "type": "asset",
+      "loader": "map"
+    },
+    {
+      "path": "navigation/routes.js",
+      "type": "chunk",
+      "loader": "js",
+      "input": "src/navigation/routes.ts",
+      "isEntry": false,
       "isDynamicEntry": false
     },
     {
-      "path": "src/application.map",
+      "path": "navigation/routes.map",
       "type": "asset",
       "loader": "map"
     }

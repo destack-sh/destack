@@ -1,0 +1,52 @@
+{
+  "files": [
+    {
+      "path": "app.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "app",
+      "input": "src/app.ts",
+      "isEntry": true,
+      "isDynamicEntry": false,
+      "imports": [
+        "./course-outline.js"
+      ]
+    },
+    {
+      "path": "app.js.map",
+      "type": "asset",
+      "loader": "map"
+    },
+    {
+      "path": "dashboard.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "dashboard",
+      "input": "src/dashboard.ts",
+      "isEntry": true,
+      "isDynamicEntry": false,
+      "imports": [
+        "./course-outline.js"
+      ]
+    },
+    {
+      "path": "dashboard.js.map",
+      "type": "asset",
+      "loader": "map"
+    },
+    {
+      "path": "course-outline.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "course-outline",
+      "input": "src/outline-entry.ts",
+      "isEntry": false,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "course-outline.js.map",
+      "type": "asset",
+      "loader": "map"
+    }
+  ]
+}

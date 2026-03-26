@@ -1,0 +1,16 @@
+{
+    "name": "html-document-external-script",
+    "targets": {
+        "site": {
+            "emit": "html",
+            "entry": ["src/index.html"],
+            "outFile": "dist/index.html",
+            "bundle": {
+                "output": {
+                    "sourcemap": "external",
+                    "manifest": true
+                }
+            }
+        }
+    }
+}

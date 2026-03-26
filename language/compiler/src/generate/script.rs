@@ -13,8 +13,8 @@ impl Compiler {
         target: &Target,
         profile: ProfileId,
     ) -> GenerateResult<()> {
-        // require the elaborated module state
-        self.require_dir_elaborated(module_id, profile)?;
+        // require the patched module state
+        self.require_dir_patched(module_id, profile)?;
 
         // generate one script artifact through the current backend
         let (artifact, warnings, errors) = destack_codegen_js::ScriptArtifactGenerator::new(

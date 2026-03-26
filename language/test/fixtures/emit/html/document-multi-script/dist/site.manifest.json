@@ -1,0 +1,60 @@
+{
+    "index": "index.html",
+    "files": [
+        {
+            "path": "app.js",
+            "type": "chunk",
+            "loader": "js",
+            "name": "app",
+            "input": "src/app.ds",
+            "isEntry": true,
+            "isDynamicEntry": false,
+            "imports": [
+                "./page-metadata.js"
+            ]
+        },
+        {
+            "path": "app.js.map",
+            "type": "asset",
+            "loader": "map"
+        },
+        {
+            "path": "dashboard.js",
+            "type": "chunk",
+            "loader": "js",
+            "name": "dashboard",
+            "input": "src/dashboard.ds",
+            "isEntry": true,
+            "isDynamicEntry": false,
+            "imports": [
+                "./page-metadata.js"
+            ]
+        },
+        {
+            "path": "dashboard.js.map",
+            "type": "asset",
+            "loader": "map"
+        },
+        {
+            "path": "index.html",
+            "type": "asset",
+            "loader": "html",
+            "isEntry": true,
+            "isDynamicEntry": false
+        },
+        {
+            "path": "page-metadata.js",
+            "type": "chunk",
+            "loader": "js",
+            "name": "page-metadata",
+            "input": "src/page-metadata.ds",
+            "isEntry": false,
+            "isDynamicEntry": false
+        },
+        {
+            "path": "page-metadata.js.map",
+            "type": "asset",
+            "loader": "map"
+        }
+    ]
+}

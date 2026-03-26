@@ -2,7 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactKey, OutputContent, OutputFile};
+use destack_artifact::{ArtifactKey, MemoryCacheStore, OutputContent, OutputFile};
 use destack_compiler::{Compiler, CompilerOptions};
 use destack_source::{FileSystem, PhysicalFileSystem};
 use destack_workspace::{Session, Target, TargetId};
@@ -12,7 +12,7 @@ use crate::core::{
     render_unexpected_diagnostics, test_output_dir,
 };
 
-use super::assert::{compare_directory, compare_text_snapshot};
+use super::assert::compare_directory;
 use super::discover::{SOURCE_EXTENSIONS, discover_emit_cases, discover_source_files};
 #[derive(Debug, Clone, Copy, Default)]
 pub struct EmitSuite;
@@ -116,9 +116,26 @@ pub fn run_emit_tests(options: &RunOptions) -> std::process::ExitCode {
 /// Run a single emit test.
 fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
     let destack_config_path = test.path.join("destack.json");
+    let diagnostics_snapshot = test.path.join("diagnostics.txt");
+    let dist_expected = test.path.join("dist");
+
+    // success-only fixture contract
+    if diagnostics_snapshot.exists() {
+        return CaseResult::Failed {
+            message: format!(
+                "emit fixtures must not use diagnostics.txt snapshots: {}",
+                test.path.display()
+            ),
+        };
+    }
+
     // set up session and program with physical filesystem
     let fs: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem);
-    let session = Arc::new(Session::new(test.path.clone()).with_fs(fs));
+    let session = Arc::new(
+        Session::new(test.path.clone())
+            .with_fs(fs)
+            .with_cache_store(Arc::new(MemoryCacheStore::new())),
+    );
     let program = session.add_root(test.path.clone());
     let actual_root = emit_actual_root(test);
 
@@ -153,10 +170,8 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
         session.clone(),
         program.clone(),
         CompilerOptions {
-            // keep emit focused on product assembly, not ambient lib validation
             workers: 1,
             inject_prelude: false,
-            load_libraries: false,
             ..Default::default()
         },
     );
@@ -228,24 +243,14 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
     compiler.compile();
 
     // check for errors
-    let diagnostics_snapshot = test.path.join("diagnostics.txt");
     let unexpected_diagnostics =
         render_unexpected_diagnostics(&program.files, &program.diagnostics, test.min_fail_severity);
 
-    // exact diagnostics fixtures
-    if diagnostics_snapshot.exists() || unexpected_diagnostics.is_some() {
-        let result = compare_text_snapshot(
-            &diagnostics_snapshot,
-            unexpected_diagnostics.as_deref(),
-            context.options.update_snapshots,
-            "diagnostics snapshot",
-        );
-
-        if result.is_passed() {
-            let _ = fs::remove_dir_all(&actual_root);
-        }
-
-        return result;
+    // diagnostics are always unexpected in emit fixtures
+    if let Some(diagnostics) = unexpected_diagnostics {
+        return CaseResult::Failed {
+            message: format!("unexpected diagnostics:\n{diagnostics}"),
+        };
     }
 
     // materialize package outputs into the runner-owned actual output tree
@@ -274,7 +279,6 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
     }
 
     // compare the checked-in snapshots against the runner-owned actual output tree
-    let dist_expected = test.path.join("dist");
     let result = compare_directory(
         &dist_expected,
         &actual_root,

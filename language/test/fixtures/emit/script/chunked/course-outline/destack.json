@@ -1,0 +1,20 @@
+{
+    "name": "script-chunked-course-outline",
+    "targets": {
+        "site": {
+            "emit": "js",
+            "entry": ["src/app.ts", "src/dashboard.ts"],
+            "outDir": "dist/site",
+            "bundle": {
+                "mode": "chunked",
+                "manualChunks": {
+                    "course-outline": ["src/outline-entry.ts"]
+                },
+                "output": {
+                    "sourcemap": "external",
+                    "manifest": true
+                }
+            }
+        }
+    }
+}

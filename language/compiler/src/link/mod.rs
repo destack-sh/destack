@@ -1,15 +1,11 @@
-mod assembly;
 mod binary;
+mod common;
 mod error;
-mod layout;
-mod manifest;
-mod output;
 mod process;
 mod script;
-mod target;
-#[cfg(test)]
-mod tests;
 mod warning;
 
+pub(crate) use common::*;
 pub use error::*;
+pub(crate) use script::*;
 pub use warning::*;

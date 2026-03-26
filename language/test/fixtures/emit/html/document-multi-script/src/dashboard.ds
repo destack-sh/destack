@@ -1,0 +1,14 @@
+import {
+    getNavigationLabel,
+    getPageDescription,
+    getPageHeading,
+    getPageTitle,
+} from "./page-metadata.ds";
+
+/** The docs page state for the dashboard entry. */
+export const dashboardPageState = {
+    pageTitle: getPageTitle("configuration"),
+    pageHeading: getPageHeading("configuration"),
+    pageDescription: getPageDescription("configuration"),
+    navigationLabel: getNavigationLabel("configuration"),
+};

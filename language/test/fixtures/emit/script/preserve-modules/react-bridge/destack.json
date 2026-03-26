@@ -1,0 +1,21 @@
+{
+    "name": "script-preserve-modules-react-bridge",
+    "targets": {
+        "library": {
+            "emit": "js",
+            "entry": ["src/react-bridge.ts"],
+            "outDir": "dist/library",
+            "bundle": {
+                "preserveModules": true,
+                "preserveModulesRoot": "src",
+                "dependencies": {
+                    "neverBundle": ["react"]
+                },
+                "output": {
+                    "sourcemap": "external",
+                    "manifest": true
+                }
+            }
+        }
+    }
+}
