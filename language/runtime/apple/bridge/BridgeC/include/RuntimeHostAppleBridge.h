@@ -28,6 +28,16 @@ typedef struct DestackRustStringSlice {
     uint32_t len;
 } DestackRustStringSlice;
 
+/// One owned background descriptor array passed through the Apple bridge.
+typedef struct DestackRustBackgroundTaskDescriptorArray {
+    /// The array data pointer.
+    struct DestackRustBackgroundTaskDescriptor *data;
+    /// The logical length in elements.
+    uint32_t len;
+    /// The allocated capacity in elements.
+    uint32_t capacity;
+} DestackRustBackgroundTaskDescriptorArray;
+
 /// One deferred document-pick request passed through the Apple bridge.
 typedef struct DestackRustDocumentRequest {
     /// The stable request identifier for this interactive host flow.
@@ -85,6 +95,193 @@ typedef struct DestackRustPermissionRequest {
     /// The normalized permission names requested by the runtime.
     DestackRustStringSlice permissions;
 } DestackRustPermissionRequest;
+
+/// One text-selection range passed through the Apple bridge.
+typedef struct DestackRustTextRange {
+    /// The inclusive range start offset.
+    uint32_t start_offset;
+    /// The exclusive range end offset.
+    uint32_t end_offset;
+} DestackRustTextRange;
+
+/// One text-session configuration passed through the Apple bridge.
+typedef struct DestackRustTextSessionConfig {
+    /// The stable text-session identifier.
+    uint64_t session_id;
+    /// The text-input type hint.
+    int32_t input_type;
+    /// Whether the text session is multiline.
+    bool is_multiline;
+    /// Whether the text session is secure.
+    bool is_secure;
+} DestackRustTextSessionConfig;
+
+/// One text-session state passed through the Apple bridge.
+typedef struct DestackRustTextSessionState {
+    /// The current editor text.
+    DestackRustStringRef text;
+    /// The current selection range.
+    DestackRustTextRange selection;
+    /// Whether one composing range is present.
+    bool has_composing;
+    /// The composing range when present.
+    DestackRustTextRange composing;
+} DestackRustTextSessionState;
+
+/// One text-session open request passed through the Apple bridge.
+typedef struct DestackRustTextOpenRequest {
+    /// The text-session configuration.
+    DestackRustTextSessionConfig config;
+    /// The initial renderer-owned text state.
+    DestackRustTextSessionState state;
+} DestackRustTextOpenRequest;
+
+/// One text rectangle passed through the Apple bridge.
+typedef struct DestackRustTextRectangle {
+    /// The left edge in local logical units.
+    double x;
+    /// The top edge in local logical units.
+    double y;
+    /// The rectangle width in local logical units.
+    double width;
+    /// The rectangle height in local logical units.
+    double height;
+} DestackRustTextRectangle;
+
+/// One text transform passed through the Apple bridge.
+typedef struct DestackRustTextTransform2D {
+    /// The first-row X coefficient.
+    double xx;
+    /// The first-row Y coefficient.
+    double xy;
+    /// The second-row X coefficient.
+    double yx;
+    /// The second-row Y coefficient.
+    double yy;
+    /// The translation X component.
+    double tx;
+    /// The translation Y component.
+    double ty;
+} DestackRustTextTransform2D;
+
+/// One text-session geometry request passed through the Apple bridge.
+typedef struct DestackRustTextGeometryRequest {
+    /// The stable text-session identifier.
+    uint64_t session_id;
+    /// The local-to-target transform.
+    DestackRustTextTransform2D local_to_target_transform;
+    /// The full editor rectangle.
+    DestackRustTextRectangle editor_rectangle;
+    /// Whether one caret rectangle is present.
+    bool has_caret_rectangle;
+    /// The caret rectangle when present.
+    DestackRustTextRectangle caret_rectangle;
+    /// Whether one composing rectangle is present.
+    bool has_composing_rectangle;
+    /// The composing rectangle when present.
+    DestackRustTextRectangle composing_rectangle;
+} DestackRustTextGeometryRequest;
+
+/// One text-session state request passed through the Apple bridge.
+typedef struct DestackRustTextStateRequest {
+    /// The stable text-session identifier.
+    uint64_t session_id;
+    /// The next renderer-owned text state.
+    DestackRustTextSessionState state;
+} DestackRustTextStateRequest;
+
+/// One host background scheduler status payload.
+typedef uint32_t DestackRustBackgroundStatus;
+
+/// One host background trigger kind payload.
+typedef uint32_t DestackRustBackgroundTriggerKind;
+
+/// One host background network requirement payload.
+typedef uint32_t DestackRustBackgroundNetworkRequirement;
+
+/// One host background conflict policy payload.
+typedef uint32_t DestackRustBackgroundConflictPolicy;
+
+/// One host background schedule kind payload.
+typedef uint32_t DestackRustBackgroundTaskScheduleKind;
+
+/// One host background task-result payload.
+typedef uint32_t DestackRustBackgroundTaskResult;
+
+/// One host background task-schedule payload.
+typedef struct DestackRustBackgroundTaskSchedule {
+    /// The declared schedule class.
+    DestackRustBackgroundTaskScheduleKind kind;
+    /// Whether the earliest target execution timestamp is present.
+    bool has_earliest_begin_unix_ns;
+    /// The earliest target execution timestamp in UTC nanoseconds.
+    uint64_t earliest_begin_unix_ns;
+    /// Whether the repeat interval is present.
+    bool has_repeat_interval_ns;
+    /// The repeat interval in nanoseconds for recurring schedules.
+    uint64_t repeat_interval_ns;
+} DestackRustBackgroundTaskSchedule;
+
+/// One host background task-options payload.
+typedef struct DestackRustBackgroundTaskOptions {
+    /// The stable task identifier.
+    DestackRustStringRef identifier;
+    /// The trigger class.
+    DestackRustBackgroundTriggerKind trigger;
+    /// The requested schedule payload.
+    DestackRustBackgroundTaskSchedule schedule;
+    /// The requested network requirement.
+    DestackRustBackgroundNetworkRequirement network;
+    /// Whether charging power is required.
+    bool requires_charging;
+    /// Whether idle mode is required.
+    bool requires_idle;
+    /// The registration conflict policy.
+    DestackRustBackgroundConflictPolicy conflict_policy;
+} DestackRustBackgroundTaskOptions;
+
+/// One host background task-descriptor payload.
+typedef struct DestackRustBackgroundTaskDescriptor {
+    /// The stable task identifier.
+    DestackRustStringRef identifier;
+    /// The trigger class.
+    DestackRustBackgroundTriggerKind trigger;
+    /// The effective schedule payload.
+    DestackRustBackgroundTaskSchedule schedule;
+    /// The effective network requirement.
+    DestackRustBackgroundNetworkRequirement network;
+    /// Whether charging power is required.
+    bool requires_charging;
+    /// Whether idle mode is required.
+    bool requires_idle;
+    /// The registration conflict policy.
+    DestackRustBackgroundConflictPolicy conflict_policy;
+} DestackRustBackgroundTaskDescriptor;
+
+/// One host background event metadata payload.
+typedef struct DestackRustBackgroundEventMetadata {
+    /// The monotonic event timestamp in nanoseconds.
+    uint64_t timestamp_ns;
+    /// The monotonic sequence number for this event stream.
+    uint64_t sequence;
+    /// The stable task identifier.
+    DestackRustStringRef identifier;
+    /// The stable execution identifier for this scheduled execution.
+    DestackRustStringRef execution_id;
+    /// The host execution deadline in UTC nanoseconds.
+    uint64_t deadline_unix_ns;
+} DestackRustBackgroundEventMetadata;
+
+/// One host background event kind payload.
+typedef uint32_t DestackRustBackgroundEventKind;
+
+/// One host background event payload.
+typedef struct DestackRustBackgroundEvent {
+    /// The event kind.
+    DestackRustBackgroundEventKind kind;
+    /// The shared event metadata.
+    DestackRustBackgroundEventMetadata metadata;
+} DestackRustBackgroundEvent;
 
 /// One typed contact query passed through the Apple bridge.
 typedef struct DestackRustContactQuery {
@@ -965,6 +1162,68 @@ typedef uint32_t (*DestackRustNotificationCancelAllCallback)(
     uint64_t session_handle
 );
 
+/// The text-open callback type registered for one runtime session.
+typedef uint32_t (*DestackRustTextOpenCallback)(
+    uint64_t session_handle,
+    DestackRustTextOpenRequest request
+);
+
+/// The text-close callback type registered for one runtime session.
+typedef uint32_t (*DestackRustTextCloseCallback)(
+    uint64_t session_handle,
+    uint64_t session_id
+);
+
+/// The text-geometry callback type registered for one runtime session.
+typedef uint32_t (*DestackRustTextGeometryCallback)(
+    uint64_t session_handle,
+    DestackRustTextGeometryRequest request
+);
+
+/// The text-state callback type registered for one runtime session.
+typedef uint32_t (*DestackRustTextStateCallback)(
+    uint64_t session_handle,
+    DestackRustTextStateRequest request
+);
+
+/// The background-status callback type registered for one runtime session.
+typedef uint32_t (*DestackRustBackgroundStatusCallback)(
+    uint64_t session_handle,
+    DestackRustBackgroundStatus *status
+);
+
+/// The background-list callback type registered for one runtime session.
+typedef uint32_t (*DestackRustBackgroundListCallback)(
+    uint64_t session_handle,
+    DestackRustBackgroundTaskDescriptorArray *descriptors
+);
+
+/// The background-register callback type registered for one runtime session.
+typedef uint32_t (*DestackRustBackgroundRegisterCallback)(
+    uint64_t session_handle,
+    DestackRustBackgroundTaskOptions options
+);
+
+/// The background-unregister callback type registered for one runtime session.
+typedef uint32_t (*DestackRustBackgroundUnregisterCallback)(
+    uint64_t session_handle,
+    DestackRustStringRef identifier
+);
+
+/// The background-trigger callback type registered for one runtime session.
+typedef uint32_t (*DestackRustBackgroundTriggerTestCallback)(
+    uint64_t session_handle,
+    DestackRustStringRef identifier,
+    bool *is_triggered
+);
+
+/// The background-complete callback type registered for one runtime session.
+typedef uint32_t (*DestackRustBackgroundCompleteCallback)(
+    uint64_t session_handle,
+    DestackRustStringRef execution_id,
+    DestackRustBackgroundTaskResult result
+);
+
 /// The document callbacks registered for one runtime session.
 typedef struct IosHostDocumentCallbacks {
     DestackRustDocumentCallback pick;
@@ -1028,16 +1287,36 @@ typedef struct IosHostNotificationCallbacks {
     DestackRustNotificationPostCallback post;
 } IosHostNotificationCallbacks;
 
+/// The text-input callbacks registered for one runtime session.
+typedef struct IosHostTextCallbacks {
+    DestackRustTextOpenCallback open;
+    DestackRustTextCloseCallback close;
+    DestackRustTextGeometryCallback set_geometry;
+    DestackRustTextStateCallback set_state;
+} IosHostTextCallbacks;
+
+/// The background callbacks registered for one runtime session.
+typedef struct IosHostBackgroundCallbacks {
+    DestackRustBackgroundStatusCallback status;
+    DestackRustBackgroundListCallback list;
+    DestackRustBackgroundRegisterCallback register_task;
+    DestackRustBackgroundUnregisterCallback unregister;
+    DestackRustBackgroundTriggerTestCallback trigger_test;
+    DestackRustBackgroundCompleteCallback complete;
+} IosHostBackgroundCallbacks;
+
 /// The mobile runtime-bridge callback table for one runtime session.
 typedef struct IosRuntimeBridgeBindings {
     IosHostDocumentCallbacks document;
     IosHostPermissionCallbacks permission;
-    IosHostContactCallbacks contact;
     IosHostCalendarCallbacks calendar;
+    IosHostContactCallbacks contact;
     IosHostIntentCallbacks intent;
     IosHostLocationCallbacks location;
     IosHostMediaCallbacks media;
     IosHostNotificationCallbacks notification;
+    IosHostTextCallbacks text;
+    IosHostBackgroundCallbacks background;
 } IosRuntimeBridgeBindings;
 
 /// Register one mobile bridge callback table for one runtime session.
@@ -1049,6 +1328,12 @@ uint32_t destack_runtime_host_ios_register_runtime_bridge_bindings(
 /// Unregister one mobile bridge callback table for one runtime session.
 void destack_runtime_host_ios_unregister_runtime_bridge_bindings(
     uint64_t session_handle
+);
+
+/// Deliver one background event into one runtime session.
+DestackRustRuntimeStatus destack_runtime_host_ios_notify_background_event(
+    uint64_t session_handle,
+    DestackRustBackgroundEvent event
 );
 
 /// Deliver one document result into one runtime session.
@@ -1132,6 +1417,13 @@ DestackRustRuntimeStatus destack_runtime_host_ios_notify_permission_result(
     const uint8_t *permission,
     uint32_t permission_len,
     bool granted
+);
+
+/// Deliver one text-input state event into one runtime session.
+DestackRustRuntimeStatus destack_runtime_host_ios_notify_text_input_state(
+    uint64_t session_handle,
+    uint64_t session_id,
+    DestackRustTextSessionState state
 );
 
 #endif

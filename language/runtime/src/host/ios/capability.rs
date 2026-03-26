@@ -136,6 +136,10 @@ pub(crate) fn session_capabilities(host_session_id: HostSessionId) -> PlatformCa
 mod tests {
     use std::sync::{Arc, Mutex, OnceLock};
 
+    use crate::host::abi::background::{
+        HostBackgroundStatus, HostBackgroundTaskDescriptor, HostBackgroundTaskOptions,
+        HostBackgroundTaskResult,
+    };
     use crate::host::abi::calendar::{
         HostCalendarDescriptorArray, HostCalendarEventDraft, HostCalendarEventId,
     };
@@ -158,10 +162,7 @@ mod tests {
     use crate::host::ios::abi::registry::unregister_ios_bindings;
     use crate::host::{HOST_STATUS_OK, Platform};
     use crate::platform::NativeArray;
-    use crate::platform::os::abi_generated::{
-        BackgroundStatus, BackgroundTaskDescriptor, BackgroundTaskOptions, BackgroundTaskResult,
-        ContactDraft, ContactPage,
-    };
+    use crate::platform::os::abi_generated::{ContactDraft, ContactPage};
     use crate::runtime::capability::PlatformCapability;
     use crate::runtime::{NativeSlice, NativeStringRef};
 
@@ -236,21 +237,21 @@ mod tests {
 
     unsafe extern "C" fn test_background_status_callback(
         _runtime_id: u64,
-        _status: *mut BackgroundStatus,
+        _status: *mut HostBackgroundStatus,
     ) -> u32 {
         HOST_STATUS_OK
     }
 
     unsafe extern "C" fn test_background_register_callback(
         _runtime_id: u64,
-        _options: BackgroundTaskOptions,
+        _options: HostBackgroundTaskOptions,
     ) -> u32 {
         HOST_STATUS_OK
     }
 
     unsafe extern "C" fn test_background_list_callback(
         _runtime_id: u64,
-        _output_descriptors: *mut NativeArray<BackgroundTaskDescriptor>,
+        _output_descriptors: *mut NativeArray<HostBackgroundTaskDescriptor>,
     ) -> u32 {
         HOST_STATUS_OK
     }
@@ -273,7 +274,7 @@ mod tests {
     unsafe extern "C" fn test_background_complete_callback(
         _runtime_id: u64,
         _execution_id: NativeStringRef,
-        _result: BackgroundTaskResult,
+        _result: HostBackgroundTaskResult,
     ) -> u32 {
         HOST_STATUS_OK
     }
@@ -396,6 +397,7 @@ mod tests {
                     open_settings: Some(test_permission_open_settings_callback),
                     request: Some(test_permission_request_callback),
                 },
+                text: Default::default(),
                 background: IosHostBackgroundCallbacks {
                     status: Some(test_background_status_callback),
                     list: Some(test_background_list_callback),

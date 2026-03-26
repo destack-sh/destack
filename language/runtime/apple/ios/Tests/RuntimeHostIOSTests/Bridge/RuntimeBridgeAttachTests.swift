@@ -5,7 +5,10 @@ import Testing
 
 @MainActor
 @Test
-func testRuntimeBridgeRegistersDocumentPermissionCalendarContactIntentLocationMediaAndNotificationLanes() throws {
+func
+  testRuntimeBridgeRegistersDocumentPermissionBackgroundCalendarContactIntentLocationMediaAndNotificationLanes()
+  throws
+{
   let bindings = RuntimeAbiSpy()
   let sessionHandle = makeTestSessionHandle()
   let bridge = RuntimeBridge(
@@ -29,6 +32,12 @@ func testRuntimeBridgeRegistersDocumentPermissionCalendarContactIntentLocationMe
   #expect(bindings.documentCallback != nil)
   #expect(bindings.permissionRequestCallback != nil)
   #expect(bindings.permissionOpenSettingsCallback != nil)
+  #expect(bindings.backgroundStatusCallback != nil)
+  #expect(bindings.backgroundListCallback != nil)
+  #expect(bindings.backgroundRegisterCallback != nil)
+  #expect(bindings.backgroundUnregisterCallback != nil)
+  #expect(bindings.backgroundTriggerTestCallback != nil)
+  #expect(bindings.backgroundCompleteCallback != nil)
   #expect(bindings.calendarListCallback != nil)
   #expect(bindings.calendarEventListCallback != nil)
   #expect(bindings.calendarEventReadCallback != nil)
@@ -62,7 +71,7 @@ func testRuntimeBridgeRegistersDocumentPermissionCalendarContactIntentLocationMe
 @MainActor
 @Test
 func
-  testRuntimeBridgeDetachUnregistersDocumentPermissionCalendarContactIntentLocationMediaAndNotificationLanesForReattach()
+  testRuntimeBridgeDetachUnregistersDocumentPermissionBackgroundCalendarContactIntentLocationMediaAndNotificationLanesForReattach()
   throws
 {
   let bindings = RuntimeAbiSpy()

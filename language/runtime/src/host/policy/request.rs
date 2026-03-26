@@ -10,6 +10,8 @@ use super::core::{runtime_app_permission, url_scheme};
 pub(crate) enum HostRequestRequirement {
     /// Require declared background execution support.
     BackgroundExecution,
+    /// Require one declared background task identifier.
+    BackgroundTaskIdentifier(String),
     /// Require one declared app permission.
     Permission(RuntimeAppPermission),
     /// Require one declared notification authorization lane.
@@ -31,10 +33,36 @@ pub(crate) fn request_requirements(
     match request {
         HostRequest::OsBackgroundStatus
         | HostRequest::OsBackgroundList
-        | HostRequest::OsBackgroundRegister { .. }
-        | HostRequest::OsBackgroundUnregister { .. }
-        | HostRequest::OsBackgroundTriggerTest { .. }
         | HostRequest::OsBackgroundComplete { .. } => {
+            vec![HostRequestRequirement::BackgroundExecution]
+        }
+        HostRequest::OsBackgroundRegister { options }
+            if matches!(platform, Platform::Android | Platform::IOS) =>
+        {
+            vec![
+                HostRequestRequirement::BackgroundExecution,
+                HostRequestRequirement::BackgroundTaskIdentifier(options.identifier.clone()),
+            ]
+        }
+        HostRequest::OsBackgroundUnregister { identifier }
+            if matches!(platform, Platform::Android | Platform::IOS) =>
+        {
+            vec![
+                HostRequestRequirement::BackgroundExecution,
+                HostRequestRequirement::BackgroundTaskIdentifier(identifier.clone()),
+            ]
+        }
+        HostRequest::OsBackgroundTriggerTest { identifier }
+            if matches!(platform, Platform::Android | Platform::IOS) =>
+        {
+            vec![
+                HostRequestRequirement::BackgroundExecution,
+                HostRequestRequirement::BackgroundTaskIdentifier(identifier.clone()),
+            ]
+        }
+        HostRequest::OsBackgroundRegister { .. }
+        | HostRequest::OsBackgroundUnregister { .. }
+        | HostRequest::OsBackgroundTriggerTest { .. } => {
             vec![HostRequestRequirement::BackgroundExecution]
         }
         HostRequest::OsCalendarList

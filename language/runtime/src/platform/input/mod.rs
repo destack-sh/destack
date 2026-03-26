@@ -11,7 +11,9 @@ pub(crate) use bindings_generated::*;
 pub(crate) mod clipboard;
 
 mod core;
-mod host;
+pub(crate) mod host;
+#[cfg(any(test, target_os = "android", target_os = "ios"))]
+pub(crate) mod mobile_text;
 pub mod native;
 pub(crate) mod simulation;
 mod state;

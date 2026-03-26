@@ -175,6 +175,11 @@ pub(crate) unsafe fn window_close(
 
     // remove the runtime mapping and resource entry
     runtime_state.unregister_xid(binding_snapshot.window);
+    let removed_text_context = runtime_state
+        .text_input_contexts
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .remove(&window_handle);
     let removed = context
         .agent()
         .resources
@@ -188,6 +193,22 @@ pub(crate) unsafe fn window_close(
     }
 
     // publish destroyed exactly once for this close path
+    if removed_text_context
+        .as_ref()
+        .is_some_and(|context| context.is_composing || !context.composition_text.is_empty())
+    {
+        crate::platform::input::host::notify_x11_window_end_composition(
+            &runtime_state,
+            window_handle,
+        )?;
+    }
+
+    runtime_state
+        .active_text_sessions
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .remove(&window_handle);
+
     if !binding_snapshot.destroyed_emitted {
         event::publish_window_destroyed(&runtime_state, window_handle);
     }

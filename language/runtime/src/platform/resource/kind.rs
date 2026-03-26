@@ -70,6 +70,7 @@ macro_rules! for_each_resource_handle_kind {
             (AccessibilityActionHandle, AccessibilityAction, "resource.accessibility.action", "accessibility_action", "The handle for one accessibility action stream."),
             (AccessibilityDocumentHandle, AccessibilityDocument, "resource.accessibility.document", "accessibility_document", "The handle for one accessibility document query stream."),
             (InputDeviceHandle, InputDevice, "resource.input.device", "input_device", "The handle for one input device."),
+            (InputTextSessionHandle, InputTextSession, "resource.input.text.session", "input_text_session", "The handle for one text input session."),
             (InputMonitorHandle, InputMonitor, "resource.input.monitor", "input_monitor", "The handle for one global input monitor stream."),
             (DisplayDragSessionHandle, DisplayDragSession, "resource.display.drag.session", "display_drag_session", "The handle for one display drag-transfer session."),
             (GpuAdapterHandle, GpuAdapter, "resource.gpu.adapter", "gpu_adapter", "The handle for one gpu adapter."),
@@ -114,6 +115,7 @@ macro_rules! for_each_resource_handle_kind {
             (CameraDeviceHandle, CameraDevice, "resource.camera.device", "camera_device", "The handle for one camera device session."),
             (CameraStreamHandle, CameraStream, "resource.camera.stream", "camera_stream", "The handle for one camera stream session."),
             (DocumentHandle, Document, "resource.document", "document", "The handle for one document session."),
+            (DocumentPickHandle, DocumentPick, "resource.document.pick", "document_pick", "The handle for one document pick transaction."),
             (IntentHandle, Intent, "resource.intent", "intent", "The handle for one intent session."),
             (LifecycleEventHandle, LifecycleEvent, "resource.lifecycle.event", "lifecycle_event", "The handle for one lifecycle event stream."),
             (LocationWatchHandle, LocationWatch, "resource.location.watch", "location_watch", "The handle for one location watch stream."),
@@ -123,6 +125,8 @@ macro_rules! for_each_resource_handle_kind {
             (MidiOutputPortHandle, MidiOutputPort, "resource.midi.output.port", "midi_output_port", "The handle for one opened MIDI output endpoint."),
             (NetworkWatchHandle, NetworkWatch, "resource.network.watch", "network_watch", "The handle for one network watch stream."),
             (NotificationEventHandle, NotificationEvent, "resource.notification.event", "notification_event", "The handle for one notification event stream."),
+            (NotificationPermissionRequestHandle, NotificationPermissionRequest, "resource.notification.permission.request", "notification_permission_request", "The handle for one notification permission request transaction."),
+            (PermissionRequestHandle, PermissionRequest, "resource.permission.request", "permission_request", "The handle for one permission request transaction."),
             (SerialWatchHandle, SerialWatch, "resource.serial.watch", "serial_watch", "The handle for one serial topology watch stream."),
             (SerialPortHandle, SerialPort, "resource.serial.port", "serial_port", "The handle for one serial port session."),
             (UsbDeviceHandle, UsbDevice, "resource.usb.device", "usb_device", "The handle for one USB device session."),
@@ -195,10 +199,13 @@ macro_rules! define_resource_kind {
                     | Self::BluetoothAdapterWatch
                     | Self::BluetoothSubscription
                     | Self::CameraWatch
+                    | Self::DocumentPick
                     | Self::LocationWatch
                     | Self::MediaWatch
                     | Self::NetworkWatch
                     | Self::NotificationEvent
+                    | Self::NotificationPermissionRequest
+                    | Self::PermissionRequest
                     | Self::SerialWatch
                     | Self::UsbWatch
                     | Self::WindowEvent
@@ -234,6 +241,7 @@ macro_rules! define_resource_kind {
                     | Self::Display
                     | Self::Window
                     | Self::InputDevice
+                    | Self::InputTextSession
                     | Self::DisplayDragSession
                     | Self::GpuAdapter
                     | Self::GpuDevice

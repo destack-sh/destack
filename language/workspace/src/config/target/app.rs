@@ -449,12 +449,15 @@ pub enum TargetAppNotificationActionStyle {
 pub struct TargetAppBackgroundDeclaration {
     /// Declared background execution modes.
     pub modes: Vec<TargetAppBackgroundMode>,
+    /// Declared stable background task identifiers.
+    pub task_identifiers: Vec<String>,
 }
 
 impl From<&TargetAppBackgroundDeclarationJson> for TargetAppBackgroundDeclaration {
     fn from(json: &TargetAppBackgroundDeclarationJson) -> Self {
         Self {
             modes: json.modes.clone().unwrap_or_default(),
+            task_identifiers: json.task_identifiers.clone().unwrap_or_default(),
         }
     }
 }
@@ -466,6 +469,8 @@ impl From<&TargetAppBackgroundDeclarationJson> for TargetAppBackgroundDeclaratio
 pub struct TargetAppBackgroundDeclarationJson {
     /// Declared background execution modes.
     pub modes: Option<Vec<TargetAppBackgroundMode>>,
+    /// Declared stable background task identifiers.
+    pub task_identifiers: Option<Vec<String>>,
 }
 
 /// Background execution mode for one app declaration.

@@ -1,4 +1,5 @@
 use crate::host::core::{HostSessionHandle, HostSessionId};
+use crate::host::ios::abi::background::callbacks::IosHostBackgroundCallbacks;
 use crate::host::ios::abi::bindings::IosHostBindings;
 use crate::host::ios::abi::calendar::callbacks::IosHostCalendarCallbacks;
 use crate::host::ios::abi::contact::callbacks::IosHostContactCallbacks;
@@ -9,6 +10,7 @@ use crate::host::ios::abi::media::callbacks::IosHostMediaCallbacks;
 use crate::host::ios::abi::notification::callbacks::IosHostNotificationCallbacks;
 use crate::host::ios::abi::permission::callbacks::IosHostPermissionCallbacks;
 use crate::host::ios::abi::registry::{register_ios_bindings, unregister_ios_bindings};
+use crate::host::ios::abi::text::callbacks::IosHostTextCallbacks;
 
 /// iOS runtime-bridge bindings for the mobile host lanes.
 #[derive(Clone, Copy, Debug, Default)]
@@ -30,6 +32,10 @@ pub(crate) struct IosRuntimeBridgeBindings {
     pub media: IosHostMediaCallbacks,
     /// The notification host callbacks.
     pub notification: IosHostNotificationCallbacks,
+    /// The text host callbacks.
+    pub text: IosHostTextCallbacks,
+    /// The background host callbacks.
+    pub background: IosHostBackgroundCallbacks,
 }
 
 /// Register one iOS runtime-bridge callback table through one C ABI entrypoint.
@@ -41,6 +47,8 @@ pub(crate) unsafe extern "C" fn destack_host_ios_register_runtime_bridge_binding
     let bindings = IosHostBindings {
         document: bindings.document,
         permission: bindings.permission,
+        text: bindings.text,
+        background: bindings.background,
         calendar: bindings.calendar,
         contact: bindings.contact,
         intent: bindings.intent,

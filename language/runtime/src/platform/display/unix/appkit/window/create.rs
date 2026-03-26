@@ -260,6 +260,7 @@ pub(crate) unsafe fn window_open(
                 _delegate: delegate,
                 drop_session: Default::default(),
                 window_icon: Default::default(),
+                text_input: Default::default(),
             },
         );
         Ok(())

@@ -13,8 +13,10 @@ use crate::platform::input::{
     InputMonitorEventVm, InputPointerState, InputPointerStateVm, InputRawHidReport,
     InputRawHidReportVm, InputSensorConfig, InputSensorConfigVm, InputSensorDescriptor,
     InputSensorDescriptorVm, InputSensorEffectiveConfig, InputSensorEffectiveConfigVm,
-    InputSensorSample, InputSensorSampleVm, InputTextInputArea, InputTextInputAreaVm,
-    InputTouchState, InputTouchStateVm, InputWindowTarget, InputWindowTargetVm,
+    InputSensorSample, InputSensorSampleVm, InputTextGeometry, InputTextGeometryVm,
+    InputTextInputType, InputTextRange, InputTextSessionConfig, InputTextSessionConfigVm,
+    InputTextSessionState, InputTextSessionStateVm, InputTouchState, InputTouchStateVm,
+    InputWindowTarget, InputWindowTargetVm,
 };
 use crate::platform::{NativeAbiCodec, NativeArray, PlatformError, VmAbiCodec, VmArray, VmSlice};
 use crate::runtime::{NativeSlice, NativeStringRef};
@@ -485,11 +487,61 @@ impl<'call> InputHarnessContext<'call> {
     /// Build one text-area value for the active harness engine.
     pub(crate) fn text_input_area(
         &self,
-        value: InputTextInputArea,
-    ) -> HarnessValue<InputTextInputArea, InputTextInputAreaVm> {
+        value: InputTextGeometry,
+    ) -> HarnessValue<InputTextGeometry, InputTextGeometryVm> {
         match self.vm_context_mut() {
             Some(_) => self.harness_value_vm(value),
             None => self.harness_value(value),
+        }
+    }
+
+    /// Build one text-session configuration for the active harness engine.
+    pub(crate) fn text_session_config(
+        &self,
+        target: InputWindowTarget,
+        input_type: InputTextInputType,
+        is_multiline: bool,
+        is_secure: bool,
+    ) -> HarnessValue<InputTextSessionConfig, InputTextSessionConfigVm> {
+        let value = InputTextSessionConfig {
+            target,
+            input_type,
+            is_multiline,
+            is_secure,
+        };
+
+        match self.vm_context_mut() {
+            Some(_) => self.harness_value_vm(value),
+            None => self.harness_value(value),
+        }
+    }
+
+    /// Build one text-session state for the active harness engine.
+    pub(crate) fn text_session_state(
+        &self,
+        text: &str,
+        selection: InputTextRange,
+        composing: Option<InputTextRange>,
+    ) -> HarnessValue<InputTextSessionState, InputTextSessionStateVm> {
+        match self.vm_context_mut() {
+            Some(context) => {
+                let value = InputTextSessionStateVm {
+                    text: vm_test_string(context, text),
+                    selection,
+                    composing,
+                };
+
+                self.harness_value_vm(value)
+            }
+            None => {
+                let value = InputTextSessionState {
+                    text: self.call_context.store_string(text),
+                    selection,
+                    composing,
+                };
+
+                self.harness_value(value)
+            }
         }
     }
 
@@ -518,8 +570,8 @@ impl<'call> InputHarnessContext<'call> {
     /// Decode one text-area harness value into one shared payload.
     pub(crate) fn text_input_area_from(
         &self,
-        value: HarnessValue<InputTextInputArea, InputTextInputAreaVm>,
-    ) -> InputTextInputArea {
+        value: HarnessValue<InputTextGeometry, InputTextGeometryVm>,
+    ) -> InputTextGeometry {
         match value {
             HarnessValue::Native(value) => value,
             HarnessValue::Vm(value) => value,

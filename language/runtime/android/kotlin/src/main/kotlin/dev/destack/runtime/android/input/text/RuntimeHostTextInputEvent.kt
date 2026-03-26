@@ -5,22 +5,12 @@ package dev.destack.runtime.android.input.text
  */
 public data class RuntimeHostTextInputEvent(
     /**
-     * The stable text input attachment identifier.
+     * The stable text session identifier.
      */
-    val identifier: String,
+    val sessionId: Long,
 
     /**
      * The current text state reported by the Android host.
      */
-    val text: String,
-
-    /**
-     * The current selection range.
-     */
-    val selection: RuntimeHostTextSelectionRange,
-
-    /**
-     * The optional composing range when one IME composition is active.
-     */
-    val composing: RuntimeHostTextSelectionRange? = null,
+    val state: RuntimeHostTextInputState,
 )

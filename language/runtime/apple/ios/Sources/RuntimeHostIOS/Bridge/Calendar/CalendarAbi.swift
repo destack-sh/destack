@@ -7,15 +7,20 @@ typealias CalendarListCallback =
 
 /// One C callback for one calendar event-list request.
 typealias CalendarEventListCallback =
-  @convention(c) (UInt64, DestackRustCalendarQuery, UnsafeMutablePointer<DestackRustCalendarEventSlice>?) -> UInt32
+  @convention(c) (
+    UInt64, DestackRustCalendarQuery, UnsafeMutablePointer<DestackRustCalendarEventSlice>?
+  ) -> UInt32
 
 /// One C callback for one calendar event-read request.
 typealias CalendarEventReadCallback =
-  @convention(c) (UInt64, DestackRustStringRef, UnsafeMutablePointer<DestackRustCalendarEvent>?) -> UInt32
+  @convention(c) (UInt64, DestackRustStringRef, UnsafeMutablePointer<DestackRustCalendarEvent>?) ->
+  UInt32
 
 /// One C callback for one calendar event-create request.
 typealias CalendarEventCreateCallback =
-  @convention(c) (UInt64, DestackRustCalendarEventDraft, UnsafeMutablePointer<DestackRustStringRef>?) -> UInt32
+  @convention(c) (
+    UInt64, DestackRustCalendarEventDraft, UnsafeMutablePointer<DestackRustStringRef>?
+  ) -> UInt32
 
 /// One C callback for one calendar event-update request.
 typealias CalendarEventUpdateCallback =

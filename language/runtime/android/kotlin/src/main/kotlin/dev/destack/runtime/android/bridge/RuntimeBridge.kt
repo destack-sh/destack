@@ -1,5 +1,6 @@
 package dev.destack.runtime.android.bridge
 
+import dev.destack.runtime.android.bridge.background.BackgroundBridge
 import dev.destack.runtime.android.bridge.calendar.CalendarBridge
 import dev.destack.runtime.android.bridge.contact.ContactBridge
 import dev.destack.runtime.android.bridge.core.MainThreadBridge
@@ -9,10 +10,18 @@ import dev.destack.runtime.android.bridge.location.LocationBridge
 import dev.destack.runtime.android.bridge.media.MediaBridge
 import dev.destack.runtime.android.bridge.notification.NotificationBridge
 import dev.destack.runtime.android.bridge.permission.PermissionBridge
+import dev.destack.runtime.android.bridge.text.TextBridge
 import dev.destack.runtime.android.core.HostSessionHandle
 import dev.destack.runtime.android.core.hostStatusNotFound
 import dev.destack.runtime.android.core.hostStatusOk
 import dev.destack.runtime.android.core.RuntimeHost
+import dev.destack.runtime.android.input.text.RuntimeHostTextInputEvent
+import dev.destack.runtime.android.input.text.TextInputEvents
+import dev.destack.runtime.android.module.background.BackgroundEvents
+import dev.destack.runtime.android.module.background.RuntimeHostBackgroundEvent
+import dev.destack.runtime.android.module.background.RuntimeHostBackgroundStatusResponse
+import dev.destack.runtime.android.module.background.RuntimeHostBackgroundTaskListResponse
+import dev.destack.runtime.android.module.background.RuntimeHostBackgroundTriggerResponse
 import dev.destack.runtime.android.module.calendar.RuntimeHostCalendarAttendee
 import dev.destack.runtime.android.module.calendar.RuntimeHostCalendarAvailability
 import dev.destack.runtime.android.module.calendar.RuntimeHostCalendarEventCreateResponse
@@ -59,7 +68,7 @@ public class RuntimeBridge internal constructor(
     public val sessionHandle: HostSessionHandle,
     private val bindings: RuntimeAbi = ProcessRuntimeAbi,
     private val notificationTimestampNs: () -> Long = System::nanoTime,
-) : NotificationEvents {
+) : BackgroundEvents, NotificationEvents, TextInputEvents {
     private val mainThreadBridge = MainThreadBridge()
     private val documentBridge = DocumentBridge(
         sessionHandle = sessionHandle,
@@ -88,6 +97,14 @@ public class RuntimeBridge internal constructor(
         sessionHandle = sessionHandle,
         bindings = bindings,
         timestampNs = notificationTimestampNs,
+    )
+    private val textBridge = TextBridge(
+        sessionHandle = sessionHandle,
+        bindings = bindings,
+    )
+    private val backgroundBridge = BackgroundBridge(
+        sessionHandle = sessionHandle,
+        bindings = bindings,
     )
     private var runtimeHost: RuntimeHost? = null
 
@@ -188,6 +205,24 @@ public class RuntimeBridge internal constructor(
         event: RuntimeHostNotificationEvent,
     ) {
         notificationBridge.sendNotificationEvent(event)
+    }
+
+    /**
+     * Send one host text-input event into the runtime ingress path.
+     */
+    override fun sendTextInputEvent(
+        event: RuntimeHostTextInputEvent,
+    ) {
+        textBridge.sendTextInputEvent(event)
+    }
+
+    /**
+     * Send one background event into the runtime ingress path.
+     */
+    override fun sendBackgroundEvent(
+        event: RuntimeHostBackgroundEvent,
+    ) {
+        backgroundBridge.sendBackgroundEvent(event)
     }
 
     /**
@@ -792,4 +827,249 @@ public class RuntimeBridge internal constructor(
         }
     }
 
+    /**
+     * Open one text-input session for one runtime callback.
+     */
+    @JvmName("openTextInput")
+    internal fun openTextInput(
+        sessionId: Long,
+        inputType: Int,
+        isMultiline: Boolean,
+        isSecure: Boolean,
+        text: String,
+        selectionStart: Int,
+        selectionEnd: Int,
+        hasComposing: Boolean,
+        composingStart: Int,
+        composingEnd: Int,
+    ): Int {
+        return withRuntimeHost(
+            onMissing = { hostStatusNotFound },
+        ) { runtimeHost ->
+            textBridge.openTextInput(
+                runtimeHost = runtimeHost,
+                sessionId = sessionId,
+                inputType = inputType,
+                isMultiline = isMultiline,
+                isSecure = isSecure,
+                text = text,
+                selectionStart = selectionStart,
+                selectionEnd = selectionEnd,
+                hasComposing = hasComposing,
+                composingStart = composingStart,
+                composingEnd = composingEnd,
+            )
+        }
+    }
+
+    /**
+     * Close one text-input session for one runtime callback.
+     */
+    @JvmName("closeTextInput")
+    internal fun closeTextInput(
+        sessionId: Long,
+    ): Int {
+        return withRuntimeHost(
+            onMissing = { hostStatusNotFound },
+        ) { runtimeHost ->
+            textBridge.closeTextInput(
+                runtimeHost = runtimeHost,
+                sessionId = sessionId,
+            )
+        }
+    }
+
+    /**
+     * Update one text-input geometry for one runtime callback.
+     */
+    @JvmName("setTextInputGeometry")
+    internal fun setTextInputGeometry(
+        sessionId: Long,
+        transformXx: Double,
+        transformXy: Double,
+        transformYx: Double,
+        transformYy: Double,
+        transformTx: Double,
+        transformTy: Double,
+        editorX: Double,
+        editorY: Double,
+        editorWidth: Double,
+        editorHeight: Double,
+        hasCaretRectangle: Boolean,
+        caretX: Double,
+        caretY: Double,
+        caretWidth: Double,
+        caretHeight: Double,
+        hasComposingRectangle: Boolean,
+        composingX: Double,
+        composingY: Double,
+        composingWidth: Double,
+        composingHeight: Double,
+    ): Int {
+        return withRuntimeHost(
+            onMissing = { hostStatusNotFound },
+        ) { runtimeHost ->
+            textBridge.setTextInputGeometry(
+                runtimeHost = runtimeHost,
+                sessionId = sessionId,
+                transformXx = transformXx,
+                transformXy = transformXy,
+                transformYx = transformYx,
+                transformYy = transformYy,
+                transformTx = transformTx,
+                transformTy = transformTy,
+                editorX = editorX,
+                editorY = editorY,
+                editorWidth = editorWidth,
+                editorHeight = editorHeight,
+                hasCaretRectangle = hasCaretRectangle,
+                caretX = caretX,
+                caretY = caretY,
+                caretWidth = caretWidth,
+                caretHeight = caretHeight,
+                hasComposingRectangle = hasComposingRectangle,
+                composingX = composingX,
+                composingY = composingY,
+                composingWidth = composingWidth,
+                composingHeight = composingHeight,
+            )
+        }
+    }
+
+    /**
+     * Update one text-input state for one runtime callback.
+     */
+    @JvmName("setTextInputState")
+    internal fun setTextInputState(
+        sessionId: Long,
+        text: String,
+        selectionStart: Int,
+        selectionEnd: Int,
+        hasComposing: Boolean,
+        composingStart: Int,
+        composingEnd: Int,
+    ): Int {
+        return withRuntimeHost(
+            onMissing = { hostStatusNotFound },
+        ) { runtimeHost ->
+            textBridge.setTextInputState(
+                runtimeHost = runtimeHost,
+                sessionId = sessionId,
+                text = text,
+                selectionStart = selectionStart,
+                selectionEnd = selectionEnd,
+                hasComposing = hasComposing,
+                composingStart = composingStart,
+                composingEnd = composingEnd,
+            )
+        }
+    }
+
+    /**
+     * Read the background scheduler status for one runtime callback.
+     */
+    @JvmName("backgroundStatus")
+    internal fun backgroundStatus(): RuntimeHostBackgroundStatusResponse {
+        return withRuntimeHost(
+            onMissing = { RuntimeHostBackgroundStatusResponse(status = hostStatusNotFound) },
+        ) { runtimeHost ->
+            backgroundBridge.backgroundStatus(runtimeHost)
+        }
+    }
+
+    /**
+     * List registered background tasks for one runtime callback.
+     */
+    @JvmName("listBackgroundTasks")
+    internal fun listBackgroundTasks(): RuntimeHostBackgroundTaskListResponse {
+        return withRuntimeHost(
+            onMissing = { RuntimeHostBackgroundTaskListResponse(status = hostStatusNotFound) },
+        ) { runtimeHost ->
+            backgroundBridge.listBackgroundTasks(runtimeHost)
+        }
+    }
+
+    /**
+     * Register one background task for one runtime callback.
+     */
+    @JvmName("registerBackgroundTask")
+    internal fun registerBackgroundTask(
+        identifier: String,
+        trigger: Int,
+        scheduleKind: Int,
+        hasEarliestBeginUnixNs: Boolean,
+        earliestBeginUnixNs: Long,
+        hasRepeatIntervalNs: Boolean,
+        repeatIntervalNs: Long,
+        network: Int,
+        requiresCharging: Boolean,
+        requiresIdle: Boolean,
+        conflictPolicy: Int,
+    ): Int {
+        return withRuntimeHost(
+            onMissing = { hostStatusNotFound },
+        ) { runtimeHost ->
+            backgroundBridge.registerBackgroundTask(
+                runtimeHost = runtimeHost,
+                identifier = identifier,
+                trigger = trigger,
+                scheduleKind = scheduleKind,
+                hasEarliestBeginUnixNs = hasEarliestBeginUnixNs,
+                earliestBeginUnixNs = earliestBeginUnixNs,
+                hasRepeatIntervalNs = hasRepeatIntervalNs,
+                repeatIntervalNs = repeatIntervalNs,
+                network = network,
+                requiresCharging = requiresCharging,
+                requiresIdle = requiresIdle,
+                conflictPolicy = conflictPolicy,
+            )
+        }
+    }
+
+    /**
+     * Unregister one background task for one runtime callback.
+     */
+    @JvmName("unregisterBackgroundTask")
+    internal fun unregisterBackgroundTask(
+        identifier: String,
+    ): Int {
+        return withRuntimeHost(
+            onMissing = { hostStatusNotFound },
+        ) { runtimeHost ->
+            backgroundBridge.unregisterBackgroundTask(runtimeHost, identifier)
+        }
+    }
+
+    /**
+     * Trigger one background task for one runtime callback.
+     */
+    @JvmName("triggerBackgroundTask")
+    internal fun triggerBackgroundTask(
+        identifier: String,
+    ): RuntimeHostBackgroundTriggerResponse {
+        return withRuntimeHost(
+            onMissing = { RuntimeHostBackgroundTriggerResponse(status = hostStatusNotFound) },
+        ) { runtimeHost ->
+            backgroundBridge.triggerBackgroundTask(runtimeHost, identifier)
+        }
+    }
+
+    /**
+     * Complete one background task execution for one runtime callback.
+     */
+    @JvmName("completeBackgroundTask")
+    internal fun completeBackgroundTask(
+        executionId: String,
+        result: Int,
+    ): Int {
+        return withRuntimeHost(
+            onMissing = { hostStatusNotFound },
+        ) { runtimeHost ->
+            backgroundBridge.completeBackgroundTask(
+                runtimeHost = runtimeHost,
+                executionId = executionId,
+                result = result,
+            )
+        }
+    }
 }

@@ -117,6 +117,8 @@ final class RuntimeAbiSpy: RuntimeAbi, @unchecked Sendable {
   var detachedSessionHandles: [HostSessionHandle] = []
   var documentResults: [(HostSessionHandle, HostRequestID, [RuntimeHostDocumentDescriptor])] = []
   var permissionEvents: [(HostSessionHandle, HostRequestID?, String, Bool)] = []
+  var textInputEvents: [(HostSessionHandle, RuntimeHostTextInputEvent)] = []
+  var backgroundEvents: [(HostSessionHandle, RuntimeHostBackgroundEvent)] = []
   var intentEvents: [(HostSessionHandle, RuntimeHostIntentEvent)] = []
   var locationSamples: [(HostSessionHandle, String, RuntimeHostLocationSample)] = []
   var notificationEvents: [(HostSessionHandle, RuntimeHostNotificationEvent)] = []
@@ -152,6 +154,12 @@ final class RuntimeAbiSpy: RuntimeAbi, @unchecked Sendable {
   var notificationPostCallback: NotificationPostCallback?
   var notificationCancelCallback: NotificationCancelCallback?
   var notificationCancelAllCallback: NotificationCancelAllCallback?
+  var backgroundStatusCallback: BackgroundStatusCallback?
+  var backgroundListCallback: BackgroundListCallback?
+  var backgroundRegisterCallback: BackgroundRegisterCallback?
+  var backgroundUnregisterCallback: BackgroundUnregisterCallback?
+  var backgroundTriggerTestCallback: BackgroundTriggerTestCallback?
+  var backgroundCompleteCallback: BackgroundCompleteCallback?
 
   func attachBridge(
     sessionHandle: HostSessionHandle,
@@ -212,6 +220,37 @@ final class RuntimeAbiSpy: RuntimeAbi, @unchecked Sendable {
     notificationPostCallback = { _, _ in hostStatusOk }
     notificationCancelCallback = { _, _ in hostStatusOk }
     notificationCancelAllCallback = { _ in hostStatusOk }
+    backgroundStatusCallback = { _, status in
+      guard let status else {
+        return hostStatusInvalidArgument
+      }
+      status.pointee = 3
+
+      return hostStatusOk
+    }
+    backgroundListCallback = { _, descriptors in
+      guard let descriptors else {
+        return hostStatusInvalidArgument
+      }
+      descriptors.pointee = DestackRustBackgroundTaskDescriptorArray(
+        data: nil,
+        len: 0,
+        capacity: 0
+      )
+
+      return hostStatusOk
+    }
+    backgroundRegisterCallback = { _, _ in hostStatusOk }
+    backgroundUnregisterCallback = { _, _ in hostStatusOk }
+    backgroundTriggerTestCallback = { _, _, isTriggered in
+      guard let isTriggered else {
+        return hostStatusInvalidArgument
+      }
+      isTriggered.pointee = true
+
+      return hostStatusOk
+    }
+    backgroundCompleteCallback = { _, _, _ in hostStatusOk }
 
     if attachStatus == hostStatusOk {
       RuntimeAbiSpyBridgeRegistry.insert(bridge, sessionHandle: sessionHandle)
@@ -274,6 +313,32 @@ final class RuntimeAbiSpy: RuntimeAbi, @unchecked Sendable {
     sample: RuntimeHostLocationSample
   ) -> RuntimeAbiStatus {
     locationSamples.append((sessionHandle, watchID, sample))
+
+    return RuntimeAbiStatus(code: hostStatusOk, errorID: 0)
+  }
+
+  func notifyTextInputState(
+    sessionHandle: HostSessionHandle,
+    sessionID: UInt64,
+    state: RuntimeHostTextInputState
+  ) -> RuntimeAbiStatus {
+    textInputEvents.append(
+      (
+        sessionHandle,
+        RuntimeHostTextInputEvent(
+          sessionID: sessionID,
+          state: state
+        )
+      ))
+
+    return RuntimeAbiStatus(code: hostStatusOk, errorID: 0)
+  }
+
+  func notifyBackgroundEvent(
+    sessionHandle: HostSessionHandle,
+    event: RuntimeHostBackgroundEvent
+  ) -> RuntimeAbiStatus {
+    backgroundEvents.append((sessionHandle, event))
 
     return RuntimeAbiStatus(code: hostStatusOk, errorID: 0)
   }

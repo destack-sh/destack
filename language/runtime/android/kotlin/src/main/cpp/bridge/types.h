@@ -22,6 +22,17 @@ struct NativeSlice {
     uint32_t len;
 };
 
+/// One owned native array passed through the Android bridge.
+template <typename T>
+struct NativeArray {
+    /// The array data pointer.
+    T *data;
+    /// The logical length in elements.
+    uint32_t len;
+    /// The allocated capacity in elements.
+    uint32_t capacity;
+};
+
 /// One borrowed string reference passed through the Android bridge.
 struct NativeStringRef {
     /// The string data pointer.
@@ -150,6 +161,217 @@ struct HostPermissionRequest {
     uint64_t request_id;
     /// The normalized permission names requested by the runtime.
     NativeStringSlice permissions;
+};
+
+/// One text-selection range passed through the Android bridge.
+struct HostTextRange {
+    /// The inclusive range start offset.
+    uint32_t start_offset;
+    /// The exclusive range end offset.
+    uint32_t end_offset;
+};
+
+/// One text-session configuration passed through the Android bridge.
+struct HostTextSessionConfig {
+    /// The stable text-session identifier.
+    uint64_t session_id;
+    /// The text-input type hint.
+    int32_t input_type;
+    /// Whether the text session is multiline.
+    bool is_multiline;
+    /// Whether the text session is secure.
+    bool is_secure;
+};
+
+/// One text-session state passed through the Android bridge.
+struct HostTextSessionState {
+    /// The current editor text.
+    NativeStringRef text;
+    /// The current selection range.
+    HostTextRange selection;
+    /// Whether one composing range is present.
+    bool has_composing;
+    /// The composing range when present.
+    HostTextRange composing;
+};
+
+/// One text-session rectangle passed through the Android bridge.
+struct HostTextRectangle {
+    /// The left edge in local logical units.
+    double x;
+    /// The top edge in local logical units.
+    double y;
+    /// The rectangle width in local logical units.
+    double width;
+    /// The rectangle height in local logical units.
+    double height;
+};
+
+/// One text-session transform passed through the Android bridge.
+struct HostTextTransform2D {
+    /// The first-row X coefficient.
+    double xx;
+    /// The first-row Y coefficient.
+    double xy;
+    /// The second-row X coefficient.
+    double yx;
+    /// The second-row Y coefficient.
+    double yy;
+    /// The translation X component.
+    double tx;
+    /// The translation Y component.
+    double ty;
+};
+
+/// One text-session open request passed through the Android bridge.
+struct HostTextOpenRequest {
+    /// The text-session configuration.
+    HostTextSessionConfig config;
+    /// The initial renderer-owned text state.
+    HostTextSessionState state;
+};
+
+/// One text-session geometry request passed through the Android bridge.
+struct HostTextGeometryRequest {
+    /// The stable text-session identifier.
+    uint64_t session_id;
+    /// The local-to-target transform.
+    HostTextTransform2D local_to_target_transform;
+    /// The full editor rectangle.
+    HostTextRectangle editor_rectangle;
+    /// Whether one caret rectangle is present.
+    bool has_caret_rectangle;
+    /// The caret rectangle when present.
+    HostTextRectangle caret_rectangle;
+    /// Whether one composing rectangle is present.
+    bool has_composing_rectangle;
+    /// The composing rectangle when present.
+    HostTextRectangle composing_rectangle;
+};
+
+/// One text-session state request passed through the Android bridge.
+struct HostTextStateRequest {
+    /// The stable text-session identifier.
+    uint64_t session_id;
+    /// The next renderer-owned text state.
+    HostTextSessionState state;
+};
+
+/// One host background scheduler status payload.
+enum class HostBackgroundStatus : uint32_t {
+    Unavailable = 1,
+    Restricted = 2,
+    Available = 3,
+};
+
+/// One host background trigger kind payload.
+enum class HostBackgroundTriggerKind : uint32_t {
+    AppRefresh = 1,
+    Processing = 2,
+};
+
+/// One host background task-result payload.
+enum class HostBackgroundTaskResult : uint32_t {
+    Success = 1,
+    Retry = 2,
+    Failure = 3,
+};
+
+/// One host background network-requirement payload.
+enum class HostBackgroundNetworkRequirement : uint32_t {
+    None = 1,
+    Connected = 2,
+    Unmetered = 3,
+};
+
+/// One host background conflict-policy payload.
+enum class HostBackgroundConflictPolicy : uint32_t {
+    Replace = 1,
+    Keep = 2,
+};
+
+/// One host background schedule-kind payload.
+enum class HostBackgroundTaskScheduleKind : uint32_t {
+    Once = 1,
+    Recurring = 2,
+};
+
+/// One host background task-schedule payload.
+struct HostBackgroundTaskSchedule {
+    /// The declared schedule class.
+    HostBackgroundTaskScheduleKind kind;
+    /// Whether the earliest execution target is present.
+    bool has_earliest_begin_unix_ns;
+    /// The earliest execution target in UTC nanoseconds.
+    uint64_t earliest_begin_unix_ns;
+    /// Whether the repeat interval is present.
+    bool has_repeat_interval_ns;
+    /// The repeat interval in nanoseconds for recurring schedules.
+    uint64_t repeat_interval_ns;
+};
+
+/// One host background task-options payload.
+struct HostBackgroundTaskOptions {
+    /// The stable task identifier.
+    NativeStringRef identifier;
+    /// The trigger class.
+    HostBackgroundTriggerKind trigger;
+    /// The requested schedule payload.
+    HostBackgroundTaskSchedule schedule;
+    /// The requested network requirement.
+    HostBackgroundNetworkRequirement network;
+    /// Whether charging power is required.
+    bool requires_charging;
+    /// Whether idle mode is required.
+    bool requires_idle;
+    /// The registration conflict policy.
+    HostBackgroundConflictPolicy conflict_policy;
+};
+
+/// One host background task-descriptor payload.
+struct HostBackgroundTaskDescriptor {
+    /// The stable task identifier.
+    NativeStringRef identifier;
+    /// The trigger class.
+    HostBackgroundTriggerKind trigger;
+    /// The effective schedule payload.
+    HostBackgroundTaskSchedule schedule;
+    /// The effective network requirement.
+    HostBackgroundNetworkRequirement network;
+    /// Whether charging power is required.
+    bool requires_charging;
+    /// Whether idle mode is required.
+    bool requires_idle;
+    /// The registration conflict policy.
+    HostBackgroundConflictPolicy conflict_policy;
+};
+
+/// One host background event metadata payload.
+struct HostBackgroundEventMetadata {
+    /// The monotonic event timestamp in nanoseconds.
+    uint64_t timestamp_ns;
+    /// The monotonic sequence number for this event stream.
+    uint64_t sequence;
+    /// The stable task identifier.
+    NativeStringRef identifier;
+    /// The stable execution identifier for this scheduled execution.
+    NativeStringRef execution_id;
+    /// The host execution deadline in UTC nanoseconds.
+    uint64_t deadline_unix_ns;
+};
+
+/// One host background event kind payload.
+enum class HostBackgroundEventKind : uint32_t {
+    TaskReady = 1,
+    TaskExpired = 2,
+};
+
+/// One host background event payload.
+struct HostBackgroundEvent {
+    /// The event kind.
+    HostBackgroundEventKind kind;
+    /// The shared event metadata.
+    HostBackgroundEventMetadata metadata;
 };
 
 /// One typed contact query passed through the Android bridge.
@@ -954,6 +1176,54 @@ struct AndroidHostMediaCallbacks {
     );
 };
 
+/// The text-input callbacks registered for one runtime session.
+struct AndroidHostTextCallbacks {
+    /// The text-open callback.
+    uint32_t (*open)(uint64_t session_handle, HostTextOpenRequest request);
+    /// The text-close callback.
+    uint32_t (*close)(uint64_t session_handle, uint64_t session_id);
+    /// The text-area callback.
+    uint32_t (*set_geometry)(uint64_t session_handle, HostTextGeometryRequest request);
+    /// The text-state callback.
+    uint32_t (*set_state)(uint64_t session_handle, HostTextStateRequest request);
+};
+
+/// The background callbacks registered for one runtime session.
+struct AndroidHostBackgroundCallbacks {
+    /// The background-status callback.
+    uint32_t (*status)(
+        uint64_t session_handle,
+        HostBackgroundStatus *output_status
+    );
+    /// The background-list callback.
+    uint32_t (*list)(
+        uint64_t session_handle,
+        NativeArray<HostBackgroundTaskDescriptor> *output_descriptors
+    );
+    /// The background-register callback.
+    uint32_t (*register_task)(
+        uint64_t session_handle,
+        HostBackgroundTaskOptions options
+    );
+    /// The background-unregister callback.
+    uint32_t (*unregister_task)(
+        uint64_t session_handle,
+        NativeStringRef identifier
+    );
+    /// The background-trigger callback.
+    uint32_t (*trigger_test)(
+        uint64_t session_handle,
+        NativeStringRef identifier,
+        bool *is_triggered
+    );
+    /// The background-complete callback.
+    uint32_t (*complete)(
+        uint64_t session_handle,
+        NativeStringRef execution_id,
+        HostBackgroundTaskResult result
+    );
+};
+
 /// The mobile runtime-bridge callbacks registered for one runtime session.
 struct AndroidRuntimeBridgeBindings {
     /// The document callbacks.
@@ -972,6 +1242,10 @@ struct AndroidRuntimeBridgeBindings {
     AndroidHostMediaCallbacks media;
     /// The notification callbacks.
     AndroidHostNotificationCallbacks notification;
+    /// The text-input callbacks.
+    AndroidHostTextCallbacks text;
+    /// The background callbacks.
+    AndroidHostBackgroundCallbacks background;
 };
 
 /// One runtime status returned by one bridge ingress call.
@@ -1067,4 +1341,15 @@ using NotifyLocationSampleFunction =
         NativeStringRef watch_id,
         LocationSample sample
     );
+/// The runtime function that receives one text-input state event.
+using NotifyTextInputStateFunction =
+    RuntimeStatus (*)(
+        uint64_t session_handle,
+        uint64_t session_id,
+        HostTextSessionState state
+    );
+/// The runtime function that receives one background event.
+using NotifyBackgroundEventFunction =
+    RuntimeStatus (*)(uint64_t session_handle, HostBackgroundEvent event);
+
 #endif

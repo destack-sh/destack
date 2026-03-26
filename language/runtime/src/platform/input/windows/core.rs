@@ -29,7 +29,7 @@ use crate::platform::input::{
     InputPointerButtonEvent, InputPointerButtonEventPayload, InputPointerMotionEvent,
     InputPointerMotionEventPayload, InputReadMode, InputScrollEvent, InputScrollEventPayload,
     InputSensorEffectiveConfig, InputSensorEvent, InputSensorEventPayload, InputSensorKind,
-    InputTextEvent, InputTextEventPayload, InputTextInputArea, InputTextInputType, InputTouchEvent,
+    InputTextEvent, InputTextEventPayload, InputTextGeometry, InputTextInputType, InputTouchEvent,
     InputTouchEventPayload, InputWindowTarget,
 };
 use crate::platform::resource::{ResourceFinalizer, ResourceId, ResourceKind, WindowHandle};
@@ -130,7 +130,10 @@ pub(super) fn empty_event_payload(binding: &BindingCallContext) -> InputEventPay
             backend_code: 0,
             backend_value: 0,
         },
-        text: InputTextEventPayload { text: empty_text },
+        text: InputTextEventPayload {
+            text: empty_text,
+            is_composing: false,
+        },
         device: InputDeviceEventPayload {
             action: InputEventAction::Cancel,
             backend_code: 0,
@@ -247,6 +250,8 @@ pub(super) fn set_input_event_sequence(event: &mut InputEvent, sequence: u64) {
 pub(super) enum WindowsInputBackend {
     /// Console input queue backend.
     Console,
+    /// Native Win32 window-hosted text backend.
+    Window,
     /// Per-device raw-input backend routed through the worker service.
     RawDevice,
     /// XInput gamepad backend.
@@ -299,8 +304,8 @@ pub(super) struct WindowsInputBinding {
     pub(super) text_active: bool,
     /// Current text input type selection.
     pub(super) text_input_type: InputTextInputType,
-    /// Current text-area hint for IME placement.
-    pub(super) text_area: InputTextInputArea,
+    /// Current text-area hint for IME placement when one host hint exists.
+    pub(super) text_area: Option<InputTextGeometry>,
     /// Enabled sensor stream kinds for this opened handle.
     pub(super) sensor_enabled_kinds: HashSet<InputSensorKind>,
     /// Effective sensor stream configurations for this opened handle.
@@ -387,8 +392,8 @@ pub(super) struct WindowsInputResolved {
     pub(super) text_active: bool,
     /// Current text input type selection.
     pub(super) text_input_type: InputTextInputType,
-    /// Current text-area hint for IME placement.
-    pub(super) text_area: InputTextInputArea,
+    /// Current text-area hint for IME placement when one host hint exists.
+    pub(super) text_area: Option<InputTextGeometry>,
 }
 
 impl ResourceFinalizer for WindowsInputFinalizer {
@@ -1046,68 +1051,6 @@ pub(super) fn release_cursor_confine(operation: &'static str) -> RuntimeResult<(
     }
 
     Ok(())
-}
-
-/// Persist one text active flag and type for one input handle.
-pub(super) fn set_text_state(
-    binding: &BindingCallContext,
-    handle: resource::InputDeviceHandle,
-    active: bool,
-    input_type: InputTextInputType,
-    operation: &'static str,
-) -> RuntimeResult<()> {
-    let updated = binding.agent().resources.with_entry_mut(handle.0, |entry| {
-        if entry.kind != ResourceKind::InputDevice {
-            return None;
-        }
-
-        if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
-            return None;
-        }
-
-        let resolved_binding = entry
-            .payload
-            .as_mut()
-            .and_then(|payload| payload.downcast_mut::<WindowsInputBinding>())?;
-        resolved_binding.text_active = active;
-        resolved_binding.text_input_type = input_type;
-        Some(())
-    });
-
-    match updated.flatten() {
-        Some(()) => Ok(()),
-        None => Err(input_not_found(operation, handle)),
-    }
-}
-
-/// Persist one text-area hint for one input handle.
-pub(super) fn set_text_area(
-    binding: &BindingCallContext,
-    handle: resource::InputDeviceHandle,
-    area: InputTextInputArea,
-    operation: &'static str,
-) -> RuntimeResult<()> {
-    let updated = binding.agent().resources.with_entry_mut(handle.0, |entry| {
-        if entry.kind != ResourceKind::InputDevice {
-            return None;
-        }
-
-        if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
-            return None;
-        }
-
-        let resolved_binding = entry
-            .payload
-            .as_mut()
-            .and_then(|payload| payload.downcast_mut::<WindowsInputBinding>())?;
-        resolved_binding.text_area = area;
-        Some(())
-    });
-
-    match updated.flatten() {
-        Some(()) => Ok(()),
-        None => Err(input_not_found(operation, handle)),
-    }
 }
 
 /// Persist one pointer-position snapshot for one input handle.

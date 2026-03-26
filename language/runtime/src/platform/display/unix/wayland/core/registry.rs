@@ -10,6 +10,7 @@ use wayland_protocols::wp::pointer_constraints::zv1::client::zwp_pointer_constra
 use wayland_protocols::wp::pointer_warp::v1::client::wp_pointer_warp_v1;
 use wayland_protocols::wp::presentation_time::client::wp_presentation;
 use wayland_protocols::wp::relative_pointer::zv1::client::zwp_relative_pointer_manager_v1;
+use wayland_protocols::wp::text_input::zv3::client::zwp_text_input_manager_v3;
 use wayland_protocols::wp::viewporter::client::wp_viewporter;
 use wayland_protocols::xdg::activation::v1::client::xdg_activation_v1;
 use wayland_protocols::xdg::decoration::zv1::client::zxdg_decoration_manager_v1;
@@ -62,6 +63,8 @@ pub(crate) struct WaylandGlobalState {
     /// Bound gamma-control manager global for monitor gamma lanes.
     pub(crate) gamma_control_manager:
         Option<zwlr_gamma_control_manager_v1::ZwlrGammaControlManagerV1>,
+    /// Bound text-input manager global for seat-scoped IME sessions.
+    pub(crate) text_input_manager: Option<zwp_text_input_manager_v3::ZwpTextInputManagerV3>,
 }
 
 impl Dispatch<wl_registry::WlRegistry, ()> for WaylandConnectionDispatchState {
@@ -202,6 +205,23 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandConnectionDispatchState {
                     );
                     state.globals.viewporter = Some(viewporter);
                 }
+                "zwp_text_input_manager_v3" => {
+                    let manager = registry
+                        .bind::<zwp_text_input_manager_v3::ZwpTextInputManagerV3, _, _>(
+                            name,
+                            version.min(1),
+                            queue_handle,
+                            (),
+                        );
+                    state.globals.text_input_manager = Some(manager.clone());
+
+                    if let Some(seat) = state.input.seat.as_ref().cloned()
+                        && state.input.text_input.is_none()
+                    {
+                        let text_input = manager.get_text_input(&seat, queue_handle, ());
+                        state.input.text_input = Some(text_input);
+                    }
+                }
                 "wp_color_manager_v1" => {
                     let manager = registry.bind::<wp_color_manager_v1::WpColorManagerV1, _, _>(
                         name,
@@ -234,6 +254,14 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandConnectionDispatchState {
                         let data_device =
                             data_device_manager.get_data_device(&seat, queue_handle, ());
                         state.input.data_device = Some(data_device);
+                    }
+
+                    if let Some(text_input_manager) =
+                        state.globals.text_input_manager.as_ref().cloned()
+                        && state.input.text_input.is_none()
+                    {
+                        let text_input = text_input_manager.get_text_input(&seat, queue_handle, ());
+                        state.input.text_input = Some(text_input);
                     }
                 }
                 "wl_data_device_manager" => {

@@ -11,10 +11,13 @@ use super::{
 };
 use crate::diagnostic::RuntimeResult;
 use crate::platform::diagnostic::PlatformErrorCode;
+#[cfg(any(windows, target_os = "linux"))]
+use crate::platform::input::InputTextRange;
 use crate::platform::input::validation::{MAX_RAW_HID_BYTES, MAX_READ_BATCH_EVENTS};
 use crate::platform::input::{
     InputDeviceCapabilityKind, InputDeviceKind, InputEventAction, InputEventKind,
-    InputMonitorEventKind, InputReadMode, InputTextInputArea, InputWindowTarget,
+    InputMonitorEventKind, InputReadMode, InputTextGeometry, InputTextRectangle,
+    InputTextTransform2D, InputWindowTarget,
 };
 #[cfg(windows)]
 use crate::platform::input::{
@@ -26,6 +29,8 @@ use crate::platform::input::{
     InputHapticEffectParameters, InputHapticEffectType, InputHapticsResult, InputSensorConfig,
     InputTextInputType,
 };
+#[cfg(windows)]
+use crate::platform::resource::InputTextSessionHandle;
 use crate::platform::resource::{
     InputDeviceHandle, InputMonitorHandle, ResourceEntry, ResourceId, ResourceKind, WindowHandle,
 };
@@ -344,24 +349,6 @@ fn open_first_windows_pointer_device_or_skip(
     open_windows_console_device_or_skip(context)
 }
 
-/// Open one windows text-capable device and fall back to console when available.
-#[cfg(windows)]
-fn open_first_windows_text_device_or_skip(
-    context: &mut InputHarnessContext<'_>,
-) -> RuntimeResult<Option<InputDeviceHandle>> {
-    // prefer console first because it provides the broadest current text surface
-    let console = open_windows_console_device_or_skip(context)?;
-    if console.is_some() {
-        return Ok(console);
-    }
-
-    // otherwise use one raw endpoint that reports text capability
-    open_first_windows_raw_device_with_capabilities_or_skip(
-        context,
-        &[InputDeviceCapabilityKind::TextInput],
-    )
-}
-
 /// Build one default input target that uses process focus scope.
 #[cfg(windows)]
 fn default_input_target() -> InputWindowTarget {
@@ -376,6 +363,23 @@ fn explicit_input_target() -> InputWindowTarget {
     InputWindowTarget {
         window: Some(WindowHandle(ResourceId(1))),
     }
+}
+
+/// Create one opened window resource for input target tests.
+#[cfg(any(windows, target_os = "linux"))]
+fn register_input_target_window(context: &mut InputHarnessContext<'_>) -> WindowHandle {
+    let entry = ResourceEntry::new(ResourceKind::Window);
+
+    #[cfg(windows)]
+    let entry = entry.with_handle(1usize as *mut c_void);
+
+    let resource_id = context.call_context.agent().resources.insert(
+        context.call_context.world(),
+        entry,
+        Some(context.call_context.engine()),
+    );
+
+    WindowHandle(resource_id)
 }
 
 /// Assert one decoded event payload uses valid runtime fields.
@@ -621,12 +625,28 @@ fn test_input_harness_window_target_helper_roundtrip() {
 #[test]
 fn test_input_harness_text_input_area_helper_roundtrip() {
     with_harness_context(|context| {
-        let area = InputTextInputArea {
-            x: 12,
-            y: 34,
-            width: 567,
-            height: 890,
-            cursor: 11,
+        let area = InputTextGeometry {
+            local_to_target_transform: InputTextTransform2D {
+                xx: 1.0,
+                xy: 0.0,
+                yx: 0.0,
+                yy: 1.0,
+                tx: 0.0,
+                ty: 0.0,
+            },
+            editor_rectangle: InputTextRectangle {
+                x: 12.0,
+                y: 34.0,
+                width: 567.0,
+                height: 890.0,
+            },
+            caret_rectangle: Some(InputTextRectangle {
+                x: 22.0,
+                y: 44.0,
+                width: 2.0,
+                height: 18.0,
+            }),
+            composing_rectangle: None,
         };
         let value = context.text_input_area(area);
         let decoded = context.text_input_area_from(value);
@@ -1678,116 +1698,131 @@ fn test_input_linux_pointer_state_and_relative_mode_surface_matches_capabilities
     });
 }
 
-/// Reject explicit window targets on windows text APIs.
+/// Accept explicit window targets on windows text APIs.
 #[cfg(windows)]
 #[test]
-fn test_input_windows_text_target_rejects_explicit_window() {
+fn test_input_windows_text_target_accepts_explicit_window() {
     with_harness_context(|mut context| {
-        let Some(handle) = open_windows_console_device_or_skip(&mut context)? else {
-            return Ok(());
-        };
-
-        let area = InputTextInputArea {
-            x: 10,
-            y: 20,
-            width: 300,
-            height: 120,
-            cursor: 7,
-        };
-
-        assert_platform_error_code(
-            context.destack_input_text_set_area(
-                handle,
-                context.window_target(explicit_input_target()),
-                context.text_input_area(area),
-            ),
-            PlatformErrorCode::NotSupported,
-        )?;
-        assert_platform_error_code(
-            context.destack_input_text_get_area(
-                handle,
-                context.window_target(explicit_input_target()),
-            ),
-            PlatformErrorCode::NotSupported,
-        )?;
-        assert_platform_error_code(
-            context.destack_input_text_start(
-                handle,
-                context.window_target(explicit_input_target()),
+        let target_window = register_input_target_window(&mut context);
+        let session = context.destack_input_text_open(
+            context.text_session_config(
+                InputWindowTarget {
+                    window: Some(target_window),
+                },
                 InputTextInputType::Text,
+                false,
+                false,
             ),
-            PlatformErrorCode::NotSupported,
+            context.text_session_state(
+                "",
+                InputTextRange {
+                    start_offset: 0,
+                    end_offset: 0,
+                },
+                None,
+            ),
         )?;
-        assert_platform_error_code(
-            context.destack_input_text_stop(handle, context.window_target(explicit_input_target())),
-            PlatformErrorCode::NotSupported,
-        )?;
+        context.destack_input_text_close(session)?;
 
-        context.destack_input_close(handle)?;
         Ok(())
     });
 }
 
-/// Report not-supported composition reads on windows console backends.
+/// Report would-block when windows text sessions have no pending committed text.
 #[cfg(windows)]
 #[test]
-fn test_input_windows_text_composition_reports_not_supported() {
+fn test_input_windows_text_try_read_event_reports_would_block_without_text() {
     with_harness_context(|mut context| {
-        let Some(handle) = open_windows_console_device_or_skip(&mut context)? else {
-            return Ok(());
-        };
+        let session = context.destack_input_text_open(
+            context.text_session_config(
+                default_input_target(),
+                InputTextInputType::Text,
+                false,
+                false,
+            ),
+            context.text_session_state(
+                "",
+                InputTextRange {
+                    start_offset: 0,
+                    end_offset: 0,
+                },
+                None,
+            ),
+        )?;
 
         assert_platform_error_code(
-            context.destack_input_text_read_composition(handle),
-            PlatformErrorCode::NotSupported,
-        )?;
-        context.destack_input_text_start(
-            handle,
-            context.window_target(default_input_target()),
-            InputTextInputType::Text,
-        )?;
-        assert_platform_error_code(
-            context.destack_input_text_try_read_composition(handle),
-            PlatformErrorCode::NotSupported,
+            context.destack_input_text_try_read_event(session),
+            PlatformErrorCode::IoWouldBlock,
         )?;
 
-        context.destack_input_close(handle)?;
+        context.destack_input_text_close(session)?;
         Ok(())
     });
 }
 
-/// Report not-supported composition reads on Unix terminal text backends.
+/// Accept explicit window targets on Unix text APIs.
 #[cfg(target_os = "linux")]
 #[test]
-fn test_input_unix_text_composition_reports_not_supported() {
+fn test_input_unix_text_target_accepts_explicit_window() {
     with_harness_context(|mut context| {
-        let Some(handle) = open_first_device_with_capabilities_or_skip(
-            &mut context,
-            &[InputDeviceCapabilityKind::TextInput],
-        )?
-        else {
-            return Ok(());
-        };
+        let target_window = register_input_target_window(&mut context);
+        let session = context.destack_input_text_open(
+            context.text_session_config(
+                InputWindowTarget {
+                    window: Some(target_window),
+                },
+                InputTextInputType::Text,
+                false,
+                false,
+            ),
+            context.text_session_state(
+                "",
+                InputTextRange {
+                    start_offset: 0,
+                    end_offset: 0,
+                },
+                None,
+            ),
+        )?;
 
         assert_platform_error_code(
-            context.destack_input_text_read_composition(handle),
-            PlatformErrorCode::NotSupported,
+            context.destack_input_text_get_geometry(session),
+            PlatformErrorCode::IoWouldBlock,
         )?;
-        let target = InputWindowTarget {
-            window: Some(WindowHandle(ResourceId(0))),
-        };
-        context.destack_input_text_start(
-            handle,
-            context.window_target(target),
-            InputTextInputType::Text,
-        )?;
-        assert_platform_error_code(
-            context.destack_input_text_try_read_composition(handle),
-            PlatformErrorCode::NotSupported,
-        )?;
-        context.destack_input_text_stop(handle, context.window_target(target))?;
 
-        context.destack_input_close(handle)?;
+        context.destack_input_text_close(session)?;
+        Ok(())
+    });
+}
+
+/// Report would-block when Unix text sessions have no pending committed text.
+#[cfg(target_os = "linux")]
+#[test]
+fn test_input_unix_text_try_read_event_reports_would_block_without_text() {
+    with_harness_context(|mut context| {
+        let session = context.destack_input_text_open(
+            context.text_session_config(
+                InputWindowTarget { window: None },
+                InputTextInputType::Text,
+                false,
+                false,
+            ),
+            context.text_session_state(
+                "",
+                InputTextRange {
+                    start_offset: 0,
+                    end_offset: 0,
+                },
+                None,
+            ),
+        )?;
+
+        assert_platform_error_code(
+            context.destack_input_text_try_read_event(session),
+            PlatformErrorCode::IoWouldBlock,
+        )?;
+
+        context.destack_input_text_close(session)?;
         Ok(())
     });
 }
@@ -2285,6 +2320,7 @@ fn test_input_windows_sensor_read_rejects_unknown_handle() {
 fn test_input_windows_extended_surface_rejects_unknown_handle() {
     with_harness_context(|mut context| {
         let invalid = InputDeviceHandle(ResourceId(u64::MAX - 24));
+        let invalid_text_session = InputTextSessionHandle(ResourceId(u64::MAX - 25));
         let target = context.window_target(default_input_target());
 
         assert_platform_error_code(
@@ -2312,7 +2348,7 @@ fn test_input_windows_extended_surface_rejects_unknown_handle() {
             PlatformErrorCode::IoNotFound,
         )?;
         assert_platform_error_code(
-            context.destack_input_text_is_active(invalid),
+            context.destack_input_text_get_geometry(invalid_text_session),
             PlatformErrorCode::IoNotFound,
         )?;
         assert_platform_error_code(
@@ -2608,58 +2644,85 @@ fn test_input_windows_raw_pointer_capture_reports_not_supported() {
     });
 }
 
-/// Exercise text session lifecycle and active-state transitions on windows.
+/// Exercise text session lifecycle and state roundtrips on windows.
 #[cfg(windows)]
 #[test]
-fn test_input_windows_text_active_state_tracks_session_lifecycle() {
+fn test_input_windows_text_session_tracks_lifecycle() {
     with_harness_context(|mut context| {
-        let Some(handle) = open_first_windows_text_device_or_skip(&mut context)? else {
-            return Ok(());
-        };
-
-        let initial_active = context.destack_input_text_is_active(handle)?;
-        assert!(
-            !initial_active,
-            "newly opened windows text endpoints should start inactive"
-        );
-
-        let area = InputTextInputArea {
-            x: 32,
-            y: 48,
-            width: 512,
-            height: 256,
-            cursor: 5,
-        };
-        context.destack_input_text_set_area(
-            handle,
-            context.window_target(default_input_target()),
-            context.text_input_area(area),
+        let session = context.destack_input_text_open(
+            context.text_session_config(
+                default_input_target(),
+                InputTextInputType::Text,
+                false,
+                false,
+            ),
+            context.text_session_state(
+                "hello",
+                InputTextRange {
+                    start_offset: 0,
+                    end_offset: 5,
+                },
+                None,
+            ),
         )?;
-        let current_area = context
-            .destack_input_text_get_area(handle, context.window_target(default_input_target()))?;
+
+        assert_platform_error_code(
+            context.destack_input_text_get_geometry(session),
+            PlatformErrorCode::IoWouldBlock,
+        )?;
+
+        let area = InputTextGeometry {
+            local_to_target_transform: InputTextTransform2D {
+                xx: 1.0,
+                xy: 0.0,
+                yx: 0.0,
+                yy: 1.0,
+                tx: 0.0,
+                ty: 0.0,
+            },
+            editor_rectangle: InputTextRectangle {
+                x: 32.0,
+                y: 48.0,
+                width: 512.0,
+                height: 256.0,
+            },
+            caret_rectangle: Some(InputTextRectangle {
+                x: 37.0,
+                y: 52.0,
+                width: 2.0,
+                height: 18.0,
+            }),
+            composing_rectangle: None,
+        };
+        context.destack_input_text_set_geometry(session, context.text_input_area(area))?;
+        let current_area = context.destack_input_text_get_geometry(session)?;
         let current_area = context.text_input_area_from(current_area);
         assert_eq!(
             current_area, area,
-            "text area get/set should roundtrip for windows text endpoints"
+            "text area get/set should roundtrip for windows text sessions"
         );
 
-        context.destack_input_text_start(
-            handle,
-            context.window_target(default_input_target()),
-            InputTextInputType::Text,
+        context.destack_input_text_set_state(
+            session,
+            context.text_session_state(
+                "hello world",
+                InputTextRange {
+                    start_offset: 6,
+                    end_offset: 11,
+                },
+                Some(InputTextRange {
+                    start_offset: 0,
+                    end_offset: 5,
+                }),
+            ),
         )?;
-        assert!(
-            context.destack_input_text_is_active(handle)?,
-            "text endpoint should report active after text_start"
+
+        context.destack_input_text_close(session)?;
+        assert_platform_error_code(
+            context.destack_input_text_get_geometry(session),
+            PlatformErrorCode::IoNotFound,
         );
 
-        context.destack_input_text_stop(handle, context.window_target(default_input_target()))?;
-        assert!(
-            !context.destack_input_text_is_active(handle)?,
-            "text endpoint should report inactive after text_stop"
-        );
-
-        context.destack_input_close(handle)?;
         Ok(())
     });
 }
@@ -2884,3 +2947,5 @@ fn test_input_linux_haptics_play_rejects_out_of_range_params() {
 }
 
 // FUGU #Cleanup: split and organize input/tests/basic.rs properly (also see other modules)
+#[cfg(windows)]
+use std::ffi::c_void;

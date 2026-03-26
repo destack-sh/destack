@@ -7,11 +7,13 @@ use crate::diagnostic::{DiagnosticStore, RuntimeResult};
 use crate::host::apple::core::execution::with_process_main_context_marker_if_needed;
 use crate::host::core::{HostSessionId, HostSessionRegistry, RuntimeIngressHandler};
 use crate::platform::display::WindowTheme;
+use crate::platform::display::appkit::AppKitWindowTextHost;
 use crate::platform::display::unix::appkit::event::{
     DisplayEventRecord, MonitorEventStream, WindowEventRecord, WindowEventStream,
 };
 use crate::platform::display::unix::appkit::model::{AppKitWindowHostState, MonitorSnapshot};
 use crate::platform::display::unix::appkit::window;
+use crate::platform::resource::InputTextSessionHandle;
 use crate::platform::{ResourceTable, core as core_platform, resource};
 use crate::runtime::world::World;
 use crate::runtime::{
@@ -39,6 +41,8 @@ pub(crate) struct AppKitWindowHost {
     pub(crate) drop_session: RefCell<AppKitDropSessionState>,
     /// Retained miniwindow icon image for this host window.
     pub(crate) window_icon: RefCell<Option<objc2::rc::Retained<NSImage>>>,
+    /// Retained native text host for window-backed text sessions.
+    pub(crate) text_input: RefCell<Option<AppKitWindowTextHost>>,
 }
 
 /// Main-thread AppKit backend state.
@@ -123,6 +127,8 @@ pub(crate) struct AppKitRuntimeState {
     pub(crate) window_streams: RuntimeStreamRegistry<WindowEventStream>,
     /// Cached monitor topology snapshot for monitor-event delta publication.
     pub(crate) monitor_topology_snapshot: RuntimeSnapshotCache<Vec<MonitorSnapshot>>,
+    /// Active native text session routing keyed by runtime window handle.
+    pub(crate) active_text_sessions: Mutex<HashMap<resource::WindowHandle, InputTextSessionHandle>>,
     /// Whether the process-global AppKit cursor is currently hidden.
     pub(crate) cursor_hidden: Mutex<bool>,
     /// Registered host-owned observer for post-pump AppKit reconciliation.
@@ -170,6 +176,7 @@ impl AppKitRuntimeState {
             monitor_streams: RuntimeStreamRegistry::default(),
             window_streams: RuntimeStreamRegistry::default(),
             monitor_topology_snapshot: RuntimeSnapshotCache::default(),
+            active_text_sessions: Mutex::new(HashMap::new()),
             cursor_hidden: Mutex::new(false),
             runtime_ingress_handler: OnceLock::new(),
             service_registration: OnceLock::new(),

@@ -1,5 +1,7 @@
 package dev.destack.runtime.android.bridge
 
+import dev.destack.runtime.android.bridge.background.BackgroundAbi
+import dev.destack.runtime.android.bridge.background.ProcessBackgroundAbi
 import dev.destack.runtime.android.bridge.document.DocumentAbi
 import dev.destack.runtime.android.bridge.document.ProcessDocumentAbi
 import dev.destack.runtime.android.bridge.intent.IntentAbi
@@ -10,6 +12,8 @@ import dev.destack.runtime.android.bridge.notification.NotificationAbi
 import dev.destack.runtime.android.bridge.notification.ProcessNotificationAbi
 import dev.destack.runtime.android.bridge.permission.PermissionAbi
 import dev.destack.runtime.android.bridge.permission.ProcessPermissionAbi
+import dev.destack.runtime.android.bridge.text.ProcessTextAbi
+import dev.destack.runtime.android.bridge.text.TextAbi
 import dev.destack.runtime.android.core.HostSessionHandle
 
 /**
@@ -36,11 +40,13 @@ internal object RuntimeHostLibraryLoader {
  */
 public object ProcessRuntimeAbi :
     RuntimeAbi,
+    BackgroundAbi by ProcessBackgroundAbi,
     DocumentAbi by ProcessDocumentAbi,
     PermissionAbi by ProcessPermissionAbi,
     IntentAbi by ProcessIntentAbi,
     LocationAbi by ProcessLocationAbi,
-    NotificationAbi by ProcessNotificationAbi {
+    NotificationAbi by ProcessNotificationAbi,
+    TextAbi by ProcessTextAbi {
     init {
         RuntimeHostLibraryLoader.ensureLoaded()
     }

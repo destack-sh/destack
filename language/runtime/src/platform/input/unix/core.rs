@@ -18,7 +18,7 @@ use crate::platform::input::{
     InputPointerButtonEventPayload, InputPointerMotionEvent, InputPointerMotionEventPayload,
     InputPointerType, InputReadMode, InputScrollEvent, InputScrollEventPayload,
     InputSensorEffectiveConfig, InputSensorEvent, InputSensorEventPayload, InputSensorKind,
-    InputTextEvent, InputTextEventPayload, InputTextInputArea, InputTextInputType, InputTouchEvent,
+    InputTextEvent, InputTextEventPayload, InputTextGeometry, InputTextInputType, InputTouchEvent,
     InputTouchEventPayload, InputWheelDeltaMode,
 };
 use crate::platform::resource::{ResourceFinalizer, ResourceId, ResourceKind};
@@ -283,8 +283,8 @@ pub(super) struct UnixInputBinding {
     pub(super) text_active: bool,
     /// The active text input type for this handle.
     pub(super) text_input_type: InputTextInputType,
-    /// The current text input area hint for this handle.
-    pub(super) text_area: InputTextInputArea,
+    /// The current text input area hint for this handle when one host hint exists.
+    pub(super) text_area: Option<InputTextGeometry>,
     /// Optional gamepad player-index override for this handle.
     pub(super) gamepad_player_index_override: Option<u8>,
     /// Whether relative pointer mode is enabled for this handle.
@@ -687,120 +687,6 @@ pub(super) fn set_unix_read_mode(
 
     match result.flatten() {
         Some(result) => result,
-        None => Err(input_not_found(operation, handle)),
-    }
-}
-
-/// Persist one text active flag and type for one Unix input handle.
-pub(super) fn set_text_state(
-    binding: &BindingCallContext,
-    handle: resource::InputDeviceHandle,
-    active: bool,
-    input_type: InputTextInputType,
-    operation: &'static str,
-) -> RuntimeResult<()> {
-    let updated = binding.agent().resources.with_entry_mut(handle.0, |entry| {
-        if entry.kind != ResourceKind::InputDevice {
-            return None;
-        }
-        if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
-            return None;
-        }
-
-        let resolved_binding = entry
-            .payload
-            .as_mut()
-            .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
-        resolved_binding.text_active = active;
-        resolved_binding.text_input_type = input_type;
-        Some(())
-    });
-
-    match updated.flatten() {
-        Some(()) => Ok(()),
-        None => Err(input_not_found(operation, handle)),
-    }
-}
-
-/// Persist one text-area hint for one Unix input handle.
-pub(super) fn set_text_area(
-    binding: &BindingCallContext,
-    handle: resource::InputDeviceHandle,
-    area: InputTextInputArea,
-    operation: &'static str,
-) -> RuntimeResult<()> {
-    let updated = binding.agent().resources.with_entry_mut(handle.0, |entry| {
-        if entry.kind != ResourceKind::InputDevice {
-            return None;
-        }
-        if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
-            return None;
-        }
-
-        let resolved_binding = entry
-            .payload
-            .as_mut()
-            .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
-        resolved_binding.text_area = area;
-        Some(())
-    });
-
-    match updated.flatten() {
-        Some(()) => Ok(()),
-        None => Err(input_not_found(operation, handle)),
-    }
-}
-
-/// Return whether text input is active for one Unix input handle.
-pub(super) fn is_text_active(
-    binding: &BindingCallContext,
-    handle: resource::InputDeviceHandle,
-    operation: &'static str,
-) -> RuntimeResult<bool> {
-    let active = binding.agent().resources.with_entry(handle.0, |entry| {
-        if entry.kind != ResourceKind::InputDevice {
-            return None;
-        }
-        if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
-            return None;
-        }
-
-        let resolved_binding = entry
-            .payload
-            .as_ref()
-            .and_then(|payload| payload.downcast_ref::<UnixInputBinding>())?;
-        Some(resolved_binding.text_active)
-    });
-
-    match active.flatten() {
-        Some(active) => Ok(active),
-        None => Err(input_not_found(operation, handle)),
-    }
-}
-
-/// Return the text-area hint for one Unix input handle.
-pub(super) fn text_area(
-    binding: &BindingCallContext,
-    handle: resource::InputDeviceHandle,
-    operation: &'static str,
-) -> RuntimeResult<InputTextInputArea> {
-    let area = binding.agent().resources.with_entry(handle.0, |entry| {
-        if entry.kind != ResourceKind::InputDevice {
-            return None;
-        }
-        if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
-            return None;
-        }
-
-        let resolved_binding = entry
-            .payload
-            .as_ref()
-            .and_then(|payload| payload.downcast_ref::<UnixInputBinding>())?;
-        Some(resolved_binding.text_area)
-    });
-
-    match area.flatten() {
-        Some(area) => Ok(area),
         None => Err(input_not_found(operation, handle)),
     }
 }
@@ -1384,7 +1270,7 @@ fn list_terminal_device(
 }
 
 /// Read one byte-oriented event from terminal input.
-fn read_terminal_event(
+pub(super) fn read_terminal_event(
     binding: &BindingCallContext,
     descriptor: RawFd,
     device_id: &str,

@@ -148,6 +148,7 @@ windows-future = { workspace = true }
 windows-sys = { workspace = true, features = [
     "Win32_Devices_Communication",
     "Win32_Foundation",
+    "Win32_Globalization",
     "Win32_NetworkManagement_IpHelper",
     "Win32_NetworkManagement_Ndis",
     "Win32_Security",
@@ -187,6 +188,7 @@ windows-sys = { workspace = true, features = [
     "Win32_UI_Accessibility",
     "Win32_UI_Shell",
     "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_Input_Ime",
     "Win32_UI_Shell_PropertiesSystem",
     "Win32_UI_Input_Touch",
     "Win32_UI_Input_XboxController",
@@ -216,11 +218,11 @@ v4l2-sys-mit = { workspace = true }
 wayland-client = { workspace = true }
 wayland-protocols = { workspace = true }
 wayland-protocols-wlr = { workspace = true }
-x11rb = { workspace = true, features = ["randr", "shape", "xfixes"] }
+x11rb = { workspace = true, features = ["allow-unsafe-code", "randr", "shape", "xfixes"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 dispatch2 = { workspace = true }
-objc2-app-kit = { workspace = true, features = ["objc2-uniform-type-identifiers"] }
+objc2-app-kit = { workspace = true, features = ["NSControl", "NSResponder", "NSText", "NSTextField", "NSTextView", "NSView", "objc2-uniform-type-identifiers"] }
 objc2-av-foundation = { workspace = true, features = ["AVCaptureOutputBase", "AVCapturePhotoOutput", "AVVideoSettings", "objc2-core-media"] }
 objc2-core-bluetooth = { workspace = true }
 objc2-contacts = { workspace = true }

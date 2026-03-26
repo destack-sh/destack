@@ -2,6 +2,9 @@ package dev.destack.runtime.android.bridge
 
 import dev.destack.runtime.android.core.HostRequestId
 import dev.destack.runtime.android.core.HostSessionHandle
+import dev.destack.runtime.android.input.text.RuntimeHostTextInputEvent
+import dev.destack.runtime.android.input.text.RuntimeHostTextInputState
+import dev.destack.runtime.android.module.background.RuntimeHostBackgroundEvent
 import dev.destack.runtime.android.module.document.RuntimeHostDocumentDescriptor
 import dev.destack.runtime.android.module.intent.RuntimeHostIntentEvent
 import dev.destack.runtime.android.module.location.RuntimeHostLocationSample
@@ -24,6 +27,10 @@ class RuntimeAbiSpy : RuntimeAbi {
         MutableList<Triple<HostSessionHandle, String, RuntimeHostLocationSample>> = mutableListOf()
     val notificationEvents:
         MutableList<Pair<HostSessionHandle, RuntimeHostNotificationEvent>> = mutableListOf()
+    val textInputEvents:
+        MutableList<Pair<HostSessionHandle, RuntimeHostTextInputEvent>> = mutableListOf()
+    val backgroundEvents:
+        MutableList<Pair<HostSessionHandle, RuntimeHostBackgroundEvent>> = mutableListOf()
     var attachStatus: Int = 0
 
     override fun attachBridge(
@@ -97,6 +104,28 @@ class RuntimeAbiSpy : RuntimeAbi {
         timestampNs: Long,
     ): RuntimeAbiStatus {
         notificationEvents += sessionHandle to event
+
+        return RuntimeAbiStatus(code = 0, errorId = 0)
+    }
+
+    override fun notifyTextInputState(
+        sessionHandle: HostSessionHandle,
+        sessionId: Long,
+        state: RuntimeHostTextInputState,
+    ): RuntimeAbiStatus {
+        textInputEvents += sessionHandle to RuntimeHostTextInputEvent(
+            sessionId = sessionId,
+            state = state,
+        )
+
+        return RuntimeAbiStatus(code = 0, errorId = 0)
+    }
+
+    override fun notifyBackgroundEvent(
+        sessionHandle: HostSessionHandle,
+        event: RuntimeHostBackgroundEvent,
+    ): RuntimeAbiStatus {
+        backgroundEvents += sessionHandle to event
 
         return RuntimeAbiStatus(code = 0, errorId = 0)
     }

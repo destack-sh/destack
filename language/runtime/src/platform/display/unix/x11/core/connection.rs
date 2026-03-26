@@ -3,8 +3,9 @@ use std::sync::Arc;
 use x11rb::connection::Connection;
 use x11rb::errors::ConnectionError;
 use x11rb::protocol::randr::{ConnectionExt as RandrConnectionExt, NotifyMask};
-use x11rb::protocol::xproto::{Atom, AtomEnum, ConnectionExt as XprotoConnectionExt, Window};
-use x11rb::rust_connection::RustConnection;
+use x11rb::protocol::xproto::{
+    Atom, AtomEnum, ConnectionExt as XprotoConnectionExt, Keycode, Keysym, Window,
+};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::core::BackendSupport;
@@ -14,6 +15,7 @@ use crate::runtime::BindingCallContext;
 
 use super::core::{io_error, selected_backend_name};
 use super::runtime::{X11RuntimeState, runtime_state};
+use super::xlib::{X11HostConnection, X11XlibState, open_host_connection};
 use crate::platform::display::unix::x11::monitor;
 
 /// Interned X11 atoms used by the runtime.
@@ -100,18 +102,35 @@ pub(crate) struct X11Atoms {
 }
 
 /// Shared X11 host connection lane and root metadata.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub(crate) struct X11ConnectionState {
     /// Shared X11 connection for this runtime.
-    pub(crate) connection: Arc<RustConnection>,
+    pub(crate) connection: Arc<X11HostConnection>,
+    /// Shared Xlib state for IME and Xlib bridge operations.
+    pub(crate) xlib: X11XlibState,
     /// Selected setup screen index.
     pub(crate) screen_index: usize,
     /// Root window for the selected screen.
     pub(crate) root: Window,
     /// Interned atoms for this connection.
     pub(crate) atoms: X11Atoms,
+    /// Cached keyboard mapping snapshot for this connection.
+    pub(crate) keyboard_mapping: X11KeyboardMapping,
     /// Extension support flags for this host connection.
     pub(crate) extensions: X11ExtensionSupport,
+}
+
+/// Cached keyboard mapping snapshot for one x11 connection.
+#[derive(Debug, Clone)]
+pub(crate) struct X11KeyboardMapping {
+    /// Lowest valid keycode in the current setup.
+    pub(crate) minimum_keycode: Keycode,
+    /// Highest valid keycode in the current setup.
+    pub(crate) maximum_keycode: Keycode,
+    /// Number of keysyms recorded for each keycode.
+    pub(crate) keysyms_per_keycode: u8,
+    /// Flattened keysym table for the full valid keycode range.
+    pub(crate) keysyms: Vec<Keysym>,
 }
 
 /// Extension support state for one x11 connection.
@@ -127,7 +146,7 @@ pub(crate) struct X11ExtensionSupport {
 
 /// Return one interned atom value by name.
 fn intern_atom(
-    connection: &RustConnection,
+    connection: &X11HostConnection,
     name: &[u8],
     operation: &'static str,
 ) -> RuntimeResult<Atom> {
@@ -143,7 +162,7 @@ fn intern_atom(
 
 /// Query extension support for one connected X11 host.
 fn query_extension_support(
-    connection: &RustConnection,
+    connection: &X11HostConnection,
     operation: &'static str,
 ) -> RuntimeResult<X11ExtensionSupport> {
     Ok(X11ExtensionSupport {
@@ -155,7 +174,7 @@ fn query_extension_support(
 
 /// Query whether one X11 extension is present.
 fn query_extension_present(
-    connection: &RustConnection,
+    connection: &X11HostConnection,
     extension_name: &[u8],
     operation: &'static str,
 ) -> RuntimeResult<bool> {
@@ -174,9 +193,45 @@ fn query_extension_present(
     Ok(reply.present)
 }
 
+/// Query the active core keyboard mapping for one x11 connection.
+fn query_keyboard_mapping(
+    connection: &X11HostConnection,
+    operation: &'static str,
+) -> RuntimeResult<X11KeyboardMapping> {
+    let setup = connection.setup();
+    let minimum_keycode = setup.min_keycode;
+    let maximum_keycode = setup.max_keycode;
+    let keycode_count = maximum_keycode
+        .wrapping_sub(minimum_keycode)
+        .wrapping_add(1);
+
+    let reply = connection
+        .get_keyboard_mapping(minimum_keycode, keycode_count)
+        .map_err(|error| {
+            io_error(
+                operation,
+                format!("get_keyboard_mapping request failed: {error}"),
+            )
+        })?
+        .reply()
+        .map_err(|error| {
+            io_error(
+                operation,
+                format!("get_keyboard_mapping reply failed: {error}"),
+            )
+        })?;
+
+    Ok(X11KeyboardMapping {
+        minimum_keycode,
+        maximum_keycode,
+        keysyms_per_keycode: reply.keysyms_per_keycode,
+        keysyms: reply.keysyms,
+    })
+}
+
 /// Query whether one active CRTC exposes gamma-ramp control.
 pub(crate) fn query_gamma_control_available(
-    connection: &RustConnection,
+    connection: &X11HostConnection,
     root: Window,
 ) -> RuntimeResult<bool> {
     let resources = match connection.randr_get_screen_resources_current(root) {
@@ -248,13 +303,8 @@ pub(crate) fn connection_state(
     }
 
     // open one new x11 connection and intern required atoms
-    let (connection, screen_index) = x11rb::connect(None).map_err(|error| {
-        RuntimeError::from(PlatformError::not_supported(format!(
-            "{operation}: {} connect failed: {error}",
-            selected_backend_name(),
-        )))
-        .boxed()
-    })?;
+    let (connection, screen_index, xlib) = open_host_connection(operation)
+        .map_err(|error| RuntimeError::from(PlatformError::not_supported(error)).boxed())?;
     let root = connection
         .setup()
         .roots
@@ -269,6 +319,7 @@ pub(crate) fn connection_state(
         .root;
     let connection = Arc::new(connection);
     let extensions = query_extension_support(connection.as_ref(), operation)?;
+    let keyboard_mapping = query_keyboard_mapping(connection.as_ref(), operation)?;
 
     // subscribe to randr topology-change events when the extension is present
     if extensions.randr {
@@ -378,9 +429,11 @@ pub(crate) fn connection_state(
 
     let snapshot = Arc::new(X11ConnectionState {
         connection,
+        xlib,
         screen_index,
         root,
         atoms,
+        keyboard_mapping,
         extensions,
     });
 

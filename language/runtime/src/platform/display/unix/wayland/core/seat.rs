@@ -18,6 +18,15 @@ impl Dispatch<wl_seat::WlSeat, ()> for WaylandConnectionDispatchState {
                 WEnum::Value(capabilities) => capabilities.contains(wl_seat::Capability::Pointer),
                 WEnum::Unknown(_) => false,
             };
+
+            // create one seat text-input lane as soon as the seat and manager both exist
+            if state.input.text_input.is_none()
+                && let Some(manager) = state.globals.text_input_manager.as_ref().cloned()
+            {
+                let text_input = manager.get_text_input(proxy, queue_handle, ());
+                state.input.text_input = Some(text_input);
+            }
+
             if supports_pointer && state.input.pointer.is_none() {
                 let pointer = proxy.get_pointer(queue_handle, ());
                 if let Some(manager) = state.input.cursor_shape_manager.as_ref().cloned() {

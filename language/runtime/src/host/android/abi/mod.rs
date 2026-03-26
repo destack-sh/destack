@@ -16,4 +16,5 @@ pub(crate) mod midi;
 pub(crate) mod notification;
 pub(crate) mod permission;
 pub(crate) mod registry;
+pub(crate) mod text;
 pub(crate) mod usb;

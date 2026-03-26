@@ -1,3 +1,4 @@
+use crate::host::android::abi::background::callbacks::AndroidHostBackgroundCallbacks;
 use crate::host::android::abi::bindings::AndroidHostBindings;
 use crate::host::android::abi::calendar::callbacks::AndroidHostCalendarCallbacks;
 use crate::host::android::abi::contact::callbacks::AndroidHostContactCallbacks;
@@ -8,9 +9,12 @@ use crate::host::android::abi::media::callbacks::AndroidHostMediaCallbacks;
 use crate::host::android::abi::notification::callbacks::AndroidHostNotificationCallbacks;
 use crate::host::android::abi::permission::callbacks::AndroidHostPermissionCallbacks;
 use crate::host::android::abi::registry::{register_android_bindings, unregister_android_bindings};
+use crate::host::android::abi::text::callbacks::AndroidHostTextCallbacks;
 use crate::host::core::HostSessionHandle;
 
 /// Android runtime-bridge bindings for the mobile host lanes.
+///
+/// This layout must stay in lockstep with `AndroidRuntimeBridgeBindings` in `bridge/types.h`.
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
 pub(crate) struct AndroidRuntimeBridgeBindings {
@@ -30,6 +34,10 @@ pub(crate) struct AndroidRuntimeBridgeBindings {
     pub media: AndroidHostMediaCallbacks,
     /// The notification host callbacks.
     pub notification: AndroidHostNotificationCallbacks,
+    /// The text host callbacks.
+    pub text: AndroidHostTextCallbacks,
+    /// The background host callbacks.
+    pub background: AndroidHostBackgroundCallbacks,
 }
 
 /// Register one Android runtime-bridge callback table through one C ABI entrypoint.
@@ -41,6 +49,8 @@ pub(crate) unsafe extern "C" fn destack_host_android_register_runtime_bridge_bin
     let bindings = AndroidHostBindings {
         document: bindings.document,
         permission: bindings.permission,
+        text: bindings.text,
+        background: bindings.background,
         calendar: bindings.calendar,
         contact: bindings.contact,
         intent: bindings.intent,

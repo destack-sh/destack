@@ -125,6 +125,8 @@ pub struct RuntimeAppNotificationCategoryDeclaration {
 pub struct RuntimeAppBackgroundDeclaration {
     /// Declared background execution modes.
     pub modes: BTreeSet<RuntimeAppBackgroundMode>,
+    /// Declared stable background task identifiers.
+    pub task_identifiers: BTreeSet<String>,
 }
 
 /// Runtime-facing background mode selector.
@@ -339,6 +341,12 @@ impl From<&TargetAppDeclaration> for RuntimeAppDeclaration {
                     .iter()
                     .copied()
                     .map(Into::into)
+                    .collect(),
+                task_identifiers: declaration
+                    .background
+                    .task_identifiers
+                    .iter()
+                    .cloned()
                     .collect(),
             },
             services: RuntimeAppServiceDeclaration {

@@ -3,7 +3,8 @@ import RuntimeHostAppleCore
 
 /// One C callback for one contact-list request.
 typealias ContactListCallback =
-  @convention(c) (UInt64, DestackRustContactQuery, UnsafeMutablePointer<DestackRustContactPage>?) -> UInt32
+  @convention(c) (UInt64, DestackRustContactQuery, UnsafeMutablePointer<DestackRustContactPage>?) ->
+  UInt32
 
 /// One C callback for one contact-search request.
 typealias ContactSearchCallback =
@@ -20,7 +21,8 @@ typealias ContactReadCallback =
 
 /// One C callback for one contact-create request.
 typealias ContactCreateCallback =
-  @convention(c) (UInt64, DestackRustContactDraft, UnsafeMutablePointer<DestackRustStringRef>?) -> UInt32
+  @convention(c) (UInt64, DestackRustContactDraft, UnsafeMutablePointer<DestackRustStringRef>?) ->
+  UInt32
 
 /// One C callback for one contact-update request.
 typealias ContactUpdateCallback =

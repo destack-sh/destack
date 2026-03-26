@@ -2,14 +2,13 @@
 #![allow(unused_imports)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::input::{
-    ClipboardItemDescriptorVm, ClipboardItemVm, InputClipboardCommandEventVm,
-    InputCompositionEventVm, InputDeviceCapabilitiesVm, InputDeviceDescriptorVm,
-    InputEditIntentEventVm, InputEventVm, InputGamepadStateVm, InputHapticEffectParametersVm,
-    InputHapticEffectType, InputHapticsResult, InputKeyboardLayoutInfoVm, InputKeyboardStateVm,
-    InputMonitorEventVm, InputPointerGrabMode, InputPointerStateVm, InputRawHidReportVm,
-    InputReadMode, InputSensorConfigVm, InputSensorDescriptorVm, InputSensorEffectiveConfigVm,
-    InputSensorKind, InputSensorSampleVm, InputTextInputAreaVm, InputTextInputType,
-    InputTouchStateVm, InputWindowTargetVm,
+    ClipboardItemDescriptorVm, ClipboardItemVm, InputDeviceCapabilitiesVm, InputDeviceDescriptorVm,
+    InputEventVm, InputGamepadStateVm, InputHapticEffectParametersVm, InputHapticEffectType,
+    InputHapticsResult, InputKeyboardLayoutInfoVm, InputKeyboardStateVm, InputMonitorEventVm,
+    InputPointerGrabMode, InputPointerStateVm, InputRawHidReportVm, InputReadMode,
+    InputSensorConfigVm, InputSensorDescriptorVm, InputSensorEffectiveConfigVm, InputSensorKind,
+    InputSensorSampleVm, InputTextGeometryVm, InputTextSessionConfigVm, InputTextSessionEventVm,
+    InputTextSessionStateVm, InputTouchStateVm, InputWindowTargetVm,
 };
 use crate::platform::{PlatformError, VmArray, VmSlice, resource};
 use crate::runtime::BindingCallContext;
@@ -1085,39 +1084,37 @@ pub(crate) fn destack_input_sensor_try_read(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) fn destack_input_text_get_area(
+pub(crate) fn destack_input_text_get_geometry(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::InputDeviceHandle,
-    target: InputWindowTargetVm,
-) -> RuntimeResult<InputTextInputAreaVm> {
-    let _ = (handle, target);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.input.text.getArea")).boxed())
+    session: resource::InputTextSessionHandle,
+) -> RuntimeResult<InputTextGeometryVm> {
+    let _ = session;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.text.getGeometry",
+    ))
+    .boxed())
 }
 
-/// Query text input active state.
-///
-/// Return whether text input is currently active for one opened input device.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific text session status checks.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `input.text`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) fn destack_input_text_is_active(
+/// Open one text input session.
+pub(crate) fn destack_input_text_open(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::InputDeviceHandle,
-) -> RuntimeResult<bool> {
-    let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.input.text.isActive")).boxed())
+    config: InputTextSessionConfigVm,
+    state: InputTextSessionStateVm,
+) -> RuntimeResult<resource::InputTextSessionHandle> {
+    let _ = (config, state);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.input.text.open")).boxed())
+}
+
+/// Close one text input session.
+pub(crate) fn destack_input_text_close(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    session: resource::InputTextSessionHandle,
+) -> RuntimeResult<()> {
+    let _ = session;
+    Err(RuntimeError::from(PlatformError::not_supported("destack.input.text.close")).boxed())
 }
 
 /// Read one composition event.
@@ -1137,42 +1134,13 @@ pub(crate) fn destack_input_text_is_active(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) fn destack_input_text_read_composition(
+pub(crate) fn destack_input_text_read_event(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::InputDeviceHandle,
-) -> RuntimeResult<InputCompositionEventVm> {
-    let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.input.text.readComposition",
-    ))
-    .boxed())
-}
-
-/// Read one clipboard command.
-pub(crate) fn destack_input_text_read_clipboard_command(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::InputDeviceHandle,
-) -> RuntimeResult<InputClipboardCommandEventVm> {
-    let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.input.text.readClipboardCommand",
-    ))
-    .boxed())
-}
-
-/// Read one edit intent.
-pub(crate) fn destack_input_text_read_edit_intent(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::InputDeviceHandle,
-) -> RuntimeResult<InputEditIntentEventVm> {
-    let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.input.text.readEditIntent",
-    ))
-    .boxed())
+    session: resource::InputTextSessionHandle,
+) -> RuntimeResult<InputTextSessionEventVm> {
+    let _ = session;
+    Err(RuntimeError::from(PlatformError::not_supported("destack.input.text.readEvent")).boxed())
 }
 
 /// Set text input area.
@@ -1192,72 +1160,28 @@ pub(crate) fn destack_input_text_read_edit_intent(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) fn destack_input_text_set_area(
+pub(crate) fn destack_input_text_set_geometry(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::InputDeviceHandle,
-    target: InputWindowTargetVm,
-    area: InputTextInputAreaVm,
+    session: resource::InputTextSessionHandle,
+    area: InputTextGeometryVm,
 ) -> RuntimeResult<()> {
-    let _ = (handle, target, area);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.input.text.setArea")).boxed())
+    let _ = (session, area);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.text.setGeometry",
+    ))
+    .boxed())
 }
 
-/// Start text input.
-///
-/// Enable text input and composition dispatch for one opened input device and one optional window target.
-/// Text conversion behavior follows host IME and keyboard policy for the selected target scope.
-///
-/// # Platform
-/// Unix and Windows.
-/// Returns operation-level `notSupported` where text input sessions or one window scope are unavailable.
-/// Uses backend-specific text input activation primitives.
-/// Uses host IME activation for global or window-scoped paths.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `input.text`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) fn destack_input_text_start(
+/// Set text input state.
+pub(crate) fn destack_input_text_set_state(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::InputDeviceHandle,
-    target: InputWindowTargetVm,
-    inputtype: InputTextInputType,
+    session: resource::InputTextSessionHandle,
+    state: InputTextSessionStateVm,
 ) -> RuntimeResult<()> {
-    let _ = (handle, target, inputtype);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.input.text.start")).boxed())
-}
-
-/// Stop text input.
-///
-/// Disable text input and composition dispatch for one opened input device and one optional window target.
-/// Pending composition updates are finalized or canceled according to backend policy for the selected target scope.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` where one window scope is unavailable.
-/// Uses backend-specific text input deactivation primitives for global or window-scoped paths.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `input.text`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) fn destack_input_text_stop(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::InputDeviceHandle,
-    target: InputWindowTargetVm,
-) -> RuntimeResult<()> {
-    let _ = (handle, target);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.input.text.stop")).boxed())
+    let _ = (session, state);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.input.text.setState")).boxed())
 }
 
 /// Poll one composition event without blocking.
@@ -1277,40 +1201,14 @@ pub(crate) fn destack_input_text_stop(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) fn destack_input_text_try_read_composition(
+pub(crate) fn destack_input_text_try_read_event(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::InputDeviceHandle,
-) -> RuntimeResult<InputCompositionEventVm> {
-    let _ = handle;
+    session: resource::InputTextSessionHandle,
+) -> RuntimeResult<InputTextSessionEventVm> {
+    let _ = session;
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.input.text.tryReadComposition",
-    ))
-    .boxed())
-}
-
-/// Poll one clipboard command without blocking.
-pub(crate) fn destack_input_text_try_read_clipboard_command(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::InputDeviceHandle,
-) -> RuntimeResult<InputClipboardCommandEventVm> {
-    let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.input.text.tryReadClipboardCommand",
-    ))
-    .boxed())
-}
-
-/// Poll one edit intent without blocking.
-pub(crate) fn destack_input_text_try_read_edit_intent(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::InputDeviceHandle,
-) -> RuntimeResult<InputEditIntentEventVm> {
-    let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.input.text.tryReadEditIntent",
+        "destack.input.text.tryReadEvent",
     ))
     .boxed())
 }

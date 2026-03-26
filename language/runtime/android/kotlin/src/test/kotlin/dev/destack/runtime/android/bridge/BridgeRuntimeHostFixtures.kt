@@ -5,6 +5,14 @@ import dev.destack.runtime.android.core.HostSessionHandle
 import dev.destack.runtime.android.core.RendererSurface
 import dev.destack.runtime.android.core.RendererSurfaceKind
 import dev.destack.runtime.android.core.RuntimeHost
+import dev.destack.runtime.android.module.background.BackgroundRequests
+import dev.destack.runtime.android.module.background.RuntimeHostBackgroundStatus
+import dev.destack.runtime.android.module.background.RuntimeHostBackgroundStatusResponse
+import dev.destack.runtime.android.module.background.RuntimeHostBackgroundTaskListResponse
+import dev.destack.runtime.android.module.background.RuntimeHostBackgroundTaskOptions
+import dev.destack.runtime.android.module.background.RuntimeHostBackgroundTaskResult
+import dev.destack.runtime.android.module.background.RuntimeHostBackgroundTriggerResponse
+import dev.destack.runtime.android.module.background.UnsupportedBackgroundRequests
 import dev.destack.runtime.android.module.calendar.CalendarRequests
 import dev.destack.runtime.android.module.calendar.UnsupportedCalendarRequests
 import dev.destack.runtime.android.module.contact.ContactRequests
@@ -29,6 +37,69 @@ import dev.destack.runtime.android.module.notification.RuntimeHostNotificationEv
 import dev.destack.runtime.android.module.permission.PermissionEvents
 import dev.destack.runtime.android.module.permission.PermissionRequests
 import dev.destack.runtime.android.module.permission.RuntimeHostPermissionEvent
+
+/**
+ * Record background requests for bridge tests.
+ */
+class BackgroundRequestRecorder : BackgroundRequests {
+    var statusResponse = RuntimeHostBackgroundStatusResponse(
+        status = 0,
+        schedulerStatus = RuntimeHostBackgroundStatus.Available,
+    )
+    var listResponse = RuntimeHostBackgroundTaskListResponse(status = 0)
+    val registerCalls: MutableList<RuntimeHostBackgroundTaskOptions> = mutableListOf()
+    val unregisterCalls: MutableList<String> = mutableListOf()
+    val triggerCalls: MutableList<String> = mutableListOf()
+    val completeCalls: MutableList<Pair<String, RuntimeHostBackgroundTaskResult>> = mutableListOf()
+    var registerStatus: Int = 0
+    var unregisterStatus: Int = 0
+    var triggerResponse = RuntimeHostBackgroundTriggerResponse(
+        status = 0,
+        isTriggered = true,
+    )
+    var completeStatus: Int = 0
+
+    override fun backgroundStatus(): RuntimeHostBackgroundStatusResponse {
+        return statusResponse
+    }
+
+    override fun listBackgroundTasks(): RuntimeHostBackgroundTaskListResponse {
+        return listResponse
+    }
+
+    override fun registerBackgroundTask(
+        options: RuntimeHostBackgroundTaskOptions,
+    ): Int {
+        registerCalls += options
+
+        return registerStatus
+    }
+
+    override fun unregisterBackgroundTask(
+        identifier: String,
+    ): Int {
+        unregisterCalls += identifier
+
+        return unregisterStatus
+    }
+
+    override fun triggerBackgroundTask(
+        identifier: String,
+    ): RuntimeHostBackgroundTriggerResponse {
+        triggerCalls += identifier
+
+        return triggerResponse
+    }
+
+    override fun completeBackgroundTask(
+        executionId: String,
+        result: RuntimeHostBackgroundTaskResult,
+    ): Int {
+        completeCalls += executionId to result
+
+        return completeStatus
+    }
+}
 
 /**
  * Record lifecycle events for bridge tests.
@@ -116,6 +187,7 @@ fun createBridgeRuntimeHost(
     sessionHandle: HostSessionHandle,
     permissionRequests: PermissionRequests = PermissionRequestRecorder(),
     documentRequests: DocumentRequests = DocumentRequestRecorder(),
+    backgroundRequests: BackgroundRequests = UnsupportedBackgroundRequests,
     contactRequests: ContactRequests = UnsupportedContactRequests,
     calendarRequests: CalendarRequests = UnsupportedCalendarRequests,
     intentRequests: IntentRequests = IntentRequestRecorder(),
@@ -123,7 +195,7 @@ fun createBridgeRuntimeHost(
     mediaRequests: MediaRequests = UnsupportedMediaRequests,
     notificationRequests: NotificationRequests = NotificationRequestRecorder(),
 ): RuntimeHost {
-    return RuntimeHost(
+    val runtimeHost = RuntimeHost(
         sessionHandle = sessionHandle,
         embedderId = HostEmbedderId(rawValue = 11),
         lifecycleEvents = RecordingLifecycleSink(),
@@ -145,4 +217,8 @@ fun createBridgeRuntimeHost(
             identifier = "test",
         ),
     )
+
+    runtimeHost.backgroundRequests = backgroundRequests
+
+    return runtimeHost
 }

@@ -374,6 +374,7 @@ fn parameter_name(
             format!("...{}", strings.get(*name).as_ref())
         }
         dir::Parameter::VariadicPattern { .. } => "..._".to_string(),
+        dir::Parameter::Error { .. } => "_".to_string(),
     }
 }
 
@@ -1618,10 +1619,10 @@ fn format_type_expression(
             static_arguments,
         } => {
             let left_text = format_type_expression(*left, tree, strings)?;
-            let mut out = if left_text.is_empty() {
-                strings.get(*name).to_string()
-            } else {
-                format!("{left_text}.{}", strings.get(*name).as_ref())
+            let mut out = match name {
+                Some(name) if left_text.is_empty() => strings.get(*name).to_string(),
+                Some(name) => format!("{left_text}.{}", strings.get(*name).as_ref()),
+                None => left_text,
             };
             if let Some(arguments) = static_arguments {
                 let argument_text = format_argument_list(arguments, tree, strings)?;
@@ -1695,6 +1696,7 @@ fn format_argument_expression(
             Some(format!("{}: {value_text}", label.as_ref()))
         }
         Argument::Spread { .. } => Some(format!("...{value_text}")),
+        Argument::Error { .. } => Some(value_text),
         Argument::Positional { .. } => Some(value_text),
     }
 }
@@ -1726,6 +1728,7 @@ fn format_parameter_declared(
             format!("...{}", strings.get(*name).as_ref())
         }
         dir::Parameter::VariadicPattern { .. } => "..._".to_string(),
+        dir::Parameter::Error { .. } => "_".to_string(),
     };
 
     let node_id = dir::GlobalNodeIdAny {

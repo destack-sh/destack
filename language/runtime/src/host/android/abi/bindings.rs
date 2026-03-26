@@ -17,6 +17,7 @@ use crate::host::android::abi::permission::callbacks::AndroidHostPermissionCallb
 use crate::host::android::abi::registry::{
     register_android_bindings, resolve_android_bindings, unregister_android_bindings,
 };
+use crate::host::android::abi::text::callbacks::AndroidHostTextCallbacks;
 use crate::host::android::abi::usb::types::AndroidHostUsbCallbacks;
 use crate::host::core::{HostSessionHandle, HostStatus};
 
@@ -28,6 +29,8 @@ pub(crate) struct AndroidHostBindings {
     pub document: AndroidHostDocumentCallbacks,
     /// Permission host callbacks.
     pub permission: AndroidHostPermissionCallbacks,
+    /// Text host callbacks.
+    pub text: AndroidHostTextCallbacks,
     /// Background host callbacks.
     pub background: AndroidHostBackgroundCallbacks,
     /// Bluetooth host callbacks.

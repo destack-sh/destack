@@ -13,6 +13,7 @@ mod options;
 mod reconcile;
 mod relation;
 mod state;
+mod text;
 
 pub(crate) use action::*;
 pub(crate) use appearance::*;
@@ -26,3 +27,4 @@ pub(crate) use mode::{same_window_mode, *};
 pub(crate) use reconcile::*;
 pub(crate) use relation::*;
 pub(crate) use state::*;
+pub(crate) use text::*;

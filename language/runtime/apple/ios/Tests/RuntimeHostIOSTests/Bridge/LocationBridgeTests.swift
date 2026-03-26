@@ -56,16 +56,22 @@ func testLocationRequestsAndIngressRouteIntoRuntimeHost() throws {
     watchID: "watch-1"
   )
 
-  #expect(servicesEnabled == RuntimeHostLocationServicesResponse(status: hostStatusOk, isEnabled: true))
-  #expect(lastKnown == RuntimeHostLocationLastKnownResponse(status: hostStatusOk, sample: makeIOSLocationSample()))
+  #expect(
+    servicesEnabled == RuntimeHostLocationServicesResponse(status: hostStatusOk, isEnabled: true))
+  #expect(
+    lastKnown
+      == RuntimeHostLocationLastKnownResponse(status: hostStatusOk, sample: makeIOSLocationSample())
+  )
   #expect(locationRequests.watchOpenCalls.count == 1)
   #expect(locationRequests.watchOpenCalls[0].0 == "watch-1")
-  #expect(locationRequests.watchOpenCalls[0].1 == RuntimeHostLocationWatchOptions(
-    accuracy: .high,
-    minimumIntervalNs: 50_000_000,
-    minimumDistanceMeters: 2.5,
-    includeHeading: true
-  ))
+  #expect(
+    locationRequests.watchOpenCalls[0].1
+      == RuntimeHostLocationWatchOptions(
+        accuracy: .high,
+        minimumIntervalNs: 50_000_000,
+        minimumDistanceMeters: 2.5,
+        includeHeading: true
+      ))
   #expect(locationRequests.watchCloseCalls == ["watch-1"])
   #expect(openStatus == hostStatusOk)
   #expect(closeStatus == hostStatusOk)
