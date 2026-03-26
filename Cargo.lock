@@ -1503,6 +1503,7 @@ name = "destack_engine"
 version = "0.55.4"
 dependencies = [
  "destack_heap",
+ "destack_mir",
  "serde",
 ]
 
@@ -1766,7 +1767,6 @@ dependencies = [
  "destack_source",
  "destack_unicode",
  "destack_vm",
- "destack_vm_abi",
  "destack_workspace",
  "dispatch2",
  "foreign-types-shared",
@@ -1921,16 +1921,11 @@ dependencies = [
  "destack_mir",
  "destack_source",
  "destack_test_mirbench",
- "destack_vm_abi",
  "perf-event",
  "pprof",
  "serde",
  "smallvec",
 ]
-
-[[package]]
-name = "destack_vm_abi"
-version = "0.55.4"
 
 [[package]]
 name = "destack_wasm"

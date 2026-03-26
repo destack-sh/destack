@@ -23,7 +23,6 @@ destack_engine = { workspace = true }
 destack_heap = { workspace = true }
 destack_mir = { workspace = true }
 destack_source = { workspace = true }
-destack_vm_abi = { workspace = true }
 
 # util
 serde = { workspace = true, features = ["rc"] }

@@ -68,7 +68,6 @@ destack_query = { workspace = true }
 destack_source = { workspace = true }
 destack_unicode = { workspace = true }
 destack_vm = { workspace = true }
-destack_vm_abi = { workspace = true }
 destack_workspace = { workspace = true }
 
 # general
