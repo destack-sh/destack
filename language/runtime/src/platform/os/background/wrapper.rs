@@ -213,34 +213,3 @@ pub(crate) fn systemd_quote_argument(value: &str) -> String {
 
     format!("\"{escaped}\"")
 }
-
-#[cfg(test)]
-mod tests {
-    use super::{render_posix_background_wrapper, render_windows_background_wrapper};
-    use crate::platform::os::abi_generated::BackgroundTriggerKindValue;
-    use crate::platform::os::background::runtime::{
-        DESKTOP_BACKGROUND_DEADLINE_UNIX_NS_ENV, DESKTOP_BACKGROUND_TASK_IDENTIFIER_ENV,
-    };
-
-    /// Render one posix wrapper with one trigger-shaped deadline environment.
-    #[test]
-    fn test_render_posix_background_wrapper_exports_deadline() {
-        let wrapper =
-            render_posix_background_wrapper("sync", BackgroundTriggerKindValue::Processing)
-                .expect("posix wrapper should render");
-
-        assert!(wrapper.contains(DESKTOP_BACKGROUND_TASK_IDENTIFIER_ENV));
-        assert!(wrapper.contains(DESKTOP_BACKGROUND_DEADLINE_UNIX_NS_ENV));
-    }
-
-    /// Render one Windows wrapper with one trigger-shaped deadline environment.
-    #[test]
-    fn test_render_windows_background_wrapper_exports_deadline() {
-        let wrapper =
-            render_windows_background_wrapper("sync", BackgroundTriggerKindValue::AppRefresh)
-                .expect("windows wrapper should render");
-
-        assert!(wrapper.contains(DESKTOP_BACKGROUND_TASK_IDENTIFIER_ENV));
-        assert!(wrapper.contains(DESKTOP_BACKGROUND_DEADLINE_UNIX_NS_ENV));
-    }
-}

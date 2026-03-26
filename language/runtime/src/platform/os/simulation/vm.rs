@@ -22,6 +22,11 @@ use destack_vm as vm;
 /// Report completion for one scheduled background-task execution.
 ///
 /// Submit final execution status for one scheduled task execution token.
+/// Success finalizes this execution.
+/// Retry asks the host to retry this one execution sooner than the next scheduled occurrence when supported.
+/// Failure finalizes this execution without an earlier retry.
+/// One-shot registrations end after one definitive success or failure.
+/// Recurring registrations continue on their regular schedule after one definitive success or failure.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -186,7 +191,7 @@ pub(crate) fn destack_os_background_list(
 
 /// Register one background task.
 ///
-/// Create or replace one background-task registration for this runtime identity.
+/// Create one background-task registration or resolve one existing identifier according to the selected registration policy.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -829,9 +834,37 @@ pub(crate) fn destack_os_document_open(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.document.open")).boxed())
 }
 
-/// Pick documents from host picker UI.
+/// Close one document-picker transaction.
 ///
-/// Open host picker UI and return selected document descriptors.
+/// Close one document-picker transaction handle and release host routing state.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host picker callback unregistration and runtime resource cleanup.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `os.document.pick`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) fn destack_os_document_pick_close(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::DocumentPickHandle,
+) -> RuntimeResult<()> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.os.document.pickClose",
+    ))
+    .boxed())
+}
+
+/// Open one document-picker transaction.
+///
+/// Start one host document-picker interaction and return one transaction handle.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -845,13 +878,67 @@ pub(crate) fn destack_os_document_open(
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) fn destack_os_document_pick(
+pub(crate) fn destack_os_document_pick_open(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     options: DocumentPickOptionsVm,
-) -> RuntimeResult<VmArray<DocumentDescriptorVm>> {
+) -> RuntimeResult<resource::DocumentPickHandle> {
     let _ = options;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.os.document.pick")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.document.pickOpen")).boxed())
+}
+
+/// Wait for one document-picker result.
+///
+/// Wait for the completion of one earlier document-picker transaction.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host picker completion queues and runtime transaction state.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `os.document.pick`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) fn destack_os_document_pick_read(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::DocumentPickHandle,
+    timeoutns: u64,
+) -> RuntimeResult<VmArray<DocumentDescriptorVm>> {
+    let _ = (handle, timeoutns);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.document.pickRead")).boxed())
+}
+
+/// Poll one document-picker result without blocking.
+///
+/// Poll the completion of one earlier document-picker transaction without waiting.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses nonblocking host picker completion queue reads.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `os.document.pick`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) fn destack_os_document_pick_try_read(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::DocumentPickHandle,
+) -> RuntimeResult<VmArray<DocumentDescriptorVm>> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.os.document.pickTryRead",
+    ))
+    .boxed())
 }
 
 /// Read one chunk of document bytes.
@@ -1137,7 +1224,7 @@ pub(crate) fn destack_os_intent_open(
 
 /// Request host to open one file path target.
 ///
-/// Ask the host platform or app framework to open one file path with default routing.
+/// Ask host shell or app framework to open one file path with default routing.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -1162,7 +1249,7 @@ pub(crate) fn destack_os_intent_open_path(
 
 /// Request host to open one URL target.
 ///
-/// Ask the host platform or app framework to open one URL with default routing.
+/// Ask host shell or app framework to open one URL with default routing.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -2180,9 +2267,37 @@ pub(crate) fn destack_os_notification_post(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.notification.post")).boxed())
 }
 
-/// Request host notification permission.
+/// Close one notification-permission request transaction.
 ///
-/// Request notification permission through host authorization flow and return resulting permission state.
+/// Close one notification-permission request transaction handle and release host routing state.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host notification callback unregistration and runtime resource cleanup.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `os.notification.permission`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) fn destack_os_notification_request_permission_close(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::NotificationPermissionRequestHandle,
+) -> RuntimeResult<()> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.os.notification.requestPermissionClose",
+    ))
+    .boxed())
+}
+
+/// Open one notification-permission request transaction.
+///
+/// Start one host notification authorization request and return one transaction handle.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -2196,12 +2311,69 @@ pub(crate) fn destack_os_notification_post(
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) fn destack_os_notification_request_permission(
+pub(crate) fn destack_os_notification_request_permission_open(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-) -> RuntimeResult<NotificationPermissionState> {
+) -> RuntimeResult<resource::NotificationPermissionRequestHandle> {
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.notification.requestPermission",
+        "destack.os.notification.requestPermissionOpen",
+    ))
+    .boxed())
+}
+
+/// Wait for one notification-permission result.
+///
+/// Wait for the completion of one earlier notification-permission transaction.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host notification permission completion queues and runtime transaction state.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `os.notification.permission`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) fn destack_os_notification_request_permission_read(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::NotificationPermissionRequestHandle,
+    timeoutns: u64,
+) -> RuntimeResult<NotificationPermissionState> {
+    let _ = (handle, timeoutns);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.os.notification.requestPermissionRead",
+    ))
+    .boxed())
+}
+
+/// Poll one notification-permission result without blocking.
+///
+/// Poll the completion of one earlier notification-permission transaction without waiting.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses nonblocking host notification permission completion queue reads.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `os.notification.permission`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) fn destack_os_notification_request_permission_try_read(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::NotificationPermissionRequestHandle,
+) -> RuntimeResult<NotificationPermissionState> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.os.notification.requestPermissionTryRead",
     ))
     .boxed())
 }
@@ -2260,9 +2432,37 @@ pub(crate) fn destack_os_permission_open_settings(
     .boxed())
 }
 
-/// Request one permission.
+/// Close one permission-request transaction.
 ///
-/// Request host authorization for one permission selector.
+/// Close one permission-request transaction handle and release host routing state.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host permission callback unregistration and runtime resource cleanup.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `os.permission.request`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) fn destack_os_permission_request_close(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::PermissionRequestHandle,
+) -> RuntimeResult<()> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.os.permission.requestClose",
+    ))
+    .boxed())
+}
+
+/// Open one multi-permission request transaction.
+///
+/// Start one host authorization request for one permission selector list and return one transaction handle.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -2276,25 +2476,25 @@ pub(crate) fn destack_os_permission_open_settings(
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) fn destack_os_permission_request(
+pub(crate) fn destack_os_permission_request_many_open(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    permission: Permission,
-) -> RuntimeResult<PermissionState> {
-    let _ = permission;
+    permissions: VmArray<Permission>,
+) -> RuntimeResult<resource::PermissionRequestHandle> {
+    let _ = permissions;
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.permission.request",
+        "destack.os.permission.requestManyOpen",
     ))
     .boxed())
 }
 
-/// Request multiple permissions.
+/// Open one permission-request transaction.
 ///
-/// Request host authorization for one selector list and return resulting states.
+/// Start one host authorization request for one permission selector and return one transaction handle.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses batched host permission request APIs where available.
+/// Uses host permission-request dialogs and policy APIs.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -2304,14 +2504,71 @@ pub(crate) fn destack_os_permission_request(
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) fn destack_os_permission_request_many(
+pub(crate) fn destack_os_permission_request_open(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    permissions: VmArray<Permission>,
-) -> RuntimeResult<VmArray<PermissionEntryVm>> {
-    let _ = permissions;
+    permission: Permission,
+) -> RuntimeResult<resource::PermissionRequestHandle> {
+    let _ = permission;
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.permission.requestMany",
+        "destack.os.permission.requestOpen",
+    ))
+    .boxed())
+}
+
+/// Wait for one permission-request result.
+///
+/// Wait for the completion of one earlier permission-request transaction.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host permission completion queues and runtime transaction state.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `os.permission.request`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) fn destack_os_permission_request_read(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::PermissionRequestHandle,
+    timeoutns: u64,
+) -> RuntimeResult<VmArray<PermissionEntryVm>> {
+    let _ = (handle, timeoutns);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.os.permission.requestRead",
+    ))
+    .boxed())
+}
+
+/// Poll one permission-request result without blocking.
+///
+/// Poll the completion of one earlier permission-request transaction without waiting.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses nonblocking host permission completion queue reads.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `os.permission.request`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) fn destack_os_permission_request_try_read(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::PermissionRequestHandle,
+) -> RuntimeResult<VmArray<PermissionEntryVm>> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.os.permission.requestTryRead",
     ))
     .boxed())
 }

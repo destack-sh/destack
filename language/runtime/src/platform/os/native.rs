@@ -1,5 +1,7 @@
 #![allow(clippy::missing_safety_doc)]
+#![cfg_attr(test, allow(dead_code))]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::core::{io_not_found, io_would_block};
 use crate::platform::{NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, PlatformError};
 
 use crate::runtime::BindingCallContext;
@@ -23,6 +25,135 @@ use crate::platform::os::{
     background, calendar, contact, credentials, document, host, info, intent, lifecycle, location,
     media, mount, network, notification, permission, power,
 };
+
+/// The label for one document pick transaction resource.
+const DOCUMENT_PICK_RESOURCE_LABEL: &str = "os.document.pick";
+
+/// The label for one notification permission transaction resource.
+const NOTIFICATION_PERMISSION_REQUEST_RESOURCE_LABEL: &str = "os.notification.permission.request";
+
+/// The label for one permission transaction resource.
+const PERMISSION_REQUEST_RESOURCE_LABEL: &str = "os.permission.request";
+
+/// The payload for one document pick transaction.
+#[derive(Debug)]
+struct DocumentPickRequestResource {
+    /// The pending picker result.
+    result: Option<Vec<DocumentDescriptor>>,
+}
+
+/// The payload for one notification permission transaction.
+#[derive(Debug)]
+struct NotificationPermissionRequestResource {
+    /// The pending permission result.
+    result: Option<NotificationPermissionState>,
+}
+
+/// The payload for one permission transaction.
+#[derive(Debug)]
+struct PermissionRequestResource {
+    /// The pending permission entries.
+    result: Option<Vec<PermissionEntry>>,
+}
+
+/// Resolve and consume one document pick result.
+fn take_document_pick_result(
+    binding: &BindingCallContext,
+    handle: resource::DocumentPickHandle,
+    operation: &'static str,
+) -> RuntimeResult<Vec<DocumentDescriptor>> {
+    let result = binding.agent().resources.with_entry_mut(handle.0, |entry| {
+        if entry.kind != resource::ResourceKind::DocumentPick {
+            return None;
+        }
+
+        let request = entry.payload_mut::<DocumentPickRequestResource>()?;
+
+        Some(request.result.take())
+    });
+
+    // validate the handle kind and payload first
+    let Some(result) = result.flatten() else {
+        return Err(io_not_found(operation, "unknown document pick handle"));
+    };
+
+    // then consume the one-shot transaction result
+    let Some(result) = result else {
+        return Err(io_would_block(
+            operation,
+            "document pick result has already been consumed",
+        ));
+    };
+
+    Ok(result)
+}
+
+/// Resolve and consume one notification permission result.
+fn take_notification_permission_result(
+    binding: &BindingCallContext,
+    handle: resource::NotificationPermissionRequestHandle,
+    operation: &'static str,
+) -> RuntimeResult<NotificationPermissionState> {
+    let result = binding.agent().resources.with_entry_mut(handle.0, |entry| {
+        if entry.kind != resource::ResourceKind::NotificationPermissionRequest {
+            return None;
+        }
+
+        let request = entry.payload_mut::<NotificationPermissionRequestResource>()?;
+
+        Some(request.result.take())
+    });
+
+    // validate the handle kind and payload first
+    let Some(result) = result.flatten() else {
+        return Err(io_not_found(
+            operation,
+            "unknown notification permission request handle",
+        ));
+    };
+
+    // then consume the one-shot transaction result
+    let Some(result) = result else {
+        return Err(io_would_block(
+            operation,
+            "notification permission result has already been consumed",
+        ));
+    };
+
+    Ok(result)
+}
+
+/// Resolve and consume one permission request result.
+fn take_permission_request_result(
+    binding: &BindingCallContext,
+    handle: resource::PermissionRequestHandle,
+    operation: &'static str,
+) -> RuntimeResult<Vec<PermissionEntry>> {
+    let result = binding.agent().resources.with_entry_mut(handle.0, |entry| {
+        if entry.kind != resource::ResourceKind::PermissionRequest {
+            return None;
+        }
+
+        let request = entry.payload_mut::<PermissionRequestResource>()?;
+
+        Some(request.result.take())
+    });
+
+    // validate the handle kind and payload first
+    let Some(result) = result.flatten() else {
+        return Err(io_not_found(operation, "unknown permission request handle"));
+    };
+
+    // then consume the one-shot transaction result
+    let Some(result) = result else {
+        return Err(io_would_block(
+            operation,
+            "permission request result has already been consumed",
+        ));
+    };
+
+    Ok(result)
+}
 
 /// Report completion for one scheduled background-task execution.
 ///
@@ -948,6 +1079,7 @@ pub(crate) unsafe fn destack_os_document_open(
 ///
 /// # Replay
 /// External, nonrecordable.
+#[cfg(any(test, feature = "execution"))]
 pub(crate) unsafe fn destack_os_document_pick(
     binding: &BindingCallContext,
     out: *mut NativeArray<DocumentDescriptor>,
@@ -962,6 +1094,164 @@ pub(crate) unsafe fn destack_os_document_pick(
 
     unsafe {
         out.write(values);
+    }
+
+    Ok(())
+}
+
+/// Close one document-picker transaction.
+///
+/// Close one document-picker transaction handle and release host routing state.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host picker callback unregistration and runtime resource cleanup.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `os.document.pick`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_os_document_pick_close(
+    binding: &BindingCallContext,
+    handle: resource::DocumentPickHandle,
+) -> RuntimeResult<()> {
+    // remove the one-shot transaction resource
+    let removed = binding.agent().resources.remove_and_finalize(
+        binding.world(),
+        handle.0,
+        Some(binding.engine()),
+    );
+
+    if !removed {
+        return Err(io_not_found(
+            "destack.os.document.pickClose",
+            "unknown document pick handle",
+        ));
+    }
+
+    Ok(())
+}
+
+/// Open one document-picker transaction.
+///
+/// Start one host document-picker interaction and return one transaction handle.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses SAF or system picker APIs on Android, UIDocumentPicker on Apple platforms, common file dialogs on Windows, and desktop file-picker bridges or portals on Unix desktop hosts.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `os.document.pick`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_os_document_pick_open(
+    binding: &BindingCallContext,
+    out: *mut resource::DocumentPickHandle,
+    options: DocumentPickOptions,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // resolve the picker result eagerly through the existing sync implementation
+    let options = unsafe { DocumentPickOptions::into_value(options)? };
+    let result = document::pick_native(binding, options)?;
+
+    // store the result behind one transaction handle
+    let entry = resource::ResourceEntry::new(resource::ResourceKind::DocumentPick)
+        .with_label(DOCUMENT_PICK_RESOURCE_LABEL)
+        .with_payload(DocumentPickRequestResource {
+            result: Some(result),
+        });
+    let handle = binding
+        .agent()
+        .resources
+        .insert(binding.world(), entry, Some(binding.engine()));
+
+    unsafe {
+        out.write(resource::DocumentPickHandle(handle));
+    }
+
+    Ok(())
+}
+
+/// Wait for one document-picker result.
+///
+/// Wait for the completion of one earlier document-picker transaction.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host picker completion queues and runtime transaction state.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `os.document.pick`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_os_document_pick_read(
+    binding: &BindingCallContext,
+    out: *mut NativeArray<DocumentDescriptor>,
+    handle: resource::DocumentPickHandle,
+    timeoutns: u64,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // keep the generated timeout argument in the signature even though this shim resolves eagerly
+    let _ = timeoutns;
+
+    let result = take_document_pick_result(binding, handle, "destack.os.document.pickRead")?;
+    let result = binding.store_array(result);
+
+    unsafe {
+        out.write(result);
+    }
+
+    Ok(())
+}
+
+/// Poll one document-picker result without blocking.
+///
+/// Poll the completion of one earlier document-picker transaction without waiting.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses nonblocking host picker completion queue reads.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `os.document.pick`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_os_document_pick_try_read(
+    binding: &BindingCallContext,
+    out: *mut NativeArray<DocumentDescriptor>,
+    handle: resource::DocumentPickHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    let result = take_document_pick_result(binding, handle, "destack.os.document.pickTryRead")?;
+    let result = binding.store_array(result);
+
+    unsafe {
+        out.write(result);
     }
 
     Ok(())
@@ -2529,6 +2819,7 @@ pub(crate) unsafe fn destack_os_notification_post(
 ///
 /// # Replay
 /// External, nonrecordable.
+#[cfg(any(test, feature = "execution"))]
 pub(crate) unsafe fn destack_os_notification_request_permission(
     binding: &BindingCallContext,
     out: *mut NotificationPermissionState,
@@ -2538,6 +2829,168 @@ pub(crate) unsafe fn destack_os_notification_request_permission(
     }
 
     let result = notification::request_permission(binding)?;
+
+    unsafe {
+        out.write(result);
+    }
+
+    Ok(())
+}
+
+/// Close one notification-permission request transaction.
+///
+/// Close one notification-permission request handle and release host routing state.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host notification callback unregistration and runtime resource cleanup.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `os.notification.permission`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_os_notification_request_permission_close(
+    binding: &BindingCallContext,
+    handle: resource::NotificationPermissionRequestHandle,
+) -> RuntimeResult<()> {
+    // remove the one-shot transaction resource
+    let removed = binding.agent().resources.remove_and_finalize(
+        binding.world(),
+        handle.0,
+        Some(binding.engine()),
+    );
+
+    if !removed {
+        return Err(io_not_found(
+            "destack.os.notification.requestPermissionClose",
+            "unknown notification permission request handle",
+        ));
+    }
+
+    Ok(())
+}
+
+/// Open one notification-permission request transaction.
+///
+/// Start one host notification authorization request and return one transaction handle.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host notification permission request APIs where supported.
+///
+/// # Errors
+/// Returns ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `os.notification.permission`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_os_notification_request_permission_open(
+    binding: &BindingCallContext,
+    out: *mut resource::NotificationPermissionRequestHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // resolve the permission result eagerly through the existing sync implementation
+    let result = notification::request_permission(binding)?;
+
+    // store the result behind one transaction handle
+    let entry = resource::ResourceEntry::new(resource::ResourceKind::NotificationPermissionRequest)
+        .with_label(NOTIFICATION_PERMISSION_REQUEST_RESOURCE_LABEL)
+        .with_payload(NotificationPermissionRequestResource {
+            result: Some(result),
+        });
+    let handle = binding
+        .agent()
+        .resources
+        .insert(binding.world(), entry, Some(binding.engine()));
+
+    unsafe {
+        out.write(resource::NotificationPermissionRequestHandle(handle));
+    }
+
+    Ok(())
+}
+
+/// Wait for one notification-permission result.
+///
+/// Wait for the completion of one earlier notification-permission transaction.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host notification permission completion queues and runtime transaction state.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `os.notification.permission`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_os_notification_request_permission_read(
+    binding: &BindingCallContext,
+    out: *mut NotificationPermissionState,
+    handle: resource::NotificationPermissionRequestHandle,
+    timeoutns: u64,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // keep the generated timeout argument in the signature even though this shim resolves eagerly
+    let _ = timeoutns;
+
+    let result = take_notification_permission_result(
+        binding,
+        handle,
+        "destack.os.notification.requestPermissionRead",
+    )?;
+
+    unsafe {
+        out.write(result);
+    }
+
+    Ok(())
+}
+
+/// Poll one notification-permission result without blocking.
+///
+/// Poll the completion of one earlier notification-permission transaction without waiting.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses nonblocking host notification permission completion queue reads.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `os.notification.permission`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_os_notification_request_permission_try_read(
+    binding: &BindingCallContext,
+    out: *mut NotificationPermissionState,
+    handle: resource::NotificationPermissionRequestHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    let result = take_notification_permission_result(
+        binding,
+        handle,
+        "destack.os.notification.requestPermissionTryRead",
+    )?;
 
     unsafe {
         out.write(result);
@@ -2620,6 +3073,7 @@ pub(crate) unsafe fn destack_os_permission_open_settings(
 ///
 /// # Replay
 /// External, nonrecordable.
+#[cfg(any(test, feature = "execution"))]
 pub(crate) unsafe fn destack_os_permission_request(
     binding: &BindingCallContext,
     out: *mut PermissionState,
@@ -2651,6 +3105,7 @@ pub(crate) unsafe fn destack_os_permission_request(
 ///
 /// # Replay
 /// External, nonrecordable.
+#[cfg(any(test, feature = "execution"))]
 pub(crate) unsafe fn destack_os_permission_request_many(
     binding: &BindingCallContext,
     out: *mut NativeArray<PermissionEntry>,
@@ -2665,6 +3120,214 @@ pub(crate) unsafe fn destack_os_permission_request_many(
     let result = binding.store_array(result);
 
     unsafe { out.write(result) };
+
+    Ok(())
+}
+
+/// Close one permission-request transaction.
+///
+/// Close one permission-request transaction handle and release host routing state.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host permission callback unregistration and runtime resource cleanup.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `os.permission.request`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_os_permission_request_close(
+    binding: &BindingCallContext,
+    handle: resource::PermissionRequestHandle,
+) -> RuntimeResult<()> {
+    // remove the one-shot transaction resource
+    let removed = binding.agent().resources.remove_and_finalize(
+        binding.world(),
+        handle.0,
+        Some(binding.engine()),
+    );
+
+    if !removed {
+        return Err(io_not_found(
+            "destack.os.permission.requestClose",
+            "unknown permission request handle",
+        ));
+    }
+
+    Ok(())
+}
+
+/// Open one multi-permission request transaction.
+///
+/// Start one host authorization request for one permission selector list and return one transaction handle.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host permission-request dialogs and policy APIs.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `os.permission.request`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_os_permission_request_many_open(
+    binding: &BindingCallContext,
+    out: *mut resource::PermissionRequestHandle,
+    permissions: NativeArray<Permission>,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // resolve the permission result eagerly through the existing sync implementation
+    let permissions = unsafe { permissions.as_slice()? };
+    let permissions = permissions.to_vec();
+    let result = permission::request_many(binding, permissions)?;
+
+    // store the result behind one transaction handle
+    let entry = resource::ResourceEntry::new(resource::ResourceKind::PermissionRequest)
+        .with_label(PERMISSION_REQUEST_RESOURCE_LABEL)
+        .with_payload(PermissionRequestResource {
+            result: Some(result),
+        });
+    let handle = binding
+        .agent()
+        .resources
+        .insert(binding.world(), entry, Some(binding.engine()));
+
+    unsafe {
+        out.write(resource::PermissionRequestHandle(handle));
+    }
+
+    Ok(())
+}
+
+/// Open one permission-request transaction.
+///
+/// Start one host authorization request for one permission selector and return one transaction handle.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host permission-request dialogs and policy APIs.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `os.permission.request`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_os_permission_request_open(
+    binding: &BindingCallContext,
+    out: *mut resource::PermissionRequestHandle,
+    permission: Permission,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // resolve the permission result eagerly through the existing sync implementation
+    let state = permission::request(binding, permission)?;
+    let result = vec![PermissionEntry { permission, state }];
+
+    // store the result behind one transaction handle
+    let entry = resource::ResourceEntry::new(resource::ResourceKind::PermissionRequest)
+        .with_label(PERMISSION_REQUEST_RESOURCE_LABEL)
+        .with_payload(PermissionRequestResource {
+            result: Some(result),
+        });
+    let handle = binding
+        .agent()
+        .resources
+        .insert(binding.world(), entry, Some(binding.engine()));
+
+    unsafe {
+        out.write(resource::PermissionRequestHandle(handle));
+    }
+
+    Ok(())
+}
+
+/// Wait for one permission-request result.
+///
+/// Wait for the completion of one earlier permission-request transaction.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host permission completion queues and runtime transaction state.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `os.permission.request`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_os_permission_request_read(
+    binding: &BindingCallContext,
+    out: *mut NativeArray<PermissionEntry>,
+    handle: resource::PermissionRequestHandle,
+    timeoutns: u64,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // keep the generated timeout argument in the signature even though this shim resolves eagerly
+    let _ = timeoutns;
+
+    let result =
+        take_permission_request_result(binding, handle, "destack.os.permission.requestRead")?;
+    let result = binding.store_array(result);
+
+    unsafe {
+        out.write(result);
+    }
+
+    Ok(())
+}
+
+/// Poll one permission-request result without blocking.
+///
+/// Poll the completion of one earlier permission-request transaction without waiting.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses nonblocking host permission completion queue reads.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `os.permission.request`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_os_permission_request_try_read(
+    binding: &BindingCallContext,
+    out: *mut NativeArray<PermissionEntry>,
+    handle: resource::PermissionRequestHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    let result =
+        take_permission_request_result(binding, handle, "destack.os.permission.requestTryRead")?;
+    let result = binding.store_array(result);
+
+    unsafe {
+        out.write(result);
+    }
 
     Ok(())
 }

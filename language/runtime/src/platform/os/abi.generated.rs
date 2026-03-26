@@ -172,6 +172,143 @@ impl VmAbiCodec for PathUtf16Abi<VmAbi> {
     }
 }
 
+/// ABI enum for BackgroundConflictPolicy.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum BackgroundConflictPolicy {
+    /// Replace.
+    Replace = 1,
+    /// Keep.
+    Keep = 2,
+}
+
+impl VmValueCodec for BackgroundConflictPolicy {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <i32 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1i32 => Self::Replace,
+            2i32 => Self::Keep,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown BackgroundConflictPolicy value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <i32 as VmValueCodec>::encode(self as i32)
+    }
+}
+
+impl VmCollectionElement for BackgroundConflictPolicy {}
+
+/// Value type for BackgroundConflictPolicy.
+pub type BackgroundConflictPolicyValue = BackgroundConflictPolicy;
+
+impl NativeAbiCodec for BackgroundConflictPolicy {
+    type Value = BackgroundConflictPolicyValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for BackgroundConflictPolicy {
+    type Value = BackgroundConflictPolicyValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI enum for BackgroundNetworkRequirement.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum BackgroundNetworkRequirement {
+    /// None.
+    None = 1,
+    /// Connected.
+    Connected = 2,
+    /// Unmetered.
+    Unmetered = 3,
+}
+
+impl VmValueCodec for BackgroundNetworkRequirement {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <i32 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1i32 => Self::None,
+            2i32 => Self::Connected,
+            3i32 => Self::Unmetered,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown BackgroundNetworkRequirement value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <i32 as VmValueCodec>::encode(self as i32)
+    }
+}
+
+impl VmCollectionElement for BackgroundNetworkRequirement {}
+
+/// Value type for BackgroundNetworkRequirement.
+pub type BackgroundNetworkRequirementValue = BackgroundNetworkRequirement;
+
+impl NativeAbiCodec for BackgroundNetworkRequirement {
+    type Value = BackgroundNetworkRequirementValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for BackgroundNetworkRequirement {
+    type Value = BackgroundNetworkRequirementValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
 /// ABI enum for BackgroundStatus.
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -296,6 +433,73 @@ impl NativeAbiCodec for BackgroundTaskResult {
 
 impl VmAbiCodec for BackgroundTaskResult {
     type Value = BackgroundTaskResultValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI enum for BackgroundTaskScheduleKind.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum BackgroundTaskScheduleKind {
+    /// Once.
+    Once = 1,
+    /// Recurring.
+    Recurring = 2,
+}
+
+impl VmValueCodec for BackgroundTaskScheduleKind {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <i32 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1i32 => Self::Once,
+            2i32 => Self::Recurring,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown BackgroundTaskScheduleKind value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <i32 as VmValueCodec>::encode(self as i32)
+    }
+}
+
+impl VmCollectionElement for BackgroundTaskScheduleKind {}
+
+/// Value type for BackgroundTaskScheduleKind.
+pub type BackgroundTaskScheduleKindValue = BackgroundTaskScheduleKind;
+
+impl NativeAbiCodec for BackgroundTaskScheduleKind {
+    type Value = BackgroundTaskScheduleKindValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for BackgroundTaskScheduleKind {
+    type Value = BackgroundTaskScheduleKindValue;
 
     fn into_value(
         self,
@@ -3826,20 +4030,16 @@ pub struct BackgroundTaskDescriptorAbi<A: BindingAbi> {
     pub identifier: A::String,
     /// Trigger class.
     pub trigger: BackgroundTriggerKind,
-    /// Effective minimum repeat interval in nanoseconds.
-    pub minimum_interval_ns: u64,
-    /// Earliest target execution timestamp in UTC nanoseconds.
-    pub earliest_begin_unix_ns: u64,
-    /// Whether one network route is required.
-    pub requires_network: bool,
-    /// Whether one unmetered network route is required.
-    pub requires_unmetered_network: bool,
+    /// Effective schedule payload.
+    pub schedule: BackgroundTaskSchedule,
+    /// Effective network requirement.
+    pub network: BackgroundNetworkRequirement,
     /// Whether charging power is required.
     pub requires_charging: bool,
     /// Whether idle mode is required.
     pub requires_idle: bool,
-    /// Whether this registration persists across host restart.
-    pub persisted: bool,
+    /// Registration conflict policy for one existing identifier.
+    pub conflict_policy: BackgroundConflictPolicy,
 }
 
 pub type BackgroundTaskDescriptor = BackgroundTaskDescriptorAbi<NativeAbi>;
@@ -3881,10 +4081,10 @@ impl VmAggregateCodec for BackgroundTaskDescriptorAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 9 {
+        if slots.len() != 7 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 9 fields",
+                "expected 7 fields",
             ))
             .boxed());
         }
@@ -3892,29 +4092,26 @@ impl VmAggregateCodec for BackgroundTaskDescriptorAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_trigger =
             <BackgroundTriggerKind as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_minimum_interval_ns =
-            <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_earliest_begin_unix_ns =
-            <u64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_requires_network =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_requires_unmetered_network =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_schedule =
+            <BackgroundTaskScheduleVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_network =
+            <BackgroundNetworkRequirement as VmAggregateCodec>::decode_with_context(
+                context, slots[3],
+            )?;
         let field_requires_charging =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         let field_requires_idle =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[7])?;
-        let field_persisted = <bool as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_conflict_policy =
+            <BackgroundConflictPolicy as VmAggregateCodec>::decode_with_context(context, slots[6])?;
         Ok(Self {
             identifier: field_identifier,
             trigger: field_trigger,
-            minimum_interval_ns: field_minimum_interval_ns,
-            earliest_begin_unix_ns: field_earliest_begin_unix_ns,
-            requires_network: field_requires_network,
-            requires_unmetered_network: field_requires_unmetered_network,
+            schedule: field_schedule,
+            network: field_network,
             requires_charging: field_requires_charging,
             requires_idle: field_requires_idle,
-            persisted: field_persisted,
+            conflict_policy: field_conflict_policy,
         })
     }
 
@@ -3928,16 +4125,20 @@ impl VmAggregateCodec for BackgroundTaskDescriptorAbi<VmAbi> {
                 self.trigger,
                 context,
             )?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.minimum_interval_ns, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.earliest_begin_unix_ns, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.requires_network, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(
-                self.requires_unmetered_network,
+            <BackgroundTaskScheduleVm as VmAggregateCodec>::encode_with_context(
+                self.schedule,
+                context,
+            )?,
+            <BackgroundNetworkRequirement as VmAggregateCodec>::encode_with_context(
+                self.network,
                 context,
             )?,
             <bool as VmAggregateCodec>::encode_with_context(self.requires_charging, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.requires_idle, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.persisted, context)?,
+            <BackgroundConflictPolicy as VmAggregateCodec>::encode_with_context(
+                self.conflict_policy,
+                context,
+            )?,
         ];
         context
             .allocate_aggregate(slots)
@@ -3954,20 +4155,16 @@ pub struct BackgroundTaskDescriptorValue {
     pub identifier: String,
     /// Trigger class.
     pub trigger: BackgroundTriggerKind,
-    /// Effective minimum repeat interval in nanoseconds.
-    pub minimum_interval_ns: u64,
-    /// Earliest target execution timestamp in UTC nanoseconds.
-    pub earliest_begin_unix_ns: u64,
-    /// Whether one network route is required.
-    pub requires_network: bool,
-    /// Whether one unmetered network route is required.
-    pub requires_unmetered_network: bool,
+    /// Effective schedule payload.
+    pub schedule: BackgroundTaskSchedule,
+    /// Effective network requirement.
+    pub network: BackgroundNetworkRequirement,
     /// Whether charging power is required.
     pub requires_charging: bool,
     /// Whether idle mode is required.
     pub requires_idle: bool,
-    /// Whether this registration persists across host restart.
-    pub persisted: bool,
+    /// Registration conflict policy for one existing identifier.
+    pub conflict_policy: BackgroundConflictPolicy,
 }
 
 impl NativeAbiCodec for BackgroundTaskDescriptorAbi<NativeAbi> {
@@ -3981,23 +4178,19 @@ impl NativeAbiCodec for BackgroundTaskDescriptorAbi<NativeAbi> {
             trigger: unsafe {
                 <BackgroundTriggerKind as NativeAbiCodec>::into_value(self.trigger)?
             },
-            minimum_interval_ns: unsafe {
-                <u64 as NativeAbiCodec>::into_value(self.minimum_interval_ns)?
+            schedule: unsafe {
+                <BackgroundTaskSchedule as NativeAbiCodec>::into_value(self.schedule)?
             },
-            earliest_begin_unix_ns: unsafe {
-                <u64 as NativeAbiCodec>::into_value(self.earliest_begin_unix_ns)?
-            },
-            requires_network: unsafe {
-                <bool as NativeAbiCodec>::into_value(self.requires_network)?
-            },
-            requires_unmetered_network: unsafe {
-                <bool as NativeAbiCodec>::into_value(self.requires_unmetered_network)?
+            network: unsafe {
+                <BackgroundNetworkRequirement as NativeAbiCodec>::into_value(self.network)?
             },
             requires_charging: unsafe {
                 <bool as NativeAbiCodec>::into_value(self.requires_charging)?
             },
             requires_idle: unsafe { <bool as NativeAbiCodec>::into_value(self.requires_idle)? },
-            persisted: unsafe { <bool as NativeAbiCodec>::into_value(self.persisted)? },
+            conflict_policy: unsafe {
+                <BackgroundConflictPolicy as NativeAbiCodec>::into_value(self.conflict_policy)?
+            },
         })
     }
 
@@ -4005,25 +4198,23 @@ impl NativeAbiCodec for BackgroundTaskDescriptorAbi<NativeAbi> {
         Self {
             identifier: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.identifier),
             trigger: <BackgroundTriggerKind as NativeAbiCodec>::from_value(binding, value.trigger),
-            minimum_interval_ns: <u64 as NativeAbiCodec>::from_value(
+            schedule: <BackgroundTaskSchedule as NativeAbiCodec>::from_value(
                 binding,
-                value.minimum_interval_ns,
+                value.schedule,
             ),
-            earliest_begin_unix_ns: <u64 as NativeAbiCodec>::from_value(
+            network: <BackgroundNetworkRequirement as NativeAbiCodec>::from_value(
                 binding,
-                value.earliest_begin_unix_ns,
-            ),
-            requires_network: <bool as NativeAbiCodec>::from_value(binding, value.requires_network),
-            requires_unmetered_network: <bool as NativeAbiCodec>::from_value(
-                binding,
-                value.requires_unmetered_network,
+                value.network,
             ),
             requires_charging: <bool as NativeAbiCodec>::from_value(
                 binding,
                 value.requires_charging,
             ),
             requires_idle: <bool as NativeAbiCodec>::from_value(binding, value.requires_idle),
-            persisted: <bool as NativeAbiCodec>::from_value(binding, value.persisted),
+            conflict_policy: <BackgroundConflictPolicy as NativeAbiCodec>::from_value(
+                binding,
+                value.conflict_policy,
+            ),
         }
     }
 }
@@ -4038,22 +4229,17 @@ impl VmAbiCodec for BackgroundTaskDescriptorAbi<VmAbi> {
         Ok(BackgroundTaskDescriptorValue {
             identifier: <vm::StringHandle as VmAbiCodec>::into_value(self.identifier, context)?,
             trigger: <BackgroundTriggerKind as VmAbiCodec>::into_value(self.trigger, context)?,
-            minimum_interval_ns: <u64 as VmAbiCodec>::into_value(
-                self.minimum_interval_ns,
-                context,
-            )?,
-            earliest_begin_unix_ns: <u64 as VmAbiCodec>::into_value(
-                self.earliest_begin_unix_ns,
-                context,
-            )?,
-            requires_network: <bool as VmAbiCodec>::into_value(self.requires_network, context)?,
-            requires_unmetered_network: <bool as VmAbiCodec>::into_value(
-                self.requires_unmetered_network,
+            schedule: <BackgroundTaskScheduleVm as VmAbiCodec>::into_value(self.schedule, context)?,
+            network: <BackgroundNetworkRequirement as VmAbiCodec>::into_value(
+                self.network,
                 context,
             )?,
             requires_charging: <bool as VmAbiCodec>::into_value(self.requires_charging, context)?,
             requires_idle: <bool as VmAbiCodec>::into_value(self.requires_idle, context)?,
-            persisted: <bool as VmAbiCodec>::into_value(self.persisted, context)?,
+            conflict_policy: <BackgroundConflictPolicy as VmAbiCodec>::into_value(
+                self.conflict_policy,
+                context,
+            )?,
         })
     }
 
@@ -4064,22 +4250,20 @@ impl VmAbiCodec for BackgroundTaskDescriptorAbi<VmAbi> {
         Ok(Self {
             identifier: <vm::StringHandle as VmAbiCodec>::from_value(context, value.identifier)?,
             trigger: <BackgroundTriggerKind as VmAbiCodec>::from_value(context, value.trigger)?,
-            minimum_interval_ns: <u64 as VmAbiCodec>::from_value(
+            schedule: <BackgroundTaskScheduleVm as VmAbiCodec>::from_value(
                 context,
-                value.minimum_interval_ns,
+                value.schedule,
             )?,
-            earliest_begin_unix_ns: <u64 as VmAbiCodec>::from_value(
+            network: <BackgroundNetworkRequirement as VmAbiCodec>::from_value(
                 context,
-                value.earliest_begin_unix_ns,
-            )?,
-            requires_network: <bool as VmAbiCodec>::from_value(context, value.requires_network)?,
-            requires_unmetered_network: <bool as VmAbiCodec>::from_value(
-                context,
-                value.requires_unmetered_network,
+                value.network,
             )?,
             requires_charging: <bool as VmAbiCodec>::from_value(context, value.requires_charging)?,
             requires_idle: <bool as VmAbiCodec>::from_value(context, value.requires_idle)?,
-            persisted: <bool as VmAbiCodec>::from_value(context, value.persisted)?,
+            conflict_policy: <BackgroundConflictPolicy as VmAbiCodec>::from_value(
+                context,
+                value.conflict_policy,
+            )?,
         })
     }
 }
@@ -4238,20 +4422,16 @@ pub struct BackgroundTaskOptionsAbi<A: BindingAbi> {
     pub identifier: A::String,
     /// Trigger class.
     pub trigger: BackgroundTriggerKind,
-    /// Requested minimum repeat interval in nanoseconds.
-    pub minimum_interval_ns: u64,
-    /// Earliest target execution timestamp in UTC nanoseconds.
-    pub earliest_begin_unix_ns: u64,
-    /// Whether one network route is required.
-    pub requires_network: bool,
-    /// Whether one unmetered network route is required.
-    pub requires_unmetered_network: bool,
+    /// Requested schedule payload.
+    pub schedule: BackgroundTaskSchedule,
+    /// Requested network requirement.
+    pub network: BackgroundNetworkRequirement,
     /// Whether charging power is required.
     pub requires_charging: bool,
     /// Whether idle mode is required.
     pub requires_idle: bool,
-    /// Whether this registration should persist across host restart.
-    pub persisted: bool,
+    /// Registration conflict policy for one existing identifier.
+    pub conflict_policy: BackgroundConflictPolicy,
 }
 
 pub type BackgroundTaskOptions = BackgroundTaskOptionsAbi<NativeAbi>;
@@ -4293,10 +4473,10 @@ impl VmAggregateCodec for BackgroundTaskOptionsAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 9 {
+        if slots.len() != 7 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 9 fields",
+                "expected 7 fields",
             ))
             .boxed());
         }
@@ -4304,29 +4484,26 @@ impl VmAggregateCodec for BackgroundTaskOptionsAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_trigger =
             <BackgroundTriggerKind as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_minimum_interval_ns =
-            <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_earliest_begin_unix_ns =
-            <u64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_requires_network =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_requires_unmetered_network =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_schedule =
+            <BackgroundTaskScheduleVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_network =
+            <BackgroundNetworkRequirement as VmAggregateCodec>::decode_with_context(
+                context, slots[3],
+            )?;
         let field_requires_charging =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         let field_requires_idle =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[7])?;
-        let field_persisted = <bool as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_conflict_policy =
+            <BackgroundConflictPolicy as VmAggregateCodec>::decode_with_context(context, slots[6])?;
         Ok(Self {
             identifier: field_identifier,
             trigger: field_trigger,
-            minimum_interval_ns: field_minimum_interval_ns,
-            earliest_begin_unix_ns: field_earliest_begin_unix_ns,
-            requires_network: field_requires_network,
-            requires_unmetered_network: field_requires_unmetered_network,
+            schedule: field_schedule,
+            network: field_network,
             requires_charging: field_requires_charging,
             requires_idle: field_requires_idle,
-            persisted: field_persisted,
+            conflict_policy: field_conflict_policy,
         })
     }
 
@@ -4340,16 +4517,20 @@ impl VmAggregateCodec for BackgroundTaskOptionsAbi<VmAbi> {
                 self.trigger,
                 context,
             )?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.minimum_interval_ns, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.earliest_begin_unix_ns, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.requires_network, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(
-                self.requires_unmetered_network,
+            <BackgroundTaskScheduleVm as VmAggregateCodec>::encode_with_context(
+                self.schedule,
+                context,
+            )?,
+            <BackgroundNetworkRequirement as VmAggregateCodec>::encode_with_context(
+                self.network,
                 context,
             )?,
             <bool as VmAggregateCodec>::encode_with_context(self.requires_charging, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.requires_idle, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.persisted, context)?,
+            <BackgroundConflictPolicy as VmAggregateCodec>::encode_with_context(
+                self.conflict_policy,
+                context,
+            )?,
         ];
         context
             .allocate_aggregate(slots)
@@ -4366,20 +4547,16 @@ pub struct BackgroundTaskOptionsValue {
     pub identifier: String,
     /// Trigger class.
     pub trigger: BackgroundTriggerKind,
-    /// Requested minimum repeat interval in nanoseconds.
-    pub minimum_interval_ns: u64,
-    /// Earliest target execution timestamp in UTC nanoseconds.
-    pub earliest_begin_unix_ns: u64,
-    /// Whether one network route is required.
-    pub requires_network: bool,
-    /// Whether one unmetered network route is required.
-    pub requires_unmetered_network: bool,
+    /// Requested schedule payload.
+    pub schedule: BackgroundTaskSchedule,
+    /// Requested network requirement.
+    pub network: BackgroundNetworkRequirement,
     /// Whether charging power is required.
     pub requires_charging: bool,
     /// Whether idle mode is required.
     pub requires_idle: bool,
-    /// Whether this registration should persist across host restart.
-    pub persisted: bool,
+    /// Registration conflict policy for one existing identifier.
+    pub conflict_policy: BackgroundConflictPolicy,
 }
 
 impl NativeAbiCodec for BackgroundTaskOptionsAbi<NativeAbi> {
@@ -4393,23 +4570,19 @@ impl NativeAbiCodec for BackgroundTaskOptionsAbi<NativeAbi> {
             trigger: unsafe {
                 <BackgroundTriggerKind as NativeAbiCodec>::into_value(self.trigger)?
             },
-            minimum_interval_ns: unsafe {
-                <u64 as NativeAbiCodec>::into_value(self.minimum_interval_ns)?
+            schedule: unsafe {
+                <BackgroundTaskSchedule as NativeAbiCodec>::into_value(self.schedule)?
             },
-            earliest_begin_unix_ns: unsafe {
-                <u64 as NativeAbiCodec>::into_value(self.earliest_begin_unix_ns)?
-            },
-            requires_network: unsafe {
-                <bool as NativeAbiCodec>::into_value(self.requires_network)?
-            },
-            requires_unmetered_network: unsafe {
-                <bool as NativeAbiCodec>::into_value(self.requires_unmetered_network)?
+            network: unsafe {
+                <BackgroundNetworkRequirement as NativeAbiCodec>::into_value(self.network)?
             },
             requires_charging: unsafe {
                 <bool as NativeAbiCodec>::into_value(self.requires_charging)?
             },
             requires_idle: unsafe { <bool as NativeAbiCodec>::into_value(self.requires_idle)? },
-            persisted: unsafe { <bool as NativeAbiCodec>::into_value(self.persisted)? },
+            conflict_policy: unsafe {
+                <BackgroundConflictPolicy as NativeAbiCodec>::into_value(self.conflict_policy)?
+            },
         })
     }
 
@@ -4417,25 +4590,23 @@ impl NativeAbiCodec for BackgroundTaskOptionsAbi<NativeAbi> {
         Self {
             identifier: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.identifier),
             trigger: <BackgroundTriggerKind as NativeAbiCodec>::from_value(binding, value.trigger),
-            minimum_interval_ns: <u64 as NativeAbiCodec>::from_value(
+            schedule: <BackgroundTaskSchedule as NativeAbiCodec>::from_value(
                 binding,
-                value.minimum_interval_ns,
+                value.schedule,
             ),
-            earliest_begin_unix_ns: <u64 as NativeAbiCodec>::from_value(
+            network: <BackgroundNetworkRequirement as NativeAbiCodec>::from_value(
                 binding,
-                value.earliest_begin_unix_ns,
-            ),
-            requires_network: <bool as NativeAbiCodec>::from_value(binding, value.requires_network),
-            requires_unmetered_network: <bool as NativeAbiCodec>::from_value(
-                binding,
-                value.requires_unmetered_network,
+                value.network,
             ),
             requires_charging: <bool as NativeAbiCodec>::from_value(
                 binding,
                 value.requires_charging,
             ),
             requires_idle: <bool as NativeAbiCodec>::from_value(binding, value.requires_idle),
-            persisted: <bool as NativeAbiCodec>::from_value(binding, value.persisted),
+            conflict_policy: <BackgroundConflictPolicy as NativeAbiCodec>::from_value(
+                binding,
+                value.conflict_policy,
+            ),
         }
     }
 }
@@ -4450,22 +4621,17 @@ impl VmAbiCodec for BackgroundTaskOptionsAbi<VmAbi> {
         Ok(BackgroundTaskOptionsValue {
             identifier: <vm::StringHandle as VmAbiCodec>::into_value(self.identifier, context)?,
             trigger: <BackgroundTriggerKind as VmAbiCodec>::into_value(self.trigger, context)?,
-            minimum_interval_ns: <u64 as VmAbiCodec>::into_value(
-                self.minimum_interval_ns,
-                context,
-            )?,
-            earliest_begin_unix_ns: <u64 as VmAbiCodec>::into_value(
-                self.earliest_begin_unix_ns,
-                context,
-            )?,
-            requires_network: <bool as VmAbiCodec>::into_value(self.requires_network, context)?,
-            requires_unmetered_network: <bool as VmAbiCodec>::into_value(
-                self.requires_unmetered_network,
+            schedule: <BackgroundTaskScheduleVm as VmAbiCodec>::into_value(self.schedule, context)?,
+            network: <BackgroundNetworkRequirement as VmAbiCodec>::into_value(
+                self.network,
                 context,
             )?,
             requires_charging: <bool as VmAbiCodec>::into_value(self.requires_charging, context)?,
             requires_idle: <bool as VmAbiCodec>::into_value(self.requires_idle, context)?,
-            persisted: <bool as VmAbiCodec>::into_value(self.persisted, context)?,
+            conflict_policy: <BackgroundConflictPolicy as VmAbiCodec>::into_value(
+                self.conflict_policy,
+                context,
+            )?,
         })
     }
 
@@ -4476,22 +4642,20 @@ impl VmAbiCodec for BackgroundTaskOptionsAbi<VmAbi> {
         Ok(Self {
             identifier: <vm::StringHandle as VmAbiCodec>::from_value(context, value.identifier)?,
             trigger: <BackgroundTriggerKind as VmAbiCodec>::from_value(context, value.trigger)?,
-            minimum_interval_ns: <u64 as VmAbiCodec>::from_value(
+            schedule: <BackgroundTaskScheduleVm as VmAbiCodec>::from_value(
                 context,
-                value.minimum_interval_ns,
+                value.schedule,
             )?,
-            earliest_begin_unix_ns: <u64 as VmAbiCodec>::from_value(
+            network: <BackgroundNetworkRequirement as VmAbiCodec>::from_value(
                 context,
-                value.earliest_begin_unix_ns,
-            )?,
-            requires_network: <bool as VmAbiCodec>::from_value(context, value.requires_network)?,
-            requires_unmetered_network: <bool as VmAbiCodec>::from_value(
-                context,
-                value.requires_unmetered_network,
+                value.network,
             )?,
             requires_charging: <bool as VmAbiCodec>::from_value(context, value.requires_charging)?,
             requires_idle: <bool as VmAbiCodec>::from_value(context, value.requires_idle)?,
-            persisted: <bool as VmAbiCodec>::from_value(context, value.persisted)?,
+            conflict_policy: <BackgroundConflictPolicy as VmAbiCodec>::from_value(
+                context,
+                value.conflict_policy,
+            )?,
         })
     }
 }
@@ -4642,6 +4806,114 @@ impl VmAbiCodec for BackgroundTaskReadyEventAbi<VmAbi> {
         })
     }
 }
+
+/// ABI struct for BackgroundTaskSchedule.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct BackgroundTaskSchedule {
+    /// Schedule class.
+    pub kind: BackgroundTaskScheduleKind,
+    /// Earliest target execution timestamp in UTC nanoseconds when provided.
+    pub earliest_begin_unix_ns: Option<u64>,
+    /// Repeat interval in nanoseconds for recurring schedules.
+    pub repeat_interval_ns: Option<u64>,
+}
+
+pub type BackgroundTaskScheduleVm = BackgroundTaskSchedule;
+
+impl VmAggregateCodec for BackgroundTaskSchedule {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "BackgroundTaskSchedule",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_kind = <BackgroundTaskScheduleKind as VmAggregateCodec>::decode_with_context(
+            context, slots[0],
+        )?;
+        let field_earliest_begin_unix_ns =
+            <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_repeat_interval_ns =
+            <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            kind: field_kind,
+            earliest_begin_unix_ns: field_earliest_begin_unix_ns,
+            repeat_interval_ns: field_repeat_interval_ns,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <BackgroundTaskScheduleKind as VmAggregateCodec>::encode_with_context(
+                self.kind, context,
+            )?,
+            <Option<u64> as VmAggregateCodec>::encode_with_context(
+                self.earliest_begin_unix_ns,
+                context,
+            )?,
+            <Option<u64> as VmAggregateCodec>::encode_with_context(
+                self.repeat_interval_ns,
+                context,
+            )?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for BackgroundTaskSchedule.
+pub type BackgroundTaskScheduleValue = BackgroundTaskSchedule;
+
+impl NativeAbiCodec for BackgroundTaskSchedule {
+    type Value = BackgroundTaskScheduleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for BackgroundTaskSchedule {
+    type Value = BackgroundTaskScheduleValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+impl VmCollectionElement for BackgroundTaskSchedule {}
 
 /// ABI struct for CalendarAbsoluteReminder.
 #[repr(C)]
@@ -17398,20 +17670,16 @@ pub struct BackgroundtaskdescriptorReplayRecord {
     pub identifier: String,
     /// Trigger class.
     pub trigger: BackgroundTriggerKind,
-    /// Effective minimum repeat interval in nanoseconds.
-    pub minimum_interval_ns: u64,
-    /// Earliest target execution timestamp in UTC nanoseconds.
-    pub earliest_begin_unix_ns: u64,
-    /// Whether one network route is required.
-    pub requires_network: bool,
-    /// Whether one unmetered network route is required.
-    pub requires_unmetered_network: bool,
+    /// Effective schedule payload.
+    pub schedule: BackgroundTaskSchedule,
+    /// Effective network requirement.
+    pub network: BackgroundNetworkRequirement,
     /// Whether charging power is required.
     pub requires_charging: bool,
     /// Whether idle mode is required.
     pub requires_idle: bool,
-    /// Whether this registration persists across host restart.
-    pub persisted: bool,
+    /// Registration conflict policy for one existing identifier.
+    pub conflict_policy: BackgroundConflictPolicy,
 }
 
 /// Replay struct for BackgroundTaskExpiredEvent.
@@ -17430,20 +17698,16 @@ pub struct BackgroundtaskoptionsReplayRecord {
     pub identifier: String,
     /// Trigger class.
     pub trigger: BackgroundTriggerKind,
-    /// Requested minimum repeat interval in nanoseconds.
-    pub minimum_interval_ns: u64,
-    /// Earliest target execution timestamp in UTC nanoseconds.
-    pub earliest_begin_unix_ns: u64,
-    /// Whether one network route is required.
-    pub requires_network: bool,
-    /// Whether one unmetered network route is required.
-    pub requires_unmetered_network: bool,
+    /// Requested schedule payload.
+    pub schedule: BackgroundTaskSchedule,
+    /// Requested network requirement.
+    pub network: BackgroundNetworkRequirement,
     /// Whether charging power is required.
     pub requires_charging: bool,
     /// Whether idle mode is required.
     pub requires_idle: bool,
-    /// Whether this registration should persist across host restart.
-    pub persisted: bool,
+    /// Registration conflict policy for one existing identifier.
+    pub conflict_policy: BackgroundConflictPolicy,
 }
 
 /// Replay struct for BackgroundTaskReadyEvent.

@@ -28,7 +28,9 @@ fn test_document_pick_returns_hooked_descriptors() {
 
     with_document_harness(|mut context| {
         let options = pick_options_harness_value(&mut context, &[], &["txt"], true, true);
-        let descriptors = context.destack_os_document_pick(options)?;
+        let handle = context.destack_os_document_pick_open(options)?;
+        let descriptors = context.destack_os_document_pick_read(handle, 0)?;
+        context.destack_os_document_pick_close(handle)?;
         let descriptors = decode_document_descriptors(&mut context, descriptors)?;
 
         // exact picker output
@@ -65,7 +67,9 @@ fn test_document_pick_accepts_mime_type_filters() {
 
     with_document_harness(|mut context| {
         let options = pick_options_harness_value(&mut context, &["text/plain"], &[], false, false);
-        let descriptors = context.destack_os_document_pick(options)?;
+        let handle = context.destack_os_document_pick_open(options)?;
+        let descriptors = context.destack_os_document_pick_read(handle, 0)?;
+        context.destack_os_document_pick_close(handle)?;
         let descriptors = decode_document_descriptors(&mut context, descriptors)?;
 
         assert_eq!(descriptors.len(), 1);
@@ -89,7 +93,14 @@ fn test_document_pick_requires_test_hook() {
 
     with_document_harness(|mut context| {
         let options = pick_options_harness_value(&mut context, &[], &[], false, false);
-        let result = context.destack_os_document_pick(options);
+        let result = context
+            .destack_os_document_pick_open(options)
+            .and_then(|handle| {
+                let result = context.destack_os_document_pick_read(handle, 0);
+                let _ = context.destack_os_document_pick_close(handle);
+
+                result
+            });
 
         // picker tests must fail closed instead of opening live host ui
         let error_code = error_code_from_result(result)
@@ -115,7 +126,7 @@ fn test_document_pick_rejects_directory_mode_with_extension_filters() {
 
     with_document_harness(|mut context| {
         let options = pick_options_harness_value(&mut context, &[], &["txt"], false, true);
-        let error = match context.destack_os_document_pick(options) {
+        let error = match context.destack_os_document_pick_open(options) {
             Ok(_) => {
                 panic!("documentPick should report notSupported for mixed folder and file filters")
             }
