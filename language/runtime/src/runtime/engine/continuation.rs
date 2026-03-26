@@ -3,9 +3,9 @@ use serde::{Deserialize, Serialize};
 
 /// Native continuation handle for event loop integration.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct NativeContinuation(usize);
+pub struct NativeContinuationHandle(usize);
 
-impl NativeContinuation {
+impl NativeContinuationHandle {
     /// Create a new native continuation handle.
     pub const fn new(value: usize) -> Self {
         Self(value)
@@ -17,22 +17,12 @@ impl NativeContinuation {
     }
 }
 
-/// Immutable continuation image owned by one engine backend.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[allow(clippy::large_enum_variant)] // NOTE #Performance #Cleanup: revisit large runtime continuation images
-pub enum EngineContinuationImage {
-    /// Immutable VM continuation image.
-    Vm(vm::snapshot::ContinuationImage),
-    /// Native continuation handle captured for one local-only restore.
-    Native(NativeContinuation),
-}
-
-/// Runnable continuation owned by one agent engine.
+/// Live runnable continuation owned by one backend engine.
 #[derive(Debug)]
 #[allow(clippy::large_enum_variant)] // NOTE #Performance #Cleanup: revisit large runtime continuation payloads
-pub enum EngineContinuation {
+pub enum LiveContinuation {
     /// VM continuation that resumes MIR execution.
     Vm(vm::Continuation),
     /// Native continuation that resumes compiled execution.
-    Native(NativeContinuation),
+    Native(NativeContinuationHandle),
 }

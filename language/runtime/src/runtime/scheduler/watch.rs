@@ -1,15 +1,20 @@
 use super::{EventLoop, EventLoopWatch, Task, TaskStatus, Timer};
-use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::diagnostic::RuntimeResult;
 use crate::host::{HostEvent, HostEventKind};
-use crate::platform::{PlatformError, ResourceId};
-use crate::runtime::engine::EngineContinuation;
+use crate::platform::ResourceId;
+use crate::runtime::engine::Engine;
 use crate::runtime::poller::{PollerEvent, PollerToken};
 
 impl EventLoop {
     /// Register one timer watch.
-    pub fn watch_timer(&mut self, handle: ResourceId, watch: EventLoopWatch) -> RuntimeResult<()> {
-        // only native continuations can be cloned for repeated dispatch
-        self.validate_watch(&watch)?;
+    pub fn watch_timer(
+        &mut self,
+        handle: ResourceId,
+        watch: EventLoopWatch,
+        engine: &dyn Engine,
+    ) -> RuntimeResult<()> {
+        // require repeatable dispatch support
+        self.validate_watch(&watch, engine)?;
         self.timer_watches.insert(handle, watch);
 
         Ok(())
@@ -21,9 +26,14 @@ impl EventLoop {
     }
 
     /// Register one event watch.
-    pub fn watch_event(&mut self, token: PollerToken, watch: EventLoopWatch) -> RuntimeResult<()> {
-        // only native continuations can be cloned for repeated dispatch
-        self.validate_watch(&watch)?;
+    pub fn watch_event(
+        &mut self,
+        token: PollerToken,
+        watch: EventLoopWatch,
+        engine: &dyn Engine,
+    ) -> RuntimeResult<()> {
+        // require repeatable dispatch support
+        self.validate_watch(&watch, engine)?;
         self.poller_event_watches.insert(token, watch);
 
         Ok(())
@@ -44,9 +54,10 @@ impl EventLoop {
         &mut self,
         kind: HostEventKind,
         watch: EventLoopWatch,
+        engine: &dyn Engine,
     ) -> RuntimeResult<()> {
-        // only native continuations can be cloned for repeated dispatch
-        self.validate_watch(&watch)?;
+        // require repeatable dispatch support
+        self.validate_watch(&watch, engine)?;
         self.host_event_watches.insert(kind, watch);
 
         Ok(())
@@ -63,14 +74,11 @@ impl EventLoop {
     }
 
     /// Build one task for a fired timer watch.
-    pub fn task_for_timer(&mut self, timer: Timer) -> Option<Task> {
+    pub fn task_for_timer(&mut self, timer: Timer, engine: &dyn Engine) -> Option<Task> {
         let handle = timer.handle.resource_id()?;
         let watch = self.timer_watches.get(&handle)?;
-        let EngineContinuation::Native(native) = watch.runnable else {
-            return None;
-        };
         let watch = EventLoopWatch {
-            runnable: EngineContinuation::Native(native),
+            runnable: engine.clone_for_repeatable_dispatch(&watch.runnable).ok()?,
             resume_value: watch.resume_value,
             priority: watch.priority,
         };
@@ -79,13 +87,10 @@ impl EventLoop {
     }
 
     /// Build one task for one external event watch.
-    pub fn task_for_event(&mut self, event: PollerEvent) -> Option<Task> {
+    pub fn task_for_event(&mut self, event: PollerEvent, engine: &dyn Engine) -> Option<Task> {
         let watch = self.poller_event_watches.get(&event.token)?;
-        let EngineContinuation::Native(native) = watch.runnable else {
-            return None;
-        };
         let watch = EventLoopWatch {
-            runnable: EngineContinuation::Native(native),
+            runnable: engine.clone_for_repeatable_dispatch(&watch.runnable).ok()?,
             resume_value: watch.resume_value,
             priority: watch.priority,
         };
@@ -94,14 +99,11 @@ impl EventLoop {
     }
 
     /// Build one task for one host semantic event watch.
-    pub fn task_for_host_event(&mut self, event: HostEvent) -> Option<Task> {
+    pub fn task_for_host_event(&mut self, event: HostEvent, engine: &dyn Engine) -> Option<Task> {
         let kind = event.kind();
         let watch = self.host_event_watches.get(&kind)?;
-        let EngineContinuation::Native(native) = watch.runnable else {
-            return None;
-        };
         let watch = EventLoopWatch {
-            runnable: EngineContinuation::Native(native),
+            runnable: engine.clone_for_repeatable_dispatch(&watch.runnable).ok()?,
             resume_value: watch.resume_value,
             priority: watch.priority,
         };
@@ -122,15 +124,9 @@ impl EventLoop {
     }
 
     /// Validate one watch payload for repeatable dispatch.
-    fn validate_watch(&self, watch: &EventLoopWatch) -> RuntimeResult<()> {
-        if matches!(watch.runnable, EngineContinuation::Vm(_)) {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "watch.runnable",
-                "vm continuations are not supported for event loop watches",
-            ))
-            .boxed());
-        }
-
-        Ok(())
+    fn validate_watch(&self, watch: &EventLoopWatch, engine: &dyn Engine) -> RuntimeResult<()> {
+        engine
+            .clone_for_repeatable_dispatch(&watch.runnable)
+            .map(|_| ())
     }
 }

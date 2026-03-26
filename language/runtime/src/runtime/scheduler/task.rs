@@ -1,7 +1,7 @@
 use destack_heap as heap;
 use serde::{Deserialize, Serialize};
 
-use crate::runtime::engine::EngineContinuation;
+use crate::runtime::engine::LiveContinuation;
 
 /// Opaque task identifier used by the event loop.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
@@ -36,7 +36,7 @@ pub struct Task {
     /// Task identifier used for ordering and logging.
     pub id: TaskId,
     /// Runnable continuation for this task.
-    pub runnable: EngineContinuation,
+    pub runnable: LiveContinuation,
     /// Resume payload passed back into the executor.
     pub resume_value: heap::Value,
     /// Current scheduling status.

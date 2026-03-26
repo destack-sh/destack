@@ -2,7 +2,7 @@ use destack_heap as heap;
 use serde::{Deserialize, Serialize};
 
 use super::task::TaskStatus;
-use crate::runtime::engine::EngineContinuation;
+use crate::runtime::engine::LiveContinuation;
 
 /// Opaque microtask identifier used by the event loop.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
@@ -26,7 +26,7 @@ pub struct Microtask {
     /// Microtask identifier used for ordering and logging.
     pub id: MicrotaskId,
     /// Runnable continuation for this microtask.
-    pub continuation: EngineContinuation,
+    pub continuation: LiveContinuation,
     /// Resume payload passed back into the executor.
     pub resume_value: heap::Value,
     /// Current scheduling status.

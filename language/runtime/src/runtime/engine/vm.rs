@@ -1,11 +1,11 @@
-use destack_engine::ExecutionOutcome;
+use destack_core::CaptureMode;
+use destack_engine::{Continuation, ExecutionOutcome};
 use destack_vm::Isolate;
 use {destack_heap as heap, destack_vm as vm};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::runtime::engine::{
-    Engine, EngineContinuation, EngineContinuationImage, EngineImage, EngineSnapshot, Entry,
-};
+use crate::platform::PlatformError;
+use crate::runtime::engine::{Engine, EngineImage, EngineSnapshot, Entry, LiveContinuation};
 
 /// VM engine implementation for one agent.
 impl Engine for Isolate {
@@ -15,7 +15,7 @@ impl Engine for Isolate {
         memory: &mut heap::MemoryContext<'_>,
         entry: &Entry,
         args: &[heap::Value],
-    ) -> RuntimeResult<ExecutionOutcome<EngineContinuation>> {
+    ) -> RuntimeResult<ExecutionOutcome<LiveContinuation>> {
         let outcome = self
             .run_function_by_name_yielding(memory, entry.name(), args)
             .map_err(Box::<RuntimeError>::from)?;
@@ -28,7 +28,7 @@ impl Engine for Isolate {
         memory: &mut heap::MemoryContext<'_>,
         entry: &Entry,
         args: &[heap::Value],
-    ) -> RuntimeResult<ExecutionOutcome<EngineContinuation>> {
+    ) -> RuntimeResult<ExecutionOutcome<LiveContinuation>> {
         let name = entry.name();
         let outcome = self
             .run_function_by_name_yielding(memory, name, args)
@@ -40,10 +40,10 @@ impl Engine for Isolate {
     fn resume(
         &mut self,
         memory: &mut heap::MemoryContext<'_>,
-        continuation: EngineContinuation,
+        continuation: LiveContinuation,
         value: heap::Value,
-    ) -> RuntimeResult<ExecutionOutcome<EngineContinuation>> {
-        let EngineContinuation::Vm(continuation) = continuation else {
+    ) -> RuntimeResult<ExecutionOutcome<LiveContinuation>> {
+        let LiveContinuation::Vm(continuation) = continuation else {
             return Err(RuntimeError::EngineContinuationMismatch {
                 engine: "vm".to_string(),
                 continuation: "native".to_string(),
@@ -54,6 +54,45 @@ impl Engine for Isolate {
             .resume(memory, continuation, value)
             .map_err(Box::<RuntimeError>::from)?;
         Ok(map_vm_outcome(outcome))
+    }
+
+    /// Validate that one VM continuation supports one capture mode.
+    fn validate_capture_mode(
+        &self,
+        continuation: &LiveContinuation,
+        mode: CaptureMode,
+    ) -> RuntimeResult<()> {
+        let _ = mode;
+
+        let LiveContinuation::Vm(_) = continuation else {
+            return Err(RuntimeError::EngineContinuationMismatch {
+                engine: "vm".to_string(),
+                continuation: "native".to_string(),
+            }
+            .boxed());
+        };
+
+        Ok(())
+    }
+
+    /// Reject repeatable dispatch for VM continuations.
+    fn clone_for_repeatable_dispatch(
+        &self,
+        continuation: &LiveContinuation,
+    ) -> RuntimeResult<LiveContinuation> {
+        let LiveContinuation::Vm(_) = continuation else {
+            return Err(RuntimeError::EngineContinuationMismatch {
+                engine: "vm".to_string(),
+                continuation: "native".to_string(),
+            }
+            .boxed());
+        };
+
+        Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "watch.runnable",
+            "vm continuations are not supported for event loop watches",
+        ))
+        .boxed())
     }
 
     /// Capture one immutable VM image.
@@ -73,9 +112,9 @@ impl Engine for Isolate {
     /// Capture one continuation as one immutable VM continuation image.
     fn continuation_image(
         &mut self,
-        continuation: &EngineContinuation,
-    ) -> RuntimeResult<EngineContinuationImage> {
-        let EngineContinuation::Vm(continuation) = continuation else {
+        continuation: &LiveContinuation,
+    ) -> RuntimeResult<Continuation> {
+        let LiveContinuation::Vm(continuation) = continuation else {
             return Err(RuntimeError::EngineContinuationMismatch {
                 engine: "vm".to_string(),
                 continuation: "native".to_string(),
@@ -83,29 +122,18 @@ impl Engine for Isolate {
             .boxed());
         };
 
-        Ok(EngineContinuationImage::Vm(Isolate::continuation_image(
-            self,
-            continuation,
-        )))
+        Ok(Isolate::continuation_image(self, continuation))
     }
 
     /// Restore one continuation from one immutable VM continuation image.
     fn restore_continuation_image(
         &mut self,
-        image: &EngineContinuationImage,
-    ) -> RuntimeResult<EngineContinuation> {
-        let EngineContinuationImage::Vm(image) = image else {
-            return Err(RuntimeError::EngineContinuationMismatch {
-                engine: "vm".to_string(),
-                continuation: "native".to_string(),
-            }
-            .boxed());
-        };
-
+        image: &Continuation,
+    ) -> RuntimeResult<LiveContinuation> {
         let continuation =
             Isolate::restore_continuation_image(self, image).map_err(Box::<RuntimeError>::from)?;
 
-        Ok(EngineContinuation::Vm(continuation))
+        Ok(LiveContinuation::Vm(continuation))
     }
 
     /// Capture one serialized VM snapshot.
@@ -128,12 +156,12 @@ impl Engine for Isolate {
 }
 
 /// Convert one VM execution outcome into one engine outcome.
-fn map_vm_outcome(outcome: vm::ExecutionOutcome) -> ExecutionOutcome<EngineContinuation> {
+fn map_vm_outcome(outcome: vm::ExecutionOutcome) -> ExecutionOutcome<LiveContinuation> {
     match outcome {
         vm::ExecutionOutcome::Completed { output } => ExecutionOutcome::Completed { output },
         vm::ExecutionOutcome::Yielded { yielded } => ExecutionOutcome::Yielded {
             yielded: destack_engine::ExecutionYield {
-                continuation: EngineContinuation::Vm(yielded.continuation),
+                continuation: LiveContinuation::Vm(yielded.continuation),
                 value: yielded.value,
             },
         },

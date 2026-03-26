@@ -1,16 +1,17 @@
 use std::sync::Arc;
 
 use destack_core::{Capture, CaptureMode};
+use destack_engine::Continuation;
 use destack_heap as heap;
 use destack_workspace::{RuntimeOptions, SchedulerOptions, TimeMode, TimeOptions};
 
 use crate::diagnostic::RuntimeResult;
 use crate::host::{HostEventKind, HostLifecycleState, HostSession};
-use crate::platform::ResourceId;
 use crate::platform::time::TimerClock;
+use crate::platform::{PlatformError, ResourceId};
 use crate::runtime::engine::{
-    Engine, EngineContinuation, EngineContinuationImage, EngineImage, EngineSnapshot, Entry, Entry,
-    ExecutionOutcome, ExecutionOutput, NativeContinuation,
+    Engine, EngineImage, EngineSnapshot, Entry, ExecutionOutcome, ExecutionOutput,
+    LiveContinuation, NativeContinuationHandle,
 };
 use crate::runtime::poller::{
     PollerEvent, PollerEventFlags, PollerEventMask, PollerEventPayload, PollerEventSource,
@@ -24,6 +25,7 @@ use crate::runtime::{Agent, BindingCallContext, DropReason, TickOutcome, World};
 
 use super::tests::{
     ScriptedHostClockSource, TestEngine, TestMultiAgentRuntime, TestPoller, TestRuntime,
+    continuation_from_image, native_continuation_image,
 };
 
 /// Engine that always completes on resume for microtask tests.
@@ -42,7 +44,7 @@ impl Engine for CompleteEngine {
         _memory: &mut heap::MemoryContext<'_>,
         _entry: &Entry,
         _args: &[heap::Value],
-    ) -> RuntimeResult<ExecutionOutcome<EngineContinuation>> {
+    ) -> RuntimeResult<ExecutionOutcome<LiveContinuation>> {
         Ok(ExecutionOutcome::Completed {
             output: ExecutionOutput {
                 value: heap::Value::VOID,
@@ -59,7 +61,7 @@ impl Engine for CompleteEngine {
         _memory: &mut heap::MemoryContext<'_>,
         _entry: &Entry,
         _args: &[heap::Value],
-    ) -> RuntimeResult<ExecutionOutcome<EngineContinuation>> {
+    ) -> RuntimeResult<ExecutionOutcome<LiveContinuation>> {
         Ok(ExecutionOutcome::Completed {
             output: ExecutionOutput {
                 value: heap::Value::VOID,
@@ -74,11 +76,11 @@ impl Engine for CompleteEngine {
     fn resume(
         &mut self,
         _memory: &mut heap::MemoryContext<'_>,
-        continuation: EngineContinuation,
+        continuation: LiveContinuation,
         _value: heap::Value,
-    ) -> RuntimeResult<ExecutionOutcome<EngineContinuation>> {
+    ) -> RuntimeResult<ExecutionOutcome<LiveContinuation>> {
         // record native continuation ids for ordering assertions
-        if let EngineContinuation::Native(continuation) = continuation {
+        if let LiveContinuation::Native(continuation) = continuation {
             self.resumed_native_ids.push(continuation.get());
         }
 
@@ -91,6 +93,44 @@ impl Engine for CompleteEngine {
                 raw_allocation_count: 0,
             },
         })
+    }
+
+    /// Validate capture support for one continuation.
+    fn validate_capture_mode(
+        &self,
+        continuation: &LiveContinuation,
+        mode: CaptureMode,
+    ) -> RuntimeResult<()> {
+        // native continuations do not have honest suspend or hibernate restore yet
+        if matches!(continuation, LiveContinuation::Native(_))
+            && matches!(mode, CaptureMode::Suspend | CaptureMode::Hibernate)
+        {
+            return Err(crate::diagnostic::RuntimeError::Internal {
+                message: format!(
+                    "event loop cannot capture native continuations for {mode:?}: explicit rehydration is not implemented"
+                ),
+            }
+            .boxed());
+        }
+
+        Ok(())
+    }
+
+    /// Clone one continuation for repeatable watch dispatch.
+    fn clone_for_repeatable_dispatch(
+        &self,
+        continuation: &LiveContinuation,
+    ) -> RuntimeResult<LiveContinuation> {
+        match continuation {
+            LiveContinuation::Native(handle) => Ok(LiveContinuation::Native(*handle)),
+            LiveContinuation::Vm(_) => Err(crate::diagnostic::RuntimeError::from(
+                PlatformError::invalid_argument_value(
+                    "watch.runnable",
+                    "vm continuations are not supported for event loop watches",
+                ),
+            )
+            .boxed()),
+        }
     }
 
     /// Capture one immutable engine image for scheduler tests.
@@ -114,13 +154,11 @@ impl Engine for CompleteEngine {
     /// Capture one continuation image for scheduler tests.
     fn continuation_image(
         &mut self,
-        continuation: &EngineContinuation,
-    ) -> RuntimeResult<EngineContinuationImage> {
+        continuation: &LiveContinuation,
+    ) -> RuntimeResult<Continuation> {
         match continuation {
-            EngineContinuation::Native(continuation) => {
-                Ok(EngineContinuationImage::Native(*continuation))
-            }
-            EngineContinuation::Vm(_) => Err(crate::diagnostic::RuntimeError::Internal {
+            LiveContinuation::Native(continuation) => Ok(native_continuation_image(*continuation)),
+            LiveContinuation::Vm(_) => Err(crate::diagnostic::RuntimeError::Internal {
                 message: "scheduler test engine vm continuation images are not implemented"
                     .to_string(),
             }
@@ -131,18 +169,9 @@ impl Engine for CompleteEngine {
     /// Restore one continuation image for scheduler tests.
     fn restore_continuation_image(
         &mut self,
-        image: &EngineContinuationImage,
-    ) -> RuntimeResult<EngineContinuation> {
-        match image {
-            EngineContinuationImage::Native(continuation) => {
-                Ok(EngineContinuation::Native(*continuation))
-            }
-            EngineContinuationImage::Vm(_) => Err(crate::diagnostic::RuntimeError::Internal {
-                message: "scheduler test engine vm continuation restore is not implemented"
-                    .to_string(),
-            }
-            .boxed()),
-        }
+        image: &Continuation,
+    ) -> RuntimeResult<LiveContinuation> {
+        Ok(LiveContinuation::Native(continuation_from_image(image)))
     }
 
     /// Capture one serialized engine snapshot for scheduler tests.
@@ -461,14 +490,14 @@ fn test_event_loop_next_runnable_prioritizes_microtasks() {
     let mut event_loop = EventLoop::default();
     event_loop.enqueue_task(Task {
         id: TaskId::new(501),
-        runnable: EngineContinuation::Native(NativeContinuation::new(601)),
+        runnable: LiveContinuation::Native(NativeContinuationHandle::new(601)),
         resume_value: heap::Value::VOID,
         status: TaskStatus::Ready,
         priority: 0,
     });
     event_loop.enqueue_microtask(Microtask {
         id: MicrotaskId::new(502),
-        continuation: EngineContinuation::Native(NativeContinuation::new(602)),
+        continuation: LiveContinuation::Native(NativeContinuationHandle::new(602)),
         resume_value: heap::Value::VOID,
         status: TaskStatus::Ready,
     });
@@ -492,14 +521,14 @@ fn test_event_loop_next_runnable_prioritizes_higher_task_priority() {
     let mut event_loop = EventLoop::default();
     event_loop.enqueue_task(Task {
         id: TaskId::new(503),
-        runnable: EngineContinuation::Native(NativeContinuation::new(603)),
+        runnable: LiveContinuation::Native(NativeContinuationHandle::new(603)),
         resume_value: heap::Value::VOID,
         status: TaskStatus::Ready,
         priority: 1,
     });
     event_loop.enqueue_task(Task {
         id: TaskId::new(504),
-        runnable: EngineContinuation::Native(NativeContinuation::new(604)),
+        runnable: LiveContinuation::Native(NativeContinuationHandle::new(604)),
         resume_value: heap::Value::VOID,
         status: TaskStatus::Ready,
         priority: 200,
@@ -522,7 +551,7 @@ fn test_event_loop_suspend_rejects_native_continuations() {
     let mut event_loop = EventLoop::default();
     event_loop.enqueue_task(Task {
         id: TaskId::new(601),
-        runnable: EngineContinuation::Native(NativeContinuation::new(701)),
+        runnable: LiveContinuation::Native(NativeContinuationHandle::new(701)),
         resume_value: heap::Value::VOID,
         status: TaskStatus::Ready,
         priority: 0,
@@ -896,9 +925,9 @@ fn test_world_tick_drives_runtime() {
             let agent = runtime.agent_mut(primary_agent_id).expect("primary agent");
             agent.event_loop.enqueue_task(Task {
                 id: TaskId::new(1),
-                runnable: EngineContinuation::Native(NativeContinuation::new(continuation_handle(
-                    211,
-                ))),
+                runnable: LiveContinuation::Native(NativeContinuationHandle::new(
+                    continuation_handle(211),
+                )),
                 resume_value: heap::Value::VOID,
                 status: TaskStatus::Ready,
                 priority: 0,
@@ -1043,7 +1072,7 @@ fn register_timer_watch(agent: &mut Agent, handle: u64, continuation_id: u64, pr
     agent
         .watch_timer(
             ResourceId(handle),
-            EngineContinuation::Native(NativeContinuation::new(continuation_handle(
+            LiveContinuation::Native(NativeContinuationHandle::new(continuation_handle(
                 continuation_id,
             ))),
             heap::Value::VOID,

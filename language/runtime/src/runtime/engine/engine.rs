@@ -1,9 +1,10 @@
 use std::any::Any;
 
-use destack_engine::ExecutionOutcome;
+use destack_core::CaptureMode;
+use destack_engine::{Continuation, ExecutionOutcome};
 use destack_heap as heap;
 
-use super::{EngineContinuation, EngineContinuationImage, EngineImage, EngineSnapshot, Entry};
+use super::{EngineImage, EngineSnapshot, Entry, LiveContinuation};
 use crate::diagnostic::RuntimeResult;
 
 /// Execution engine used by one agent event loop.
@@ -14,7 +15,7 @@ pub trait Engine: Any {
         memory: &mut heap::MemoryContext<'_>,
         entry: &Entry,
         args: &[heap::Value],
-    ) -> RuntimeResult<ExecutionOutcome<EngineContinuation>>;
+    ) -> RuntimeResult<ExecutionOutcome<LiveContinuation>>;
 
     /// Run one replayable entrypoint descriptor.
     fn run_replayable_entry(
@@ -22,15 +23,28 @@ pub trait Engine: Any {
         memory: &mut heap::MemoryContext<'_>,
         entry: &Entry,
         args: &[heap::Value],
-    ) -> RuntimeResult<ExecutionOutcome<EngineContinuation>>;
+    ) -> RuntimeResult<ExecutionOutcome<LiveContinuation>>;
 
     /// Resume execution from a continuation.
     fn resume(
         &mut self,
         memory: &mut heap::MemoryContext<'_>,
-        continuation: EngineContinuation,
+        continuation: LiveContinuation,
         value: heap::Value,
-    ) -> RuntimeResult<ExecutionOutcome<EngineContinuation>>;
+    ) -> RuntimeResult<ExecutionOutcome<LiveContinuation>>;
+
+    /// Validate whether one live continuation supports the requested capture mode.
+    fn validate_capture_mode(
+        &self,
+        continuation: &LiveContinuation,
+        mode: CaptureMode,
+    ) -> RuntimeResult<()>;
+
+    /// Clone one continuation for repeatable event-loop watch dispatch.
+    fn clone_for_repeatable_dispatch(
+        &self,
+        continuation: &LiveContinuation,
+    ) -> RuntimeResult<LiveContinuation>;
 
     /// Capture one immutable engine image while the world is checkpoint-ready.
     fn image(&mut self) -> RuntimeResult<EngineImage>;
@@ -41,14 +55,14 @@ pub trait Engine: Any {
     /// Capture one continuation as one immutable continuation image.
     fn continuation_image(
         &mut self,
-        continuation: &EngineContinuation,
-    ) -> RuntimeResult<EngineContinuationImage>;
+        continuation: &LiveContinuation,
+    ) -> RuntimeResult<Continuation>;
 
     /// Restore one continuation from one immutable continuation image.
     fn restore_continuation_image(
         &mut self,
-        image: &EngineContinuationImage,
-    ) -> RuntimeResult<EngineContinuation>;
+        image: &Continuation,
+    ) -> RuntimeResult<LiveContinuation>;
 
     /// Capture one serialized engine snapshot while the world is checkpoint-ready.
     fn snapshot(&mut self) -> RuntimeResult<EngineSnapshot>;
