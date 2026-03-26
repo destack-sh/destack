@@ -7,10 +7,11 @@ use destack_dir::{
 use destack_source::{FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
 
-use crate::common::{
-    QueryContext, find_symbol_at_offset, get_canonical_symbol, get_dir_node_span,
-    get_symbol_declaration_span, get_symbol_definition_span, resolve_expression_symbol,
-    resolve_symbol_name, sort_and_dedup_spans,
+use crate::ast::{get_node_tree_span, sort_and_dedup_spans};
+use crate::core::QueryContext;
+use crate::dir::{
+    find_symbol_at_offset, get_canonical_symbol, get_symbol_declaration_span,
+    get_symbol_definition_span, resolve_expression_symbol, resolve_symbol_name,
 };
 use destack_workspace::Session;
 
@@ -116,9 +117,9 @@ pub fn prepare_call_hierarchy(
     let canonical_id = get_canonical_symbol(session, symbol_at.symbol_id);
     let module = session.modules.get(canonical_id.module_id);
     let module = module.as_ref();
-    let ctx = crate::query_context(session, module)?;
+    let ctx = crate::core::query_context(session, module)?;
     let name = {
-        let symbols = ctx.symbols();
+        let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(canonical_id.local_id);
 
         // check if it's a function
@@ -160,13 +161,13 @@ pub fn incoming_calls(
     // find all call expressions that target this function
     for module in session.modules.iter() {
         let module = module.as_ref();
-        let Some(ctx) = crate::query_context(session, module) else {
+        let Some(ctx) = crate::core::query_context(session, module) else {
             continue;
         };
-        let module_id = ctx.module_id;
+        let module_id = ctx.module_id();
         let call_sites_by_function: HashMap<GlobalSymbolId, Vec<Span>> = {
-            let dir_tree = ctx.tree();
-            let types = ctx.types();
+            let dir_tree = ctx.dir().tree();
+            let types = ctx.dir().types();
 
             // collect call sites and their containing functions
             let mut call_sites_by_function: HashMap<GlobalSymbolId, Vec<Span>> = HashMap::new();
@@ -197,7 +198,7 @@ pub fn incoming_calls(
                 };
 
                 let mut matches = false;
-                if let Some(target) = resolve_expression_symbol(&ctx, *left) {
+                if let Some(target) = resolve_expression_symbol(ctx.dir(), *left) {
                     let target_canonical = get_canonical_symbol(session, target);
                     matches = target_canonical == canonical_id;
                 }
@@ -210,13 +211,7 @@ pub fn incoming_calls(
                     continue;
                 }
 
-                let Some(call_span) = get_dir_node_span(
-                    ctx.ast_context(),
-                    ctx.dir_analyzed_context(),
-                    expr_id.into(),
-                ) else {
-                    continue;
-                };
+                let call_span = get_node_tree_span(ctx.ast(), ctx.dir().tree(), expr_id.into());
 
                 if let Some(containing_fn) =
                     find_containing_function(dir_tree, module_id, expr_id.into())
@@ -264,12 +259,12 @@ pub fn outgoing_calls(
     // get the module containing this function
     let module = session.modules.get(canonical_id.module_id);
     let module = module.as_ref();
-    let Some(ctx) = crate::query_context(session, module) else {
+    let Some(ctx) = crate::core::query_context(session, module) else {
         return Vec::new();
     };
     let calls_with_spans: HashMap<GlobalSymbolId, Vec<Span>> = {
-        let dir_tree = ctx.tree();
-        let symbols = ctx.symbols();
+        let dir_tree = ctx.dir().tree();
+        let symbols = ctx.dir().symbols();
 
         // find the declaration for this symbol
         let symbol = symbols.get_symbol(canonical_id.local_id);
@@ -298,13 +293,8 @@ pub fn outgoing_calls(
         // get spans for collected calls
         let mut calls_with_spans: HashMap<GlobalSymbolId, Vec<Span>> = HashMap::new();
         for (target_id, expr_id) in collector.calls {
-            if let Some(span) = get_dir_node_span(
-                ctx.ast_context(),
-                ctx.dir_analyzed_context(),
-                expr_id.into(),
-            ) {
-                calls_with_spans.entry(target_id).or_default().push(span);
-            }
+            let span = get_node_tree_span(ctx.ast(), ctx.dir().tree(), expr_id.into());
+            calls_with_spans.entry(target_id).or_default().push(span);
         }
 
         calls_with_spans
@@ -315,11 +305,11 @@ pub fn outgoing_calls(
     for (target_symbol_id, call_spans) in calls_with_spans {
         // only include function calls
         let target_module = session.modules.get(target_symbol_id.module_id);
-        let Some(target_ctx) = crate::query_context(session, &target_module) else {
+        let Some(target_ctx) = crate::core::query_context(session, &target_module) else {
             continue;
         };
         let is_function = {
-            let target_symbols = target_ctx.symbols();
+            let target_symbols = target_ctx.dir().symbols();
             let target_symbol = target_symbols.get_symbol(target_symbol_id.local_id);
             target_symbol.ty == SymbolType::Function
         };
@@ -370,14 +360,14 @@ fn call_kind_rank(kind: CallHierarchyKind) -> u8 {
 /// Visitor that collects Call expressions and their targets.
 struct CallCollector<'a> {
     session: &'a Session,
-    ctx: &'a QueryContext<'a>,
+    ctx: &'a QueryContext,
     calls: Vec<(GlobalSymbolId, LocalNodeId<Expression>)>,
     options: NodeVisitorOptions,
 }
 
 impl<'a> CallCollector<'a> {
     /// Create a call collector for one query pass.
-    fn new(session: &'a Session, ctx: &'a QueryContext<'a>) -> Self {
+    fn new(session: &'a Session, ctx: &'a QueryContext) -> Self {
         Self {
             session,
             ctx,
@@ -403,7 +393,7 @@ impl NodeVisitor for CallCollector<'_> {
         // check if this is a call expression
         if let Expression::Call { left, .. } = expression {
             // the left side of the call might be a reference
-            if let Some(target) = resolve_expression_symbol(self.ctx, *left) {
+            if let Some(target) = resolve_expression_symbol(self.ctx.dir(), *left) {
                 let canonical = get_canonical_symbol(self.session, target);
                 self.calls.push((canonical, id));
             }
@@ -449,9 +439,9 @@ fn call_hierarchy_item_from_symbol(
     let canonical_id = get_canonical_symbol(session, symbol_id);
     let module = session.modules.get(canonical_id.module_id);
     let module = module.as_ref();
-    let ctx = crate::query_context(session, module)?;
+    let ctx = crate::core::query_context(session, module)?;
     let name = {
-        let symbols = ctx.symbols();
+        let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(canonical_id.local_id);
         if symbol.ty != SymbolType::Function {
             return None;

@@ -7,10 +7,9 @@ use destack_source::{BatchEdit, Edit, File, FileEdit, FileId, ModuleId, PathExt,
 use serde::{Deserialize, Serialize};
 use {destack_ast as ast, destack_dir as dir};
 
-use crate::common::{
-    QueryContext, module_specifier_in_expression, string_literal_span_in_enclosing,
-    with_ast_context_for_module,
-};
+use crate::ast::string_literal_span_in_enclosing;
+use crate::core::{QueryContext, with_ast_query_for_module};
+use crate::dir::module_specifier_in_expression;
 use destack_artifact::ImportEdgeKind;
 use destack_workspace::Session;
 
@@ -103,17 +102,17 @@ pub fn rename_files(session: &Session, renames: &[FileRenameEntry]) -> Option<Fi
     // scan modules for import and re export targets
     for module_ref in session.modules.iter() {
         let module = module_ref.as_ref();
-        let query_context = crate::query_context(session, module);
+        let query_context = crate::core::query_context(session, module);
 
         // resolve file content for literal edits
         let Some(file) = file_for_rename(session, module.file_id) else {
             continue;
         };
 
-        let Some(()) = with_ast_context_for_module(session, module, |ast| {
+        let Some(()) = with_ast_query_for_module(session, module, |ast| {
             let mut dir_targets = HashMap::new();
             if let Some(ctx) = query_context.as_ref() {
-                let dir_tree = ctx.tree();
+                let dir_tree = ctx.dir().tree();
                 for (expr_id, expression) in dir_tree.iter_nodes_of_type::<dir::Expression>() {
                     let target_module = match expression {
                         dir::Expression::Import { target_module, .. }
@@ -246,7 +245,7 @@ pub fn rename_files(session: &Session, renames: &[FileRenameEntry]) -> Option<Fi
 /// Resolve a module id for a rename target.
 fn resolve_rename_target_module_id(
     session: &Session,
-    ctx: &QueryContext<'_>,
+    ctx: &QueryContext,
     dir_targets: &HashMap<u32, dir::ModuleTarget>,
     ast_node_id: u32,
     specifier: &str,
@@ -261,8 +260,19 @@ fn resolve_rename_target_module_id(
 
     // check the dir import cache for resolved modules
     let target_id = session.strings.intern(specifier);
-    let cache_key = (Some(ctx.module_id), target_id, ImportEdgeKind::Import, None);
-    if let Some(targets) = ctx.dir_resolved().imported_modules.get(&cache_key).copied() {
+    let cache_key = (
+        Some(ctx.module_id()),
+        target_id,
+        ImportEdgeKind::Import,
+        None,
+    );
+    if let Some(targets) = ctx
+        .dir()
+        .resolved()
+        .imported_modules
+        .get(&cache_key)
+        .copied()
+    {
         let dependency_kind = match kind {
             ast::DependencyKind::Type => dir::DependencyKind::Type,
             ast::DependencyKind::Value => dir::DependencyKind::Value,

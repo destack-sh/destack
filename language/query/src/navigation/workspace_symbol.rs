@@ -2,10 +2,12 @@ use destack_dir as dir;
 use destack_source::{FileId, Span};
 use serde::{Deserialize, Serialize};
 
-use crate::common::{
-    QueryContext, SymbolKind, container_name_for_node, declaration_display_name,
-    declaration_symbol_kind, is_synthetic_function_keyword_field, member_key_name,
-    member_symbol_kind, score_completion, try_span_for_dir_node,
+use crate::ast::try_span_for_dir_node;
+use crate::core::QueryContext;
+use crate::core::fuzzy::score_completion;
+use crate::dir::{
+    SymbolKind, container_name_for_node, declaration_display_name, declaration_symbol_kind,
+    is_synthetic_function_keyword_field, member_key_name, member_symbol_kind,
 };
 use destack_workspace::{ModuleSource, Session};
 
@@ -64,11 +66,11 @@ pub fn workspace_symbols(
         }
 
         // resolve query context for the module
-        let Some(ctx) = crate::query_context(session, module) else {
+        let Some(ctx) = crate::core::query_context(session, module) else {
             continue;
         };
 
-        let dir_tree = ctx.tree();
+        let dir_tree = ctx.dir().tree();
 
         // iterate through all declarations
         for (declaration_id, declaration) in dir_tree.iter_nodes_of_type::<dir::Declaration>() {
@@ -93,7 +95,7 @@ pub fn workspace_symbols(
                     WorkspaceSymbol {
                         name: name.clone(),
                         kind,
-                        file: ctx.file_id,
+                        file: ctx.file_id(),
                         range,
                         container: container.clone(),
                     },
@@ -190,7 +192,7 @@ fn score_workspace_symbol(name: &str, _container: Option<&str>, query: &str) -> 
 /// Convert a member to a workspace symbol.
 fn member_to_workspace_symbol(
     session: &Session,
-    ctx: &QueryContext<'_>,
+    ctx: &QueryContext,
     dir_tree: &dir::NodeTree,
     member_id: dir::LocalNodeId<dir::Member>,
     container_name: &str,
@@ -216,7 +218,7 @@ fn member_to_workspace_symbol(
     Some(WorkspaceSymbol {
         name,
         kind,
-        file: ctx.file_id,
+        file: ctx.file_id(),
         range,
         container: Some(container_name.to_string()),
     })
@@ -225,7 +227,7 @@ fn member_to_workspace_symbol(
 /// Convert an enum field to a workspace symbol.
 fn enum_field_to_workspace_symbol(
     session: &Session,
-    ctx: &QueryContext<'_>,
+    ctx: &QueryContext,
     dir_tree: &dir::NodeTree,
     field_id: dir::LocalNodeId<dir::EnumField>,
     container_name: &str,
@@ -243,7 +245,7 @@ fn enum_field_to_workspace_symbol(
     Some(WorkspaceSymbol {
         name,
         kind: SymbolKind::EnumMember,
-        file: ctx.file_id,
+        file: ctx.file_id(),
         range,
         container: Some(container_name.to_string()),
     })
@@ -251,10 +253,10 @@ fn enum_field_to_workspace_symbol(
 
 /// Resolve one workspace symbol range without failing the whole query on bad source ids.
 fn workspace_symbol_range(
-    ctx: &QueryContext<'_>,
+    ctx: &QueryContext,
     dir_tree: &dir::NodeTree,
     node_id: u32,
 ) -> Option<Span> {
     let node_id = dir::LocalNodeIdAny::new(node_id, dir_tree.get_node_type(node_id));
-    try_span_for_dir_node(ctx, dir_tree, node_id)
+    try_span_for_dir_node(ctx.ast(), dir_tree, node_id)
 }

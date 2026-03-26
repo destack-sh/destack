@@ -1,10 +1,11 @@
 use destack_source::{FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
 
-use crate::common::{
+use crate::ast::sort_and_dedup_spans;
+use crate::dir::{
     ReferenceCollectionOptions, collect_symbol_references_in_context, find_symbol_at_offset,
     get_canonical_symbol, get_symbol_definition_span, get_symbol_local_definition_span,
-    resolve_local_import_alias_name, resolve_symbol_name, sort_and_dedup_spans,
+    resolve_local_import_alias_name, resolve_symbol_name,
 };
 use destack_dir::GlobalSymbolId;
 use destack_workspace::Session;
@@ -136,13 +137,18 @@ fn find_references_to_symbol(
     // collect references across all modules
     for module in session.modules.iter() {
         let module = module.as_ref();
-        let Some(ctx) = crate::query_context(session, module) else {
+        let Some(ctx) = crate::core::query_context(session, module) else {
             continue;
         };
 
         // collect and append references for this module
-        let spans =
-            collect_symbol_references_in_context(session, &ctx, canonical_id, reference_options);
+        let spans = collect_symbol_references_in_context(
+            session,
+            ctx.ast(),
+            ctx.dir(),
+            canonical_id,
+            reference_options,
+        );
         references.extend(spans);
     }
 

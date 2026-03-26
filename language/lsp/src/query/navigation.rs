@@ -14,16 +14,7 @@ fn symbol_id_from_lsp_data(session: &Session, data: &serde_json::Value) -> Optio
     let symbol = data.get("symbol")?.as_u64()? as u32;
 
     let module_id = ModuleId::new(PackageId(package), module);
-    let module = session.modules.get(module_id);
-    let module = module.as_ref();
-    let ctx = query::common::query_context(session, &module)?;
-    let symbols = ctx.symbols();
-    let symbol_entry = symbols.get_symbol_by_id(symbol);
-
-    Some(GlobalSymbolId {
-        module_id,
-        local_id: destack_dir::LocalSymbolId::new_typed(symbol, symbol_entry.ty),
-    })
+    query::resolve_global_symbol_id(session, module_id, symbol)
 }
 
 /// Convert a definition result to an LSP location.

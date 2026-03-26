@@ -8,20 +8,22 @@ use destack_dir::{self as dir, FloatType, IntType, SymbolSpace, SymbolType};
 use destack_source::{Edit, FileId, FileType, ModuleId, PackageId, PathExt, Uri};
 use serde::{Deserialize, Serialize};
 
-use crate::common::{
-    CompletionContext, ContextResult, ImportEditMode, MemberInfo, MemberKind, MemberName,
-    build_import_display_path, build_import_edits_with_mode, current_initializer_binding_names,
-    detect_completion_context, doc_text_for_symbol, dynamic_parameter_names, get_canonical_symbol,
-    get_module_by_file_id, matches_import_clause_space_filter, matches_symbol_space_filter,
-    module_name_from_path, path_component_count, path_distance, program_for_file, query_context,
-    resolve_extension_members_for_symbol, resolve_reference_members, resolve_type_members,
-    score_completion, search_importable_symbols_for_program, visible_symbols,
+use super::{CompletionContext, CompletionInput, CursorToken, completion_input_at_offset};
+use crate::ast::{current_initializer_binding_names, get_module_by_file_id};
+use crate::core::fuzzy::{FuzzyMatch, score_completion};
+use crate::core::path::{path_component_count, path_distance};
+use crate::core::query_context;
+use crate::dir::{
+    ImportEditMode, MemberInfo, MemberKind, MemberName, build_import_display_path,
+    build_import_edits_with_mode, doc_text_for_symbol, dynamic_parameter_names,
+    get_canonical_symbol, matches_import_clause_space_filter, matches_symbol_space_filter,
+    module_name_from_path, program_for_file, resolve_extension_members_for_symbol,
+    resolve_reference_members, resolve_type_members, search_importable_symbols_for_program,
+    visible_symbols,
 };
 use crate::format::format_local_type;
 use destack_artifact::{ArtifactStore, Loader};
 use destack_workspace::Session;
-
-use crate::TokenAtCursor;
 
 // sort order priorities (lower = higher priority in completion list)
 const SORT_LOCAL_SYMBOL: u32 = 10;
@@ -412,8 +414,8 @@ fn format_symbol_type_detail(session: &Session, symbol_id: dir::GlobalSymbolId) 
     let ctx = query_context(session, module)?;
 
     // load symbol and type tables
-    let symbols = ctx.symbols();
-    let types = ctx.types();
+    let symbols = ctx.dir().symbols();
+    let types = ctx.dir().types();
 
     // resolve the declared or inferred type from the primary declaration
     let symbol = symbols.get_symbol(symbol_id.local_id);
@@ -423,7 +425,7 @@ fn format_symbol_type_detail(session: &Session, symbol_id: dir::GlobalSymbolId) 
     // format the type using the symbol's module type table
     Some(format_local_type(
         type_id,
-        &ctx.artifacts,
+        ctx.artifacts(),
         types,
         &session.modules,
         &session.strings,
@@ -448,7 +450,6 @@ fn completion_for_member(
         MemberKind::Field => CompletionKind::Field,
         MemberKind::CallSignature => CompletionKind::Function,
         MemberKind::ConstructSignature => CompletionKind::Constructor,
-        MemberKind::IndexSignature => CompletionKind::Property,
         MemberKind::EnumMember => CompletionKind::EnumMember,
     };
 
@@ -647,8 +648,8 @@ fn collect_visible_names(
     let module = get_module_by_file_id(session, file_id)?;
     let module = module.as_ref();
     let ctx = query_context(session, module)?;
-    let symbols = ctx.symbols();
-    let scope_id = scope_id.unwrap_or(ctx.dir.namespace_scope);
+    let symbols = ctx.dir().symbols();
+    let scope_id = scope_id.unwrap_or(ctx.dir().namespace_scope());
 
     // collect names from visible symbols when scope is available
     let mut names = HashSet::new();
@@ -740,11 +741,8 @@ fn import_mode_for_space(space_filter: Option<SymbolSpace>) -> ImportEditMode {
 /// Filter and rank completions using fuzzy matching.
 fn filter_and_rank_completions(
     completions: Vec<Completion>,
-    token: Option<&TokenAtCursor>,
+    token: Option<&CursorToken>,
 ) -> Vec<Completion> {
-    // import fuzzy matching helpers
-    use crate::common::FuzzyMatch;
-
     // resolve the prefix for matching
     let prefix = token.map(|t| t.text.as_str()).unwrap_or("");
 
@@ -871,7 +869,7 @@ pub fn completions(
     trigger: CompletionTrigger,
 ) -> Vec<Completion> {
     // detect completion context
-    let ContextResult { context, token } = detect_completion_context(session, file, offset);
+    let CompletionInput { context, token } = completion_input_at_offset(session, file, offset);
     let excluded_labels = if context_uses_initializer_exclusions(&context) {
         completion_excluded_labels(session, file, offset)
     } else {
@@ -1018,6 +1016,9 @@ fn context_uses_initializer_exclusions(context: &CompletionContext) -> bool {
 
 /// Collect completion labels excluded at one cursor offset.
 fn completion_excluded_labels(session: &Session, file: FileId, offset: u32) -> HashSet<String> {
+    let source_file = session.files.get(file);
+    let source = source_file.text();
+
     let Some(module) = get_module_by_file_id(session, file) else {
         return HashSet::new();
     };
@@ -1027,9 +1028,9 @@ fn completion_excluded_labels(session: &Session, file: FileId, offset: u32) -> H
     };
 
     // exclude bindings from their own initializer completions
-    current_initializer_binding_names(&ctx, offset)
+    current_initializer_binding_names(ctx.ast(), source, offset)
         .into_iter()
-        .map(|name| ctx.ast.strings.get(name).to_string())
+        .map(|name| ctx.ast().strings().get(name).to_string())
         .collect()
 }
 
@@ -1051,18 +1052,18 @@ fn complete_members(
     let Some(ctx) = query_context(session, module) else {
         return Vec::new();
     };
-    let current_module_id = ctx.module_id;
+    let current_module_id = ctx.module_id();
 
     // primary path: use receiver type for type aware completions
     if let Some(type_id) = receiver_type {
         // resolve members from the type
-        let types = ctx.types();
-        let symbols = ctx.symbols();
+        let types = ctx.dir().types();
+        let symbols = ctx.dir().symbols();
         let members = resolve_type_members(types, symbols, type_id, session, current_module_id);
 
         for member in members {
             let Some(completion) =
-                completion_for_member(session, &ctx.artifacts, member, Some(types))
+                completion_for_member(session, ctx.artifacts(), member, Some(types))
             else {
                 continue;
             };
@@ -1079,7 +1080,7 @@ fn complete_members(
     if let Some(symbol_id) = receiver_symbol {
         let members = resolve_reference_members(symbol_id, session, current_module_id);
         for member in members {
-            let Some(completion) = completion_for_member(session, &ctx.artifacts, member, None)
+            let Some(completion) = completion_for_member(session, ctx.artifacts(), member, None)
             else {
                 continue;
             };
@@ -1102,7 +1103,7 @@ fn complete_members(
             .collect();
 
         for member in extension_members {
-            let Some(completion) = completion_for_member(session, &ctx.artifacts, member, None)
+            let Some(completion) = completion_for_member(session, ctx.artifacts(), member, None)
             else {
                 continue;
             };
@@ -1142,9 +1143,9 @@ fn complete_object_literal(
         let Some(ctx) = query_context(session, module) else {
             return results;
         };
-        let types = ctx.types();
-        let symbols = ctx.symbols();
-        let current_module_id = ctx.module_id;
+        let types = ctx.dir().types();
+        let symbols = ctx.dir().symbols();
+        let current_module_id = ctx.module_id();
 
         // resolve type members
         let members = resolve_type_members(types, symbols, type_id, session, current_module_id);
@@ -1175,7 +1176,7 @@ fn complete_object_literal(
             if let Some(member_type_id) = member.type_id {
                 let type_text = format_local_type(
                     member_type_id,
-                    &ctx.artifacts,
+                    ctx.artifacts(),
                     types,
                     &session.modules,
                     &session.strings,
@@ -1196,7 +1197,7 @@ fn complete_object_literal(
         let Some(ctx) = query_context(session, module) else {
             return results;
         };
-        let symbols = ctx.symbols();
+        let symbols = ctx.dir().symbols();
         let mark = scope_mark.unwrap_or(dir::LocalScopeMark::end());
 
         for visible in visible_symbols(symbols, scope_id, mark, Some(SymbolSpace::Value)) {
@@ -1247,8 +1248,8 @@ fn complete_types(
     let Some(ctx) = query_context(session, module) else {
         return primitive_type_completions();
     };
-    let symbols = ctx.symbols();
-    let dir_tree = ctx.tree();
+    let symbols = ctx.dir().symbols();
+    let dir_tree = ctx.dir().tree();
 
     // prepare the completion buffer
     let mut results = Vec::new();
@@ -1261,7 +1262,7 @@ fn complete_types(
         }
 
         let global_id = dir::GlobalSymbolId {
-            module_id: ctx.module_id,
+            module_id: ctx.module_id(),
             local_id: symbol_id,
         };
         let canonical_id = get_canonical_symbol(session, global_id);
@@ -1269,7 +1270,7 @@ fn complete_types(
             return symbol.ty;
         }
 
-        let Some(dir) = ctx.artifacts.dir_base(canonical_id.module_id) else {
+        let Some(dir) = ctx.artifacts().dir_base(canonical_id.module_id) else {
             return symbol.ty;
         };
         let canonical_symbol = dir.symbols.get_symbol(canonical_id.local_id);
@@ -1277,7 +1278,7 @@ fn complete_types(
     };
 
     // walk up from the scope to collect visible types
-    let visible_scope_id = scope_id.unwrap_or(ctx.dir.namespace_scope);
+    let visible_scope_id = scope_id.unwrap_or(ctx.dir().namespace_scope());
     let mark = scope_mark.unwrap_or(dir::LocalScopeMark::end());
     for visible in visible_symbols(symbols, visible_scope_id, mark, Some(SymbolSpace::Type)) {
         let dir::StaticKey::Name(name_id) = visible.key else {
@@ -1292,7 +1293,7 @@ fn complete_types(
         let kind = CompletionKind::from(resolve_symbol_type(visible.id, visible.symbol));
         let completion = Completion::new(name, kind).with_sort_order(SORT_LOCAL_SYMBOL);
         let symbol_id = dir::GlobalSymbolId {
-            module_id: ctx.module_id,
+            module_id: ctx.module_id(),
             local_id: visible.id,
         };
         let completion = attach_completion_documentation(session, completion, symbol_id);
@@ -1323,7 +1324,7 @@ fn complete_types(
         let kind = CompletionKind::from(resolve_symbol_type(symbol_id, symbol));
         let completion = Completion::new(name, kind).with_sort_order(SORT_LOCAL_SYMBOL);
         let symbol_id = dir::GlobalSymbolId {
-            module_id: ctx.module_id,
+            module_id: ctx.module_id(),
             local_id: symbol_id,
         };
         let completion = attach_completion_documentation(session, completion, symbol_id);
@@ -1333,8 +1334,8 @@ fn complete_types(
 
     // source-driven support for incomplete type positions
     if results.is_empty() {
-        for declaration_id in ctx.ast_context().tree().iter_nodes::<ast::Declaration>() {
-            let declaration = ctx.ast_context().tree().get(declaration_id);
+        for declaration_id in ctx.ast().tree().iter_nodes::<ast::Declaration>() {
+            let declaration = ctx.ast().tree().get(declaration_id);
             let kind = match declaration {
                 ast::Declaration::Class { .. } => CompletionKind::Class,
                 ast::Declaration::Struct { .. } => CompletionKind::Struct,
@@ -1347,7 +1348,7 @@ fn complete_types(
             let Some(name) = declaration.name() else {
                 continue;
             };
-            let name = ctx.ast_context().strings().get(name.string()).to_string();
+            let name = ctx.ast().strings().get(name.string()).to_string();
             if !seen_names.insert(name.clone()) {
                 continue;
             }
@@ -1446,19 +1447,19 @@ fn complete_values(
     let Some(ctx) = query_context(session, module) else {
         return keyword_completions();
     };
-    let module_id = ctx.module_id;
+    let module_id = ctx.module_id();
 
     // initialize completion buffers
     let mut results = Vec::new();
 
     // collect symbols to process (to avoid holding symbols lock while generating snippets)
     let symbols_to_process: Vec<(dir::LocalSymbolId, String, SymbolType)> = {
-        let symbols = ctx.symbols();
+        let symbols = ctx.dir().symbols();
         let mut symbols_to_process = Vec::new();
 
         // walk visible symbols in scope order
         let mut seen_names = HashSet::new();
-        let scope_id = scope_id.unwrap_or(ctx.dir.namespace_scope);
+        let scope_id = scope_id.unwrap_or(ctx.dir().namespace_scope());
         let mark = scope_mark.unwrap_or(dir::LocalScopeMark::end());
 
         for visible in visible_symbols(symbols, scope_id, mark, Some(SymbolSpace::Value)) {
@@ -1533,7 +1534,7 @@ fn complete_new_expression(
     let Some(ctx) = query_context(session, module) else {
         return Vec::new();
     };
-    let symbols = ctx.symbols();
+    let symbols = ctx.dir().symbols();
 
     // prepare result containers
     let mut results = Vec::new();
@@ -1567,7 +1568,7 @@ fn complete_new_expression(
             let kind = CompletionKind::from(visible.symbol.ty);
             let completion = Completion::new(name, kind).with_sort_order(SORT_LOCAL_SYMBOL);
             let symbol_id = dir::GlobalSymbolId {
-                module_id: ctx.module_id,
+                module_id: ctx.module_id(),
                 local_id: visible.id,
             };
             let completion = attach_completion_documentation(session, completion, symbol_id);
@@ -1603,7 +1604,7 @@ fn complete_new_expression(
             let kind = CompletionKind::from(symbol.ty);
             let completion = Completion::new(name, kind).with_sort_order(SORT_LOCAL_SYMBOL);
             let symbol_id = dir::GlobalSymbolId {
-                module_id: ctx.module_id,
+                module_id: ctx.module_id(),
                 local_id: symbol_id,
             };
             let completion = attach_completion_documentation(session, completion, symbol_id);
@@ -1649,7 +1650,7 @@ fn complete_imports(
     let Some(ctx) = query_context(session, module) else {
         return Vec::new();
     };
-    let symbols = ctx.symbols();
+    let symbols = ctx.dir().symbols();
 
     // prepare the completion buffer
     let mut results = Vec::new();

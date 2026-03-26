@@ -1,10 +1,11 @@
 use destack_source::{BatchEdit, Edit, FileEdit, FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
 
-use crate::common::{
-    clean_expression_text, get_module_by_file_id, is_simple_identifier, line_start_and_indent,
-    resolve_extract_expression, statement_span_for_expression,
+use super::extract::{
+    clean_expression_text, line_start_and_indent, resolve_extract_expression,
+    statement_span_for_expression,
 };
+use crate::ast::{get_module_by_file_id, is_simple_identifier};
 use destack_workspace::Session;
 
 /// Request payload for extract variable queries.
@@ -61,7 +62,7 @@ pub fn extract_variable(
     // resolve the module and query context
     let module = get_module_by_file_id(session, file)?;
     let module = module.as_ref();
-    let ctx = crate::query_context(session, module)?;
+    let ctx = crate::core::query_context(session, module)?;
 
     // resolve source text for edits
     let source_file = session.files.get(file);

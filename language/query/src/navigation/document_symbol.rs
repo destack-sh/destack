@@ -4,11 +4,12 @@ use destack_dir::{Declaration, EnumField, LocalNodeId, Member, NodeTree};
 use destack_source::{FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
 
-pub use crate::common::SymbolKind;
-use crate::common::{
-    AstContext, QueryContext, declaration_display_name, declaration_symbol_kind,
-    is_synthetic_function_keyword_field, main_span_for_dir_node, member_key_name,
-    member_symbol_kind, span_for_dir_node, with_ast_context_for_file,
+pub use crate::SymbolKind;
+use crate::ast::{main_span_for_dir_node, span_for_dir_node};
+use crate::core::{AstQuery, QueryContext, with_ast_query_for_file};
+use crate::dir::{
+    declaration_display_name, declaration_symbol_kind, is_synthetic_function_keyword_field,
+    member_key_name, member_symbol_kind,
 };
 use destack_workspace::Session;
 
@@ -88,9 +89,9 @@ pub fn document_symbols(session: &Session, file: FileId) -> Vec<DocumentSymbol> 
 
 /// Build document symbols using DIR data when available.
 fn document_symbols_with_dir(session: &Session, file: FileId) -> Option<Vec<DocumentSymbol>> {
-    crate::with_query_context_for_file(session, file, |ctx| {
+    crate::core::with_query_context_for_file(session, file, |ctx| {
         // resolve the dir tree
-        let dir_tree = ctx.tree();
+        let dir_tree = ctx.dir().tree();
 
         // collect document symbols
         let mut symbols = Vec::new();
@@ -104,9 +105,9 @@ fn document_symbols_with_dir(session: &Session, file: FileId) -> Option<Vec<Docu
             let name = declaration_display_name(&session.strings, declaration);
 
             // resolve the full range and the main selection range
-            let range = span_for_dir_node(&ctx, dir_tree, declaration_id.into());
+            let range = span_for_dir_node(ctx.ast(), dir_tree, declaration_id.into());
             let selection_range =
-                main_span_for_dir_node(&ctx, dir_tree, declaration_id.into()).unwrap_or(range);
+                main_span_for_dir_node(ctx.ast(), dir_tree, declaration_id.into()).unwrap_or(range);
 
             // build the document symbol
             let mut symbol =
@@ -143,7 +144,7 @@ fn document_symbols_with_dir(session: &Session, file: FileId) -> Option<Vec<Docu
 
 /// Build document symbols using AST data when DIR is unavailable.
 fn document_symbols_with_ast(session: &Session, file: FileId) -> Vec<DocumentSymbol> {
-    with_ast_context_for_file(session, file, |ast| {
+    with_ast_query_for_file(session, file, |ast| {
         // collect document symbols
         let mut symbols = Vec::new();
 
@@ -205,11 +206,11 @@ fn document_symbols_with_ast(session: &Session, file: FileId) -> Vec<DocumentSym
 fn member_to_document_symbol(
     dir_tree: &NodeTree,
     member_id: LocalNodeId<Member>,
-    ctx: &QueryContext<'_>,
+    ctx: &QueryContext,
     session: &Session,
 ) -> Option<DocumentSymbol> {
     let member = dir_tree.get::<Member>(member_id);
-    let range = span_for_dir_node(ctx, dir_tree, member_id.into());
+    let range = span_for_dir_node(ctx.ast(), dir_tree, member_id.into());
 
     // get the member name and symbol kind
     let (name, kind) = match member {
@@ -232,7 +233,8 @@ fn member_to_document_symbol(
 
     // get spans
     // get main span (name span) if available
-    let selection_range = main_span_for_dir_node(ctx, dir_tree, member_id.into()).unwrap_or(range);
+    let selection_range =
+        main_span_for_dir_node(ctx.ast(), dir_tree, member_id.into()).unwrap_or(range);
 
     Some(DocumentSymbol::new(name, kind, range).with_selection_range(selection_range))
 }
@@ -241,7 +243,7 @@ fn member_to_document_symbol(
 fn enum_field_to_document_symbol(
     dir_tree: &NodeTree,
     field_id: LocalNodeId<EnumField>,
-    ctx: &QueryContext<'_>,
+    ctx: &QueryContext,
     session: &Session,
 ) -> Option<DocumentSymbol> {
     let field = dir_tree.get::<EnumField>(field_id);
@@ -250,10 +252,11 @@ fn enum_field_to_document_symbol(
     let name = session.strings.get(field.name).to_string();
 
     // get spans
-    let range = span_for_dir_node(ctx, dir_tree, field_id.into());
+    let range = span_for_dir_node(ctx.ast(), dir_tree, field_id.into());
 
     // get main span (name span) if available
-    let selection_range = main_span_for_dir_node(ctx, dir_tree, field_id.into()).unwrap_or(range);
+    let selection_range =
+        main_span_for_dir_node(ctx.ast(), dir_tree, field_id.into()).unwrap_or(range);
 
     Some(
         DocumentSymbol::new(name, SymbolKind::EnumMember, range)
@@ -297,7 +300,7 @@ fn declaration_symbol_kind_ast(declaration: &ast::Declaration) -> SymbolKind {
 
 /// Convert an AST member to a document symbol.
 fn member_to_document_symbol_ast(
-    ast: AstContext<'_>,
+    ast: AstQuery<'_>,
     member_id: ast::LocalNodeId<ast::Member>,
 ) -> Option<DocumentSymbol> {
     // resolve the member node
@@ -340,7 +343,7 @@ fn member_to_document_symbol_ast(
 
 /// Convert an AST enum field to a document symbol.
 fn enum_field_to_document_symbol_ast(
-    ast: AstContext<'_>,
+    ast: AstQuery<'_>,
     field_id: ast::LocalNodeId<ast::EnumField>,
 ) -> Option<DocumentSymbol> {
     // resolve the enum field node
@@ -360,7 +363,7 @@ fn enum_field_to_document_symbol_ast(
 }
 
 /// Resolve a display name for a member key.
-fn member_key_name_ast(ast: AstContext<'_>, key: &ast::Key) -> Option<String> {
+fn member_key_name_ast(ast: AstQuery<'_>, key: &ast::Key) -> Option<String> {
     match key {
         ast::Key::Name(name) => Some(ast.strings().get(name.string()).to_string()),
         ast::Key::Private(name) => {

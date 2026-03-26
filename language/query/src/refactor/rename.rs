@@ -5,12 +5,12 @@ use destack_source::{BatchEdit, Edit, FileEdit, FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
 use {destack_ast as ast, destack_dir as dir};
 
-use crate::common::{
+use crate::ast::{is_simple_identifier, sort_and_dedup_spans, token_at_offset};
+use crate::dir::{
     ReferenceCollectionOptions, SymbolAtOffset, collect_default_import_alias_symbols_for_export,
     collect_symbol_references_in_context, find_symbol_at_offset, get_canonical_symbol,
-    get_symbol_definition_span, get_symbol_local_definition_span, is_simple_identifier,
-    member_key_name, resolve_local_import_alias_name, resolve_symbol_name, sort_and_dedup_spans,
-    token_at_offset,
+    get_symbol_definition_span, get_symbol_local_definition_span, member_key_name,
+    resolve_local_import_alias_name, resolve_symbol_name,
 };
 use destack_workspace::Session;
 
@@ -265,12 +265,17 @@ fn collect_symbol_reference_spans_across_user_modules(
             continue;
         }
 
-        let Some(ctx) = crate::query_context(session, module) else {
+        let Some(ctx) = crate::core::query_context(session, module) else {
             continue;
         };
 
-        let module_spans =
-            collect_symbol_references_in_context(session, &ctx, canonical_id, options);
+        let module_spans = collect_symbol_references_in_context(
+            session,
+            ctx.ast(),
+            ctx.dir(),
+            canonical_id,
+            options,
+        );
         spans.extend(module_spans);
     }
 
@@ -331,16 +336,16 @@ fn resolve_name_from_primary_declaration(
     // resolve query context for the symbol module
     let module = session.modules.get(canonical_id.module_id);
     let module = module.as_ref();
-    let ctx = crate::query_context(session, module)?;
+    let ctx = crate::core::query_context(session, module)?;
 
     // resolve the primary declaration node id
     let declaration = {
-        let symbols = ctx.symbols();
+        let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(canonical_id.local_id);
         symbol.primary_declaration?
     };
 
-    let dir_tree = ctx.tree();
+    let dir_tree = ctx.dir().tree();
     match declaration.local_id.ty {
         dir::NodeType::Member => {
             let member_id = declaration.local_id.try_into().ok()?;
@@ -424,11 +429,11 @@ fn resolve_interface_member_target(
     // resolve query context for the symbol module
     let module = session.modules.get(canonical_id.module_id);
     let module = module.as_ref();
-    let ctx = crate::query_context(session, module)?;
+    let ctx = crate::core::query_context(session, module)?;
 
     // resolve the member declaration node
     let declaration = {
-        let symbols = ctx.symbols();
+        let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(canonical_id.local_id);
         symbol.primary_declaration?
     };
@@ -437,7 +442,7 @@ fn resolve_interface_member_target(
         return None;
     }
 
-    let dir_tree = ctx.tree();
+    let dir_tree = ctx.dir().tree();
     let Ok(member_id) = declaration.local_id.try_into() else {
         return None;
     };
@@ -465,7 +470,7 @@ fn resolve_interface_member_target(
 
     let interface_symbol = get_canonical_symbol(
         session,
-        dir::GlobalSymbolId::new(ctx.module_id, descriptor.symbol),
+        dir::GlobalSymbolId::new(ctx.module_id(), descriptor.symbol),
     );
 
     Some(InterfaceMemberTarget {
@@ -485,12 +490,12 @@ fn collect_interface_member_implementations(
 
     for module in session.modules.iter() {
         let module = module.as_ref();
-        let Some(ctx) = crate::query_context(session, module) else {
+        let Some(ctx) = crate::core::query_context(session, module) else {
             continue;
         };
 
         let implementing_symbols = {
-            let types = ctx.types();
+            let types = ctx.dir().types();
             let mut implementing_symbols = Vec::new();
             for (symbol_id, lineage) in types.iter_lineages() {
                 let implements = lineage.implements.iter().any(|symbol| {
@@ -500,7 +505,7 @@ fn collect_interface_member_implementations(
                 if !implements {
                     continue;
                 }
-                if symbol_id.module_id != ctx.module_id {
+                if symbol_id.module_id != ctx.module_id() {
                     continue;
                 }
                 implementing_symbols.push(symbol_id.local_id);
@@ -512,7 +517,7 @@ fn collect_interface_member_implementations(
             continue;
         }
 
-        let dir_tree = ctx.tree();
+        let dir_tree = ctx.dir().tree();
         for (member_id, member) in dir_tree.iter_nodes_of_type::<dir::Member>() {
             let Some(parent) = dir_tree.get_parent(member_id.id) else {
                 continue;
@@ -560,7 +565,7 @@ fn collect_interface_member_implementations(
                 continue;
             }
 
-            let symbol_id = dir::GlobalSymbolId::new(ctx.module_id, member.symbol());
+            let symbol_id = dir::GlobalSymbolId::new(ctx.module_id(), member.symbol());
             members.push(get_canonical_symbol(session, symbol_id));
         }
     }
