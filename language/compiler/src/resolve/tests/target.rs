@@ -686,7 +686,7 @@ import "platform:fs";
     );
     test.set_module_profile(
         main_module_id,
-        Runtime::NativeHosted,
+        Runtime::NativeManaged,
         EmitFormat::Native,
         &["default"],
     );

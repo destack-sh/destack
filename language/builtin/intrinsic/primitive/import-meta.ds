@@ -33,7 +33,7 @@ export type Runtime =
     | "worker"
     | "wasm-js"
     | "wasm-wasi"
-    | "native-hosted"
+    | "native-managed"
     | "native-freestanding"
     | "native-embedded";
 

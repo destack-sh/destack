@@ -71,7 +71,7 @@ pub struct Target {
     pub outputs: TargetOutputs,
     /// Emitted artifact family (js, ts, html, wasm, native).
     pub emit: EmitFormat,
-    /// Runtime environment (browser, node, wasm-wasi, native-hosted, etc.).
+    /// Runtime environment (browser, node, wasm-wasi, native-managed, etc.).
     pub runtime: Runtime,
     /// Runtime version for selecting versioned libs.
     pub runtime_version: Option<String>,
@@ -274,9 +274,9 @@ impl Target {
             name: name.into(),
             outputs: default_target_outputs(EmitFormat::Native, true, false, None, false),
             emit: EmitFormat::Native,
-            runtime: Runtime::NativeHosted,
+            runtime: Runtime::NativeManaged,
             runtime_options: RuntimeOptions {
-                host: Runtime::NativeHosted,
+                host: Runtime::NativeManaged,
                 ..RuntimeOptions::default()
             },
             platform: Platform::Universal,
@@ -291,9 +291,9 @@ impl Target {
             name: name.into(),
             outputs: default_target_outputs(EmitFormat::Native, true, false, None, false),
             emit: EmitFormat::Native,
-            runtime: Runtime::NativeHosted,
+            runtime: Runtime::NativeManaged,
             runtime_options: RuntimeOptions {
-                host: Runtime::NativeHosted,
+                host: Runtime::NativeManaged,
                 ..RuntimeOptions::default()
             },
             platform: Platform::Universal,
@@ -357,9 +357,9 @@ impl Target {
         let mut target = base.clone();
         target.name = name.into();
         target.emit = EmitFormat::Native;
-        target.runtime = Runtime::NativeHosted;
+        target.runtime = Runtime::NativeManaged;
         target.runtime_version = None;
-        target.runtime_options.host = Runtime::NativeHosted;
+        target.runtime_options.host = Runtime::NativeManaged;
         target.runtime_options.version = None;
         target.outputs = default_target_outputs(EmitFormat::Native, true, false, None, false);
         target.optimize = false;
@@ -756,7 +756,7 @@ impl Target {
             }
             Runtime::WasmJs
             | Runtime::WasmWasi
-            | Runtime::NativeHosted
+            | Runtime::NativeManaged
             | Runtime::NativeFreestanding
             | Runtime::NativeEmbedded => {
                 libs.push("native".to_string());
@@ -941,7 +941,7 @@ pub struct TargetOptions {
     // output format
     /// Emitted artifact family (js, ts, html, wasm, native).
     pub emit: EmitFormat,
-    /// Runtime environment (browser, node, wasm-wasi, native-hosted, etc.).
+    /// Runtime environment (browser, node, wasm-wasi, native-managed, etc.).
     pub runtime: Runtime,
     /// Runtime version for selecting versioned libs.
     pub runtime_version: Option<String>,

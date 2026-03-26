@@ -20,8 +20,8 @@ pub enum Runtime {
     WasmJs,
     /// WASM with WASI.
     WasmWasi,
-    /// Native hosted runtime.
-    NativeHosted,
+    /// Native managed runtime.
+    NativeManaged,
     /// Native freestanding runtime.
     NativeFreestanding,
     /// Native embedded runtime.
@@ -38,7 +38,7 @@ impl From<Runtime> for BuiltinRuntime {
             Runtime::Worker => BuiltinRuntime::Worker,
             Runtime::WasmJs => BuiltinRuntime::WasmJs,
             Runtime::WasmWasi => BuiltinRuntime::WasmWasi,
-            Runtime::NativeHosted => BuiltinRuntime::NativeHosted,
+            Runtime::NativeManaged => BuiltinRuntime::NativeManaged,
             Runtime::NativeFreestanding => BuiltinRuntime::NativeFreestanding,
             Runtime::NativeEmbedded => BuiltinRuntime::NativeEmbedded,
         }
@@ -57,7 +57,7 @@ impl std::str::FromStr for Runtime {
             "worker" => Ok(Self::Worker),
             "wasm_js" | "wasm-js" | "wasmjs" => Ok(Self::WasmJs),
             "wasm_wasi" | "wasm-wasi" | "wasmwasi" | "wasi" => Ok(Self::WasmWasi),
-            "native" | "native_hosted" | "native-hosted" => Ok(Self::NativeHosted),
+            "native" | "native_managed" | "native-managed" => Ok(Self::NativeManaged),
             "native_freestanding" | "native-freestanding" => Ok(Self::NativeFreestanding),
             "native_embedded" | "native-embedded" => Ok(Self::NativeEmbedded),
             _ => Err(()),
@@ -88,7 +88,7 @@ impl Runtime {
     pub fn is_native(&self) -> bool {
         matches!(
             self,
-            Self::NativeHosted | Self::NativeFreestanding | Self::NativeEmbedded
+            Self::NativeManaged | Self::NativeFreestanding | Self::NativeEmbedded
         )
     }
 
@@ -105,7 +105,7 @@ impl Runtime {
                 | Self::Deno
                 | Self::Bun
                 | Self::WasmWasi
-                | Self::NativeHosted
+                | Self::NativeManaged
                 | Self::NativeFreestanding
                 | Self::NativeEmbedded
         )

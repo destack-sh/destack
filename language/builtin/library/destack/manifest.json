@@ -84,7 +84,7 @@
         "library/destack/zlib/zlib.ds"
       ],
       "runtimes": [
-        "native_hosted",
+        "native_managed",
         "native_freestanding",
         "native_embedded"
       ],

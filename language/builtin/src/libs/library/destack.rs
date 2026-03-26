@@ -5,7 +5,7 @@ use crate::builtin_lib_sources_targeted;
 use crate::libs::source::{BuiltinLibrary, BuiltinOutputFormat, BuiltinPlatform, BuiltinRuntime};
 
 const DESTACK_RUNTIMES: &[BuiltinRuntime] = &[
-    BuiltinRuntime::NativeHosted,
+    BuiltinRuntime::NativeManaged,
     BuiltinRuntime::NativeFreestanding,
     BuiltinRuntime::NativeEmbedded,
 ];

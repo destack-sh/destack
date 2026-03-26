@@ -27,7 +27,7 @@ runtime satisfies
     | "worker"
     | "wasm-js"
     | "wasm-wasi"
-    | "native-hosted"
+    | "native-managed"
     | "native-freestanding"
     | "native-embedded";
 ```

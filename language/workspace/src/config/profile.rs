@@ -42,7 +42,7 @@ impl ProfileConfig {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct ProfileConfigJson {
-    /// Runtime environment (browser, node, wasm-wasi, native-hosted, etc.).
+    /// Runtime environment (browser, node, wasm-wasi, native-managed, etc.).
     pub runtime: Option<RuntimeConfigJson>,
     /// Target platform / operating system.
     pub platform: Option<String>,
