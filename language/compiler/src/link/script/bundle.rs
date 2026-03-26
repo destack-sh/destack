@@ -1,138 +1,265 @@
-use std::path::Path;
+use destack_artifact::ScriptArtifact;
+use destack_codegen_js::{
+    DependencyItem, DependencyKind, Expression, LocalNodeId, LocalNodeIdAny, NodeType,
+    ScriptModule, Statement,
+};
+use destack_source::{ModuleId, PackageId};
+use destack_workspace::{Target, TargetId};
 
 use crate::{Compiler, LinkError, LinkResult};
 
-use destack_artifact::{EmitFormat, ModuleArtifact, OutputContent, OutputFile};
-use destack_source::{FileType, ModuleId, PackageId, Uri};
-use destack_workspace::{Target, TargetId};
+use super::ScriptModuleSet;
 
-use crate::link::assembly::ScriptTargetAssembly;
-use crate::link::layout::{OutputLayout, OutputReferenceKind};
+/// One rewrite action for bundled script statements.
+#[derive(Debug, Clone)]
+enum ScriptStatementAction {
+    /// Keep the statement as-is.
+    Keep,
+    /// Drop the statement from the bundled module body.
+    Drop,
+    /// Rewrite one re-export to a local export.
+    RewriteExportTargetNone,
+    /// Rewrite one export value into an expression statement.
+    RewriteExportValueToExpression(LocalNodeId<Expression>),
+}
 
 impl Compiler {
-    /// Assemble one bundled script target.
-    pub(crate) fn assemble_bundled_script_target_assembly(
+    /// Build one invalid bundled rewrite error.
+    fn invalid_bundled_rewrite(
         &self,
-        entry_modules: &[ModuleId],
-        package_dir: &Path,
+        module_id: ModuleId,
+        target_id: &TargetId,
+        package_id: PackageId,
+        message: String,
+    ) -> LinkError {
+        LinkError::InvalidTarget {
+            anchor: module_id.into(),
+            package: package_id,
+            target: target_id.clone(),
+            message,
+        }
+    }
+
+    /// Classify one bundled import statement.
+    fn classify_bundled_import_statement(
+        &self,
+        module_id: ModuleId,
+        module: &ScriptModule,
+        kind: DependencyKind,
+        specifier: &str,
+        target_module: Option<ModuleId>,
+        items: &[LocalNodeId<DependencyItem>],
+        has_arguments: bool,
         target: &Target,
         target_id: &TargetId,
         package_id: PackageId,
-    ) -> LinkResult<ScriptTargetAssembly> {
-        let link_plan = self.plan_script_link(entry_modules, target, target_id, package_id)?;
-        let output_layout = OutputLayout::new(package_dir, target);
-        let mut module_target = target.clone();
-        module_target.out_file = None;
+    ) -> LinkResult<ScriptStatementAction> {
+        let dependency_target = self.script_dependency_target(specifier, target_module);
+        let is_internal = self.should_bundle_script_dependency(
+            self.module_anchor_span(module_id),
+            package_id,
+            target_id,
+            target,
+            &dependency_target,
+        )?;
 
-        // render HTML targets through the JS module path, then wrap at target level
-        if module_target.emit == EmitFormat::Html {
-            module_target.emit = EmitFormat::Js;
+        // keep external imports untouched
+        if !is_internal {
+            return Ok(ScriptStatementAction::Keep);
         }
 
-        let mut parts = Vec::new();
-
-        // render each generated script artifact back to module text
-        for module_id in &link_plan.modules {
-            let artifact = self
-                .artifacts
-                .module_artifact(*module_id, target_id)
-                .ok_or_else(|| LinkError::Internal {
-                    package: package_id,
-                    message: format!(
-                        "missing module artifact for module {:?} target '{}'",
-                        module_id, target_id.name
-                    ),
-                })?;
-
-            let ModuleArtifact::Script(script) = artifact.as_ref() else {
-                return Err(LinkError::Internal {
-                    package: package_id,
-                    message: format!(
-                        "expected script artifact for module {:?} target '{}'",
-                        module_id, target_id.name
-                    ),
-                });
-            };
-
-            let linked_module = self.rewrite_script_module_for_link(
-                *module_id, script, &link_plan, target, target_id, package_id,
-            )?;
-            let code = destack_codegen_js::print_script_module(
-                &module_target,
-                match module_target.emit {
-                    EmitFormat::Js | EmitFormat::Html => FileType::JavaScript,
-                    EmitFormat::Ts => FileType::TypeScript,
-                    other => {
-                        return Err(LinkError::Internal {
-                            package: package_id,
-                            message: format!("unsupported assembled script output: {other:?}"),
-                        });
-                    }
-                },
-                &linked_module,
-            )
-            .map_err(|error| LinkError::Internal {
-                package: package_id,
-                message: format!("failed to print linked script module: {error:?}"),
-            })?;
-
-            parts.push(code);
+        // erase bundled type-only imports
+        if kind == DependencyKind::Type {
+            return Ok(ScriptStatementAction::Drop);
         }
 
-        let combined = self.join_linked_script_parts(parts);
-        let output_path = output_layout.script_entry_location();
-        let mut output_files = vec![OutputFile {
-            uri: Uri::from_path(output_path.path()),
-            content: OutputContent::javascript(combined),
-            source: None,
-        }];
+        // reject unsupported import attributes for now
+        if has_arguments {
+            return Err(self.invalid_bundled_rewrite(
+                module_id,
+                target_id,
+                package_id,
+                format!(
+                    "bundled internal import attributes are not supported yet in '{}'",
+                    target_id.name
+                ),
+            ));
+        }
 
-        // html document
-        if target.emit == EmitFormat::Html {
-            let document_path = output_layout.document_location();
-            let entry_specifier = output_layout.output_reference(
-                &document_path,
-                &output_path,
-                OutputReferenceKind::Runtime,
-            );
+        // reject import forms that need binding rewrites
+        if !self.can_strip_internal_script_import(module, items) {
+            return Err(self.invalid_bundled_rewrite(
+                module_id,
+                target_id,
+                package_id,
+                format!(
+                    "bundled internal import rewriting is only implemented for plain named imports in '{}'",
+                    target_id.name
+                ),
+            ));
+        }
 
-            output_files.push(OutputFile {
-                uri: Uri::from_path(document_path.path()),
-                content: OutputContent::html(self.linked_html_document(&entry_specifier)),
-                source: None,
+        Ok(ScriptStatementAction::Drop)
+    }
+
+    /// Classify one bundled export statement.
+    fn classify_bundled_export_statement(
+        &self,
+        module_id: ModuleId,
+        module: &ScriptModule,
+        kind: DependencyKind,
+        specifier: Option<String>,
+        target_module: Option<ModuleId>,
+        items: &[LocalNodeId<DependencyItem>],
+        is_entry_module: bool,
+        target_config: &Target,
+        target_id: &TargetId,
+        package_id: PackageId,
+    ) -> LinkResult<ScriptStatementAction> {
+        let Some(specifier) = specifier else {
+            return Ok(if is_entry_module {
+                ScriptStatementAction::Keep
+            } else {
+                ScriptStatementAction::Drop
             });
+        };
+
+        let dependency_target = self.script_dependency_target(&specifier, target_module);
+        let is_internal = self.should_bundle_script_dependency(
+            self.module_anchor_span(module_id),
+            package_id,
+            target_id,
+            target_config,
+            &dependency_target,
+        )?;
+
+        // keep external re-exports untouched
+        if !is_internal {
+            return Ok(ScriptStatementAction::Keep);
         }
 
-        // external source maps
-        if target.emits_source_map_output() {
-            let map_path = output_layout.linked_source_map_location(&output_path);
-            let map = self.linked_script_source_map(package_dir, &link_plan);
-            let content = OutputContent::source_map(&map).map_err(|error| LinkError::Internal {
-                package: package_id,
-                message: format!("failed to serialize linked source map: {error}"),
-            })?;
-
-            output_files.push(OutputFile {
-                uri: Uri::from_path(map_path.path()),
-                content,
-                source: None,
-            });
+        // erase bundled type-only re-exports
+        if kind == DependencyKind::Type {
+            return Ok(ScriptStatementAction::Drop);
         }
 
-        Ok(ScriptTargetAssembly {
-            assembly: self.package_assembly(target),
-            output_files,
-            script_link_plan: Some(link_plan),
-        })
+        // non-entry modules do not re-export bindings in bundled output
+        if !is_entry_module {
+            return Ok(ScriptStatementAction::Drop);
+        }
+
+        // reject export forms that need binding rewrites
+        if !self.can_rewrite_internal_script_reexport(module, items) {
+            return Err(self.invalid_bundled_rewrite(
+                module_id,
+                target_id,
+                package_id,
+                format!(
+                    "bundled internal re-export rewriting is only implemented for plain named exports in '{}'",
+                    target_id.name
+                ),
+            ));
+        }
+
+        Ok(ScriptStatementAction::RewriteExportTargetNone)
+    }
+
+    /// Classify one bundled top-level statement.
+    fn classify_bundled_script_statement(
+        &self,
+        module_id: ModuleId,
+        module: &ScriptModule,
+        statement_id: LocalNodeId<Statement>,
+        is_entry_module: bool,
+        target_config: &Target,
+        target_id: &TargetId,
+        package_id: PackageId,
+    ) -> LinkResult<ScriptStatementAction> {
+        let statement = module.tree.get(statement_id);
+
+        match statement {
+            Statement::Import {
+                kind,
+                target: specifier,
+                target_module,
+                items,
+                arguments,
+            } => self.classify_bundled_import_statement(
+                module_id,
+                module,
+                *kind,
+                module.strings.get(*specifier).as_ref(),
+                *target_module,
+                items,
+                arguments.is_some(),
+                target_config,
+                target_id,
+                package_id,
+            ),
+            Statement::Export {
+                kind,
+                target: export_target,
+                target_module,
+                items,
+            } => self.classify_bundled_export_statement(
+                module_id,
+                module,
+                *kind,
+                export_target.map(|target| module.strings.get(target).to_string()),
+                *target_module,
+                items,
+                is_entry_module,
+                target_config,
+                target_id,
+                package_id,
+            ),
+            Statement::ExportValue { value } => Ok(if is_entry_module {
+                ScriptStatementAction::Keep
+            } else {
+                ScriptStatementAction::RewriteExportValueToExpression(*value)
+            }),
+            _ => Ok(ScriptStatementAction::Keep),
+        }
+    }
+
+    /// Apply one bundled rewrite action to one statement root.
+    fn apply_bundled_script_statement_action(
+        &self,
+        module: &mut ScriptModule,
+        root: LocalNodeIdAny,
+        statement_id: LocalNodeId<Statement>,
+        action: ScriptStatementAction,
+        rewritten_roots: &mut Vec<LocalNodeIdAny>,
+    ) -> LinkResult<()> {
+        match action {
+            ScriptStatementAction::Keep => rewritten_roots.push(root),
+            ScriptStatementAction::Drop => {}
+            ScriptStatementAction::RewriteExportTargetNone => {
+                let statement = module.tree.get_mut(statement_id);
+
+                if let Statement::Export { target, .. } = statement {
+                    *target = None;
+                }
+
+                rewritten_roots.push(root);
+            }
+            ScriptStatementAction::RewriteExportValueToExpression(value) => {
+                let statement = module.tree.get_mut(statement_id);
+                *statement = Statement::Expression { expression: value };
+                rewritten_roots.push(root);
+            }
+        }
+
+        Ok(())
     }
 
     /// Normalize one printed linked script module for final concatenation.
-    fn normalize_linked_script_part(&self, text: String) -> String {
+    pub(super) fn normalize_linked_script_part(&self, text: String) -> String {
         text.trim_end().to_string()
     }
 
-    /// Join linked script module parts into one final output text.
-    fn join_linked_script_parts(&self, parts: Vec<String>) -> String {
+    /// Compose one final linked script text from rendered module segments.
+    pub(super) fn compose_linked_script_text(&self, parts: Vec<String>) -> String {
         let parts = parts
             .into_iter()
             .map(|part| self.normalize_linked_script_part(part))
@@ -144,5 +271,52 @@ impl Compiler {
         }
 
         format!("{}\n", parts.join("\n\n"))
+    }
+
+    /// Rewrite one generated script module for target-level bundled assembly.
+    pub(crate) fn rewrite_script_module_for_assembly(
+        &self,
+        module_id: ModuleId,
+        script: &ScriptArtifact,
+        module_set: &ScriptModuleSet,
+        target: &Target,
+        target_id: &TargetId,
+        package_id: PackageId,
+    ) -> LinkResult<ScriptModule> {
+        let mut module = script.module.clone();
+        let is_entry_module = module_set.entry_modules.contains(&module_id);
+        let mut rewritten_roots = Vec::with_capacity(module.roots.len());
+        let roots = module.roots.clone();
+
+        // rewrite each top-level statement independently
+        for root in &roots {
+            if root.ty != NodeType::Statement {
+                rewritten_roots.push(*root);
+                continue;
+            }
+
+            let statement_id = LocalNodeId::<Statement>::new(root.id);
+            let action = self.classify_bundled_script_statement(
+                module_id,
+                &module,
+                statement_id,
+                is_entry_module,
+                target,
+                target_id,
+                package_id,
+            )?;
+
+            self.apply_bundled_script_statement_action(
+                &mut module,
+                *root,
+                statement_id,
+                action,
+                &mut rewritten_roots,
+            )?;
+        }
+
+        module.roots = rewritten_roots;
+
+        Ok(module)
     }
 }
