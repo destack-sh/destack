@@ -122,3 +122,21 @@ impl From<&Statistics> for destack_engine::ExecutionStats {
         }
     }
 }
+
+impl From<destack_engine::ExecutionStats> for Statistics {
+    fn from(stats: destack_engine::ExecutionStats) -> Self {
+        Self {
+            mir_instructions_executed: stats.mir_instructions_executed,
+            lowered_instructions_executed: stats.lowered_instructions_executed,
+            calls_made: stats.calls_made,
+            max_stack_depth: stats.max_stack_depth,
+            heap_allocations: stats.heap_allocations,
+            #[cfg(feature = "stats")]
+            branches: stats.branches,
+            #[cfg(feature = "stats")]
+            loads: stats.loads,
+            #[cfg(feature = "stats")]
+            stores: stats.stores,
+        }
+    }
+}

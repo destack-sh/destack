@@ -117,8 +117,7 @@ impl Interpreter {
     /// Return a compact instruction profile report if available.
     #[cfg(feature = "stats")]
     pub(crate) fn instruction_profile_report(&self, target_percent: f64) -> Option<String> {
-        self
-            .instruction_profile
+        self.instruction_profile
             .as_ref()
             .map(|profile| profile.summary_target(target_percent).format_compact())
     }
@@ -511,16 +510,18 @@ impl Interpreter {
     /// Run garbage collection on the managed heap.
     pub(crate) fn collect_garbage(
         &mut self,
+        executable: &Executable,
         string_interner: &mut StringInterner,
         globals: &GlobalStorage,
         memory: MemoryContext<'_>,
     ) -> GcStats {
-        self.collect_garbage_with_continuations(string_interner, globals, memory, &[])
+        self.collect_garbage_with_continuations(executable, string_interner, globals, memory, &[])
     }
 
     /// Run garbage collection including suspended continuations.
     pub(crate) fn collect_garbage_with_continuations(
         &mut self,
+        executable: &Executable,
         string_interner: &mut StringInterner,
         globals: &GlobalStorage,
         mut memory: MemoryContext<'_>,
@@ -529,12 +530,12 @@ impl Interpreter {
         // collect roots from active frames
         let mut roots = Vec::new();
         for frame in &self.call_stack {
-            frame.collect_roots(&self.value_stack, &self.local_stack, &mut roots);
+            frame.collect_roots(executable, &self.value_stack, &self.local_stack, &mut roots);
         }
 
         // collect roots from continuations
         for continuation in continuations {
-            continuation.collect_roots(&mut roots);
+            continuation.collect_roots(executable, &mut roots);
         }
 
         // collect roots from globals

@@ -306,7 +306,7 @@ impl Isolate {
 
     /// Capture one continuation as one immutable image.
     pub fn continuation_image(&self, continuation: &Continuation) -> ContinuationImage {
-        continuation.image()
+        continuation.image(&self.executable)
     }
 
     /// Restore one continuation from one immutable image.
@@ -314,7 +314,7 @@ impl Isolate {
         &self,
         image: &ContinuationImage,
     ) -> RuntimeResult<Continuation> {
-        Continuation::from_image(image, self.functions())
+        Continuation::from_image(image, &self.executable, self.functions())
     }
 
     /// Allocate an aggregate on the heap and return it as a Value.
@@ -368,6 +368,7 @@ impl Isolate {
     pub fn collect_garbage(&mut self, heap: &mut Heap, shared: &mut SharedSpace) -> GcStats {
         let mut memory = MemoryContext::new(heap, shared);
         self.interpreter.collect_garbage(
+            &self.executable,
             &mut self.string_interner,
             &self.globals,
             memory.reborrow(),
@@ -383,6 +384,7 @@ impl Isolate {
     ) -> GcStats {
         let mut memory = MemoryContext::new(heap, shared);
         self.interpreter.collect_garbage_with_continuations(
+            &self.executable,
             &mut self.string_interner,
             &self.globals,
             memory.reborrow(),

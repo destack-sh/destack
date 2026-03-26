@@ -52,9 +52,7 @@ pub(crate) fn handle_yield(
     // decode instruction data
     let InstructionData::Yield {
         value,
-        resume_block,
-        resume_copies,
-        resume_value,
+        resume_point,
     } = &block[pc].data
     else {
         unreachable!()
@@ -66,9 +64,7 @@ pub(crate) fn handle_yield(
     // return yield control
     ControlFlow::Yield {
         value: yield_value,
-        resume_block: *resume_block,
-        resume_copies: *resume_copies,
-        resume_value: *resume_value,
+        resume_point: *resume_point,
     }
 }
 
