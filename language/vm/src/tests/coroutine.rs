@@ -1,5 +1,8 @@
-use crate::ExecutionOutcome;
 use crate::diagnostic::Error;
+use crate::tests::{
+    assert_execution_completed, assert_execution_yielded, assert_runtime_error,
+    assert_runtime_error_matches, create_isolate,
+};
 use destack_heap::Value;
 
 /// Yield returns a value and resumes with the provided argument.
@@ -17,28 +20,19 @@ block1(v2: i32, v3: i32):
 }"#;
 
     // create isolate
-    let mut isolate = super::create_isolate(mir);
+    let mut isolate = create_isolate(mir);
 
     // start coroutine and capture yield
-    let outcome = isolate
-        .run_function_by_name_yielding("yield_once", &[Value::int32(7)])
-        .expect("execution failed");
+    let yielded = assert_execution_yielded(
+        isolate.run_function_by_name_yielding("yield_once", &[Value::int32(7)]),
+    );
 
     // verify yielded value
-    let (yielded_value, continuation) = match outcome {
-        ExecutionOutcome::Yielded { yielded } => (yielded.value, yielded.continuation),
-        ExecutionOutcome::Completed { .. } => panic!("expected yield"),
-    };
-    assert_eq!(yielded_value, Value::int32(5));
+    assert_eq!(yielded.value, Value::int32(5));
+    let continuation = yielded.continuation;
 
     // resume with a value and verify completion
-    let outcome = isolate
-        .resume(continuation, Value::int32(11))
-        .expect("resume failed");
-    let output = match outcome {
-        ExecutionOutcome::Completed { output } => output,
-        ExecutionOutcome::Yielded { .. } => panic!("expected completion"),
-    };
+    let output = assert_execution_completed(isolate.resume(continuation, Value::int32(11)));
     assert_eq!(output.value, Value::int32(18));
 }
 
@@ -56,28 +50,19 @@ block1(v2: i32, v3: i32):
 }"#;
 
     // create isolate
-    let mut isolate = super::create_isolate(mir);
+    let mut isolate = create_isolate(mir);
 
     // start coroutine and capture yield
-    let outcome = isolate
-        .run_function_by_name_yielding("yield_ignore", &[Value::int32(9)])
-        .expect("execution failed");
+    let yielded = assert_execution_yielded(
+        isolate.run_function_by_name_yielding("yield_ignore", &[Value::int32(9)]),
+    );
 
     // verify yielded value
-    let (yielded_value, continuation) = match outcome {
-        ExecutionOutcome::Yielded { yielded } => (yielded.value, yielded.continuation),
-        ExecutionOutcome::Completed { .. } => panic!("expected yield"),
-    };
-    assert_eq!(yielded_value, Value::int32(1));
+    assert_eq!(yielded.value, Value::int32(1));
+    let continuation = yielded.continuation;
 
     // resume and verify the resume value is ignored
-    let outcome = isolate
-        .resume(continuation, Value::int32(100))
-        .expect("resume failed");
-    let output = match outcome {
-        ExecutionOutcome::Completed { output } => output,
-        ExecutionOutcome::Yielded { .. } => panic!("expected completion"),
-    };
+    let output = assert_execution_completed(isolate.resume(continuation, Value::int32(100)));
     assert_eq!(output.value, Value::int32(9));
 }
 
@@ -99,40 +84,26 @@ block2(v5: i32, v6: i32):
 }"#;
 
     // create isolate
-    let mut isolate = super::create_isolate(mir);
+    let mut isolate = create_isolate(mir);
 
     // start coroutine and capture first yield
-    let outcome = isolate
-        .run_function_by_name_yielding("yield_twice", &[Value::int32(4)])
-        .expect("execution failed");
+    let yielded = assert_execution_yielded(
+        isolate.run_function_by_name_yielding("yield_twice", &[Value::int32(4)]),
+    );
 
     // verify first yielded value
-    let (yielded_value, continuation) = match outcome {
-        ExecutionOutcome::Yielded { yielded } => (yielded.value, yielded.continuation),
-        ExecutionOutcome::Completed { .. } => panic!("expected yield"),
-    };
-    assert_eq!(yielded_value, Value::int32(2));
+    assert_eq!(yielded.value, Value::int32(2));
+    let continuation = yielded.continuation;
 
     // resume for second yield
-    let outcome = isolate
-        .resume(continuation, Value::int32(3))
-        .expect("resume failed");
+    let yielded = assert_execution_yielded(isolate.resume(continuation, Value::int32(3)));
 
     // verify second yielded value
-    let (yielded_value, continuation) = match outcome {
-        ExecutionOutcome::Yielded { yielded } => (yielded.value, yielded.continuation),
-        ExecutionOutcome::Completed { .. } => panic!("expected yield"),
-    };
-    assert_eq!(yielded_value, Value::int32(7));
+    assert_eq!(yielded.value, Value::int32(7));
+    let continuation = yielded.continuation;
 
     // resume for completion
-    let outcome = isolate
-        .resume(continuation, Value::int32(10))
-        .expect("resume failed");
-    let output = match outcome {
-        ExecutionOutcome::Completed { output } => output,
-        ExecutionOutcome::Yielded { .. } => panic!("expected completion"),
-    };
+    let output = assert_execution_completed(isolate.resume(continuation, Value::int32(10)));
     assert_eq!(output.value, Value::int32(17));
 }
 
@@ -150,28 +121,19 @@ block1(v2: i32):
 }"#;
 
     // create isolate
-    let mut isolate = super::create_isolate(mir);
+    let mut isolate = create_isolate(mir);
 
     // start coroutine and capture yield
-    let outcome = isolate
-        .run_function_by_name_yielding("yield_no_args", &[Value::int32(3)])
-        .expect("execution failed");
+    let yielded = assert_execution_yielded(
+        isolate.run_function_by_name_yielding("yield_no_args", &[Value::int32(3)]),
+    );
 
     // verify yielded value
-    let (yielded_value, continuation) = match outcome {
-        ExecutionOutcome::Yielded { yielded } => (yielded.value, yielded.continuation),
-        ExecutionOutcome::Completed { .. } => panic!("expected yield"),
-    };
-    assert_eq!(yielded_value, Value::int32(4));
+    assert_eq!(yielded.value, Value::int32(4));
+    let continuation = yielded.continuation;
 
     // resume and verify resumed value is returned
-    let outcome = isolate
-        .resume(continuation, Value::int32(9))
-        .expect("resume failed");
-    let output = match outcome {
-        ExecutionOutcome::Completed { output } => output,
-        ExecutionOutcome::Yielded { .. } => panic!("expected completion"),
-    };
+    let output = assert_execution_completed(isolate.resume(continuation, Value::int32(9)));
     assert_eq!(output.value, Value::int32(9));
 }
 
@@ -194,28 +156,19 @@ block1(v2: i32):
 }"#;
 
     // create isolate
-    let mut isolate = super::create_isolate(mir);
+    let mut isolate = create_isolate(mir);
 
     // start coroutine and capture yield
-    let outcome = isolate
-        .run_function_by_name_yielding("yield_with_local", &[Value::int32(1)])
-        .expect("execution failed");
+    let yielded = assert_execution_yielded(
+        isolate.run_function_by_name_yielding("yield_with_local", &[Value::int32(1)]),
+    );
 
     // verify yielded value
-    let (yielded_value, continuation) = match outcome {
-        ExecutionOutcome::Yielded { yielded } => (yielded.value, yielded.continuation),
-        ExecutionOutcome::Completed { .. } => panic!("expected yield"),
-    };
-    assert_eq!(yielded_value, Value::int32(4));
+    assert_eq!(yielded.value, Value::int32(4));
+    let continuation = yielded.continuation;
 
     // resume and verify local survives
-    let outcome = isolate
-        .resume(continuation, Value::int32(6))
-        .expect("resume failed");
-    let output = match outcome {
-        ExecutionOutcome::Completed { output } => output,
-        ExecutionOutcome::Yielded { .. } => panic!("expected completion"),
-    };
+    let output = assert_execution_completed(isolate.resume(continuation, Value::int32(6)));
     assert_eq!(output.value, Value::int32(10));
 }
 
@@ -236,28 +189,19 @@ block1(v3: i32, v4: i32, v5: i32):
 }"#;
 
     // create isolate
-    let mut isolate = super::create_isolate(mir);
+    let mut isolate = create_isolate(mir);
 
     // start coroutine and capture yield
-    let outcome = isolate
-        .run_function_by_name_yielding("yield_prefix", &[Value::int32(5)])
-        .expect("execution failed");
+    let yielded = assert_execution_yielded(
+        isolate.run_function_by_name_yielding("yield_prefix", &[Value::int32(5)]),
+    );
 
     // verify yielded value
-    let (yielded_value, continuation) = match outcome {
-        ExecutionOutcome::Yielded { yielded } => (yielded.value, yielded.continuation),
-        ExecutionOutcome::Completed { .. } => panic!("expected yield"),
-    };
-    assert_eq!(yielded_value, Value::int32(10));
+    assert_eq!(yielded.value, Value::int32(10));
+    let continuation = yielded.continuation;
 
     // resume and verify argument ordering
-    let outcome = isolate
-        .resume(continuation, Value::int32(7))
-        .expect("resume failed");
-    let output = match outcome {
-        ExecutionOutcome::Completed { output } => output,
-        ExecutionOutcome::Yielded { .. } => panic!("expected completion"),
-    };
+    let output = assert_execution_completed(isolate.resume(continuation, Value::int32(7)));
     assert_eq!(output.value, Value::int32(32));
 }
 
@@ -283,28 +227,19 @@ block3(v12: i32):
 }"#;
 
     // create isolate
-    let mut isolate = super::create_isolate(mir);
+    let mut isolate = create_isolate(mir);
 
     // start coroutine and capture yield
-    let outcome = isolate
-        .run_function_by_name_yielding("yield_trailing", &[Value::int32(2)])
-        .expect("execution failed");
+    let yielded = assert_execution_yielded(
+        isolate.run_function_by_name_yielding("yield_trailing", &[Value::int32(2)]),
+    );
 
     // verify yielded value
-    let (yielded_value, continuation) = match outcome {
-        ExecutionOutcome::Yielded { yielded } => (yielded.value, yielded.continuation),
-        ExecutionOutcome::Completed { .. } => panic!("expected yield"),
-    };
-    assert_eq!(yielded_value, Value::int32(3));
+    assert_eq!(yielded.value, Value::int32(3));
+    let continuation = yielded.continuation;
 
     // resume with a value that triggers the return path
-    let outcome = isolate
-        .resume(continuation, Value::int32(0))
-        .expect("resume failed");
-    let output = match outcome {
-        ExecutionOutcome::Completed { output } => output,
-        ExecutionOutcome::Yielded { .. } => panic!("expected completion"),
-    };
+    let output = assert_execution_completed(isolate.resume(continuation, Value::int32(0)));
     assert_eq!(output.value, Value::int32(0));
 }
 
@@ -330,29 +265,63 @@ block0(v0: i32):
 }"#;
 
     // create isolate
-    let mut isolate = super::create_isolate(mir);
+    let mut isolate = create_isolate(mir);
 
     // start coroutine and capture yield
-    let outcome = isolate
-        .run_function_by_name_yielding("outer", &[Value::int32(5)])
-        .expect("execution failed");
+    let yielded = assert_execution_yielded(
+        isolate.run_function_by_name_yielding("outer", &[Value::int32(5)]),
+    );
 
     // verify yielded value
-    let (yielded_value, continuation) = match outcome {
-        ExecutionOutcome::Yielded { yielded } => (yielded.value, yielded.continuation),
-        ExecutionOutcome::Completed { .. } => panic!("expected yield"),
-    };
-    assert_eq!(yielded_value, Value::int32(5));
+    assert_eq!(yielded.value, Value::int32(5));
+    let continuation = yielded.continuation;
 
     // resume and verify completion
-    let outcome = isolate
-        .resume(continuation, Value::int32(7))
-        .expect("resume failed");
-    let output = match outcome {
-        ExecutionOutcome::Completed { output } => output,
-        ExecutionOutcome::Yielded { .. } => panic!("expected completion"),
-    };
+    let output = assert_execution_completed(isolate.resume(continuation, Value::int32(7)));
     assert_eq!(output.value, Value::int32(13));
+}
+
+/// Yield preserves one pending exceptional call continuation across suspension.
+#[test]
+fn test_yield_preserves_exceptional_call_continuation() {
+    // define mir program
+    let mir = r#"
+function @worker(v0: i32) -> i32 {
+block0(v0: i32):
+    v1: i32 = iconst 5i32
+    yield v1, block1(v0)
+block1(v2: i32, v3: i32):
+    v4: i32 = iadd v2, v3
+    return v4
+}
+
+function @caller(v0: i32) -> i32 {
+block0(v0: i32):
+    v1: i32 = iconst 10i32
+    call @worker(v0) normal block1(v1) unwind block2
+block1(v2: i32, v3: i32):
+    v4: i32 = iadd v2, v3
+    return v4
+block2(v5: ref<managed readonly void>):
+    v6: i32 = iconst 0i32
+    return v6
+}"#;
+
+    // create isolate
+    let mut isolate = create_isolate(mir);
+
+    // start coroutine and capture the inner yield
+    let yielded = assert_execution_yielded(
+        isolate.run_function_by_name_yielding("caller", &[Value::int32(7)]),
+    );
+
+    // verify yielded value
+    assert_eq!(yielded.value, Value::int32(5));
+    let continuation = yielded.continuation;
+
+    // resume and verify the outer normal continuation still runs
+    let output = assert_execution_completed(isolate.resume(continuation, Value::int32(3)));
+    assert_eq!(output.value, Value::int32(20));
 }
 
 /// Yield rejects live frame-local state in the yielded frame.
@@ -370,13 +339,11 @@ block1(v2: i32):
 }"#;
 
     // create isolate
-    let mut isolate = super::create_isolate(mir);
+    let mut isolate = create_isolate(mir);
 
     // reject suspension with live stack-local storage
-    let err = isolate
-        .run_function_by_name_yielding("yield_stack_local", &[])
-        .expect_err("yield with stack-local allocation should fail");
-    assert_eq!(err.error, Error::SuspendWithFrameLocalState);
+    let result = isolate.run_function_by_name_yielding("yield_stack_local", &[]);
+    assert_runtime_error(result, Error::SuspendWithFrameLocalState);
 }
 
 /// Yield accepts stack allocation after the lifetime is explicitly ended.
@@ -395,16 +362,12 @@ block1(v2: i32):
 }"#;
 
     // create isolate
-    let mut isolate = super::create_isolate(mir);
+    let mut isolate = create_isolate(mir);
 
     // allow suspension after the stack allocation is retired
-    let outcome = isolate
-        .run_function_by_name_yielding("yield_retired_stack_local", &[])
-        .expect("yield should succeed after stack.drop");
-    let yielded = match outcome {
-        ExecutionOutcome::Yielded { yielded } => yielded,
-        ExecutionOutcome::Completed { .. } => panic!("expected yield"),
-    };
+    let yielded = assert_execution_yielded(
+        isolate.run_function_by_name_yielding("yield_retired_stack_local", &[]),
+    );
     assert_eq!(yielded.value, Value::int32(1));
 }
 
@@ -428,13 +391,12 @@ block0(v0: i32):
 }"#;
 
     // create isolate
-    let mut isolate = super::create_isolate(mir);
+    let mut isolate = create_isolate(mir);
 
     // reject suspension when any captured frame still owns stack-local storage
-    let err = isolate
-        .run_function_by_name_yielding("outer_with_stack_local", &[Value::int32(5)])
-        .expect_err("yield with caller stack-local allocation should fail");
-    assert_eq!(err.error, Error::SuspendWithFrameLocalState);
+    let result =
+        isolate.run_function_by_name_yielding("outer_with_stack_local", &[Value::int32(5)]);
+    assert_runtime_error(result, Error::SuspendWithFrameLocalState);
 }
 
 /// Yield rejects live frame-local pointers in the yielded frame.
@@ -457,13 +419,11 @@ block1(v3: i32):
 }"#;
 
     // create isolate
-    let mut isolate = super::create_isolate(mir);
+    let mut isolate = create_isolate(mir);
 
     // reject suspension with live frame-local pointers
-    let err = isolate
-        .run_function_by_name_yielding("yield_local_pointer", &[])
-        .expect_err("yield with local pointer should fail");
-    assert_eq!(err.error, Error::SuspendWithFrameLocalState);
+    let result = isolate.run_function_by_name_yielding("yield_local_pointer", &[]);
+    assert_runtime_error(result, Error::SuspendWithFrameLocalState);
 }
 
 /// Running a coroutine with the non-yielding entry reports an error.
@@ -481,14 +441,13 @@ block1(v2: i32, v3: i32):
 }"#;
 
     // create isolate
-    let mut isolate = super::create_isolate(mir);
+    let mut isolate = create_isolate(mir);
 
     // run via the non-yielding entry
     let result = isolate.run_function_by_name("yield_once", &[Value::int32(7)]);
 
     // verify unexpected yield error
-    let err = result.unwrap_err();
-    assert!(matches!(err.error, Error::UnexpectedYield));
+    assert_runtime_error_matches!(result, Error::UnexpectedYield);
 }
 
 /// Resume with a continuation from another isolate reports an error.
@@ -506,26 +465,22 @@ block1(v2: i32, v3: i32):
 }"#;
 
     // create isolate
-    let mut isolate = super::create_isolate(mir);
+    let mut isolate = create_isolate(mir);
 
     // start coroutine and capture continuation
-    let outcome = isolate
-        .run_function_by_name_yielding("yield_once", &[Value::int32(7)])
-        .expect("execution failed");
-    let (_, continuation) = match outcome {
-        ExecutionOutcome::Yielded { yielded } => (yielded.value, yielded.continuation),
-        ExecutionOutcome::Completed { .. } => panic!("expected yield"),
-    };
+    let yielded = assert_execution_yielded(
+        isolate.run_function_by_name_yielding("yield_once", &[Value::int32(7)]),
+    );
+    let continuation = yielded.continuation;
 
     // create a different isolate
-    let mut other_isolate = super::create_isolate(mir);
+    let mut other_isolate = create_isolate(mir);
 
     // resume on a different isolate
     let result = other_isolate.resume(continuation, Value::int32(0));
 
     // validate error
-    let err = result.unwrap_err();
-    assert!(matches!(err.error, Error::InvalidContinuation));
+    assert_runtime_error_matches!(result, Error::InvalidContinuation);
 }
 
 /// Continuations can be cloned for multi-shot resumption.
@@ -542,39 +497,23 @@ block1(v1: i32):
 }"#;
 
     // create isolate
-    let mut isolate = super::create_isolate(mir);
+    let mut isolate = create_isolate(mir);
 
     // start coroutine and capture continuation
-    let outcome = isolate
-        .run_function_by_name_yielding("yield_once", &[])
-        .expect("execution failed");
-    let (yielded_value, continuation) = match outcome {
-        ExecutionOutcome::Yielded { yielded } => (yielded.value, yielded.continuation),
-        ExecutionOutcome::Completed { .. } => panic!("expected yield"),
-    };
-    assert_eq!(yielded_value, Value::int32(1));
+    let yielded =
+        assert_execution_yielded(isolate.run_function_by_name_yielding("yield_once", &[]));
+    assert_eq!(yielded.value, Value::int32(1));
+    let continuation = yielded.continuation;
 
     // clone the continuation for a forked resume
     let forked = continuation.clone_for_fork();
 
     // resume the original continuation
-    let outcome = isolate
-        .resume(continuation, Value::int32(5))
-        .expect("resume failed");
-    let output = match outcome {
-        ExecutionOutcome::Completed { output } => output,
-        ExecutionOutcome::Yielded { .. } => panic!("expected completion"),
-    };
+    let output = assert_execution_completed(isolate.resume(continuation, Value::int32(5)));
     assert_eq!(output.value, Value::int32(5));
 
     // resume the forked continuation
-    let outcome = isolate
-        .resume(forked, Value::int32(9))
-        .expect("resume failed");
-    let output = match outcome {
-        ExecutionOutcome::Completed { output } => output,
-        ExecutionOutcome::Yielded { .. } => panic!("expected completion"),
-    };
+    let output = assert_execution_completed(isolate.resume(forked, Value::int32(9)));
     assert_eq!(output.value, Value::int32(9));
 }
 
@@ -596,29 +535,19 @@ block1(v3: @Pair, v4: i32):
 }"#;
 
     // create isolate
-    let mut isolate = super::create_isolate(mir);
+    let mut isolate = create_isolate(mir);
 
     // start coroutine and capture continuation
-    let outcome = isolate
-        .run_function_by_name_yielding("yield_alloc", &[])
-        .expect("execution failed");
-    let (_, continuation) = match outcome {
-        ExecutionOutcome::Yielded { yielded } => (yielded.value, yielded.continuation),
-        ExecutionOutcome::Completed { .. } => panic!("expected yield"),
-    };
+    let yielded =
+        assert_execution_yielded(isolate.run_function_by_name_yielding("yield_alloc", &[]));
+    let continuation = yielded.continuation;
 
     // collect garbage while continuation is suspended
     let stats = isolate.collect_garbage_with_continuations(std::slice::from_ref(&continuation));
     assert_eq!(stats.live_allocations, 1);
 
     // resume and complete the coroutine
-    let outcome = isolate
-        .resume(continuation, Value::int32(7))
-        .expect("resume failed");
-    let output = match outcome {
-        ExecutionOutcome::Completed { output } => output,
-        ExecutionOutcome::Yielded { .. } => panic!("expected completion"),
-    };
+    let output = assert_execution_completed(isolate.resume(continuation, Value::int32(7)));
     assert_eq!(output.value, Value::int32(7));
 
     // collect garbage after completion

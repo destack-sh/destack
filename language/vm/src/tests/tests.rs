@@ -3,7 +3,9 @@ use destack_mir::parse::{ParseOptions, Parser};
 use destack_source::FileId;
 
 use crate::diagnostic::{Error, RuntimeResult};
-use crate::{Continuation, ExecutionOutput, Isolate, IsolateOptions};
+use crate::{
+    Continuation, ExecutionOutcome, ExecutionOutput, ExecutionYield, Isolate, IsolateOptions,
+};
 
 /// The isolate and authoritative heap used by one test runtime.
 pub(crate) struct TestIsolate {
@@ -171,6 +173,57 @@ pub(crate) fn run_mir_expect_error(
     assert_eq!(error.error, expected, "unexpected execution error");
 }
 
+/// Unwrap one runtime result into its VM error.
+pub(crate) fn unwrap_runtime_error<T>(result: RuntimeResult<T>) -> Error {
+    match result {
+        Ok(_) => panic!("expected execution error"),
+        Err(error) => error.error,
+    }
+}
+
+/// Assert that one runtime result failed with the expected VM error.
+pub(crate) fn assert_runtime_error<T>(result: RuntimeResult<T>, expected: Error) {
+    let error = unwrap_runtime_error(result);
+
+    assert_eq!(error, expected, "unexpected execution error");
+}
+
+/// Assert that one runtime result failed with an error matching a pattern.
+macro_rules! assert_runtime_error_matches {
+    ($result:expr, $pattern:pat $(if $guard:expr)? $(,)?) => {{
+        let error = $crate::tests::unwrap_runtime_error($result);
+
+        assert!(
+            matches!(error, $pattern $(if $guard)?),
+            "unexpected execution error: {error:?}"
+        );
+    }};
+}
+
+pub(crate) use assert_runtime_error_matches;
+
+/// Assert that one execution result yielded.
+pub(crate) fn assert_execution_yielded(result: RuntimeResult<ExecutionOutcome>) -> ExecutionYield {
+    let outcome = result.expect("execution failed");
+
+    match outcome {
+        ExecutionOutcome::Yielded { yielded } => yielded,
+        ExecutionOutcome::Completed { .. } => panic!("expected yield"),
+    }
+}
+
+/// Assert that one execution result completed.
+pub(crate) fn assert_execution_completed(
+    result: RuntimeResult<ExecutionOutcome>,
+) -> ExecutionOutput {
+    let outcome = result.expect("execution failed");
+
+    match outcome {
+        ExecutionOutcome::Completed { output } => output,
+        ExecutionOutcome::Yielded { .. } => panic!("expected completion"),
+    }
+}
+
 /// Execute one managed nominal allocation and field load.
 #[test]
 fn test_execute_managed_nominal_field_load() {
@@ -227,7 +280,7 @@ block0(v0: ref<managed readonly @Box>):
 #[test]
 fn test_execute_stored_function_value_roundtrip() {
     let mir_text = r#"
-type @Fn = fnvalue<fn() -> i32, ref?<managed void>>
+type @Fn = fnvalue<fn() -> i32>
 type @Holder = { action: @Fn }
 
 function @target() -> i32 {
@@ -247,10 +300,8 @@ block0:
     store v4, v5
     v6: @Holder = load v4
     v7: @Fn = field.get v6, 0
-    v8: fn() -> i32 = field.get v7, 0
-    v9: ref?<managed void> = field.get v7, 1
-    v10: i32 = call.indirect v8(env=v9) -> fn() -> i32
-    return v10
+    v8: i32 = call.indirect v7() -> @Fn
+    return v8
 }
 "#;
 
@@ -266,7 +317,7 @@ fn test_execute_interface_call_with_concrete_object_receiver() {
     let mir_text = r#"
 type @Greeter = { @object: ref<managed readonly void>, @itab: usize }
 type @GreeterImpl = { @vtable: ref<raw addrspace(global) readonly void>, value: i32 }
-type @Greeter#object = { greet: fnvalue<fn() -> i32, ref?<managed void>> }
+type @Greeter#object = { greet: fnvalue<fn() -> i32> }
 
 global @GreeterImpl#vtable: [ref?<raw addrspace(global) readonly void>; 3] = zeroinit ; readonly
 

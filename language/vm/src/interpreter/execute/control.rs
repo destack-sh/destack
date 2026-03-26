@@ -1,4 +1,5 @@
 use super::*;
+use crate::executable::Transfer;
 use crate::telemetry::stat_inc;
 
 /// Handle assume (optimizer hint).
@@ -892,6 +893,23 @@ pub(crate) fn handle_trap(
             ControlFlow::Error(Error::Panic { message })
         }
     }
+}
+
+/// Handle throw terminator.
+pub(crate) fn handle_throw(
+    state: &mut ExecutionState<'_, '_>,
+    block: &[Instruction],
+    pc: usize,
+) -> ControlFlow {
+    state.maybe_profile_instruction(&block[pc]);
+
+    let InstructionData::Throw { value } = &block[pc].data else {
+        unreachable!()
+    };
+
+    let value = state.get(*value);
+
+    Transfer::Throw(value)
 }
 
 /// Handle unreachable (errors).

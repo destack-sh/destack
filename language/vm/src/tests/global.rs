@@ -1,5 +1,5 @@
 use crate::diagnostic::Error;
-use crate::tests::{run_mir, run_mir_expect, run_mir_ok};
+use crate::tests::{assert_runtime_error_matches, run_mir, run_mir_expect, run_mir_ok};
 use destack_heap::Value;
 
 /// Global constant can be read.
@@ -49,9 +49,8 @@ block0:
     return
 }"#;
     let result = run_mir(mir, "bad_write", &[]);
-    assert!(result.is_err());
-    let err = result.unwrap_err();
-    assert!(matches!(err.error, Error::ImmutableGlobalWrite { .. }));
+
+    assert_runtime_error_matches!(result, Error::ImmutableGlobalWrite { .. });
 }
 
 /// Global state persists across function calls.

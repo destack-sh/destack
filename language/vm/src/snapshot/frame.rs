@@ -17,6 +17,8 @@ pub struct InterpreterFrameImage {
     pub block_index: usize,
     /// The program counter within the current block.
     pub resume_pc: usize,
+    /// The pending transfer owned by this frame while one callee runs.
+    pub transfer: Option<engine::FrameTransfer>,
     /// The base offset into the value stack.
     pub value_base: usize,
     /// The number of SSA values in this frame.
@@ -27,6 +29,6 @@ pub struct InterpreterFrameImage {
     pub local_count: usize,
     /// The captured stack allocated value buffers.
     pub stack_values: Vec<Option<ValueBuffer>>,
-    /// The captured closure environment.
-    pub closure_env: Value,
+    /// The captured function environment.
+    pub environment: Value,
 }
