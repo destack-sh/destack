@@ -1,28 +1,54 @@
-use crate::{
-    DependencyItem, DependencyKind, DependencyMode, Keyword, LocalNodeId, Name, ScalarLiteral,
-};
+use crate::{DependencyItem, DependencyKind, DependencyMode, Keyword, LocalNodeId, Name};
 use destack_core::StringId;
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
 
 use crate::format::argument::list_like;
-use crate::format::literal::format_scalar_literal;
+use crate::format::literal::format_string_literal_with_source_span;
 use crate::{CodegenJsFormatter, FormatNode};
+use destack_source::Span;
 
 /// Format a dependency item name.
 fn format_dependency_item_name<'ast>(
     f: &mut CodegenJsFormatter<'ast, '_>,
     name: Name,
+    source_span: Option<Span>,
 ) -> FormatResult<()> {
     match name {
         Name::Identifier(name) => {
+            if let Some(source_span) = source_span {
+                source_position(source_span.start).format(f)?;
+            }
+
             write!(f, [name])?;
+
+            if let Some(source_span) = source_span {
+                source_position(source_span.end).format(f)?;
+            }
         }
         Name::String(name) => {
-            let literal = ScalarLiteral::String(name);
-            format_scalar_literal(&literal, f)?;
+            format_string_literal_with_source_span(name, source_span, f)?;
         }
+    }
+
+    Ok(())
+}
+
+/// Format a dependency item alias.
+fn format_dependency_item_alias<'ast>(
+    f: &mut CodegenJsFormatter<'ast, '_>,
+    alias: destack_core::StringId,
+    source_span: Option<Span>,
+) -> FormatResult<()> {
+    if let Some(source_span) = source_span {
+        source_position(source_span.start).format(f)?;
+    }
+
+    write!(f, [alias])?;
+
+    if let Some(source_span) = source_span {
+        source_position(source_span.end).format(f)?;
     }
 
     Ok(())
@@ -31,9 +57,12 @@ fn format_dependency_item_name<'ast>(
 impl<'ast> FormatNode<'ast, DependencyItem> for DependencyItem {
     fn format_node(
         &self,
-        _node_id: LocalNodeId<DependencyItem>,
+        node_id: LocalNodeId<DependencyItem>,
         f: &mut CodegenJsFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        let name_span = f.context().dependency_item_name_span(node_id);
+        let alias_span = f.context().dependency_item_alias_span(node_id);
+
         // type
         if self.kind == Some(DependencyKind::Type) {
             write!(f, [Keyword::Type, space()])?;
@@ -43,16 +72,18 @@ impl<'ast> FormatNode<'ast, DependencyItem> for DependencyItem {
         if self.mode == DependencyMode::Default {
             write!(f, [Keyword::Default])?;
             if let Some(alias) = self.alias {
-                write!(f, [space(), Keyword::As, space(), alias])?;
+                write!(f, [space(), Keyword::As, space()])?;
+                format_dependency_item_alias(f, alias, alias_span)?;
             }
         }
         // item mode (regular)
         else {
             if let Some(name) = self.name {
-                format_dependency_item_name(f, name)?;
+                format_dependency_item_name(f, name, name_span)?;
             }
             if let Some(alias) = self.alias {
-                write!(f, [space(), Keyword::As, space(), alias])?;
+                write!(f, [space(), Keyword::As, space()])?;
+                format_dependency_item_alias(f, alias, alias_span)?;
             }
         }
         Ok(())
@@ -64,6 +95,7 @@ pub(crate) fn format_import_binding<'ast>(
     f: &mut CodegenJsFormatter<'ast, '_>,
     target: StringId,
     items: &[LocalNodeId<DependencyItem>],
+    target_span: Option<Span>,
 ) -> FormatResult<()> {
     let tree = f.context().tree;
     let first_item = items.first().map(|item| tree.get(*item));
@@ -73,10 +105,14 @@ pub(crate) fn format_import_binding<'ast>(
         && let Some(first_item) = first_item
         && first_item.mode == DependencyMode::Namespace
     {
-        write!(
-            f,
-            [token("*"), space(), Keyword::As, space(), first_item.alias]
-        )?;
+        write!(f, [token("*"), space(), Keyword::As, space()])?;
+
+        if let Some(item_id) = items.first()
+            && let Some(alias) = first_item.alias
+        {
+            let alias_span = f.context().dependency_item_alias_span(*item_id);
+            format_dependency_item_alias(f, alias, alias_span)?;
+        }
     }
     // items
     else {
@@ -84,7 +120,14 @@ pub(crate) fn format_import_binding<'ast>(
         if let Some(first_item) = first_item
             && first_item.mode == DependencyMode::Default
         {
-            write!(f, [first_item.alias, token(","), space()])?;
+            if let Some(item_id) = items.first()
+                && let Some(alias) = first_item.alias
+            {
+                let alias_span = f.context().dependency_item_alias_span(*item_id);
+                format_dependency_item_alias(f, alias, alias_span)?;
+            }
+
+            write!(f, [token(","), space()])?;
             let rest_items: Vec<LocalNodeId<DependencyItem>> =
                 items.iter().skip(1).copied().collect();
             if !rest_items.is_empty() {
@@ -103,8 +146,7 @@ pub(crate) fn format_import_binding<'ast>(
         write!(f, [space(), Keyword::From, space()])?;
     }
 
-    let literal = ScalarLiteral::String(target);
-    format_scalar_literal(&literal, f)?;
+    format_string_literal_with_source_span(target, target_span, f)?;
 
     Ok(())
 }
@@ -114,6 +156,7 @@ pub(crate) fn format_export_binding<'ast>(
     f: &mut CodegenJsFormatter<'ast, '_>,
     target: Option<StringId>,
     items: &[LocalNodeId<DependencyItem>],
+    target_span: Option<Span>,
 ) -> FormatResult<()> {
     let tree = f.context().tree;
     let first_item = items.first().map(|item| tree.get(*item));
@@ -132,8 +175,12 @@ pub(crate) fn format_export_binding<'ast>(
         && first_item.mode == DependencyMode::Namespace
     {
         write!(f, [token("*")])?;
-        if let Some(alias) = first_item.alias {
-            write!(f, [space(), Keyword::As, space(), alias])?;
+        if let Some(item_id) = items.first()
+            && let Some(alias) = first_item.alias
+        {
+            let alias_span = f.context().dependency_item_alias_span(*item_id);
+            write!(f, [space(), Keyword::As, space()])?;
+            format_dependency_item_alias(f, alias, alias_span)?;
         }
     }
     // items (like `export { foo, bar }`)
@@ -146,8 +193,7 @@ pub(crate) fn format_export_binding<'ast>(
     if let Some(target) = target {
         write!(f, [space(), Keyword::From, space()])?;
 
-        let literal = ScalarLiteral::String(target);
-        format_scalar_literal(&literal, f)?;
+        format_string_literal_with_source_span(target, target_span, f)?;
     }
 
     Ok(())

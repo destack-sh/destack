@@ -2,6 +2,7 @@ use crate::{ScalarLiteral, TemplateLiteral};
 use destack_fir::format::{Format, FormatResult, token};
 use destack_fir::prelude::*;
 use destack_fir::write;
+use destack_source::Span;
 
 use crate::{CodegenJsFormatContext, CodegenJsFormatter};
 
@@ -11,6 +12,8 @@ pub(crate) fn format_scalar_literal<'ast>(
     f: &mut CodegenJsFormatter<'ast, '_>,
 ) -> FormatResult<()> {
     match scalar {
+        ScalarLiteral::Null => token("null").format(f)?,
+        ScalarLiteral::Undefined => token("undefined").format(f)?,
         ScalarLiteral::Boolean(value) => token(if *value { "true" } else { "false" }).format(f)?,
         ScalarLiteral::Bigint(value) => {
             let value_str = value.to_string();
@@ -35,12 +38,79 @@ pub(crate) fn format_scalar_literal<'ast>(
     Ok(())
 }
 
+/// Format one string literal against one explicit source span.
+pub(crate) fn format_string_literal_with_source_span<'ast>(
+    value: destack_core::StringId,
+    source_span: Option<Span>,
+    f: &mut CodegenJsFormatter<'ast, '_>,
+) -> FormatResult<()> {
+    // exact literal source span
+    if let Some(source_span) = source_span {
+        write!(
+            f,
+            [
+                source_position(source_span.start),
+                token("\""),
+                value,
+                token("\""),
+                source_position(source_span.end)
+            ]
+        )?;
+
+        return Ok(());
+    }
+
+    format_scalar_literal(&ScalarLiteral::String(value), f)
+}
+
 /// Format a template literal.
 pub(crate) fn format_template_literal<'ast>(
     template: &TemplateLiteral,
-    _f: &mut CodegenJsFormatter<'ast, '_>,
+    f: &mut CodegenJsFormatter<'ast, '_>,
 ) -> FormatResult<()> {
-    todo!("format_template_literal: {template:?}");
+    match template {
+        TemplateLiteral::String { template } => {
+            write!(f, [token("`"), *template, token("`")])?;
+        }
+        TemplateLiteral::TaggedString { tag, template } => {
+            write!(f, [tag, token("`"), *template, token("`")])?;
+        }
+        TemplateLiteral::InterpolatedString {
+            template,
+            expressions,
+        } => {
+            write!(f, [token("`")])?;
+
+            for (index, string) in template.iter().enumerate() {
+                write!(f, [*string])?;
+
+                if let Some(expression) = expressions.get(index) {
+                    write!(f, [token("${"), expression, token("}")])?;
+                }
+            }
+
+            write!(f, [token("`")])?;
+        }
+        TemplateLiteral::TaggedInterpolatedString {
+            tag,
+            template,
+            expressions,
+        } => {
+            write!(f, [tag, token("`")])?;
+
+            for (index, string) in template.iter().enumerate() {
+                write!(f, [*string])?;
+
+                if let Some(expression) = expressions.get(index) {
+                    write!(f, [token("${"), expression, token("}")])?;
+                }
+            }
+
+            write!(f, [token("`")])?;
+        }
+    }
+
+    Ok(())
 }
 
 impl<'ast> Format<CodegenJsFormatContext<'ast>> for ScalarLiteral {

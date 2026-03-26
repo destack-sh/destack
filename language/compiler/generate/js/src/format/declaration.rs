@@ -325,9 +325,17 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                     write!(f, [Keyword::Async, space()])?;
                 }
 
+                // keyword
+                write!(f, [Keyword::Function])?;
+
                 // cardinality
                 if signature.cardinality == FunctionCardinality::Generator {
                     write!(f, [token("*")])?;
+                }
+
+                // name / key
+                if let Some(name) = descriptor.name {
+                    write!(f, [space(), name])?;
                 }
 
                 // static parameters
@@ -343,11 +351,6 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
 
                 // dynamic parameters
                 write!(f, [list_like("(", ")", ",", &signature.dynamic_parameters)])?;
-
-                // name / key
-                if let Some(name) = descriptor.name {
-                    write!(f, [name])?;
-                }
 
                 // return type
                 if f.context().include_types()

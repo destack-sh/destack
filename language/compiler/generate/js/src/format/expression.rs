@@ -4,13 +4,15 @@ use destack_fir::prelude::*;
 use destack_fir::write;
 
 use crate::format::argument::list_like;
-use crate::format::literal::{format_scalar_literal, format_template_literal};
+use crate::format::literal::{
+    format_scalar_literal, format_string_literal_with_source_span, format_template_literal,
+};
 use crate::{CodegenJsFormatter, FormatNode};
 
 impl<'ast> FormatNode<'ast, Expression> for Expression {
     fn format_node(
         &self,
-        _node_id: LocalNodeId<Expression>,
+        node_id: LocalNodeId<Expression>,
         f: &mut CodegenJsFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {
@@ -95,7 +97,19 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
 
             Expression::TypeUnary { operator, right } => {
                 if operator.is_prefix() {
-                    write!(f, [operator, right])?;
+                    let needs_space = matches!(
+                        operator,
+                        crate::TypeUnaryOperator::Type
+                            | crate::TypeUnaryOperator::Readonly
+                            | crate::TypeUnaryOperator::Typeof
+                            | crate::TypeUnaryOperator::Keyof
+                    );
+
+                    if needs_space {
+                        write!(f, [operator, space(), right])?;
+                    } else {
+                        write!(f, [operator, right])?;
+                    }
                 } else {
                     write!(f, [right, operator])?;
                 }
@@ -109,7 +123,16 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             }
             Expression::Unary { operator, right } => {
                 if operator.is_prefix() {
-                    write!(f, [operator, right])?;
+                    let needs_space = matches!(
+                        operator,
+                        crate::UnaryOperator::Typeof | crate::UnaryOperator::Void
+                    );
+
+                    if needs_space {
+                        write!(f, [operator, space(), right])?;
+                    } else {
+                        write!(f, [operator, right])?;
+                    }
                 } else {
                     write!(f, [right, operator])?;
                 }
@@ -197,6 +220,32 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                     write!(f, [list_like("<", ">", ",", static_arguments)])?;
                 }
                 write!(f, [list_like("(", ")", ",", dynamic_arguments)])?;
+            }
+            Expression::ImportCall {
+                target,
+                target_module: _,
+                arguments,
+            } => {
+                let target_expression = f.context().tree.get(*target);
+                let target_span = f.context().import_call_target_span(node_id);
+
+                write!(f, [token("import"), token("(")])?;
+
+                // exact target literal span
+                if let Expression::ScalarLiteral {
+                    value: crate::ScalarLiteral::String(value),
+                } = target_expression
+                {
+                    format_string_literal_with_source_span(*value, target_span, f)?;
+                } else {
+                    write!(f, [target])?;
+                }
+
+                if !arguments.is_empty() {
+                    write!(f, [token(","), space(), list_like("", "", ",", arguments)])?;
+                }
+
+                write!(f, [token(")")])?;
             }
             Expression::New {
                 left,

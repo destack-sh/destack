@@ -40,7 +40,7 @@ pub fn format_statements(
 impl<'ast> FormatNode<'ast, Statement> for Statement {
     fn format_node(
         &self,
-        _node_id: LocalNodeId<Statement>,
+        node_id: LocalNodeId<Statement>,
         f: &mut CodegenJsFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {
@@ -51,11 +51,13 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
                 items,
                 arguments,
             } => {
+                let target_span = f.context().statement_dependency_target_span(node_id);
+
                 write!(f, [Keyword::Import, space()])?;
                 if *kind == DependencyKind::Type {
                     write!(f, [Keyword::Type, space()])?;
                 }
-                format_import_binding(f, *target, items)?;
+                format_import_binding(f, *target, items, target_span)?;
                 if let Some(arguments) = arguments {
                     write!(
                         f,
@@ -74,11 +76,13 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
                 target_module: _,
                 items,
             } => {
+                let target_span = f.context().statement_dependency_target_span(node_id);
+
                 write!(f, [Keyword::Export, space()])?;
                 if *kind == DependencyKind::Type {
                     write!(f, [Keyword::Type, space()])?;
                 }
-                format_export_binding(f, *target, items)?;
+                format_export_binding(f, *target, items, target_span)?;
             }
             Statement::ExportValue { value } => {
                 write!(f, [Keyword::Export, space(), token("="), space(), value])?;
@@ -171,13 +175,35 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
                 then_block,
                 else_block,
             } => {
-                write!(f, [Keyword::If, space(), condition, space(), then_block])?;
+                write!(
+                    f,
+                    [
+                        Keyword::If,
+                        space(),
+                        token("("),
+                        condition,
+                        token(")"),
+                        space(),
+                        then_block
+                    ]
+                )?;
                 if let Some(else_block) = else_block {
                     write!(f, [space(), Keyword::Else, space(), else_block])?;
                 }
             }
             Statement::While { condition, body } => {
-                write!(f, [Keyword::While, space(), condition, space(), body])?;
+                write!(
+                    f,
+                    [
+                        Keyword::While,
+                        space(),
+                        token("("),
+                        condition,
+                        token(")"),
+                        space(),
+                        body
+                    ]
+                )?;
             }
             Statement::For {
                 initialization,
@@ -186,20 +212,24 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
                 body,
             } => {
                 write!(f, [Keyword::For, space(), token("(")])?;
+
+                // initialization
                 if let Some(initialization) = initialization {
                     write!(f, [initialization, token(";"), space()])?;
                 } else {
                     write!(f, [token(";")])?;
                 }
+
+                // condition
                 if let Some(condition) = condition {
                     write!(f, [condition, token(";"), space()])?;
                 } else {
                     write!(f, [token(";")])?;
                 }
+
+                // increment
                 if let Some(increment) = increment {
-                    write!(f, [increment, token(";"), space()])?;
-                } else {
-                    write!(f, [token(";")])?;
+                    write!(f, [increment])?;
                 }
                 write!(f, [token(")"), space(), body])?;
             }
@@ -215,6 +245,7 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
                         space(),
                         token("("),
                         name,
+                        space(),
                         token("in"),
                         space(),
                         iterator,
@@ -236,6 +267,7 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
                         space(),
                         token("("),
                         pattern,
+                        space(),
                         token("of"),
                         space(),
                         iterator,
@@ -260,7 +292,9 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
                             space(),
                             Keyword::Catch,
                             space(),
+                            token("("),
                             catch_pattern,
+                            token(")"),
                             space(),
                             catch_block
                         ]
