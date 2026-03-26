@@ -1,14 +1,14 @@
 use std::ptr::NonNull;
 
-use destack_mir as mir;
 use smallvec::SmallVec;
+use {destack_engine as engine, destack_mir as mir};
 
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::executable::{
     ArgumentRange, ControlFlow, CopyPair, CopyRange, FunctionTarget, INVALID_FUNCTION_INDEX,
     INVALID_VALUE_ID, is_invalid_value,
 };
-use destack_heap::Value;
+use destack_heap::{Value, ValueTag};
 
 use super::super::state::{ExecutionState, Frame, resize_and_clear_stack};
 use super::dispatch_instruction;
@@ -207,6 +207,24 @@ pub(crate) fn copy_values_with_plan(
     }
 }
 
+/// Copy resume values within one frame using one semantic resume point.
+fn copy_resume_values(
+    values: &mut [Value],
+    frame: &Frame,
+    copies: &[engine::ResumeCopy],
+) -> RuntimeResult<()> {
+    let copied_values = copies
+        .iter()
+        .map(|copy| frame.get_value(values, copy.source))
+        .collect::<RuntimeResult<Vec<_>>>()?;
+
+    for (copy, value) in copies.iter().zip(copied_values) {
+        frame.set_value(values, copy.destination, value);
+    }
+
+    Ok(())
+}
+
 /// Collect argument values from a frame into a smallvec.
 fn collect_argument_values_range(
     values: &[Value],
@@ -394,6 +412,115 @@ fn bind_parameters_from_values(
 }
 
 impl Interpreter {
+    /// Return whether one value still points into frame-local storage.
+    fn is_frame_local_suspend_value(value: Value) -> bool {
+        matches!(value.tag(), ValueTag::StackPointer | ValueTag::LocalPointer)
+    }
+
+    /// Return the active resume point for one frame during suspension.
+    fn frame_suspend_resume_point(
+        executable: &Executable,
+        frame: &Frame,
+        frame_index: usize,
+        yield_state: &YieldState,
+    ) -> engine::ResumePointId {
+        if frame_index == yield_state.frame_index {
+            return yield_state.resume_point;
+        }
+
+        executable
+            .resume_point_for_position(frame.function, frame.current_block, frame.resume_pc as u32)
+            .unwrap_or_else(|| {
+                panic!(
+                    "missing generic resume point for frame position: {:?} {:?} {}",
+                    frame.function, frame.current_block, frame.resume_pc
+                )
+            })
+    }
+
+    /// Return whether one frame still exposes frame-local pointers through materialized slots.
+    fn frame_has_live_suspend_pointers(
+        executable: &Executable,
+        frame: &Frame,
+        value_stack: &[Value],
+        local_stack: &[Value],
+        resume_point: engine::ResumePointId,
+    ) -> bool {
+        let safepoint = executable
+            .safepoint_for_resume_point(resume_point)
+            .unwrap_or_else(|| panic!("missing safepoint for resume point: {:?}", resume_point));
+        let safepoint = executable
+            .safepoint(safepoint)
+            .unwrap_or_else(|| panic!("missing safepoint entry for id: {:?}", safepoint));
+        let materialization_map = safepoint.materialization_map.unwrap_or_else(|| {
+            panic!(
+                "missing materialization map for safepoint: {:?}",
+                safepoint.id
+            )
+        });
+        let materialization_map = executable
+            .materialization_map(materialization_map)
+            .unwrap_or_else(|| {
+                panic!(
+                    "missing materialization map entry for id: {:?}",
+                    materialization_map
+                )
+            });
+        let materialization_frame = &materialization_map.frames[0];
+
+        let value_slice = &value_stack[frame.value_base..frame.value_base + frame.value_count];
+        let local_slice = &local_stack[frame.local_base..frame.local_base + frame.local_count];
+
+        for slot in &materialization_frame.slots {
+            let engine::MaterializationValue::FrameSlot(slot_index) = slot.value else {
+                continue;
+            };
+
+            let value = frame
+                .slot_value(value_slice, local_slice, slot_index)
+                .unwrap_or_else(|| {
+                    panic!(
+                        "missing frame slot during suspend validation: {:?} {slot_index}",
+                        frame.function
+                    )
+                });
+
+            if Self::is_frame_local_suspend_value(value) {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    /// Return an error when one captured frame still owns frame-local suspend state.
+    fn ensure_suspendable_state(
+        &self,
+        executable: &Executable,
+        yield_state: &YieldState,
+    ) -> Result<(), Error> {
+        // reject live dynamic stack-local storage across suspension
+        for (frame_index, frame) in self.call_stack.iter().enumerate() {
+            if frame.has_live_stack_allocations() {
+                return Err(Error::SuspendWithFrameLocalState);
+            }
+
+            let resume_point =
+                Self::frame_suspend_resume_point(executable, frame, frame_index, yield_state);
+            if Self::frame_has_live_suspend_pointers(
+                executable,
+                frame,
+                &self.value_stack,
+                &self.local_stack,
+                resume_point,
+            ) {
+                return Err(Error::SuspendWithFrameLocalState);
+            }
+        }
+
+        Ok(())
+    }
+
     /// Execute a function by name.
     ///
     /// Looks up a function in the MIR tree by name and executes it.
@@ -652,41 +779,46 @@ impl Interpreter {
     ) -> RuntimeResult<ExecutionOutcome> {
         // load the frame to resume
         let frame = self
-            
             .call_stack
             .get_mut(yield_state.frame_index)
             .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
 
-        // resolve the current function and resume block
-        let function = unsafe { frame.function_ptr.as_ref() };
-        let resume_block = function
-            .blocks
-            .get(yield_state.resume_block as usize)
+        let resume_point = executable
+            .resume_point(yield_state.resume_point)
             .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
 
+        // resolve the current function and resume block
+        let function = unsafe { frame.function_ptr.as_ref() };
+        let resume_block_index = function
+            .blocks
+            .iter()
+            .position(|block| block.mir_block == resume_point.block)
+            .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
+        let resume_block = function
+            .blocks
+            .get(resume_block_index)
+            .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
+        let resume_transfer = resume_point
+            .transfer
+            .and_then(|resume_transfer| executable.resume_transfer(resume_transfer));
+
         // bind resume arguments
-        copy_values_with_plan(
-            &mut self.value_stack,
-            frame,
-            frame,
-            yield_state.resume_copies,
-            function.copy_pool.as_slice(),
-        );
+        if let Some(resume_transfer) = resume_transfer {
+            copy_resume_values(&mut self.value_stack, frame, &resume_transfer.copies)?;
+        }
 
         // bind resumed value after explicit arguments
-        if !is_invalid_value(yield_state.resume_value) {
-            frame.set_value(
-                &mut self.value_stack,
-                yield_state.resume_value,
-                resume_value,
-            );
+        if let Some(resume_value_slot) =
+            resume_transfer.and_then(|resume_transfer| resume_transfer.resume_value)
+        {
+            frame.set_value(&mut self.value_stack, resume_value_slot, resume_value);
         }
 
         // update frame block metadata
-        frame.block_index = yield_state.resume_block as usize;
+        frame.block_index = resume_block_index;
         frame.block_ptr = NonNull::from(resume_block);
         frame.current_block = resume_block.mir_block;
-        frame.resume_pc = 0;
+        frame.resume_pc = resume_point.instruction_offset as usize;
 
         // continue execution
         self.execute_loop(
@@ -775,13 +907,17 @@ impl Interpreter {
                 function.local_count,
             )
         };
+        let frame_layout = unsafe { function_ptr.as_ref().frame_layout };
 
         // create initial frame
         let value_base = self.value_stack.len();
         let local_base = self.local_stack.len();
-        self.value_stack.resize(value_base + value_count, Value::VOID);
-        self.local_stack.resize(local_base + local_count, Value::VOID);
+        self.value_stack
+            .resize(value_base + value_count, Value::VOID);
+        self.local_stack
+            .resize(local_base + local_count, Value::VOID);
         let frame = Frame::new(
+            frame_layout,
             func_id,
             function_ptr,
             entry_block_ptr,
@@ -807,11 +943,8 @@ impl Interpreter {
         // call stack for nested function calls
         self.call_stack.push(frame);
         if options.telemetry.collect_stats {
-            self.statistics.max_stack_depth = self
-                
-                .statistics
-                .max_stack_depth
-                .max(self.call_stack.len());
+            self.statistics.max_stack_depth =
+                self.statistics.max_stack_depth.max(self.call_stack.len());
         }
 
         // execute until completion or yield
@@ -862,7 +995,6 @@ impl Interpreter {
             // get current frame info
             let (function_ptr, block_ptr, start_pc) = {
                 let frame = self
-                    
                     .call_stack
                     .last_mut()
                     .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
@@ -899,20 +1031,17 @@ impl Interpreter {
 
             // update statistics
             if track_instructions {
-                self.statistics.lowered_instructions_executed +=
-                    (block_len - start_pc) as u64;
+                self.statistics.lowered_instructions_executed += (block_len - start_pc) as u64;
             }
             if collect_stats && start_pc == 0 {
                 // only count MIR instructions on first entry to block (start_pc == 0)
                 // to avoid double-counting when resuming after calls
-                self.statistics.mir_instructions_executed +=
-                    block.mir_instruction_count as u64;
+                self.statistics.mir_instructions_executed += block.mir_instruction_count as u64;
             }
 
             // refresh the current function after handler chain
             let current_func = {
                 let frame = self
-                    
                     .call_stack
                     .last()
                     .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
@@ -928,7 +1057,6 @@ impl Interpreter {
                     // bind block parameters for target block
                     let target_block = &current_func.blocks[target as usize];
                     let frame = self
-                        
                         .call_stack
                         .last()
                         .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
@@ -942,7 +1070,6 @@ impl Interpreter {
 
                     // update current block
                     let frame = self
-                        
                         .call_stack
                         .last_mut()
                         .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
@@ -973,7 +1100,6 @@ impl Interpreter {
                     // execute imported callables through the external registry
                     if matches!(resolved_target, Some(FunctionTarget::Import)) {
                         let caller = self
-                            
                             .call_stack
                             .last()
                             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
@@ -1015,12 +1141,18 @@ impl Interpreter {
 
                         // store result and continue from resume_pc
                         let frame = self
-                            
                             .call_stack
                             .last_mut()
                             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-                        if !is_invalid_value(destination) {
-                            frame.set_value(&mut self.value_stack, destination, result);
+                        let return_destination = executable
+                            .return_destination_for_position(
+                                frame.function,
+                                frame.current_block,
+                                resume_pc as u32,
+                            )
+                            .unwrap_or(destination);
+                        if !is_invalid_value(return_destination) {
+                            frame.set_value(&mut self.value_stack, return_destination, result);
                         }
                         frame.resume_pc = resume_pc;
                         continue;
@@ -1063,22 +1195,23 @@ impl Interpreter {
                         return Err(self.make_error(executable, Error::StackOverflow));
                     }
 
-                    // store return destination and resume_pc in caller frame
+                    // store resume position in the caller frame
                     let caller_frame = self
-                        
                         .call_stack
                         .last_mut()
                         .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
                     let caller_info = (caller_frame.value_base, caller_frame.value_count);
-                    caller_frame.return_destination = destination;
                     caller_frame.resume_pc = resume_pc;
 
                     // create new frame for callee
                     let value_base = self.value_stack.len();
                     let local_base = self.local_stack.len();
-                    self.value_stack.resize(value_base + value_count, Value::VOID);
-                    self.local_stack.resize(local_base + local_count, Value::VOID);
+                    self.value_stack
+                        .resize(value_base + value_count, Value::VOID);
+                    self.local_stack
+                        .resize(local_base + local_count, Value::VOID);
                     let new_frame = Frame::new(
+                        unsafe { callee_ptr.as_ref().frame_layout },
                         function_id,
                         callee_ptr,
                         entry_block_ptr,
@@ -1093,7 +1226,6 @@ impl Interpreter {
 
                     // bind callee's parameters
                     let caller = self
-                        
                         .call_stack
                         .last()
                         .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
@@ -1127,11 +1259,8 @@ impl Interpreter {
                     self.call_stack.push(new_frame);
                     if collect_stats {
                         self.statistics.calls_made += 1;
-                        self.statistics.max_stack_depth = self
-                            
-                            .statistics
-                            .max_stack_depth
-                            .max(self.call_stack.len());
+                        self.statistics.max_stack_depth =
+                            self.statistics.max_stack_depth.max(self.call_stack.len());
                     }
                 }
 
@@ -1147,7 +1276,6 @@ impl Interpreter {
 
                     // collect argument values from the current frame
                     let caller = self
-                        
                         .call_stack
                         .last()
                         .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
@@ -1192,7 +1320,6 @@ impl Interpreter {
 
                         // pop completed frame
                         let frame = self
-                            
                             .call_stack
                             .pop()
                             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
@@ -1204,16 +1331,17 @@ impl Interpreter {
                             return Ok(self.finish_execution(memory.heap_ref(), result));
                         }
 
-                        // store return value in caller's frame
+                        // store return value in the resumed caller slot
                         let caller = self
-                            
                             .call_stack
                             .last_mut()
                             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-                        let dest = caller.return_destination;
-                        if !is_invalid_value(dest) {
-                            caller.return_destination = mir::Value(INVALID_VALUE_ID);
-                            caller.set_value(&mut self.value_stack, dest, result);
+                        if let Some(destination) = executable.return_destination_for_position(
+                            caller.function,
+                            caller.current_block,
+                            caller.resume_pc as u32,
+                        ) {
+                            caller.set_value(&mut self.value_stack, destination, result);
                         }
                         continue;
                     }
@@ -1256,7 +1384,6 @@ impl Interpreter {
 
                     // reuse the current frame for the tail call
                     let frame = self
-                        
                         .call_stack
                         .last_mut()
                         .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
@@ -1302,18 +1429,18 @@ impl Interpreter {
 
                 ControlFlow::Yield {
                     value,
-                    resume_block,
-                    resume_copies,
-                    resume_value,
+                    resume_point,
                 } => {
                     // capture yield state
                     let frame_index = self.call_stack.len() - 1;
                     let yield_state = YieldState {
                         frame_index,
-                        resume_block,
-                        resume_copies,
-                        resume_value,
+                        resume_point,
                     };
+
+                    // reject stack-local state that cannot cross suspension
+                    self.ensure_suspendable_state(executable, &yield_state)
+                        .map_err(|error| self.make_error(executable, error))?;
 
                     // externalize continuation state
                     let continuation = self.suspend_continuation(isolate_id, yield_state);
@@ -1329,7 +1456,6 @@ impl Interpreter {
                 ControlFlow::Return(value) => {
                     // pop completed frame
                     let frame = self
-                        
                         .call_stack
                         .pop()
                         .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
@@ -1341,16 +1467,17 @@ impl Interpreter {
                         return Ok(self.finish_execution(memory.heap_ref(), value));
                     }
 
-                    // store return value in caller's frame
+                    // store return value in the resumed caller slot
                     let caller = self
-                        
                         .call_stack
                         .last_mut()
                         .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-                    let dest = caller.return_destination;
-                    if !is_invalid_value(dest) {
-                        caller.return_destination = mir::Value(INVALID_VALUE_ID);
-                        caller.set_value(&mut self.value_stack, dest, value);
+                    if let Some(destination) = executable.return_destination_for_position(
+                        caller.function,
+                        caller.current_block,
+                        caller.resume_pc as u32,
+                    ) {
+                        caller.set_value(&mut self.value_stack, destination, value);
                     }
                 }
 

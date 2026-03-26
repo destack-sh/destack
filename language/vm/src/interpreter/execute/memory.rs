@@ -1127,20 +1127,40 @@ pub(crate) fn handle_stack_alloc(
 }
 
 /// Handle stack drop (compiler-inserted lifetime end marker).
-/// Currently a no-op - stack memory is freed when the frame exits.
-/// Exists for NLL support and potential future optimizations.
 pub(crate) fn handle_stack_drop(
     state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> ControlFlow {
-    // decode instruction data - validate it's the right instruction
-    let InstructionData::StackDrop = &block[pc].data else {
+    // decode instruction data
+    let InstructionData::StackDrop { value } = &block[pc].data else {
         unreachable!()
     };
 
-    // no-op: stack memory is managed by frame lifetime
-    // the instruction exists to mark the end of the value's lifetime for NLL
-    // continue to next instruction
+    // load the stack pointer being retired
+    let pointer = state.get(*value);
+
+    // reject non-stack values
+    let Some(pointer) = pointer.as_stack_pointer() else {
+        return ControlFlow::Error(Error::TypeMismatch {
+            expected: "stack_pointer".to_string(),
+            actual: format!("{pointer:?}"),
+        });
+    };
+
+    // reject cross-frame access
+    if pointer.frame_idx != state.frame_index {
+        return ControlFlow::Error(Error::InvalidPointerType {
+            actual: format!("{pointer:?}"),
+        });
+    }
+
+    // retire the stack buffer
+    if !state.current_frame_mut().retire_stack_buffer(pointer.slot) {
+        return ControlFlow::Error(Error::InvalidPointerType {
+            actual: format!("{pointer:?}"),
+        });
+    }
+
     next!(state, block, pc)
 }

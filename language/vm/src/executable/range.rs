@@ -16,7 +16,7 @@ pub(crate) const UNKNOWN_ARRAY_LENGTH: u64 = u64::MAX;
 pub(crate) const UNKNOWN_SLOT_COUNT: u32 = u32::MAX;
 
 /// Argument range within one function argument pool.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct ArgumentRange {
     /// Start offset into the argument pool.
     pub start: u32,
@@ -68,7 +68,7 @@ impl ArgumentRange {
 }
 
 /// Switch case range within one function switch pool.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct SwitchRange {
     /// Start offset into the switch case pool.
     pub start: u32,
@@ -84,7 +84,7 @@ impl SwitchRange {
 }
 
 /// Copy pair for parameter binding.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct CopyPair {
     /// Destination SSA value id.
     pub dest: u32,
@@ -93,7 +93,7 @@ pub(crate) struct CopyPair {
 }
 
 /// Copy range within one function copy pool.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct CopyRange {
     /// Start offset into the copy pool.
     pub start: u32,

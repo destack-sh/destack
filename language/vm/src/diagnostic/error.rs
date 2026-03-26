@@ -157,6 +157,9 @@ pub enum Error {
 
     /// Float to integer conversion failed.
     BadConversionToInteger = 36,
+
+    /// Attempted to suspend while frame-local state was still live.
+    SuspendWithFrameLocalState = 37,
 }
 
 impl Error {
@@ -266,6 +269,9 @@ impl Error {
                 }
             }
             Self::BadConversionToInteger => "bad conversion to integer".to_string(),
+            Self::SuspendWithFrameLocalState => {
+                "cannot suspend while frame-local state is still live".to_string()
+            }
         }
     }
 }

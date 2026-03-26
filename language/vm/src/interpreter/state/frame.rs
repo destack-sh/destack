@@ -1,15 +1,17 @@
 use std::ptr::NonNull;
 
-use destack_mir as mir;
+use {destack_engine as engine, destack_mir as mir};
 
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
-use crate::executable::{Block, Function, FunctionTable, INVALID_VALUE_ID};
-use crate::snapshot::FrameImage;
+use crate::executable::{Block, Executable, Function, FunctionTable};
+use crate::snapshot::InterpreterFrameImage;
 use destack_heap::{ManagedReference, Value, ValueBuffer};
 
 /// Call frame in the interpreter.
 #[derive(Debug)]
 pub struct Frame {
+    /// The logical frame layout for this activation.
+    pub(crate) frame_layout: engine::FrameLayoutId,
     /// The function being executed.
     pub(crate) function: mir::LocalNodeId<mir::Function>,
     /// Pointer to the lowered function for fast dispatch.
@@ -33,17 +35,16 @@ pub struct Frame {
     /// Count of local variables in this frame.
     pub(crate) local_count: usize,
     /// Stack-allocated value buffers, freed when the frame pops.
-    pub(crate) stack_values: Vec<ValueBuffer>,
+    pub(crate) stack_values: Vec<Option<ValueBuffer>>,
     /// Closure environment pointer for this frame.
     pub(crate) closure_env: Value,
-    /// Return destination for the caller or INVALID_VALUE_ID for none.
-    pub(crate) return_destination: mir::Value,
 }
 
 impl Frame {
     /// Create a new frame for a function.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
+        frame_layout: engine::FrameLayoutId,
         function: mir::LocalNodeId<mir::Function>,
         function_ptr: NonNull<Function>,
         block_ptr: NonNull<Block>,
@@ -57,6 +58,7 @@ impl Frame {
     ) -> Self {
         // assemble frame state
         Self {
+            frame_layout,
             function,
             function_ptr,
             block_ptr,
@@ -70,7 +72,6 @@ impl Frame {
             local_count,
             stack_values: Vec::new(),
             closure_env,
-            return_destination: mir::Value(INVALID_VALUE_ID),
         }
     }
 
@@ -191,7 +192,7 @@ impl Frame {
     /// Allocate a new stack buffer, returning its slot index.
     pub fn allocate_stack_buffer(&mut self) -> usize {
         let slot = self.stack_values.len();
-        self.stack_values.push(ValueBuffer::new());
+        self.stack_values.push(Some(ValueBuffer::new()));
         slot
     }
 
@@ -200,29 +201,69 @@ impl Frame {
         // allocate stack buffer
         let slot = self.stack_values.len();
         self.stack_values
-            .push(ValueBuffer::with_values_len(slot_count));
+            .push(Some(ValueBuffer::with_values_len(slot_count)));
         slot
+    }
+
+    /// Retire one stack buffer by slot index.
+    pub fn retire_stack_buffer(&mut self, slot: usize) -> bool {
+        let Some(buffer) = self.stack_values.get_mut(slot) else {
+            return false;
+        };
+
+        buffer.take().is_some()
+    }
+
+    /// Return whether this frame still owns any live stack allocation.
+    pub fn has_live_stack_allocations(&self) -> bool {
+        self.stack_values.iter().any(Option::is_some)
+    }
+
+    /// Return one logical frame slot value.
+    pub fn slot_value(&self, values: &[Value], locals: &[Value], slot: u32) -> Option<Value> {
+        if (slot as usize) < values.len() {
+            return values.get(slot as usize).copied();
+        }
+
+        let local_start = self.value_count as u32;
+        if let Some(index) = slot.checked_sub(local_start)
+            && (index as usize) < locals.len()
+        {
+            return locals.get(index as usize).copied();
+        }
+
+        let closure_slot = local_start + self.local_count as u32;
+        if slot == closure_slot {
+            return Some(self.closure_env);
+        }
+
+        None
     }
 
     /// Get a stack buffer by slot index.
     #[inline]
     pub fn stack_buffer(&self, slot: usize) -> Option<&ValueBuffer> {
-        self.stack_values.get(slot)
+        self.stack_values.get(slot).and_then(Option::as_ref)
     }
 
     /// Get a mutable reference to a stack buffer by slot index.
     #[inline]
     pub fn stack_buffer_mut(&mut self, slot: usize) -> Option<&mut ValueBuffer> {
-        self.stack_values.get_mut(slot)
+        self.stack_values.get_mut(slot).and_then(Option::as_mut)
     }
 
     /// Collect all managed references from this frame for GC roots.
     pub fn collect_roots(
         &self,
+        executable: &Executable,
         values: &[Value],
         locals: &[Value],
         roots: &mut Vec<ManagedReference>,
     ) {
+        let layout = executable
+            .frame_layout(self.function)
+            .unwrap_or_else(|| panic!("missing frame layout for frame: {:?}", self.function));
+
         // validate stack bounds in debug builds
         debug_assert!(
             self.value_base + self.value_count <= values.len(),
@@ -237,18 +278,31 @@ impl Frame {
         let value_slice = &values[self.value_base..self.value_base + self.value_count];
         let local_slice = &locals[self.local_base..self.local_base + self.local_count];
 
-        // collect pointers from values
-        for value in value_slice {
-            Self::collect_pointers_from_value(value, roots);
+        // value slots
+        for (index, value) in value_slice.iter().enumerate() {
+            let slot = layout.value_slots.start + index as u32;
+            if layout.contains_managed_references(slot) {
+                Self::collect_pointers_from_value(value, roots);
+            }
         }
 
-        // collect pointers from locals
-        for value in local_slice {
-            Self::collect_pointers_from_value(value, roots);
+        // local slots
+        for (index, value) in local_slice.iter().enumerate() {
+            let slot = layout.local_slots.start + index as u32;
+            if layout.contains_managed_references(slot) {
+                Self::collect_pointers_from_value(value, roots);
+            }
         }
 
-        // collect pointers from stack value buffers
-        for values in &self.stack_values {
+        // closure environment
+        if let Some(slot) = layout.closure_environment_slot
+            && layout.contains_managed_references(slot)
+        {
+            Self::collect_pointers_from_value(&self.closure_env, roots);
+        }
+
+        // dynamic stack allocations
+        for values in self.stack_values.iter().flatten() {
             for value in values {
                 Self::collect_pointers_from_value(value, roots);
             }
@@ -268,11 +322,12 @@ impl Frame {
         let stack_values = self
             .stack_values
             .iter()
-            .map(ValueBuffer::clone_for_fork)
+            .map(|values| values.as_ref().map(ValueBuffer::clone_for_fork))
             .collect();
 
         // assemble cloned frame
         Self {
+            frame_layout: self.frame_layout,
             function: self.function,
             function_ptr: self.function_ptr,
             block_ptr: self.block_ptr,
@@ -286,13 +341,13 @@ impl Frame {
             local_count: self.local_count,
             stack_values,
             closure_env: self.closure_env,
-            return_destination: self.return_destination,
         }
     }
 
     /// Capture one immutable frame image.
-    pub(crate) fn image(&self) -> FrameImage {
-        FrameImage {
+    pub(crate) fn image(&self) -> InterpreterFrameImage {
+        InterpreterFrameImage {
+            frame_layout: self.frame_layout,
             function: self.function,
             entry_block: self.entry_block,
             current_block: self.current_block,
@@ -304,12 +359,14 @@ impl Frame {
             local_count: self.local_count,
             stack_values: self.stack_values.clone(),
             closure_env: self.closure_env,
-            return_destination: self.return_destination,
         }
     }
 
     /// Create one frame from an immutable image.
-    pub(crate) fn from_image(image: &FrameImage, functions: &FunctionTable) -> RuntimeResult<Self> {
+    pub(crate) fn from_image(
+        image: &InterpreterFrameImage,
+        functions: &FunctionTable,
+    ) -> RuntimeResult<Self> {
         // resolve the lowered function for this frame
         let function_index = functions.index_for(image.function).ok_or_else(|| {
             RuntimeError::new(Error::UndefinedFunction {
@@ -339,6 +396,7 @@ impl Frame {
         }
 
         Ok(Self {
+            frame_layout: image.frame_layout,
             function: image.function,
             function_ptr,
             block_ptr: NonNull::from(block),
@@ -352,7 +410,6 @@ impl Frame {
             local_count: image.local_count,
             stack_values: image.stack_values.clone(),
             closure_env: image.closure_env,
-            return_destination: image.return_destination,
         })
     }
 }

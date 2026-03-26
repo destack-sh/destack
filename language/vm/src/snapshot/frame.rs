@@ -1,10 +1,12 @@
 use destack_heap::{Value, ValueBuffer};
-use destack_mir as mir;
 use serde::{Deserialize, Serialize};
+use {destack_engine as engine, destack_mir as mir};
 
 /// Durable call frame state.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct FrameImage {
+pub struct InterpreterFrameImage {
+    /// The logical frame layout for this activation.
+    pub frame_layout: engine::FrameLayoutId,
     /// The function being executed.
     pub function: mir::LocalNodeId<mir::Function>,
     /// The entry block of the function.
@@ -24,9 +26,7 @@ pub struct FrameImage {
     /// The number of locals in this frame.
     pub local_count: usize,
     /// The captured stack allocated value buffers.
-    pub stack_values: Vec<ValueBuffer>,
+    pub stack_values: Vec<Option<ValueBuffer>>,
     /// The captured closure environment.
     pub closure_env: Value,
-    /// The captured return destination.
-    pub return_destination: mir::Value,
 }

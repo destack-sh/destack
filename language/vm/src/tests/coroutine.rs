@@ -355,6 +355,117 @@ block0(v0: i32):
     assert_eq!(output.value, Value::int32(13));
 }
 
+/// Yield rejects live frame-local state in the yielded frame.
+#[test]
+fn test_yield_rejects_stack_alloc_in_current_frame() {
+    // define mir program
+    let mir = r#"
+function @yield_stack_local() -> i32 {
+block0:
+    v0: ref<raw addrspace(stack) readonly i32> = stack.alloc i32
+    v1: i32 = iconst 1i32
+    yield v1, block1
+block1(v2: i32):
+    return v2
+}"#;
+
+    // create isolate
+    let mut isolate = super::create_isolate(mir);
+
+    // reject suspension with live stack-local storage
+    let err = isolate
+        .run_function_by_name_yielding("yield_stack_local", &[])
+        .expect_err("yield with stack-local allocation should fail");
+    assert_eq!(err.error, Error::SuspendWithFrameLocalState);
+}
+
+/// Yield accepts stack allocation after the lifetime is explicitly ended.
+#[test]
+fn test_yield_allows_retired_stack_alloc_in_current_frame() {
+    // define mir program
+    let mir = r#"
+function @yield_retired_stack_local() -> i32 {
+block0:
+    v0: ref<raw addrspace(stack) readonly i32> = stack.alloc i32
+    stack.drop v0
+    v1: i32 = iconst 1i32
+    yield v1, block1
+block1(v2: i32):
+    return v2
+}"#;
+
+    // create isolate
+    let mut isolate = super::create_isolate(mir);
+
+    // allow suspension after the stack allocation is retired
+    let outcome = isolate
+        .run_function_by_name_yielding("yield_retired_stack_local", &[])
+        .expect("yield should succeed after stack.drop");
+    let yielded = match outcome {
+        ExecutionOutcome::Yielded { yielded } => yielded,
+        ExecutionOutcome::Completed { .. } => panic!("expected yield"),
+    };
+    assert_eq!(yielded.value, Value::int32(1));
+}
+
+/// Yield rejects live frame-local state in suspended caller frames.
+#[test]
+fn test_yield_rejects_stack_alloc_in_caller_frame() {
+    // define mir program
+    let mir = r#"
+function @yield_inner(v0: i32) -> i32 {
+block0(v0: i32):
+    yield v0, block1
+block1(v1: i32):
+    return v1
+}
+
+function @outer_with_stack_local(v0: i32) -> i32 {
+block0(v0: i32):
+    v1: ref<raw addrspace(stack) readonly i32> = stack.alloc i32
+    v2: i32 = call @yield_inner(v0)
+    return v2
+}"#;
+
+    // create isolate
+    let mut isolate = super::create_isolate(mir);
+
+    // reject suspension when any captured frame still owns stack-local storage
+    let err = isolate
+        .run_function_by_name_yielding("outer_with_stack_local", &[Value::int32(5)])
+        .expect_err("yield with caller stack-local allocation should fail");
+    assert_eq!(err.error, Error::SuspendWithFrameLocalState);
+}
+
+/// Yield rejects live frame-local pointers in the yielded frame.
+#[test]
+fn test_yield_rejects_local_pointer_in_current_frame() {
+    // define mir program
+    let mir = r#"
+function @yield_local_pointer() -> i32 {
+    local0: i32 ; owned
+
+block0:
+    v0: i32 = iconst 1i32
+    local.set local0, v0
+    v1: ref<borrowed addrspace(stack) i32> = local.addr local0
+    v2: i32 = iconst 2i32
+    yield v2, block1
+block1(v3: i32):
+    v4: i32 = load v1
+    return v4
+}"#;
+
+    // create isolate
+    let mut isolate = super::create_isolate(mir);
+
+    // reject suspension with live frame-local pointers
+    let err = isolate
+        .run_function_by_name_yielding("yield_local_pointer", &[])
+        .expect_err("yield with local pointer should fail");
+    assert_eq!(err.error, Error::SuspendWithFrameLocalState);
+}
+
 /// Running a coroutine with the non-yielding entry reports an error.
 #[test]
 fn test_run_function_rejects_yield() {

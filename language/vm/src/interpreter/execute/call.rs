@@ -191,10 +191,9 @@ fn call_with_target(
                 return ControlFlow::Error(Error::StackOverflow);
             }
 
-            // store return destination and resume pc on caller frame
+            // store the resume pc on the caller frame
             {
                 let caller = state.current_frame_mut();
-                caller.return_destination = dest;
                 caller.resume_pc = resume_pc;
             }
 
@@ -213,6 +212,7 @@ fn call_with_target(
             let entry_block_id = entry_block.mir_block;
             let entry_block_ptr = NonNull::from(entry_block);
             let new_frame = Frame::new(
+                callee.frame_layout,
                 function_id,
                 callee_ptr,
                 entry_block_ptr,

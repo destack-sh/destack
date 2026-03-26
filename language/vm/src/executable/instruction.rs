@@ -2,7 +2,7 @@ use std::cell::Cell;
 use std::fmt;
 use std::ptr::NonNull;
 
-use destack_mir as mir;
+use {destack_engine as engine, destack_mir as mir};
 
 use crate::diagnostic::Error;
 use destack_heap::{LayoutId, ReferenceMap, ReferenceMeta, Value};
@@ -53,12 +53,8 @@ pub(crate) enum ControlFlow {
     Yield {
         /// The value yielded to the caller.
         value: Value,
-        /// Resume block index.
-        resume_block: u32,
-        /// Copy plan for resume arguments.
-        resume_copies: CopyRange,
-        /// Destination for the resumed value.
-        resume_value: mir::Value,
+        /// The semantic resume point used by this yield.
+        resume_point: engine::ResumePointId,
     },
     /// Return from current function.
     Return(Value),
@@ -1054,7 +1050,7 @@ pub(crate) enum InstructionData {
     },
 
     /// Mark stack value lifetime ended.
-    StackDrop,
+    StackDrop { value: mir::Value },
 
     /// Assume a condition is true.
     Assume,
@@ -1110,9 +1106,7 @@ pub(crate) enum InstructionData {
     /// Yield from a coroutine.
     Yield {
         value: mir::Value,
-        resume_block: u32,
-        resume_copies: CopyRange,
-        resume_value: mir::Value,
+        resume_point: engine::ResumePointId,
     },
 
     /// Unconditional jump.
@@ -1217,7 +1211,7 @@ pub(crate) enum InstructionData {
 impl InstructionData {
     /// Return a short opcode label for instruction profiling.
     #[cfg(feature = "stats")]
-    pub fn opcode_name(&self) -> &'static str {
+    pub(crate) fn opcode_name(&self) -> &'static str {
         match self {
             InstructionData::Const { .. } => "const",
             InstructionData::Binary { .. } => "binary",
@@ -1289,7 +1283,7 @@ impl InstructionData {
             InstructionData::RawFree { .. } => "raw_free",
             InstructionData::RawDrop { .. } => "raw_drop",
             InstructionData::StackAlloc { .. } => "stack_alloc",
-            InstructionData::StackDrop => "stack_drop",
+            InstructionData::StackDrop { .. } => "stack_drop",
             InstructionData::Assume => "assume",
             InstructionData::Intrinsic { .. } => "intrinsic",
             InstructionData::AtomicLoad { .. } => "atomic_load",

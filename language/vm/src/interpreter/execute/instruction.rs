@@ -1968,12 +1968,13 @@ pub(crate) fn store_field_managed(
 ) -> Result<(), Error> {
     let bounds_checks = state.bounds_checks;
     let null_checks = state.null_checks;
-    let tree = state.tree();
 
     // track pointer stores
     if state.collect_stats {
         stat_inc!(state.engine.statistics, stores);
     }
+
+    let tree = state.tree();
 
     let is_value_array = {
         let heap = state.heap_ref();
@@ -2566,12 +2567,13 @@ pub(crate) fn store_element_managed(
 ) -> Result<(), Error> {
     let bounds_checks = state.bounds_checks;
     let null_checks = state.null_checks;
-    let tree = state.tree();
 
     // track pointer stores
     if state.collect_stats {
         stat_inc!(state.engine.statistics, stores);
     }
+
+    let tree = state.tree();
 
     let is_value_array = {
         let heap = state.heap_ref();
