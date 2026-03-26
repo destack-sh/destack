@@ -135,7 +135,7 @@ fn test_links_single_file_js_target_over_reachable_modules() {
 fn test_records_script_link_plan_in_manifest() {
     let test = TestProgram::memory_sequential();
     test.add_package("test", None);
-    let dep = test.add_module("dep.ts", "export const dep = 1;");
+    let _dep = test.add_module("dep.ts", "export const dep = 1;");
     let main = test.add_module(
         "main.ts",
         "import { dep } from './dep';\n\nexport const value = dep;",

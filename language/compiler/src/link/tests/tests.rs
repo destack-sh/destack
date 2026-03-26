@@ -9,6 +9,7 @@ use destack_source::{
 };
 use destack_workspace::{SourceMapMode, Target, TargetDiscovery, TargetId};
 use indexmap::IndexMap;
+use serde::Serialize;
 use serde::de::DeserializeOwned;
 
 pub(super) use crate::tests::{ExpectedDiagnostic, TestProgram};
@@ -314,7 +315,7 @@ impl TestProgram {
         expected: &LinkedJsonFile<T>,
         noun: &str,
     ) where
-        T: PartialEq + Serialize,
+        T: PartialEq + Serialize + std::fmt::Debug,
     {
         assert_eq!(actual.path, expected.path, "{noun} path mismatch");
         assert_eq!(
