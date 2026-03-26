@@ -5,9 +5,9 @@ use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
 
 use crate::platform::os::background::runtime::{
-    DesktopBackgroundExecutionState, background_expired_event, background_ready_event,
-    desktop_background_runtime_service, next_background_sequence, publish_background_event,
-    wall_clock_now_ns,
+    DesktopBackgroundExecutionState, DesktopBackgroundLaunchMarker, background_expired_event,
+    background_ready_event, desktop_background_runtime_service, next_background_sequence,
+    publish_background_event, wall_clock_now_ns,
 };
 
 /// Service background ingress for one runtime.
@@ -30,7 +30,7 @@ pub(crate) fn service_background_ingress(
         }
 
         let claimed_launch_marker = if registry.launch_session_id.is_none() {
-            registry.launch_marker.clone()
+            registry.launch_marker.take()
         } else {
             None
         };
@@ -97,6 +97,11 @@ pub(crate) fn service_background_ingress(
 
             if registry.launch_session_id == Some(host_session_id) {
                 registry.launch_session_id = None;
+                registry.launch_marker = Some(DesktopBackgroundLaunchMarker {
+                    identifier: execution.identifier,
+                    execution_id: execution.execution_id,
+                    deadline_unix_ns: execution.deadline_unix_ns,
+                });
             }
 
             return Err(error);
@@ -141,4 +146,94 @@ pub(crate) fn unregister_background_runtime(host_session_id: HostSessionId) {
     }
 
     registry.runtimes.remove(&host_session_id);
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::{Arc, Mutex, OnceLock};
+
+    use crate::host::core::{HostQueue, HostSessionRegistry};
+    use crate::host::{HostEvent, Platform};
+
+    use super::{
+        DesktopBackgroundLaunchMarker, RuntimeResult, service_background_ingress,
+        unregister_background_runtime,
+    };
+    use crate::platform::os::background::runtime::desktop_background_runtime_service;
+
+    /// Return the shared mutex that serializes background ingress tests.
+    fn background_ingress_test_lock() -> &'static Mutex<()> {
+        static TEST_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+
+        TEST_LOCK.get_or_init(|| Mutex::new(()))
+    }
+
+    /// Reset the shared desktop background registry for one isolated test.
+    fn reset_background_registry() {
+        let service = desktop_background_runtime_service();
+        let mut registry = service.registry.lock();
+
+        registry.launch_marker = None;
+        registry.launch_marker_error = None;
+        registry.launch_session_id = None;
+        registry.runtimes.clear();
+    }
+
+    /// Poll one queue and return the queued host events.
+    fn poll_events(queue: &HostQueue) -> RuntimeResult<Vec<HostEvent>> {
+        queue.poll_events(Some(0))
+    }
+
+    /// Consume one launch marker only once across runtime unregister and reattach.
+    #[test]
+    fn test_service_background_ingress_consumes_launch_marker_once() {
+        let _guard = background_ingress_test_lock()
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+
+        reset_background_registry();
+
+        let service = desktop_background_runtime_service();
+        {
+            let mut registry = service.registry.lock();
+            registry.launch_marker = Some(DesktopBackgroundLaunchMarker {
+                identifier: "sync".to_string(),
+                execution_id: "execution-1".to_string(),
+                deadline_unix_ns: 42,
+            });
+        }
+
+        let first_runtime_id = HostSessionRegistry::allocate_session_id();
+        let first_queue = Arc::new(HostQueue::new(first_runtime_id));
+        let first_registration = HostSessionRegistry::register_queue(
+            Platform::Linux,
+            first_runtime_id,
+            Arc::clone(&first_queue),
+            Some(unregister_background_runtime),
+        );
+
+        service_background_ingress(first_runtime_id, Platform::Linux)
+            .expect("first runtime should receive one launch marker");
+        let first_events = poll_events(&first_queue).expect("first queue should poll");
+
+        assert_eq!(first_events.len(), 1);
+
+        drop(first_registration);
+
+        let second_runtime_id = HostSessionRegistry::allocate_session_id();
+        let second_queue = Arc::new(HostQueue::new(second_runtime_id));
+        let _second_registration = HostSessionRegistry::register_queue(
+            Platform::Linux,
+            second_runtime_id,
+            Arc::clone(&second_queue),
+            Some(unregister_background_runtime),
+        );
+
+        service_background_ingress(second_runtime_id, Platform::Linux)
+            .expect("second runtime should service ingress");
+        let second_events = poll_events(&second_queue).expect("second queue should poll");
+
+        assert!(second_events.is_empty());
+        reset_background_registry();
+    }
 }

@@ -3,8 +3,9 @@ mod path;
 mod record;
 
 pub(crate) use self::core::{
-    DesktopBackgroundTaskRecord, background_descriptor_from_options, background_interval_seconds,
-    remove_background_file_if_exists, validate_desktop_background_options,
+    DesktopBackgroundTaskRecord, background_descriptor_from_options, background_first_run_unix_ns,
+    background_interval_seconds, remove_background_file_if_exists,
+    validate_desktop_background_options,
 };
 #[cfg(windows)]
 pub(crate) use self::path::background_scheduler_key;

@@ -1,7 +1,9 @@
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult};
+use crate::platform::PlatformError;
 use crate::platform::os::abi_generated::{
     BackgroundStatusValue, BackgroundTaskDescriptorValue, BackgroundTaskOptionsValue,
+    BackgroundTaskResultValue, BackgroundTaskScheduleKindValue,
 };
 
 use crate::host::unix::request::background::{
@@ -10,7 +12,7 @@ use crate::host::unix::request::background::{
     trigger_background_task as trigger_linux_background_task,
     unregister_background_task as unregister_linux_background_task,
 };
-use crate::platform::os::background::runtime::{complete_execution, trigger_test_execution};
+use crate::platform::os::background::runtime::complete_execution;
 use crate::platform::os::background::storage::{
     DesktopBackgroundTaskRecord, background_descriptor_from_options,
     ensure_background_task_directory, read_background_task_record, read_background_task_records,
@@ -47,9 +49,26 @@ pub(crate) fn submit_background_request(
         }
         HostRequest::OsBackgroundComplete {
             execution_id,
-            result: _,
+            result,
         } => {
-            complete_execution(context.host_session_id, execution_id)?;
+            let execution = complete_execution(context.host_session_id, execution_id)?;
+            let record = read_background_task_record(context, &execution.identifier)?;
+
+            // retry
+            if matches!(result, BackgroundTaskResultValue::Retry) {
+                trigger_linux_background_task(&execution.identifier)?;
+
+                return Ok(Some(HostRequestOutcome::immediate(HostRequestResult::None)));
+            }
+
+            let Some(record) = record else {
+                return Ok(Some(HostRequestOutcome::immediate(HostRequestResult::None)));
+            };
+
+            // one-shot cleanup
+            if record.options.schedule.kind == BackgroundTaskScheduleKindValue::Once {
+                background_unregister(context, &execution.identifier)?;
+            }
 
             Ok(Some(HostRequestOutcome::immediate(HostRequestResult::None)))
         }
@@ -122,5 +141,9 @@ fn background_trigger_test(context: &HostRequestContext, identifier: &str) -> Ru
         return trigger_linux_background_task(identifier);
     }
 
-    trigger_test_execution(identifier)
+    Err(RuntimeError::from(PlatformError::generic(
+        Some(crate::platform::diagnostic::PlatformErrorCode::IoNotFound),
+        format!("background task `{identifier}` not found"),
+    ))
+    .boxed())
 }

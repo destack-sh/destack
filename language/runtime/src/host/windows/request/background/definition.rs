@@ -1,20 +1,24 @@
+use jiff::Timestamp;
+use jiff::tz::TimeZone;
 use windows::Win32::Foundation::{VARIANT_FALSE, VARIANT_TRUE};
 use windows::Win32::System::TaskScheduler::{
     IExecAction, ITaskDefinition, ITaskService, ITimeTrigger, TASK_ACTION_EXEC,
     TASK_COMPATIBILITY_V2_4, TASK_INSTANCES_IGNORE_NEW, TASK_RUNLEVEL_LUA, TASK_TRIGGER_TIME,
 };
 use windows::core::{BSTR, Interface};
-use windows_sys::Win32::Foundation::SYSTEMTIME;
-use windows_sys::Win32::System::SystemInformation::GetLocalTime;
 
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::core::HostRequestContext;
 use crate::host::windows::identity::{resolved_application_identifier, resolved_display_name};
-use crate::platform::core::not_supported;
-use crate::platform::os::abi_generated::BackgroundTaskOptionsValue;
+use crate::platform::PlatformError;
+use crate::platform::os::abi_generated::{
+    BackgroundNetworkRequirementValue, BackgroundTaskOptionsValue, BackgroundTaskScheduleKindValue,
+};
 
 use super::core::windows_task_error;
-use crate::platform::os::background::storage::background_interval_seconds;
+use crate::platform::os::background::storage::{
+    background_first_run_unix_ns, background_interval_seconds,
+};
 
 /// Open-ended repetition duration for repeating tasks.
 const WINDOWS_TASK_REPETITION_DURATION: &str = "P9999D";
@@ -117,7 +121,11 @@ pub(super) fn build_task_definition(
                 )
             })?;
         settings
-            .SetDisallowStartIfOnBatteries(VARIANT_FALSE)
+            .SetDisallowStartIfOnBatteries(if options.requires_charging {
+                VARIANT_TRUE
+            } else {
+                VARIANT_FALSE
+            })
             .map_err(|error| {
                 windows_task_error(
                     "destack.os.background.register",
@@ -126,7 +134,11 @@ pub(super) fn build_task_definition(
                 )
             })?;
         settings
-            .SetStopIfGoingOnBatteries(VARIANT_FALSE)
+            .SetStopIfGoingOnBatteries(if options.requires_charging {
+                VARIANT_TRUE
+            } else {
+                VARIANT_FALSE
+            })
             .map_err(|error| {
                 windows_task_error(
                     "destack.os.background.register",
@@ -153,7 +165,13 @@ pub(super) fn build_task_definition(
                 )
             })?;
         settings
-            .SetRunOnlyIfNetworkAvailable(VARIANT_FALSE)
+            .SetRunOnlyIfNetworkAvailable(
+                if options.network == BackgroundNetworkRequirementValue::Connected {
+                    VARIANT_TRUE
+                } else {
+                    VARIANT_FALSE
+                },
+            )
             .map_err(|error| {
                 windows_task_error(
                     "destack.os.background.register",
@@ -175,13 +193,19 @@ pub(super) fn build_task_definition(
                 &error,
             )
         })?;
-        settings.SetRunOnlyIfIdle(VARIANT_FALSE).map_err(|error| {
-            windows_task_error(
-                "destack.os.background.register",
-                "ITaskSettings::SetRunOnlyIfIdle",
-                &error,
-            )
-        })?;
+        settings
+            .SetRunOnlyIfIdle(if options.requires_idle {
+                VARIANT_TRUE
+            } else {
+                VARIANT_FALSE
+            })
+            .map_err(|error| {
+                windows_task_error(
+                    "destack.os.background.register",
+                    "ITaskSettings::SetRunOnlyIfIdle",
+                    &error,
+                )
+            })?;
         settings.SetWakeToRun(VARIANT_FALSE).map_err(|error| {
             windows_task_error(
                 "destack.os.background.register",
@@ -217,6 +241,7 @@ pub(super) fn build_task_definition(
     }
 
     // trigger
+    let first_run_unix_ns = background_first_run_unix_ns(&options.schedule)?;
     let triggers = unsafe { definition.Triggers() }.map_err(|error| {
         windows_task_error(
             "destack.os.background.register",
@@ -248,7 +273,7 @@ pub(super) fn build_task_definition(
 
     unsafe {
         trigger
-            .SetStartBoundary(&BSTR::from(windows_task_start_boundary()))
+            .SetStartBoundary(&BSTR::from(windows_task_start_boundary(first_run_unix_ns)?))
             .map_err(|error| {
                 windows_task_error(
                     "destack.os.background.register",
@@ -263,35 +288,38 @@ pub(super) fn build_task_definition(
                 &error,
             )
         })?;
-        repetition
-            .SetInterval(&BSTR::from(windows_task_interval_string(
-                background_interval_seconds(options),
-            )?))
-            .map_err(|error| {
-                windows_task_error(
-                    "destack.os.background.register",
-                    "IRepetitionPattern::SetInterval",
-                    &error,
-                )
-            })?;
-        repetition
-            .SetDuration(&BSTR::from(WINDOWS_TASK_REPETITION_DURATION))
-            .map_err(|error| {
-                windows_task_error(
-                    "destack.os.background.register",
-                    "IRepetitionPattern::SetDuration",
-                    &error,
-                )
-            })?;
-        repetition
-            .SetStopAtDurationEnd(VARIANT_FALSE)
-            .map_err(|error| {
-                windows_task_error(
-                    "destack.os.background.register",
-                    "IRepetitionPattern::SetStopAtDurationEnd",
-                    &error,
-                )
-            })?;
+
+        if options.schedule.kind == BackgroundTaskScheduleKindValue::Recurring {
+            repetition
+                .SetInterval(&BSTR::from(windows_task_interval_string(
+                    background_interval_seconds(options),
+                )?))
+                .map_err(|error| {
+                    windows_task_error(
+                        "destack.os.background.register",
+                        "IRepetitionPattern::SetInterval",
+                        &error,
+                    )
+                })?;
+            repetition
+                .SetDuration(&BSTR::from(WINDOWS_TASK_REPETITION_DURATION))
+                .map_err(|error| {
+                    windows_task_error(
+                        "destack.os.background.register",
+                        "IRepetitionPattern::SetDuration",
+                        &error,
+                    )
+                })?;
+            repetition
+                .SetStopAtDurationEnd(VARIANT_FALSE)
+                .map_err(|error| {
+                    windows_task_error(
+                        "destack.os.background.register",
+                        "IRepetitionPattern::SetStopAtDurationEnd",
+                        &error,
+                    )
+                })?;
+        }
     }
 
     // action
@@ -345,34 +373,40 @@ pub(super) fn build_task_definition(
     Ok(definition)
 }
 
-/// Return one local Task Scheduler start boundary for the current registration time.
-fn windows_task_start_boundary() -> String {
-    let mut system_time = unsafe { std::mem::zeroed::<SYSTEMTIME>() };
+/// Return one local Task Scheduler start boundary for one Unix timestamp.
+fn windows_task_start_boundary(unix_ns: u64) -> RuntimeResult<String> {
+    let timestamp = Timestamp::from_nanosecond(i128::from(unix_ns)).map_err(|error| {
+        not_supported_with_message(format!("desktop background timestamp is invalid: {error}"))
+    })?;
+    let zoned = timestamp.to_zoned(TimeZone::system());
 
-    unsafe {
-        GetLocalTime(&mut system_time);
-    }
-
-    format!(
+    Ok(format!(
         "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}",
-        system_time.wYear,
-        system_time.wMonth,
-        system_time.wDay,
-        system_time.wHour,
-        system_time.wMinute,
-        system_time.wSecond,
-    )
+        zoned.year(),
+        zoned.month(),
+        zoned.day(),
+        zoned.hour(),
+        zoned.minute(),
+        zoned.second(),
+    ))
 }
 
 /// Return one ISO-8601 repetition interval for Task Scheduler.
 fn windows_task_interval_string(interval_seconds: u64) -> RuntimeResult<String> {
     if interval_seconds < 60 {
-        return Err(not_supported("destack.os.background.register"));
+        return Err(not_supported_with_message(
+            "windows background repetition intervals must be at least 60 seconds".to_string(),
+        ));
     }
 
     let minutes = interval_seconds / 60;
 
     Ok(format!("PT{minutes}M"))
+}
+
+/// Return one `notSupported` error with one custom message.
+fn not_supported_with_message(message: String) -> Box<crate::diagnostic::RuntimeError> {
+    RuntimeError::from(PlatformError::not_supported(message)).boxed()
 }
 
 #[cfg(test)]
@@ -382,7 +416,8 @@ mod tests {
     /// Format one local Task Scheduler start boundary in the expected time shape.
     #[test]
     fn test_windows_task_start_boundary_has_iso_local_shape() {
-        let boundary = windows_task_start_boundary();
+        let boundary = windows_task_start_boundary(1_700_000_000_000_000_000)
+            .expect("windows task boundary should render");
         let bytes = boundary.as_bytes();
 
         assert_eq!(boundary.len(), 19);

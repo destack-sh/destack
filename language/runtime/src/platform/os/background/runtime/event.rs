@@ -18,7 +18,7 @@ use super::state::{
 pub(crate) fn complete_execution(
     host_session_id: HostSessionId,
     execution_id: &str,
-) -> RuntimeResult<()> {
+) -> RuntimeResult<DesktopBackgroundExecutionState> {
     let service = desktop_background_runtime_service();
     let mut registry = service.registry.lock();
     let Some(runtime_state) = registry.runtimes.get_mut(&host_session_id) else {
@@ -32,9 +32,18 @@ pub(crate) fn complete_execution(
         .boxed());
     };
 
+    // reject duplicate completion reports for one finalized execution
+    if execution.is_completed {
+        return Err(RuntimeError::from(PlatformError::generic(
+            Some(PlatformErrorCode::IoNotFound),
+            "background execution already completed",
+        ))
+        .boxed());
+    }
+
     execution.is_completed = true;
 
-    Ok(())
+    Ok(execution.clone())
 }
 
 /// Return the next background event sequence for one runtime.
@@ -93,4 +102,49 @@ pub(crate) fn publish_background_event(
     queue.poll_wake_handle().wake()?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::host::core::HostSessionId;
+    use crate::platform::diagnostic::PlatformErrorCode;
+    use crate::tests::platform::assert_runtime_error_code;
+
+    use super::complete_execution;
+    use crate::platform::os::background::runtime::{
+        DesktopBackgroundExecutionState, desktop_background_runtime_service,
+    };
+
+    /// Reject duplicate background completion reports for one execution token.
+    #[test]
+    fn test_complete_execution_rejects_duplicate_completion() {
+        let service = desktop_background_runtime_service();
+        let mut registry = service.registry.lock();
+        let host_session_id = HostSessionId(1);
+
+        registry.runtimes.clear();
+        registry
+            .runtimes
+            .entry(host_session_id)
+            .or_default()
+            .executions
+            .insert(
+                "execution-1".to_string(),
+                DesktopBackgroundExecutionState {
+                    identifier: "sync".to_string(),
+                    execution_id: "execution-1".to_string(),
+                    deadline_unix_ns: 42,
+                    is_completed: false,
+                    is_expired: false,
+                },
+            );
+        drop(registry);
+
+        complete_execution(host_session_id, "execution-1").expect("first completion should work");
+
+        let error = complete_execution(host_session_id, "execution-1")
+            .expect_err("duplicate completion should fail");
+
+        assert_runtime_error_code(&error, PlatformErrorCode::IoNotFound);
+    }
 }
