@@ -33,6 +33,8 @@ pub enum FormatNode {
     Token { text: &'static str },
     /// An arbitrary text that can contain tabs, newlines, and unicode characters.
     Text { text: Box<str>, width: TextWidth },
+    /// A source position marker for subsequent emitted output.
+    SourcePosition { source: u32 },
     /// Text that gets emitted as it is in the source code.
     FileSlice { slice: Span, width: TextWidth },
     /// Prevents that line suffixes move past this boundary.
@@ -71,6 +73,9 @@ impl std::fmt::Debug for FormatNode {
             FormatNode::ExpandParent => write!(fmt, "ExpandParent"),
             FormatNode::Token { text } => fmt.debug_tuple("Token").field(text).finish(),
             FormatNode::Text { text, .. } => fmt.debug_tuple("DynamicText").field(text).finish(),
+            FormatNode::SourcePosition { source } => {
+                fmt.debug_tuple("SourcePosition").field(source).finish()
+            }
             FormatNode::FileSlice {
                 slice,
                 width: text_width,

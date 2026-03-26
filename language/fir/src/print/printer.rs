@@ -94,15 +94,20 @@ impl<'a> Printer<'a> {
                 text,
                 text_width: *text_width,
             }),
+            FormatNode::SourcePosition { source } => {
+                self.state.pending_source_position = Some(*source);
+            }
             FormatNode::FileSlice {
                 slice,
                 width: text_width,
             } => {
+                self.state.pending_source_position = Some(slice.start);
                 let text = self.source.get_span_str(*slice).unwrap_or_default();
                 self.print_text(Text::Text {
                     text,
                     text_width: *text_width,
                 });
+                self.state.pending_source_position = Some(slice.end);
             }
             FormatNode::Line(line_mode) => {
                 if args.mode().is_flat()
@@ -1216,6 +1221,7 @@ impl<'a, 'print> FitsMeasurer<'a, 'print> {
                     args,
                 ));
             }
+            FormatNode::SourcePosition { .. } => {}
             FormatNode::FileSlice {
                 slice,
                 width: text_width,

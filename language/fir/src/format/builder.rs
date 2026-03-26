@@ -135,6 +135,26 @@ pub const fn source_text_slice(range: Span) -> FileSliceBuilder {
     FileSliceBuilder { span: range }
 }
 
+/// Emit one source position marker for subsequent generated output.
+pub const fn source_position(source: u32) -> SourcePosition {
+    SourcePosition { source }
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub struct SourcePosition {
+    source: u32,
+}
+
+impl<Context> Format<Context> for SourcePosition {
+    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+        f.write_node(FormatNode::SourcePosition {
+            source: self.source,
+        });
+
+        Ok(())
+    }
+}
+
 #[derive(Eq, PartialEq, Debug)]
 pub struct FileSliceBuilder {
     span: Span,
