@@ -7,6 +7,7 @@ use destack_heap::{
     ManagedReference, RawPointer, ReferenceMap, ReferenceMeta, SharedPointer, Value,
 };
 
+use super::value::{PointerStorage, ValueKind, kind_from_type, pointer_storage_from_reference};
 use super::{
     ArgumentRange, Block, ConstValue, CopyPair, CopyRange, Function, INVALID_FUNCTION_INDEX,
     INVALID_VALUE_ID, Instruction, InstructionData, InstructionOperation, SwitchCase, SwitchRange,
@@ -17,55 +18,6 @@ use super::{
 const SWITCH_TABLE_MIN_DENSITY: f64 = 0.5;
 // cap the number of jump table entries
 const SWITCH_TABLE_MAX_RANGE: usize = 2048;
-
-/// Storage class for pointer-like values.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum PointerStorage {
-    /// Managed heap reference.
-    Managed,
-    /// Raw heap pointer.
-    Raw,
-    /// Stack pointer.
-    Stack,
-    /// Local pointer.
-    Local,
-    /// Global pointer.
-    Global,
-    /// Unknown pointer storage.
-    Unknown,
-}
-
-/// Scalar and aggregate kinds used for typed dispatch selection.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum ValueKind {
-    /// Void value.
-    Void,
-    /// Boolean value.
-    Bool,
-    /// Signed or unsigned integer with width.
-    Int { width: u8, signed: bool },
-    /// Floating point value with width.
-    Float { width: u8 },
-    /// Unicode character value.
-    Char,
-    /// Pointer-like value with pointee type.
-    Pointer {
-        pointee: mir::LocalNodeId<mir::Type>,
-        storage: PointerStorage,
-        reference: ReferenceMeta,
-    },
-    /// Function pointer value with result type.
-    FunctionPointer { result: mir::LocalNodeId<mir::Type> },
-    /// Heap aggregate value with concrete type.
-    Aggregate { ty: mir::LocalNodeId<mir::Type> },
-    /// Managed array value with element type.
-    Array {
-        element: mir::LocalNodeId<mir::Type>,
-        length: u64,
-    },
-    /// Unknown or unsupported type.
-    Unknown,
-}
 
 /// Table mapping SSA value ids to their inferred kind.
 struct ValueKinds {
@@ -734,9 +686,11 @@ fn select_switch_table_operation(
 }
 
 /// Lower a MIR function into the interpreter function form.
-pub(crate) fn lower_function(
+pub(super) fn lower_function(
     tree: &mir::NodeTree,
     func_id: mir::LocalNodeId<mir::Function>,
+    frame_layout: destack_engine::FrameLayoutId,
+    yield_resume_points: &HashMap<mir::LocalNodeId<mir::Block>, destack_engine::ResumePointId>,
     function_indices: &HashMap<mir::LocalNodeId<mir::Function>, u32>,
 ) -> Option<Function> {
     // load function
@@ -904,6 +858,7 @@ pub(crate) fn lower_function(
             &local_index_by_id,
             func_id,
             entry_index,
+            yield_resume_points,
             function_indices,
             &value_kinds,
             &value_uses,
@@ -920,6 +875,7 @@ pub(crate) fn lower_function(
 
     // assemble lowered function
     Some(Function {
+        frame_layout,
         parameters,
         entry: entry_index,
         blocks: blocks,
@@ -942,6 +898,7 @@ fn lower_block(
     local_index_by_id: &HashMap<mir::LocalNodeId<mir::Local>, u32>,
     current_function: mir::LocalNodeId<mir::Function>,
     entry_block: u32,
+    yield_resume_points: &HashMap<mir::LocalNodeId<mir::Block>, destack_engine::ResumePointId>,
     function_indices: &HashMap<mir::LocalNodeId<mir::Function>, u32>,
     value_kinds: &ValueKinds,
     value_uses: &[u32],
@@ -952,6 +909,8 @@ fn lower_block(
 ) -> Block {
     // preallocate instruction list
     let mut instructions = Vec::with_capacity(block.instructions.len() + 1);
+    let mut mir_instruction_offsets = Vec::with_capacity(block.instructions.len() + 2);
+    mir_instruction_offsets.push(0);
 
     // convert regular instructions
     let mut inst_index = 0usize;
@@ -970,6 +929,7 @@ fn lower_block(
         ) {
             instructions.push(instruction);
             inst_index += skip;
+            mir_instruction_offsets.push(inst_index as u32);
             continue;
         }
 
@@ -983,6 +943,7 @@ fn lower_block(
         ) {
             instructions.push(instruction);
             inst_index += skip;
+            mir_instruction_offsets.push(inst_index as u32);
             continue;
         }
 
@@ -999,6 +960,7 @@ fn lower_block(
         );
         instructions.push(instruction);
         inst_index += 1;
+        mir_instruction_offsets.push(inst_index as u32);
     }
 
     // try to fuse compare + branch
@@ -1021,6 +983,8 @@ fn lower_block(
             block_parameters,
             current_function,
             entry_block,
+            mir_block,
+            yield_resume_points,
             function_indices,
             value_kinds,
             argument_pool,
@@ -1029,6 +993,7 @@ fn lower_block(
         );
         instructions.push(terminator);
     }
+    mir_instruction_offsets.push((block.instructions.len() + 1) as u32);
 
     // compute original MIR instruction count (instructions + terminator)
     let mir_instruction_count = (block.instructions.len() + 1) as u32;
@@ -1037,6 +1002,7 @@ fn lower_block(
     Block {
         mir_block,
         instructions,
+        mir_instruction_offsets,
         mir_instruction_count,
     }
 }
@@ -1885,9 +1851,9 @@ fn lower_instruction(
             data: InstructionData::RawDrop { value: *value },
         },
 
-        mir::Instruction::StackDrop { value: _ } => Instruction {
+        mir::Instruction::StackDrop { value } => Instruction {
             operation: InstructionOperation::StackDrop,
-            data: InstructionData::StackDrop,
+            data: InstructionData::StackDrop { value: *value },
         },
 
         mir::Instruction::Assume { condition: _ } => Instruction {
@@ -3102,91 +3068,6 @@ fn infer_intrinsic_kind(
     }
 }
 
-/// Get the kind for a MIR type.
-fn kind_from_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>) -> ValueKind {
-    // map mir type to value kind
-    match tree.get(ty) {
-        mir::Type::Void => ValueKind::Void,
-        mir::Type::Boolean => ValueKind::Bool,
-        mir::Type::Int { width, is_signed } => ValueKind::Int {
-            width: *width as u8,
-            signed: *is_signed,
-        },
-        mir::Type::Isize => ValueKind::Int {
-            width: usize::BITS as u8,
-            signed: true,
-        },
-        mir::Type::Usize => ValueKind::Int {
-            width: usize::BITS as u8,
-            signed: false,
-        },
-        mir::Type::Float { width } => ValueKind::Float {
-            width: *width as u8,
-        },
-        mir::Type::TypeDescriptor | mir::Type::TypeId => ValueKind::Int {
-            width: usize::BITS as u8,
-            signed: false,
-        },
-        mir::Type::Reference {
-            kind,
-            address_space,
-            mutability,
-            pointee,
-            is_nullable,
-        } => ValueKind::Pointer {
-            pointee: *pointee,
-            storage: pointer_storage_from_reference(*address_space, *kind),
-            reference: ReferenceMeta::new(*kind, *address_space, *mutability, *is_nullable),
-        },
-        mir::Type::FunctionPointer { result, .. } => ValueKind::FunctionPointer { result: *result },
-        mir::Type::Array {
-            element,
-            length,
-            copyability: _,
-        } => ValueKind::Array {
-            element: *element,
-            length: *length,
-        },
-        mir::Type::Newtype { inner, .. } => kind_from_type(tree, *inner),
-        mir::Type::FunctionValue { .. }
-        | mir::Type::Tuple { .. }
-        | mir::Type::Struct { .. }
-        | mir::Type::Vector { .. }
-        | mir::Type::Tensor { .. } => ValueKind::Aggregate { ty },
-        mir::Type::TensorReference {
-            kind,
-            address_space,
-            mutability,
-            element,
-            is_nullable,
-            ..
-        } => ValueKind::Pointer {
-            pointee: *element,
-            storage: pointer_storage_from_reference(*address_space, *kind),
-            reference: ReferenceMeta::new(*kind, *address_space, *mutability, *is_nullable),
-        },
-    }
-}
-
-/// Map a reference kind to a pointer storage class.
-fn pointer_storage_from_reference(
-    address_space: mir::AddressSpace,
-    kind: mir::ReferenceKind,
-) -> PointerStorage {
-    match address_space {
-        mir::AddressSpace::Stack => PointerStorage::Stack,
-        mir::AddressSpace::Global | mir::AddressSpace::Constant => PointerStorage::Global,
-        mir::AddressSpace::Shared | mir::AddressSpace::Local | mir::AddressSpace::Target(_) => {
-            PointerStorage::Unknown
-        }
-        mir::AddressSpace::Generic => match kind {
-            mir::ReferenceKind::Managed => PointerStorage::Managed,
-            mir::ReferenceKind::Owned | mir::ReferenceKind::Raw => PointerStorage::Raw,
-            mir::ReferenceKind::Borrowed => PointerStorage::Unknown,
-        },
-    }
-}
-
 /// Get the kind for a constant value.
 fn kind_from_constant(constant: &mir::Constant) -> ValueKind {
     // map constant to value kind
@@ -4019,6 +3900,8 @@ fn lower_terminator(
     block_parameters: &[Vec<mir::Value>],
     current_function: mir::LocalNodeId<mir::Function>,
     entry_block: u32,
+    current_block: mir::LocalNodeId<mir::Block>,
+    yield_resume_points: &HashMap<mir::LocalNodeId<mir::Block>, destack_engine::ResumePointId>,
     function_indices: &HashMap<mir::LocalNodeId<mir::Function>, u32>,
     value_kinds: &ValueKinds,
     argument_pool: &mut Vec<mir::Value>,
@@ -4191,33 +4074,22 @@ fn lower_terminator(
 
         mir::Terminator::Yield {
             value,
-            resume,
-            resume_arguments,
+            resume: _,
+            resume_arguments: _,
         } => {
-            // resolve resume block copies
-            let resume_index = block_index_map[resume];
-            let resume_parameters = block_parameters
-                .get(resume_index)
-                .map(|params| params.as_slice())
-                .unwrap_or_default();
-            debug_assert!(
-                resume_arguments.len() <= resume_parameters.len(),
-                "resume arguments exceed resume block parameters"
-            );
-            let resume_copies = push_copy_range(copy_pool, resume_parameters, resume_arguments);
-
-            // capture resume value destination after explicit arguments
-            let resume_value =
-                pack_optional_value(resume_parameters.get(resume_arguments.len()).copied());
+            let resume_point = yield_resume_points
+                .get(&current_block)
+                .copied()
+                .unwrap_or_else(|| {
+                    panic!("missing yield resume point for block: {current_block:?}")
+                });
 
             // assemble lowered yield
             Instruction {
                 operation: InstructionOperation::Yield,
                 data: InstructionData::Yield {
                     value: *value,
-                    resume_block: resume_index as u32,
-                    resume_copies,
-                    resume_value,
+                    resume_point,
                 },
             }
         }
