@@ -186,16 +186,19 @@ impl Compiler {
     /// Collect one deterministic module domain from the graph snapshot.
     fn interface_graph_module_domain(&self, graph: &ModuleGraph) -> Vec<ModuleId> {
         let mut modules = FxHashSet::default();
-        for (module_id, dependencies) in &graph.dependencies {
+        for module_id in graph.modules.keys().copied() {
+            modules.insert(module_id);
+        }
+        for (module_id, metadata) in &graph.modules {
             modules.insert(*module_id);
-            for dependency_module_id in dependencies.iter().copied() {
-                modules.insert(dependency_module_id);
+            for dependency in metadata.dependencies.iter().copied() {
+                modules.insert(dependency.target);
             }
         }
         for (module_id, dependents) in &graph.dependents {
             modules.insert(*module_id);
-            for dependent_module_id in dependents.iter().copied() {
-                modules.insert(dependent_module_id);
+            for dependent in dependents.iter().copied() {
+                modules.insert(dependent.target);
             }
         }
 
@@ -403,10 +406,15 @@ export const value = 1;
             .unwrap_or_else(|| panic!("expected module graph for test profile"))
             .as_ref()
             .clone();
-        graph.update_module(module_id, vec![module_id]);
         let graph_version = test.compiler.artifact_version_for_revision(
             test.program.current_revision(),
             &ArtifactKey::module_graph(profile),
+        );
+        graph.update_module_dependencies(
+            module_id,
+            destack_artifact::ModuleKind::Code,
+            test.module_version(module_id),
+            vec![module_id],
         );
         test.compiler
             .artifacts

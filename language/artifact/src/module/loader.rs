@@ -2,7 +2,7 @@ use destack_source::FileType;
 use serde::{Deserialize, Serialize};
 
 /// How to load/interpret a file's content.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
 pub enum Loader {
     // code loaders
     /// Destack code (.ds, .d.ds)

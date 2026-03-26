@@ -608,7 +608,7 @@ impl Compiler {
                         profile,
                         *target,
                         Some(module_id),
-                        destack_artifact::ImportEdgeKind::Require,
+                        destack_artifact::ModuleEdgeRelation::Require,
                         None,
                     ) && let Some(target_module) = targets.for_kind(*kind)
                     {
@@ -692,7 +692,7 @@ impl Compiler {
                         profile,
                         *target,
                         Some(module_id),
-                        destack_artifact::ImportEdgeKind::Require,
+                        destack_artifact::ModuleEdgeRelation::Require,
                         None,
                     ) {
                         return Ok(targets.for_kind(*kind));

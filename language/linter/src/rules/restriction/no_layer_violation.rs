@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use destack_artifact::ModuleGraph;
 use destack_source::{FileId, FileType, ModuleId, Span};
 use destack_workspace::{DiagnosticPolicy, LintModuleBoundariesOptions, LintSeverity};
 
@@ -161,7 +162,7 @@ fn collect_forbidden_dependency_diagnostics(
     rule_severity: LintSeverity,
     descriptors: &[ModuleDescriptor],
     descriptor_index: &HashMap<ModuleId, usize>,
-    graph: &destack_artifact::ModuleGraph,
+    graph: &ModuleGraph,
 ) -> Vec<LintDiagnostic> {
     let mut diagnostics = Vec::new();
 

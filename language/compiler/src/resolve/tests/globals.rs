@@ -69,10 +69,15 @@ export {};
         .unwrap_or_else(|| panic!("expected module graph for test profile"))
         .as_ref()
         .clone();
-    graph.update_module(module_id, vec![module_id]);
     let graph_version = test.compiler.artifact_version_for_revision(
         test.program.current_revision(),
         &ArtifactKey::module_graph(profile),
+    );
+    graph.update_module_dependencies(
+        module_id,
+        destack_artifact::ModuleKind::Code,
+        test.module_version(module_id),
+        vec![module_id],
     );
     test.compiler
         .artifacts

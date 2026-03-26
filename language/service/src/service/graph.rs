@@ -50,10 +50,9 @@ impl LanguageService {
             })?;
 
         // enqueue and run the module analysis task
-        let context = compiler
-            .context(revision)
+        let profile_id = repository
+            .default_profile_id_for_module(revision, module_id)
             .map_err(LanguageServiceError::from)?;
-        let profile_id = context.default_profile_id_for_module(module_id);
         let profile_id = compiler
             .run_to_completion(revision, |compiler, _context| {
                 compiler.require_dir_analyzed(revision, module_id, profile_id)?;
@@ -366,20 +365,18 @@ impl LanguageService {
             return Ok(());
         }
 
-        let context = compiler
-            .context(revision)
-            .map_err(LanguageServiceError::from)?;
-
         // collect resolve tasks for stale or missing graphs
         let mut resolve_tasks = Vec::new();
         let mut queued = HashSet::new();
         for module_id in module_ids.iter().copied() {
-            let profile_id = context.default_profile_id_for_module(module_id);
+            let profile_id = repository
+                .default_profile_id_for_module(revision, module_id)
+                .map_err(LanguageServiceError::from)?;
 
             // keep the existing graph when it already covers this module
             if let Some(graph) = repository.module_graph(revision, profile_id)
                 && (graph.dependents.contains_key(&module_id)
-                    || graph.dependencies.contains_key(&module_id))
+                    || graph.modules.contains_key(&module_id))
             {
                 continue;
             }
@@ -395,7 +392,9 @@ impl LanguageService {
                 if !self.is_workspace_module(&module) {
                     continue;
                 }
-                let module_profile_id = context.default_profile_id_for_module(module.id);
+                let module_profile_id = repository
+                    .default_profile_id_for_module(revision, module.id)
+                    .map_err(LanguageServiceError::from)?;
                 if module_profile_id != profile_id {
                     continue;
                 }
@@ -413,7 +412,9 @@ impl LanguageService {
 
         // enqueue and run resolve tasks
         for module_id in resolve_tasks {
-            let profile_id = context.default_profile_id_for_module(module_id);
+            let profile_id = repository
+                .default_profile_id_for_module(revision, module_id)
+                .map_err(LanguageServiceError::from)?;
             let artifact_key = ArtifactKey::dir_resolved(module_id, profile_id);
 
             compiler.enqueue(revision, artifact_key);

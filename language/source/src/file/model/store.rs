@@ -14,7 +14,7 @@ pub struct FileStore {
     files_by_id: DashMap<FileId, Arc<File>>,
     /// The files by uri.
     files_by_uri: DashMap<Uri, FileId>,
-    /// The files by path (only for files with valid paths).
+    /// The files by path, only for files with valid paths.
     files_by_path: DashMap<PathBuf, FileId>,
 }
 
@@ -55,7 +55,7 @@ impl FileStore {
     /// Replace an existing file in the registry.
     ///
     /// The file id, uri, and path must match the existing file.
-    /// This is used to replace a blank/unloaded file with its loaded content.
+    /// This is used to replace a blank or unloaded file with its loaded content.
     ///
     /// # Panics
     /// Panics if no file with the given id exists.
@@ -76,7 +76,7 @@ impl FileStore {
             "file path changed during replace for {id:?}"
         );
 
-        // uri/path mappings stay the same, just update the file content
+        // uri and path mappings stay the same, just update the file content
         self.files_by_id.insert(id, Arc::new(file));
     }
 
@@ -98,7 +98,7 @@ impl FileStore {
 
     /// Get a file id by its URI.
     pub fn get_id_by_uri(&self, uri: &Uri) -> Option<FileId> {
-        self.files_by_uri.get(uri).map(|r| *r.value())
+        self.files_by_uri.get(uri).map(|entry| *entry.value())
     }
 
     /// Get a file by uri.
@@ -114,7 +114,7 @@ impl FileStore {
 
     /// Get a file id by its path.
     pub fn get_id_by_path(&self, path: &Path) -> Option<FileId> {
-        self.files_by_path.get(path).map(|r| *r.value())
+        self.files_by_path.get(path).map(|entry| *entry.value())
     }
 
     /// Get a file by path.

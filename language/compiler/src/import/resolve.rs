@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use destack_artifact::{ImportEdgeKind, Loader, ProfileKey};
+use destack_artifact::{Loader, ModuleEdgeRelation, ProfileKey};
 use destack_builtin::{builtin_library, resolve_profile_builtin_library_name};
 use destack_core::StringId;
 use destack_dir::{DependencyKind, ModuleResolution, ModuleTarget};
@@ -100,7 +100,7 @@ impl Compiler {
             specifier,
             source_module,
             kind,
-            ImportEdgeKind::Import,
+            ModuleEdgeRelation::Import,
             None,
         )
     }
@@ -117,7 +117,7 @@ impl Compiler {
         specifier: StringId,
         source_module: Option<ModuleId>,
         kind: DependencyKind,
-        edge_kind: ImportEdgeKind,
+        edge_relation: ModuleEdgeRelation,
         loader_override: Option<Loader>,
     ) -> ImportResult<ModuleId> {
         let specifier_str = self.repository.strings.get(specifier).to_string();
@@ -152,7 +152,7 @@ impl Compiler {
             kind,
             source_module,
             source_language_type,
-            edge_kind,
+            edge_relation,
         )?;
         let module_id =
             self.resolve_specifier_materialization(revision, &path, loader_override, &resolver)?;
@@ -204,14 +204,14 @@ impl Compiler {
         kind: DependencyKind,
         source_module: Option<ModuleId>,
         source_language_type: Option<LanguageType>,
-        edge_kind: ImportEdgeKind,
+        edge_relation: ModuleEdgeRelation,
     ) -> ImportResult<(PathBuf, Resolver)> {
         let resolver = self.resolver_for_kind(
             revision,
             kind,
             source_module,
             source_language_type,
-            edge_kind,
+            edge_relation,
         );
         let resolution = match source_path {
             Some(source_path) => resolver.resolve_from_file(source_path, specifier_str),
@@ -235,7 +235,7 @@ impl Compiler {
         profile_id: ProfileId,
         specifier: StringId,
         source_module: Option<ModuleId>,
-        edge_kind: ImportEdgeKind,
+        edge_relation: ModuleEdgeRelation,
         loader_override: Option<Loader>,
     ) -> ImportResult<ModuleResolution> {
         // detect declaration import sites: they should keep type targets in declaration space
@@ -255,7 +255,7 @@ impl Compiler {
                 specifier,
                 source_module,
                 DependencyKind::Value,
-                edge_kind,
+                edge_relation,
                 loader_override,
             )
             .ok()
@@ -267,7 +267,7 @@ impl Compiler {
                 specifier,
                 source_module,
                 DependencyKind::Type,
-                edge_kind,
+                edge_relation,
                 loader_override,
             )
             .ok()
@@ -500,8 +500,8 @@ impl Compiler {
         self.resolve_builtin_module_path(&base_path)
     }
 
-    /// Resolve a path to a module id inside the active execution scope.
-    fn resolve_path_to_module_in_revision(
+    /// Resolve a path to a module id at one explicit revision.
+    pub fn resolve_path_to_module(
         &self,
         revision: destack_workspace::Revision,
         path: &PathBuf,
@@ -511,7 +511,7 @@ impl Compiler {
             DependencyKind::Value,
             None,
             None,
-            ImportEdgeKind::Import,
+            ModuleEdgeRelation::Import,
         );
 
         // check if module already exists for this path
@@ -519,17 +519,32 @@ impl Compiler {
             return Ok(module_id);
         }
 
-        // materialize the module into the active revision
         self.materialize_module_for_path(revision, path, None, None, &resolver)
     }
 
-    /// Resolve a path to a module id at one explicit revision.
-    pub fn resolve_path_to_module(
+    /// Resolve a path to a module id with one optional loader override.
+    pub fn resolve_path_to_module_with_loader(
         &self,
         revision: destack_workspace::Revision,
         path: &PathBuf,
+        loader_override: Option<Loader>,
     ) -> ImportResult<ModuleId> {
-        self.resolve_path_to_module_in_revision(revision, path)
+        let resolver = self.resolver_for_kind(
+            revision,
+            DependencyKind::Value,
+            None,
+            None,
+            ModuleEdgeRelation::Import,
+        );
+
+        // only use this fast path for default loader resolution
+        if loader_override.is_none()
+            && let Some(module_id) = self.current_module_id_for_path(revision, path)?
+        {
+            return Ok(module_id);
+        }
+
+        self.materialize_module_for_path(revision, path, None, loader_override, &resolver)
     }
 
     /// Resolve a URI to a module id inside the active execution scope.
@@ -548,7 +563,7 @@ impl Compiler {
             error: None,
         })?;
 
-        self.resolve_path_to_module_in_revision(revision, &path.to_path_buf())
+        self.resolve_path_to_module(revision, &path.to_path_buf())
     }
 
     /// Resolve a URI to a module id at one explicit revision.
@@ -674,7 +689,7 @@ impl Compiler {
         kind: DependencyKind,
         source_module: Option<ModuleId>,
         source_language_type: Option<LanguageType>,
-        edge_kind: ImportEdgeKind,
+        edge_relation: ModuleEdgeRelation,
     ) -> ResolveOptions {
         let mut base_options = self.options.import_resolve.clone();
         let source_policy = self.source_import_resolve_policy(revision, source_module);
@@ -714,7 +729,7 @@ impl Compiler {
         let context = ImportResolveContext {
             dependency_kind: kind,
             source_language_type,
-            edge_kind,
+            edge_relation,
         };
 
         materialize_import_resolve_options(&base_options, context)
@@ -785,14 +800,14 @@ impl Compiler {
         kind: DependencyKind,
         source_module: Option<ModuleId>,
         source_language_type: Option<LanguageType>,
-        edge_kind: ImportEdgeKind,
+        edge_relation: ModuleEdgeRelation,
     ) -> Resolver {
         let resolver_options = self.resolver_options_for_kind(
             revision,
             kind,
             source_module,
             source_language_type,
-            edge_kind,
+            edge_relation,
         );
 
         self.resolver_with_options(resolver_options)
@@ -841,7 +856,7 @@ impl Compiler {
         }
 
         let companion_module_id = self
-            .resolve_path_to_module_in_revision(revision, &companion_path)
+            .resolve_path_to_module(revision, &companion_path)
             .ok()?;
 
         Some(ModuleTarget::Module(companion_module_id))

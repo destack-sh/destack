@@ -6,14 +6,21 @@ use destack_source::{ModuleId, ProfileId};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::{ImportEdgeKind, Loader};
+use crate::{Loader, ModuleEdgeRelation};
 
 /// The module-binding export table keyed by the owning declaration node.
 pub type ModuleBindingExportTable = IndexMap<dir::LocalNodeIdAny, dir::ModuleBindingExports>;
 
 /// The resolved module-import table keyed by module-relative import identity.
-pub type ImportedModuleTable =
-    IndexMap<(Option<ModuleId>, StringId, ImportEdgeKind, Option<Loader>), dir::ModuleResolution>;
+pub type ImportedModuleTable = IndexMap<
+    (
+        Option<ModuleId>,
+        StringId,
+        ModuleEdgeRelation,
+        Option<Loader>,
+    ),
+    dir::ModuleResolution,
+>;
 
 /// The exported-symbol table keyed by symbol space and static key.
 pub type ExportedSymbolTable = IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::Export>;

@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use destack_artifact::ModuleGraph;
 use destack_source::{FileType, ModuleId, Span};
 use destack_workspace::{
     EntryResolutionMode, EntrySource, TargetDiscovery, TargetDiscoveryOptions,
@@ -113,6 +114,35 @@ impl LintRule for NoUnusedModules {
     }
 }
 
+impl NoUnusedModules {
+    /// Collect eligible modules reachable from one target entry root.
+    fn collect_reachable_entry_modules(
+        &self,
+        graph: &ModuleGraph,
+        entry_module_id: ModuleId,
+        eligible_modules: &HashSet<ModuleId>,
+        entry_modules: &mut HashSet<ModuleId>,
+    ) {
+        let mut pending = vec![entry_module_id];
+        let mut visited = HashSet::new();
+
+        // walk the shared module graph from the target entry
+        while let Some(module_id) = pending.pop() {
+            if !visited.insert(module_id) {
+                continue;
+            }
+
+            if eligible_modules.contains(&module_id) {
+                entry_modules.insert(module_id);
+            }
+
+            for dependency in graph.dependencies_for(module_id) {
+                pending.push(dependency);
+            }
+        }
+    }
+}
+
 /// Collect user code modules eligible for this rule.
 fn collect_eligible_modules(ctx: &LintWorkspaceDirContext) -> HashSet<ModuleId> {
     let mut modules = HashSet::new();
@@ -149,6 +179,10 @@ fn collect_profile_target_entry_modules(
     eligible_modules: &HashSet<ModuleId>,
 ) -> HashSet<ModuleId> {
     let mut entry_modules = HashSet::new();
+    let Some(graph) = ctx.module_graph() else {
+        return entry_modules;
+    };
+
     // inspect package targets for entry roots
     for package_id in ctx.workspace_package_ids() {
         let Some(package) = ctx.repository_package(package_id) else {
@@ -179,11 +213,14 @@ fn collect_profile_target_entry_modules(
                 continue;
             };
 
-            // include only modules that this lint can report
+            // walk from every target entry so document roots keep reachable code alive
             for module_id in discovered_modules {
-                if eligible_modules.contains(&module_id) {
-                    entry_modules.insert(module_id);
-                }
+                NoUnusedModules.collect_reachable_entry_modules(
+                    graph.as_ref(),
+                    module_id,
+                    eligible_modules,
+                    &mut entry_modules,
+                );
             }
         }
     }

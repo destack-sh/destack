@@ -1,4 +1,5 @@
 use super::*;
+use destack_artifact::{Loader, ModuleKind};
 use destack_dir::{StaticKey, SymbolSpace};
 
 /// Assert one module exports a type symbol for the requested name.
@@ -81,6 +82,39 @@ value;
         dependencies.contains(&dep_module_id),
         "expected module graph to include dep.ts"
     );
+}
+
+/// Keep loader-distinct module views separate while preserving stable file identity.
+#[test]
+fn test_resolve_path_to_module_with_loader_keeps_distinct_file_views() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module("main.ts", "export const value = 1;");
+
+    let module = test.program.modules.get(module_id);
+    let path = module
+        .path
+        .clone()
+        .unwrap_or_else(|| panic!("missing module path for {module_id:?}"));
+
+    let code_module_id = test
+        .compiler
+        .resolve_path_to_module(&path)
+        .unwrap_or_else(|error| panic!("failed to resolve code module: {error:?}"));
+    let text_module_id = test
+        .compiler
+        .resolve_path_to_module_with_loader(&path, Some(Loader::Text))
+        .unwrap_or_else(|error| panic!("failed to resolve text module: {error:?}"));
+
+    let code_module = test.program.modules.get(code_module_id);
+    let text_module = test.program.modules.get(text_module_id);
+    let code_file = test.program.files.get(code_module.file_id);
+    let text_file = test.program.files.get(text_module.file_id);
+
+    assert_ne!(code_module_id, text_module_id);
+    assert_ne!(code_module.file_id, text_module.file_id);
+    assert_eq!(code_file.key, text_file.key);
+    assert_eq!(code_module.kind, ModuleKind::Code);
+    assert_eq!(text_module.kind, ModuleKind::Data);
 }
 
 /// Resolve ts relative .js specifiers through TypeScript extension substitution.
