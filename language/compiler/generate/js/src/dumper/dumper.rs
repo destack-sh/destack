@@ -497,6 +497,12 @@ impl_dump_display! {
 impl Dump for ScalarLiteral {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
+            ScalarLiteral::Null => {
+                dumper.object("ScalarLiteral::Null").end();
+            }
+            ScalarLiteral::Undefined => {
+                dumper.object("ScalarLiteral::Undefined").end();
+            }
             ScalarLiteral::Boolean(value) => {
                 dumper.object("ScalarLiteral::Boolean").value(value).end();
             }
@@ -945,6 +951,18 @@ impl<'a> NodeVisitor for Dumper<'a> {
             } => {
                 self.node("Expression::Call", id.id)
                     .field("position", position)
+                    .end();
+            }
+            Expression::ImportCall {
+                target: _,
+                target_module,
+                arguments: _,
+            } => {
+                self.node("Expression::ImportCall", id.id)
+                    .field(
+                        "target_module",
+                        &target_module.map(|module| format!("{module:?}")),
+                    )
                     .end();
             }
             Expression::New {

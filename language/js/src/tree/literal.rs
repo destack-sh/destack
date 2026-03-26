@@ -3,6 +3,10 @@ use crate::{Expression, LocalNodeId, Path, StringId};
 /// A ScalarLiteral is literal scalar value.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ScalarLiteral {
+    /// Null value.
+    Null,
+    /// Undefined value.
+    Undefined,
     /// Boolean value.
     Boolean(bool),
     /// Number value.

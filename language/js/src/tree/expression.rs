@@ -3,6 +3,7 @@ use crate::{
     NodeType, Path, Property, ScalarLiteral, StringId, TemplateLiteral, TypeBinaryOperator,
     TypeUnaryOperator, UnaryOperator,
 };
+use destack_source::ModuleId;
 
 /// The position of a postfix expression.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -116,6 +117,12 @@ pub enum Expression {
         left: LocalNodeId<Expression>,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
         dynamic_arguments: Vec<LocalNodeId<Argument>>,
+    },
+    /// Dynamic import call.
+    ImportCall {
+        target: LocalNodeId<Expression>,
+        target_module: Option<ModuleId>,
+        arguments: Vec<LocalNodeId<Argument>>,
     },
     /// New.
     New {
