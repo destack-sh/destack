@@ -1,9 +1,10 @@
 use destack_source::{FileId, NodeSpanType, Span, Uri};
 use serde::{Deserialize, Serialize};
 
-use crate::common::{
-    QueryContext, SymbolAtOffset, binding_symbol_at_offset, find_symbol_at_offset,
-    get_canonical_symbol, get_dir_node_main_span, get_dir_node_span, get_module_by_file_id,
+use crate::ast::{get_module_by_file_id, get_node_tree_main_span};
+use crate::core::QueryContext;
+use crate::dir::{
+    SymbolAtOffset, binding_symbol_at_offset, find_symbol_at_offset, get_canonical_symbol,
     get_symbol_definition_span, get_symbol_local_definition_span, semantic_target_symbol_at_offset,
     type_definition_span_for_symbol,
 };
@@ -122,30 +123,19 @@ fn resolve_import_definition_at_offset(
     // resolve the module and query context for this file
     let module = get_module_by_file_id(session, file)?;
     let module = module.as_ref();
-    let ctx = crate::query_context(session, module)?;
-    let ast = ctx.ast_context();
-    let dir_tree = ctx.tree();
+    let ctx = crate::core::query_context(session, module)?;
+    let ast = ctx.ast();
+    let dir_tree = ctx.dir().tree();
 
     // scan dependency items and select the one at the cursor
     for item_id in dir_tree.iter_node_ids_of_type::<DependencyItem>() {
         let item = dir_tree.get::<DependencyItem>(item_id);
 
         // resolve the main declaration span for coarse overlap checks
-        let fallback_span = get_dir_node_main_span(
-            ctx.ast_context(),
-            ctx.dir_analyzed_context(),
-            item_id.into(),
-        )
-        .or_else(|| {
-            get_dir_node_span(
-                ctx.ast_context(),
-                ctx.dir_analyzed_context(),
-                item_id.into(),
-            )
-        });
+        let fallback_span = get_node_tree_main_span(ctx.ast(), ctx.dir().tree(), item_id.into());
 
         // skip items that do not cover the cursor
-        if !fallback_span.is_some_and(|span| span.contains(offset)) {
+        if !fallback_span.contains(offset) {
             continue;
         }
 
@@ -154,11 +144,11 @@ fn resolve_import_definition_at_offset(
         let imported_name_span = ast
             .tree()
             .get_side_span_by_id(source_id, NodeSpanType::Type)
-            .map(|span| Span::new(ctx.file_id, span.start, span.end));
+            .map(|span| Span::new(ctx.file_id(), span.start, span.end));
         let local_alias_span = ast
             .tree()
             .get_side_span_by_id(source_id, NodeSpanType::Main)
-            .map(|span| Span::new(ctx.file_id, span.start, span.end));
+            .map(|span| Span::new(ctx.file_id(), span.start, span.end));
 
         // only resolve definition targets from the imported name or local alias
         let is_symbol_span = imported_name_span.is_some_and(|span| span.contains(offset))
@@ -214,7 +204,7 @@ pub fn goto_type_definition(
     // get the module to access type table
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let ctx = crate::query_context(session, module)?;
+    let ctx = crate::core::query_context(session, module)?;
 
     if let Some(span) = type_definition_span_for_symbol(session, symbol_id) {
         return Some(DefinitionResult::single(span));
@@ -222,7 +212,7 @@ pub fn goto_type_definition(
 
     // for non-type symbols (variables, parameters, etc.), look up their value type
     let resolved_type_symbol = {
-        let types = ctx.types();
+        let types = ctx.dir().types();
 
         // try get_value_type_id first
         if let Some(type_id) = types.get_value_type_id(symbol_id) {
@@ -295,8 +285,8 @@ fn overload_definition_span_for_call_site(
     // resolve the query context for this file
     let module = get_module_by_file_id(session, file)?;
     let module = module.as_ref();
-    let ctx = crate::query_context(session, module)?;
-    let dir_tree = ctx.tree();
+    let ctx = crate::core::query_context(session, module)?;
+    let dir_tree = ctx.dir().tree();
 
     // require a call/new parent where this expression is the callee
     let parent = dir_tree.get_parent(expression_id.id)?;
@@ -315,9 +305,9 @@ fn overload_definition_span_for_call_site(
 
     // resolve the selected call candidate signature
     let (target_symbol, dynamic_parameters) = {
-        let types = ctx.types();
+        let types = ctx.dir().types();
         let node_id = GlobalNodeIdAny {
-            module_id: ctx.module_id,
+            module_id: ctx.module_id(),
             local_id: parent_expression_id.into(),
         };
         let resolution_id = types.get_resolution_for_node(node_id)?;
@@ -336,7 +326,7 @@ fn overload_definition_span_for_call_site(
     }?;
 
     // only match declaration signatures within the target symbol module
-    if target_symbol.module_id != ctx.module_id {
+    if target_symbol.module_id != ctx.module_id() {
         return None;
     }
 
@@ -352,9 +342,9 @@ fn overload_declaration_span_for_signature(
     // resolve the symbol context and declarations
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let ctx = crate::query_context(session, module)?;
+    let ctx = crate::core::query_context(session, module)?;
     let (primary_declaration, secondary_declarations) = {
-        let symbols = ctx.symbols();
+        let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(symbol_id.local_id);
         (
             symbol.primary_declaration,
@@ -386,18 +376,11 @@ fn overload_declaration_span_for_signature(
             .zip(dynamic_parameter_types.iter())
             .all(|(left, right)| left == right)
         {
-            return get_dir_node_main_span(
-                ctx.ast_context(),
-                ctx.dir_analyzed_context(),
+            return Some(get_node_tree_main_span(
+                ctx.ast(),
+                ctx.dir().tree(),
                 declaration.local_id,
-            )
-            .or_else(|| {
-                get_dir_node_span(
-                    ctx.ast_context(),
-                    ctx.dir_analyzed_context(),
-                    declaration.local_id,
-                )
-            });
+            ));
         }
     }
 
@@ -406,11 +389,11 @@ fn overload_declaration_span_for_signature(
 
 /// Resolve declared dynamic parameter type ids for a declaration or method member.
 fn declaration_parameter_type_ids(
-    ctx: &QueryContext<'_>,
+    ctx: &QueryContext,
     declaration_id: dir::LocalNodeIdAny,
 ) -> Option<Vec<dir::LocalTypeId>> {
-    let dir_tree = ctx.tree();
-    let types = ctx.types();
+    let dir_tree = ctx.dir().tree();
+    let types = ctx.dir().types();
 
     let dynamic_parameters = match declaration_id.ty {
         NodeType::Declaration => {
@@ -434,7 +417,7 @@ fn declaration_parameter_type_ids(
 
     let mut parameter_types = Vec::with_capacity(dynamic_parameters.len());
     for parameter_id in dynamic_parameters {
-        let global_parameter_id = parameter_id.into_global_any(ctx.module_id);
+        let global_parameter_id = parameter_id.into_global_any(ctx.module_id());
         let type_id = types.get_declared_type_id(global_parameter_id)?;
         parameter_types.push(type_id);
     }

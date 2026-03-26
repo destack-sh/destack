@@ -5,9 +5,11 @@ use destack_dir as dir;
 use destack_source::{BatchEdit, Edit, File, FileEdit, FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
 
-use crate::common::{
-    QueryContext, find_symbol_at_offset, get_canonical_symbol, get_module_by_file_id,
-    resolve_expression_symbol, resolve_member_access_symbol, span_for_dir_node,
+use crate::ast::{get_module_by_file_id, span_for_dir_node};
+use crate::core::QueryContext;
+use crate::dir::{
+    find_symbol_at_offset, get_canonical_symbol, resolve_expression_symbol,
+    resolve_member_access_symbol,
 };
 use destack_workspace::Session;
 
@@ -102,10 +104,10 @@ pub fn change_signature(
     // update call sites across all modules
     for module in session.modules.iter() {
         let module = module.as_ref();
-        let Some(ctx) = crate::query_context(session, module) else {
+        let Some(ctx) = crate::core::query_context(session, module) else {
             continue;
         };
-        let dir_tree = ctx.tree();
+        let dir_tree = ctx.dir().tree();
 
         for (expr_id, expr) in dir_tree.iter_nodes_of_type::<dir::Expression>() {
             let left_expression = match expr {
@@ -130,7 +132,7 @@ pub fn change_signature(
                 continue;
             }
 
-            let expr_span = span_for_dir_node(&ctx, dir_tree, expr_id.into());
+            let expr_span = span_for_dir_node(ctx.ast(), dir_tree, expr_id.into());
             let Some(arg_span) = find_parenthesis_inner_span(&ctx, expr_span) else {
                 continue;
             };
@@ -176,11 +178,11 @@ fn constructor_owner_symbol(
     // resolve the module and query context
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let ctx = crate::query_context(session, module)?;
+    let ctx = crate::core::query_context(session, module)?;
 
     // resolve the declaration node
     let declaration = {
-        let symbols = ctx.symbols();
+        let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(symbol_id.local_id);
         symbol.primary_declaration?
     };
@@ -189,7 +191,7 @@ fn constructor_owner_symbol(
         return None;
     }
 
-    let dir_tree = ctx.tree();
+    let dir_tree = ctx.dir().tree();
     let Ok(member_id) = declaration.local_id.try_into() else {
         return None;
     };
@@ -220,14 +222,14 @@ fn constructor_owner_symbol(
 
     Some(get_canonical_symbol(
         session,
-        dir::GlobalSymbolId::new(ctx.module_id, owner_symbol),
+        dir::GlobalSymbolId::new(ctx.module_id(), owner_symbol),
     ))
 }
 
 /// Resolve the symbol referenced by a call target expression.
 fn call_target_symbol(
     _session: &Session,
-    ctx: &QueryContext<'_>,
+    ctx: &QueryContext,
     dir_tree: &dir::NodeTree,
     call_left: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::GlobalSymbolId> {
@@ -254,13 +256,13 @@ fn call_target_symbol(
     let expression = dir_tree.get::<dir::Expression>(current);
     if let dir::Expression::Member { name, .. } = expression {
         let Some(_name) = *name else {
-            return resolve_expression_symbol(ctx, current);
+            return resolve_expression_symbol(ctx.dir(), current);
         };
-        return resolve_member_access_symbol(ctx, current)
-            .or_else(|| resolve_expression_symbol(ctx, current));
+        return resolve_member_access_symbol(ctx.dir(), current)
+            .or_else(|| resolve_expression_symbol(ctx.dir(), current));
     }
 
-    resolve_expression_symbol(ctx, current)
+    resolve_expression_symbol(ctx.dir(), current)
 }
 
 /// Resolve the parameter span for the primary declaration of a symbol.
@@ -268,16 +270,16 @@ fn function_parameter_span(session: &Session, symbol_id: dir::GlobalSymbolId) ->
     // resolve the module and query context
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let ctx = crate::query_context(session, module)?;
+    let ctx = crate::core::query_context(session, module)?;
 
     // resolve the declaration node
     let declaration = {
-        let symbols = ctx.symbols();
+        let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(symbol_id.local_id);
         symbol.primary_declaration?
     };
 
-    let dir_tree = ctx.tree();
+    let dir_tree = ctx.dir().tree();
     let local_id = declaration.local_id;
     let ast_span = match local_id.ty {
         dir::NodeType::Declaration => {
@@ -289,7 +291,7 @@ fn function_parameter_span(session: &Session, symbol_id: dir::GlobalSymbolId) ->
                 return None;
             }
             let source_id = dir_tree.get_source(decl_id.id);
-            ctx.ast_context().tree().source_map.get(source_id)
+            ctx.ast().tree().source_map.get(source_id)
         }
         dir::NodeType::Member => {
             let Ok(member_id) = local_id.try_into() else {
@@ -300,17 +302,17 @@ fn function_parameter_span(session: &Session, symbol_id: dir::GlobalSymbolId) ->
                 return None;
             }
             let source_id = dir_tree.get_source(member_id.id);
-            ctx.ast_context().tree().source_map.get(source_id)
+            ctx.ast().tree().source_map.get(source_id)
         }
         dir::NodeType::Declarator | dir::NodeType::Pattern => {
             let declaration_id = function_declaration_from_binding(dir_tree, local_id)?;
             let source_id = dir_tree.get_source(declaration_id.id);
-            ctx.ast_context().tree().source_map.get(source_id)
+            ctx.ast().tree().source_map.get(source_id)
         }
         _ => return None,
     };
 
-    let full_span = Span::new(ctx.file_id, ast_span.start, ast_span.end);
+    let full_span = Span::new(ctx.file_id(), ast_span.start, ast_span.end);
     find_parenthesis_inner_span(&ctx, full_span)
 }
 
@@ -326,11 +328,11 @@ fn function_parameter_spans(session: &Session, symbol_id: dir::GlobalSymbolId) -
     // resolve secondary declarations (overloads)
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let Some(ctx) = crate::query_context(session, module) else {
+    let Some(ctx) = crate::core::query_context(session, module) else {
         return spans;
     };
     let secondary = {
-        let symbols = ctx.symbols();
+        let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(symbol_id.local_id);
         symbol.secondary_declarations.clone()
     };
@@ -359,13 +361,13 @@ fn function_parameter_name_positions(
     // resolve the module and query context for the symbol
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let Some(ctx) = crate::query_context(session, module) else {
+    let Some(ctx) = crate::core::query_context(session, module) else {
         return HashMap::new();
     };
 
     // resolve the primary declaration node
     let declaration = {
-        let symbols = ctx.symbols();
+        let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(symbol_id.local_id);
         symbol.primary_declaration
     };
@@ -375,7 +377,7 @@ fn function_parameter_name_positions(
     };
 
     // resolve the function signature for this declaration
-    let dir_tree = ctx.tree();
+    let dir_tree = ctx.dir().tree();
     let Some(signature) = function_signature_for_node(dir_tree, declaration.local_id) else {
         return HashMap::new();
     };
@@ -404,8 +406,8 @@ fn function_parameter_name_positions(
 fn parameter_span_for_node(session: &Session, node_id: dir::GlobalNodeIdAny) -> Option<Span> {
     let module = session.modules.get(node_id.module_id);
     let module = module.as_ref();
-    let ctx = crate::query_context(session, module)?;
-    let dir_tree = ctx.tree();
+    let ctx = crate::core::query_context(session, module)?;
+    let dir_tree = ctx.dir().tree();
 
     match node_id.local_id.ty {
         dir::NodeType::Declaration => {
@@ -417,8 +419,8 @@ fn parameter_span_for_node(session: &Session, node_id: dir::GlobalNodeIdAny) -> 
                 return None;
             }
             let source_id = dir_tree.get_source(decl_id.id);
-            let ast_span = ctx.ast_context().tree().source_map.get(source_id);
-            let full_span = Span::new(ctx.file_id, ast_span.start, ast_span.end);
+            let ast_span = ctx.ast().tree().source_map.get(source_id);
+            let full_span = Span::new(ctx.file_id(), ast_span.start, ast_span.end);
             find_parenthesis_inner_span(&ctx, full_span)
         }
         dir::NodeType::Member => {
@@ -430,15 +432,15 @@ fn parameter_span_for_node(session: &Session, node_id: dir::GlobalNodeIdAny) -> 
                 return None;
             }
             let source_id = dir_tree.get_source(member_id.id);
-            let ast_span = ctx.ast_context().tree().source_map.get(source_id);
-            let full_span = Span::new(ctx.file_id, ast_span.start, ast_span.end);
+            let ast_span = ctx.ast().tree().source_map.get(source_id);
+            let full_span = Span::new(ctx.file_id(), ast_span.start, ast_span.end);
             find_parenthesis_inner_span(&ctx, full_span)
         }
         dir::NodeType::Declarator | dir::NodeType::Pattern => {
             let decl_id = function_declaration_from_binding(dir_tree, node_id.local_id)?;
             let source_id = dir_tree.get_source(decl_id.id);
-            let ast_span = ctx.ast_context().tree().source_map.get(source_id);
-            let full_span = Span::new(ctx.file_id, ast_span.start, ast_span.end);
+            let ast_span = ctx.ast().tree().source_map.get(source_id);
+            let full_span = Span::new(ctx.file_id(), ast_span.start, ast_span.end);
             find_parenthesis_inner_span(&ctx, full_span)
         }
         _ => None,
@@ -510,13 +512,13 @@ fn function_declaration_from_binding(
 }
 
 /// Find the inner span of the first parenthesis pair.
-fn find_parenthesis_inner_span(ctx: &QueryContext<'_>, span: Span) -> Option<Span> {
+fn find_parenthesis_inner_span(ctx: &QueryContext, span: Span) -> Option<Span> {
     // scan tokens for the first parenthesis pair within the span
     let mut depth = 0u32;
     let mut start = None;
 
-    for token in ctx.ast_context().tokens() {
-        if token.span.file != ctx.file_id {
+    for token in ctx.ast().tokens() {
+        if token.span.file != ctx.file_id() {
             continue;
         }
         if token.span.start < span.start {
@@ -537,7 +539,7 @@ fn find_parenthesis_inner_span(ctx: &QueryContext<'_>, span: Span) -> Option<Spa
                 if depth == 1 {
                     let start = start?;
                     let end = token.span.start;
-                    return Some(Span::new(ctx.file_id, start, end));
+                    return Some(Span::new(ctx.file_id(), start, end));
                 }
                 depth = depth.saturating_sub(1);
             }
@@ -672,7 +674,7 @@ fn parse_param_specs(raw: &str) -> Vec<ParamSpec> {
 /// Build the new argument list for a call expression.
 fn build_arguments_for_call(
     session: &Session,
-    ctx: &QueryContext<'_>,
+    ctx: &QueryContext,
     dir_tree: &dir::NodeTree,
     expr_id: dir::LocalNodeId<dir::Expression>,
     params: &[ParamSpec],
@@ -690,13 +692,13 @@ fn build_arguments_for_call(
         _ => return String::new(),
     };
 
-    let source_file = session.files.get(ctx.file_id);
+    let source_file = session.files.get(ctx.file_id());
     let mut named_args: HashMap<String, String> = HashMap::new();
     let mut positional_args: Vec<String> = Vec::new();
 
     for argument_id in dynamic_arguments.iter() {
         let argument = dir_tree.get::<dir::Argument>(*argument_id);
-        let arg_span = span_for_dir_node(ctx, dir_tree, (*argument_id).into());
+        let arg_span = span_for_dir_node(ctx.ast(), dir_tree, (*argument_id).into());
         let arg_text = source_file.span_str(arg_span).trim().to_string();
 
         match argument {
@@ -807,12 +809,12 @@ fn build_arguments_for_call(
 /// Extract the argument value text without labels.
 fn argument_value_text(
     source_file: &File,
-    ctx: &QueryContext<'_>,
+    ctx: &QueryContext,
     dir_tree: &dir::NodeTree,
     argument: &dir::Argument,
 ) -> String {
     // extract the argument value text without labels
     let value_id = argument.value();
-    let value_span = span_for_dir_node(ctx, dir_tree, value_id.into());
+    let value_span = span_for_dir_node(ctx.ast(), dir_tree, value_id.into());
     source_file.span_str(value_span).trim().to_string()
 }

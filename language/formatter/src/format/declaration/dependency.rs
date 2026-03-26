@@ -7,9 +7,8 @@ use destack_core::ImmutableStringPool;
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
-use destack_query::common::{
-    ImportDeclarationKey, categorize_import, sort_dependency_items as sort_items,
-    sort_import_declaration_indices,
+use destack_query::format::{
+    ImportDeclarationKey, categorize_import, sort_dependency_items, sort_import_declaration_indices,
 };
 use destack_workspace::ImportSortOrder;
 
@@ -169,14 +168,14 @@ pub fn sort_imports(
         .collect()
 }
 
-/// Sort dependency items by kind and configured key order.
-pub fn sort_dependency_items(
+/// Sort import items by kind and configured key order.
+pub fn sort_import_items(
     items: &[LocalNodeId<DependencyItem>],
     tree: &NodeTree,
     strings: &ImmutableStringPool,
     sort_order: ImportSortOrder,
 ) -> Vec<LocalNodeId<DependencyItem>> {
-    sort_items(items, tree, strings, sort_order)
+    sort_dependency_items(items, tree, strings, sort_order)
 }
 
 /// Determine if a blank line should be inserted between two imports.

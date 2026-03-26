@@ -1,0 +1,251 @@
+use {destack_ast as ast, destack_dir as dir};
+
+use crate::ast::{
+    member_access_dot_before_offset, receiver_token_before_member_access_dot,
+    sorted_enclosing_spans, token_span_at_cursor_offset,
+};
+use crate::core::{AstQuery, DirQuery};
+use crate::dir::resolve_expression_symbol;
+
+use super::{CompletionContext, CursorToken};
+
+/// Detect member access context near the cursor.
+pub(super) fn detect_member_access_context(
+    ast: AstQuery<'_>,
+    dir: DirQuery<'_>,
+    token: &Option<CursorToken>,
+    offset: u32,
+) -> Option<CompletionContext> {
+    let cursor_position = offset.saturating_sub(1);
+
+    // detect member access inside an existing member name token
+    if let Some(context) = member_access_context_from_member_name(ast, dir, cursor_position) {
+        return Some(context);
+    }
+
+    // resolve member access context when immediately after one dot boundary
+    if let Some(context) = member_access_context_from_dot(ast, dir, offset) {
+        return Some(context);
+    }
+
+    // resolve member access when the cursor is inside a member name
+    if let Some(token_at_cursor) = token.as_ref()
+        && let Some(context) = member_access_context_from_dot(ast, dir, token_at_cursor.start)
+    {
+        return Some(context);
+    }
+
+    None
+}
+
+/// Detect member access from an existing member name token.
+fn member_access_context_from_member_name(
+    ast: AstQuery<'_>,
+    dir: DirQuery<'_>,
+    cursor_position: u32,
+) -> Option<CompletionContext> {
+    let token_at_cursor = token_span_at_cursor_offset(ast, cursor_position)?;
+    if token_at_cursor.token.ty != ast::TokenType::Identifier {
+        return None;
+    }
+
+    let dir_tree = dir.tree();
+
+    // resolve enclosing spans from innermost to outermost
+    let enclosing = sorted_enclosing_spans(ast, cursor_position, cursor_position);
+
+    // scan enclosing spans for one member expression at the cursor
+    for enc in &enclosing {
+        let main_span = ast.tree().source_map.get_main(enc.idx);
+        let is_in_member_name = main_span
+            .map(|span| span.contains(cursor_position))
+            .unwrap_or(true);
+        if !is_in_member_name {
+            continue;
+        }
+
+        let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enc.idx) else {
+            continue;
+        };
+        if dir_node_id.ty != dir::NodeType::Expression {
+            continue;
+        }
+
+        let Ok(expr_id) = dir_node_id.try_into() else {
+            continue;
+        };
+        let expr = dir_tree.get::<dir::Expression>(expr_id);
+
+        // use the left operand when inside a member expression
+        let dir::Expression::Member { left, .. } = expr else {
+            continue;
+        };
+
+        let receiver_local: dir::LocalNodeIdAny = (*left).into();
+        let receiver_global = receiver_local.into_global(dir.module_id());
+        let receiver_symbol = get_expression_symbol(dir, *left);
+        let receiver_type = get_receiver_type(dir, receiver_global, receiver_symbol);
+
+        return Some(CompletionContext::MemberAccess {
+            receiver_node: receiver_local,
+            receiver_symbol,
+            receiver_type,
+        });
+    }
+
+    None
+}
+
+/// Get the target symbol of an expression if it resolves to one.
+fn get_expression_symbol(
+    dir: DirQuery<'_>,
+    expr_id: dir::LocalNodeId<dir::Expression>,
+) -> Option<dir::GlobalSymbolId> {
+    resolve_expression_symbol(dir, expr_id)
+}
+
+/// Keep one concrete type id and skip unevaluated placeholders.
+fn concrete_type_id(
+    types: &dir::TypeTable,
+    type_id: Option<dir::LocalTypeId>,
+) -> Option<dir::LocalTypeId> {
+    let type_id = type_id?;
+    let ty = types.get_type(type_id);
+    if ty.is_unevaluated() {
+        return None;
+    }
+
+    Some(type_id)
+}
+
+/// Get the type of a receiver expression.
+///
+/// Prefer the compiler recorded member lookup type and fall back to existing type tables.
+fn get_receiver_type(
+    dir: DirQuery<'_>,
+    receiver_global: dir::GlobalNodeIdAny,
+    receiver_symbol: Option<dir::GlobalSymbolId>,
+) -> Option<dir::LocalTypeId> {
+    let types = dir.types();
+    let symbol_type_id = receiver_symbol
+        .and_then(|receiver_symbol| types.get_type_id_for_symbol(dir.symbols(), receiver_symbol));
+
+    concrete_type_id(
+        types,
+        types
+            .get_member_receiver_type_id_for_node(receiver_global)
+            .or_else(|| types.get_declared_or_inferred_type_id(receiver_global))
+            .or(symbol_type_id),
+    )
+}
+
+/// Resolve member access context for a receiver position.
+fn member_access_context_at_offset(
+    ast: AstQuery<'_>,
+    dir: DirQuery<'_>,
+    receiver_position: u32,
+) -> Option<CompletionContext> {
+    let enclosing = sorted_enclosing_spans(ast, receiver_position, receiver_position);
+    let dir_tree = dir.tree();
+    let mut partial_context = None;
+
+    // scan for the nearest enclosing expression
+    for enc in &enclosing {
+        let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enc.idx) else {
+            continue;
+        };
+        if dir_node_id.ty != dir::NodeType::Expression {
+            continue;
+        }
+
+        let Ok(expr_id) = dir_node_id.try_into() else {
+            continue;
+        };
+        let expr = dir_tree.get::<dir::Expression>(expr_id);
+
+        // unwrap statement expressions to the inner expression
+        let (actual_node_id, actual_expr) =
+            unwrap_statement_expression(dir_tree, dir_node_id, expr);
+
+        // prefer the member left operand as the receiver
+        if let dir::Expression::Member { left, .. } = actual_expr {
+            let receiver_local: dir::LocalNodeIdAny = (*left).into();
+            let receiver_global = receiver_local.into_global(dir.module_id());
+            let receiver_symbol = get_expression_symbol(dir, *left);
+            if receiver_symbol.is_none() {
+                if partial_context.is_none() {
+                    partial_context = Some(CompletionContext::MemberAccess {
+                        receiver_node: receiver_local,
+                        receiver_symbol,
+                        receiver_type: None,
+                    });
+                }
+                continue;
+            }
+
+            let receiver_type = get_receiver_type(dir, receiver_global, receiver_symbol);
+
+            return Some(CompletionContext::MemberAccess {
+                receiver_node: receiver_local,
+                receiver_symbol,
+                receiver_type,
+            });
+        }
+
+        // otherwise treat the expression itself as the receiver
+        let receiver_symbol = actual_expr.target_symbol();
+        if receiver_symbol.is_none() {
+            if partial_context.is_none() {
+                partial_context = Some(CompletionContext::MemberAccess {
+                    receiver_node: actual_node_id,
+                    receiver_symbol,
+                    receiver_type: None,
+                });
+            }
+            continue;
+        }
+
+        let receiver_global = actual_node_id.into_global(dir.module_id());
+        let receiver_type = get_receiver_type(dir, receiver_global, receiver_symbol);
+
+        return Some(CompletionContext::MemberAccess {
+            receiver_node: actual_node_id,
+            receiver_symbol,
+            receiver_type,
+        });
+    }
+
+    partial_context
+}
+
+/// Resolve member access context from one dot owned cursor.
+fn member_access_context_from_dot(
+    ast: AstQuery<'_>,
+    dir: DirQuery<'_>,
+    offset: u32,
+) -> Option<CompletionContext> {
+    let dot = member_access_dot_before_offset(ast, offset)?;
+    let receiver_token = receiver_token_before_member_access_dot(ast, dot)?;
+    let receiver_offset = receiver_token.span.end.saturating_sub(1);
+
+    member_access_context_at_offset(ast, dir, receiver_offset)
+}
+
+/// Unwrap statement expressions to get the inner expression.
+///
+/// Statement expressions wrap another expression with a `;` terminator.
+/// When searching for member access context, we want the actual inner expression,
+/// not the statement wrapper, which has type void and no target symbol.
+fn unwrap_statement_expression<'a>(
+    dir_tree: &'a dir::NodeTree,
+    node_id: dir::LocalNodeIdAny,
+    expr: &'a dir::Expression,
+) -> (dir::LocalNodeIdAny, &'a dir::Expression) {
+    if let dir::Expression::Statement { statement } = expr {
+        let inner_node_id: dir::LocalNodeIdAny = (*statement).into();
+        let inner_expr = dir_tree.get::<dir::Expression>(*statement);
+        return unwrap_statement_expression(dir_tree, inner_node_id, inner_expr);
+    }
+
+    (node_id, expr)
+}

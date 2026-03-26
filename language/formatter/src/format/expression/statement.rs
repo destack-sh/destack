@@ -1,7 +1,7 @@
 use crate::format::analysis::timing;
 use crate::format::annotation::statement_wrapper_needs_semicolon;
 use crate::format::chain::expression_trivia_anchor_end;
-use crate::format::declaration::dependency::sort_dependency_items;
+use crate::format::declaration::dependency::sort_import_items;
 use crate::format::directive::{
     FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
 };
@@ -96,7 +96,7 @@ fn dependency_items_for_output(
     options: DependencyOutputOptions,
 ) -> Vec<LocalNodeId<DependencyItem>> {
     if options.organize_imports && !options.has_item_annotations {
-        return sort_dependency_items(items, ctx.tree, ctx.strings, options.sort_order);
+        return sort_import_items(items, ctx.tree, ctx.strings, options.sort_order);
     }
 
     items.to_vec()

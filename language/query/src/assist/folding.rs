@@ -3,7 +3,7 @@ use destack_dir::Declaration;
 use destack_source::{FileId, Uri};
 use serde::{Deserialize, Serialize};
 
-use crate::common::with_ast_context_for_file;
+use crate::core::with_ast_query_for_file;
 use destack_workspace::Session;
 
 /// Kind of folding range.
@@ -92,10 +92,10 @@ pub fn folding_ranges(session: &Session, file: FileId) -> Vec<FoldingRange> {
 
 /// Build folding ranges using the DIR context when available.
 fn folding_ranges_with_dir(session: &Session, file: FileId) -> Option<Vec<FoldingRange>> {
-    crate::with_query_context_for_file(session, file, |ctx| {
+    crate::core::with_query_context_for_file(session, file, |ctx| {
         // resolve the source file and dir tree
-        let source_file = session.files.get(ctx.file_id);
-        let dir_tree = ctx.tree();
+        let source_file = session.files.get(ctx.file_id());
+        let dir_tree = ctx.dir().tree();
 
         // collect folding ranges from declarations
         let mut ranges = Vec::new();
@@ -120,7 +120,7 @@ fn folding_ranges_with_dir(session: &Session, file: FileId) -> Option<Vec<Foldin
 
             // resolve the declaration span
             let ast_node_id = dir_tree.get_source(decl_id.id);
-            let span = ctx.ast_context().tree().source_map.get(ast_node_id);
+            let span = ctx.ast().tree().source_map.get(ast_node_id);
 
             // convert the span to line numbers
             let Some((start_line, _)) = source_file.get_position(span.start) else {
@@ -137,7 +137,7 @@ fn folding_ranges_with_dir(session: &Session, file: FileId) -> Option<Vec<Foldin
         }
 
         // collect folding ranges for comment blocks
-        add_comment_folding_ranges(&mut ranges, ctx.ast_context().side_tokens(), &source_file);
+        add_comment_folding_ranges(&mut ranges, ctx.ast().side_tokens(), &source_file);
 
         // sort ranges by start and end line
         ranges.sort_by_key(|range| (range.start_line, range.end_line));
@@ -152,7 +152,7 @@ fn folding_ranges_with_dir(session: &Session, file: FileId) -> Option<Vec<Foldin
 
 /// Build folding ranges from the AST when DIR is unavailable.
 fn folding_ranges_with_ast(session: &Session, file: FileId) -> Vec<FoldingRange> {
-    with_ast_context_for_file(session, file, |ast| {
+    with_ast_query_for_file(session, file, |ast| {
         // resolve the source file
         let source_file = session.files.get(file);
 

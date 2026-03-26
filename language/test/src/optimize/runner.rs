@@ -2216,7 +2216,7 @@ fn run_matrix_case(
     apply(&mut tree, &strings_pool, &ctx);
 
     // validate the resulting MIR tree
-    if let Err(error) = mir::Validator::new(&tree).validate_tree() {
+    if let Err(error) = mir::Validator::new(&tree).validate() {
         let message = format_validate_error(&tree, error);
         return Some(format!("case '{label}': validation failed: {message}"));
     }

@@ -1,9 +1,10 @@
 use destack_source::{FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
 
-use crate::common::{
+use crate::ast::sort_and_dedup_spans;
+use crate::dir::{
     ReferenceCollectionOptions, collect_symbol_references_in_context, find_symbol_at_offset,
-    get_canonical_symbol, get_symbol_definition_span, sort_and_dedup_spans,
+    get_canonical_symbol, get_symbol_definition_span,
 };
 use destack_workspace::Session;
 
@@ -82,13 +83,13 @@ pub fn document_highlights(session: &Session, file: FileId, offset: u32) -> Vec<
     // get canonical symbol and resolve imports
     let canonical_id = get_canonical_symbol(session, symbol_at.symbol_id);
 
-    crate::with_query_context_for_file(session, file, |ctx| {
+    crate::core::with_query_context_for_file(session, file, |ctx| {
         // initialize highlight collection
         let mut highlights = Vec::new();
 
         // check if the definition is in this file, add as write highlight
         if let Some(definition_span) = get_symbol_definition_span(session, canonical_id)
-            && definition_span.file == ctx.file_id
+            && definition_span.file == ctx.file_id()
         {
             highlights.push(DocumentHighlight::write(definition_span));
         }
@@ -102,11 +103,16 @@ pub fn document_highlights(session: &Session, file: FileId, offset: u32) -> Vec<
             skip_dependency_aliases: false,
             use_dependency_name_spans: false,
             target_name: None,
-            limit_to_file: Some(ctx.file_id),
+            limit_to_file: Some(ctx.file_id()),
         };
 
-        let mut reference_spans =
-            collect_symbol_references_in_context(session, &ctx, canonical_id, reference_options);
+        let mut reference_spans = collect_symbol_references_in_context(
+            session,
+            ctx.ast(),
+            ctx.dir(),
+            canonical_id,
+            reference_options,
+        );
         sort_and_dedup_spans(&mut reference_spans);
 
         // convert reference spans into read highlights

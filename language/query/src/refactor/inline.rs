@@ -4,11 +4,15 @@ use destack_dir::{self as dir, NodeVisitor};
 use destack_source::{BatchEdit, Edit, FileEdit, FileId, ModuleId, Span, Uri};
 use serde::{Deserialize, Serialize};
 
-use crate::common::{
-    QueryContext, ReferenceCollectionOptions, collect_symbol_references_in_context,
-    find_symbol_at_offset, get_canonical_symbol, get_member_access_name_span,
-    get_module_by_file_id, get_symbol_definition_span, is_simple_identifier, line_start_for_offset,
-    main_span_for_dir_node, member_key_name, resolve_symbol_name, span_for_dir_node,
+use crate::ast::{
+    get_module_by_file_id, is_simple_identifier, line_start_for_offset, main_span_for_dir_node,
+    span_for_dir_node,
+};
+use crate::core::QueryContext;
+use crate::dir::{
+    ReferenceCollectionOptions, collect_symbol_references_in_context, find_symbol_at_offset,
+    get_canonical_symbol, get_member_access_name_span, get_symbol_definition_span, member_key_name,
+    resolve_symbol_name,
 };
 use destack_workspace::Session;
 
@@ -59,7 +63,7 @@ pub fn inline_symbol(session: &Session, file: FileId, offset: u32) -> Option<Inl
     // resolve the module and query context
     let module = get_module_by_file_id(session, file)?;
     let module = module.as_ref();
-    let ctx = crate::query_context(session, module)?;
+    let ctx = crate::core::query_context(session, module)?;
 
     // find the symbol at the cursor
     let symbol_at = find_symbol_at_offset(session, file, offset)?;
@@ -73,7 +77,7 @@ pub fn inline_symbol(session: &Session, file: FileId, offset: u32) -> Option<Inl
 
     // resolve the symbol metadata
     let declaration = {
-        let symbols = ctx.symbols();
+        let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(canonical_id.local_id);
         let declaration = symbol.primary_declaration?;
 
@@ -86,18 +90,18 @@ pub fn inline_symbol(session: &Session, file: FileId, offset: u32) -> Option<Inl
     };
 
     // find the declarator that owns the symbol
-    let dir_tree = ctx.tree();
+    let dir_tree = ctx.dir().tree();
     let declaration_id = declaration.local_id;
     let (declarator_id, statement_id) = find_declarator_and_statement(dir_tree, declaration_id)?;
 
     // resolve the initializer expression
     let value_id = declarator_value(dir_tree, declarator_id, statement_id)?;
     let declarator = dir_tree.get::<dir::Declarator>(declarator_id);
-    let statement_span = span_for_dir_node(&ctx, dir_tree, statement_id.into());
+    let statement_span = span_for_dir_node(ctx.ast(), dir_tree, statement_id.into());
 
     // resolve the initializer text
     let source_file = session.files.get(file);
-    let value_span = span_for_dir_node(&ctx, dir_tree, value_id.into());
+    let value_span = span_for_dir_node(ctx.ast(), dir_tree, value_id.into());
     let value_expression = dir_tree.get::<dir::Expression>(value_id);
     let value_text = source_file.span_str(value_span);
     let inline_base = format_inline_expression(value_text, value_expression);
@@ -139,11 +143,16 @@ pub fn inline_symbol(session: &Session, file: FileId, offset: u32) -> Option<Inl
     };
     for module in session.modules.iter() {
         let module = module.as_ref();
-        let Some(ctx) = crate::query_context(session, module) else {
+        let Some(ctx) = crate::core::query_context(session, module) else {
             continue;
         };
-        let spans =
-            collect_symbol_references_in_context(session, &ctx, canonical_id, reference_options);
+        let spans = collect_symbol_references_in_context(
+            session,
+            ctx.ast(),
+            ctx.dir(),
+            canonical_id,
+            reference_options,
+        );
         if spans.iter().any(|span| span.file != file) {
             return None;
         }
@@ -251,13 +260,13 @@ enum AccessSegment {
 /// Collect reference entries for the inline target symbol.
 fn collect_inline_reference_entries(
     session: &Session,
-    ctx: &QueryContext<'_>,
+    ctx: &QueryContext,
     canonical_id: dir::GlobalSymbolId,
     file: FileId,
     reference_name: Option<String>,
 ) -> Vec<ReferenceEntry> {
     // collect reference expressions for the inline target
-    let dir_tree = ctx.tree();
+    let dir_tree = ctx.dir().tree();
     let mut entries = Vec::new();
 
     for (expr_id, expression) in dir_tree.iter_nodes_of_type::<dir::Expression>() {
@@ -294,7 +303,7 @@ fn collect_inline_reference_entries(
         return entries;
     };
 
-    let symbols = ctx.symbols();
+    let symbols = ctx.dir().symbols();
     for (property_id, property) in dir_tree.iter_nodes_of_type::<dir::Property>() {
         let dir::Property::Field {
             key: Some(key),
@@ -324,13 +333,13 @@ fn collect_inline_reference_entries(
         else {
             continue;
         };
-        let resolved_global = dir::GlobalSymbolId::new(ctx.module_id, resolved_local);
+        let resolved_global = dir::GlobalSymbolId::new(ctx.module_id(), resolved_local);
         let resolved_canonical = get_canonical_symbol(session, resolved_global);
         if resolved_canonical != canonical_id {
             continue;
         }
 
-        let Some(span) = main_span_for_dir_node(ctx, dir_tree, property_id.into()) else {
+        let Some(span) = main_span_for_dir_node(ctx.ast(), dir_tree, property_id.into()) else {
             continue;
         };
         if span.file != file {
@@ -659,12 +668,12 @@ fn key_name_key(key: &dir::DynamicKey) -> Option<dir::StaticKey> {
 
 /// Resolve the precise span for a reference expression.
 fn reference_span_for_expression(
-    ctx: &QueryContext<'_>,
+    ctx: &QueryContext,
     dir_tree: &dir::NodeTree,
     expr_id: dir::LocalNodeId<dir::Expression>,
 ) -> Span {
-    let span = main_span_for_dir_node(ctx, dir_tree, expr_id.into())
-        .unwrap_or_else(|| span_for_dir_node(ctx, dir_tree, expr_id.into()));
+    let span = main_span_for_dir_node(ctx.ast(), dir_tree, expr_id.into())
+        .unwrap_or_else(|| span_for_dir_node(ctx.ast(), dir_tree, expr_id.into()));
 
     let Some(parent) = dir_tree.get_parent(expr_id.id) else {
         return span;
@@ -684,7 +693,7 @@ fn reference_span_for_expression(
         return span;
     }
 
-    let Some(name_span) = get_member_access_name_span(ctx, parent_expr_id) else {
+    let Some(name_span) = get_member_access_name_span(ctx.ast(), ctx.dir(), parent_expr_id) else {
         return span;
     };
     let receiver_end = name_span.start.saturating_sub(1);
@@ -695,7 +704,7 @@ fn reference_span_for_expression(
     }
 
     // recover receiver spans when direct mapping points at member names
-    let member_span = span_for_dir_node(ctx, dir_tree, parent);
+    let member_span = span_for_dir_node(ctx.ast(), dir_tree, parent);
     if member_span.file == name_span.file && member_span.start < receiver_end {
         return Span::new(member_span.file, member_span.start, receiver_end);
     }
@@ -706,13 +715,13 @@ fn reference_span_for_expression(
 /// Collect captured symbols referenced inside the inline value.
 fn collect_captured_symbols(
     session: &Session,
-    ctx: &QueryContext<'_>,
+    ctx: &QueryContext,
     dir_tree: &dir::NodeTree,
     value_id: dir::LocalNodeId<dir::Expression>,
     inline_symbol: dir::GlobalSymbolId,
 ) -> Option<Vec<CapturedSymbol>> {
     // collect symbols referenced inside the initializer expression
-    let symbols = ctx.symbols();
+    let symbols = ctx.dir().symbols();
     let mut captured: HashMap<dir::StaticKey, dir::GlobalSymbolId> = HashMap::new();
     let mut has_unknown = false;
 
@@ -720,7 +729,7 @@ fn collect_captured_symbols(
     let mut visitor = CapturedSymbolVisitor::new(
         session,
         symbols,
-        ctx.module_id,
+        ctx.module_id(),
         inline_symbol,
         &mut captured,
         &mut has_unknown,
@@ -745,13 +754,13 @@ fn collect_captured_symbols(
 /// Check whether inlining would introduce shadowing.
 fn inline_shadow_safe(
     session: &Session,
-    ctx: &QueryContext<'_>,
+    ctx: &QueryContext,
     dir_tree: &dir::NodeTree,
     reference_entries: &[ReferenceEntry],
     captured_symbols: &[CapturedSymbol],
 ) -> bool {
     // verify captured symbols resolve identically at each reference site
-    let symbols = ctx.symbols();
+    let symbols = ctx.dir().symbols();
 
     for entry in reference_entries {
         let (scope_id, scope_mark) = dir_tree.get_scope::<dir::Expression>(entry.expr_id);
@@ -761,7 +770,7 @@ fn inline_shadow_safe(
             else {
                 return false;
             };
-            let resolved_global = dir::GlobalSymbolId::new(ctx.module_id, resolved_local);
+            let resolved_global = dir::GlobalSymbolId::new(ctx.module_id(), resolved_local);
             let resolved_canonical = get_canonical_symbol(session, resolved_global);
             if resolved_canonical != captured.canonical_id {
                 return false;
@@ -857,7 +866,7 @@ fn declarator_value(
 
 /// Resolve declarator spans for a let statement.
 fn statement_declarator_spans(
-    ctx: &QueryContext<'_>,
+    ctx: &QueryContext,
     dir_tree: &dir::NodeTree,
     statement_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<Vec<(dir::LocalNodeId<dir::Declarator>, Span)>> {
@@ -870,7 +879,7 @@ fn statement_declarator_spans(
 
     let mut spans = Vec::with_capacity(declarators.len());
     for declarator_id in declarators {
-        let span = span_for_dir_node(ctx, dir_tree, (*declarator_id).into());
+        let span = span_for_dir_node(ctx.ast(), dir_tree, (*declarator_id).into());
         spans.push((*declarator_id, span));
     }
 

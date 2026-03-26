@@ -4,10 +4,9 @@ use destack_source::{FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
 use {destack_ast as ast, destack_dir as dir};
 
-use crate::common::{
-    main_or_enclosing_span_for_dir_node, module_specifier_in_expression,
-    string_literal_span_in_enclosing, with_ast_context_for_file,
-};
+use crate::ast::{main_or_enclosing_span_for_dir_node, string_literal_span_in_enclosing};
+use crate::core::with_ast_query_for_file;
+use crate::dir::module_specifier_in_expression;
 use destack_workspace::Session;
 
 /// A clickable link in a document.
@@ -125,9 +124,9 @@ pub fn document_links(session: &Session, file: FileId) -> Vec<DocumentLink> {
 
 /// Build document links using DIR data when available.
 fn document_links_with_dir(session: &Session, file: FileId) -> Option<Vec<DocumentLink>> {
-    crate::with_query_context_for_file(session, file, |ctx| {
+    crate::core::with_query_context_for_file(session, file, |ctx| {
         // find all import and re-export statements
-        let dir_tree = ctx.tree();
+        let dir_tree = ctx.dir().tree();
         let mut links = Vec::new();
         for (expr_id, expr) in dir_tree.iter_nodes_of_type::<Expression>() {
             match expr {
@@ -154,12 +153,12 @@ fn document_links_with_dir(session: &Session, file: FileId) -> Option<Vec<Docume
 
                     // get the span of this import expression
                     let enclosing =
-                        main_or_enclosing_span_for_dir_node(&ctx, dir_tree, expr_id.into());
-                    let file = session.files.get(ctx.file_id);
+                        main_or_enclosing_span_for_dir_node(ctx.ast(), dir_tree, expr_id.into());
+                    let file = session.files.get(ctx.file_id());
                     let import_path = session.strings.get(*target).to_string();
                     let span = string_literal_span_in_enclosing(
                         &file,
-                        ctx.ast_context().tokens(),
+                        ctx.ast().tokens(),
                         enclosing,
                         &import_path,
                     )
@@ -181,7 +180,7 @@ fn document_links_with_dir(session: &Session, file: FileId) -> Option<Vec<Docume
 
 /// Build document links using AST data when DIR is unavailable.
 fn document_links_with_ast(session: &Session, file: FileId) -> Vec<DocumentLink> {
-    with_ast_context_for_file(session, file, |ast| {
+    with_ast_query_for_file(session, file, |ast| {
         // resolve the source file path
         let source_file = session.files.get(file);
         let Some(path) = source_file.path.as_ref() else {

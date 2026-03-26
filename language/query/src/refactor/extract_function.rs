@@ -4,12 +4,15 @@ use destack_dir::{self as dir, NodeVisitor};
 use destack_source::{BatchEdit, Edit, FileEdit, FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
 
-use crate::common::{
-    QueryContext, clean_expression_text, get_canonical_symbol, get_module_by_file_id,
-    get_symbol_definition_span, is_simple_identifier, line_start_and_indent, query_context,
-    resolve_extract_expression, resolve_symbol_name, span_contains_span, span_for_dir_node,
+use super::extract::{
+    clean_expression_text, line_start_and_indent, resolve_extract_expression,
     statement_span_for_expression,
 };
+use crate::ast::{
+    get_module_by_file_id, is_simple_identifier, span_contains_span, span_for_dir_node,
+};
+use crate::core::{QueryContext, query_context};
+use crate::dir::{get_canonical_symbol, get_symbol_definition_span, resolve_symbol_name};
 use crate::format::{format_local_type, format_type_for_inlay_hint};
 use destack_workspace::Session;
 
@@ -129,7 +132,7 @@ struct OutputSymbol {
 /// Extract a single expression into a new function.
 fn extract_expression(
     session: &Session,
-    ctx: &QueryContext<'_>,
+    ctx: &QueryContext,
     source_file: &destack_source::File,
     source: &str,
     expr_id: dir::LocalNodeId<dir::Expression>,
@@ -144,7 +147,7 @@ fn extract_expression(
     }
 
     // reject extraction when the expression contains forbidden control flow
-    let dir_tree = ctx.tree();
+    let dir_tree = ctx.dir().tree();
     let expression = dir_tree.get::<dir::Expression>(expr_id);
     let mut control_flow = ControlFlowVisitor::new();
     control_flow.visit_expression(dir_tree, expr_id, expression);
@@ -159,12 +162,12 @@ fn extract_expression(
     let requires_async = expression_contains_await(ctx, expr_id);
 
     // resolve return type from the expression when possible
-    let return_type = ctx.get_expression_type(expr_id.into()).map(|type_id| {
-        let types = ctx.types();
+    let return_type = ctx.dir().expression_type_id(expr_id.into()).map(|type_id| {
+        let types = ctx.dir().types();
         let ty = types.get_type(type_id);
         format_type_for_inlay_hint(
             ty,
-            &ctx.artifacts,
+            ctx.artifacts(),
             types,
             &session.modules,
             &session.strings,
@@ -189,8 +192,8 @@ fn extract_expression(
     );
 
     // insert the function definition before the statement
-    let mut file_edit = FileEdit::new(ctx.file_id);
-    file_edit.push(Edit::insert(ctx.file_id, line_start, function_text));
+    let mut file_edit = FileEdit::new(ctx.file_id());
+    file_edit.push(Edit::insert(ctx.file_id(), line_start, function_text));
 
     // replace the selection with a function call
     let call_text = if call_arguments.is_empty() {
@@ -217,7 +220,7 @@ fn extract_expression(
 /// Extract a statement block into a new function.
 fn extract_statement_block(
     session: &Session,
-    ctx: &QueryContext<'_>,
+    ctx: &QueryContext,
     source_file: &destack_source::File,
     source: &str,
     selection: &StatementSelection,
@@ -268,8 +271,8 @@ fn extract_statement_block(
     );
 
     // insert the function definition before the statement block
-    let mut file_edit = FileEdit::new(ctx.file_id);
-    file_edit.push(Edit::insert(ctx.file_id, line_start, function_text));
+    let mut file_edit = FileEdit::new(ctx.file_id());
+    file_edit.push(Edit::insert(ctx.file_id(), line_start, function_text));
 
     // replace the selection with a function call (and output bindings when needed)
     let call_text = if call_arguments.is_empty() {
@@ -311,16 +314,13 @@ fn extract_statement_block(
 }
 
 /// Resolve a statement selection from a span.
-fn resolve_statement_selection(
-    ctx: &QueryContext<'_>,
-    selection: Span,
-) -> Option<StatementSelection> {
+fn resolve_statement_selection(ctx: &QueryContext, selection: Span) -> Option<StatementSelection> {
     // resolve the tightest block containing the selection
-    let dir_tree = ctx.tree();
+    let dir_tree = ctx.dir().tree();
     let mut best_block: Option<(dir::LocalNodeId<dir::Block>, Span, u32)> = None;
 
     for (block_id, _block) in dir_tree.iter_nodes_of_type::<dir::Block>() {
-        let span = span_for_dir_node(ctx, dir_tree, block_id.into());
+        let span = span_for_dir_node(ctx.ast(), dir_tree, block_id.into());
         if !span_contains_span(span, selection) {
             continue;
         }
@@ -339,7 +339,7 @@ fn resolve_statement_selection(
         let block = dir_tree.get::<dir::Block>(block_id);
         block.expressions.clone()
     } else {
-        ctx.dir_analyzed_context().roots().to_vec()
+        ctx.dir().roots().to_vec()
     };
     if container_expressions.is_empty() {
         return None;
@@ -352,7 +352,7 @@ fn resolve_statement_selection(
     let mut has_partial = false;
 
     for (idx, expr_id) in container_expressions.iter().enumerate() {
-        let span = span_for_dir_node(ctx, dir_tree, (*expr_id).into());
+        let span = span_for_dir_node(ctx.ast(), dir_tree, (*expr_id).into());
         let intersects = span.start < selection.end && span.end > selection.start;
         if !intersects {
             continue;
@@ -382,7 +382,7 @@ fn resolve_statement_selection(
 
     let first_span = first_span?;
     let last_span = last_span?;
-    let extraction_span = Span::new(ctx.file_id, first_span.start, last_span.end);
+    let extraction_span = Span::new(ctx.file_id(), first_span.start, last_span.end);
 
     Some(StatementSelection {
         container_expressions,
@@ -393,9 +393,9 @@ fn resolve_statement_selection(
 }
 
 /// Check whether a selection contains control flow that blocks extraction.
-fn selection_contains_control_flow(ctx: &QueryContext<'_>, selection: &StatementSelection) -> bool {
+fn selection_contains_control_flow(ctx: &QueryContext, selection: &StatementSelection) -> bool {
     // scan the selection for control flow that cannot be safely extracted
-    let dir_tree = ctx.tree();
+    let dir_tree = ctx.dir().tree();
     let mut visitor = ControlFlowVisitor::new();
 
     for idx in selection.selected_range.clone() {
@@ -411,9 +411,9 @@ fn selection_contains_control_flow(ctx: &QueryContext<'_>, selection: &Statement
 }
 
 /// Check whether a selection contains await expressions.
-fn selection_contains_await(ctx: &QueryContext<'_>, selection: &StatementSelection) -> bool {
+fn selection_contains_await(ctx: &QueryContext, selection: &StatementSelection) -> bool {
     // scan the selection for await expressions
-    let dir_tree = ctx.tree();
+    let dir_tree = ctx.dir().tree();
     let mut visitor = AwaitVisitor::new();
 
     for idx in selection.selected_range.clone() {
@@ -430,11 +430,11 @@ fn selection_contains_await(ctx: &QueryContext<'_>, selection: &StatementSelecti
 
 /// Check whether an expression subtree contains await.
 fn expression_contains_await(
-    ctx: &QueryContext<'_>,
+    ctx: &QueryContext,
     expr_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // scan the expression for await usage
-    let dir_tree = ctx.tree();
+    let dir_tree = ctx.dir().tree();
     let expression = dir_tree.get::<dir::Expression>(expr_id);
     let mut visitor = AwaitVisitor::new();
     visitor.visit_expression(dir_tree, expr_id, expression);
@@ -444,11 +444,11 @@ fn expression_contains_await(
 /// Collect output symbols produced in a selection.
 fn collect_output_symbols(
     session: &Session,
-    ctx: &QueryContext<'_>,
+    ctx: &QueryContext,
     selection: &StatementSelection,
 ) -> Vec<OutputSymbol> {
     // collect symbols referenced after the selection in the same container
-    let dir_tree = ctx.tree();
+    let dir_tree = ctx.dir().tree();
     let mut referenced_after: HashMap<dir::GlobalSymbolId, dir::LocalNodeId<dir::Expression>> =
         HashMap::new();
 
@@ -466,7 +466,7 @@ fn collect_output_symbols(
         let Some(definition_span) = get_symbol_definition_span(session, canonical) else {
             continue;
         };
-        if definition_span.file != ctx.file_id {
+        if definition_span.file != ctx.file_id() {
             continue;
         }
         if !span_contains_span(selection.extraction_span, definition_span) {
@@ -482,13 +482,14 @@ fn collect_output_symbols(
 
         let mutability = symbol_mutability(session, canonical);
         let ty_text = ctx
-            .get_expression_type(reference_id.into())
+            .dir()
+            .expression_type_id(reference_id.into())
             .map(|type_id| {
-                let types = ctx.types();
+                let types = ctx.dir().types();
                 let ty = types.get_type(type_id);
                 format_type_for_inlay_hint(
                     ty,
-                    &ctx.artifacts,
+                    ctx.artifacts(),
                     types,
                     &session.modules,
                     &session.strings,
@@ -636,16 +637,16 @@ struct FreeVariable {
 /// Collect free variables within a selection.
 fn collect_free_variables(
     session: &Session,
-    ctx: &QueryContext<'_>,
+    ctx: &QueryContext,
     selection: Span,
 ) -> Vec<FreeVariable> {
     // collect free variables in order of appearance
-    let dir_tree = ctx.tree();
+    let dir_tree = ctx.dir().tree();
     let mut seen = HashSet::new();
     let mut vars: Vec<(u32, FreeVariable)> = Vec::new();
 
     for (expr_id, expr) in dir_tree.iter_nodes_of_type::<dir::Expression>() {
-        let span = span_for_dir_node(ctx, dir_tree, expr_id.into());
+        let span = span_for_dir_node(ctx.ast(), dir_tree, expr_id.into());
         if !span_contains_span(selection, span) {
             continue;
         }
@@ -669,7 +670,7 @@ fn collect_free_variables(
             continue;
         };
 
-        if definition_span.file != ctx.file_id {
+        if definition_span.file != ctx.file_id() {
             continue;
         }
         if span_contains_span(selection, definition_span) {
@@ -684,13 +685,14 @@ fn collect_free_variables(
         }
 
         let ty_text = ctx
-            .get_expression_type(expr_id.into())
+            .dir()
+            .expression_type_id(expr_id.into())
             .map(|type_id| {
-                let types = ctx.types();
+                let types = ctx.dir().types();
                 let ty = types.get_type(type_id);
                 format_type_for_inlay_hint(
                     ty,
-                    &ctx.artifacts,
+                    ctx.artifacts(),
                     types,
                     &session.modules,
                     &session.strings,
@@ -711,7 +713,7 @@ fn symbol_mutability(session: &Session, symbol_id: dir::GlobalSymbolId) -> Optio
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
     let ctx = query_context(session, module)?;
-    let symbols = ctx.symbols();
+    let symbols = ctx.dir().symbols();
     let symbol = symbols.get_symbol(symbol_id.local_id);
     symbol.binding_mutability
 }
@@ -719,22 +721,22 @@ fn symbol_mutability(session: &Session, symbol_id: dir::GlobalSymbolId) -> Optio
 /// Resolve type text for a symbol when possible.
 fn symbol_type_text(
     session: &Session,
-    ctx: &QueryContext<'_>,
+    ctx: &QueryContext,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<String> {
     // prefer the current query context when possible
-    if symbol_id.module_id == ctx.module_id {
+    if symbol_id.module_id == ctx.module_id() {
         let declaration = {
-            let symbols = ctx.symbols();
+            let symbols = ctx.dir().symbols();
             let symbol = symbols.get_symbol(symbol_id.local_id);
             symbol.primary_declaration?
         };
 
-        let type_id = ctx.get_node_type(declaration.local_id)?;
+        let type_id = ctx.dir().node_type_id(declaration.local_id)?;
         let type_text = format_local_type(
             type_id,
-            &ctx.artifacts,
-            ctx.types(),
+            ctx.artifacts(),
+            ctx.dir().types(),
             &session.modules,
             &session.strings,
         );
@@ -750,16 +752,16 @@ fn symbol_type_text(
     let module = module.as_ref();
     let ctx = query_context(session, module)?;
     let declaration = {
-        let symbols = ctx.symbols();
+        let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(symbol_id.local_id);
         symbol.primary_declaration?
     };
 
-    let type_id = ctx.get_node_type(declaration.local_id)?;
+    let type_id = ctx.dir().node_type_id(declaration.local_id)?;
     let type_text = format_local_type(
         type_id,
-        &ctx.artifacts,
-        ctx.types(),
+        ctx.artifacts(),
+        ctx.dir().types(),
         &session.modules,
         &session.strings,
     );

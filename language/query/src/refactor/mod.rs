@@ -1,5 +1,6 @@
 mod change_signature;
 mod code_action;
+mod extract;
 mod extract_function;
 mod extract_variable;
 mod file_rename;

@@ -6,12 +6,13 @@ use destack_source::{Applicability, BatchEdit, Diagnostic, Edit, FileEdit, FileI
 use serde::{Deserialize, Serialize};
 
 use super::{extract_function, extract_variable, inline_symbol};
-use crate::common::{
-    CompletionContext, ImportDeclarationKey, ImportEditMode, build_import_display_path,
-    build_import_edits_with_mode, categorize_import, detect_completion_context,
-    get_module_by_file_id, is_simple_identifier, matches_symbol_space_filter, program_for_file,
-    search_importable_symbols_for_program, sort_import_declaration_indices, token_at_offset,
+use crate::assist::{CompletionContext, completion_input_at_offset};
+use crate::ast::{get_module_by_file_id, is_simple_identifier, token_at_offset};
+use crate::dir::{
+    ImportEditMode, build_import_display_path, build_import_edits_with_mode,
+    matches_symbol_space_filter, program_for_file, search_importable_symbols_for_program,
 };
+use crate::format::{ImportDeclarationKey, categorize_import, sort_import_declaration_indices};
 use destack_dir::SymbolSpace;
 use destack_workspace::Session;
 
@@ -225,7 +226,7 @@ fn collect_organize_imports_action(session: &Session, file: FileId, actions: &mu
         return;
     };
     let module = module.as_ref();
-    let ctx = crate::query_context(session, module);
+    let ctx = crate::core::query_context(session, module);
     let Some(ctx) = ctx else {
         return;
     };
@@ -237,9 +238,9 @@ fn collect_organize_imports_action(session: &Session, file: FileId, actions: &mu
     // collect top level import expressions in order
     let mut imports: Vec<(Span, String, bool, String)> = Vec::new();
 
-    for expr_id in ctx.ast_context().roots() {
+    for expr_id in ctx.ast().roots() {
         // stop once we hit the first non import expression after imports
-        let expr = ctx.ast_context().tree().get(*expr_id);
+        let expr = ctx.ast().tree().get(*expr_id);
         let target = match expr {
             ast::Expression::Import {
                 source: ast::ImportSource::ImportStatement | ast::ImportSource::ImportEquals,
@@ -248,7 +249,7 @@ fn collect_organize_imports_action(session: &Session, file: FileId, actions: &mu
                 ..
             } => Some((*target, items.is_empty())),
             ast::Expression::Statement(inner_id) => {
-                let inner = ctx.ast_context().tree().get(*inner_id);
+                let inner = ctx.ast().tree().get(*inner_id);
                 if let ast::Expression::Import {
                     source: ast::ImportSource::ImportStatement | ast::ImportSource::ImportEquals,
                     target: ast::ImportTarget::String(target),
@@ -272,7 +273,7 @@ fn collect_organize_imports_action(session: &Session, file: FileId, actions: &mu
         };
 
         // resolve the import span and raw text
-        let span = ctx.ast_context().tree().source_map.get(expr_id.id);
+        let span = ctx.ast().tree().source_map.get(expr_id.id);
         let text = source
             .get(span.start as usize..span.end as usize)
             .unwrap_or("")
@@ -280,7 +281,7 @@ fn collect_organize_imports_action(session: &Session, file: FileId, actions: &mu
             .to_string();
 
         // resolve the import target for sorting
-        let target_text = ctx.ast_context().strings().get(target).to_string();
+        let target_text = ctx.ast().strings().get(target).to_string();
 
         // store the import entry for sorting
         imports.push((span, target_text, is_side_effect, text));
@@ -526,7 +527,7 @@ fn auto_import_mode_for_offset(
     offset: u32,
 ) -> (ImportEditMode, Option<SymbolSpace>) {
     // detect the completion context at the cursor
-    let context = detect_completion_context(session, file, offset);
+    let context = completion_input_at_offset(session, file, offset);
 
     // choose import mode based on type position
     match context.context {

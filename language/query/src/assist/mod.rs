@@ -1,15 +1,20 @@
-mod code_lens;
+mod call;
 mod completion;
+mod context;
 mod folding;
 mod hover;
-mod inlay_hint;
-mod semantic_token;
-mod signature_help;
+mod import;
+mod inlay;
+mod lens;
+mod member;
+mod semantic;
+mod signature;
 
-pub use code_lens::*;
 pub use completion::*;
+pub(crate) use context::*;
 pub use folding::*;
 pub use hover::*;
-pub use inlay_hint::*;
-pub use semantic_token::*;
-pub use signature_help::*;
+pub use inlay::*;
+pub use lens::*;
+pub use semantic::*;
+pub use signature::*;
