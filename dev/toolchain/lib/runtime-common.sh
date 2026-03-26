@@ -168,6 +168,42 @@ runtime_run_linux_container_runtime_lane() {
 		"
 }
 
+runtime_run_linux_container_x11_lane() {
+	container_engine="$1"
+	repo_root="$2"
+	toolchain_channel="$3"
+	test_filter="$4"
+
+	container_image="${DESTACK_RUNTIME_LINUX_CONTAINER_IMAGE:-rust:bookworm}"
+	container_rustflags="${DESTACK_RUNTIME_LINUX_CONTAINER_RUSTFLAGS:--C force-frame-pointers=yes -Z threads=1}"
+	container_packages="${DESTACK_RUNTIME_LINUX_X11_CONTAINER_PACKAGES:-build-essential pkg-config python3 xvfb libx11-dev libx11-xcb-dev libxcb1-dev libxcb-randr0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxfixes-dev libxrandr-dev libwayland-dev libdbus-1-dev libudev-dev}"
+
+	"${container_engine}" run --rm \
+		-v "${repo_root}:/work" \
+		-v destack-runtime-linux-cargo-registry:/usr/local/cargo/registry \
+		-v destack-runtime-linux-cargo-git:/usr/local/cargo/git \
+		-v destack-runtime-linux-rustup:/usr/local/rustup \
+		-w /tmp \
+		"${container_image}" \
+		bash -lc "
+			set -euo pipefail
+			export PATH=/usr/local/cargo/bin:\$PATH
+			apt-get update >/dev/null
+			apt-get install -y ${container_packages} >/dev/null
+			rustup toolchain install '${toolchain_channel}' --profile minimal >/dev/null
+			rustup default '${toolchain_channel}' >/dev/null
+			source /work/dev/toolchain/lib/runtime-common.sh
+			runtime_set_standard_environment
+			export CARGO_BUILD_JOBS=1
+			export CARGO_PROFILE_DEV_DEBUG=0
+			export CARGO_PROFILE_TEST_DEBUG=0
+			export RUSTFLAGS='${container_rustflags}'
+			export CARGO_TARGET_DIR=/work/target/runtime-linux-x11-container
+			export DESTACK_X11_RUNTIME_TEST_FILTER='${test_filter}'
+			bash /work/dev/toolchain/check-runtime-linux-x11.sh
+		"
+}
+
 runtime_auto_install_toolchains_enabled() {
 	auto_install="${DESTACK_AUTO_INSTALL_TOOLCHAINS:-0}"
 	[ "${auto_install}" = "1" ]

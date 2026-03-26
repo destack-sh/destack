@@ -137,6 +137,10 @@ check-runtime-ios-host:
 check-runtime-linux:
     bash ../dev/toolchain/check-runtime-linux.sh
 
+# check runtime x11 backend against one headless x server on linux host
+check-runtime-linux-x11:
+    bash ../dev/toolchain/check-runtime-linux-x11.sh
+
 # check runtime for linux aarch64 target using one configured cross toolchain
 check-runtime-linux-aarch64:
     bash ../dev/toolchain/check-runtime-linux-aarch64.sh
