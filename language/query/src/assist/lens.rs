@@ -1,12 +1,15 @@
 use destack_ast as ast;
-use destack_dir::{self as dir, Expression, GlobalSymbolId, SymbolType};
+use destack_dir::{self as dir, GlobalSymbolId, SymbolType};
 use destack_source::{FileId, NodeSpanType, Span, Uri};
 use serde::{Deserialize, Serialize};
 
 use crate::ast::get_module_by_file_id;
-use crate::core::AstQuery;
-use crate::dir::{get_canonical_symbol, resolve_expression_symbol, resolve_symbol_name};
-use destack_workspace::Session;
+use crate::core::{AstQuery, SessionQueryIndexExt};
+use crate::dir::{
+    ReferenceCollectionOptions, collect_symbol_references_in_context, get_canonical_symbol,
+    resolve_symbol_name,
+};
+use destack_workspace::{NominalRelationKind, Session};
 
 /// A code lens (inline annotation with optional command).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -252,23 +255,35 @@ fn code_lens_kind_rank(data: &CodeLensData) -> u8 {
 /// Count references to a symbol across all modules.
 fn count_references(session: &Session, symbol_id: GlobalSymbolId) -> usize {
     let canonical_id = get_canonical_symbol(session, symbol_id);
-    let mut count = 0;
+    let reference_name = resolve_symbol_name(session, canonical_id);
 
-    for module in session.modules.iter() {
+    let reference_options = ReferenceCollectionOptions {
+        include_expressions: true,
+        include_members: true,
+        include_dependencies: true,
+        include_namespace_receivers: true,
+        skip_dependency_aliases: false,
+        use_dependency_name_spans: true,
+        target_name: reference_name.as_deref(),
+        limit_to_file: None,
+    };
+
+    let mut count = 0;
+    for module_id in session.reference_index_modules_for_target(canonical_id) {
+        let module = session.modules.get(module_id);
         let module = module.as_ref();
         let Some(ctx) = crate::core::query_context(session, module) else {
             continue;
         };
-        let dir_tree = ctx.dir().tree();
 
-        for (expr_id, _expr) in dir_tree.iter_nodes_of_type::<Expression>() {
-            if let Some(target) = resolve_expression_symbol(ctx.dir(), expr_id) {
-                let target_canonical = get_canonical_symbol(session, target);
-                if target_canonical == canonical_id {
-                    count += 1;
-                }
-            }
-        }
+        let spans = collect_symbol_references_in_context(
+            session,
+            ctx.ast(),
+            ctx.dir(),
+            canonical_id,
+            reference_options,
+        );
+        count += spans.len();
     }
 
     count
@@ -277,45 +292,23 @@ fn count_references(session: &Session, symbol_id: GlobalSymbolId) -> usize {
 /// Count implementations of an interface across all modules.
 fn count_implementations(session: &Session, symbol_id: GlobalSymbolId) -> usize {
     let canonical_id = get_canonical_symbol(session, symbol_id);
-    let mut count = 0;
 
-    for module in session.modules.iter() {
-        let module = module.as_ref();
-        let Some(ctx) = crate::core::query_context(session, module) else {
-            continue;
-        };
-        let types = ctx.dir().types();
-
-        for (_, lineage) in types.iter_lineages() {
-            if lineage.directly_implements(canonical_id) {
-                count += 1;
-            }
-        }
-    }
-
-    count
+    session
+        .nominal_index_entries_for_target(canonical_id)
+        .into_iter()
+        .filter(|entry| entry.relation == NominalRelationKind::Implements)
+        .count()
 }
 
 /// Count subclasses of a class across all modules.
 fn count_subclasses(session: &Session, symbol_id: GlobalSymbolId) -> usize {
     let canonical_id = get_canonical_symbol(session, symbol_id);
-    let mut count = 0;
 
-    for module in session.modules.iter() {
-        let module = module.as_ref();
-        let Some(ctx) = crate::core::query_context(session, module) else {
-            continue;
-        };
-        let types = ctx.dir().types();
-
-        for (_, lineage) in types.iter_lineages() {
-            if lineage.directly_extends(canonical_id) {
-                count += 1;
-            }
-        }
-    }
-
-    count
+    session
+        .nominal_index_entries_for_target(canonical_id)
+        .into_iter()
+        .filter(|entry| entry.relation == NominalRelationKind::Extends)
+        .count()
 }
 
 /// Check whether a node has a decorator with the given name.

@@ -6,13 +6,14 @@ use serde::{Deserialize, Serialize};
 use {destack_ast as ast, destack_dir as dir};
 
 use crate::ast::{is_simple_identifier, sort_and_dedup_spans, token_at_offset};
+use crate::core::SessionQueryIndexExt;
 use crate::dir::{
     ReferenceCollectionOptions, SymbolAtOffset, collect_default_import_alias_symbols_for_export,
     collect_symbol_references_in_context, find_symbol_at_offset, get_canonical_symbol,
     get_symbol_definition_span, get_symbol_local_definition_span, member_key_name,
     resolve_local_import_alias_name, resolve_symbol_name,
 };
-use destack_workspace::Session;
+use destack_workspace::{NominalRelationKind, Session};
 
 /// Result of a prepare rename query.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -259,7 +260,8 @@ fn collect_symbol_reference_spans_across_user_modules(
 ) -> Vec<Span> {
     let mut spans = Vec::new();
 
-    for module in session.modules.iter() {
+    for module_id in session.reference_index_modules_for_target(canonical_id) {
+        let module = session.modules.get(module_id);
         let module = module.as_ref();
         if !module.is_user() {
             continue;
@@ -487,35 +489,35 @@ fn collect_interface_member_implementations(
     expected_name: &str,
 ) -> Vec<dir::GlobalSymbolId> {
     let mut members = Vec::new();
+    let interface_symbol = get_canonical_symbol(session, target.interface_symbol);
+    let implementing_symbols: Vec<dir::GlobalSymbolId> = session
+        .nominal_index_entries_for_target(interface_symbol)
+        .into_iter()
+        .filter(|entry| entry.relation == NominalRelationKind::Implements)
+        .map(|entry| entry.source_symbol)
+        .collect();
 
-    for module in session.modules.iter() {
+    if implementing_symbols.is_empty() {
+        return members;
+    }
+
+    let implementing_module_ids: HashMap<destack_source::ModuleId, Vec<dir::LocalSymbolId>> =
+        implementing_symbols
+            .into_iter()
+            .fold(HashMap::new(), |mut modules, symbol_id| {
+                modules
+                    .entry(symbol_id.module_id)
+                    .or_default()
+                    .push(symbol_id.local_id);
+                modules
+            });
+
+    for (module_id, implementing_symbols) in implementing_module_ids {
+        let module = session.modules.get(module_id);
         let module = module.as_ref();
         let Some(ctx) = crate::core::query_context(session, module) else {
             continue;
         };
-
-        let implementing_symbols = {
-            let types = ctx.dir().types();
-            let mut implementing_symbols = Vec::new();
-            for (symbol_id, lineage) in types.iter_lineages() {
-                let implements = lineage.implements.iter().any(|symbol| {
-                    let canonical = get_canonical_symbol(session, *symbol);
-                    canonical == target.interface_symbol
-                });
-                if !implements {
-                    continue;
-                }
-                if symbol_id.module_id != ctx.module_id() {
-                    continue;
-                }
-                implementing_symbols.push(symbol_id.local_id);
-            }
-            implementing_symbols
-        };
-
-        if implementing_symbols.is_empty() {
-            continue;
-        }
 
         let dir_tree = ctx.dir().tree();
         for (member_id, member) in dir_tree.iter_nodes_of_type::<dir::Member>() {
