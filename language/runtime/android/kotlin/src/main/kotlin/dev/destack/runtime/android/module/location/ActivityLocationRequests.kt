@@ -1,5 +1,6 @@
 package dev.destack.runtime.android.module.location
 
+import android.annotation.SuppressLint
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
@@ -101,6 +102,7 @@ private fun locationServicesEnabled(
     )
 }
 
+@SuppressLint("MissingPermission")
 private fun locationLastKnown(
     context: Context,
     locationManager: LocationManager,
@@ -146,6 +148,7 @@ private fun locationLastKnown(
     )
 }
 
+@SuppressLint("MissingPermission")
 private fun locationWatchOpen(
     context: Context,
     locationManager: LocationManager,

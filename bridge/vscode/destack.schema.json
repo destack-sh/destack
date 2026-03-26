@@ -6638,6 +6638,16 @@
           "items": {
             "$ref": "#/$defs/TargetAppBackgroundMode"
           }
+        },
+        "taskIdentifiers": {
+          "description": "Declared stable background task identifiers.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
