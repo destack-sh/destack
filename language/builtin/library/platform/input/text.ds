@@ -32,18 +32,44 @@ export struct InputTextRange {
     endOffset: uint32;
 }
 
-/// Text input area geometry.
-export struct InputTextInputArea {
-    /// Area left coordinate in backend-native units.
-    x: int32;
-    /// Area top coordinate in backend-native units.
-    y: int32;
-    /// Area width in backend-native units.
-    width: uint32;
-    /// Area height in backend-native units.
-    height: uint32;
-    /// Cursor offset inside the text area.
-    cursor: int32;
+/// Text input rectangle in local logical units.
+export struct InputTextRectangle {
+    /// Rectangle left coordinate.
+    x: float64;
+    /// Rectangle top coordinate.
+    y: float64;
+    /// Rectangle width.
+    width: float64;
+    /// Rectangle height.
+    height: float64;
+}
+
+/// Text input affine transform into target-local coordinates.
+export struct InputTextTransform2D {
+    /// Matrix first-row X coefficient.
+    xx: float64;
+    /// Matrix first-row Y coefficient.
+    xy: float64;
+    /// Matrix second-row X coefficient.
+    yx: float64;
+    /// Matrix second-row Y coefficient.
+    yy: float64;
+    /// Translation X component.
+    tx: float64;
+    /// Translation Y component.
+    ty: float64;
+}
+
+/// Text input geometry hints.
+export struct InputTextGeometry {
+    /// Transform from local editor geometry into target-local coordinates.
+    localToTargetTransform: InputTextTransform2D;
+    /// Full editor rectangle in local logical units.
+    editorRectangle: InputTextRectangle;
+    /// Caret rectangle in local logical units when one focused insertion point is known.
+    caretRectangle: InputTextRectangle | void;
+    /// Composing rectangle in local logical units when one active composition span is known.
+    composingRectangle: InputTextRectangle | void;
 }
 
 /// Text input session configuration.
@@ -233,9 +259,11 @@ declare namespace input {
     /// The host uses this session to attach platform IME or editing services for the selected target scope.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, iOS, Unix, and Windows.
     /// Returns operation-level `notSupported` where text input sessions or one window scope are unavailable.
-    /// Unix terminal and Windows console backends currently support only the default focus scope.
+    /// Android and iOS use the focused host text target and do not support explicit window routing.
+    /// Unix terminal and Windows console backends currently route committed cooked text through session edit-intent events.
+    /// Explicit window targets are used for session metadata and geometry hints when one opened window resource is provided.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
@@ -249,7 +277,7 @@ declare namespace input {
         effect: "external",
         replay: "recordable",
         capabilities: ["input.text"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "ios", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -266,7 +294,7 @@ declare namespace input {
     /// Pending composition updates are finalized or canceled according to backend policy.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, iOS, Unix, and Windows.
     /// Returns operation-level `notSupported` where text input sessions are unavailable.
     ///
     /// # Errors
@@ -281,7 +309,7 @@ declare namespace input {
         effect: "external",
         replay: "recordable",
         capabilities: ["input.text"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "ios", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -289,15 +317,16 @@ declare namespace input {
     })
     export function textClose(session: InputTextSessionHandle): Result<void, PlatformError>;
 
-    /// Set text input area.
+    /// Set text input geometry.
     ///
-    /// Set one text input area and cursor position hint for one active text input session.
-    /// Area hints are used by host IME placement when supported for the selected target scope.
+    /// Set one text input geometry hint for one active text input session.
+    /// Geometry hints are used by host IME placement when supported for the selected target scope.
     ///
     /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where text-area hints or one window scope are unavailable.
-    /// Uses backend-specific text-area hint tracking.
-    /// Unix terminal and Windows console backends currently support only the default focus scope.
+    /// Android, iOS, Unix, and Windows, with operation-level `notSupported` where text-geometry hints or one window scope are unavailable.
+    /// Android and iOS use the focused host text target and do not support explicit window routing.
+    /// Uses backend-specific text-geometry tracking.
+    /// Explicit window targets are used for session metadata and geometry hints when one opened window resource is provided.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, notSupported.
@@ -307,52 +336,53 @@ declare namespace input {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.input.text.setArea", {
+    @binding("destack.input.text.setGeometry", {
         effect: "external",
         replay: "recordable",
         capabilities: ["input.text"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "ios", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "never",
         affinity: "any",
     })
-    export function textSetArea(
+    export function textSetGeometry(
         session: InputTextSessionHandle,
-        area: InputTextInputArea,
+        geometry: InputTextGeometry,
     ): Result<void, PlatformError>;
 
-    /// Get text input area.
+    /// Get text input geometry.
     ///
-    /// Return the currently configured text input area and cursor position hint.
+    /// Return the currently configured text input geometry hint.
     /// Resolve state for one active text input session.
     ///
     /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where one window scope is unavailable.
-    /// Uses backend-specific text-area hint state tracking.
-    /// Unix terminal and Windows console backends currently support only the default focus scope.
+    /// Android, iOS, Unix, and Windows, with operation-level `notSupported` where one window scope is unavailable.
+    /// Uses backend-specific text-geometry state tracking.
+    /// Explicit window targets are used for session metadata and geometry hints when one opened window resource is provided.
     ///
     /// # Errors
-    /// Returns invalidArgument, ioNotFound, notSupported.
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    /// Returns `ioWouldBlock` until one renderer geometry hint has been supplied for the session.
     ///
     /// # Security
     /// Requires `input.text`.
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.input.text.getArea", {
+    @binding("destack.input.text.getGeometry", {
         effect: "external",
         replay: "recordable",
         capabilities: ["input.text"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "ios", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "never",
         affinity: "any",
     })
-    export function textGetArea(
+    export function textGetGeometry(
         session: InputTextSessionHandle,
-    ): Result<InputTextInputArea, PlatformError>;
+    ): Result<InputTextGeometry, PlatformError>;
 
     /// Set text input state.
     ///
@@ -360,7 +390,7 @@ declare namespace input {
     /// Hosts use this state to synchronize platform IME or editing services with the focused editor.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, iOS, Unix, and Windows.
     /// Returns operation-level `notSupported` where text input sessions are unavailable.
     ///
     /// # Errors
@@ -375,7 +405,7 @@ declare namespace input {
         effect: "external",
         replay: "recordable",
         capabilities: ["input.text"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "ios", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "never",
@@ -392,8 +422,11 @@ declare namespace input {
     /// Session events include host state changes, composition events, edit intents, and clipboard commands.
     ///
     /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where text-session events are unavailable.
+    /// Android, iOS, Unix, and Windows, with operation-level `notSupported` where text-session events are unavailable.
     /// Uses backend-specific IME, editing, and clipboard event queues.
+    /// Android and iOS deliver host text-state events through the focused mobile text lane.
+    /// AppKit, Wayland, and Win32 window hosts provide the strongest composition and geometry-backed behavior.
+    /// X11 window hosts and terminal or console lanes are best-effort and may emit only committed edit intents and clipboard commands.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -407,7 +440,7 @@ declare namespace input {
         effect: "external",
         replay: "recordable",
         capabilities: ["input.text"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "ios", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -423,8 +456,11 @@ declare namespace input {
     /// Empty queue state is reported through ioWouldBlock.
     ///
     /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where text-session events are unavailable.
+    /// Android, iOS, Unix, and Windows, with operation-level `notSupported` where text-session events are unavailable.
     /// Uses backend-specific nonblocking IME, editing, and clipboard queue reads.
+    /// Android and iOS deliver host text-state events through the focused mobile text lane.
+    /// AppKit, Wayland, and Win32 window hosts provide the strongest composition and geometry-backed behavior.
+    /// X11 window hosts and terminal or console lanes are best-effort and may emit only committed edit intents and clipboard commands.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -438,7 +474,7 @@ declare namespace input {
         effect: "external",
         replay: "recordable",
         capabilities: ["input.text"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "ios", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "never",

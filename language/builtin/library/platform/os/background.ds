@@ -38,22 +38,32 @@ export enum BackgroundConflictPolicy {
     Keep = 2,
 }
 
+/// Background-task schedule class.
+export enum BackgroundTaskScheduleKind {
+    /// Schedule one single future execution.
+    Once = 1,
+    /// Schedule one recurring execution stream.
+    Recurring = 2,
+}
+
 /// Background-task completion class.
 export enum BackgroundTaskResult {
-    /// Task completed successfully.
+    /// This scheduled execution completed successfully.
     Success = 1,
-    /// Task should be retried later.
+    /// This scheduled execution should be retried sooner than the next regular occurrence when the host supports one retry path.
     Retry = 2,
-    /// Task failed and should not be retried automatically.
+    /// This scheduled execution failed and should not be retried before the next regular occurrence.
     Failure = 3,
 }
 
 /// Background-task schedule payload.
 export struct BackgroundTaskSchedule {
-    /// Requested minimum repeat interval in nanoseconds.
-    minimumIntervalNs: uint64;
+    /// Schedule class.
+    kind: BackgroundTaskScheduleKind;
     /// Earliest target execution timestamp in UTC nanoseconds when provided.
     earliestBeginUnixNs?: uint64;
+    /// Repeat interval in nanoseconds for recurring schedules.
+    repeatIntervalNs?: uint64;
 }
 
 /// Background-task scheduling options.
