@@ -5,7 +5,7 @@ use crate::core::Case;
 
 /// Default extensions for Destack source files.
 pub(super) const SOURCE_EXTENSIONS: &[&str] = &[
-    "ds", "d.ds", "ts", "tsx", "mts", "cts", "js", "jsx", "mjs", "cjs",
+    "ds", "d.ds", "ts", "tsx", "mts", "cts", "js", "jsx", "mjs", "cjs", "html", "css", "svg",
 ];
 
 /// Discover emit cases recursively from one fixture root.

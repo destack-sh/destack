@@ -2,6 +2,26 @@
   "index": "index.html",
   "files": [
     {
+      "path": "assets/site.css",
+      "type": "asset",
+      "loader": "asset"
+    },
+    {
+      "path": "assets/workspace-mark-wide.svg",
+      "type": "asset",
+      "loader": "asset"
+    },
+    {
+      "path": "assets/workspace-mark.svg",
+      "type": "asset",
+      "loader": "asset"
+    },
+    {
+      "path": "assets/workspace-sprite.svg",
+      "type": "asset",
+      "loader": "asset"
+    },
+    {
       "path": "index.html",
       "type": "asset",
       "loader": "html",
