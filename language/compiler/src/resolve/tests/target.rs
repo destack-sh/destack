@@ -1,6 +1,6 @@
 use crate::TestProgram;
 use destack_artifact::{DirPrepared, EmitFormat, ImportedModuleTable, Runtime};
-use destack_dir::{DependencyKind, DependencySource, StaticKey};
+use destack_dir::{DependencyKind, DependencySource, Expression, ModuleTarget, StaticKey};
 use destack_source::DiagnosticSeverity;
 use std::time::Duration;
 
@@ -1445,4 +1445,58 @@ useValue;
     };
 
     assert_eq!(target_symbol.module_id, declaration_module_id);
+}
+
+/// Resolve one static dynamic import target expression to one module target.
+#[test]
+fn test_resolve_dynamic_import_string_expression_target() {
+    let test = TestProgram::memory_sequential();
+    let feature_module_id = test.add_module("feature.ts", "export const featureValue = 1;");
+    let main_module_id = test.add_module(
+        "main.ts",
+        r#"
+export const featurePromise = import("./feature.ts");
+"#,
+    );
+    test.resolve_module(main_module_id);
+    test.compile_check_clean();
+
+    // resolved dynamic import
+    let dir = test.dir_resolved(main_module_id);
+    let tree = &dir.tree;
+    let found_import = tree
+        .iter_nodes_of_type::<Expression>()
+        .find(|(_, expression)| {
+            matches!(
+                expression,
+                Expression::Import {
+                    source: DependencySource::ImportCall,
+                    ..
+                }
+            )
+        });
+    let Some((_, import_expression)) = found_import else {
+        panic!("expected resolved dynamic import expression");
+    };
+
+    let Expression::Import {
+        source,
+        target,
+        target_module,
+        ..
+    } = import_expression
+    else {
+        panic!("expected resolved dynamic import expression");
+    };
+
+    assert_eq!(*source, DependencySource::ImportCall);
+    assert_eq!(test.program.strings.get(*target), "./feature.ts");
+    assert_eq!(*target_module, ModuleTarget::Module(feature_module_id));
+
+    // unresolved imports should be gone after resolve
+    let has_unresolved_import = tree
+        .iter_nodes_of_type::<Expression>()
+        .any(|(_, expression)| matches!(expression, Expression::UnresolvedImport { .. }));
+
+    assert!(!has_unresolved_import);
 }

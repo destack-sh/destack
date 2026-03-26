@@ -602,21 +602,34 @@ impl Compiler {
         let edge_kind =
             Self::import_edge_kind_for_dependency(dependency.source, is_typescript_commonjs);
 
-        self.resolve_specifier_to_module_resolution(
+        if let Ok(targets) = self.resolve_specifier_to_module_resolution(
             profile_id,
             target,
             Some(module_id),
             edge_kind,
             None,
-        )
-        .map_err(|_| {
-            self.unresolved_error_for_specifier(
-                dependency.node,
-                profile_id,
-                dependency.target,
-                target,
-            )
-        })
+        ) {
+            return Ok(targets);
+        }
+
+        if let Some(binding_target) =
+            self.resolve_module_binding_target(module_id, profile_id, target)?
+        {
+            return Ok(ModuleResolution::from_target(binding_target));
+        }
+
+        if let Some(external_target) =
+            self.externalized_package_import_target(source_module, profile_id, target)?
+        {
+            return Ok(ModuleResolution::from_target(external_target));
+        }
+
+        Err(self.unresolved_error_for_specifier(
+            dependency.node,
+            profile_id,
+            dependency.target,
+            target,
+        ))
     }
 
     /// Collect module ids from primary and companion resolution targets.
