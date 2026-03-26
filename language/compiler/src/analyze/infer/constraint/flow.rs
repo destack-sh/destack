@@ -12,7 +12,8 @@ use destack_dir::{
     GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree, NodeType, NodeVisitor,
     NodeVisitorOptions, Parameter, Pattern, PatternField, RuntimeCheckKind, ScalarLiteral,
     StaticArgument, StaticExpression, StaticKey, Type, TypeBinaryOperator, TypeField, TypeLiteral,
-    TypePredicateSubject, TypeTable, TypeUnaryOperator, UnaryOperator, walk_expression,
+    TypePredicateSubject, TypeTable, TypeUnaryOperator, UnaryOperator, are_types_equal,
+    walk_expression,
 };
 
 use crate::{AnalyzeError, AnalyzeResult, Compiler, InferState};
@@ -210,7 +211,8 @@ impl Compiler {
                     .environment(existing_id)
                     .cloned()
                     .unwrap_or_else(|| FlowEnvironment::new(false));
-                if self.flow_environment_equals(&existing_environment, &exit_environment) {
+                if self.flow_environment_equals(&existing_environment, &exit_environment, ctx.types)
+                {
                     existing_id
                 } else {
                     flow.push_environment(exit_environment.clone())
@@ -231,28 +233,31 @@ impl Compiler {
                 let target_index = edge.target.0 as usize;
 
                 // merge with any existing entry environment for the target
-                let next_environment_id = if let Some(existing_id) =
-                    entry_environment_ids[target_index]
-                {
-                    let existing_environment = flow
-                        .environment(existing_id)
-                        .cloned()
-                        .unwrap_or_else(|| FlowEnvironment::new(false));
-                    let merged_environment = self.merge_flow_environments(
-                        &mut ctx.reborrow(),
-                        &existing_environment,
-                        &edge_environment,
-                        Some(&existing_environment),
-                    );
+                let next_environment_id =
+                    if let Some(existing_id) = entry_environment_ids[target_index] {
+                        let existing_environment = flow
+                            .environment(existing_id)
+                            .cloned()
+                            .unwrap_or_else(|| FlowEnvironment::new(false));
+                        let merged_environment = self.merge_flow_environments(
+                            &mut ctx.reborrow(),
+                            &existing_environment,
+                            &edge_environment,
+                            Some(&existing_environment),
+                        );
 
-                    if self.flow_environment_equals(&existing_environment, &merged_environment) {
-                        existing_id
+                        if self.flow_environment_equals(
+                            &existing_environment,
+                            &merged_environment,
+                            ctx.types,
+                        ) {
+                            existing_id
+                        } else {
+                            flow.push_environment(merged_environment)
+                        }
                     } else {
-                        flow.push_environment(merged_environment)
-                    }
-                } else {
-                    flow.push_environment(edge_environment)
-                };
+                        flow.push_environment(edge_environment)
+                    };
 
                 // enqueue the target when its entry environment changes
                 if entry_environment_ids[target_index] != Some(next_environment_id) {
@@ -350,7 +355,7 @@ impl Compiler {
                 *node_id,
                 &current_environment,
                 context,
-            )? && !self.flow_environment_equals(&current_environment, &updated)
+            )? && !self.flow_environment_equals(&current_environment, &updated, ctx.types)
             {
                 current_environment = updated;
                 current_environment_id = flow.push_environment(current_environment.clone());
@@ -695,6 +700,17 @@ impl Compiler {
             return left_type_id;
         }
 
+        // reuse one existing type id when the types already match semantically
+        if are_types_equal(left_type_id, right_type_id, ctx.types) {
+            if let Some(baseline_type_id) = baseline_type_id
+                && are_types_equal(left_type_id, baseline_type_id, ctx.types)
+            {
+                return baseline_type_id;
+            }
+
+            return left_type_id;
+        }
+
         // collect and deduplicate union elements
         let mut elements = Vec::new();
         self.append_flow_union_elements(left_type_id, &mut elements, ctx.types);
@@ -708,19 +724,41 @@ impl Compiler {
         {
             let mut ordered_elements = Vec::with_capacity(elements.len());
             for element_id in baseline_elements {
-                if elements.contains(element_id) {
-                    ordered_elements.push(*element_id);
+                if elements
+                    .iter()
+                    .any(|existing| are_types_equal(*existing, *element_id, ctx.types))
+                {
+                    self.push_flow_union_element(*element_id, &mut ordered_elements, ctx.types);
                 }
             }
-            for element_id in &elements {
-                if !ordered_elements.contains(element_id) {
-                    ordered_elements.push(*element_id);
-                }
+            for element_id in elements {
+                self.push_flow_union_element(element_id, &mut ordered_elements, ctx.types);
             }
-            return self.finish_flow_union_elements(ordered_elements, ctx.types);
+
+            if self.flow_union_elements_match_type(&ordered_elements, baseline_type_id, ctx.types) {
+                return baseline_type_id;
+            }
+
+            if self.flow_union_elements_match_type(&ordered_elements, left_type_id, ctx.types) {
+                return left_type_id;
+            }
+
+            if self.flow_union_elements_match_type(&ordered_elements, right_type_id, ctx.types) {
+                return right_type_id;
+            }
+
+            return self.finish_flow_union_elements(ordered_elements, left_type_id, ctx.types);
         }
 
-        self.finish_flow_union_elements(elements, ctx.types)
+        if self.flow_union_elements_match_type(&elements, left_type_id, ctx.types) {
+            return left_type_id;
+        }
+
+        if self.flow_union_elements_match_type(&elements, right_type_id, ctx.types) {
+            return right_type_id;
+        }
+
+        self.finish_flow_union_elements(elements, left_type_id, ctx.types)
     }
 
     /// Append union elements for a type id, avoiding duplicates.
@@ -730,43 +768,85 @@ impl Compiler {
         elements: &mut Vec<LocalTypeId>,
         types: &TypeTable,
     ) {
-        // NOTE #Performance: repeated Vec contains checks make flow merges quadratic
         match types.get_type(type_id) {
             Type::Union { elements: union } => {
                 // flatten union elements into the merged list
                 for element_id in union {
-                    if !elements.contains(element_id) {
-                        elements.push(*element_id);
-                    }
+                    self.push_flow_union_element(*element_id, elements, types);
                 }
             }
             _ => {
                 // append non union types when missing
-                if !elements.contains(&type_id) {
-                    elements.push(type_id);
-                }
+                self.push_flow_union_element(type_id, elements, types);
             }
         }
+    }
+
+    /// Append one flow union element when it is not already present semantically.
+    fn push_flow_union_element(
+        &self,
+        type_id: LocalTypeId,
+        elements: &mut Vec<LocalTypeId>,
+        types: &TypeTable,
+    ) {
+        if elements
+            .iter()
+            .any(|existing| are_types_equal(*existing, type_id, types))
+        {
+            return;
+        }
+
+        elements.push(type_id);
     }
 
     /// Finalize union elements into a type id.
     fn finish_flow_union_elements(
         &self,
         elements: Vec<LocalTypeId>,
+        source_type_id: LocalTypeId,
         types: &mut TypeTable,
     ) -> LocalTypeId {
-        // reuse a single element union when possible
-        if elements.len() == 1 {
-            elements[0]
-        } else {
-            let source_type_id = elements[0];
-            types.insert_type_from_type(Type::Union { elements }, source_type_id)
+        self.union_type_from_list(elements, source_type_id, types)
+    }
+
+    /// Return whether one merged flow union matches one existing type exactly enough to reuse it.
+    fn flow_union_elements_match_type(
+        &self,
+        elements: &[LocalTypeId],
+        type_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> bool {
+        match types.get_type(type_id) {
+            Type::Union {
+                elements: candidate_elements,
+            } => {
+                candidate_elements.len() == elements.len()
+                    && candidate_elements.iter().all(|candidate_id| {
+                        elements
+                            .iter()
+                            .any(|element_id| are_types_equal(*element_id, *candidate_id, types))
+                    })
+            }
+            _ => elements.len() == 1 && are_types_equal(elements[0], type_id, types),
         }
     }
 
     /// Compare two flow environments for equality.
-    fn flow_environment_equals(&self, left: &FlowEnvironment, right: &FlowEnvironment) -> bool {
-        left.is_reachable == right.is_reachable && left.bindings == right.bindings
+    fn flow_environment_equals(
+        &self,
+        left: &FlowEnvironment,
+        right: &FlowEnvironment,
+        types: &TypeTable,
+    ) -> bool {
+        left.is_reachable == right.is_reachable
+            && left.bindings.len() == right.bindings.len()
+            && left.bindings.iter().all(|(symbol, left_type_id)| {
+                let Some(right_type_id) = right.bindings.get(symbol).copied() else {
+                    return false;
+                };
+
+                are_types_equal(*left_type_id, right_type_id, types)
+            })
     }
 
     /// Apply a flow environment to an inference context.
