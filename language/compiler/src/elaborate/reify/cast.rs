@@ -572,13 +572,10 @@ impl Compiler {
         right: LocalNodeId<Expression>,
     ) -> ElaborateResult<()> {
         // read the target type from the left hand side
-        let target_type_id = self.value_type_id_for_expression(state, left).ok_or(
-            ElaborateError::UnsupportedConstruct {
-                node: left
-                    .into_global_any(state.ctx.module_id)
-                    .into_anchored(Some(state.ctx.profile)),
-            },
-        )?;
+        // FUGU #Incomplete: some resolved assignment targets still do not carry value types here
+        let Some(target_type_id) = self.value_type_id_for_expression(state, left) else {
+            return Ok(());
+        };
 
         // wrap the right hand side when needed
         let cast_right_id =
