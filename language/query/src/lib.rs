@@ -9,7 +9,7 @@ pub mod refactor;
 pub use assist::*;
 pub use core::{
     QueryExecutionMode, QueryMethodId, QueryRequest, QueryRequestEnvelope, QueryRequestParseError,
-    QueryResponse, QueryResponseEnvelope, parse_query_request,
+    QueryResponse, QueryResponseEnvelope, SessionQueryIndexExt, parse_query_request,
 };
 pub use dir::{SymbolKind, resolve_global_symbol_id};
 pub use format::*;

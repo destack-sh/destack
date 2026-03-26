@@ -12,8 +12,8 @@ use parking_lot::RwLock;
 
 use crate::{
     Builtins, Destack, FormatterOptions, LinterOptions, ModuleRegistry, PackageRegistry, Program,
-    SessionOptions, TsConfigRegistry, Workspace, WorkspaceFileEntry, WorkspaceIndexHeader,
-    WorkspaceIndexSnapshot, WorkspaceModuleEntry, file_content_hash_for_path,
+    QueryIndex, SessionOptions, TsConfigRegistry, Workspace, WorkspaceFileEntry,
+    WorkspaceIndexHeader, WorkspaceIndexSnapshot, WorkspaceModuleEntry, file_content_hash_for_path,
     resolve_workspace_cache_root,
 };
 
@@ -60,6 +60,8 @@ pub struct Session {
     workspace_index_modules: DashMap<ModuleId, WorkspaceModuleEntry>,
     /// Compiled builtins (always loaded).
     pub builtins: Arc<Builtins>,
+    /// Workspace query indexes derived from module artifacts.
+    query_index: RwLock<QueryIndex>,
 }
 
 impl Session {
@@ -102,6 +104,7 @@ impl Session {
             workspace_index_files: DashMap::new(),
             workspace_index_modules: DashMap::new(),
             builtins,
+            query_index: RwLock::new(QueryIndex::default()),
         }
     }
 
@@ -477,6 +480,18 @@ impl Session {
 
         // fallback: create/get a program for the cwd
         self.get_or_create_program(self.cwd.clone())
+    }
+
+    /// Read the current workspace query indexes.
+    pub fn with_query_index<R>(&self, read: impl FnOnce(&QueryIndex) -> R) -> R {
+        let query_index = self.query_index.read();
+        read(&query_index)
+    }
+
+    /// Mutate the current workspace query indexes.
+    pub fn with_query_index_mut<R>(&self, write: impl FnOnce(&mut QueryIndex) -> R) -> R {
+        let mut query_index = self.query_index.write();
+        write(&mut query_index)
     }
 }
 

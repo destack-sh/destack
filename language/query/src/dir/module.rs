@@ -2,10 +2,10 @@ use destack_dir as dir;
 use std::sync::Arc;
 
 use destack_dir::{GlobalSymbolId, StaticKey, SymbolType};
-use destack_source::{FileId, ModuleId};
-use destack_workspace::{Program, Session};
+use destack_source::{FileId, ModuleId, PathExt};
+use destack_workspace::{ImportIndexEntry, Program, Session, SpecifierIndexEntry};
 
-use crate::core::{query_context, with_query_context_for_module};
+use crate::core::{SessionQueryIndexExt, query_context, with_query_context_for_module};
 
 /// Information about an exported symbol from a module.
 #[derive(Debug, Clone)]
@@ -125,63 +125,101 @@ pub(crate) fn search_importable_symbols_for_program(
     query: &str,
     exclude_module: Option<ModuleId>,
 ) -> Vec<ExportedSymbol> {
-    // search only modules owned by the program
-    search_importable_symbols_for_modules(program.modules.iter(), session, query, exclude_module)
+    // search cached entries owned by the program
+    let entries = session.search_import_entries_for_program(program, query, exclude_module);
+
+    entries
+        .into_iter()
+        .map(|entry| ExportedSymbol {
+            name: entry.name,
+            kind: entry.kind,
+            space: entry.space,
+            module_id: entry.module_id,
+            local_id: entry.local_id,
+            module_path: entry.module_path,
+        })
+        .collect()
 }
 
-/// Search for importable symbols within a set of modules.
-fn search_importable_symbols_for_modules<I>(
-    modules: I,
+/// Build import index entries for one module.
+pub(crate) fn build_import_index_entries_for_module(
     session: &Session,
-    query: &str,
-    exclude_module: Option<ModuleId>,
-) -> Vec<ExportedSymbol>
-where
-    I: IntoIterator<Item = Arc<destack_workspace::Module>>,
-{
-    // prepare the result buffer and normalized query
-    let mut results = Vec::new();
-    let query_lower = query.to_lowercase();
+    module_id: ModuleId,
+) -> Vec<ImportIndexEntry> {
+    let Some(exports) = get_module_exports_maybe(session, module_id) else {
+        return Vec::new();
+    };
 
-    // scan modules for exported symbols
-    for module in modules {
-        let module = module.as_ref();
-        let module_id = module.id;
+    exports
+        .into_iter()
+        .map(|export| ImportIndexEntry {
+            name: export.name,
+            kind: export.kind,
+            space: export.space,
+            module_id: export.module_id,
+            local_id: export.local_id,
+            module_path: export.module_path,
+        })
+        .collect()
+}
 
-        // skip excluded modules
-        if Some(module_id) == exclude_module {
-            continue;
+/// Build module specifier index entries for one module.
+pub(crate) fn build_specifier_index_entries_for_module(
+    session: &Session,
+    module: &destack_workspace::Module,
+) -> Vec<SpecifierIndexEntry> {
+    let query_context = query_context(session, module);
+
+    let Some(entries) = crate::core::with_ast_query_for_module(session, module, |ast| {
+        let mut dir_targets = std::collections::HashMap::new();
+        if let Some(ctx) = query_context.as_ref() {
+            let dir_tree = ctx.dir().tree();
+            for (expression_id, expression) in dir_tree.iter_nodes_of_type::<dir::Expression>() {
+                let target_module = match expression {
+                    dir::Expression::Import { target_module, .. }
+                    | dir::Expression::ReExport { target_module, .. } => Some(*target_module),
+                    _ => None,
+                };
+                let Some(target_module) = target_module else {
+                    continue;
+                };
+
+                let source_id = dir_tree.get_source(expression_id.id);
+                dir_targets.insert(source_id, target_module.module_id());
+            }
         }
 
-        // resolve the module path for imports
-        let module_path = module_path_for_import(module);
-
-        // resolve exported symbols for the module
-        let Some(exports) = get_module_exports_maybe(session, module_id) else {
-            continue;
-        };
-
-        // collect exports that match the query
-        for export in exports {
-            let name = export.name;
-
-            // skip symbols that do not match the query prefix
-            if !query.is_empty() && !name.to_lowercase().starts_with(&query_lower) {
+        let mut entries = Vec::new();
+        for expression_id in ast.tree().iter_nodes::<destack_ast::Expression>() {
+            let expression = ast.tree().get(expression_id);
+            let Some((target, _kind)) =
+                crate::dir::module_specifier_in_expression(ast.tree(), expression)
+            else {
                 continue;
-            }
+            };
 
-            results.push(ExportedSymbol {
-                name,
-                kind: export.kind,
-                space: export.space,
-                module_id,
-                local_id: export.local_id,
-                module_path: export.module_path.or_else(|| module_path.clone()),
+            let specifier = ast.strings().get(target).to_string();
+            let target_module_id = dir_targets.get(&expression_id.id).copied().flatten();
+            let target_path = target_module_id.and_then(|target_module_id| {
+                let target_module = session.modules.get(target_module_id);
+                let target_module = target_module.as_ref();
+                target_module.path.as_ref().map(|path| path.normalize())
+            });
+
+            entries.push(SpecifierIndexEntry {
+                module_id: module.id,
+                file_id: module.file_id,
+                ast_node_id: expression_id.id,
+                specifier,
+                target_module_id,
+                target_path,
             });
         }
-    }
 
-    // return results sorted by name
-    results.sort_by(|a, b| a.name.cmp(&b.name));
-    results
+        entries
+    }) else {
+        return Vec::new();
+    };
+
+    entries
 }

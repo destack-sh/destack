@@ -1,10 +1,10 @@
 use destack_dir::{Extension, ExtensionKind, GlobalSymbolId};
 use destack_source::ModuleId;
 
-use crate::core::DirQuery;
+use crate::core::{DirQuery, SessionQueryIndexExt};
 
 use super::get_canonical_symbol;
-use destack_workspace::Session;
+use destack_workspace::{ExtensionIndexEntry, Module, Session};
 
 /// Visit each visible extension that targets the given symbol.
 ///
@@ -18,35 +18,49 @@ pub(crate) fn for_each_visible_extension(
     // normalize the target symbol across imports and re exports
     let canonical_target = get_canonical_symbol(session, target_symbol);
 
-    // scan all modules for extensions that target the canonical symbol
-    for module in session.modules.iter() {
-        // read the module and query context
+    // scan cached extensions for the canonical target
+    for entry in session.extension_index_entries_for_target(canonical_target) {
+        let module = session.modules.get(entry.module_id);
         let module = module.as_ref();
         let Some(ctx) = crate::core::query_context(session, module) else {
             continue;
         };
 
-        // resolve extension ids for the canonical target
         let types = ctx.dir().types();
-        let Some(extension_ids) = types.get_extensions_for_target(canonical_target) else {
+        let extension = types.get_extension(entry.extension_id);
+
+        // filter out not visible extensions
+        if !extension_is_visible(extension, current_module_id) {
             continue;
-        };
+        }
 
-        // iterate extensions and apply visibility rules
-        for extension_id in extension_ids {
-            let extension = types.get_extension(*extension_id);
-
-            // filter out not visible extensions
-            if !extension_is_visible(extension, current_module_id) {
-                continue;
-            }
-
-            // stop scanning once the visitor is satisfied
-            if visit(ctx.dir(), extension) {
-                return;
-            }
+        // stop scanning once the visitor is satisfied
+        if visit(ctx.dir(), extension) {
+            return;
         }
     }
+}
+
+/// Build extension index entries for one module.
+pub(crate) fn build_extension_index_entries_for_module(
+    session: &Session,
+    module: &Module,
+) -> Vec<ExtensionIndexEntry> {
+    let Some(ctx) = crate::core::query_context(session, module) else {
+        return Vec::new();
+    };
+
+    let mut entries = Vec::new();
+
+    for (extension_id, extension) in ctx.dir().types().iter_extensions() {
+        entries.push(ExtensionIndexEntry {
+            module_id: module.id,
+            extension_id,
+            target_symbol: get_canonical_symbol(session, extension.target),
+        });
+    }
+
+    entries
 }
 
 /// Check whether an extension is visible from a module.

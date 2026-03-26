@@ -1,6 +1,7 @@
 use destack_dir as dir;
 use destack_dir::{Expression, GlobalNodeIdAny, GlobalSymbolId, Resolution};
 use destack_source::SourcePartKey;
+use destack_workspace::{Module, NominalIndexEntry, NominalRelationKind};
 
 use super::{is_type_symbol, resolve_expression_symbol};
 use crate::core::DirQuery;
@@ -74,6 +75,47 @@ pub(crate) fn resolve_nominal_symbol_from_type_expression(
     }
 
     None
+}
+
+/// Build nominal index entries for one module.
+pub(crate) fn build_nominal_index_entries_for_module(
+    session: &Session,
+    module: &Module,
+) -> Vec<NominalIndexEntry> {
+    let Some(ctx) = crate::core::query_context(session, module) else {
+        return Vec::new();
+    };
+
+    let mut entries = Vec::new();
+
+    // collect direct nominal edges from stored lineages
+    for (source_symbol, lineage) in ctx.dir().types().iter_lineages() {
+        if let Some(target_symbol) = lineage.extends {
+            entries.push(NominalIndexEntry {
+                source_symbol,
+                target_symbol,
+                relation: NominalRelationKind::Extends,
+            });
+        }
+
+        for target_symbol in lineage.implements.iter().copied() {
+            entries.push(NominalIndexEntry {
+                source_symbol,
+                target_symbol,
+                relation: NominalRelationKind::Implements,
+            });
+        }
+
+        for target_symbol in lineage.embedded.iter().copied() {
+            entries.push(NominalIndexEntry {
+                source_symbol,
+                target_symbol,
+                relation: NominalRelationKind::Embeds,
+            });
+        }
+    }
+
+    entries
 }
 
 /// Check whether a symbol represents a nominal type symbol.
