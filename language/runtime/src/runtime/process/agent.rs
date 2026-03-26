@@ -13,7 +13,7 @@ use crate::platform::resource::ResourceTableSnapshot;
 use crate::platform::{ResourceId, ResourceTable};
 use crate::runtime::bindings::{BindingPolicy, BindingRegistry};
 use crate::runtime::capability::resolve_capability_profile;
-use crate::runtime::engine::{Engine, EngineContinuation, EngineImage};
+use crate::runtime::engine::{Engine, EngineImage, LiveContinuation};
 use crate::runtime::memory::{Gc, RootSet, RootVisitor, resolve_heap_options};
 use crate::runtime::policy::HookSnapshot;
 use crate::runtime::poller::PollerToken;
@@ -359,7 +359,7 @@ impl Agent {
     pub fn watch_timer(
         &mut self,
         handle: ResourceId,
-        runnable: EngineContinuation,
+        runnable: LiveContinuation,
         resume_value: heap::Value,
         priority: u8,
     ) -> RuntimeResult<()> {
@@ -368,7 +368,8 @@ impl Agent {
             resume_value,
             priority,
         };
-        self.event_loop.watch_timer(handle, watch)
+        self.event_loop
+            .watch_timer(handle, watch, self.engine.as_ref())
     }
 
     /// Remove the timer watch registered for one timer handle.
@@ -440,7 +441,7 @@ impl Agent {
     pub fn watch_event(
         &mut self,
         token: PollerToken,
-        runnable: EngineContinuation,
+        runnable: LiveContinuation,
         resume_value: heap::Value,
         priority: u8,
     ) -> RuntimeResult<()> {
@@ -449,7 +450,8 @@ impl Agent {
             resume_value,
             priority,
         };
-        self.event_loop.watch_event(token, watch)
+        self.event_loop
+            .watch_event(token, watch, self.engine.as_ref())
     }
 
     /// Remove the event watch registered for one poller token.
@@ -466,7 +468,7 @@ impl Agent {
     pub fn watch_host_event(
         &mut self,
         kind: HostEventKind,
-        runnable: EngineContinuation,
+        runnable: LiveContinuation,
         resume_value: heap::Value,
         priority: u8,
     ) -> RuntimeResult<()> {
@@ -475,7 +477,8 @@ impl Agent {
             resume_value,
             priority,
         };
-        self.event_loop.watch_host_event(kind, watch)
+        self.event_loop
+            .watch_host_event(kind, watch, self.engine.as_ref())
     }
 
     /// Remove the host event watch registered for one host event kind.

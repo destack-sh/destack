@@ -2,7 +2,7 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::HostSession;
 use crate::platform::resource;
 use crate::runtime::DropReason;
-use crate::runtime::engine::{EngineContinuation, Entry, ExecutionOutcome, ExecutionOutput};
+use crate::runtime::engine::{Entry, ExecutionOutcome, ExecutionOutput, LiveContinuation};
 use crate::runtime::poller::HostPoller;
 use crate::runtime::scheduler::{
     Microtask, Runnable, Task, TaskId, TaskStatus, Timer, TimerHandle,
@@ -330,7 +330,8 @@ impl Agent {
                 }
                 Runnable::PollerEvent(event) => {
                     // dispatch an external-event watch task when one is registered
-                    if let Some(task) = self.event_loop.task_for_event(event) {
+                    if let Some(task) = self.event_loop.task_for_event(event, self.engine.as_ref())
+                    {
                         self.enqueue_prepared_task(world, task)?;
                     }
                     // drop stale and unregistered events without crashing the loop
@@ -341,7 +342,10 @@ impl Agent {
                 }
                 Runnable::HostEvent(event) => {
                     // dispatch one host-event watch task when one is registered
-                    if let Some(task) = self.event_loop.task_for_host_event(event) {
+                    if let Some(task) = self
+                        .event_loop
+                        .task_for_host_event(event, self.engine.as_ref())
+                    {
                         self.enqueue_prepared_task(world, task)?;
                     }
                     // account for unconsumed host semantic events
@@ -388,7 +392,8 @@ impl Agent {
                 )?;
                 if should_dispatch {
                     // dispatch a timer watch task when one is registered
-                    if let Some(task) = self.event_loop.task_for_timer(timer) {
+                    if let Some(task) = self.event_loop.task_for_timer(timer, self.engine.as_ref())
+                    {
                         self.enqueue_prepared_task(world, task)?;
                     }
 
@@ -412,7 +417,7 @@ impl Agent {
         &mut self,
         world: &World,
         task_id: TaskId,
-        runnable: EngineContinuation,
+        runnable: LiveContinuation,
         resume_value: heap::Value,
     ) -> RuntimeResult<()> {
         // build the task metadata
@@ -552,9 +557,9 @@ impl Agent {
     fn execute_runnable(
         &mut self,
         world: &World,
-        runnable: EngineContinuation,
+        runnable: LiveContinuation,
         resume_value: heap::Value,
-    ) -> RuntimeResult<ExecutionOutcome<EngineContinuation>> {
+    ) -> RuntimeResult<ExecutionOutcome<LiveContinuation>> {
         let mut shared = world.shared.borrow_mut();
         let mut memory = heap::MemoryContext::with_shared_limits(
             &mut self.heap,

@@ -1,4 +1,5 @@
 use destack_core::{Capture, CaptureMode};
+use destack_engine::Continuation;
 use destack_heap as heap;
 use destack_workspace::SchedulerOptions;
 use serde::{Deserialize, Serialize};
@@ -9,7 +10,7 @@ use super::{
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::{HostEvent, HostEventKind};
 use crate::platform::ResourceId;
-use crate::runtime::engine::{Engine, EngineContinuation, EngineContinuationImage};
+use crate::runtime::engine::{Engine, LiveContinuation};
 use crate::runtime::poller::{PollerEvent, PollerToken};
 use crate::runtime::{DropCounts, ExecutionContextId};
 
@@ -58,7 +59,7 @@ pub struct TaskImage {
     /// Task identifier used for ordering and logging.
     pub id: TaskId,
     /// Runnable continuation image.
-    pub runnable: EngineContinuationImage,
+    pub runnable: Continuation,
     /// Resume payload passed back into the executor.
     pub resume_value: heap::Value,
     /// Current scheduling status.
@@ -73,7 +74,7 @@ pub struct MicrotaskImage {
     /// Microtask identifier used for ordering and logging.
     pub id: MicrotaskId,
     /// Runnable continuation image.
-    pub continuation: EngineContinuationImage,
+    pub continuation: Continuation,
     /// Resume payload passed back into the executor.
     pub resume_value: heap::Value,
     /// Current scheduling status.
@@ -84,7 +85,7 @@ pub struct MicrotaskImage {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EventLoopWatchImage {
     /// Runnable continuation image.
-    pub runnable: EngineContinuationImage,
+    pub runnable: Continuation,
     /// Resume payload passed back into the continuation.
     pub resume_value: heap::Value,
     /// Task priority used when queueing watched tasks.
@@ -504,21 +505,12 @@ impl EventLoop {
     /// Capture one continuation image or return one explicit capture barrier.
     fn capture_continuation_image(
         &self,
-        continuation: &EngineContinuation,
+        continuation: &LiveContinuation,
         mode: CaptureMode,
         engine: &mut dyn Engine,
-    ) -> RuntimeResult<EngineContinuationImage> {
-        // native continuations do not have honest suspend or hibernate restore yet
-        if matches!(continuation, EngineContinuation::Native(_))
-            && matches!(mode, CaptureMode::Suspend | CaptureMode::Hibernate)
-        {
-            return Err(RuntimeError::Internal {
-                message: format!(
-                    "event loop cannot capture native continuations for {mode:?}: explicit rehydration is not implemented"
-                ),
-            }
-            .boxed());
-        }
+    ) -> RuntimeResult<Continuation> {
+        // validate capture support through the live continuation boundary
+        engine.validate_capture_mode(continuation, mode)?;
 
         engine.continuation_image(continuation)
     }

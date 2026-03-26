@@ -1,7 +1,8 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use destack_core::LocalStringPool;
+use destack_core::{CaptureMode, LocalStringPool};
+use destack_engine::{Continuation, FrameImage, FrameLayoutId, FrameValue, ResumePointId};
 use destack_mir::NodeTree;
 use destack_workspace::{RuntimeOptions, SchedulerOptions};
 use {destack_heap as heap, destack_vm as vm};
@@ -11,11 +12,11 @@ use crate::host::{
     HostEvent, HostEventKind, HostLifecycleEvent, HostLifecycleSourceKind, HostLifecycleState,
     HostSession,
 };
-use crate::platform::ResourceId;
 use crate::platform::time::TimerClock;
+use crate::platform::{PlatformError, ResourceId};
 use crate::runtime::engine::{
-    Engine, EngineContinuation, EngineContinuationImage, EngineImage, EngineSnapshot, Entry, Entry,
-    ExecutionOutcome, ExecutionOutput, NativeContinuation,
+    Engine, EngineImage, EngineSnapshot, Entry, ExecutionOutcome, ExecutionOutput,
+    LiveContinuation, NativeContinuationHandle,
 };
 use crate::runtime::poller::{
     HostPoller, HostPollerFlags, PlatformHandle, PlatformInterest, PollerEvent, PollerEventFlags,
@@ -92,6 +93,42 @@ impl HostClockSource for ScriptedHostClockSource {
     }
 }
 
+/// Validate capture support for one synthetic native test continuation.
+fn validate_native_capture_mode(
+    continuation: &LiveContinuation,
+    mode: CaptureMode,
+) -> RuntimeResult<()> {
+    // native continuations do not have honest suspend or hibernate restore yet
+    if matches!(continuation, LiveContinuation::Native(_))
+        && matches!(mode, CaptureMode::Suspend | CaptureMode::Hibernate)
+    {
+        return Err(crate::diagnostic::RuntimeError::Internal {
+            message: format!(
+                "event loop cannot capture native continuations for {mode:?}: explicit rehydration is not implemented"
+            ),
+        }
+        .boxed());
+    }
+
+    Ok(())
+}
+
+/// Clone one synthetic native continuation for repeatable watch dispatch.
+fn clone_native_repeatable_dispatch(
+    continuation: &LiveContinuation,
+) -> RuntimeResult<LiveContinuation> {
+    match continuation {
+        LiveContinuation::Native(handle) => Ok(LiveContinuation::Native(*handle)),
+        LiveContinuation::Vm(_) => Err(crate::diagnostic::RuntimeError::from(
+            PlatformError::invalid_argument_value(
+                "watch.runnable",
+                "vm continuations are not supported for event loop watches",
+            ),
+        )
+        .boxed()),
+    }
+}
+
 /// Test engine that yields once, then completes.
 #[derive(Debug, Default)]
 pub(super) struct TestEngine {
@@ -115,7 +152,7 @@ impl Engine for TestEngine {
         _memory: &mut heap::MemoryContext<'_>,
         _entry: &Entry,
         _args: &[heap::Value],
-    ) -> RuntimeResult<ExecutionOutcome<EngineContinuation>> {
+    ) -> RuntimeResult<ExecutionOutcome<LiveContinuation>> {
         Ok(ExecutionOutcome::Completed {
             output: void_output(),
         })
@@ -127,7 +164,7 @@ impl Engine for TestEngine {
         _memory: &mut heap::MemoryContext<'_>,
         _entry: &Entry,
         _args: &[heap::Value],
-    ) -> RuntimeResult<ExecutionOutcome<EngineContinuation>> {
+    ) -> RuntimeResult<ExecutionOutcome<LiveContinuation>> {
         Ok(ExecutionOutcome::Completed {
             output: void_output(),
         })
@@ -137,15 +174,15 @@ impl Engine for TestEngine {
     fn resume(
         &mut self,
         _memory: &mut heap::MemoryContext<'_>,
-        _continuation: EngineContinuation,
+        _continuation: LiveContinuation,
         _value: heap::Value,
-    ) -> RuntimeResult<ExecutionOutcome<EngineContinuation>> {
+    ) -> RuntimeResult<ExecutionOutcome<LiveContinuation>> {
         // return one yielded continuation on the first resume
         if self.resume_calls == 0 {
             self.resume_calls += 1;
             return Ok(ExecutionOutcome::Yielded {
                 yielded: destack_engine::ExecutionYield {
-                    continuation: EngineContinuation::Native(NativeContinuation::new(2)),
+                    continuation: LiveContinuation::Native(NativeContinuationHandle::new(2)),
                     value: heap::Value::VOID,
                 },
             });
@@ -156,6 +193,23 @@ impl Engine for TestEngine {
         Ok(ExecutionOutcome::Completed {
             output: void_output(),
         })
+    }
+
+    /// Validate capture support for one continuation.
+    fn validate_capture_mode(
+        &self,
+        continuation: &LiveContinuation,
+        mode: CaptureMode,
+    ) -> RuntimeResult<()> {
+        validate_native_capture_mode(continuation, mode)
+    }
+
+    /// Clone one continuation for repeatable watch dispatch.
+    fn clone_for_repeatable_dispatch(
+        &self,
+        continuation: &LiveContinuation,
+    ) -> RuntimeResult<LiveContinuation> {
+        clone_native_repeatable_dispatch(continuation)
     }
 
     /// Capture one immutable engine image for tests.
@@ -179,13 +233,11 @@ impl Engine for TestEngine {
     /// Capture one continuation image for tests.
     fn continuation_image(
         &mut self,
-        continuation: &EngineContinuation,
-    ) -> RuntimeResult<EngineContinuationImage> {
+        continuation: &LiveContinuation,
+    ) -> RuntimeResult<Continuation> {
         match continuation {
-            EngineContinuation::Native(continuation) => {
-                Ok(EngineContinuationImage::Native(*continuation))
-            }
-            EngineContinuation::Vm(_) => Err(crate::diagnostic::RuntimeError::Internal {
+            LiveContinuation::Native(continuation) => Ok(native_continuation_image(*continuation)),
+            LiveContinuation::Vm(_) => Err(crate::diagnostic::RuntimeError::Internal {
                 message: "test engine vm continuation images are not implemented".to_string(),
             }
             .boxed()),
@@ -195,17 +247,9 @@ impl Engine for TestEngine {
     /// Restore one continuation image for tests.
     fn restore_continuation_image(
         &mut self,
-        image: &EngineContinuationImage,
-    ) -> RuntimeResult<EngineContinuation> {
-        match image {
-            EngineContinuationImage::Native(continuation) => {
-                Ok(EngineContinuation::Native(*continuation))
-            }
-            EngineContinuationImage::Vm(_) => Err(crate::diagnostic::RuntimeError::Internal {
-                message: "test engine vm continuation restore is not implemented".to_string(),
-            }
-            .boxed()),
-        }
+        image: &Continuation,
+    ) -> RuntimeResult<LiveContinuation> {
+        Ok(LiveContinuation::Native(continuation_from_image(image)))
     }
 
     /// Capture one serialized engine snapshot for tests.
@@ -238,7 +282,7 @@ impl Engine for AllocatingEngine {
         memory: &mut heap::MemoryContext<'_>,
         _entry: &Entry,
         _args: &[heap::Value],
-    ) -> RuntimeResult<ExecutionOutcome<EngineContinuation>> {
+    ) -> RuntimeResult<ExecutionOutcome<LiveContinuation>> {
         self.allocate(memory.heap())?;
 
         Ok(ExecutionOutcome::Completed {
@@ -252,7 +296,7 @@ impl Engine for AllocatingEngine {
         memory: &mut heap::MemoryContext<'_>,
         _entry: &Entry,
         _args: &[heap::Value],
-    ) -> RuntimeResult<ExecutionOutcome<EngineContinuation>> {
+    ) -> RuntimeResult<ExecutionOutcome<LiveContinuation>> {
         self.allocate(memory.heap())?;
 
         Ok(ExecutionOutcome::Completed {
@@ -264,14 +308,31 @@ impl Engine for AllocatingEngine {
     fn resume(
         &mut self,
         memory: &mut heap::MemoryContext<'_>,
-        _continuation: EngineContinuation,
+        _continuation: LiveContinuation,
         _value: heap::Value,
-    ) -> RuntimeResult<ExecutionOutcome<EngineContinuation>> {
+    ) -> RuntimeResult<ExecutionOutcome<LiveContinuation>> {
         self.allocate(memory.heap())?;
 
         Ok(ExecutionOutcome::Completed {
             output: void_output(),
         })
+    }
+
+    /// Validate capture support for one continuation.
+    fn validate_capture_mode(
+        &self,
+        continuation: &LiveContinuation,
+        mode: CaptureMode,
+    ) -> RuntimeResult<()> {
+        validate_native_capture_mode(continuation, mode)
+    }
+
+    /// Clone one continuation for repeatable watch dispatch.
+    fn clone_for_repeatable_dispatch(
+        &self,
+        continuation: &LiveContinuation,
+    ) -> RuntimeResult<LiveContinuation> {
+        clone_native_repeatable_dispatch(continuation)
     }
 
     /// Capture one immutable engine image for tests.
@@ -295,13 +356,11 @@ impl Engine for AllocatingEngine {
     /// Capture one continuation image for tests.
     fn continuation_image(
         &mut self,
-        continuation: &EngineContinuation,
-    ) -> RuntimeResult<EngineContinuationImage> {
+        continuation: &LiveContinuation,
+    ) -> RuntimeResult<Continuation> {
         match continuation {
-            EngineContinuation::Native(continuation) => {
-                Ok(EngineContinuationImage::Native(*continuation))
-            }
-            EngineContinuation::Vm(_) => Err(crate::diagnostic::RuntimeError::Internal {
+            LiveContinuation::Native(continuation) => Ok(native_continuation_image(*continuation)),
+            LiveContinuation::Vm(_) => Err(crate::diagnostic::RuntimeError::Internal {
                 message: "allocating test engine vm continuation images are not implemented"
                     .to_string(),
             }
@@ -312,18 +371,9 @@ impl Engine for AllocatingEngine {
     /// Restore one continuation image for tests.
     fn restore_continuation_image(
         &mut self,
-        image: &EngineContinuationImage,
-    ) -> RuntimeResult<EngineContinuation> {
-        match image {
-            EngineContinuationImage::Native(continuation) => {
-                Ok(EngineContinuation::Native(*continuation))
-            }
-            EngineContinuationImage::Vm(_) => Err(crate::diagnostic::RuntimeError::Internal {
-                message: "allocating test engine vm continuation restore is not implemented"
-                    .to_string(),
-            }
-            .boxed()),
-        }
+        image: &Continuation,
+    ) -> RuntimeResult<LiveContinuation> {
+        Ok(LiveContinuation::Native(continuation_from_image(image)))
     }
 
     /// Capture one serialized engine snapshot for tests.
@@ -710,7 +760,7 @@ impl TestRuntime {
     pub(super) fn enqueue_task_native(&mut self, task_id: u64, continuation_id: u64, priority: u8) {
         self.agent.event_loop.enqueue_task(Task {
             id: TaskId::new(task_id),
-            runnable: EngineContinuation::Native(NativeContinuation::new(continuation_handle(
+            runnable: LiveContinuation::Native(NativeContinuationHandle::new(continuation_handle(
                 continuation_id,
             ))),
             resume_value: heap::Value::VOID,
@@ -723,9 +773,9 @@ impl TestRuntime {
     pub(super) fn enqueue_microtask_native(&mut self, microtask_id: u64, continuation_id: u64) {
         self.agent.event_loop.enqueue_microtask(Microtask {
             id: MicrotaskId::new(microtask_id),
-            continuation: EngineContinuation::Native(NativeContinuation::new(continuation_handle(
-                continuation_id,
-            ))),
+            continuation: LiveContinuation::Native(NativeContinuationHandle::new(
+                continuation_handle(continuation_id),
+            )),
             resume_value: heap::Value::VOID,
             status: TaskStatus::Ready,
         });
@@ -757,7 +807,7 @@ impl TestRuntime {
         self.agent
             .watch_timer(
                 ResourceId(handle),
-                EngineContinuation::Native(NativeContinuation::new(continuation_handle(
+                LiveContinuation::Native(NativeContinuationHandle::new(continuation_handle(
                     continuation_id,
                 ))),
                 heap::Value::VOID,
@@ -807,7 +857,7 @@ impl TestRuntime {
         self.agent
             .watch_event(
                 PollerToken(token),
-                EngineContinuation::Native(NativeContinuation::new(continuation_handle(
+                LiveContinuation::Native(NativeContinuationHandle::new(continuation_handle(
                     continuation_id,
                 ))),
                 heap::Value::VOID,
@@ -826,7 +876,7 @@ impl TestRuntime {
         self.agent
             .watch_host_event(
                 kind,
-                EngineContinuation::Native(NativeContinuation::new(continuation_handle(
+                LiveContinuation::Native(NativeContinuationHandle::new(continuation_handle(
                     continuation_id,
                 ))),
                 heap::Value::VOID,
@@ -1143,6 +1193,39 @@ fn void_output() -> ExecutionOutput {
         managed_allocation_count: 0,
         raw_allocation_count: 0,
     }
+}
+
+/// Build one durable continuation image for one synthetic native handle.
+pub(super) fn native_continuation_image(continuation: NativeContinuationHandle) -> Continuation {
+    Continuation {
+        isolate_id: 0,
+        frames: vec![FrameImage {
+            frame_layout: FrameLayoutId(0),
+            resume_point: ResumePointId(0),
+            slots: vec![FrameValue::UInt {
+                value: continuation.get() as u64,
+                width: 64,
+            }],
+        }],
+        stats: Default::default(),
+    }
+}
+
+/// Restore one synthetic native handle from one durable continuation image.
+pub(super) fn continuation_from_image(image: &Continuation) -> NativeContinuationHandle {
+    let frame = image
+        .frames
+        .first()
+        .expect("synthetic native continuation image should contain one frame");
+    let slot = frame
+        .slots
+        .first()
+        .expect("synthetic native continuation frame should contain one slot");
+    let FrameValue::UInt { value, .. } = slot else {
+        panic!("synthetic native continuation image should encode one u64 handle");
+    };
+
+    NativeContinuationHandle::new(*value as usize)
 }
 
 /// Convert one test continuation identifier into one native continuation handle.
