@@ -1,7 +1,7 @@
 use crate::{
-    BindingAnchor, Block, CodegenJsError, CodegenJsResult, CodegenJsResultExt, Declaration,
+    BindingAnchor, CodegenJsError, CodegenJsResult, CodegenJsResultExt, Declaration,
     DeclarationAbstraction, DeclarationDescriptor, DeclarationKind, DependencyMode, EnumField,
-    Expression, LocalNodeId, ModuleLowerer, Statement, Type, Visibility,
+    Expression, LocalNodeId, ModuleLowerer, Statement, Visibility,
 };
 use destack_dir as dir;
 
@@ -141,14 +141,7 @@ impl ModuleLowerer<'_> {
                             .collect::<Result<Vec<_>, CodegenJsError>>()
                     })
                     .transpose()?;
-                let value_expression = self
-                    .lower_expression(*value)
-                    .expect_node::<Expression>(value.into_global_any(self.module.id), self)?;
-                let value = self.tree.insert_from_source_any(
-                    Type::Expression(value_expression),
-                    self.module.id,
-                    value.into_any(),
-                );
+                let value = self.lower_expression_as_type(*value)?;
                 Declaration::Type {
                     descriptor,
                     static_parameters,
@@ -245,10 +238,7 @@ impl ModuleLowerer<'_> {
                 let descriptor = self.lower_declaration_descriptor(descriptor);
                 let signature = self.lower_function_signature(signature)?;
                 let body = body
-                    .map(|body| {
-                        self.lower_expression(body)
-                            .expect_node::<Block>(body.into_global_any(self.module.id), self)
-                    })
+                    .map(|body| self.lower_expression_as_block(body))
                     .transpose()?;
                 Declaration::Function {
                     descriptor,
