@@ -1,17 +1,17 @@
 {
-  "name": "html-document-entry-public-path",
-  "targets": {
-    "site": {
-      "emit": "html",
-      "entry": ["src/page.ds"],
-      "outFile": "dist/index.html",
-      "bundle": {
-        "output": {
-          "publicPath": "https://cdn.example.com/site",
-          "sourcemap": "external",
-          "manifest": true
+    "name": "html-document-entry-public-path",
+    "targets": {
+        "site": {
+            "emit": "html",
+            "entry": ["src/index.html"],
+            "outFile": "dist/index.html",
+            "bundle": {
+                "output": {
+                    "publicPath": "https://cdn.example.com/site",
+                    "sourcemap": "external",
+                    "manifest": true
+                }
+            }
         }
-      }
     }
-  }
 }

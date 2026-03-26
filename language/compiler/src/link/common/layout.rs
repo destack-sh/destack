@@ -1,0 +1,247 @@
+use std::path::{Component, Path, PathBuf};
+
+use destack_workspace::{Module, Target};
+
+/// One resolved emitted output location.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct OutputLocation {
+    /// The absolute output path on disk.
+    absolute_path: PathBuf,
+}
+
+impl OutputLocation {
+    /// Create one output location from one absolute output path.
+    pub(crate) fn new(absolute_path: PathBuf) -> Self {
+        Self { absolute_path }
+    }
+
+    /// Return the absolute output path.
+    pub(crate) fn path(&self) -> &Path {
+        &self.absolute_path
+    }
+}
+
+/// One resolved output layout for one target.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct OutputLayout<'a> {
+    /// The package directory that anchors relative output paths.
+    package_dir: &'a Path,
+    /// The target whose outputs are being laid out.
+    target: &'a Target,
+}
+
+impl<'a> OutputLayout<'a> {
+    /// Create one output layout for one package target.
+    pub(crate) fn new(package_dir: &'a Path, target: &'a Target) -> Self {
+        Self {
+            package_dir,
+            target,
+        }
+    }
+
+    /// Resolve one manifest output path for this target.
+    pub(crate) fn manifest_location(&self) -> OutputLocation {
+        let manifest_directory = if let Some(out_file) = self.target.out_file.as_ref() {
+            let out_file = if out_file.is_absolute() {
+                out_file.clone()
+            } else {
+                self.package_dir.join(out_file)
+            };
+
+            out_file.parent().unwrap_or(self.package_dir).to_path_buf()
+        } else {
+            self.target.resolve_out_dir(self.package_dir)
+        };
+
+        OutputLocation::new(manifest_directory.join(format!("{}.manifest.json", self.target.name)))
+    }
+
+    /// Resolve one linked HTML document path for this target.
+    pub(crate) fn document_location(&self) -> OutputLocation {
+        OutputLocation::new(self.default_target_output_path("html"))
+    }
+
+    /// Resolve one standalone source map path next to one output file.
+    pub(crate) fn linked_source_map_location(
+        &self,
+        output_location: &OutputLocation,
+    ) -> OutputLocation {
+        let extension = output_location
+            .path()
+            .extension()
+            .and_then(|extension| extension.to_str())
+            .map(|extension| format!("{extension}.map"))
+            .unwrap_or_else(|| "map".to_string());
+
+        OutputLocation::new(output_location.path().with_extension(extension))
+    }
+
+    /// Build one output location from one resolved output path.
+    pub(crate) fn output_location(&self, output_path: PathBuf) -> OutputLocation {
+        OutputLocation::new(output_path)
+    }
+
+    /// Return one manifest-visible path for one output location.
+    pub(crate) fn manifest_path(&self, output_location: &OutputLocation) -> String {
+        if let Some(relative) = self.output_relative_path(output_location.path()) {
+            return self.normalize_output_path(&relative);
+        }
+
+        if let Ok(relative) = output_location.path().strip_prefix(self.package_dir) {
+            return self.normalize_output_path(relative);
+        }
+
+        self.normalize_output_path(output_location.path())
+    }
+
+    /// Return one import-style reference from one output file to another.
+    pub(crate) fn output_reference(
+        &self,
+        from_output: &OutputLocation,
+        to_output: &OutputLocation,
+    ) -> String {
+        self.import_output_specifier(from_output, to_output)
+    }
+
+    /// Resolve the absolute output directory for this target.
+    pub(crate) fn output_directory(&self) -> PathBuf {
+        self.target.resolve_out_dir(self.package_dir)
+    }
+
+    /// Resolve one default target output path for this target.
+    pub(crate) fn default_target_output_path(&self, extension: &str) -> PathBuf {
+        if let Some(out_file) = self.target.out_file.as_ref() {
+            if out_file.is_absolute() {
+                return out_file.clone();
+            }
+
+            return self.package_dir.join(out_file);
+        }
+
+        self.output_directory()
+            .join(format!("{}.{}", self.target.name, extension))
+    }
+
+    /// Render one configured output file name template.
+    pub(crate) fn render_output_file_name(
+        &self,
+        template: Option<&str>,
+        name: &str,
+        extension: &str,
+    ) -> String {
+        let extension_with_dot = format!(".{extension}");
+        let template = template.unwrap_or("[name].[ext]");
+
+        template
+            .replace("[name]", name)
+            .replace("[extname]", &extension_with_dot)
+            .replace("[ext]", extension)
+    }
+
+    /// Return one output-relative path when the target output lives under the output directory.
+    fn output_relative_path(&self, output_path: &Path) -> Option<PathBuf> {
+        output_path
+            .strip_prefix(self.output_directory())
+            .ok()
+            .map(Path::to_path_buf)
+    }
+
+    /// Return one import specifier from one output location to another.
+    fn import_output_specifier(
+        &self,
+        from_output: &OutputLocation,
+        to_output: &OutputLocation,
+    ) -> String {
+        let relative = self.relative_output_path_between(from_output.path(), to_output.path());
+        let relative = self.normalize_output_path(&relative);
+
+        if relative.is_empty() {
+            return ".".to_string();
+        }
+
+        if relative.starts_with('.') {
+            return relative;
+        }
+
+        format!("./{relative}")
+    }
+
+    /// Return one relative output path from one emitted file to another.
+    fn relative_output_path_between(
+        &self,
+        from_output_path: &Path,
+        to_output_path: &Path,
+    ) -> PathBuf {
+        let from_directory = from_output_path.parent().unwrap_or_else(|| Path::new(""));
+        let from_components = from_directory.components().collect::<Vec<_>>();
+        let to_components = to_output_path.components().collect::<Vec<_>>();
+        let mut shared = 0;
+
+        while shared < from_components.len()
+            && shared < to_components.len()
+            && from_components[shared] == to_components[shared]
+        {
+            shared += 1;
+        }
+
+        let mut relative_path = PathBuf::new();
+
+        for component in &from_components[shared..] {
+            if matches!(component, Component::Normal(_)) {
+                relative_path.push("..");
+            }
+        }
+
+        for component in &to_components[shared..] {
+            if let Component::Normal(segment) = component {
+                relative_path.push(segment);
+            }
+        }
+
+        relative_path
+    }
+
+    /// Return one normalized output path string.
+    fn normalize_output_path(&self, path: &Path) -> String {
+        path.to_string_lossy().replace('\\', "/")
+    }
+}
+
+/// Return one stable module path for output layout.
+pub(crate) fn module_output_base_path(module: &Module) -> PathBuf {
+    if let Some(path) = &module.path {
+        return path.clone();
+    }
+
+    if let Some(path) = module.uri.to_path_buf() {
+        return path;
+    }
+
+    PathBuf::from("module.ds")
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::{Path, PathBuf};
+
+    use destack_workspace::Target;
+
+    use super::OutputLayout;
+
+    /// Render import references between emitted output files.
+    #[test]
+    fn test_render_output_reference_between_output_files() {
+        let mut target = Target::html("site");
+        target.out_dir = PathBuf::from("dist");
+        let layout = OutputLayout::new(Path::new("/workspace/pkg"), &target);
+        let document_path =
+            layout.output_location(Path::new("/workspace/pkg/dist/index.html").to_path_buf());
+        let entry_path =
+            layout.output_location(Path::new("/workspace/pkg/dist/site.js").to_path_buf());
+
+        assert_eq!(
+            layout.output_reference(&document_path, &entry_path),
+            "./site.js"
+        );
+    }
+}

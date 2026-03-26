@@ -86,19 +86,19 @@ impl Compiler {
         let entries = match artifact.as_ref() {
             ModuleArtifact::Script(script) => {
                 let module = self.program.modules.get(module_id);
-                destack_codegen_js::ScriptArtifactRenderer::new(
+                self.emit_script_artifact_output(
                     module.as_ref(),
                     script,
+                    target_id,
                     &target,
                     &package_dir,
                     root_dir.as_deref(),
                 )
-                .render_output_files()
-                .map_err(|error| EmitError::Internal {
-                    message: format!("failed to render script artifact: {error:?}"),
+                .map_err(|message| EmitError::Internal {
+                    message: format!("failed to emit script artifact: {message}"),
                 })?
             }
-            ModuleArtifact::Binary(binary) => crate::emit::render_binary_artifact_entries(
+            ModuleArtifact::Binary(binary) => crate::emit::emit_binary_artifact_files(
                 module,
                 binary,
                 &target,
@@ -121,7 +121,7 @@ impl Compiler {
                         uri: entry.uri.clone(),
                     })?;
 
-            self.write_output_file(entry, &output_path)?;
+            self.emit_output_file(entry, &output_path)?;
         }
 
         Ok(())

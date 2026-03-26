@@ -1,19 +1,20 @@
 {
-  "name": "script-preserve-modules-banner-footer",
-  "targets": {
-    "library": {
-      "emit": "js",
-      "entry": ["src/application.ts"],
-      "outDir": "dist/library",
-      "bundle": {
-        "mode": "preserveModules",
-        "output": {
-          "banner": "/* banner */",
-          "footer": "/* footer */",
-          "sourcemap": "external",
-          "manifest": true
+    "name": "script-preserve-modules-banner-footer",
+    "targets": {
+        "library": {
+            "emit": "js",
+            "entry": ["src/app.ts"],
+            "outDir": "dist/library",
+            "bundle": {
+                "preserveModules": true,
+                "preserveModulesRoot": "src",
+                "output": {
+                    "banner": "/*! dashboard widgets */",
+                    "footer": "/* end of widget module */",
+                    "sourcemap": "external",
+                    "manifest": true
+                }
+            }
         }
-      }
     }
-  }
 }

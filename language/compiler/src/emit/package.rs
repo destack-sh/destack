@@ -57,7 +57,7 @@ impl Compiler {
                         uri: entry.uri.clone(),
                     })?;
 
-            self.write_output_file(entry, &output_path)?;
+            self.emit_output_file(entry, &output_path)?;
         }
 
         Ok(())

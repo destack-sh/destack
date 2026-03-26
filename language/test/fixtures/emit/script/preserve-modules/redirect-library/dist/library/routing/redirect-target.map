@@ -1,0 +1,1 @@
+{"version":3,"sources":["src/routing/redirect-target.ts"],"names":[],"mappings":"AAAA,SAAS,mBAAmB,EAAE,mBAAmB,QAAQ,mBAAmB;AAG5E,wCAAwC,GAAW,EAAU;IACzD,MAAM,QAAQ,GAAG,mBAAmB,CAAC,GAAG,CAAC;IACzC,MAAM,QAAQ,GAAG,mBAAmB,CAAC,GAAG,CAAC;IAEzC,OAAO,GAAG,QAAQ,GAAG,QAAQ,EAAE;CAClC;"}

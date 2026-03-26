@@ -1,0 +1,29 @@
+const pageDescriptions = {
+    "": "Local API Emulation for CI and Sandboxes",
+    github: "GitHub API operations and webhook tooling",
+    configuration: "Workspace configuration and runtime settings",
+};
+
+/** Read the display title for one docs page slug. */
+export function getPageTitle(slug = "") {
+    if (slug === "") {
+        return "Overview";
+    }
+
+    return slug[0].toUpperCase() + slug.slice(1);
+}
+
+/** Build the page heading for one docs page slug. */
+export function getPageHeading(slug = "") {
+    return `${getPageTitle(slug)} Reference`;
+}
+
+/** Read the description for one docs page slug. */
+export function getPageDescription(slug = "") {
+    return pageDescriptions[slug] ?? pageDescriptions[""];
+}
+
+/** Build the navigation label for one docs page slug. */
+export function getNavigationLabel(slug = "") {
+    return `${getPageTitle(slug)} Docs`;
+}

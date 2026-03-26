@@ -1,10 +1,12 @@
+mod binary;
 mod error;
+mod file;
 mod module;
-mod output;
 mod package;
 mod program;
+mod script;
 mod warning;
 
+pub(crate) use binary::emit_binary_artifact_files;
 pub use error::*;
-pub(crate) use output::render_binary_artifact_entries;
 pub use warning::*;
