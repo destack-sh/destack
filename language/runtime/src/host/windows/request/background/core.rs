@@ -41,7 +41,8 @@ pub(crate) fn register_background_task(
     context: &HostRequestContext,
     options: &BackgroundTaskOptionsValue,
 ) -> RuntimeResult<()> {
-    let wrapper_path = write_background_wrapper_script(context, &options.identifier)?;
+    let wrapper_path =
+        write_background_wrapper_script(context, &options.identifier, options.trigger)?;
 
     if desktop_background_test_mode_enabled() {
         return Ok(());

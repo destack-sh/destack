@@ -4,7 +4,9 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::core::HostRequestContext;
 use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::os::abi_generated::{BackgroundStatusValue, BackgroundTaskOptionsValue};
+use crate::platform::os::abi_generated::{
+    BackgroundStatusValue, BackgroundTaskOptionsValue, BackgroundTaskScheduleKindValue,
+};
 
 use super::launchd::{
     bootout_background_task_if_present, bootstrap_background_task, launchd_domain,
@@ -15,7 +17,7 @@ use crate::platform::os::background::runtime::{
     desktop_background_test_mode_enabled, enqueue_test_background_launch,
 };
 use crate::platform::os::background::storage::{
-    background_interval_seconds, background_launchd_label, background_launchd_plist_path,
+    background_first_run_unix_ns, background_launchd_label, background_launchd_plist_path,
     background_wrapper_script_path, remove_background_file_if_exists,
 };
 use crate::platform::os::background::wrapper::write_background_wrapper_script;
@@ -38,7 +40,8 @@ pub(crate) fn register_background_task(
     context: &HostRequestContext,
     options: &BackgroundTaskOptionsValue,
 ) -> RuntimeResult<()> {
-    let wrapper_path = write_background_wrapper_script(context, &options.identifier)?;
+    let wrapper_path =
+        write_background_wrapper_script(context, &options.identifier, options.trigger)?;
     let plist_path = background_launchd_plist_path(context, &options.identifier)?;
     let plist_directory = plist_path.parent().ok_or_else(|| {
         RuntimeError::from(PlatformError::generic(
@@ -48,9 +51,26 @@ pub(crate) fn register_background_task(
         .boxed()
     })?;
     let label = background_launchd_label(context, &options.identifier)?;
-    let interval_seconds = background_interval_seconds(options);
+    let is_run_at_load = match options.schedule.kind {
+        // immediate one-shot registrations fire on bootstrap
+        BackgroundTaskScheduleKindValue::Once => options.schedule.earliest_begin_unix_ns.is_none(),
+
+        // recurring launchd intervals start immediately when no delayed first run is requested
+        BackgroundTaskScheduleKindValue::Recurring => true,
+    };
+    let first_run_unix_ns = if is_run_at_load {
+        None
+    } else {
+        Some(background_first_run_unix_ns(&options.schedule)?)
+    };
     let domain = launchd_domain()?;
-    let plist = render_launchd_plist(&label, &wrapper_path, interval_seconds);
+    let plist = render_launchd_plist(
+        &label,
+        &wrapper_path,
+        options,
+        first_run_unix_ns,
+        is_run_at_load,
+    )?;
 
     let registration_result = (|| {
         // launch agent files

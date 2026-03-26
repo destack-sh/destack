@@ -1,23 +1,24 @@
+use crate::host::abi::background::{
+    HostBackgroundStatus, HostBackgroundTaskDescriptor, HostBackgroundTaskOptions,
+    HostBackgroundTaskResult,
+};
 use crate::host::ios::abi::bindings::invoke_ios_binding_callback;
 use crate::platform::NativeArray;
-use crate::platform::os::abi_generated::{
-    BackgroundStatus, BackgroundTaskDescriptor, BackgroundTaskOptions, BackgroundTaskResult,
-};
 use crate::runtime::NativeStringRef;
 
 /// Host callback for reading iOS background scheduler status.
 pub(crate) type IosHostBackgroundStatusCallback =
-    unsafe extern "C" fn(runtime_id: u64, status: *mut BackgroundStatus) -> u32;
+    unsafe extern "C" fn(runtime_id: u64, status: *mut HostBackgroundStatus) -> u32;
 
 /// Host callback for listing iOS background task registrations.
 pub(crate) type IosHostBackgroundListCallback = unsafe extern "C" fn(
     runtime_id: u64,
-    output_descriptors: *mut NativeArray<BackgroundTaskDescriptor>,
+    output_descriptors: *mut NativeArray<HostBackgroundTaskDescriptor>,
 ) -> u32;
 
 /// Host callback for registering one iOS background task.
 pub(crate) type IosHostBackgroundRegisterCallback =
-    unsafe extern "C" fn(runtime_id: u64, options: BackgroundTaskOptions) -> u32;
+    unsafe extern "C" fn(runtime_id: u64, options: HostBackgroundTaskOptions) -> u32;
 
 /// Host callback for unregistering one iOS background task.
 pub(crate) type IosHostBackgroundUnregisterCallback =
@@ -34,7 +35,7 @@ pub(crate) type IosHostBackgroundTriggerTestCallback = unsafe extern "C" fn(
 pub(crate) type IosHostBackgroundCompleteCallback = unsafe extern "C" fn(
     runtime_id: u64,
     execution_id: NativeStringRef,
-    result: BackgroundTaskResult,
+    result: HostBackgroundTaskResult,
 ) -> u32;
 
 /// Callback table for iOS host background request interop.

@@ -10,7 +10,11 @@ use crate::platform::PlatformError;
 use crate::platform::core::not_supported;
 use crate::platform::diagnostic::PlatformErrorCode;
 
-use crate::platform::os::background::runtime::DESKTOP_BACKGROUND_TASK_IDENTIFIER_ENV;
+use crate::platform::os::abi_generated::BackgroundTriggerKindValue;
+use crate::platform::os::background::runtime::{
+    DESKTOP_BACKGROUND_DEADLINE_UNIX_NS_ENV, DESKTOP_BACKGROUND_TASK_IDENTIFIER_ENV,
+    desktop_background_execution_deadline_ns,
+};
 use crate::platform::os::background::storage::{
     background_wrapper_script_path, ensure_background_scheduler_directory,
 };
@@ -19,11 +23,12 @@ use crate::platform::os::background::storage::{
 pub(crate) fn write_background_wrapper_script(
     context: &HostRequestContext,
     identifier: &str,
+    trigger: BackgroundTriggerKindValue,
 ) -> RuntimeResult<PathBuf> {
     let path = background_wrapper_script_path(context, identifier)?;
     let payload = match context.platform {
-        Platform::Windows => render_windows_background_wrapper(identifier)?,
-        Platform::MacOS | Platform::Linux => render_posix_background_wrapper(identifier)?,
+        Platform::Windows => render_windows_background_wrapper(identifier, trigger)?,
+        Platform::MacOS | Platform::Linux => render_posix_background_wrapper(identifier, trigger)?,
         _ => return Err(not_supported("destack.os.background.register")),
     };
 
@@ -59,7 +64,10 @@ pub(crate) fn write_background_wrapper_script(
 }
 
 /// Render one posix wrapper script for the current runtime invocation.
-pub(super) fn render_posix_background_wrapper(identifier: &str) -> RuntimeResult<String> {
+pub(super) fn render_posix_background_wrapper(
+    identifier: &str,
+    trigger: BackgroundTriggerKindValue,
+) -> RuntimeResult<String> {
     let (executable, arguments) = current_invocation_utf8("destack.os.background.register")?;
     let executable = shell_quote(&executable);
     let arguments = arguments
@@ -68,6 +76,7 @@ pub(super) fn render_posix_background_wrapper(identifier: &str) -> RuntimeResult
         .collect::<Vec<_>>()
         .join(" ");
     let identifier = shell_quote(identifier);
+    let deadline_unix_ns = desktop_background_execution_deadline_ns(trigger).to_string();
     let exec_line = if arguments.is_empty() {
         format!("exec {executable}")
     } else {
@@ -75,12 +84,15 @@ pub(super) fn render_posix_background_wrapper(identifier: &str) -> RuntimeResult
     };
 
     Ok(format!(
-        "#!/bin/sh\nexport {DESKTOP_BACKGROUND_TASK_IDENTIFIER_ENV}={identifier}\n{exec_line}\n"
+        "#!/bin/sh\nexport {DESKTOP_BACKGROUND_TASK_IDENTIFIER_ENV}={identifier}\nexport {DESKTOP_BACKGROUND_DEADLINE_UNIX_NS_ENV}={deadline_unix_ns}\n{exec_line}\n"
     ))
 }
 
 /// Render one Windows wrapper script for the current runtime invocation.
-pub(super) fn render_windows_background_wrapper(identifier: &str) -> RuntimeResult<String> {
+pub(super) fn render_windows_background_wrapper(
+    identifier: &str,
+    trigger: BackgroundTriggerKindValue,
+) -> RuntimeResult<String> {
     if identifier.contains('"') {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "identifier",
@@ -90,6 +102,7 @@ pub(super) fn render_windows_background_wrapper(identifier: &str) -> RuntimeResu
     }
 
     let (executable, arguments) = current_invocation_utf8("destack.os.background.register")?;
+    let deadline_unix_ns = desktop_background_execution_deadline_ns(trigger);
     let mut command_line = cmd_quote_argument(&executable);
 
     for argument in arguments {
@@ -98,7 +111,7 @@ pub(super) fn render_windows_background_wrapper(identifier: &str) -> RuntimeResu
     }
 
     Ok(format!(
-        "@echo off\r\nsetlocal\r\nset \"{DESKTOP_BACKGROUND_TASK_IDENTIFIER_ENV}={identifier}\"\r\n{command_line}\r\n"
+        "@echo off\r\nsetlocal\r\nset \"{DESKTOP_BACKGROUND_TASK_IDENTIFIER_ENV}={identifier}\"\r\nset \"{DESKTOP_BACKGROUND_DEADLINE_UNIX_NS_ENV}={deadline_unix_ns}\"\r\n{command_line}\r\n"
     ))
 }
 
@@ -199,4 +212,35 @@ pub(crate) fn systemd_quote_argument(value: &str) -> String {
     let escaped = value.replace('\\', "\\\\").replace('"', "\\\"");
 
     format!("\"{escaped}\"")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{render_posix_background_wrapper, render_windows_background_wrapper};
+    use crate::platform::os::abi_generated::BackgroundTriggerKindValue;
+    use crate::platform::os::background::runtime::{
+        DESKTOP_BACKGROUND_DEADLINE_UNIX_NS_ENV, DESKTOP_BACKGROUND_TASK_IDENTIFIER_ENV,
+    };
+
+    /// Render one posix wrapper with one trigger-shaped deadline environment.
+    #[test]
+    fn test_render_posix_background_wrapper_exports_deadline() {
+        let wrapper =
+            render_posix_background_wrapper("sync", BackgroundTriggerKindValue::Processing)
+                .expect("posix wrapper should render");
+
+        assert!(wrapper.contains(DESKTOP_BACKGROUND_TASK_IDENTIFIER_ENV));
+        assert!(wrapper.contains(DESKTOP_BACKGROUND_DEADLINE_UNIX_NS_ENV));
+    }
+
+    /// Render one Windows wrapper with one trigger-shaped deadline environment.
+    #[test]
+    fn test_render_windows_background_wrapper_exports_deadline() {
+        let wrapper =
+            render_windows_background_wrapper("sync", BackgroundTriggerKindValue::AppRefresh)
+                .expect("windows wrapper should render");
+
+        assert!(wrapper.contains(DESKTOP_BACKGROUND_TASK_IDENTIFIER_ENV));
+        assert!(wrapper.contains(DESKTOP_BACKGROUND_DEADLINE_UNIX_NS_ENV));
+    }
 }

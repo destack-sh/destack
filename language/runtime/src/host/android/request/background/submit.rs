@@ -1,6 +1,10 @@
 use std::mem::MaybeUninit;
 
 use crate::diagnostic::RuntimeResult;
+use crate::host::abi::background::{
+    HostBackgroundStatus, HostBackgroundTaskDescriptor, HostBackgroundTaskOptionsPayload,
+    decode_descriptors, decode_status, encode_result,
+};
 use crate::host::android::abi::background::{
     destack_host_android_background_complete, destack_host_android_background_list,
     destack_host_android_background_register, destack_host_android_background_status,
@@ -8,13 +12,8 @@ use crate::host::android::abi::background::{
 };
 use crate::host::core::callback::decode_callback_host_status;
 use crate::host::core::{HostRequest, HostRequestOutcome, HostRequestResult};
-use crate::platform::os::abi_generated::{
-    BackgroundStatus, BackgroundStatusValue, BackgroundTaskDescriptor,
-    BackgroundTaskDescriptorValue, BackgroundTaskOptions, BackgroundTaskOptionsValue,
-    BackgroundTaskResult, BackgroundTaskResultValue,
-};
-use crate::platform::{NativeAbiCodec, NativeArray};
-use crate::runtime::{BindingCallContext, NativeStringRef};
+use crate::platform::NativeArray;
+use crate::runtime::NativeStringRef;
 
 /// Return one Android background request outcome when supported.
 pub(crate) fn submit_background_request(
@@ -23,38 +22,36 @@ pub(crate) fn submit_background_request(
 ) -> RuntimeResult<Option<HostRequestOutcome>> {
     match request {
         HostRequest::OsBackgroundStatus => {
-            let mut status = MaybeUninit::<BackgroundStatus>::uninit();
+            let mut status = MaybeUninit::<HostBackgroundStatus>::uninit();
             let call_status =
                 unsafe { destack_host_android_background_status(runtime_id, status.as_mut_ptr()) };
             decode_callback_host_status(call_status, request.operation_name())?;
             let status = unsafe { status.assume_init() };
+            let status = decode_status(status);
 
             Ok(Some(HostRequestOutcome::immediate(
                 HostRequestResult::BackgroundStatus(status),
             )))
         }
         HostRequest::OsBackgroundList => {
-            let mut descriptors = MaybeUninit::<NativeArray<BackgroundTaskDescriptor>>::uninit();
+            let mut descriptors =
+                MaybeUninit::<NativeArray<HostBackgroundTaskDescriptor>>::uninit();
             let call_status = unsafe {
                 destack_host_android_background_list(runtime_id, descriptors.as_mut_ptr())
             };
             decode_callback_host_status(call_status, request.operation_name())?;
 
             let descriptors = unsafe { descriptors.assume_init() };
-            let descriptors = unsafe {
-                <NativeArray<BackgroundTaskDescriptor> as NativeAbiCodec>::into_value(descriptors)
-            }?;
+            let descriptors = unsafe { decode_descriptors(descriptors) }?;
 
             Ok(Some(HostRequestOutcome::immediate(
                 HostRequestResult::BackgroundTaskDescriptors(descriptors),
             )))
         }
         HostRequest::OsBackgroundRegister { options } => {
-            let binding = BindingCallContext::from_current_agent_for_native()?;
-            let options =
-                <BackgroundTaskOptions as NativeAbiCodec>::from_value(&binding, options.clone());
+            let options = HostBackgroundTaskOptionsPayload::new(options);
             let call_status =
-                unsafe { destack_host_android_background_register(runtime_id, options) };
+                unsafe { destack_host_android_background_register(runtime_id, options.abi()) };
             decode_callback_host_status(call_status, request.operation_name())?;
 
             Ok(Some(HostRequestOutcome::immediate(HostRequestResult::None)))
@@ -93,7 +90,7 @@ pub(crate) fn submit_background_request(
                 destack_host_android_background_complete(
                     runtime_id,
                     NativeStringRef::from(execution_id),
-                    *result,
+                    encode_result(*result),
                 )
             };
             decode_callback_host_status(call_status, request.operation_name())?;

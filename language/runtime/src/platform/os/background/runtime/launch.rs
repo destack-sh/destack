@@ -1,11 +1,11 @@
 use std::ffi::OsString;
-use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::core::monotonic_now_ns;
 use crate::platform::diagnostic::PlatformErrorCode;
+use crate::platform::os::abi_generated::BackgroundTriggerKindValue;
 
 use super::state::{
     DESKTOP_BACKGROUND_TASK_IDENTIFIER_ENV, DesktopBackgroundLaunchMarker,
@@ -16,13 +16,25 @@ use super::state::{
 const DESKTOP_BACKGROUND_EXECUTION_ID_ENV: &str = "DESTACK_BACKGROUND_EXECUTION_ID";
 
 /// Environment marker carrying one desktop background execution deadline.
-const DESKTOP_BACKGROUND_DEADLINE_UNIX_NS_ENV: &str = "DESTACK_BACKGROUND_DEADLINE_UNIX_NS";
+pub(crate) const DESKTOP_BACKGROUND_DEADLINE_UNIX_NS_ENV: &str =
+    "DESTACK_BACKGROUND_DEADLINE_UNIX_NS";
 
-/// Default runtime deadline for one scheduler-launched execution.
-const DESKTOP_BACKGROUND_EXECUTION_DEADLINE_NS: u64 = 30_000_000_000;
+/// Default runtime deadline for one app-refresh execution.
+const DESKTOP_BACKGROUND_APP_REFRESH_DEADLINE_NS: u64 = 30_000_000_000;
+
+/// Default runtime deadline for one processing execution.
+const DESKTOP_BACKGROUND_PROCESSING_DEADLINE_NS: u64 = 3_600_000_000_000;
 
 /// Default runtime deadline for one desktop test-triggered execution.
 const DESKTOP_BACKGROUND_TRIGGER_DEADLINE_NS: u64 = 30_000_000_000;
+
+/// Return the default runtime deadline for one desktop background trigger class.
+pub(crate) fn desktop_background_execution_deadline_ns(trigger: BackgroundTriggerKindValue) -> u64 {
+    match trigger {
+        BackgroundTriggerKindValue::AppRefresh => DESKTOP_BACKGROUND_APP_REFRESH_DEADLINE_NS,
+        BackgroundTriggerKindValue::Processing => DESKTOP_BACKGROUND_PROCESSING_DEADLINE_NS,
+    }
+}
 
 /// Read one launch marker state from the current process environment.
 pub(crate) fn desktop_background_registry_launch_marker_state()
@@ -76,7 +88,7 @@ fn desktop_background_launch_marker_from_environment(
                 ))
                 .boxed()
             })?,
-        None => wall_clock_now_ns()?.saturating_add(DESKTOP_BACKGROUND_EXECUTION_DEADLINE_NS),
+        None => wall_clock_now_ns()?.saturating_add(DESKTOP_BACKGROUND_APP_REFRESH_DEADLINE_NS),
     };
 
     Ok(Some(DesktopBackgroundLaunchMarker {
@@ -104,48 +116,6 @@ pub(crate) fn enqueue_test_background_launch(identifier: &str) -> RuntimeResult<
     Ok(())
 }
 
-/// Spawn one direct desktop background execution for developer trigger flows.
-pub(crate) fn trigger_test_execution(identifier: &str) -> RuntimeResult<bool> {
-    // relaunch the current process with one synthetic execution marker
-    let current_executable = std::env::current_exe().map_err(|error| {
-        RuntimeError::from(PlatformError::generic(
-            Some(PlatformErrorCode::IoNotFound),
-            format!("destack.os.background.triggerTest: current executable unavailable: {error}"),
-        ))
-        .boxed()
-    })?;
-    let execution_id = format!("desktop-trigger-{}", monotonic_now_ns());
-    let deadline_unix_ns =
-        wall_clock_now_ns()?.saturating_add(DESKTOP_BACKGROUND_TRIGGER_DEADLINE_NS);
-    let mut command = Command::new(current_executable);
-
-    // preserve the current invocation shape so the relaunched process boots the same app
-    for argument in std::env::args_os().skip(1) {
-        command.arg(argument);
-    }
-
-    let status = command
-        .env(DESKTOP_BACKGROUND_TASK_IDENTIFIER_ENV, identifier)
-        .env(DESKTOP_BACKGROUND_EXECUTION_ID_ENV, &execution_id)
-        .env(
-            DESKTOP_BACKGROUND_DEADLINE_UNIX_NS_ENV,
-            deadline_unix_ns.to_string(),
-        )
-        .spawn()
-        .map(|_| true)
-        .map_err(|error| {
-            RuntimeError::from(PlatformError::generic(
-                Some(PlatformErrorCode::IoPermissionDenied),
-                format!(
-                    "destack.os.background.triggerTest: failed to relaunch current executable: {error}"
-                ),
-            ))
-            .boxed()
-        })?;
-
-    Ok(status)
-}
-
 /// Return the current wall-clock time in Unix nanoseconds.
 pub(crate) fn wall_clock_now_ns() -> RuntimeResult<u64> {
     let now = SystemTime::now()
@@ -165,9 +135,12 @@ pub(crate) fn wall_clock_now_ns() -> RuntimeResult<u64> {
 mod tests {
     use std::ffi::OsString;
 
+    use crate::platform::os::abi_generated::BackgroundTriggerKindValue;
+
     use super::{
         DESKTOP_BACKGROUND_DEADLINE_UNIX_NS_ENV, DESKTOP_BACKGROUND_EXECUTION_ID_ENV,
         DESKTOP_BACKGROUND_TASK_IDENTIFIER_ENV, DesktopBackgroundLaunchMarker,
+        desktop_background_execution_deadline_ns,
         desktop_background_launch_marker_from_environment,
     };
 
@@ -214,5 +187,16 @@ mod tests {
         assert_eq!(marker.identifier, "sync");
         assert!(marker.execution_id.starts_with("desktop-execution-"));
         assert!(marker.deadline_unix_ns > 0);
+    }
+
+    /// Return distinct desktop execution deadlines for each trigger class.
+    #[test]
+    fn test_desktop_background_execution_deadline_ns_differs_by_trigger() {
+        let app_refresh_deadline_ns =
+            desktop_background_execution_deadline_ns(BackgroundTriggerKindValue::AppRefresh);
+        let processing_deadline_ns =
+            desktop_background_execution_deadline_ns(BackgroundTriggerKindValue::Processing);
+
+        assert!(processing_deadline_ns > app_refresh_deadline_ns);
     }
 }

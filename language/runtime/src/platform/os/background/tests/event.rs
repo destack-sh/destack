@@ -5,8 +5,9 @@ use destack_vm::{ExternalCallContext, StringHandle};
 use super::core::{enable_background_declaration, with_background_test_environment};
 use crate::diagnostic::RuntimeResult;
 use crate::platform::os::abi_generated::{
-    BackgroundEventMetadataValue, BackgroundEventValue, BackgroundTaskExpiredEventValue,
-    BackgroundTaskReadyEventValue,
+    BackgroundConflictPolicyValue, BackgroundEventMetadataValue, BackgroundEventValue,
+    BackgroundNetworkRequirementValue, BackgroundTaskExpiredEventValue,
+    BackgroundTaskReadyEventValue, BackgroundTaskScheduleKindValue, BackgroundTaskScheduleValue,
 };
 use crate::platform::os::tests::{HarnessContext, HarnessValue, with_configured_harness_context};
 use crate::platform::os::{
@@ -149,6 +150,12 @@ fn background_task_options(
     context: &mut HarnessContext<'_>,
     identifier: &str,
 ) -> HarnessValue<BackgroundTaskOptions, BackgroundTaskOptionsVm> {
+    let schedule = BackgroundTaskScheduleValue {
+        kind: BackgroundTaskScheduleKindValue::Recurring,
+        earliest_begin_unix_ns: None,
+        repeat_interval_ns: Some(300_000_000_000),
+    };
+
     match context.vm_context {
         Some(vm_context) => {
             let vm_context = unsafe { &mut *(vm_context as *mut ExternalCallContext<'_>) };
@@ -161,25 +168,21 @@ fn background_task_options(
             context.harness_value_vm(BackgroundTaskOptionsVm {
                 identifier,
                 trigger: BackgroundTriggerKind::AppRefresh,
-                minimum_interval_ns: 300_000_000_000,
-                earliest_begin_unix_ns: 0,
-                requires_network: false,
-                requires_unmetered_network: false,
+                schedule,
+                network: BackgroundNetworkRequirementValue::None,
                 requires_charging: false,
                 requires_idle: false,
-                persisted: false,
+                conflict_policy: BackgroundConflictPolicyValue::Replace,
             })
         }
         None => context.harness_value(BackgroundTaskOptions {
             identifier: context.call_context.store_string(identifier),
             trigger: BackgroundTriggerKind::AppRefresh,
-            minimum_interval_ns: 300_000_000_000,
-            earliest_begin_unix_ns: 0,
-            requires_network: false,
-            requires_unmetered_network: false,
+            schedule,
+            network: BackgroundNetworkRequirementValue::None,
             requires_charging: false,
             requires_idle: false,
-            persisted: false,
+            conflict_policy: BackgroundConflictPolicyValue::Replace,
         }),
     }
 }

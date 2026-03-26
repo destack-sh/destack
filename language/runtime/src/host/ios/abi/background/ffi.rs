@@ -1,16 +1,17 @@
 use super::callbacks::call_ios_background_callback;
+use crate::host::abi::background::{
+    HostBackgroundStatus, HostBackgroundTaskDescriptor, HostBackgroundTaskOptions,
+    HostBackgroundTaskResult,
+};
 use crate::host::core::HOST_STATUS_INVALID_ARGUMENT;
 use crate::platform::NativeArray;
-use crate::platform::os::abi_generated::{
-    BackgroundStatus, BackgroundTaskDescriptor, BackgroundTaskOptions, BackgroundTaskResult,
-};
 use crate::runtime::NativeStringRef;
 
 /// Read iOS background scheduler status through the host.
 #[unsafe(no_mangle)]
 pub(crate) unsafe extern "C" fn destack_host_ios_background_status(
     runtime_id: u64,
-    status: *mut BackgroundStatus,
+    status: *mut HostBackgroundStatus,
 ) -> u32 {
     if status.is_null() {
         return HOST_STATUS_INVALID_ARGUMENT;
@@ -27,7 +28,7 @@ pub(crate) unsafe extern "C" fn destack_host_ios_background_status(
 #[unsafe(no_mangle)]
 pub(crate) unsafe extern "C" fn destack_host_ios_background_list(
     runtime_id: u64,
-    output_descriptors: *mut NativeArray<BackgroundTaskDescriptor>,
+    output_descriptors: *mut NativeArray<HostBackgroundTaskDescriptor>,
 ) -> u32 {
     if output_descriptors.is_null() {
         return HOST_STATUS_INVALID_ARGUMENT;
@@ -44,7 +45,7 @@ pub(crate) unsafe extern "C" fn destack_host_ios_background_list(
 #[unsafe(no_mangle)]
 pub(crate) unsafe extern "C" fn destack_host_ios_background_register(
     runtime_id: u64,
-    options: BackgroundTaskOptions,
+    options: HostBackgroundTaskOptions,
 ) -> u32 {
     call_ios_background_callback(
         runtime_id,
@@ -89,7 +90,7 @@ pub(crate) unsafe extern "C" fn destack_host_ios_background_trigger_test(
 pub(crate) unsafe extern "C" fn destack_host_ios_background_complete(
     runtime_id: u64,
     execution_id: NativeStringRef,
-    result: BackgroundTaskResult,
+    result: HostBackgroundTaskResult,
 ) -> u32 {
     call_ios_background_callback(
         runtime_id,
