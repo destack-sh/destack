@@ -79,7 +79,7 @@ impl BuiltinNamespace {
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Return whether one specifier is package-like instead of local.
-    fn is_externalizable_package_dependency_specifier(specifier: &str) -> bool {
+    pub(crate) fn is_package_like_dependency_specifier(specifier: &str) -> bool {
         !specifier.starts_with('.') && !specifier.starts_with('/') && !specifier.contains(':')
     }
 
@@ -105,7 +105,7 @@ impl Compiler {
         target: StringId,
     ) -> ResolveResult<Option<ModuleTarget>> {
         let specifier = self.program.strings.get(target);
-        if !Self::is_externalizable_package_dependency_specifier(&specifier) {
+        if !Self::is_package_like_dependency_specifier(&specifier) {
             return Ok(None);
         }
 

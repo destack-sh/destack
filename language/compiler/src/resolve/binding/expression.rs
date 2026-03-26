@@ -1,6 +1,7 @@
+use destack_core::StringId;
 use destack_dir::{
-    DependencySource, Expression, LocalNodeId, LocalScopeId, LocalSymbolId, NodeTree, NodeType,
-    SymbolTable, TypeTable, UnaryOperator,
+    DependencySource, Expression, ImportTarget, LocalNodeId, LocalScopeId, LocalSymbolId, NodeTree,
+    NodeType, ScalarLiteral, SymbolTable, TypeTable, UnaryOperator,
 };
 use destack_source::{NodeSpanType, SourcePartKey};
 
@@ -13,6 +14,34 @@ use destack_workspace::{Module, ProfileId};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Return the static string specifier for one import target expression when one exists.
+    fn static_import_target_string(
+        &self,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) -> Option<StringId> {
+        let mut expression_id = expression_id;
+
+        loop {
+            let expression = tree.get(expression_id);
+
+            // allow parenthesized wrappers around literal specifiers
+            if let Expression::Parenthesized { expression } = expression {
+                expression_id = *expression;
+                continue;
+            }
+
+            let Expression::ScalarLiteral {
+                value: ScalarLiteral::String(target),
+            } = expression
+            else {
+                return None;
+            };
+
+            return Some(*target);
+        }
+    }
+
     /// Return true when an unresolved identifier path is the direct operand of runtime `typeof`.
     fn unresolved_path_is_runtime_typeof_operand(
         &self,
@@ -98,7 +127,20 @@ impl Compiler {
                 ref items,
                 ref arguments,
             } => {
-                if let destack_dir::ImportTarget::String(target) = target {
+                let target = match target {
+                    ImportTarget::String(target) => Some(*target),
+                    ImportTarget::Expression { target }
+                        if matches!(
+                            source,
+                            DependencySource::ImportCall | DependencySource::RequireCall
+                        ) =>
+                    {
+                        self.static_import_target_string(tree, *target)
+                    }
+                    _ => None,
+                };
+
+                if let Some(target) = target {
                     let loader_override =
                         match self.loader_from_import_attributes(arguments.as_ref(), tree) {
                             LoaderAttribute::None => None,
@@ -118,7 +160,7 @@ impl Compiler {
                         profile,
                         expression_id.into_global_any(module.id),
                         source,
-                        *target,
+                        target,
                         kind,
                         loader_override,
                     )?
@@ -128,7 +170,7 @@ impl Compiler {
                     Expression::Import {
                         source,
                         kind,
-                        target: target.clone(),
+                        target,
                         target_module: remote_target,
                         items: items.clone(),
                         arguments: arguments.clone(),

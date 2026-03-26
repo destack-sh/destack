@@ -675,6 +675,10 @@ impl Compiler {
 
                 // namespace reexports produce a namespace symbol directly
                 if mode == DependencyMode::Namespace {
+                    if matches!(target_module, ModuleTarget::External(_)) {
+                        return Ok(None);
+                    }
+
                     let target_symbol = self.resolve_namespace_symbol(
                         origin_module_id,
                         node,

@@ -7,7 +7,7 @@ use destack_dir::{DependencyKind, ModuleResolution, ModuleTarget};
 use destack_resolver::{ResolveOptions, Resolver};
 use destack_source::{File, FileType, LanguageType, ModuleId, PackageId, PackageVersion, Uri};
 use destack_workspace::{
-    Module, ModuleSource, NodeLinker, Package, PackageKind, ProfileId, TsCompilerOptions,
+    Module, ModuleSource, NodeLinker, Package, PackageKind, ProfileId, TargetId, TsCompilerOptions,
 };
 
 use crate::import::{
@@ -73,9 +73,28 @@ impl Compiler {
         let Some(config) = self.session.load_destack_for_path(&config_path) else {
             return;
         };
+        let targets = config
+            .options
+            .targets
+            .iter()
+            .map(|(name, options)| {
+                let target_id = TargetId::new(package_id, name);
+                let target = options.to_target(name);
+
+                (target_id, target)
+            })
+            .collect::<Vec<_>>();
 
         let package = self.program.packages.get(package_id);
-        package.write().config = Some(config);
+        let mut package = package.write();
+        package.config = Some(config);
+
+        // keep target policy available during resolve for synthetic packages
+        if package.targets.is_empty() {
+            for (target_id, target) in targets {
+                package.targets.insert(target_id, target);
+            }
+        }
     }
 
     /// Find the nearest `destack.json` for one directory before crossing a package boundary.
