@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 use std::ptr::NonNull;
 
-use destack_mir as mir;
+use {destack_engine as engine, destack_mir as mir};
 
-use super::{ArgumentRange, CopyPair, CopyRange, Instruction, lower_function};
+use super::{ArgumentRange, CopyPair, CopyRange, Instruction};
 
 /// Switch case.
 #[derive(Clone, Debug)]
@@ -23,6 +23,8 @@ pub(crate) struct Block {
     pub mir_block: mir::LocalNodeId<mir::Block>,
     /// Instructions including terminator.
     pub instructions: Vec<Instruction>,
+    /// MIR instruction boundary for each lowered PC in this block.
+    pub mir_instruction_offsets: Vec<u32>,
     /// Original MIR instruction count.
     pub mir_instruction_count: u32,
 }
@@ -30,6 +32,8 @@ pub(crate) struct Block {
 /// Lowered function with predecoded dispatch metadata.
 #[derive(Clone, Debug)]
 pub(crate) struct Function {
+    /// The logical frame layout for this function.
+    pub frame_layout: engine::FrameLayoutId,
     /// Function parameters.
     pub parameters: ArgumentRange,
     /// Entry block index.
@@ -67,42 +71,11 @@ pub(crate) enum FunctionTarget {
 }
 
 impl FunctionTable {
-    /// Build a lowered function table for the MIR tree.
-    pub(crate) fn new(tree: &mir::NodeTree) -> Self {
-        // collect lowerable function ids and callable targets
-        let mut function_ids = Vec::new();
-        let mut target_by_id = HashMap::new();
-        for (func_id, func) in tree.iter_nodes::<mir::Function>() {
-            // record imported callables
-            if func.is_import() {
-                target_by_id.insert(func_id, FunctionTarget::Import);
-                continue;
-            }
-
-            // skip declarations without entry blocks
-            if func.entry.is_none() {
-                continue;
-            }
-            function_ids.push(func_id);
-        }
-
-        // build lowered callable targets
-        let mut index_by_id = HashMap::with_capacity(function_ids.len());
-        for (index, func_id) in function_ids.iter().enumerate() {
-            let index = index as u32;
-            target_by_id.insert(*func_id, FunctionTarget::Lowered(index));
-            index_by_id.insert(*func_id, index);
-        }
-
-        // lower all functions
-        let mut functions = Vec::with_capacity(function_ids.len());
-        for func_id in &function_ids {
-            let function = lower_function(tree, *func_id, &index_by_id)
-                .unwrap_or_else(|| panic!("failed to lower function: {func_id:?}"));
-            functions.push(function);
-        }
-
-        // assemble table
+    /// Build a lowered function table from lowered functions and callable targets.
+    pub(super) fn new(
+        functions: Vec<Function>,
+        target_by_id: HashMap<mir::LocalNodeId<mir::Function>, FunctionTarget>,
+    ) -> Self {
         Self {
             functions,
             target_by_id,
