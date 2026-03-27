@@ -56,9 +56,9 @@ Auto-import fixes should insert an import statement.
 [0] title=Import greet from "./lib" kind=quick_fix preferred=true diag=<none> edits=main.ds:1:1-1:1=>"import { greet } from "./lib";\n"
 ```
 
-### Auto-import type-only quick fix in type position
+### Auto-import type-only quick fix for pure type exports in type position
 
-Missing type references should offer type-only import code actions.
+Missing pure type references should offer type-only import code actions.
 
 ```ds:lib.ds
 export type Widget = {
@@ -74,6 +74,89 @@ Auto-import fixes should insert a type-only import statement.
 
 ```query code_actions $0
 [0] title=Import Widget from "./lib" kind=quick_fix preferred=true diag=<none> edits=main.ds:1:1-1:1=>"import type { Widget } from "./lib";\n"
+```
+
+### Auto-import type-only quick fix for .ts pure type exports in type position
+
+Missing TypeScript pure type references should offer type-only import code actions.
+
+```ts:lib.ts
+export type Widget = {
+    value: string,
+};
+```
+
+```ts:main.ts
+export {}
+
+type Alias = $0Widget
+```
+
+Auto-import fixes should insert a type-only import statement.
+
+```query code_actions $0
+[0] title=Import Widget from "./lib" kind=quick_fix preferred=true diag=<none> edits=main.ts:1:1-1:1=>"import type { Widget } from "./lib";\n"
+```
+
+### Auto-import type-only quick fix for .ts type-value exports in type position
+
+Missing TypeScript type-value references should still use type-only imports in type position.
+
+```ts:lib.ts
+export class WobbleWidget {}
+```
+
+```ts:main.ts
+export {}
+
+type Alias = $0WobbleWidget
+```
+
+Auto-import fixes should use `import type` so the import stays type-only.
+
+```query code_actions $0
+[0] title=Import WobbleWidget from "./lib" kind=quick_fix preferred=true diag=<none> edits=main.ts:1:1-1:1=>"import type { WobbleWidget } from "./lib";\n"
+```
+
+### Auto-import value quick fix for .ds type-value exports in type position
+
+Missing Destack type-value references should keep full imports in type position.
+
+```ds:lib.ds
+export struct Widget {}
+```
+
+```ds:main.ds
+type Alias = $0Widget;
+```
+
+Auto-import fixes should keep the value import so the symbol stays dual-space.
+
+```query code_actions $0
+[0] title=Import Widget from "./lib" kind=quick_fix preferred=true diag=<none> edits=main.ds:1:1-1:1=>"import { Widget } from "./lib";\n"
+```
+
+### Rank same-name auto-import fixes by proximity
+
+Missing symbols with multiple import candidates should rank nearer modules first.
+
+```ds:near/format.ds
+export function formatWidget(): void {}
+```
+
+```ds:far/deeper/format.ds
+export function formatWidget(): void {}
+```
+
+```ds:main.ds
+function main() {
+    $0formatWidget();
+}
+```
+
+```query code_actions $0
+[0] title=Import formatWidget from "./near/format" kind=quick_fix preferred=true diag=<none> edits=main.ds:1:1-1:1=>"import { formatWidget } from "./near/format";\n"
+[1] title=Import formatWidget from "./far/deeper/format" kind=quick_fix preferred=false diag=<none> edits=main.ds:1:1-1:1=>"import { formatWidget } from "./far/deeper/format";\n"
 ```
 
 ### Organize imports for unsorted imports
