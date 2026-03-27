@@ -5,6 +5,8 @@ use destack_source::{FileId, Span};
 pub struct CursorMarker {
     /// The cursor index.
     pub index: usize,
+    /// The file that owns the cursor.
+    pub file_id: FileId,
     /// The offset in the cleaned source.
     pub offset: u32,
 }
@@ -75,6 +77,7 @@ pub fn parse_markers(file_id: FileId, source: &str) -> (String, TestMarkers) {
         for (index, column) in cursors {
             markers.cursors.push(CursorMarker {
                 index,
+                file_id,
                 offset: line_start + column as u32,
             });
         }
@@ -179,6 +182,7 @@ const bar = foo;
         assert_eq!(clean, "point.x");
         assert_eq!(markers.cursors.len(), 1);
         assert_eq!(markers.cursors[0].index, 0);
+        assert_eq!(markers.cursors[0].file_id, file_id);
         assert_eq!(markers.cursors[0].offset, 6);
     }
 }

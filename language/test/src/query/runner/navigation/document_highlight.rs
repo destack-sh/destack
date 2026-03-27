@@ -37,7 +37,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
                 message: format!("cursor ${cursor_idx} not found"),
             };
         };
-        (session.file_id, cursor.offset)
+        (cursor.file_id, cursor.offset)
     } else {
         let Some(marker) = session.markers.range(&exp.target) else {
             return CaseResult::Failed {
