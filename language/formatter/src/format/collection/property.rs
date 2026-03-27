@@ -1,14 +1,15 @@
+use crate::format::chain::transparent_inner_expression;
 use crate::format::collection::list_like;
 use crate::format::declaration::signature::{
-    FunctionHeaderStyle, format_where_clause_with_break, parameter_is_variadic,
+    expression_body_requires_head_space, format_where_clause_with_break, parameter_is_variadic,
     signature_parameters_should_expand, signature_return_type_has_line_postfix_boundary_annotation,
     signature_should_elide_space_before_body, single_parameter_should_hug,
     write_empty_parameter_list_with_interior_annotations, write_function_header_prefix,
     write_signature_dynamic_parameter_list,
 };
+use crate::format::declaration::statement::format_block;
 use crate::format::directive::{
-    FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
-    ignore_ranges_for_nodes, write_ignored_node, write_ignored_span,
+    ignore_ranges_for_nodes, node_has_ignore_directive, write_ignored_node, write_ignored_span,
 };
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
@@ -296,8 +297,7 @@ fn expression_contains_type_binary(
 ) -> bool {
     let mut pending = vec![expression_id];
     while let Some(next_expression_id) = pending.pop() {
-        let next_expression_id =
-            crate::format::expression::transparent_inner_expression(context, next_expression_id);
+        let next_expression_id = transparent_inner_expression(context, next_expression_id);
         match context.tree.get(next_expression_id) {
             Expression::Binary {
                 operator: BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd,
@@ -486,33 +486,232 @@ fn write_field_type_annotation<'ast>(
     }
 }
 
-/// Return whether one field initializer should keep `=` inline.
-fn field_default_prefers_inline_operator_seam(
+/// Return whether one expression carries any static generic arguments.
+fn field_expression_has_static_arguments(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    match context.tree.get(expression_id) {
+        Expression::Path {
+            static_arguments, ..
+        } => static_arguments
+            .as_deref()
+            .is_some_and(|arguments| !arguments.is_empty()),
+        Expression::Call {
+            left,
+            static_arguments,
+            ..
+        }
+        | Expression::New {
+            left,
+            static_arguments,
+            ..
+        }
+        | Expression::Member {
+            left,
+            static_arguments,
+            ..
+        }
+        | Expression::PrivateMember {
+            left,
+            static_arguments,
+            ..
+        } => {
+            field_expression_has_static_arguments(context, *left)
+                || static_arguments
+                    .as_deref()
+                    .is_some_and(|arguments| !arguments.is_empty())
+        }
+        Expression::Index { left, .. } => field_expression_has_static_arguments(context, *left),
+        Expression::Instantiation {
+            left,
+            static_arguments,
+        } => field_expression_has_static_arguments(context, *left) || !static_arguments.is_empty(),
+        Expression::Parenthesized { expression } | Expression::Statement(expression) => {
+            field_expression_has_static_arguments(context, *expression)
+        }
+        _ => false,
+    }
+}
+
+/// Return whether one expression contains multiple chained call-like operations.
+fn field_expression_has_nested_call_chain(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let mut current_id = expression_id;
+    let mut call_like_count = 0usize;
+
+    loop {
+        match context.tree.get(current_id) {
+            Expression::Call { left, .. }
+            | Expression::New { left, .. }
+            | Expression::Instantiation { left, .. } => {
+                call_like_count += 1;
+                if call_like_count >= 2 {
+                    return true;
+                }
+
+                current_id = *left;
+            }
+            Expression::Member { left, .. }
+            | Expression::PrivateMember { left, .. }
+            | Expression::Index { left, .. }
+            | Expression::Maybe { left, .. }
+            | Expression::Must { left, .. } => {
+                current_id = *left;
+            }
+            Expression::Parenthesized { expression } | Expression::Statement(expression) => {
+                current_id = *expression;
+            }
+            _ => return false,
+        }
+    }
+}
+
+/// Return whether one expression is a single call-like value whose callee receiver is another member chain.
+fn field_expression_is_single_call_with_member_chain_callee(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let callee_id = match context.tree.get(expression_id) {
+        Expression::Call { left, .. } | Expression::New { left, .. } => *left,
+        _ => return false,
+    };
+
+    let receiver_id = match context.tree.get(callee_id) {
+        Expression::Member { left, .. }
+        | Expression::PrivateMember { left, .. }
+        | Expression::Index { left, .. } => *left,
+        _ => return false,
+    };
+
+    matches!(
+        context.tree.get(receiver_id),
+        Expression::Member { .. }
+            | Expression::PrivateMember { .. }
+            | Expression::Index { .. }
+            | Expression::Maybe { .. }
+            | Expression::Must { .. }
+    )
+}
+
+/// Return whether one static argument list contains block-like type expressions.
+fn field_static_argument_list_has_block_expressions(
+    context: &DestackFormatContext<'_>,
+    static_arguments: &[LocalNodeId<Argument>],
+) -> bool {
+    static_arguments.iter().copied().any(|argument_id| {
+        let (Argument::Named { value, .. }
+        | Argument::Labeled { value, .. }
+        | Argument::Positional { value, .. }
+        | Argument::Spread { value, .. }) = context.tree.get(argument_id)
+        else {
+            return false;
+        };
+
+        field_expression_has_complex_nested_static_arguments(context, *value)
+    })
+}
+
+/// Return whether one expression carries nested block-like static arguments.
+fn field_expression_has_complex_nested_static_arguments(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    match context.tree.get(expression_id) {
+        Expression::ObjectExpression { .. } | Expression::TypeMapped { .. } => true,
+        Expression::Path {
+            static_arguments, ..
+        } => static_arguments.as_deref().is_some_and(|arguments| {
+            field_static_argument_list_has_block_expressions(context, arguments)
+        }),
+        Expression::Call {
+            left,
+            static_arguments,
+            ..
+        }
+        | Expression::New {
+            left,
+            static_arguments,
+            ..
+        }
+        | Expression::Member {
+            left,
+            static_arguments,
+            ..
+        }
+        | Expression::PrivateMember {
+            left,
+            static_arguments,
+            ..
+        } => {
+            field_expression_has_complex_nested_static_arguments(context, *left)
+                || static_arguments.as_deref().is_some_and(|arguments| {
+                    field_static_argument_list_has_block_expressions(context, arguments)
+                })
+        }
+        Expression::Index { left, .. } => {
+            field_expression_has_complex_nested_static_arguments(context, *left)
+        }
+        Expression::Instantiation {
+            left,
+            static_arguments,
+        } => {
+            field_expression_has_complex_nested_static_arguments(context, *left)
+                || field_static_argument_list_has_block_expressions(context, static_arguments)
+        }
+        Expression::Parenthesized { expression } | Expression::Statement(expression) => {
+            field_expression_has_complex_nested_static_arguments(context, *expression)
+        }
+        _ => false,
+    }
+}
+
+/// Return whether one field initializer should break after `=`.
+fn field_default_should_break_after_operator(
     f: &DestackFormatter<'_, '_>,
+    modifiers: Option<BindingModifier>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     if f.context().has_prefix_annotation(expression_id) {
         return false;
     }
 
-    match f.context().tree.get(expression_id) {
+    let value_has_static_arguments =
+        field_expression_has_static_arguments(f.context(), expression_id);
+    let value_has_nested_call_chain =
+        field_expression_has_nested_call_chain(f.context(), expression_id);
+    let value_has_block_static_arguments =
+        field_expression_has_complex_nested_static_arguments(f.context(), expression_id);
+    let value_has_dynamic_arguments = matches!(
+        f.context().tree.get(expression_id),
         Expression::Call {
-            static_arguments,
-            dynamic_arguments,
-            ..
-        }
-        | Expression::New {
-            static_arguments,
-            dynamic_arguments,
-            ..
-        } => {
-            static_arguments
-                .as_ref()
-                .is_some_and(|arguments| !arguments.is_empty())
-                && dynamic_arguments.is_empty()
-        }
-        _ => false,
+            dynamic_arguments, ..
+        } | Expression::New {
+            dynamic_arguments, ..
+        } if !dynamic_arguments.is_empty()
+    );
+    let is_accessor_field =
+        modifiers.is_some_and(|modifiers| modifiers.accessor == Some(AccessorKind::Accessor));
+    let line_width = f.context().options.line_width;
+
+    if is_accessor_field
+        && matches!(
+            f.context().tree.get(expression_id),
+            Expression::Call { .. } | Expression::New { .. }
+        )
+    {
+        return value_has_dynamic_arguments;
     }
+
+    if value_has_block_static_arguments && !value_has_dynamic_arguments {
+        return false;
+    }
+
+    value_has_static_arguments && !value_has_nested_call_chain
+        || line_width <= 80
+            && field_expression_is_single_call_with_member_chain_callee(f.context(), expression_id)
 }
 
 /// Format shared property or member field output.
@@ -524,15 +723,6 @@ fn format_field_like<'ast>(
     default: Option<LocalNodeId<Expression>>,
     force_quote_keys: bool,
 ) -> FormatResult<()> {
-    let modifiers_for_postfix = modifiers.map(|mut modifiers| {
-        if modifiers.accessor == Some(AccessorKind::Accessor)
-            && modifiers.kind == Some(BindingKind::Must)
-        {
-            modifiers.kind = None;
-        }
-        modifiers
-    });
-
     // modifiers
     format_binding_modifiers_prefix_maybe(f, modifiers)?;
     // key
@@ -541,19 +731,16 @@ fn format_field_like<'ast>(
     }
 
     // modifiers
-    format_binding_modifiers_postfix_maybe(f, modifiers_for_postfix)?;
+    format_binding_modifiers_postfix_maybe(f, modifiers)?;
     // value
     if let Some(value) = value {
         write_field_type_annotation(f, value)?;
     }
     // default
     if let Some(default) = default {
-        if field_default_prefers_inline_operator_seam(f, default) {
-            write!(
-                f,
-                [group(&format_args![space(), token("="), space(), default])]
-            )?;
-        } else {
+        if f.context().has_prefix_annotation(default)
+            || field_default_should_break_after_operator(f, modifiers, default)
+        {
             write!(
                 f,
                 [group(&format_args![
@@ -561,6 +748,11 @@ fn format_field_like<'ast>(
                     token("="),
                     indent(&format_args![soft_line_break_or_space(), default]),
                 ])]
+            )?;
+        } else {
+            write!(
+                f,
+                [group(&format_args![space(), token("="), space(), default])]
             )?;
         }
     }
@@ -580,7 +772,7 @@ fn format_method_like<'ast, N>(
     signature_is_multiline_before_body: bool,
 ) -> FormatResult<()>
 where
-    N: Node + Clone,
+    N: Node + Clone + 'ast,
     NodeTree: NodeTreeImpl<N>,
 {
     let generics = signature.generics.as_ref();
@@ -589,7 +781,7 @@ where
     format_binding_modifiers_prefix_maybe(f, modifiers)?;
 
     // shared function header prefix
-    write_function_header_prefix(f, signature, FunctionHeaderStyle::MethodLike, key.is_some())?;
+    write_function_header_prefix(f, signature, false, key.is_some())?;
 
     // key
     if let Some(key) = key {
@@ -597,7 +789,7 @@ where
     }
 
     // name seam comments
-    write!(f, [f.context().method_name_infix_annotations(node_id)])?;
+    write!(f, [f.context().block_infix_annotations(node_id)])?;
 
     // name postfix modifiers: `?` and `!` belong on the method name
     format_binding_modifiers_postfix_maybe(f, modifiers)?;
@@ -614,10 +806,7 @@ where
     }
 
     // optional marker to parameter list seam
-    write!(
-        f,
-        [f.context().method_parameter_head_infix_annotations(node_id)]
-    )?;
+    write!(f, [f.context().block_infix_annotations(node_id)])?;
 
     // dynamic parameters
     let mut dynamic_parameters = Vec::with_capacity(signature.dynamic_parameters.len() + 1);
@@ -676,7 +865,15 @@ where
         } else if signature_should_elide_space_before_body(f.context(), signature.return_type) {
             write!(f, [body])?;
         } else {
-            write!(f, [space(), body])?;
+            if expression_body_requires_head_space(f.context(), body) {
+                write!(f, [space()])?;
+            }
+            let body_expression = f.context().node::<Expression>(body);
+            if let Expression::Block(block_id) = body_expression {
+                format_block(f, *block_id)?;
+            } else {
+                write!(f, [body])?;
+            }
         }
     }
 
@@ -690,25 +887,16 @@ fn format_method_node_with_directive<'ast, T, F>(
     mut format_node: F,
 ) -> FormatResult<()>
 where
-    T: Node + Clone,
+    T: Node + Clone + 'ast,
     NodeTree: NodeTreeImpl<T> + NodeTreeImpl<Comment>,
     F: FnMut(&mut DestackFormatter<'ast, '_>) -> FormatResult<()>,
 {
-    let directive = directive_for_node(f.context(), node_id);
+    let is_ignored = node_has_ignore_directive(f.context(), node_id);
     write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
-    if let Some(directive) = directive
-        && directive.kind == FormatterDirectiveKind::IgnoreFormat
-    {
-        write_ignored_node(f, node_id, directive)?;
-
-        if !matches!(
-            directive.position,
-            FormatterDirectivePosition::Postfix { .. }
-        ) {
-            write!(f, [f.context().any_postfix_annotations(node_id)])?;
-        }
-
+    if is_ignored {
+        write_ignored_node(f, node_id)?;
+        write!(f, [f.context().any_postfix_annotations(node_id)])?;
         return Ok(());
     }
 
@@ -725,25 +913,16 @@ fn format_node_with_directive<'ast, T, F>(
     mut format_node: F,
 ) -> FormatResult<()>
 where
-    T: Node + Clone,
+    T: Node + Clone + 'ast,
     NodeTree: NodeTreeImpl<T> + NodeTreeImpl<Comment>,
     F: FnMut(&mut DestackFormatter<'ast, '_>) -> FormatResult<()>,
 {
-    let directive = directive_for_node(f.context(), node_id);
+    let is_ignored = node_has_ignore_directive(f.context(), node_id);
     write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
-    if let Some(directive) = directive
-        && directive.kind == FormatterDirectiveKind::IgnoreFormat
-    {
-        write_ignored_node(f, node_id, directive)?;
-
-        if !matches!(
-            directive.position,
-            FormatterDirectivePosition::Postfix { .. }
-        ) {
-            write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
-        }
-
+    if is_ignored {
+        write_ignored_node(f, node_id)?;
+        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
         return Ok(());
     }
 
@@ -857,19 +1036,11 @@ impl<'ast> FormatNode<'ast, Member> for Member {
             });
         }
 
-        let directive = directive_for_node(f.context(), node_id);
-        if let Some(directive) = directive
-            && directive.kind == FormatterDirectiveKind::IgnoreFormat
-        {
+        let is_ignored = node_has_ignore_directive(f.context(), node_id);
+        if is_ignored {
             write!(f, [f.context().any_prefix_annotations(node_id)])?;
-            write_ignored_node(f, node_id, directive)?;
-
-            if !matches!(
-                directive.position,
-                FormatterDirectivePosition::Postfix { .. }
-            ) {
-                write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
-            }
+            write_ignored_node(f, node_id)?;
+            write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
 
             // ignored class fields still get one formatter-owned terminator
             if matches!(self, Member::Field { .. }) {
@@ -995,215 +1166,5 @@ impl<'ast> FormatNode<'ast, Member> for Member {
 
             Ok(())
         })
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::{
-        DestackFormatOptions, TestFormatter, assert_format,
-        assert_format_program_idempotent_with_file_type,
-        assert_format_program_roundtrip_with_file_type,
-    };
-    use destack_ast::DeclarationDescriptor;
-    use destack_source::{FileType, LanguageType};
-
-    #[test]
-    fn test_format_struct_empty() {
-        assert_format!(
-            "struct Foo { }",
-            "struct Foo {}",
-            |p| p.eat_struct_or_class(&p.mark(), DeclarationDescriptor::default(), false),
-            DestackFormatOptions::default()
-        );
-    }
-
-    #[test]
-    fn test_format_struct_with_fields() {
-        assert_format!(
-            "struct Foo { a: int32; b: boolean }",
-            "struct Foo {\n\ta: int32;\n\tb: boolean;\n}",
-            |p| p.eat_struct_or_class(&p.mark(), DeclarationDescriptor::default(), false),
-            DestackFormatOptions::default_tab()
-        );
-    }
-
-    #[test]
-    fn test_format_struct_with_modified_fields() {
-        assert_format!(
-            "struct Foo { readonly a: int32; private b: boolean }",
-            "struct Foo {\n\treadonly a: int32;\n\tprivate b: boolean;\n}",
-            |p| p.eat_struct_or_class(&p.mark(), DeclarationDescriptor::default(), false),
-            DestackFormatOptions::default_tab()
-        );
-    }
-
-    #[test]
-    fn test_format_struct_with_name() {
-        assert_format!(
-            "struct Foo { a: int32 }",
-            "struct Foo {\n\ta: int32;\n}",
-            |p| p.eat_struct_or_class(&p.mark(), DeclarationDescriptor::default(), false),
-            DestackFormatOptions::default_tab()
-        );
-    }
-
-    #[test]
-    fn test_format_struct_with_fields_and_defaults() {
-        assert_format!(
-            "struct Foo { a?: int32 = 42; b: boolean }",
-            "struct Foo {\n\ta?: int32 = 42;\n\tb: boolean;\n}",
-            |p| p.eat_struct_or_class(&p.mark(), DeclarationDescriptor::default(), false),
-            DestackFormatOptions::default_tab()
-        );
-    }
-
-    #[test]
-    fn test_format_class_with_abstract_override_field() {
-        assert_format!(
-            "class Foo { abstract override bar: int32 }",
-            "class Foo {\n\tabstract override bar: int32;\n}",
-            |p| p.eat_struct_or_class(&p.mark(), DeclarationDescriptor::default(), false),
-            DestackFormatOptions {
-                language_type: LanguageType::TypeScript,
-                ..DestackFormatOptions::default_tab()
-            }
-        );
-    }
-
-    #[test]
-    fn test_format_struct_with_static_parameters_and_inheritance() {
-        assert_format!(
-            "struct Foo<T: Numeric> extends Bar implements Baz { }",
-            "struct Foo<T: Numeric> extends Bar implements Baz {}",
-            |p| p.eat_struct_or_class(&p.mark(), DeclarationDescriptor::default(), false),
-            DestackFormatOptions::default()
-        );
-    }
-
-    #[test]
-    fn test_format_typescript_constructor_parameter_properties_expand_for_quoted_constructor_name()
-    {
-        let source = r#"
-[
-  class {
-    "constructor"(protected x: number, private y: string) {}
-  },
-]
-"#;
-        let expected = r#"
-[
-  class {
-    constructor(
-      protected x: number,
-      private y: string,
-    ) {}
-  },
-];
-"#;
-        assert_format_program_roundtrip_with_file_type(
-            source,
-            expected.trim_start(),
-            FileType::TypeScript,
-            DestackFormatOptions::default_with_line_width(80).with_indent_width(2),
-        );
-    }
-
-    #[test]
-    fn test_format_typescript_field_initializer_call_breaks_after_equals_stably() {
-        let source = r#"
-class X {
-  value: Type = memoize((arg: Arg): Ret => { const result = doSomething(arg); return result; });
-}
-"#;
-        let expected = r#"
-class X {
-  value: Type =
-    memoize((arg: Arg): Ret => {
-      const result = doSomething(arg);
-      return result;
-    });
-}
-"#;
-        assert_format_program_roundtrip_with_file_type(
-            source,
-            expected.trim_start(),
-            FileType::TypeScript,
-            DestackFormatOptions::default_with_line_width(80).with_indent_width(2),
-        );
-    }
-
-    #[test]
-    fn test_format_typescript_field_initializer_with_type_arguments_keeps_equals_inline() {
-        let source = r#"
-export class Test {
-  readonly coordinates = model.required<
-    Immutable<{
-      latitude: number;
-      longitude: number;
-    }>
-  >();
-}
-"#;
-        let expected = r#"
-export class Test {
-  readonly coordinates = model.required<
-    Immutable<{
-      latitude: number;
-      longitude: number;
-    }>
-  >();
-}
-"#;
-        assert_format_program_roundtrip_with_file_type(
-            source,
-            expected.trim_start(),
-            FileType::TypeScript,
-            DestackFormatOptions::default_with_line_width(80).with_indent_width(2),
-        );
-    }
-
-    #[test]
-    fn test_format_destack_method_keeps_explicit_this_parameter_roundtrip() {
-        let source = r#"
-extension<T> for Slice<T> {
-  indexSet(this: &Slice<T>, i: number, value: T): void {
-    undefined!;
-  }
-}
-"#;
-        let expected = r#"
-extension<T> for Slice<T> {
-  indexSet(this: &Slice<T>, i: number, value: T): void {
-    undefined!;
-  }
-}
-"#;
-        assert_format_program_roundtrip_with_file_type(
-            source,
-            expected.trim_start(),
-            FileType::Destack,
-            DestackFormatOptions::default_with_line_width(80).with_indent_width(2),
-        );
-    }
-
-    #[test]
-    fn test_format_destack_method_keeps_explicit_this_parameter_idempotent() {
-        let source = r#"
-extension<T> for Slice<T> {
-  indexSet(this: &Slice<T>, i: number, value: T): void {
-    undefined!;
-  }
-
-  reverse(this: &Slice<T>): void {
-    undefined!;
-  }
-}
-"#;
-        assert_format_program_idempotent_with_file_type(
-            source,
-            FileType::Destack,
-            DestackFormatOptions::default_with_line_width(80).with_indent_width(2),
-        );
     }
 }

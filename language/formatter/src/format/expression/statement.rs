@@ -1,26 +1,33 @@
-use crate::format::analysis::timing;
+use super::control::{
+    detect_for_each_binding_keyword, format_for_each_binding_pattern, format_if_else_chain,
+    format_match, format_statement_body_block, is_empty_statement_block,
+};
+use super::declarator::format_declarator;
+use super::format::{format_expression, format_expression_without_prefix_annotations};
+use super::ternary::format_ternary;
+use crate::format::analysis::call_arguments_are_multiline_span;
 use crate::format::annotation::statement_wrapper_needs_semicolon;
 use crate::format::chain::expression_trivia_anchor_end;
-use crate::format::declaration::dependency::sort_import_items;
-use crate::format::directive::{
-    FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
+use crate::format::collection::list_like;
+use crate::format::declaration::dependency::sort_dependency_items;
+use crate::format::declaration::signature::expression_body_requires_head_space;
+use crate::format::directive::node_has_ignore_directive;
+use crate::format::tree::tree_literal_should_break;
+use crate::{Annotation, DestackFormatContext, DestackFormatter};
+use destack_ast::{
+    AnnotationPosition, Argument, Asynchrony, Block, BlockFormat, Comment, CommentStyle,
+    DeclarationDescriptor, DeclarationKind, Declarator, DependencyItem, DependencyKind,
+    DependencyMode, Doc, DocumentationStyle, Expression, ForEachBinding, ForEachDeclarationKind,
+    ForEachKind, IfCondition, IfKind, ImportSource, ImportTarget, Keyword, LetKind, LocalNodeId,
+    Mutability, NodeTree, NodeType, Pattern, TypeUnaryOperator, WhileKind, YieldCardinality,
 };
-use crate::format::expression::{
-    Annotation, AnnotationPosition, Argument, Asynchrony, Block, DeclarationDescriptor,
-    DeclarationKind, Declarator, DependencyItem, DependencyKind, DependencyMode,
-    DestackFormatContext, DestackFormatter, Expression, ForEachBinding, ForEachDeclarationKind,
-    ForEachKind, FormatResult, IfCondition, IfKind, ImportSource, Keyword, LetKind, LocalNodeId,
-    Mutability, NodeTree, NodeType, Pattern, Span, StringId, TypeUnaryOperator, WhileKind,
-    YieldCardinality, block_indent, call_arguments_are_multiline_span,
-    detect_for_each_binding_keyword, format_declarator, format_expression,
-    format_expression_without_prefix_annotations, format_for_each_binding_pattern,
-    format_if_else_chain, format_match, format_statement_body_block, format_ternary, format_with,
-    group, hard_line_break, is_empty_statement_block, line_postfix_boundary, list_like, space,
-    token, tree_literal_should_break,
+use destack_core::StringId;
+use destack_fir::format::{Buffer, Format, FormatError, FormatResult};
+use destack_fir::prelude::{
+    block_indent, format_with, group, hard_line_break, line_postfix_boundary, space, token,
 };
-use destack_ast::{Comment, CommentStyle, Doc, DocumentationStyle, ImportTarget};
-use destack_fir::format::{Buffer, Format, FormatError};
 use destack_fir::write;
+use destack_source::Span;
 use destack_workspace::ImportSortOrder;
 
 /// Return one dependency item's mode when it is valid.
@@ -54,14 +61,9 @@ fn format_dependency_with_arguments<'ast>(
     arguments: &[LocalNodeId<Argument>],
 ) -> FormatResult<()> {
     // attribute head comments should stay attached to the with head, not drift to statement tails
-    let has_attribute_head_annotation = f
-        .context()
-        .has_dependency_attribute_head_annotation(node_id);
+    let has_attribute_head_annotation = f.context().has_non_blank_infix_annotation(node_id);
     if has_attribute_head_annotation {
-        write!(
-            f,
-            [f.context().dependency_attribute_head_annotations(node_id)]
-        )?;
+        write!(f, [f.context().block_infix_annotations(node_id)])?;
     }
 
     // source newlines inside `with` should expand the collection
@@ -93,40 +95,15 @@ fn dependency_items_have_annotations(
 fn dependency_items_for_output(
     ctx: &DestackFormatContext<'_>,
     items: &[LocalNodeId<DependencyItem>],
-    options: DependencyOutputOptions,
+    organize_imports: bool,
+    sort_order: ImportSortOrder,
+    has_item_annotations: bool,
 ) -> Vec<LocalNodeId<DependencyItem>> {
-    if options.organize_imports && !options.has_item_annotations {
-        return sort_import_items(items, ctx.tree, ctx.strings, options.sort_order);
+    if organize_imports && !has_item_annotations {
+        return sort_dependency_items(items, ctx.tree, ctx.strings, sort_order);
     }
 
     items.to_vec()
-}
-
-/// Store shared dependency item output options for import and export formatting.
-#[derive(Copy, Clone)]
-struct DependencyOutputOptions {
-    /// Whether organize imports sorting is enabled for this file.
-    organize_imports: bool,
-    /// The configured organize imports sort order.
-    sort_order: ImportSortOrder,
-    /// Whether any dependency item is annotated and must retain source order.
-    has_item_annotations: bool,
-}
-
-/// Build output options for one dependency item list.
-fn dependency_output_options(
-    ctx: &DestackFormatContext<'_>,
-    items: &[LocalNodeId<DependencyItem>],
-) -> DependencyOutputOptions {
-    let has_item_annotations = dependency_items_have_annotations(ctx, items);
-    let organize_imports = ctx.options.organize_imports.is_enabled();
-    let sort_order = ctx.options.import_sort_order;
-
-    DependencyOutputOptions {
-        organize_imports,
-        sort_order,
-        has_item_annotations,
-    }
 }
 
 /// Write one dependency-item collection list with stable expansion rules.
@@ -147,10 +124,18 @@ fn write_dependency_item_collection<'ast>(
 fn write_dependency_items_for_output<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     items: &[LocalNodeId<DependencyItem>],
-    options: DependencyOutputOptions,
+    organize_imports: bool,
+    sort_order: ImportSortOrder,
+    has_item_annotations: bool,
 ) -> FormatResult<()> {
-    let sorted_items = dependency_items_for_output(f.context(), items, options);
-    write_dependency_item_collection(f, &sorted_items, options.has_item_annotations)
+    let sorted_items = dependency_items_for_output(
+        f.context(),
+        items,
+        organize_imports,
+        sort_order,
+        has_item_annotations,
+    );
+    write_dependency_item_collection(f, &sorted_items, has_item_annotations)
 }
 
 /// Write one quoted dependency source target.
@@ -293,7 +278,9 @@ pub(crate) fn format_import_expression<'ast>(
     arguments: Option<&[LocalNodeId<Argument>]>,
 ) -> FormatResult<()> {
     let tree = f.context().tree;
-    let output_options = dependency_output_options(f.context(), items);
+    let has_item_annotations = dependency_items_have_annotations(f.context(), items);
+    let organize_imports = f.context().options.organize_imports.is_enabled();
+    let sort_order = f.context().options.import_sort_order;
 
     // import call
     if format_import_call_expression(f, source, target, arguments)? {
@@ -402,12 +389,24 @@ pub(crate) fn format_import_expression<'ast>(
             )?;
         } else if !rest_items.is_empty() {
             write!(f, [token(","), space()])?;
-            write_dependency_items_for_output(f, rest_items, output_options)?;
+            write_dependency_items_for_output(
+                f,
+                rest_items,
+                organize_imports,
+                sort_order,
+                has_item_annotations,
+            )?;
         }
     }
     // named imports
     else if !items.is_empty() {
-        write_dependency_items_for_output(f, items, output_options)?;
+        write_dependency_items_for_output(
+            f,
+            items,
+            organize_imports,
+            sort_order,
+            has_item_annotations,
+        )?;
     } else if import_type_empty_items {
         write!(f, [token("{"), token("}")])?;
     }
@@ -435,7 +434,9 @@ pub(crate) fn format_export_expression<'ast>(
     arguments: Option<&[LocalNodeId<Argument>]>,
 ) -> FormatResult<()> {
     let tree = f.context().tree;
-    let output_options = dependency_output_options(f.context(), items);
+    let has_item_annotations = dependency_items_have_annotations(f.context(), items);
+    let organize_imports = f.context().options.organize_imports.is_enabled();
+    let sort_order = f.context().options.import_sort_order;
 
     // keyword
     write!(f, [Keyword::Export, space()])?;
@@ -524,7 +525,13 @@ pub(crate) fn format_export_expression<'ast>(
     }
     // named exports
     else if !items.is_empty() {
-        write_dependency_items_for_output(f, items, output_options)?;
+        write_dependency_items_for_output(
+            f,
+            items,
+            organize_imports,
+            sort_order,
+            has_item_annotations,
+        )?;
     } else if target.is_none() || export_empty_items_with_target {
         // empty export clause: `export {}`
         write!(f, [token("{"), token("}")])?;
@@ -674,16 +681,8 @@ fn statement_wrapper_delays_semicolon_for_multiline_as_const_postfix(
 }
 
 /// Return whether wrapper postfix annotations should emit for one directive position.
-fn statement_wrapper_should_emit_postfix_annotations(
-    directive: Option<FormatterDirective>,
-) -> bool {
-    !matches!(
-        directive,
-        Some(FormatterDirective {
-            kind: FormatterDirectiveKind::IgnoreFormat,
-            position: FormatterDirectivePosition::Postfix { .. },
-        })
-    )
+fn statement_wrapper_should_emit_postfix_annotations(_is_ignored: bool) -> bool {
+    true
 }
 
 /// Return whether one wrapper expression emits its own edge annotations.
@@ -738,67 +737,6 @@ fn statement_wrapper_uses_postfix_only_annotations(
         ))
 }
 
-/// Write wrapper infix and postfix annotations in the correct phase order.
-fn write_statement_wrapper_non_boundary_annotations<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<Expression>,
-    expression: &Expression,
-) -> FormatResult<()> {
-    if statement_wrapper_uses_postfix_only_annotations(f.context(), node_id, expression) {
-        return write!(
-            f,
-            [f.context()
-                .any_postfix_except_line_postfix_boundary_annotations(node_id)]
-        );
-    }
-
-    write!(
-        f,
-        [f.context()
-            .any_infix_or_postfix_except_line_postfix_boundary_annotations(node_id)]
-    )
-}
-
-/// Write one statement wrapper terminator and boundary annotation phase.
-fn write_statement_wrapper_terminator_and_boundary_annotations<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<Expression>,
-    needs_semicolon: bool,
-    semicolon_after_multiline_as_const_postfix: bool,
-    should_emit_postfix_annotations: bool,
-) -> FormatResult<()> {
-    // statement terminator
-    if needs_semicolon && !semicolon_after_multiline_as_const_postfix {
-        write!(f, [token(";")])?;
-    }
-
-    // statement-level boundary comments print after the terminator
-    // this matches direct statement-list formatting and prevents wrapper/non-wrapper churn
-    if should_emit_postfix_annotations {
-        write!(f, [f.context().line_postfix_boundary_annotations(node_id)])?;
-    }
-
-    Ok(())
-}
-
-/// Write one statement wrapper non-boundary annotation phase.
-fn write_statement_wrapper_non_boundary_annotation_phase<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<Expression>,
-    expression: &Expression,
-    should_emit_postfix_annotations: bool,
-) -> FormatResult<()> {
-    let expression_handles_its_own_edge_annotations =
-        statement_wrapper_expression_handles_its_own_edge_annotations(expression);
-
-    // infix and postfix annotations
-    if !expression_handles_its_own_edge_annotations && should_emit_postfix_annotations {
-        write_statement_wrapper_non_boundary_annotations(f, node_id, expression)?;
-    }
-
-    Ok(())
-}
-
 /// Format one statement wrapper inner expression with an optional trailing semicolon.
 fn format_statement_wrapped_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -806,11 +744,11 @@ fn format_statement_wrapped_expression<'ast>(
     needs_semicolon: bool,
 ) -> FormatResult<()> {
     let expression = f.context().tree.get(node_id);
-    let directive = directive_for_node(f.context(), node_id);
+    let is_ignored = node_has_ignore_directive(f.context(), node_id);
 
     // prefix annotations and core expression
     write!(f, [f.context().any_prefix_annotations(node_id)])?;
-    format_expression(f, node_id, expression, directive)?;
+    format_expression(f, node_id, expression, is_ignored)?;
 
     let semicolon_after_multiline_as_const_postfix =
         statement_wrapper_delays_semicolon_for_multiline_as_const_postfix(
@@ -820,24 +758,36 @@ fn format_statement_wrapped_expression<'ast>(
             needs_semicolon,
         );
     let should_emit_postfix_annotations =
-        statement_wrapper_should_emit_postfix_annotations(directive);
+        statement_wrapper_should_emit_postfix_annotations(is_ignored);
 
-    // statement terminator and boundary annotations
-    write_statement_wrapper_terminator_and_boundary_annotations(
-        f,
-        node_id,
-        needs_semicolon,
-        semicolon_after_multiline_as_const_postfix,
-        should_emit_postfix_annotations,
-    )?;
+    // statement terminator
+    if needs_semicolon && !semicolon_after_multiline_as_const_postfix {
+        write!(f, [token(";")])?;
+    }
 
-    // infix and postfix annotations
-    write_statement_wrapper_non_boundary_annotation_phase(
-        f,
-        node_id,
-        expression,
-        should_emit_postfix_annotations,
-    )?;
+    // boundary annotations
+    if should_emit_postfix_annotations {
+        write!(f, [f.context().line_postfix_boundary_annotations(node_id)])?;
+    }
+
+    // non-boundary annotations
+    let expression_handles_its_own_edge_annotations =
+        statement_wrapper_expression_handles_its_own_edge_annotations(expression);
+    if !expression_handles_its_own_edge_annotations && should_emit_postfix_annotations {
+        if statement_wrapper_uses_postfix_only_annotations(f.context(), node_id, expression) {
+            write!(
+                f,
+                [f.context()
+                    .any_postfix_except_line_postfix_boundary_annotations(node_id)]
+            )?;
+        } else {
+            write!(
+                f,
+                [f.context()
+                    .any_infix_or_postfix_except_line_postfix_boundary_annotations(node_id)]
+            )?;
+        }
+    }
 
     // delayed semicolon for multiline `as const` postfix comments
     if semicolon_after_multiline_as_const_postfix {
@@ -932,78 +882,12 @@ fn format_using_expression<'ast>(
     Ok(())
 }
 
-/// Return whether block annotations include a block prefix annotation.
-fn block_has_block_prefix_annotation(
-    ctx: &DestackFormatContext<'_>,
-    body: LocalNodeId<Block>,
-) -> bool {
-    let Some(annotations) = ctx.annotations(body) else {
-        return false;
-    };
-
-    annotations.into_iter().any(|annotation_id| {
-        matches!(
-            ctx.annotation(annotation_id),
-            Annotation::Blank {
-                position: AnnotationPosition::BlockPrefix,
-                ..
-            } | Annotation::Doc {
-                position: AnnotationPosition::BlockPrefix,
-                ..
-            } | Annotation::Comment {
-                position: AnnotationPosition::BlockPrefix,
-                ..
-            } | Annotation::Decorator {
-                position: AnnotationPosition::BlockPrefix,
-                ..
-            }
-        )
-    })
-}
-
-/// Return whether block annotations include a line prefix annotation.
-fn block_has_line_prefix_annotation(
-    ctx: &DestackFormatContext<'_>,
-    body: LocalNodeId<Block>,
-) -> bool {
-    let Some(annotations) = ctx.annotations(body) else {
-        return false;
-    };
-
-    annotations.into_iter().any(|annotation_id| {
-        matches!(
-            ctx.annotation(annotation_id),
-            Annotation::Blank {
-                position: AnnotationPosition::LinePrefix,
-                ..
-            } | Annotation::Doc {
-                position: AnnotationPosition::LinePrefix,
-                ..
-            } | Annotation::Comment {
-                position: AnnotationPosition::LinePrefix,
-                ..
-            } | Annotation::Decorator {
-                position: AnnotationPosition::LinePrefix,
-                ..
-            }
-        )
-    })
-}
-
 /// Return whether a control-flow statement body should be preceded by a space.
 fn statement_body_requires_head_space(
     ctx: &DestackFormatContext<'_>,
     body: LocalNodeId<Block>,
 ) -> bool {
-    if block_has_block_prefix_annotation(ctx, body) {
-        return false;
-    }
-
-    if block_has_line_prefix_annotation(ctx, body) {
-        return true;
-    }
-
-    !is_empty_statement_block(ctx, body)
+    expression_body_requires_head_space(ctx, LocalNodeId::<Expression>::new(body.id))
 }
 
 /// Format a `while` or `do while` expression.
@@ -1034,15 +918,23 @@ fn format_while_expression<'ast>(
         }
         // do <body> while (<condition>)
         WhileKind::DoWhile => {
+            let is_block_body = f.context().tree.get(body).format == BlockFormat::Explicit;
+
             write!(f, [Keyword::Do])?;
             if statement_body_requires_head_space(f.context(), body) {
                 write!(f, [space()])?;
             }
             format_statement_body_block(f, body)?;
+
+            if is_block_body {
+                write!(f, [space()])?;
+            } else {
+                write!(f, [hard_line_break()])?;
+            }
+
             write!(
                 f,
                 [
-                    space(),
                     Keyword::While,
                     space(),
                     token("("),
@@ -1055,6 +947,29 @@ fn format_while_expression<'ast>(
     }
 
     Ok(())
+}
+
+/// Format a JavaScript `with` expression.
+fn format_with_expression<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    value: LocalNodeId<Expression>,
+    body: LocalNodeId<Block>,
+) -> FormatResult<()> {
+    write!(
+        f,
+        [
+            Keyword::With,
+            space(),
+            token("("),
+            value,
+            line_postfix_boundary(),
+            token(")")
+        ]
+    )?;
+    if statement_body_requires_head_space(f.context(), body) {
+        write!(f, [space()])?;
+    }
+    format_statement_body_block(f, body)
 }
 
 /// Format a `for each` expression.
@@ -1206,24 +1121,48 @@ fn format_try_expression<'ast>(
     finally_expression: Option<LocalNodeId<Expression>>,
 ) -> FormatResult<()> {
     // try block
-    write!(f, [Keyword::Try, space(), try_expression])?;
+    write!(f, [Keyword::Try])?;
+    if let Expression::Block(block_id) = f.context().tree.get(try_expression) {
+        if statement_body_requires_head_space(f.context(), *block_id) {
+            write!(f, [space()])?;
+        }
+    } else {
+        write!(f, [space()])?;
+    }
+    write!(f, [try_expression])?;
 
     // catch block
     if let Some(catch_expression) = catch_expression {
-        write!(f, [space(), Keyword::Catch, space()])?;
+        write!(f, [space(), Keyword::Catch])?;
         if let Some(catch_pattern) = catch_pattern {
+            write!(f, [space()])?;
             write!(f, [token("("), catch_pattern])?;
             if let Some(catch_ty) = catch_ty {
                 write!(f, [token(":"), space(), catch_ty])?;
             }
-            write!(f, [token(")"), space()])?;
+            write!(f, [token(")")])?;
+        }
+        if let Expression::Block(block_id) = f.context().tree.get(catch_expression) {
+            if statement_body_requires_head_space(f.context(), *block_id) {
+                write!(f, [space()])?;
+            }
+        } else {
+            write!(f, [space()])?;
         }
         write!(f, [catch_expression])?;
     }
 
     // finally block
     if let Some(finally_expression) = finally_expression {
-        write!(f, [space(), Keyword::Finally, space(), finally_expression])?;
+        write!(f, [space(), Keyword::Finally])?;
+        if let Expression::Block(block_id) = f.context().tree.get(finally_expression) {
+            if statement_body_requires_head_space(f.context(), *block_id) {
+                write!(f, [space()])?;
+            }
+        } else {
+            write!(f, [space()])?;
+        }
+        write!(f, [finally_expression])?;
     }
 
     Ok(())
@@ -1603,9 +1542,6 @@ pub(crate) fn format_statement_expression<'ast>(
             items,
             arguments,
         } => {
-            let _timing = f
-                .context()
-                .timing_scope(timing::FORMAT_EXPRESSION_STATEMENT_IMPORT);
             format_import_expression(
                 f,
                 node_id,
@@ -1624,9 +1560,6 @@ pub(crate) fn format_statement_expression<'ast>(
             items,
             arguments,
         } => {
-            let _timing = f
-                .context()
-                .timing_scope(timing::FORMAT_EXPRESSION_STATEMENT_EXPORT);
             format_export_expression(f, node_id, *kind, *target, items, arguments.as_deref())?;
         }
 
@@ -1653,9 +1586,6 @@ pub(crate) fn format_statement_expression<'ast>(
             declarators,
             ..
         } => {
-            let _timing = f
-                .context()
-                .timing_scope(timing::FORMAT_EXPRESSION_STATEMENT_LET);
             format_let_expression(f, *kind, descriptor, declarators)?;
         }
 
@@ -1665,9 +1595,6 @@ pub(crate) fn format_statement_expression<'ast>(
             descriptor,
             declarators,
         } => {
-            let _timing = f
-                .context()
-                .timing_scope(timing::FORMAT_EXPRESSION_STATEMENT_LET);
             format_using_expression(f, *asynchrony, descriptor, declarators)?;
         }
 
@@ -1676,9 +1603,6 @@ pub(crate) fn format_statement_expression<'ast>(
             kind: IfKind::Ternary,
             ..
         } => {
-            let _timing = f
-                .context()
-                .timing_scope(timing::FORMAT_EXPRESSION_STATEMENT_CONTROL);
             format_ternary(f, node_id)?;
         }
 
@@ -1686,9 +1610,6 @@ pub(crate) fn format_statement_expression<'ast>(
         Expression::If {
             kind: IfKind::If, ..
         } => {
-            let _timing = f
-                .context()
-                .timing_scope(timing::FORMAT_EXPRESSION_STATEMENT_CONTROL);
             write!(
                 f,
                 [group(&format_with(|f| format_if_else_chain(f, node_id)))]
@@ -1701,10 +1622,12 @@ pub(crate) fn format_statement_expression<'ast>(
             condition,
             body,
         } => {
-            let _timing = f
-                .context()
-                .timing_scope(timing::FORMAT_EXPRESSION_STATEMENT_CONTROL);
             format_while_expression(f, *kind, *condition, *body)?;
+        }
+
+        // with
+        Expression::With { value, body } => {
+            format_with_expression(f, *value, *body)?;
         }
 
         // for each
@@ -1715,9 +1638,6 @@ pub(crate) fn format_statement_expression<'ast>(
             iterator,
             body,
         } => {
-            let _timing = f
-                .context()
-                .timing_scope(timing::FORMAT_EXPRESSION_STATEMENT_CONTROL);
             format_for_each_expression(f, node_id, *asynchrony, *kind, binding, *iterator, *body)?;
         }
 
@@ -1728,17 +1648,11 @@ pub(crate) fn format_statement_expression<'ast>(
             increment,
             body,
         } => {
-            let _timing = f
-                .context()
-                .timing_scope(timing::FORMAT_EXPRESSION_STATEMENT_CONTROL);
             format_for_expression(f, *initialization, *condition, *increment, *body)?;
         }
 
         // loop
         Expression::Loop { body } => {
-            let _timing = f
-                .context()
-                .timing_scope(timing::FORMAT_EXPRESSION_STATEMENT_CONTROL);
             format_loop_expression(f, *body)?;
         }
 
@@ -1750,9 +1664,6 @@ pub(crate) fn format_statement_expression<'ast>(
             catch_expression,
             finally_expression,
         } => {
-            let _timing = f
-                .context()
-                .timing_scope(timing::FORMAT_EXPRESSION_STATEMENT_CONTROL);
             format_try_expression(
                 f,
                 *try_expression,
@@ -1765,9 +1676,6 @@ pub(crate) fn format_statement_expression<'ast>(
 
         // match
         Expression::Match { .. } => {
-            let _timing = f
-                .context()
-                .timing_scope(timing::FORMAT_EXPRESSION_STATEMENT_CONTROL);
             format_match(f, node_id, true)?;
         }
 
@@ -1841,9 +1749,6 @@ pub(crate) fn format_statement_expression<'ast>(
 
         // return
         Expression::Return { value } => {
-            let _timing = f
-                .context()
-                .timing_scope(timing::FORMAT_EXPRESSION_STATEMENT_RETURN);
             format_return_expression(f, node_id, *value)?;
         }
         _ => return Ok(false),

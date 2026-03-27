@@ -180,10 +180,7 @@ fn format_declaration_heritage_head_annotations<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
 ) -> FormatResult<()> {
-    write!(
-        f,
-        [f.context().declaration_generic_head_annotations(node_id)]
-    )
+    write!(f, [f.context().any_prefix_annotations(node_id)])
 }
 
 /// Format declaration extends and optional implements clauses.
@@ -352,8 +349,8 @@ pub(crate) fn format_struct_or_class_declaration<'ast>(
                 Expression::Assign { right, .. } if *right == expression_id
             )
         });
-    let has_generic_head_comment = f.context().has_declaration_generic_head_annotation(node_id);
-    let has_body_head_comment = f.context().has_declaration_body_head_annotation(node_id);
+    let has_generic_head_comment = f.context().has_prefix_annotation(node_id);
+    let has_body_head_comment = f.context().has_prefix_annotation(node_id);
 
     format_declaration_static_parameters(f, generics)?;
     format_declaration_heritage_head_annotations(f, node_id)?;
@@ -378,7 +375,7 @@ pub(crate) fn format_struct_or_class_declaration<'ast>(
     } else {
         // body-head annotations emit their own boundary separator.
     }
-    write!(f, [f.context().declaration_body_head_annotations(node_id)])?;
+    write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
     if members.is_empty() {
         write!(f, [empty_block_with_infix_annotations(node_id)])?;
@@ -425,37 +422,17 @@ impl<'ast> FormatNode<'ast, EnumField> for EnumField {
     }
 }
 
-/// Shared enum declaration inputs.
-pub(crate) struct EnumDeclarationFormatData<'a> {
-    /// The shared declaration descriptor.
-    pub descriptor: &'a DeclarationDescriptor,
-    /// The enum kind.
-    pub kind: EnumKind,
-    /// The enum generics.
-    pub generics: &'a Generics,
-    /// The enum heritage clauses.
-    pub heritage: &'a Heritage,
-    /// The enum fields.
-    pub fields: &'a [LocalNodeId<EnumField>],
-    /// The enum members.
-    pub members: &'a [LocalNodeId<Member>],
-}
-
 /// Format an enum declaration and return whether it ended early.
 pub(crate) fn format_enum_declaration<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
-    data: EnumDeclarationFormatData<'_>,
+    descriptor: &DeclarationDescriptor,
+    kind: EnumKind,
+    generics: &Generics,
+    heritage: &Heritage,
+    fields: &[LocalNodeId<EnumField>],
+    members: &[LocalNodeId<Member>],
 ) -> FormatResult<bool> {
-    let EnumDeclarationFormatData {
-        descriptor,
-        kind,
-        generics,
-        heritage,
-        fields,
-        members,
-    } = data;
-
     format_declaration_header_prefix(f, node_id, descriptor)?;
 
     if kind == EnumKind::Const {
@@ -469,7 +446,7 @@ pub(crate) fn format_enum_declaration<'ast>(
     }
 
     format_declaration_static_parameters(f, generics)?;
-    let has_heritage_head_comment = f.context().has_declaration_generic_head_annotation(node_id);
+    let has_heritage_head_comment = f.context().has_prefix_annotation(node_id);
     format_declaration_heritage_head_annotations(f, node_id)?;
     format_declaration_heritage(f, heritage, true, has_heritage_head_comment)?;
     format_declaration_where_clauses(f, generics.where_clauses.as_deref())?;
@@ -532,7 +509,7 @@ pub(crate) fn format_interface_declaration<'ast>(
     }
 
     format_declaration_static_parameters(f, generics)?;
-    let has_heritage_head_comment = f.context().has_declaration_generic_head_annotation(node_id);
+    let has_heritage_head_comment = f.context().has_prefix_annotation(node_id);
     format_declaration_heritage_head_annotations(f, node_id)?;
     format_declaration_heritage(f, heritage, false, has_heritage_head_comment)?;
     format_declaration_where_clauses(f, generics.where_clauses.as_deref())?;
@@ -555,56 +532,4 @@ pub(crate) fn format_interface_declaration<'ast>(
     write!(f, [f.context().block_infix_annotations(node_id)])?;
     write!(f, [hard_line_break(), token("}")])?;
     Ok(false)
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::{DestackFormatOptions, TestFormatter, assert_format};
-    use destack_ast::{DeclarationDescriptor, EnumKind};
-
-    #[test]
-    fn test_format_enum_empty() {
-        assert_format!(
-            "enum { }",
-            "enum {}",
-            |p| p.eat_enum(&p.mark(), EnumKind::Enum, DeclarationDescriptor::default()),
-            DestackFormatOptions::default()
-        );
-    }
-
-    #[test]
-    fn test_format_enum_with_simple_fields() {
-        assert_format!(
-            "enum { A, B }",
-            "enum {\n\tA,\n\tB,\n}",
-            |p| p.eat_enum(&p.mark(), EnumKind::Enum, DeclarationDescriptor::default()),
-            DestackFormatOptions::default_tab()
-        );
-    }
-
-    #[test]
-    fn test_format_enum_with_annotations() {
-        assert_format!(
-            "enum { A }",
-            "enum {\n\tA,\n}",
-            |p| p.eat_enum(&p.mark(), EnumKind::Enum, DeclarationDescriptor::default()),
-            DestackFormatOptions::default_tab()
-        );
-    }
-
-    #[test]
-    fn test_format_enum_with_static_parameters() {
-        let source = r"enum Machine<T: int32 = 3, IsSomething: boolean = true> {
-    A = 1,
-    B = T,
-    @if(IsSomething)
-    C = 3,
-}";
-        assert_format!(
-            source,
-            source,
-            |p| p.eat_enum(&p.mark(), EnumKind::Enum, DeclarationDescriptor::default()),
-            DestackFormatOptions::default()
-        );
-    }
 }

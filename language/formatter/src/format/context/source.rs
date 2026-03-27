@@ -1,10 +1,17 @@
-use crate::format::context::{
-    Cell, Comment, Cow, DestackFormatContext, Doc, Expression, File, FxHashMap, Keyword,
-    LocalNodeId, NODE_BOOL_STATE_FALSE, NODE_BOOL_STATE_TRUE, NODE_SPAN_CHAR_LEN_UNKNOWN, Node,
-    NodeTree, NodeTreeImpl, NodeType, SmallVec, Span, TYPE_CONTEXT_STATE_FALSE,
-    TYPE_CONTEXT_STATE_TRUE, TYPE_CONTEXT_STATE_UNKNOWN, TokenSpan, TokenType,
-    normalize_comment_payload,
+use super::format_context::{
+    DestackFormatContext, NODE_BOOL_STATE_FALSE, NODE_BOOL_STATE_TRUE, TYPE_CONTEXT_STATE_FALSE,
+    TYPE_CONTEXT_STATE_TRUE, TYPE_CONTEXT_STATE_UNKNOWN,
 };
+use std::borrow::Cow;
+use std::cell::Cell;
+
+use destack_ast::{
+    Comment, Doc, Expression, Keyword, LocalNodeId, Node, NodeTree, NodeTreeImpl, NodeType,
+    TokenSpan, TokenType, normalize_comment_payload,
+};
+use destack_source::{File, Span};
+use rustc_hash::FxHashMap;
+use smallvec::SmallVec;
 
 /// Build one keyword map for identifier tokens across main and side streams.
 pub(crate) fn token_keyword_map(
@@ -351,38 +358,6 @@ impl<'a> DestackFormatContext<'a> {
         None
     }
 
-    /// Return the nearest non-trivia token before one span.
-    pub fn previous_non_trivia_token_before_span(&self, span: Span) -> Option<TokenSpan> {
-        let tokens = self.tokens;
-        let mut index = tokens.partition_point(|token| token.span.end <= span.start);
-
-        while index > 0 {
-            index -= 1;
-            let token = tokens[index];
-            if matches!(
-                token.token.ty,
-                TokenType::Whitespace
-                    | TokenType::Newline
-                    | TokenType::LineComment
-                    | TokenType::BlockComment
-                    | TokenType::DocLineComment
-                    | TokenType::DocBlockComment
-            ) {
-                continue;
-            }
-
-            return Some(token);
-        }
-
-        None
-    }
-
-    /// Return the nearest non-trivia token type before one span.
-    pub fn previous_non_trivia_token_type_before_span(&self, span: Span) -> Option<TokenType> {
-        self.previous_non_trivia_token_before_span(span)
-            .map(|token| token.token.ty)
-    }
-
     /// Return the nearest non-trivia token type after one span.
     pub fn next_non_trivia_token_type_after_span(&self, span: Span) -> Option<TokenType> {
         self.next_non_trivia_token_after_span(span)
@@ -457,26 +432,6 @@ impl<'a> DestackFormatContext<'a> {
         })
     }
 
-    /// Return the source line count using cached newline offsets.
-    #[inline]
-    pub fn file_line_count(&self) -> usize {
-        let file_text = self.file.text();
-        if file_text.is_empty() {
-            return 0;
-        }
-
-        let newline_count = self.newline_offsets().len();
-        if file_text
-            .as_bytes()
-            .last()
-            .is_some_and(|byte| *byte == b'\n')
-        {
-            newline_count
-        } else {
-            newline_count + 1
-        }
-    }
-
     pub fn has_ignore_directive_markers(&self) -> bool {
         self.has_ignore_directive_markers
     }
@@ -502,29 +457,13 @@ impl<'a> DestackFormatContext<'a> {
     /// Gets the str source backing a Span.
     #[inline]
     pub fn span_str(&self, span: Span) -> &'a str {
-        if !self.instrumentation_enabled {
-            return self.file.span_str(span);
-        }
-
         {
             let cache = self.span_text_by_span.borrow();
             if let Some(span_str) = cache.get(&span) {
-                #[cfg(feature = "timings")]
-                if self.instrumentation_enabled {
-                    self.cache_stats
-                        .span_text_hits
-                        .set(self.cache_stats.span_text_hits.get() + 1);
-                }
                 return span_str;
             }
         }
 
-        #[cfg(feature = "timings")]
-        if self.instrumentation_enabled {
-            self.cache_stats
-                .span_text_misses
-                .set(self.cache_stats.span_text_misses.get() + 1);
-        }
         let span_str = self.file.span_str(span);
         self.span_text_by_span.borrow_mut().insert(span, span_str);
         span_str
@@ -622,20 +561,6 @@ impl<'a> DestackFormatContext<'a> {
         line_text.get(..column as usize)
     }
 
-    /// Return whether one span ends with a newline byte.
-    #[inline]
-    pub fn span_ends_with_newline(&self, span: Span) -> bool {
-        if span.start >= span.end {
-            return false;
-        }
-
-        self.file
-            .text()
-            .as_bytes()
-            .get(span.end.saturating_sub(1) as usize)
-            .is_some_and(|byte| *byte == b'\n')
-    }
-
     /// Get comment tokens sorted by source position.
     #[inline]
     pub fn comment_tokens(&self) -> &[TokenSpan] {
@@ -681,36 +606,6 @@ impl<'a> DestackFormatContext<'a> {
         extend_span_with_trailing_statement_terminator(&tokens, span)
     }
 
-    /// Get the Unicode scalar count for a source span.
-    #[inline]
-    pub fn span_char_len(&self, span: Span) -> usize {
-        if self.source_is_ascii {
-            span.len() as usize
-        } else {
-            self.span_str(span).chars().count()
-        }
-    }
-
-    /// Get the Unicode scalar count for one node span.
-    #[inline]
-    pub fn node_span_char_len<T>(&self, node_id: LocalNodeId<T>) -> usize
-    where
-        T: Node,
-        NodeTree: NodeTreeImpl<T>,
-    {
-        let node_index = node_id.id as usize;
-        let cached = self.node_caches.node_span_char_len[node_index].get();
-        if cached != NODE_SPAN_CHAR_LEN_UNKNOWN {
-            return cached as usize;
-        }
-
-        let len = self.span_char_len(self.span(node_id));
-        #[expect(clippy::cast_possible_truncation)]
-        self.node_caches.node_span_char_len[node_index].set(len as u32);
-
-        len
-    }
-
     /// Return whether one node span contains a newline.
     #[inline]
     pub fn node_has_newline<T>(&self, node_id: LocalNodeId<T>) -> bool
@@ -719,7 +614,7 @@ impl<'a> DestackFormatContext<'a> {
         NodeTree: NodeTreeImpl<T>,
     {
         let node_index = node_id.id as usize;
-        let cached = self.node_caches.node_has_newline[node_index].get();
+        let cached = self.node_has_newline_by_node_id[node_index].get();
         if cached == NODE_BOOL_STATE_TRUE {
             return true;
         }
@@ -728,7 +623,7 @@ impl<'a> DestackFormatContext<'a> {
         }
 
         let has_newline = self.has_newline(self.span(node_id));
-        self.node_caches.node_has_newline[node_index].set(if has_newline {
+        self.node_has_newline_by_node_id[node_index].set(if has_newline {
             NODE_BOOL_STATE_TRUE
         } else {
             NODE_BOOL_STATE_FALSE
@@ -831,8 +726,7 @@ impl<'a> DestackFormatContext<'a> {
         let node_index = node_id.id as usize;
 
         if let Some(inner_expression_id) = self
-            .node_caches
-            .transparent_inner_expression
+            .transparent_inner_expression_by_node_id
             .get(node_index)
             .and_then(Cell::get)
         {
@@ -865,8 +759,7 @@ impl<'a> DestackFormatContext<'a> {
 
         for expression_index in visited_expression_indices {
             if let Some(state_cell) = self
-                .node_caches
-                .transparent_inner_expression
+                .transparent_inner_expression_by_node_id
                 .get(expression_index)
             {
                 state_cell.set(Some(current_id));
@@ -881,8 +774,7 @@ impl<'a> DestackFormatContext<'a> {
     pub fn lookup_expression_type_context(&self, node_id: LocalNodeId<Expression>) -> Option<bool> {
         let node_index = node_id.id as usize;
         let state = self
-            .node_caches
-            .expression_type_context
+            .expression_type_context_by_node_id
             .get(node_index)
             .map(Cell::get)
             .unwrap_or(TYPE_CONTEXT_STATE_UNKNOWN);
@@ -910,7 +802,7 @@ impl<'a> DestackFormatContext<'a> {
         } else {
             TYPE_CONTEXT_STATE_FALSE
         };
-        if let Some(state_cell) = self.node_caches.expression_type_context.get(node_index) {
+        if let Some(state_cell) = self.expression_type_context_by_node_id.get(node_index) {
             state_cell.set(state);
         }
     }
@@ -931,8 +823,7 @@ impl<'a> DestackFormatContext<'a> {
         let has_template_interpolation_ancestor = loop {
             let current_index = current_id as usize;
             let state = self
-                .node_caches
-                .expression_template_interpolation
+                .expression_template_interpolation_by_node_id
                 .get(current_index)
                 .map(Cell::get)
                 .unwrap_or(TYPE_CONTEXT_STATE_UNKNOWN);
@@ -968,8 +859,7 @@ impl<'a> DestackFormatContext<'a> {
         };
         for expression_index in visited_expression_indices {
             if let Some(state_cell) = self
-                .node_caches
-                .expression_template_interpolation
+                .expression_template_interpolation_by_node_id
                 .get(expression_index)
             {
                 state_cell.set(state);
@@ -991,8 +881,7 @@ impl<'a> DestackFormatContext<'a> {
         let has_type_conditional_ancestor = loop {
             let current_index = current_id as usize;
             let state = self
-                .node_caches
-                .expression_type_conditional_ancestor
+                .expression_type_conditional_ancestor_by_node_id
                 .get(current_index)
                 .map(Cell::get)
                 .unwrap_or(TYPE_CONTEXT_STATE_UNKNOWN);
@@ -1029,8 +918,7 @@ impl<'a> DestackFormatContext<'a> {
         };
         for expression_index in visited_expression_indices {
             if let Some(state_cell) = self
-                .node_caches
-                .expression_type_conditional_ancestor
+                .expression_type_conditional_ancestor_by_node_id
                 .get(expression_index)
             {
                 state_cell.set(state);
@@ -1038,30 +926,6 @@ impl<'a> DestackFormatContext<'a> {
         }
 
         has_type_conditional_ancestor
-    }
-
-    /// Return the first ancestor of a node that matches the predicate.
-    #[inline]
-    pub fn find_ancestor<T, F>(
-        &self,
-        node_id: LocalNodeId<T>,
-        mut predicate: F,
-    ) -> Option<(u32, NodeType)>
-    where
-        T: Node,
-        NodeTree: NodeTreeImpl<T>,
-        F: FnMut(u32, NodeType) -> bool,
-    {
-        let mut current_id = node_id.id;
-        while let Some(parent_id) = self.parents.get_by_id(current_id) {
-            let parent_type = self.tree.get_node_type(parent_id);
-            if predicate(parent_id, parent_type) {
-                return Some((parent_id, parent_type));
-            }
-            current_id = parent_id;
-        }
-
-        None
     }
 
     /// Get a Span from the tree.
@@ -1087,34 +951,13 @@ impl<'a> DestackFormatContext<'a> {
             return false;
         }
 
-        if !self.instrumentation_enabled {
-            let newline_offsets = self.newline_offsets();
-            let newline_index = newline_offsets.partition_point(|offset| *offset < span.start);
-
-            return newline_offsets
-                .get(newline_index)
-                .is_some_and(|offset| *offset < span.end);
-        }
-
         {
             let cache = self.span_has_newline_by_span.borrow();
             if let Some(has_newline) = cache.get(&span) {
-                #[cfg(feature = "timings")]
-                if self.instrumentation_enabled {
-                    self.cache_stats
-                        .span_has_newline_hits
-                        .set(self.cache_stats.span_has_newline_hits.get() + 1);
-                }
                 return *has_newline;
             }
         }
 
-        #[cfg(feature = "timings")]
-        if self.instrumentation_enabled {
-            self.cache_stats
-                .span_has_newline_misses
-                .set(self.cache_stats.span_has_newline_misses.get() + 1);
-        }
         let newline_offsets = self.newline_offsets();
         let newline_index = newline_offsets.partition_point(|offset| *offset < span.start);
         let has_newline = newline_offsets
@@ -1197,42 +1040,11 @@ impl<'a> DestackFormatContext<'a> {
     /// Whether the given span contains a comment token.
     #[inline]
     pub fn has_comment(&self, span: Span) -> bool {
-        if !self.instrumentation_enabled {
-            let first_relevant_index = self
-                .comment_spans
-                .partition_point(|comment_span| comment_span.end < span.start);
-
-            for comment_span in &self.comment_spans[first_relevant_index..] {
-                if comment_span.start > span.end {
-                    break;
-                }
-
-                if span.intersects(*comment_span) {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
         {
             let cache = self.span_has_comment_by_span.borrow();
             if let Some(has_comment) = cache.get(&span) {
-                #[cfg(feature = "timings")]
-                if self.instrumentation_enabled {
-                    self.cache_stats
-                        .span_has_comment_hits
-                        .set(self.cache_stats.span_has_comment_hits.get() + 1);
-                }
                 return *has_comment;
             }
-        }
-
-        #[cfg(feature = "timings")]
-        if self.instrumentation_enabled {
-            self.cache_stats
-                .span_has_comment_misses
-                .set(self.cache_stats.span_has_comment_misses.get() + 1);
         }
 
         let first_relevant_index = self

@@ -1,23 +1,33 @@
+use crate::format::annotation::annotation_projection;
 use crate::format::context::source::token_keyword_map;
-use crate::format::context::{
-    ANNOTATION_STATE_NONE, ANNOTATION_STATE_PRESENT, AnnotationData, AnnotationPosition, Argument,
-    Blank, Block, Cell, Comment, Declaration, Declarator, Decorator, DependencyItem, Doc,
-    EnumField, Expression, File, Format, FormatContext, FormatResult, Formatter,
-    FormatterCacheStatsCollector, FormatterCacheStatsSnapshot, FormatterCounterEntry,
-    FormatterCountersCollector, FormatterNodeCaches, FormatterTimingEntry, FormatterTimingScope,
-    FormatterTimingTag, FormatterTimings, FxHashMap, GroupId, ImmutableStringPool, Keyword,
-    LocalNodeId, LocalNodeIdAny, MatchCase, Member, MultiSpan, Node, NodeParentIndex,
-    NodeSourceMap, NodeTree, NodeTreeImpl, NodeType, OnceCell, Parameter, Pattern, PatternField,
-    Property, Rc, RefCell, SeparatorLineCommentSourceCache, SmallVec, Span, TokenSpan, TokenType,
-    WhereClause, formatter_annotation_projection, tag_for_node_type,
+use std::cell::{Cell, OnceCell, RefCell};
+use std::rc::Rc;
+
+use destack_ast::{
+    AnnotationPosition, Argument, Blank, Block, Comment, Declaration, Declarator, Decorator,
+    DependencyItem, Doc, EnumField, Expression, Keyword, LocalNodeId, LocalNodeIdAny, MatchCase,
+    Member, Node, NodeParentIndex, NodeTree, NodeTreeImpl, NodeType, Parameter, Pattern,
+    PatternField, Property, TokenSpan, TokenType, WhereClause,
 };
-use destack_fir::format::FormatOptions;
+use destack_core::ImmutableStringPool;
+use destack_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Formatter, GroupId};
 use destack_fir::print::PrintOptions;
-use destack_source::{IndentStyle, LanguageType, LineEnding};
+use destack_source::{File, IndentStyle, LanguageType, LineEnding, MultiSpan, NodeSourceMap, Span};
 use destack_workspace::{
     ArrowParentheses, FormatterOptions, ImportSortOrder, OrganizeImports, QuoteProperty,
     QuoteStyle, TrailingComma,
 };
+use rustc_hash::FxHashMap;
+use smallvec::SmallVec;
+
+pub(crate) const ANNOTATION_STATE_NONE: u8 = 1;
+pub(crate) const ANNOTATION_STATE_PRESENT: u8 = 2;
+pub(crate) const NODE_BOOL_STATE_UNKNOWN: u8 = 0;
+pub(crate) const NODE_BOOL_STATE_FALSE: u8 = 1;
+pub(crate) const NODE_BOOL_STATE_TRUE: u8 = 2;
+pub(crate) const TYPE_CONTEXT_STATE_UNKNOWN: u8 = 0;
+pub(crate) const TYPE_CONTEXT_STATE_FALSE: u8 = 1;
+pub(crate) const TYPE_CONTEXT_STATE_TRUE: u8 = 2;
 
 /// Destack format options.
 #[derive(Debug, Default, PartialEq, Clone)]
@@ -89,12 +99,6 @@ impl DestackFormatOptions {
         }
     }
 
-    /// Set the line ending.
-    pub fn with_line_ending(mut self, line_ending: LineEnding) -> Self {
-        self.line_ending = line_ending;
-        self
-    }
-
     /// Set the indent style.
     pub fn with_indent_style(mut self, indent_style: IndentStyle) -> Self {
         self.indent_style = indent_style;
@@ -110,12 +114,6 @@ impl DestackFormatOptions {
     /// Set the line width.
     pub fn with_line_width(mut self, line_width: u16) -> Self {
         self.line_width = line_width;
-        self
-    }
-
-    /// Set whether file-level formatter ignore directives are respected.
-    pub fn with_respect_file_ignore(mut self, respect_file_ignore: bool) -> Self {
-        self.respect_file_ignore = respect_file_ignore;
         self
     }
 
@@ -232,7 +230,7 @@ impl Annotation {
 
 /// Formatter-local annotation entry with resolved span.
 #[derive(Debug, Clone, Copy)]
-pub struct FormatterAnnotationEntry {
+pub struct AnnotationEntry {
     /// The annotation payload and position.
     pub annotation: Annotation,
     /// The annotation span.
@@ -266,11 +264,9 @@ pub struct DestackFormatContext<'a> {
     /// The current argument list group id, if any.
     pub current_argument_group_id: Option<GroupId>,
     /// Formatter-owned annotation entries (semantic + placed trivia).
-    pub formatter_annotation_entries: Vec<FormatterAnnotationEntry>,
+    pub annotation_entries: Vec<AnnotationEntry>,
     /// Formatter-owned annotation ids grouped by target node id.
-    pub formatter_annotation_ids_by_node_id: Vec<SmallVec<[LocalNodeId<Annotation>; 4]>>,
-    /// Cached node-to-annotation ids and annotation metadata for hot annotation lookups.
-    pub annotation_data_by_node_id: RefCell<Vec<Option<AnnotationData>>>,
+    pub annotation_ids_by_node_id: Vec<SmallVec<[LocalNodeId<Annotation>; 4]>>,
     /// Cached annotation presence for node ids.
     pub annotation_state_by_node_id: Vec<Cell<u8>>,
     /// Cached source slices for repeated span lookups.
@@ -285,85 +281,46 @@ pub struct DestackFormatContext<'a> {
     pub span_has_newline_by_span: RefCell<FxHashMap<Span, bool>>,
     /// Cached comment checks for repeated span comment predicates.
     pub span_has_comment_by_span: RefCell<FxHashMap<Span, bool>>,
-    /// Dense formatter caches keyed by node id.
-    pub(crate) node_caches: FormatterNodeCaches,
+    /// Cached newline predicates keyed by node id.
+    pub(crate) node_has_newline_by_node_id: Vec<Cell<u8>>,
+    /// Cached transparent inner expression ids keyed by expression node id.
+    pub(crate) transparent_inner_expression_by_node_id: Vec<Cell<Option<LocalNodeId<Expression>>>>,
+    /// Cached type-context states keyed by expression node id.
+    pub(crate) expression_type_context_by_node_id: Vec<Cell<u8>>,
+    /// Cached template interpolation ancestry states keyed by expression node id.
+    pub(crate) expression_template_interpolation_by_node_id: Vec<Cell<u8>>,
+    /// Cached type-conditional ancestry states keyed by expression node id.
+    pub(crate) expression_type_conditional_ancestor_by_node_id: Vec<Cell<u8>>,
     /// Cached sorted comment tokens for ignore-range scans.
     pub comment_tokens_sorted: OnceCell<Vec<TokenSpan>>,
     /// Comment spans for this file, sorted by start position.
     pub comment_spans: Vec<Span>,
     /// Line-comment spans for this file, sorted by start position.
     pub line_comment_spans: Vec<Span>,
-    /// Optional formatter timing collector.
-    pub timings: Option<FormatterTimings>,
     /// Whether file text contains formatter ignore directive markers.
     pub has_ignore_directive_markers: bool,
     /// Whether file text contains template literal markers.
     pub has_template_literal_markers: bool,
-    /// Whether instrumentation counters should be collected.
-    pub instrumentation_enabled: bool,
     /// Whether file-level ignore was applied during formatting.
     pub file_ignore_applied: Rc<Cell<bool>>,
-    /// Shared cache instrumentation counters.
-    pub cache_stats: Rc<FormatterCacheStatsCollector>,
-    /// Shared generic instrumentation counters.
-    pub counters: Rc<FormatterCountersCollector>,
-}
-
-/// Parser artifacts required to build a formatter context.
-#[derive(Debug)]
-pub struct DestackFormatArtifacts<'a> {
-    /// The source file being formatted.
-    pub file: &'a File,
-    /// The parsed node tree for the source file.
-    pub tree: &'a NodeTree,
-    /// Primary parser tokens for the source file.
-    pub tokens: &'a Vec<TokenSpan>,
-    /// Side token stream for comments and other non-primary trivia.
-    pub side_tokens: &'a Vec<TokenSpan>,
-    /// Span map for side tokens.
-    pub side_span: &'a MultiSpan,
-    /// Shared string pool for interned string data.
-    pub strings: &'a ImmutableStringPool,
-    /// Precomputed parent index for fast ancestry lookups.
-    pub parents: NodeParentIndex,
 }
 
 impl<'a> DestackFormatContext<'a> {
     /// Construct a formatting context from parse artifacts.
-    pub fn new(options: DestackFormatOptions, artifacts: DestackFormatArtifacts<'a>) -> Self {
-        Self::new_with_instrumentation(options, artifacts, false, false)
-    }
-
-    /// Construct a formatting context from parse artifacts with optional timing collection.
-    pub fn new_with_timings(
+    pub fn new(
         options: DestackFormatOptions,
-        artifacts: DestackFormatArtifacts<'a>,
-        timings_enabled: bool,
+        file: &'a File,
+        tree: &'a NodeTree,
+        tokens: &'a Vec<TokenSpan>,
+        side_tokens: &'a Vec<TokenSpan>,
+        side_span: &'a MultiSpan,
+        strings: &'a ImmutableStringPool,
+        parents: NodeParentIndex,
     ) -> Self {
-        Self::new_with_instrumentation(options, artifacts, timings_enabled, timings_enabled)
-    }
-
-    /// Construct a formatting context from parse artifacts with optional timing and counter collection.
-    pub fn new_with_instrumentation(
-        options: DestackFormatOptions,
-        artifacts: DestackFormatArtifacts<'a>,
-        timings_enabled: bool,
-        instrumentation_enabled: bool,
-    ) -> Self {
-        let DestackFormatArtifacts {
-            file,
-            tree,
-            tokens,
-            side_tokens,
-            side_span,
-            strings,
-            parents,
-        } = artifacts;
         let token_keyword_by_span = token_keyword_map(file, tokens, side_tokens);
-        let (formatter_annotation_entries, formatter_annotation_ids_by_node_id) =
-            formatter_annotation_projection(file, tree, tokens, &parents, &token_keyword_by_span);
+        let (annotation_entries, annotation_ids_by_node_id) =
+            annotation_projection(file, tree, tokens, &parents, &token_keyword_by_span);
         let node_count = tree.next_id() as usize;
-        let node_caches = FormatterNodeCaches::new(node_count);
         let source_is_ascii = file.text().is_ascii();
         let mut has_ignore_directive_markers = false;
         let mut has_template_literal_markers = false;
@@ -407,7 +364,7 @@ impl<'a> DestackFormatContext<'a> {
         line_comment_spans.sort_by_key(|span| span.start);
 
         let annotation_state_by_node_id = vec![Cell::new(ANNOTATION_STATE_NONE); node_count];
-        for (node_id, annotation_ids) in formatter_annotation_ids_by_node_id.iter().enumerate() {
+        for (node_id, annotation_ids) in annotation_ids_by_node_id.iter().enumerate() {
             if annotation_ids.is_empty() {
                 continue;
             }
@@ -428,9 +385,8 @@ impl<'a> DestackFormatContext<'a> {
             parents,
             strings,
             current_argument_group_id: None,
-            formatter_annotation_entries,
-            formatter_annotation_ids_by_node_id,
-            annotation_data_by_node_id: RefCell::new(vec![None; node_count]),
+            annotation_entries,
+            annotation_ids_by_node_id,
             annotation_state_by_node_id,
             span_text_by_span: RefCell::new(FxHashMap::default()),
             token_keyword_by_span: RefCell::new(token_keyword_by_span),
@@ -438,17 +394,28 @@ impl<'a> DestackFormatContext<'a> {
             newline_offsets: OnceCell::new(),
             span_has_newline_by_span: RefCell::new(FxHashMap::default()),
             span_has_comment_by_span: RefCell::new(FxHashMap::default()),
-            node_caches,
+            node_has_newline_by_node_id: vec![Cell::new(NODE_BOOL_STATE_UNKNOWN); node_count],
+            transparent_inner_expression_by_node_id: vec![Cell::new(None); node_count],
+            expression_type_context_by_node_id: vec![
+                Cell::new(TYPE_CONTEXT_STATE_UNKNOWN);
+                node_count
+            ],
+            expression_template_interpolation_by_node_id: vec![
+                Cell::new(TYPE_CONTEXT_STATE_UNKNOWN);
+                node_count
+            ],
+            expression_type_conditional_ancestor_by_node_id: vec![
+                Cell::new(
+                    TYPE_CONTEXT_STATE_UNKNOWN
+                );
+                node_count
+            ],
             comment_tokens_sorted: OnceCell::new(),
             comment_spans,
             line_comment_spans,
-            timings: timings_enabled.then(FormatterTimings::default),
             has_ignore_directive_markers,
             has_template_literal_markers,
-            instrumentation_enabled,
             file_ignore_applied: Rc::new(Cell::new(false)),
-            cache_stats: Rc::new(FormatterCacheStatsCollector::default()),
-            counters: Rc::new(FormatterCountersCollector::default()),
         }
     }
 }
@@ -464,131 +431,6 @@ impl FormatContext for DestackFormatContext<'_> {
     #[inline]
     fn file(&self) -> &File {
         self.file
-    }
-}
-
-impl<'a> DestackFormatContext<'a> {
-    /// Start a formatter timing scope.
-    #[inline]
-    pub fn timing_scope(&self, tag: FormatterTimingTag) -> FormatterTimingScope {
-        FormatterTimingScope::new(self.timings.as_ref(), tag)
-    }
-
-    /// Snapshot timing entries recorded by this formatter context.
-    #[inline]
-    pub fn timing_snapshot(&self) -> Option<Vec<FormatterTimingEntry>> {
-        self.timings.as_ref().map(|timings| timings.snapshot())
-    }
-
-    /// Snapshot formatter cache counters.
-    #[inline]
-    pub fn cache_stats_snapshot(&self) -> FormatterCacheStatsSnapshot {
-        FormatterCacheStatsSnapshot {
-            span_text_hits: self.cache_stats.span_text_hits.get(),
-            span_text_misses: self.cache_stats.span_text_misses.get(),
-            span_has_newline_hits: self.cache_stats.span_has_newline_hits.get(),
-            span_has_newline_misses: self.cache_stats.span_has_newline_misses.get(),
-            span_has_comment_hits: self.cache_stats.span_has_comment_hits.get(),
-            span_has_comment_misses: self.cache_stats.span_has_comment_misses.get(),
-            annotation_cache_hits: self.cache_stats.annotation_cache_hits.get(),
-            annotation_cache_misses: self.cache_stats.annotation_cache_misses.get(),
-        }
-    }
-
-    /// Increment a formatter instrumentation counter.
-    #[inline]
-    #[cfg(feature = "timings")]
-    pub fn increment_counter(&self, name: &'static str, delta: usize) {
-        if !self.instrumentation_enabled {
-            return;
-        }
-        self.counters.increment(name, delta);
-    }
-
-    /// Increment a formatter instrumentation counter.
-    #[inline]
-    #[cfg(not(feature = "timings"))]
-    pub fn increment_counter(&self, _name: &'static str, _delta: usize) {}
-
-    /// Record one best fitting evaluation for a logical formatter region.
-    #[inline]
-    #[cfg(feature = "timings")]
-    pub fn record_best_fitting(&self, label: &'static str, variants: usize) {
-        self.increment_counter("best_fitting.calls.total", 1);
-        self.increment_counter("best_fitting.variants.total", variants);
-        self.increment_counter(label, 1);
-    }
-
-    /// Record one best fitting evaluation for a logical formatter region.
-    #[inline]
-    #[cfg(not(feature = "timings"))]
-    pub fn record_best_fitting(&self, _label: &'static str, _variants: usize) {}
-
-    /// Snapshot formatter instrumentation counters.
-    #[inline]
-    #[cfg(feature = "timings")]
-    pub fn counter_snapshot(&self) -> Vec<FormatterCounterEntry> {
-        self.counters.snapshot()
-    }
-
-    /// Snapshot formatter instrumentation counters.
-    #[inline]
-    #[cfg(not(feature = "timings"))]
-    pub fn counter_snapshot(&self) -> Vec<FormatterCounterEntry> {
-        Vec::new()
-    }
-
-    /// Resolve one cached separator-comment source for one argument.
-    #[inline]
-    pub fn separator_line_comment_source_cache(
-        &self,
-        argument_id: LocalNodeId<Argument>,
-        compute: impl FnOnce() -> Option<SeparatorLineCommentSourceCache>,
-    ) -> Option<SeparatorLineCommentSourceCache> {
-        let Some(cache_cell) = self
-            .node_caches
-            .separator_line_comment_source
-            .get(argument_id.id as usize)
-        else {
-            return compute();
-        };
-
-        if let Some(cached) = cache_cell.get() {
-            self.increment_counter("call.arguments.separator_source.cache.hits", 1);
-            return cached.clone();
-        }
-
-        self.increment_counter("call.arguments.separator_source.cache.misses", 1);
-        let cached = compute();
-        let _ = cache_cell.set(cached.clone());
-        cached
-    }
-
-    /// Return whether one cached separator-comment source exists for one argument.
-    #[inline]
-    pub fn has_separator_line_comment_source(
-        &self,
-        argument_id: LocalNodeId<Argument>,
-        compute: impl FnOnce() -> Option<SeparatorLineCommentSourceCache>,
-    ) -> bool {
-        let Some(cache_cell) = self
-            .node_caches
-            .separator_line_comment_source
-            .get(argument_id.id as usize)
-        else {
-            return compute().is_some();
-        };
-
-        if let Some(cached) = cache_cell.get() {
-            self.increment_counter("call.arguments.separator_source.cache.hits", 1);
-            return cached.is_some();
-        }
-
-        self.increment_counter("call.arguments.separator_source.cache.misses", 1);
-        let cached = compute();
-        let exists = cached.is_some();
-        let _ = cache_cell.set(cached);
-        exists
     }
 }
 
@@ -614,7 +456,6 @@ where
 {
     #[inline]
     fn format(&self, f: &mut DestackFormatter<'a, '_>) -> FormatResult<()> {
-        let _timing = f.context().timing_scope(tag_for_node_type(T::TYPE));
         let context = f.context();
         let node = context.tree.get(*self);
         node.format_node(*self, f)
@@ -625,7 +466,6 @@ where
 impl<'a> Format<DestackFormatContext<'a>> for LocalNodeIdAny {
     #[inline]
     fn format(&self, f: &mut DestackFormatter<'a, '_>) -> FormatResult<()> {
-        let _timing = f.context().timing_scope(tag_for_node_type(self.ty));
         let context = f.context();
         match self.ty {
             NodeType::Expression => {

@@ -1,16 +1,15 @@
-use crate::format::analysis::{
-    first_non_trivia_token_in_span, last_non_trivia_token_in_span, timing,
+use crate::format::analysis::{first_non_trivia_token_in_span, last_non_trivia_token_in_span};
+use crate::format::chain::{
+    should_expand_static_argument_list, static_argument_list_is_hug_safe,
+    transparent_inner_expression,
 };
-use crate::format::chain::{should_expand_static_argument_list, static_argument_list_is_hug_safe};
 use crate::format::collection::list_like;
 use crate::format::directive::{
-    FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition,
-    comment_node_is_ignore_directive, directive_for_node, write_ignored_node,
+    comment_node_is_ignore_directive, node_has_ignore_directive, write_ignored_node,
 };
 use crate::format::expression::primary::path_boundary_annotations_by_dot_seam;
 use crate::format::expression::{
     format_primary_expression, format_statement_expression, parenthesized_has_leading_inner_trivia,
-    transparent_inner_expression,
 };
 use crate::format::operator::{format_operator_expression, union_owns_prefix_annotations};
 use crate::{Annotation, DestackFormatContext, DestackFormatter, FormatNode};
@@ -92,12 +91,10 @@ pub(crate) fn format_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     expression: &Expression,
-    directive: Option<FormatterDirective>,
+    is_ignored: bool,
 ) -> FormatResult<()> {
-    if let Some(directive) = directive
-        && directive.kind == FormatterDirectiveKind::IgnoreFormat
-    {
-        write_ignored_node(f, node_id, directive)?;
+    if is_ignored {
+        write_ignored_node(f, node_id)?;
         return Ok(());
     }
 
@@ -113,6 +110,7 @@ pub(crate) fn format_expression<'ast>(
         | Expression::Using { .. }
         | Expression::If { .. }
         | Expression::While { .. }
+        | Expression::With { .. }
         | Expression::ForEach { .. }
         | Expression::For { .. }
         | Expression::Loop { .. }
@@ -125,12 +123,7 @@ pub(crate) fn format_expression<'ast>(
         | Expression::Yield { .. }
         | Expression::Throw { .. }
         | Expression::Return { .. }
-        | Expression::Comptime { .. } => {
-            let _timing = f
-                .context()
-                .timing_scope(timing::FORMAT_EXPRESSION_STATEMENT);
-            format_statement_expression(f, node_id, expression)?
-        }
+        | Expression::Comptime { .. } => format_statement_expression(f, node_id, expression)?,
         Expression::Path { .. }
         | Expression::PrivateIdentifier { .. }
         | Expression::This
@@ -151,10 +144,7 @@ pub(crate) fn format_expression<'ast>(
         | Expression::TypeTemplateLiteral { .. }
         | Expression::TypeImport { .. }
         | Expression::TypeInfer { .. }
-        | Expression::TypePredicate { .. } => {
-            let _timing = f.context().timing_scope(timing::FORMAT_EXPRESSION_PRIMARY);
-            format_primary_expression(f, node_id, expression)?
-        }
+        | Expression::TypePredicate { .. } => format_primary_expression(f, node_id, expression)?,
         Expression::Unary { .. }
         | Expression::TypeUnary { .. }
         | Expression::TypeBinary { .. }
@@ -175,10 +165,7 @@ pub(crate) fn format_expression<'ast>(
         | Expression::Debugger
         | Expression::Missing
         | Expression::Stub
-        | Expression::Error => {
-            let _timing = f.context().timing_scope(timing::FORMAT_EXPRESSION_OPERATOR);
-            format_operator_expression(f, node_id, expression)?
-        }
+        | Expression::Error => format_operator_expression(f, node_id, expression)?,
     };
 
     if formatted {
@@ -195,32 +182,24 @@ pub(crate) fn format_expression_without_prefix_annotations<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    let directive = directive_for_node(f.context(), expression_id);
+    let is_ignored = node_has_ignore_directive(f.context(), expression_id);
     let expression = f.context().tree.get(expression_id);
 
-    format_expression(f, expression_id, expression, directive)?;
+    format_expression(f, expression_id, expression, is_ignored)?;
 
-    if !matches!(
-        directive,
-        Some(FormatterDirective {
-            kind: FormatterDirectiveKind::IgnoreFormat,
-            position: FormatterDirectivePosition::Postfix { .. },
-        })
-    ) {
-        let skip_boundary_annotations =
-            path_emits_boundary_annotations_inline(f.context(), expression_id);
-        if skip_boundary_annotations {
-            write!(
-                f,
-                [f.context()
-                    .any_infix_or_postfix_except_line_postfix_boundary_annotations(expression_id)]
-            )?;
-        } else {
-            write!(
-                f,
-                [f.context().any_infix_or_postfix_annotations(expression_id)]
-            )?;
-        }
+    let skip_boundary_annotations =
+        path_emits_boundary_annotations_inline(f.context(), expression_id);
+    if skip_boundary_annotations {
+        write!(
+            f,
+            [f.context()
+                .any_infix_or_postfix_except_line_postfix_boundary_annotations(expression_id)]
+        )?;
+    } else {
+        write!(
+            f,
+            [f.context().any_infix_or_postfix_annotations(expression_id)]
+        )?;
     }
 
     Ok(())
@@ -300,27 +279,17 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
         node_id: LocalNodeId<Expression>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        let _timing = f.context().timing_scope(timing::FORMAT_EXPRESSION);
-        let directive = directive_for_node(f.context(), node_id);
-        let directive_is_prefix_ignore = matches!(
-            directive,
-            Some(FormatterDirective {
-                kind: FormatterDirectiveKind::IgnoreFormat,
-                position: FormatterDirectivePosition::Prefix { .. },
-            })
-        );
+        let is_ignored = node_has_ignore_directive(f.context(), node_id);
         let expression_owns_prefix_annotations = matches!(
             self,
-            Expression::Binary {
-                operator: BinaryOperator::ElementwiseOr,
-                ..
-            } if union_owns_prefix_annotations(f.context(), node_id) && !directive_is_prefix_ignore
+            Expression::Binary { operator: BinaryOperator::ElementwiseOr, .. }
+                if union_owns_prefix_annotations(f.context(), node_id) && !is_ignored
         );
         if !expression_owns_prefix_annotations {
             write!(f, [f.context().any_prefix_annotations(node_id)])?;
         }
 
-        format_expression(f, node_id, self, directive)?;
+        format_expression(f, node_id, self, is_ignored)?;
 
         // regular if chains emit their own edge annotations in control formatter
         let if_chain_handles_annotations = matches!(
@@ -331,15 +300,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             }
         );
 
-        if !if_chain_handles_annotations
-            && !matches!(
-                directive,
-                Some(FormatterDirective {
-                    kind: FormatterDirectiveKind::IgnoreFormat,
-                    position: FormatterDirectivePosition::Postfix { .. },
-                })
-            )
-        {
+        if !if_chain_handles_annotations {
             let declarator_value_postfix_blanks_are_statement_owned =
                 expression_is_declarator_value(f, node_id)
                     && expression_has_only_postfix_blank_annotations(f, node_id);
@@ -396,6 +357,8 @@ pub fn is_trivial_expression(tree: &NodeTree, expression: &Expression) -> bool {
     match expression {
         Expression::ScalarLiteral(_)
         | Expression::TypeLiteral(_)
+        | Expression::This
+        | Expression::Super
         | Expression::PrivateIdentifier { .. } => true,
         Expression::ObjectExpression { ty, properties, .. } => {
             ty.is_none()
@@ -547,6 +510,7 @@ pub fn is_expression_breakable(tree: &NodeTree, expression: &Expression) -> bool
         | Expression::ForEach { .. }
         | Expression::For { .. }
         | Expression::While { .. }
+        | Expression::With { .. }
         | Expression::Import { .. }
         | Expression::Export { .. } => true,
         Expression::Binary { .. }

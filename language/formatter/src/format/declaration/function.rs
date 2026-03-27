@@ -1,12 +1,14 @@
+use crate::format::chain::{lambda_expression_should_break, transparent_inner_expression};
 use crate::format::collection::list_like;
 use crate::format::declaration::declaration::format_declaration_export_modifier;
 use crate::format::declaration::signature::{
-    FunctionHeaderStyle, format_where_clause_with_break, parameter_is_variadic,
+    expression_body_requires_head_space, format_where_clause_with_break, parameter_is_variadic,
     signature_parameters_should_expand, signature_return_type_has_line_postfix_boundary_annotation,
     signature_should_elide_space_before_body, single_parameter_should_hug,
     write_empty_parameter_list_with_interior_annotations, write_function_header_prefix,
     write_signature_dynamic_parameter_list,
 };
+use crate::format::declaration::statement::format_block;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
     Argument, Declaration, DeclarationDescriptor, Expression, FunctionCardinality, FunctionKind,
@@ -206,11 +208,8 @@ fn write_lambda_arrow_with_infix_annotations<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
 ) -> FormatResult<()> {
-    write!(
-        f,
-        [f.context().declaration_arrow_infix_annotations(node_id)]
-    )?;
-    if !f.context().has_declaration_arrow_infix_annotation(node_id) {
+    write!(f, [f.context().block_infix_annotations(node_id)])?;
+    if !f.context().has_non_blank_infix_annotation(node_id) {
         write!(f, [space()])?;
     }
     write!(f, [token("=>")])
@@ -236,16 +235,16 @@ pub(crate) fn format_function_declaration<'ast>(
     }
 
     // shared function header prefix
-    write_function_header_prefix(
-        f,
-        signature,
-        FunctionHeaderStyle::Declaration,
-        descriptor.name.is_some(),
-    )?;
+    write_function_header_prefix(f, signature, true, descriptor.name.is_some())?;
 
     // constructor type signatures can own inline seam comments between `new` and `(`
     if signature.mode == Some(FunctionMode::New) {
-        write!(f, [f.context().declaration_new_head_annotations(node_id)])?;
+        write!(f, [f.context().block_infix_annotations(node_id)])?;
+    }
+
+    // declaration name seam
+    if signature.kind == FunctionKind::Function && descriptor.name.is_some() {
+        write!(f, [f.context().block_infix_annotations(node_id)])?;
     }
 
     // name / key
@@ -277,6 +276,11 @@ pub(crate) fn format_function_declaration<'ast>(
         }
 
         write!(f, [static_params_list])?;
+    }
+
+    // declaration parameter head seam
+    if signature.kind == FunctionKind::Function {
+        write!(f, [f.context().block_infix_annotations(node_id)])?;
     }
 
     // dynamic parameters
@@ -378,8 +382,7 @@ pub(crate) fn format_function_declaration<'ast>(
     if let Some(body) = body {
         if signature.kind == FunctionKind::Lambda {
             let body_expression = f.context().tree.get(*body);
-            let body_transparent_expression_id =
-                crate::format::expression::transparent_inner_expression(f.context(), *body);
+            let body_transparent_expression_id = transparent_inner_expression(f.context(), *body);
             let body_transparent_expression = f.context().tree.get(body_transparent_expression_id);
             let body_is_block = matches!(body_expression, Expression::Block(_));
             let body_is_tree = matches!(body_expression, Expression::TreeExpression { .. });
@@ -399,8 +402,7 @@ pub(crate) fn format_function_declaration<'ast>(
             );
             let lambda_is_non_head_chain_link =
                 lambda_declaration_has_parent_lambda_body(f.context(), node_id);
-            let force_break =
-                crate::format::expression::lambda_expression_should_break(f.context(), node_id);
+            let force_break = lambda_expression_should_break(f.context(), node_id);
 
             // arrow is fine since lambdas can only have return type or body
             if body_is_block {
@@ -409,9 +411,21 @@ pub(crate) fn format_function_declaration<'ast>(
                     lambda_declaration_is_call_argument_chain(f.context(), node_id)
                         && lambda_body_is_empty_annotated_block(f.context(), *body);
                 if should_dedent_body {
-                    write!(f, [space(), dedent(body)])?;
+                    if expression_body_requires_head_space(f.context(), *body) {
+                        write!(f, [space()])?;
+                    }
+                    let Expression::Block(block_id) = body_expression else {
+                        unreachable!();
+                    };
+                    write!(f, [dedent(&format_with(|f| format_block(f, *block_id)))])?;
                 } else {
-                    write!(f, [space(), body])?;
+                    if expression_body_requires_head_space(f.context(), *body) {
+                        write!(f, [space()])?;
+                    }
+                    let Expression::Block(block_id) = body_expression else {
+                        unreachable!();
+                    };
+                    format_block(f, *block_id)?;
                 }
             } else if body_is_tree {
                 // keep lambda tree bodies with one conditional wrapper pair
@@ -485,7 +499,14 @@ pub(crate) fn format_function_declaration<'ast>(
         } else if signature_should_elide_space_before_body(f.context(), signature.return_type) {
             write!(f, [body])?;
         } else {
-            write!(f, [space(), body])?;
+            if expression_body_requires_head_space(f.context(), *body) {
+                write!(f, [space()])?;
+            }
+            if let Expression::Block(block_id) = f.context().tree.get(*body) {
+                format_block(f, *block_id)?;
+            } else {
+                write!(f, [body])?;
+            }
         }
     }
 

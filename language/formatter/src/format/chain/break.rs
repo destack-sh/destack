@@ -1,194 +1,21 @@
-use crate::format::call::call_arguments_force_expand_for_chain;
-use crate::format::chain::{
-    Annotation, AnnotationPosition, ChainExpression, DestackFormatContext, Expression, IfKind,
-    LocalNodeId, NodeTree, NodeType, PostfixPosition, Span, TokenType, argument_forces_multiline,
-    argument_is_function_expression, argument_is_inline_closure_cast_object,
-    assignment_like_parent, chain_call_can_expand_in_head,
-    chain_has_parent_intervening_break_or_comment, chain_head_id, chain_parent_operator_start,
-    expression_trivia_anchor_end, has_comment_between_expressions, is_call_like_argument,
-    is_chain_expression, is_nested_lambda_expression, is_numeric_index, is_simple_chain_argument,
-    is_simple_chain_operation, is_simple_chain_static_arguments, member_has_intervening_comment,
+use super::{
+    ChainExpression, assignment_like_parent, chain_has_parent_intervening_break_or_comment,
+    chain_member_has_promotable_boundary_comment, has_comment_between_expressions,
+    is_nested_lambda_expression, member_has_intervening_comment,
 };
-use crate::format::expression::TypeBinaryOperator;
-use destack_ast::{Comment, CommentStyle, Doc, DocStyle};
+use crate::format::analysis::is_call_like_argument;
+use crate::format::operator::is_chain_expression;
+use crate::{Annotation, DestackFormatContext};
+use destack_ast::{
+    AnnotationPosition, Comment, CommentStyle, Doc, DocStyle, Expression, IfKind, LocalNodeId,
+    NodeTree, NodeType, PostfixPosition, TokenType, TypeBinaryOperator,
+};
 
-/// Summarize the complexity of a call within a chain.
-pub(crate) struct ChainCallSummary {
-    pub(crate) has_multiline_argument: bool,
-    pub(crate) has_non_simple_argument: bool,
-}
+/// Treat blanks as unconditional blockers during chain annotation scans.
+const CHAIN_SCAN_FORCE_BLANKS: bool = true;
 
-/// Build call summaries for a chain in source order.
-pub(crate) fn summarize_chain_calls(
-    context: &DestackFormatContext<'_>,
-    chain: &[LocalNodeId<Expression>],
-) -> Vec<ChainCallSummary> {
-    let mut summaries = Vec::new();
-
-    for expression_id in chain {
-        let Expression::Call {
-            static_arguments,
-            dynamic_arguments,
-            ..
-        } = context.tree.get(*expression_id)
-        else {
-            continue;
-        };
-
-        // collect per-call signals
-        let has_multiline_argument = dynamic_arguments
-            .iter()
-            .copied()
-            .any(|argument_id| argument_forces_multiline(context, argument_id))
-            || static_arguments.as_ref().is_some_and(|arguments| {
-                arguments
-                    .iter()
-                    .copied()
-                    .any(|argument_id| argument_forces_multiline(context, argument_id))
-            });
-        let has_non_simple_argument = static_arguments.as_ref().is_some_and(|arguments| {
-            arguments
-                .iter()
-                .copied()
-                .any(|argument_id| !is_simple_chain_argument(context, argument_id))
-        });
-        summaries.push(ChainCallSummary {
-            has_multiline_argument,
-            has_non_simple_argument,
-        });
-    }
-
-    summaries
-}
-
-/// Return whether any chain link carries an optional-style tail.
-pub(crate) fn chain_has_optional_tail(
-    context: &DestackFormatContext<'_>,
-    chain: &[LocalNodeId<Expression>],
-) -> bool {
-    chain.iter().copied().any(|expression_id| {
-        matches!(
-            context.tree.get(expression_id),
-            Expression::Maybe { .. }
-                | Expression::Call {
-                    position: PostfixPosition::Indirect,
-                    ..
-                }
-        )
-    })
-}
-
-/// Return whether any chain link is a member-style access.
-pub(crate) fn chain_has_member_access(
-    context: &DestackFormatContext<'_>,
-    chain: &[LocalNodeId<Expression>],
-) -> bool {
-    chain.iter().copied().any(|expression_id| {
-        matches!(
-            context.tree.get(expression_id),
-            Expression::Member { .. } | Expression::PrivateMember { .. }
-        )
-    })
-}
-
-/// Return whether adjacent chain links form direct curried calls.
-pub(crate) fn chain_has_direct_curried_call_pair(
-    context: &DestackFormatContext<'_>,
-    chain: &[LocalNodeId<Expression>],
-) -> bool {
-    chain.windows(2).any(|pair| {
-        pair.iter().all(|expression_id| {
-            matches!(
-                context.tree.get(*expression_id),
-                Expression::Call {
-                    position: PostfixPosition::Direct,
-                    ..
-                }
-            )
-        })
-    })
-}
-
-/// Return whether one direct call in the chain has an inline closure cast object argument.
-pub(crate) fn chain_has_direct_call_with_inline_closure_cast_object_argument(
-    context: &DestackFormatContext<'_>,
-    chain: &[LocalNodeId<Expression>],
-) -> bool {
-    chain.iter().copied().any(|expression_id| {
-        let Expression::Call {
-            position: PostfixPosition::Direct,
-            dynamic_arguments,
-            ..
-        } = context.tree.get(expression_id)
-        else {
-            return false;
-        };
-
-        dynamic_arguments
-            .iter()
-            .copied()
-            .any(|argument_id| argument_is_inline_closure_cast_object(context, argument_id))
-    })
-}
-
-/// Return whether a non-head call in a chain takes a non-lambda function argument.
-pub(crate) fn chain_has_nonhead_nonlambda_function_call_argument(
-    context: &DestackFormatContext<'_>,
-    chain: &[LocalNodeId<Expression>],
-) -> bool {
-    let mut call_index = 0usize;
-
-    for expression_id in chain {
-        let Expression::Call {
-            dynamic_arguments, ..
-        } = context.tree.get(*expression_id)
-        else {
-            continue;
-        };
-
-        if call_index > 0
-            && dynamic_arguments
-                .iter()
-                .copied()
-                .any(|argument_id| argument_is_function_expression(context, argument_id))
-        {
-            return true;
-        }
-
-        call_index += 1;
-    }
-
-    false
-}
-
-/// Return whether a parent call on the chain tail should force dot-level breaking.
-pub(crate) fn chain_tail_parent_call_requires_chain_break(
-    context: &DestackFormatContext<'_>,
-    chain_tail: LocalNodeId<Expression>,
-) -> bool {
-    let Some((parent_id, parent_type)) = context.parent(chain_tail) else {
-        return false;
-    };
-    if parent_type != NodeType::Expression {
-        return false;
-    }
-
-    let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
-    let Expression::Call {
-        left,
-        static_arguments,
-        dynamic_arguments,
-        ..
-    } = context.tree.get(parent_expression_id)
-    else {
-        return false;
-    };
-    if *left != chain_tail {
-        return false;
-    }
-
-    !is_simple_chain_static_arguments(context, static_arguments) && !dynamic_arguments.is_empty()
-}
+/// Treat blanks as blockers only at breaking positions during chain annotation scans.
+const CHAIN_SCAN_POSITIONAL_BLANKS: bool = false;
 
 /// Return whether chain annotations should force breaking.
 pub(crate) fn chain_has_breaking_annotations(
@@ -252,92 +79,92 @@ fn chain_head_has_non_prefix_breaking_annotation(
         .unwrap_or(false)
 }
 
-/// Collect break-relevant signals for one chain.
-pub(crate) struct ChainBreakAnalysis {
-    pub(crate) should_break: bool,
-    pub(crate) call_summaries: Vec<ChainCallSummary>,
-    pub(crate) has_chain_intervening_trivia: bool,
-}
-
-/// Build chain break signals once so callers can reuse them.
-pub(crate) fn analyze_chain_break(
+/// Return whether one node annotation should count for chain formatting.
+fn chain_node_has_forcing_annotation(
     context: &DestackFormatContext<'_>,
-    chain: &[LocalNodeId<Expression>],
-) -> ChainBreakAnalysis {
-    if chain.is_empty() {
-        return ChainBreakAnalysis {
-            should_break: false,
-            call_summaries: Vec::new(),
-            has_chain_intervening_trivia: false,
-        };
-    }
+    node_id: LocalNodeId<Expression>,
+    is_breaking_scan: bool,
+    blanks_force_regardless_of_position: bool,
+) -> bool {
+    let is_chain_link = is_chain_expression(context.tree.get(node_id));
+    let is_statement_wrapped_chain_link =
+        is_chain_link && chain_node_is_statement_wrapped(context, node_id);
+    let has_optional_tail_boundary_comment =
+        is_breaking_scan && chain_member_boundary_comment_precedes_optional_tail(context, node_id);
 
-    let chain_root = chain[0];
-    let chain_tail = chain[chain.len() - 1];
-    let chain_head = chain_head_id(context.tree, chain_root);
-    let call_summaries = summarize_chain_calls(context, chain);
-    let has_chain_intervening_trivia = chain_has_intervening_break_or_comment(context, chain);
-    let has_chain_intervening_comment = chain_has_intervening_comment(context, chain);
-    let has_optional_call_boundary_trivia = chain_has_optional_call_boundary_trivia(context, chain);
-    let has_optional_tail = chain_has_optional_tail(context, chain);
-    let has_member_access = chain_has_member_access(context, chain);
-    let has_chain_annotations = chain_has_breaking_annotations(context, chain, chain_head);
-    let has_direct_curried_call_pair = chain_has_direct_curried_call_pair(context, chain);
-    let has_direct_call_with_inline_closure_cast_object_argument =
-        chain_has_direct_call_with_inline_closure_cast_object_argument(context, chain);
-    let has_nonhead_non_simple_call_argument = call_summaries
-        .iter()
-        .skip(1)
-        .any(|summary| summary.has_non_simple_argument);
-    let has_nonhead_call_complexity = has_nonhead_non_simple_call_argument;
-    let head_call_requires_expanded_arguments = chain
-        .iter()
-        .copied()
-        .find_map(|expression_id| {
-            let Expression::Call {
-                dynamic_arguments, ..
-            } = context.tree.get(expression_id)
-            else {
-                return None;
-            };
+    context
+        .visit_annotations(node_id, |annotations| {
+            annotations.iter().any(|annotation_id| {
+                let annotation = context.annotation(*annotation_id);
+                let position = annotation.position();
+                let is_optional_tail_boundary_comment = has_optional_tail_boundary_comment
+                    && matches!(
+                        annotation,
+                        Annotation::Comment {
+                            position: AnnotationPosition::LinePostfixBoundary,
+                            ..
+                        }
+                    );
 
-            Some(call_arguments_force_expand_for_chain(
-                context,
-                expression_id,
-                dynamic_arguments,
-            ))
+                if !is_optional_tail_boundary_comment
+                    && (chain_annotation_is_inline_non_breaking(context, *annotation_id)
+                        || chain_annotation_is_internal_call_argument_infix(
+                            context,
+                            node_id,
+                            *annotation_id,
+                        ))
+                {
+                    return false;
+                }
+
+                if !is_chain_link
+                    && matches!(
+                        position,
+                        AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
+                    )
+                {
+                    return false;
+                }
+
+                if is_statement_wrapped_chain_link
+                    && matches!(
+                        position,
+                        AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
+                    )
+                {
+                    return false;
+                }
+
+                match annotation {
+                    Annotation::Blank { .. } => {
+                        blanks_force_regardless_of_position
+                            || matches!(
+                                position,
+                                AnnotationPosition::LinePrefix
+                                    | AnnotationPosition::LinePostfixBoundary
+                                    | AnnotationPosition::BlockPrefix
+                                    | AnnotationPosition::BlockInfix
+                                    | AnnotationPosition::BlockPostfix
+                            )
+                    }
+                    Annotation::Doc { .. }
+                    | Annotation::Comment { .. }
+                    | Annotation::Decorator { .. } => matches!(
+                        position,
+                        AnnotationPosition::LinePrefix
+                            | AnnotationPosition::LinePostfixBoundary
+                            | AnnotationPosition::BlockPrefix
+                            | AnnotationPosition::BlockInfix
+                            | AnnotationPosition::BlockPostfix
+                    ),
+                }
+            })
         })
-        .unwrap_or(false);
-    let chain_has_following_operation = chain.len() > 1;
-
-    let has_call_summaries = !call_summaries.is_empty();
-    let has_multiple_call_summaries = call_summaries.len() > 1;
-    let should_break =
-            // annotation and comment seams that always force expansion
-        has_chain_annotations
-            || (has_chain_intervening_comment && has_member_access)
-            || has_optional_call_boundary_trivia
-            || has_direct_call_with_inline_closure_cast_object_argument
-            // intervening trivia around optional and curried tails
-            || (has_chain_intervening_trivia
-                && (has_optional_tail || has_direct_curried_call_pair))
-            // call-only rules
-            || (has_call_summaries
-                && (has_nonhead_call_complexity
-                    || (chain_has_following_operation && head_call_requires_expanded_arguments)
-                    || chain_tail_parent_call_requires_chain_break(context, chain_tail)
-                    || (has_multiple_call_summaries
-                        && chain_overflows_in_type_binary_left(context, chain_tail))));
-
-    ChainBreakAnalysis {
-        should_break,
-        call_summaries,
-        has_chain_intervening_trivia,
-    }
+        .unwrap_or(false)
 }
 
 /// Return whether one optional call seam has boundary trivia before its operator.
-fn chain_has_optional_call_boundary_trivia(
+pub(crate) fn chain_has_optional_call_boundary_trivia(
     context: &DestackFormatContext<'_>,
     chain: &[LocalNodeId<Expression>],
 ) -> bool {
@@ -357,6 +184,11 @@ fn chain_has_optional_call_boundary_trivia(
         }
 
         chain_has_parent_intervening_break_or_comment(context, left)
+            || has_comment_between_expressions(context, left, right)
+            || matches!(
+                context.tree.get(left),
+                Expression::Member { .. } | Expression::PrivateMember { .. }
+            ) && chain_member_has_promotable_boundary_comment(context, left)
     })
 }
 
@@ -447,57 +279,62 @@ fn chain_node_is_statement_wrapped(
         })
 }
 
+/// Return whether a member boundary comment sits before an optional tail operator.
+fn chain_member_boundary_comment_precedes_optional_tail(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    if !matches!(
+        context.tree.get(node_id),
+        Expression::Member { .. } | Expression::PrivateMember { .. }
+    ) {
+        return false;
+    }
+
+    let has_boundary_comment = context
+        .visit_annotations(node_id, |annotations| {
+            annotations.iter().any(|annotation_id| {
+                matches!(
+                    context.annotation(*annotation_id),
+                    Annotation::Comment {
+                        position: AnnotationPosition::LinePostfixBoundary,
+                        ..
+                    }
+                )
+            })
+        })
+        .unwrap_or(false);
+    if !has_boundary_comment {
+        return false;
+    }
+
+    context
+        .parent(node_id)
+        .is_some_and(|(parent_id, parent_type)| {
+            if parent_type != NodeType::Expression {
+                return false;
+            }
+
+            matches!(
+                context.tree.get(LocalNodeId::<Expression>::new(parent_id)),
+                Expression::Maybe { left, .. } if *left == node_id
+            ) || matches!(
+                context.tree.get(LocalNodeId::<Expression>::new(parent_id)),
+                Expression::Call {
+                    left,
+                    position: PostfixPosition::Indirect,
+                    ..
+                } if *left == node_id
+            )
+        })
+}
+
 /// Check whether a chain node has an annotation that should force breaking.
 pub(crate) fn chain_node_has_breaking_annotation(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
-    let is_chain_link = is_chain_expression(context.tree.get(node_id));
-    let is_statement_wrapped_chain_link =
-        is_chain_link && chain_node_is_statement_wrapped(context, node_id);
-    context
-        .visit_annotations(node_id, |annotations| {
-            annotations.iter().any(|annotation_id| {
-                if chain_annotation_is_inline_non_breaking(context, *annotation_id)
-                    || chain_annotation_is_internal_call_argument_infix(
-                        context,
-                        node_id,
-                        *annotation_id,
-                    )
-                {
-                    return false;
-                }
-
-                let annotation = context.annotation(*annotation_id);
-                let position = annotation.position();
-                if !is_chain_link
-                    && matches!(
-                        position,
-                        AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
-                    )
-                {
-                    return false;
-                }
-                if is_statement_wrapped_chain_link
-                    && matches!(
-                        position,
-                        AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
-                    )
-                {
-                    return false;
-                }
-
-                matches!(
-                    position,
-                    AnnotationPosition::LinePrefix
-                        | AnnotationPosition::LinePostfixBoundary
-                        | AnnotationPosition::BlockPrefix
-                        | AnnotationPosition::BlockInfix
-                        | AnnotationPosition::BlockPostfix
-                )
-            })
-        })
-        .unwrap_or(false)
+    chain_node_has_forcing_annotation(context, node_id, true, CHAIN_SCAN_POSITIONAL_BLANKS)
 }
 
 /// Check whether a chain node has annotations that prevent head grouping.
@@ -505,57 +342,7 @@ pub(crate) fn chain_node_has_non_inline_annotation(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
-    let is_chain_link = is_chain_expression(context.tree.get(node_id));
-    let is_statement_wrapped_chain_link =
-        is_chain_link && chain_node_is_statement_wrapped(context, node_id);
-    context
-        .visit_annotations(node_id, |annotations| {
-            annotations.iter().any(|annotation_id| {
-                if chain_annotation_is_inline_non_breaking(context, *annotation_id)
-                    || chain_annotation_is_internal_call_argument_infix(
-                        context,
-                        node_id,
-                        *annotation_id,
-                    )
-                {
-                    return false;
-                }
-
-                let annotation = context.annotation(*annotation_id);
-                let position = annotation.position();
-                if !is_chain_link
-                    && matches!(
-                        position,
-                        AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
-                    )
-                {
-                    return false;
-                }
-                if is_statement_wrapped_chain_link
-                    && matches!(
-                        position,
-                        AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
-                    )
-                {
-                    return false;
-                }
-
-                match annotation {
-                    Annotation::Blank { .. } => true,
-                    Annotation::Doc { .. }
-                    | Annotation::Comment { .. }
-                    | Annotation::Decorator { .. } => matches!(
-                        position,
-                        AnnotationPosition::LinePrefix
-                            | AnnotationPosition::LinePostfixBoundary
-                            | AnnotationPosition::BlockPrefix
-                            | AnnotationPosition::BlockInfix
-                            | AnnotationPosition::BlockPostfix
-                    ),
-                }
-            })
-        })
-        .unwrap_or(false)
+    chain_node_has_forcing_annotation(context, node_id, false, CHAIN_SCAN_FORCE_BLANKS)
 }
 
 /// Check whether a chain line starts with block prefix annotations.
@@ -587,327 +374,6 @@ pub(crate) fn chain_line_starts_with_block_prefix_annotation(
         .unwrap_or(false)
 }
 
-/// Return whether one operation is call-like.
-pub(crate) fn operation_is_call_like(operation: &ChainExpression) -> bool {
-    matches!(
-        operation,
-        ChainExpression::Call { .. } | ChainExpression::Instantiation { .. }
-    )
-}
-
-/// Return whether one operation is a member access.
-pub(crate) fn operation_is_member(operation: &ChainExpression) -> bool {
-    matches!(operation, ChainExpression::Member { .. })
-}
-
-/// Return whether one operation is an optional hop.
-pub(crate) fn operation_is_maybe(operation: &ChainExpression) -> bool {
-    matches!(operation, ChainExpression::Maybe { .. })
-}
-
-/// Return whether one operation is a numeric index.
-pub(crate) fn operation_is_numeric_index(
-    context: &DestackFormatContext<'_>,
-    operation: &ChainExpression,
-) -> bool {
-    matches!(operation, ChainExpression::Index { index, .. } if is_numeric_index(context, index))
-}
-
-/// Return whether one operation is call-like or numeric index.
-pub(crate) fn operation_is_call_or_numeric_index(
-    context: &DestackFormatContext<'_>,
-    operation: &ChainExpression,
-) -> bool {
-    operation_is_call_like(operation) || operation_is_numeric_index(context, operation)
-}
-
-/// Return whether member-pair promotion should stop after one promotion.
-pub(crate) fn should_stop_after_member_promotion_cap(
-    cap_member_promotion_before_call_tail: bool,
-    head_ops_count: usize,
-) -> bool {
-    cap_member_promotion_before_call_tail && head_ops_count > 0
-}
-
-/// Return whether index-heavy member chains should keep the split.
-pub(crate) fn should_keep_index_heavy_member_chain_split(
-    starts_with_member: bool,
-    has_index_tail: bool,
-    has_call_like_tail: bool,
-    allow_wide_head: bool,
-) -> bool {
-    starts_with_member && has_index_tail && !has_call_like_tail && !allow_wide_head
-}
-
-/// Return whether one chain contains any index operation.
-pub(crate) fn chain_has_index_tail(operations: &[ChainExpression]) -> bool {
-    operations
-        .iter()
-        .any(|operation| matches!(operation, ChainExpression::Index { .. }))
-}
-
-/// Return whether one operation should stop member-pair promotion.
-pub(crate) fn should_stop_for_member_pair(
-    context: &DestackFormatContext<'_>,
-    first_is_call_or_numeric_index: bool,
-    base_has_leading_call_like: bool,
-    index: usize,
-    operations: &[ChainExpression],
-    next_operation: &ChainExpression,
-    allow_wide_head: bool,
-    is_conditional_branch: bool,
-    operation: &ChainExpression,
-) -> bool {
-    let is_single_member_call_pair = index == 0
-        && operations.len() == 2
-        && matches!(
-            next_operation,
-            ChainExpression::Call { .. } | ChainExpression::Instantiation { .. }
-        );
-    let allow_single_member_call_pair_promotion =
-        allow_wide_head && !is_conditional_branch && is_single_member_call_pair;
-    if first_is_call_or_numeric_index
-        || (base_has_leading_call_like && !allow_single_member_call_pair_promotion)
-    {
-        return true;
-    }
-
-    let next_is_empty_call = matches!(
-        next_operation,
-        ChainExpression::Call {
-            static_arguments,
-            dynamic_arguments,
-            ..
-        } if static_arguments
-            .as_ref()
-            .is_none_or(|arguments| arguments.is_empty())
-            && dynamic_arguments.is_empty()
-    );
-
-    let has_later_member_hop = operations.get(index + 2..).is_some_and(|tail| {
-        tail.iter()
-            .any(|operation| matches!(operation, ChainExpression::Member { .. }))
-    });
-    if has_later_member_hop && !is_conditional_branch && !next_is_empty_call {
-        return true;
-    }
-
-    let next_call_can_expand = matches!(
-        next_operation,
-        ChainExpression::Call {
-            node_id,
-            static_arguments,
-            dynamic_arguments,
-            ..
-        } if chain_call_can_expand_in_head(
-            context,
-            *node_id,
-            static_arguments,
-            dynamic_arguments
-        )
-    );
-    let next_is_promotable_single_argument_call = matches!(
-        next_operation,
-        ChainExpression::Call {
-            node_id,
-            dynamic_arguments,
-            ..
-        } if dynamic_arguments.len() == 1
-            && (allow_wide_head || operations.len() == 2)
-            && !chain_node_has_non_inline_annotation(context, *node_id)
-    );
-
-    if !allow_wide_head && next_call_can_expand {
-        return true;
-    }
-
-    if (!is_simple_chain_operation(context, operation) && !allow_single_member_call_pair_promotion)
-        || (!is_simple_chain_operation(context, next_operation)
-            && !next_call_can_expand
-            && !next_is_promotable_single_argument_call
-            && !allow_single_member_call_pair_promotion)
-    {
-        return true;
-    }
-
-    base_has_leading_call_like && next_is_empty_call
-}
-
-/// Return whether one operation should stop linear head promotion.
-pub(crate) fn should_stop_for_linear_operation(
-    context: &DestackFormatContext<'_>,
-    first_is_call_or_numeric_index: bool,
-    operation: &ChainExpression,
-    previous_operation_is_direct_call: bool,
-) -> bool {
-    if !is_simple_chain_operation(context, operation) {
-        return true;
-    }
-
-    if first_is_call_or_numeric_index
-        && !operation_is_call_like(operation)
-        && !operation_is_numeric_index(context, operation)
-    {
-        return true;
-    }
-
-    let is_call = operation_is_call_like(operation);
-    let is_empty_call = matches!(
-        operation,
-        ChainExpression::Call {
-            static_arguments,
-            dynamic_arguments,
-            ..
-        } if static_arguments
-            .as_ref()
-            .is_none_or(|arguments| arguments.is_empty())
-            && dynamic_arguments.is_empty()
-    );
-
-    !first_is_call_or_numeric_index
-        && is_call
-        && !previous_operation_is_direct_call
-        && !is_empty_call
-}
-
-/// Split off simple head operations that should stay with the base.
-pub(crate) fn split_chain_head_operations(
-    context: &DestackFormatContext<'_>,
-    base_has_leading_call_like: bool,
-    operations: &[ChainExpression],
-    allow_wide_head: bool,
-    is_conditional_branch: bool,
-    root_is_parenthesized: bool,
-) -> usize {
-    // nothing to split when there are no operations
-    if operations.is_empty() {
-        return 0;
-    }
-
-    // collect static signals once
-    let first_is_call_or_numeric_index = operations
-        .first()
-        .is_some_and(|operation| operation_is_call_or_numeric_index(context, operation));
-    let starts_with_member = operations.first().is_some_and(operation_is_member);
-    let has_call_like_tail = operations.iter().any(operation_is_call_like);
-    let cap_member_promotion_before_call_tail =
-        starts_with_member && has_call_like_tail && !allow_wide_head;
-    let has_index_tail = chain_has_index_tail(operations);
-
-    // preserve indexed-member split layout unless parenthesized roots need compact cast chains
-    if should_keep_index_heavy_member_chain_split(
-        starts_with_member,
-        has_index_tail,
-        has_call_like_tail,
-        allow_wide_head,
-    ) && !root_is_parenthesized
-    {
-        return 0;
-    }
-
-    // keep `obj.items[0]` style heads together before call tails
-    let starts_with_simple_member_then_numeric_index = operations.len() >= 2
-        && operation_is_member(&operations[0])
-        && operation_is_numeric_index(context, &operations[1])
-        && is_simple_chain_operation(context, &operations[0])
-        && is_simple_chain_operation(context, &operations[1]);
-
-    // accumulate promotable simple operations
-    let mut head_ops_count = if starts_with_simple_member_then_numeric_index {
-        2
-    } else {
-        0
-    };
-    let mut index = head_ops_count;
-
-    while index < operations.len() {
-        if should_stop_after_member_promotion_cap(
-            cap_member_promotion_before_call_tail,
-            head_ops_count,
-        ) {
-            break;
-        }
-
-        let operation = &operations[index];
-        if operation_is_maybe(operation) {
-            break;
-        }
-
-        let next_operation = operations.get(index + 1);
-        if operation_is_member(operation)
-            && matches!(
-                next_operation,
-                Some(
-                    ChainExpression::Call { .. }
-                        | ChainExpression::Index { .. }
-                        | ChainExpression::Instantiation { .. }
-                )
-            )
-        {
-            let Some(next_operation) = next_operation else {
-                break;
-            };
-
-            if should_stop_for_member_pair(
-                context,
-                first_is_call_or_numeric_index,
-                base_has_leading_call_like,
-                index,
-                operations,
-                next_operation,
-                allow_wide_head,
-                is_conditional_branch,
-                operation,
-            ) {
-                break;
-            }
-
-            // keep `member()?.` tails split so optional chains can break before the call pair
-            if operations.get(index + 2).is_some_and(operation_is_maybe) {
-                break;
-            }
-
-            head_ops_count += 2;
-            index += 2;
-            continue;
-        }
-
-        let previous_op_is_direct_call =
-            operations
-                .get(index.saturating_sub(1))
-                .is_some_and(|previous_operation| {
-                    matches!(
-                        previous_operation,
-                        ChainExpression::Call {
-                            position: PostfixPosition::Direct,
-                            ..
-                        }
-                    )
-                });
-        if should_stop_for_linear_operation(
-            context,
-            first_is_call_or_numeric_index,
-            operation,
-            previous_op_is_direct_call,
-        ) {
-            break;
-        }
-
-        head_ops_count += 1;
-        index += 1;
-    }
-
-    head_ops_count
-}
-
-/// Return whether a chain contains trivia between adjacent chain operations.
-pub(crate) fn chain_has_intervening_break_or_comment(
-    context: &DestackFormatContext<'_>,
-    chain: &[LocalNodeId<Expression>],
-) -> bool {
-    chain_has_intervening_comment(context, chain)
-}
-
 /// Return whether a chain contains comments between adjacent chain operations.
 pub(crate) fn chain_has_intervening_comment(
     context: &DestackFormatContext<'_>,
@@ -924,66 +390,8 @@ pub(crate) fn chain_has_intervening_comment(
 
     chain.iter().copied().any(|expression_id| {
         member_has_intervening_comment(context, expression_id)
-            || chain_has_parent_intervening_comment(context, expression_id)
+            || chain_has_parent_intervening_break_or_comment(context, expression_id)
     })
-}
-
-/// Check if a chain node has source comments before its parent operator.
-fn chain_has_parent_intervening_comment(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-) -> bool {
-    let Some((parent_id, parent_type)) = context.parent(node_id) else {
-        return false;
-    };
-    if parent_type != NodeType::Expression {
-        return false;
-    }
-
-    let parent_id = LocalNodeId::<Expression>::new(parent_id);
-    let parent = context.tree.get(parent_id);
-    let parent_uses_node_as_left = match parent {
-        Expression::Member { left, .. }
-        | Expression::PrivateMember { left, .. }
-        | Expression::Call { left, .. }
-        | Expression::Index { left, .. }
-        | Expression::Instantiation { left, .. }
-        | Expression::Maybe { left, .. }
-        | Expression::Must { left, .. } => *left == node_id,
-        _ => false,
-    };
-    if !parent_uses_node_as_left {
-        return false;
-    }
-
-    let should_check_parent_gap = match parent {
-        Expression::Member { .. } | Expression::PrivateMember { .. } => true,
-        Expression::Call { .. }
-        | Expression::Index { .. }
-        | Expression::Instantiation { .. }
-        | Expression::Maybe { .. }
-        | Expression::Must { .. } => matches!(
-            context.tree.get(node_id),
-            Expression::Member { .. } | Expression::PrivateMember { .. } | Expression::Path { .. }
-        ),
-        _ => false,
-    };
-    if !should_check_parent_gap {
-        return false;
-    }
-
-    let node_span = context.span(node_id);
-    let node_anchor_end = expression_trivia_anchor_end(context, node_id);
-    let Some(parent_operator_start) = chain_parent_operator_start(context, node_id, parent_id)
-    else {
-        return false;
-    };
-    if parent_operator_start <= node_anchor_end {
-        return false;
-    }
-
-    let between_span = Span::new(node_span.file, node_anchor_end, parent_operator_start);
-    context.has_comment(between_span)
 }
 
 /// Return whether one expression is await-like.

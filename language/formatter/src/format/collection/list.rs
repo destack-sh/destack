@@ -113,8 +113,6 @@ where
 
         // empty lists do not need any layout planning
         if !has_elements {
-            f.context()
-                .increment_counter("stats.list_like.empty.short_circuit", 1);
             write!(f, [token(self.start_token), token(self.end_token)])?;
             return Ok(());
         }
@@ -219,14 +217,6 @@ where
         if should_expand {
             format_indented.format(f)?;
         } else if self.group_id.is_none() {
-            let no_group_counter = match (self.start_token, self.end_token) {
-                ("(", ")") => "stats.list_like.no_group.paren",
-                ("[", "]") => "stats.list_like.no_group.bracket",
-                ("{", "}") => "stats.list_like.no_group.brace",
-                ("<", ">") => "stats.list_like.no_group.angle",
-                _ => "stats.list_like.no_group.other",
-            };
-            f.context().increment_counter(no_group_counter, 1);
             if self.start_token == "<" && self.end_token == ">" {
                 if self.elements.len() == 1 {
                     let element_id = self.elements[0];
@@ -440,24 +430,6 @@ where
         group_id: None,
         elements,
         _phantom: PhantomData,
-    }
-}
-
-/// Shared multiline-break signals for collection-like layouts.
-#[derive(Debug, Clone, Copy, Default)]
-pub(crate) struct CollectionBreakScore {
-    /// Whether source for the collection spans multiple lines.
-    pub has_newline_in_source: bool,
-    /// Whether collection items carry annotations.
-    pub has_item_annotations: bool,
-    /// Whether collection items carry nested structural complexity.
-    pub has_nested_complexity: bool,
-}
-
-impl CollectionBreakScore {
-    /// Return whether multiline layout is preferred for the collection.
-    pub(crate) fn should_expand_multiline(self) -> bool {
-        self.has_newline_in_source && (self.has_nested_complexity || self.has_item_annotations)
     }
 }
 

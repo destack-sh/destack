@@ -1,45 +1,48 @@
-use crate::Annotation;
-use crate::format::analysis::{
-    last_non_trivia_token_in_span, nth_non_trivia_token_in_span, timing,
-};
+use crate::format::analysis::{last_non_trivia_token_in_span, nth_non_trivia_token_in_span};
 use crate::format::call::argument_satisfies_static_seam_comment_annotation_id;
 use crate::format::chain::{
-    BinaryOperands, flatten_binary_expression, flatten_type_binary_expression, is_chain_root,
-    is_expression_chain, should_use_trailing_coalesce,
+    has_comment_between_expressions, is_chain_root, is_expression_chain,
+    should_use_trailing_coalesce, transparent_inner_expression,
 };
 use crate::format::expression::{
-    Argument, BinaryOperator, DestackFormatContext, DestackFormatter, Expression, FormatResult,
-    LocalNodeId, ParenthesizedDropMode, TokenType, TypeBinaryOperator,
-    expression_has_leading_prefix_comment, format_with, group, hard_line_break, if_group_breaks,
-    indent, should_drop_parenthesized, soft_block_indent, soft_line_break_or_space, space, token,
-    transparent_inner_expression, type_binary_is_parenthesized_new_callee,
-    type_binary_is_parenthesized_statement_expression, type_binary_is_statement_expression,
+    expression_has_leading_prefix_comment, should_drop_type_binary_left_parentheses,
+    type_binary_is_parenthesized_new_callee, type_binary_is_parenthesized_statement_expression,
+    type_binary_is_statement_expression,
 };
 use crate::format::operator::{
-    AnnotationPosition, NodeType, expression_is_trivial_inline_without_annotations,
-    format_binary_operand_with_grouping_parentheses, has_comment_between_expressions,
+    expression_is_trivial_inline_without_annotations, flatten_binary_expression,
+    flatten_type_binary_expression, format_binary_operand_with_grouping_parentheses,
     is_object_like_type_expression, is_type_context,
     type_binary_operand_needs_grouping_parentheses,
 };
-use destack_ast::{Comment, CommentStyle, Declaration, TypeLiteral};
-use destack_fir::format::Buffer;
+use crate::{Annotation, DestackFormatContext, DestackFormatter};
+use destack_ast::{
+    AnnotationPosition, Argument, BinaryOperator, Comment, CommentStyle, Declaration, Expression,
+    LocalNodeId, NodeType, TokenType, TypeBinaryOperator, TypeLiteral,
+};
+use destack_fir::format::{Buffer, FormatResult};
+use destack_fir::prelude::{
+    format_with, group, hard_line_break, if_group_breaks, indent, soft_block_indent,
+    soft_line_break_or_space, space, token,
+};
 use destack_fir::{format_args, write};
+use smallvec::SmallVec;
 
 /// Return whether type-binary operands are structurally complex enough to prefer multiline layout.
 pub(crate) fn type_binary_operands_are_structurally_complex(
     ctx: &DestackFormatContext<'_>,
-    operands: &BinaryOperands,
+    operands: &SmallVec<[(Option<BinaryOperator>, LocalNodeId<Expression>); 8]>,
 ) -> bool {
     if operands.len() > 3 {
         return true;
     }
 
     operands.iter().any(|operand| {
-        if expression_is_bodyless_function_signature_declaration(ctx, operand.expression) {
+        if expression_is_bodyless_function_signature_declaration(ctx, operand.1) {
             return false;
         }
 
-        !expression_is_trivial_inline_without_annotations(ctx, operand.expression)
+        !expression_is_trivial_inline_without_annotations(ctx, operand.1)
     })
 }
 
@@ -76,7 +79,7 @@ fn expression_is_hug_void_like_union_operand(
 /// `Map<...> | undefined` by keeping them in the inline `A | B` form.
 fn should_hug_type_union_operands(
     ctx: &DestackFormatContext<'_>,
-    operands: &BinaryOperands,
+    operands: &SmallVec<[(Option<BinaryOperator>, LocalNodeId<Expression>); 8]>,
 ) -> bool {
     if operands.len() <= 1 {
         return true;
@@ -84,21 +87,21 @@ fn should_hug_type_union_operands(
 
     if operands
         .iter()
-        .any(|operand| ctx.has_non_blank_annotation(operand.expression))
+        .any(|operand| ctx.has_non_blank_annotation(operand.1))
     {
         return false;
     }
 
     let object_operand_expression_id = operands.iter().find_map(|operand| {
-        expression_is_hug_object_like_union_operand(ctx, operand.expression)
-            .then_some(transparent_inner_expression(ctx, operand.expression))
+        expression_is_hug_object_like_union_operand(ctx, operand.1)
+            .then_some(transparent_inner_expression(ctx, operand.1))
     });
     let Some(object_operand_expression_id) = object_operand_expression_id else {
         return false;
     };
 
     operands.iter().all(|operand| {
-        let expression_id = transparent_inner_expression(ctx, operand.expression);
+        let expression_id = transparent_inner_expression(ctx, operand.1);
         expression_id == object_operand_expression_id
             || expression_is_hug_void_like_union_operand(ctx, expression_id)
     })
@@ -147,7 +150,7 @@ fn is_in_type_template_literal_interpolation(
 fn should_inline_union_with_terminal_line_postfix_comment(
     ctx: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
-    operands: &BinaryOperands,
+    operands: &SmallVec<[(Option<BinaryOperator>, LocalNodeId<Expression>); 8]>,
     union_prefers_multiline_layout: bool,
 ) -> bool {
     if union_prefers_multiline_layout {
@@ -169,14 +172,14 @@ fn should_inline_union_with_terminal_line_postfix_comment(
     let Some(last_operand) = operands.last() else {
         return false;
     };
-    if !expression_has_line_postfix_slash_comment(ctx, last_operand.expression) {
+    if !expression_has_line_postfix_slash_comment(ctx, last_operand.1) {
         return false;
     }
 
     let has_non_last_comments = operands
         .iter()
         .take(operands.len().saturating_sub(1))
-        .any(|operand| expression_has_postfix_comment_annotation(ctx, operand.expression));
+        .any(|operand| expression_has_postfix_comment_annotation(ctx, operand.1));
     if has_non_last_comments {
         return false;
     }
@@ -870,7 +873,7 @@ fn union_is_type_declaration_value(
                     ) =>
             {
                 let operands = flatten_type_binary_expression(ctx, parent_expression_id, *operator);
-                if operands.len() != 1 || operands[0].expression != current_expression_id {
+                if operands.len() != 1 || operands[0].1 != current_expression_id {
                     return false;
                 }
 
@@ -919,7 +922,7 @@ fn intersection_is_nested_under_type_union(
 pub(crate) fn format_leading_pipe_union<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
-    operands: &BinaryOperands,
+    operands: &SmallVec<[(Option<BinaryOperator>, LocalNodeId<Expression>); 8]>,
     should_force_expand: bool,
 ) -> FormatResult<()> {
     format_leading_pipe_union_internal(f, node_id, operands, should_force_expand, false)
@@ -929,7 +932,7 @@ pub(crate) fn format_leading_pipe_union<'ast>(
 pub(crate) fn format_leading_pipe_union_with_external_prefix<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
-    operands: &BinaryOperands,
+    operands: &SmallVec<[(Option<BinaryOperator>, LocalNodeId<Expression>); 8]>,
     should_force_expand: bool,
     has_external_line_prefix_pipe_comment: bool,
 ) -> FormatResult<()> {
@@ -946,7 +949,7 @@ pub(crate) fn format_leading_pipe_union_with_external_prefix<'ast>(
 fn format_leading_pipe_union_internal<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
-    operands: &BinaryOperands,
+    operands: &SmallVec<[(Option<BinaryOperator>, LocalNodeId<Expression>); 8]>,
     should_force_expand: bool,
     has_external_line_prefix_pipe_comment: bool,
 ) -> FormatResult<()> {
@@ -956,7 +959,7 @@ fn format_leading_pipe_union_internal<'ast>(
     let root_has_block_prefix_comment =
         root_owns_prefix_annotation && union_has_block_prefix_comment(f.context(), node_id);
     let first_operand_has_own_line_prefix_comment = operands.first().is_some_and(|operand| {
-        expression_has_own_line_leading_prefix_comment(f.context(), operand.expression)
+        expression_has_own_line_leading_prefix_comment(f.context(), operand.1)
     });
     let union_body = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         for (index, operand) in operands.iter().enumerate() {
@@ -988,14 +991,14 @@ fn format_leading_pipe_union_internal<'ast>(
                 format_binary_operand_with_grouping_parentheses(
                     f,
                     BinaryOperator::ElementwiseOr,
-                    operand.expression,
+                    operand.1,
                 )?;
 
                 continue;
             }
             // later operands: preserve hard breaks after postfix comments
             else {
-                let previous_expression = operands[index - 1].expression;
+                let previous_expression = operands[index - 1].1;
                 let previous_has_postfix =
                     expression_has_postfix_comment_annotation(f.context(), previous_expression);
                 let previous_has_line_postfix_slash_comment =
@@ -1014,7 +1017,7 @@ fn format_leading_pipe_union_internal<'ast>(
             format_binary_operand_with_grouping_parentheses(
                 f,
                 BinaryOperator::ElementwiseOr,
-                operand.expression,
+                operand.1,
             )?;
         }
 
@@ -1167,12 +1170,7 @@ pub(crate) fn format_type_binary_expression<'ast>(
             TypeBinaryOperator::Cast | TypeBinaryOperator::Satisfies
         )
         && let Expression::Parenthesized { expression } = f.context().tree.get(left)
-        && should_drop_parenthesized(
-            f.context(),
-            left,
-            *expression,
-            ParenthesizedDropMode::TypeBinaryLeft { node_id },
-        )
+        && should_drop_type_binary_left_parentheses(f.context(), node_id, left, *expression)
     {
         formatted_left = *expression;
     }
@@ -1335,7 +1333,7 @@ pub(crate) fn format_type_binary_expression<'ast>(
 pub(crate) fn format_remap_static_argument_binary_layout<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     operator: BinaryOperator,
-    operands: &BinaryOperands,
+    operands: &SmallVec<[(Option<BinaryOperator>, LocalNodeId<Expression>); 8]>,
 ) -> FormatResult<()> {
     write!(
         f,
@@ -1343,10 +1341,10 @@ pub(crate) fn format_remap_static_argument_binary_layout<'ast>(
             let Some(first_operand) = operands.first() else {
                 return Ok(());
             };
-            format_binary_operand_with_grouping_parentheses(f, operator, first_operand.expression)?;
+            format_binary_operand_with_grouping_parentheses(f, operator, first_operand.1)?;
 
             for operand in operands.iter().skip(1) {
-                let Some(op) = operand.operator else {
+                let Some(op) = operand.0 else {
                     continue;
                 };
                 write!(
@@ -1356,11 +1354,7 @@ pub(crate) fn format_remap_static_argument_binary_layout<'ast>(
                         op,
                         space(),
                         format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                            format_binary_operand_with_grouping_parentheses(
-                                f,
-                                operator,
-                                operand.expression,
-                            )
+                            format_binary_operand_with_grouping_parentheses(f, operator, operand.1)
                         }),
                     ]
                 )?;
@@ -1375,7 +1369,7 @@ pub(crate) fn format_remap_static_argument_binary_layout<'ast>(
 pub(crate) fn format_clean_binary_short_circuit_layout<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     operator: BinaryOperator,
-    operands: &BinaryOperands,
+    operands: &SmallVec<[(Option<BinaryOperator>, LocalNodeId<Expression>); 8]>,
 ) -> FormatResult<()> {
     write!(
         f,
@@ -1383,10 +1377,10 @@ pub(crate) fn format_clean_binary_short_circuit_layout<'ast>(
             let Some(first_operand) = operands.first() else {
                 return Ok(());
             };
-            format_binary_operand_with_grouping_parentheses(f, operator, first_operand.expression)?;
+            format_binary_operand_with_grouping_parentheses(f, operator, first_operand.1)?;
 
             for operand in operands.iter().skip(1) {
-                let Some(op) = operand.operator else {
+                let Some(op) = operand.0 else {
                     continue;
                 };
                 write!(
@@ -1396,11 +1390,7 @@ pub(crate) fn format_clean_binary_short_circuit_layout<'ast>(
                         op,
                         indent(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
                             write!(f, [soft_line_break_or_space()])?;
-                            format_binary_operand_with_grouping_parentheses(
-                                f,
-                                operator,
-                                operand.expression,
-                            )
+                            format_binary_operand_with_grouping_parentheses(f, operator, operand.1)
                         }))
                     ]
                 )?;
@@ -1414,7 +1404,7 @@ pub(crate) fn format_clean_binary_short_circuit_layout<'ast>(
 /// Render one type union in inline `A | B` form.
 fn format_inline_type_union_layout<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    operands: &BinaryOperands,
+    operands: &SmallVec<[(Option<BinaryOperator>, LocalNodeId<Expression>); 8]>,
 ) -> FormatResult<()> {
     write!(
         f,
@@ -1425,7 +1415,7 @@ fn format_inline_type_union_layout<'ast>(
             format_binary_operand_with_grouping_parentheses(
                 f,
                 BinaryOperator::ElementwiseOr,
-                first_operand.expression,
+                first_operand.1,
             )?;
 
             for operand in operands.iter().skip(1) {
@@ -1439,7 +1429,7 @@ fn format_inline_type_union_layout<'ast>(
                             format_binary_operand_with_grouping_parentheses(
                                 f,
                                 BinaryOperator::ElementwiseOr,
-                                operand.expression,
+                                operand.1,
                             )
                         }),
                     ]
@@ -1454,7 +1444,7 @@ fn format_inline_type_union_layout<'ast>(
 /// Render destack type intersections with trailing operators and object-like guard rails.
 pub(crate) fn format_destack_intersection_trailing_layout<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    operands: &BinaryOperands,
+    operands: &SmallVec<[(Option<BinaryOperator>, LocalNodeId<Expression>); 8]>,
 ) -> FormatResult<()> {
     write!(
         f,
@@ -1465,13 +1455,13 @@ pub(crate) fn format_destack_intersection_trailing_layout<'ast>(
 
             for (index, operand) in operands.iter().enumerate() {
                 if index == 0 {
-                    write!(f, [operand.expression])?;
+                    write!(f, [operand.1])?;
                     previous_is_object_like =
-                        is_object_like_type_expression(f.context(), operand.expression);
+                        is_object_like_type_expression(f.context(), operand.1);
                     continue;
                 }
 
-                let Some(op) = operand.operator else {
+                let Some(op) = operand.0 else {
                     continue;
                 };
 
@@ -1482,14 +1472,13 @@ pub(crate) fn format_destack_intersection_trailing_layout<'ast>(
                 }
                 write!(f, [op])?;
 
-                let is_object_like =
-                    is_object_like_type_expression(f.context(), operand.expression);
+                let is_object_like = is_object_like_type_expression(f.context(), operand.1);
                 if !(previous_is_object_like || is_object_like) {
                     write!(
                         f,
                         [indent(&format_with(
                             |f: &mut DestackFormatter<'ast, '_>| {
-                                write!(f, [soft_line_break_or_space(), operand.expression])
+                                write!(f, [soft_line_break_or_space(), operand.1])
                             }
                         ))]
                     )?;
@@ -1501,14 +1490,14 @@ pub(crate) fn format_destack_intersection_trailing_layout<'ast>(
                     }
 
                     if chain_is_indented {
-                        write!(f, [indent(&operand.expression)])?;
+                        write!(f, [indent(&operand.1)])?;
                     } else {
-                        write!(f, [operand.expression])?;
+                        write!(f, [operand.1])?;
                     }
                 }
 
                 previous_is_object_like = is_object_like;
-                previous_expression = Some(operand.expression);
+                previous_expression = Some(operand.1);
             }
 
             Ok(())
@@ -1519,7 +1508,7 @@ pub(crate) fn format_destack_intersection_trailing_layout<'ast>(
 /// Render non-destack intersections with oxc-style object-like chain layout.
 fn format_oxc_intersection_layout<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    operands: &BinaryOperands,
+    operands: &SmallVec<[(Option<BinaryOperator>, LocalNodeId<Expression>); 8]>,
 ) -> FormatResult<()> {
     write!(
         f,
@@ -1529,17 +1518,16 @@ fn format_oxc_intersection_layout<'ast>(
             let mut chain_is_indented = false;
 
             for (index, operand) in operands.iter().enumerate() {
-                let current_is_object_like =
-                    is_object_like_type_expression(f.context(), operand.expression);
+                let current_is_object_like = is_object_like_type_expression(f.context(), operand.1);
                 let current_has_own_line_prefix =
-                    expression_has_own_line_prefix_annotation(f.context(), operand.expression);
+                    expression_has_own_line_prefix_annotation(f.context(), operand.1);
 
                 // first intersection element: always inline
                 if index == 0 {
                     format_binary_operand_with_grouping_parentheses(
                         f,
                         BinaryOperator::ElementwiseAnd,
-                        operand.expression,
+                        operand.1,
                     )?;
                 }
                 // own-line prefix comments: break before current element
@@ -1552,7 +1540,7 @@ fn format_oxc_intersection_layout<'ast>(
                                 format_binary_operand_with_grouping_parentheses(
                                     f,
                                     BinaryOperator::ElementwiseAnd,
-                                    operand.expression,
+                                    operand.1,
                                 )
                             })
                         ])]
@@ -1568,7 +1556,7 @@ fn format_oxc_intersection_layout<'ast>(
                                 format_binary_operand_with_grouping_parentheses(
                                     f,
                                     BinaryOperator::ElementwiseAnd,
-                                    operand.expression,
+                                    operand.1,
                                 )
                             })
                         ])]
@@ -1590,7 +1578,7 @@ fn format_oxc_intersection_layout<'ast>(
                                     format_binary_operand_with_grouping_parentheses(
                                         f,
                                         BinaryOperator::ElementwiseAnd,
-                                        operand.expression,
+                                        operand.1,
                                     )
                                 }
                             ))]
@@ -1599,7 +1587,7 @@ fn format_oxc_intersection_layout<'ast>(
                         format_binary_operand_with_grouping_parentheses(
                             f,
                             BinaryOperator::ElementwiseAnd,
-                            operand.expression,
+                            operand.1,
                         )?;
                     }
                 }
@@ -1617,102 +1605,21 @@ fn format_oxc_intersection_layout<'ast>(
     )
 }
 
-/// Write one non-head default flattened operand with selected mode.
-#[derive(Debug, Clone, Copy)]
-struct DefaultNonHeadOperandFacts {
-    is_type_binary: bool,
-    has_postfix: bool,
-    previous_has_prefix_annotation: bool,
-    previous_has_line_prefix_slash_comment: bool,
-    previous_is_parenthesized_multiline: bool,
-    previous_is_parenthesized_or_grouped_multiline: bool,
-    previous_has_line_postfix_slash_comment: bool,
-    previous_requires_type_grouping_break: bool,
-    current_has_line_prefix_slash_comment: bool,
-    current_prefers_trailing_operator: bool,
-    left_postfix_comment_allows_space: bool,
-}
-
-/// Build one default non-head binary seam facts snapshot.
-fn default_non_head_operand_facts(
-    f: &DestackFormatter<'_, '_>,
-    root_operator: BinaryOperator,
-    operand_operator: BinaryOperator,
-    operand_expression: LocalNodeId<Expression>,
-    previous_expression: Option<LocalNodeId<Expression>>,
-    is_type_union: bool,
-    is_type_intersection: bool,
-) -> DefaultNonHeadOperandFacts {
-    let is_type_binary = is_type_union || is_type_intersection;
-    let has_postfix = previous_expression
-        .is_some_and(|expression_id| f.context().has_postfix_annotation(expression_id));
-    let previous_has_prefix_annotation = previous_expression.is_some_and(|expression_id| {
-        expression_has_leading_prefix_comment(f.context(), expression_id)
-    });
-    let previous_has_line_prefix_slash_comment = previous_expression.is_some_and(|expression_id| {
-        expression_has_line_prefix_slash_comment(f.context(), expression_id)
-    });
-    let previous_is_parenthesized_multiline = previous_expression.is_some_and(|expression_id| {
-        matches!(
-            f.context().tree.get(expression_id),
-            Expression::Parenthesized { .. }
-        ) && f.context().node_has_newline(expression_id)
-    });
-    let previous_needs_grouping_parentheses_multiline =
-        previous_expression.is_some_and(|expression_id| {
-            type_binary_operand_needs_grouping_parentheses(
-                f.context(),
-                root_operator,
-                expression_id,
-            ) && f.context().node_has_newline(expression_id)
-        });
-    let previous_is_parenthesized_or_grouped_multiline =
-        previous_is_parenthesized_multiline || previous_needs_grouping_parentheses_multiline;
-    let previous_has_line_postfix_slash_comment =
-        previous_expression.is_some_and(|expression_id| {
-            expression_has_line_postfix_slash_comment(f.context(), expression_id)
-        });
-    let previous_requires_type_grouping_break =
-        is_type_binary && previous_has_line_postfix_slash_comment;
-    let current_has_line_prefix_slash_comment =
-        expression_has_line_prefix_slash_comment(f.context(), operand_expression);
-    let current_prefers_trailing_operator = is_logical_binary_operator(operand_operator)
-        && expression_has_leading_prefix_comment(f.context(), operand_expression);
-    let left_inline_block_postfix_comment_allows_space =
-        previous_expression.is_some_and(|expression_id| {
-            expression_has_inline_block_postfix_boundary_star_comment(f.context(), expression_id)
-        });
-    let left_postfix_comment_allows_space =
-        left_inline_block_postfix_comment_allows_space && !previous_has_line_postfix_slash_comment;
-
-    DefaultNonHeadOperandFacts {
-        is_type_binary,
-        has_postfix,
-        previous_has_prefix_annotation,
-        previous_has_line_prefix_slash_comment,
-        previous_is_parenthesized_multiline,
-        previous_is_parenthesized_or_grouped_multiline,
-        previous_has_line_postfix_slash_comment,
-        previous_requires_type_grouping_break,
-        current_has_line_prefix_slash_comment,
-        current_prefers_trailing_operator,
-        left_postfix_comment_allows_space,
-    }
-}
-
 /// Write one leading separator before one non-head seam using prefix-comment spacing rules.
 fn write_non_head_prefix_spacing<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    facts: DefaultNonHeadOperandFacts,
+    has_postfix: bool,
+    left_postfix_comment_allows_space: bool,
+    previous_requires_type_grouping_break: bool,
+    previous_has_line_postfix_slash_comment: bool,
     allow_space_when_postfix: bool,
 ) -> FormatResult<()> {
-    if !facts.has_postfix || (allow_space_when_postfix && facts.left_postfix_comment_allows_space) {
+    if !has_postfix || (allow_space_when_postfix && left_postfix_comment_allows_space) {
         write!(f, [space()])?;
         return Ok(());
     }
 
-    if facts.previous_requires_type_grouping_break || facts.previous_has_line_postfix_slash_comment
-    {
+    if previous_requires_type_grouping_break || previous_has_line_postfix_slash_comment {
         write!(f, [hard_line_break()])?;
     }
 
@@ -1722,12 +1629,22 @@ fn write_non_head_prefix_spacing<'ast>(
 /// Write one type-binary seam after one current line-prefix slash comment.
 fn write_type_binary_current_prefix_seam<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    facts: DefaultNonHeadOperandFacts,
+    has_postfix: bool,
+    left_postfix_comment_allows_space: bool,
+    previous_requires_type_grouping_break: bool,
+    previous_has_line_postfix_slash_comment: bool,
     root_operator: BinaryOperator,
     operand_operator: BinaryOperator,
     operand_expression: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    write_non_head_prefix_spacing(f, facts, false)?;
+    write_non_head_prefix_spacing(
+        f,
+        has_postfix,
+        left_postfix_comment_allows_space,
+        previous_requires_type_grouping_break,
+        previous_has_line_postfix_slash_comment,
+        false,
+    )?;
 
     write!(
         f,
@@ -1750,13 +1667,23 @@ fn write_type_binary_current_prefix_seam<'ast>(
 /// Write one type-binary seam after one previous line-prefix slash comment.
 fn write_type_binary_previous_prefix_seam<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    facts: DefaultNonHeadOperandFacts,
+    has_postfix: bool,
+    left_postfix_comment_allows_space: bool,
+    previous_requires_type_grouping_break: bool,
+    previous_has_line_postfix_slash_comment: bool,
     root_operator: BinaryOperator,
     operand_operator: BinaryOperator,
     operand_expression: LocalNodeId<Expression>,
     is_type_intersection: bool,
 ) -> FormatResult<()> {
-    write_non_head_prefix_spacing(f, facts, false)?;
+    write_non_head_prefix_spacing(
+        f,
+        has_postfix,
+        left_postfix_comment_allows_space,
+        previous_requires_type_grouping_break,
+        previous_has_line_postfix_slash_comment,
+        false,
+    )?;
 
     if is_type_intersection {
         write!(
@@ -1800,12 +1727,22 @@ fn write_type_binary_previous_prefix_seam<'ast>(
 /// Write one logical seam with trailing operator placement.
 fn write_trailing_logical_non_head_seam<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    facts: DefaultNonHeadOperandFacts,
+    has_postfix: bool,
+    left_postfix_comment_allows_space: bool,
+    previous_requires_type_grouping_break: bool,
+    previous_has_line_postfix_slash_comment: bool,
     root_operator: BinaryOperator,
     operand_operator: BinaryOperator,
     operand_expression: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    write_non_head_prefix_spacing(f, facts, true)?;
+    write_non_head_prefix_spacing(
+        f,
+        has_postfix,
+        left_postfix_comment_allows_space,
+        previous_requires_type_grouping_break,
+        previous_has_line_postfix_slash_comment,
+        true,
+    )?;
 
     write!(
         f,
@@ -1830,14 +1767,25 @@ fn write_trailing_logical_non_head_seam<'ast>(
 /// Write one seam after one previous prefix annotation.
 fn write_previous_prefix_annotation_non_head_seam<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    facts: DefaultNonHeadOperandFacts,
+    is_type_binary: bool,
+    has_postfix: bool,
+    left_postfix_comment_allows_space: bool,
+    previous_requires_type_grouping_break: bool,
+    previous_has_line_postfix_slash_comment: bool,
     root_operator: BinaryOperator,
     operand_operator: BinaryOperator,
     operand_expression: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    write_non_head_prefix_spacing(f, facts, !facts.is_type_binary)?;
+    write_non_head_prefix_spacing(
+        f,
+        has_postfix,
+        left_postfix_comment_allows_space,
+        previous_requires_type_grouping_break,
+        previous_has_line_postfix_slash_comment,
+        !is_type_binary,
+    )?;
 
-    if facts.is_type_binary {
+    if is_type_binary {
         write!(
             f,
             [
@@ -1865,25 +1813,25 @@ fn write_previous_prefix_annotation_non_head_seam<'ast>(
 /// Write one generic non-head seam when no specialized seam rule applies.
 fn write_generic_non_head_seam<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    facts: DefaultNonHeadOperandFacts,
+    has_postfix: bool,
+    left_postfix_comment_allows_space: bool,
+    previous_requires_type_grouping_break: bool,
+    previous_has_line_postfix_slash_comment: bool,
+    previous_is_parenthesized_multiline: bool,
     root_operator: BinaryOperator,
     operand_operator: BinaryOperator,
     operand_expression: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     let seam_document = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        if !facts.has_postfix {
-            if facts.previous_is_parenthesized_multiline
-                && is_logical_binary_operator(operand_operator)
-            {
+        if !has_postfix {
+            if previous_is_parenthesized_multiline && is_logical_binary_operator(operand_operator) {
                 write!(f, [space()])?;
             } else {
                 write!(f, [soft_line_break_or_space()])?;
             }
-        } else if facts.left_postfix_comment_allows_space {
+        } else if left_postfix_comment_allows_space {
             write!(f, [space()])?;
-        } else if facts.previous_requires_type_grouping_break
-            || facts.previous_has_line_postfix_slash_comment
-        {
+        } else if previous_requires_type_grouping_break || previous_has_line_postfix_slash_comment {
             write!(f, [hard_line_break()])?;
         }
 
@@ -1905,19 +1853,51 @@ pub(crate) fn write_default_flattened_non_head_operand<'ast>(
     is_type_union: bool,
     is_type_intersection: bool,
 ) -> FormatResult<()> {
-    let facts = default_non_head_operand_facts(
-        f,
-        root_operator,
-        operand_operator,
-        operand_expression,
-        previous_expression,
-        is_type_union,
-        is_type_intersection,
-    );
+    let is_type_binary = is_type_union || is_type_intersection;
+    let has_postfix = previous_expression
+        .is_some_and(|expression_id| f.context().has_postfix_annotation(expression_id));
+    let previous_has_prefix_annotation = previous_expression.is_some_and(|expression_id| {
+        expression_has_leading_prefix_comment(f.context(), expression_id)
+    });
+    let previous_has_line_prefix_slash_comment = previous_expression.is_some_and(|expression_id| {
+        expression_has_line_prefix_slash_comment(f.context(), expression_id)
+    });
+    let previous_is_parenthesized_multiline = previous_expression.is_some_and(|expression_id| {
+        matches!(
+            f.context().tree.get(expression_id),
+            Expression::Parenthesized { .. }
+        ) && f.context().node_has_newline(expression_id)
+    });
+    let previous_needs_grouping_parentheses_multiline =
+        previous_expression.is_some_and(|expression_id| {
+            type_binary_operand_needs_grouping_parentheses(
+                f.context(),
+                root_operator,
+                expression_id,
+            ) && f.context().node_has_newline(expression_id)
+        });
+    let previous_is_parenthesized_or_grouped_multiline =
+        previous_is_parenthesized_multiline || previous_needs_grouping_parentheses_multiline;
+    let previous_has_line_postfix_slash_comment =
+        previous_expression.is_some_and(|expression_id| {
+            expression_has_line_postfix_slash_comment(f.context(), expression_id)
+        });
+    let previous_requires_type_grouping_break =
+        is_type_binary && previous_has_line_postfix_slash_comment;
+    let current_has_line_prefix_slash_comment =
+        expression_has_line_prefix_slash_comment(f.context(), operand_expression);
+    let current_prefers_trailing_operator = is_logical_binary_operator(operand_operator)
+        && expression_has_leading_prefix_comment(f.context(), operand_expression);
+    let left_inline_block_postfix_comment_allows_space =
+        previous_expression.is_some_and(|expression_id| {
+            expression_has_inline_block_postfix_boundary_star_comment(f.context(), expression_id)
+        });
+    let left_postfix_comment_allows_space =
+        left_inline_block_postfix_comment_allows_space && !previous_has_line_postfix_slash_comment;
 
     // elementwise intersections with grouped multiline left operand
     if operand_operator == BinaryOperator::ElementwiseAnd
-        && facts.previous_is_parenthesized_or_grouped_multiline
+        && previous_is_parenthesized_or_grouped_multiline
     {
         write!(
             f,
@@ -1941,10 +1921,13 @@ pub(crate) fn write_default_flattened_non_head_operand<'ast>(
     }
 
     // type-binary seams with line-prefix current operand comments
-    if facts.is_type_binary && facts.current_has_line_prefix_slash_comment {
+    if is_type_binary && current_has_line_prefix_slash_comment {
         write_type_binary_current_prefix_seam(
             f,
-            facts,
+            has_postfix,
+            left_postfix_comment_allows_space,
+            previous_requires_type_grouping_break,
+            previous_has_line_postfix_slash_comment,
             root_operator,
             operand_operator,
             operand_expression,
@@ -1954,10 +1937,13 @@ pub(crate) fn write_default_flattened_non_head_operand<'ast>(
     }
 
     // logical operators that should trail current seams
-    if facts.current_prefers_trailing_operator {
+    if current_prefers_trailing_operator {
         write_trailing_logical_non_head_seam(
             f,
-            facts,
+            has_postfix,
+            left_postfix_comment_allows_space,
+            previous_requires_type_grouping_break,
+            previous_has_line_postfix_slash_comment,
             root_operator,
             operand_operator,
             operand_expression,
@@ -1967,10 +1953,13 @@ pub(crate) fn write_default_flattened_non_head_operand<'ast>(
     }
 
     // type-binary seams after previous line-prefix comments
-    if facts.is_type_binary && facts.previous_has_line_prefix_slash_comment {
+    if is_type_binary && previous_has_line_prefix_slash_comment {
         write_type_binary_previous_prefix_seam(
             f,
-            facts,
+            has_postfix,
+            left_postfix_comment_allows_space,
+            previous_requires_type_grouping_break,
+            previous_has_line_postfix_slash_comment,
             root_operator,
             operand_operator,
             operand_expression,
@@ -1981,10 +1970,14 @@ pub(crate) fn write_default_flattened_non_head_operand<'ast>(
     }
 
     // seams after previous prefix annotations
-    if facts.previous_has_prefix_annotation {
+    if previous_has_prefix_annotation {
         write_previous_prefix_annotation_non_head_seam(
             f,
-            facts,
+            is_type_binary,
+            has_postfix,
+            left_postfix_comment_allows_space,
+            previous_requires_type_grouping_break,
+            previous_has_line_postfix_slash_comment,
             root_operator,
             operand_operator,
             operand_expression,
@@ -1996,7 +1989,11 @@ pub(crate) fn write_default_flattened_non_head_operand<'ast>(
     // generic seam rendering
     write_generic_non_head_seam(
         f,
-        facts,
+        has_postfix,
+        left_postfix_comment_allows_space,
+        previous_requires_type_grouping_break,
+        previous_has_line_postfix_slash_comment,
+        previous_is_parenthesized_multiline,
         root_operator,
         operand_operator,
         operand_expression,
@@ -2007,7 +2004,7 @@ pub(crate) fn write_default_flattened_non_head_operand<'ast>(
 pub(crate) fn format_default_flattened_binary_layout<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     root_operator: BinaryOperator,
-    operands: &BinaryOperands,
+    operands: &SmallVec<[(Option<BinaryOperator>, LocalNodeId<Expression>); 8]>,
     is_type_union: bool,
     is_type_intersection: bool,
     should_force_type_binary_expansion: bool,
@@ -2018,19 +2015,19 @@ pub(crate) fn format_default_flattened_binary_layout<'ast>(
             let mut previous_expression = None;
 
             for operand in operands {
-                if let Some(operand_operator) = operand.operator {
+                if let Some(operand_operator) = operand.0 {
                     write_default_flattened_non_head_operand(
                         f,
                         root_operator,
                         operand_operator,
-                        operand.expression,
+                        operand.1,
                         previous_expression,
                         is_type_union,
                         is_type_intersection,
                     )?;
                 } else {
                     let first_operand_has_prefix_annotation =
-                        f.context().has_prefix_annotation(operand.expression);
+                        f.context().has_prefix_annotation(operand.1);
                     let should_indent_first_operand = first_operand_has_prefix_annotation
                         && (is_type_union || is_type_intersection);
                     if should_indent_first_operand {
@@ -2040,7 +2037,7 @@ pub(crate) fn format_default_flattened_binary_layout<'ast>(
                                 format_binary_operand_with_grouping_parentheses(
                                     f,
                                     root_operator,
-                                    operand.expression,
+                                    operand.1,
                                 )
                             })])]
                         )?;
@@ -2048,12 +2045,12 @@ pub(crate) fn format_default_flattened_binary_layout<'ast>(
                         format_binary_operand_with_grouping_parentheses(
                             f,
                             root_operator,
-                            operand.expression,
+                            operand.1,
                         )?;
                     }
                 }
 
-                previous_expression = Some(operand.expression);
+                previous_expression = Some(operand.1);
             }
 
             Ok(())
@@ -2064,25 +2061,12 @@ pub(crate) fn format_default_flattened_binary_layout<'ast>(
     Ok(())
 }
 
-/// Store type-semantics flags for binary layout selection.
-#[derive(Debug, Clone, Copy)]
-struct BinaryTypeSemantics {
-    /// Whether this binary is a type union.
-    is_type_union: bool,
-    /// Whether this binary is a type intersection.
-    is_type_intersection: bool,
-    /// Whether this binary appears inside a type-template interpolation.
-    in_type_template_literal_interpolation: bool,
-    /// Whether the current language is Destack.
-    is_destack: bool,
-}
-
-/// Build type-semantics flags for one binary expression.
-fn binary_type_semantics(
+/// Build binary type-layout flags for one expression.
+fn binary_type_flags(
     ctx: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
     operator: BinaryOperator,
-) -> BinaryTypeSemantics {
+) -> (bool, bool, bool, bool) {
     let in_type_context = is_type_context(ctx, node_id);
     let in_type_template_literal_interpolation =
         is_in_type_template_literal_interpolation(ctx, node_id);
@@ -2091,12 +2075,12 @@ fn binary_type_semantics(
     let is_type_intersection = has_type_semantics && operator == BinaryOperator::ElementwiseAnd;
     let is_destack = ctx.options.language_type.is_destack();
 
-    BinaryTypeSemantics {
+    (
         is_type_union,
         is_type_intersection,
         in_type_template_literal_interpolation,
         is_destack,
-    }
+    )
 }
 
 /// Flatten binary operands for the current type-semantics mode.
@@ -2104,95 +2088,78 @@ fn binary_operands_for_layout(
     ctx: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
     operator: BinaryOperator,
-    semantics: BinaryTypeSemantics,
-) -> BinaryOperands {
-    if semantics.is_type_union || semantics.is_type_intersection {
+    is_type_union: bool,
+    is_type_intersection: bool,
+) -> SmallVec<[(Option<BinaryOperator>, LocalNodeId<Expression>); 8]> {
+    if is_type_union || is_type_intersection {
         return flatten_type_binary_expression(ctx, node_id, operator);
     }
 
     flatten_binary_expression(ctx, node_id, operator)
 }
 
-/// Store annotation and prefix-comment facts for flattened operands.
-#[derive(Debug, Clone, Copy)]
-struct BinaryAnnotationFacts {
-    /// Whether the root binary node has non-blank annotations.
-    has_node_annotation: bool,
-    /// Whether any operand has non-blank annotations.
-    has_operand_annotations: bool,
-    /// Whether any operand has leading prefix comments.
-    has_operand_prefix_comments: bool,
-}
-
-/// Build annotation and prefix-comment facts for flattened operands.
-fn binary_annotation_facts(
+/// Build annotation and prefix-comment flags for flattened operands.
+fn binary_annotation_flags(
     ctx: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
-    operands: &BinaryOperands,
-) -> BinaryAnnotationFacts {
+    operands: &SmallVec<[(Option<BinaryOperator>, LocalNodeId<Expression>); 8]>,
+) -> (bool, bool, bool) {
     let has_node_annotation = ctx.has_non_blank_annotation(node_id);
     let has_operand_annotations = operands
         .iter()
-        .any(|operand| ctx.has_non_blank_annotation(operand.expression));
+        .any(|operand| ctx.has_non_blank_annotation(operand.1));
     let has_operand_prefix_comments = operands
         .iter()
-        .any(|operand| expression_has_leading_prefix_comment(ctx, operand.expression));
+        .any(|operand| expression_has_leading_prefix_comment(ctx, operand.1));
 
-    BinaryAnnotationFacts {
+    (
         has_node_annotation,
         has_operand_annotations,
         has_operand_prefix_comments,
-    }
+    )
 }
 
 /// Return whether non-type binary layout can use the clean short-circuit path.
 fn binary_can_use_clean_short_circuit(
-    semantics: BinaryTypeSemantics,
-    annotation_facts: BinaryAnnotationFacts,
+    is_type_union: bool,
+    is_type_intersection: bool,
+    has_node_annotation: bool,
+    has_operand_annotations: bool,
+    has_operand_prefix_comments: bool,
 ) -> bool {
-    !semantics.is_type_union
-        && !semantics.is_type_intersection
-        && !annotation_facts.has_node_annotation
-        && !annotation_facts.has_operand_annotations
-        && !annotation_facts.has_operand_prefix_comments
+    !is_type_union
+        && !is_type_intersection
+        && !has_node_annotation
+        && !has_operand_annotations
+        && !has_operand_prefix_comments
 }
 
-/// Store type-union layout facts derived from operands and annotations.
-#[derive(Debug, Clone, Copy)]
-struct TypeUnionLayoutFacts {
-    /// Whether the root union owns prefix annotations.
-    root_owns_prefix_annotation: bool,
-    /// Whether this union prefers multiline output.
-    prefers_multiline_layout: bool,
-    /// Whether union should render inline instead of leading-pipe mode.
-    should_inline_union: bool,
-}
-
-/// Build one type-union layout facts snapshot.
-fn type_union_layout_facts(
+/// Build type-union layout flags derived from operands and annotations.
+fn type_union_layout_flags(
     ctx: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
-    operands: &BinaryOperands,
-    semantics: BinaryTypeSemantics,
-    annotation_facts: BinaryAnnotationFacts,
-) -> TypeUnionLayoutFacts {
+    operands: &SmallVec<[(Option<BinaryOperator>, LocalNodeId<Expression>); 8]>,
+    in_type_template_literal_interpolation: bool,
+    has_node_annotation: bool,
+    has_operand_annotations: bool,
+    has_operand_prefix_comments: bool,
+) -> (bool, bool, bool) {
     let root_owns_prefix_annotation = union_owns_prefix_annotations(ctx, node_id);
     let has_breaking_postfix_comments = operands.iter().enumerate().any(|(index, operand)| {
         let is_last_operand = index + 1 == operands.len();
-        let has_postfix_comment =
-            expression_has_postfix_comment_annotation(ctx, operand.expression)
-                || expression_has_line_postfix_slash_comment(ctx, operand.expression);
+        let has_postfix_comment = expression_has_postfix_comment_annotation(ctx, operand.1)
+            || expression_has_line_postfix_slash_comment(ctx, operand.1);
         has_postfix_comment && !is_last_operand
     });
-    let has_breaking_operand_prefix_comments = annotation_facts.has_operand_prefix_comments
+    let has_breaking_operand_prefix_comments = has_operand_prefix_comments
         && operands.iter().enumerate().skip(1).any(|(index, operand)| {
             let is_last_operand = index + 1 == operands.len();
-            expression_has_leading_prefix_comment(ctx, operand.expression) && !is_last_operand
+            expression_has_leading_prefix_comment(ctx, operand.1) && !is_last_operand
         });
     let has_own_line_doc_prefix_annotation =
         union_has_trailing_own_line_doc_prefix_annotation(ctx, node_id);
     let is_template_interpolation_multiline =
-        semantics.in_type_template_literal_interpolation && ctx.node_has_newline(node_id);
+        in_type_template_literal_interpolation && ctx.node_has_newline(node_id);
     let should_hug_layout = should_hug_type_union_operands(ctx, operands);
     let prefers_multiline_layout = has_breaking_operand_prefix_comments
         || has_breaking_postfix_comments
@@ -2202,9 +2169,9 @@ fn type_union_layout_facts(
         union_is_parenthesized_cast_or_satisfies_rhs(ctx, node_id);
     let should_keep_parenthesized_cast_rhs_inline = is_parenthesized_cast_or_satisfies_rhs
         && !prefers_multiline_layout
-        && !annotation_facts.has_node_annotation
-        && !annotation_facts.has_operand_annotations
-        && !annotation_facts.has_operand_prefix_comments;
+        && !has_node_annotation
+        && !has_operand_annotations
+        && !has_operand_prefix_comments;
     let should_inline_union = should_hug_layout
         || should_keep_parenthesized_cast_rhs_inline
         || should_inline_union_with_terminal_line_postfix_comment(
@@ -2214,31 +2181,41 @@ fn type_union_layout_facts(
             prefers_multiline_layout,
         );
 
-    TypeUnionLayoutFacts {
+    (
         root_owns_prefix_annotation,
         prefers_multiline_layout,
         should_inline_union,
-    }
+    )
 }
 
 /// Format one type-union binary with inline or leading-pipe layout.
 fn format_type_union_binary_layout<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
-    operands: &BinaryOperands,
-    semantics: BinaryTypeSemantics,
-    annotation_facts: BinaryAnnotationFacts,
+    operands: &SmallVec<[(Option<BinaryOperator>, LocalNodeId<Expression>); 8]>,
+    in_type_template_literal_interpolation: bool,
+    has_node_annotation: bool,
+    has_operand_annotations: bool,
+    has_operand_prefix_comments: bool,
 ) -> FormatResult<()> {
-    let facts =
-        type_union_layout_facts(f.context(), node_id, operands, semantics, annotation_facts);
+    let (root_owns_prefix_annotation, prefers_multiline_layout, should_inline_union) =
+        type_union_layout_flags(
+            f.context(),
+            node_id,
+            operands,
+            in_type_template_literal_interpolation,
+            has_node_annotation,
+            has_operand_annotations,
+            has_operand_prefix_comments,
+        );
 
-    if facts.should_inline_union {
-        if facts.root_owns_prefix_annotation {
+    if should_inline_union {
+        if root_owns_prefix_annotation {
             write!(f, [f.context().any_prefix_annotations(node_id)])?;
         }
         format_inline_type_union_layout(f, operands)?;
     } else {
-        format_leading_pipe_union(f, node_id, operands, facts.prefers_multiline_layout)?;
+        format_leading_pipe_union(f, node_id, operands, prefers_multiline_layout)?;
     }
 
     Ok(())
@@ -2248,19 +2225,16 @@ fn format_type_union_binary_layout<'ast>(
 fn format_type_intersection_binary_layout<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
-    operands: &BinaryOperands,
-    semantics: BinaryTypeSemantics,
+    operands: &SmallVec<[(Option<BinaryOperator>, LocalNodeId<Expression>); 8]>,
+    is_destack: bool,
 ) -> FormatResult<()> {
-    if semantics.is_destack {
+    if is_destack {
         if intersection_is_nested_under_type_union(f.context(), node_id) {
             return format_oxc_intersection_layout(f, operands);
         }
 
         return format_destack_intersection_trailing_layout(f, operands);
     }
-
-    f.context()
-        .increment_counter("stats.binary.type_clean.short_circuit", 1);
     format_oxc_intersection_layout(f, operands)
 }
 
@@ -2272,10 +2246,6 @@ pub(crate) fn format_binary_expression<'ast>(
     operator: &BinaryOperator,
     right: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    let _timing = f
-        .context()
-        .timing_scope(timing::FORMAT_EXPRESSION_OPERATOR_BINARY);
-
     // specialized logical and coalesce layout paths
     if try_format_trailing_coalesce(f, node_id, left, *operator, right)? {
         return Ok(());
@@ -2301,11 +2271,19 @@ pub(crate) fn format_binary_expression<'ast>(
         return Ok(());
     }
 
-    let semantics = binary_type_semantics(f.context(), node_id, *operator);
-    let operands = binary_operands_for_layout(f.context(), node_id, *operator, semantics);
-    let should_force_type_binary_expansion = semantics.is_type_intersection
+    let (is_type_union, is_type_intersection, in_type_template_literal_interpolation, is_destack) =
+        binary_type_flags(f.context(), node_id, *operator);
+    let operands = binary_operands_for_layout(
+        f.context(),
+        node_id,
+        *operator,
+        is_type_union,
+        is_type_intersection,
+    );
+    let should_force_type_binary_expansion = is_type_intersection
         && type_binary_operands_are_structurally_complex(f.context(), &operands);
-    let annotation_facts = binary_annotation_facts(f.context(), node_id, &operands);
+    let (has_node_annotation, has_operand_annotations, has_operand_prefix_comments) =
+        binary_annotation_flags(f.context(), node_id, &operands);
 
     // remap template seams with trailing line comments should keep static type args inline
     if type_binary_is_static_argument_under_remap_path(f.context(), node_id) {
@@ -2314,22 +2292,34 @@ pub(crate) fn format_binary_expression<'ast>(
     }
 
     // clean non-type binaries without annotation or prefix trivia
-    if binary_can_use_clean_short_circuit(semantics, annotation_facts) {
-        f.context()
-            .increment_counter("stats.binary.clean.short_circuit", 1);
+    if binary_can_use_clean_short_circuit(
+        is_type_union,
+        is_type_intersection,
+        has_node_annotation,
+        has_operand_annotations,
+        has_operand_prefix_comments,
+    ) {
         format_clean_binary_short_circuit_layout(f, *operator, &operands)?;
         return Ok(());
     }
 
     // union types use one deterministic layout path: leading-pipe group
-    if semantics.is_type_union {
-        format_type_union_binary_layout(f, node_id, &operands, semantics, annotation_facts)?;
+    if is_type_union {
+        format_type_union_binary_layout(
+            f,
+            node_id,
+            &operands,
+            in_type_template_literal_interpolation,
+            has_node_annotation,
+            has_operand_annotations,
+            has_operand_prefix_comments,
+        )?;
         return Ok(());
     }
 
     // destack intersections use trailing operator layout
-    if semantics.is_type_intersection {
-        format_type_intersection_binary_layout(f, node_id, &operands, semantics)?;
+    if is_type_intersection {
+        format_type_intersection_binary_layout(f, node_id, &operands, is_destack)?;
         return Ok(());
     }
 
@@ -2338,8 +2328,8 @@ pub(crate) fn format_binary_expression<'ast>(
         f,
         *operator,
         &operands,
-        semantics.is_type_union,
-        semantics.is_type_intersection,
+        is_type_union,
+        is_type_intersection,
         should_force_type_binary_expansion,
     )?;
 

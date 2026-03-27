@@ -4,5 +4,5 @@ pub mod statement;
 
 mod declaration;
 mod function;
-mod statement_list;
+pub(crate) mod statement_list;
 mod r#type;

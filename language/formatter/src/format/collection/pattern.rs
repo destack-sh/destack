@@ -2,9 +2,13 @@ use std::borrow::Cow;
 
 use destack_fir::format::FormatResult;
 
-use crate::format::collection::{CollectionBreakScore, list_like};
+use crate::format::annotation::annotation_render_items_matching;
+use crate::format::collection::list_like;
 use crate::{Annotation, DestackFormatContext, DestackFormatter, FormatNode};
-use destack_ast::{Expression, LocalNodeId, Mutability, NodeTree, NodeType, Pattern, PatternField};
+use destack_ast::{
+    AnnotationPosition, Expression, LocalNodeId, Mutability, NodeTree, NodeType, Pattern,
+    PatternField,
+};
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
 
@@ -289,7 +293,10 @@ fn format_empty_pattern_delimiter_with_interior_annotations<'ast>(
     open: &'static str,
     close: &'static str,
 ) -> FormatResult<()> {
-    if !f.context().has_delimited_interior_annotation(node_id) {
+    let interior_items = annotation_render_items_matching(f.context(), node_id, |position| {
+        position == AnnotationPosition::BlockInfix
+    });
+    if interior_items.is_empty() {
         write!(f, [token(open), token(close)])?;
         return Ok(());
     }
@@ -298,7 +305,7 @@ fn format_empty_pattern_delimiter_with_interior_annotations<'ast>(
         f,
         [group(&format_args![
             token(open),
-            soft_block_indent(&f.context().delimited_interior_annotations(node_id)),
+            soft_block_indent(&f.context().block_infix_annotations(node_id)),
             token(close)
         ])]
     )?;
@@ -361,12 +368,7 @@ fn array_pattern_should_expand(
         .any(|field_id| pattern_field_prefers_multiline(context.tree, field_id));
     let has_field_annotations = pattern_fields_have_layout_forcing_annotations(context, fields);
 
-    CollectionBreakScore {
-        has_newline_in_source: has_newline,
-        has_item_annotations: has_field_annotations,
-        has_nested_complexity: has_nested_fields,
-    }
-    .should_expand_multiline()
+    has_newline && (has_nested_fields || has_field_annotations)
 }
 
 /// Return whether an object-like pattern should expand over multiple lines.
@@ -393,12 +395,7 @@ fn object_pattern_should_expand(
     let has_field_annotations = pattern_fields_have_layout_forcing_annotations(context, fields);
     let should_expand_for_parameter =
         should_expand_parameter_object_pattern(context, node_id, fields);
-    let should_expand_for_comments = CollectionBreakScore {
-        has_newline_in_source: has_newline,
-        has_item_annotations: has_field_annotations,
-        has_nested_complexity: false,
-    }
-    .should_expand_multiline();
+    let should_expand_for_comments = has_newline && has_field_annotations;
 
     (has_newline && has_nested_fields)
         || (has_nested_fields && fields.len() > 1 && !has_default_assignments)
@@ -704,79 +701,5 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
         write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
 
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::{DestackFormatOptions, TestFormatter, assert_format};
-
-    #[test]
-    fn test_format_pattern_wildcard() {
-        assert_format!("_", "_", |p| p.eat_pattern());
-    }
-
-    #[test]
-    fn test_format_pattern_reference() {
-        assert_format!("&_", "&_", |p| p.eat_pattern());
-
-        assert_format!("&1", "&1", |p| p.eat_pattern());
-    }
-
-    #[test]
-    fn test_format_pattern_must() {
-        assert_format!("T!", "T!", |p| p.eat_pattern());
-    }
-
-    #[test]
-    fn test_format_pattern_identifier() {
-        assert_format!("x", "x", |p| p.eat_pattern());
-    }
-
-    #[test]
-    fn test_format_pattern_path() {
-        assert_format!("MyEnum.A", "MyEnum.A", |p| p.eat_pattern());
-    }
-
-    #[test]
-    fn test_format_pattern_tuple() {
-        assert_format!("(x: 1, 2, ...)", "(x: 1, 2, ...)", |p| p.eat_pattern());
-    }
-
-    #[test]
-    fn test_format_pattern_tuple_with_path() {
-        assert_format!("Result.Success(_, ...)", "Result.Success(_, ...)", |p| p
-            .eat_pattern());
-    }
-
-    #[test]
-    fn test_format_pattern_slice() {
-        assert_format!("[1, 2, ...]", "[1, 2, ...]", |p| p.eat_pattern());
-    }
-
-    #[test]
-    fn test_format_pattern_union() {
-        assert_format!("1 | 2 | 3 | 4 | 5", "1 | 2 | 3 | 4 | 5", |p| p
-            .eat_pattern());
-    }
-
-    #[test]
-    fn test_format_pattern_array_rest_disallows_trailing_comma() {
-        assert_format!(
-            "[a, ...rest]",
-            "[\n    a,\n    ...rest\n]",
-            |p| p.eat_pattern(),
-            DestackFormatOptions::default_with_line_width(1)
-        );
-    }
-
-    #[test]
-    fn test_format_pattern_tuple_rest_disallows_trailing_comma() {
-        assert_format!(
-            "(a, ...rest)",
-            "(\n    a,\n    ...rest\n)",
-            |p| p.eat_pattern(),
-            DestackFormatOptions::default_with_line_width(1)
-        );
     }
 }

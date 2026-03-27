@@ -1,10 +1,11 @@
+use crate::format::chain::transparent_inner_expression;
 use crate::format::collection::list_like;
 use crate::format::collection::property::{format_block_of_members, format_key_with_quotes};
 use crate::format::declaration::signature::format_where_clause_with_break;
-use crate::format::declaration::statement::format_block_of_statements;
+use crate::format::declaration::statement_list::format_block_of_statements;
 use crate::format::expression::{
-    BinaryOperator, ParenthesizedDropMode, expression_has_static_type_arguments,
-    should_drop_parenthesized, transparent_inner_expression, type_index_left_requires_parentheses,
+    expression_has_static_type_arguments, should_drop_parenthesized_expression_wrapper,
+    type_index_left_requires_parentheses,
 };
 use crate::format::operator::{
     flatten_type_binary_expression, format_leading_pipe_union_with_external_prefix,
@@ -15,10 +16,10 @@ use crate::{
     empty_block_with_infix_annotations,
 };
 use destack_ast::{
-    AnnotationPosition, Declaration, DeclarationDescriptor, DeclarationKind, DependencyKind,
-    DependencyMode, Expression, FunctionKind, Generics, Heritage, IfKind, ImportAliasTarget, Key,
-    Keyword, LocalNodeId, Member, Mutability, Name, NamespaceKind, NodeType, Parameter, TokenType,
-    TypeKind, Visibility,
+    AnnotationPosition, BinaryOperator, Declaration, DeclarationDescriptor, DeclarationKind,
+    DependencyKind, DependencyMode, Expression, FunctionKind, Generics, Heritage, IfKind,
+    ImportAliasTarget, Key, Keyword, LocalNodeId, Member, Mutability, Name, NamespaceKind,
+    NodeType, Parameter, TokenType, TypeKind, Visibility,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -26,30 +27,10 @@ use destack_fir::{format_args, write};
 
 use crate::format::declaration::function::format_function_declaration;
 use crate::format::declaration::r#type::{
-    EnumDeclarationFormatData, format_enum_declaration, format_interface_declaration,
-    format_struct_or_class_declaration,
+    format_enum_declaration, format_interface_declaration, format_struct_or_class_declaration,
 };
 
 const TEMPLATE_LITERAL_TYPE_EQUALS_BREAK_WIDTH: u16 = 80;
-
-/// Normalized type-alias value expression data.
-struct NormalizedTypeAliasValueExpression {
-    /// The normalized value expression to print.
-    value_id: LocalNodeId<Expression>,
-    /// Transparent wrapper owners whose prefix annotations stay before `value_id`.
-    transparent_wrapper_prefix_annotation_owner_ids: Vec<LocalNodeId<Expression>>,
-}
-
-/// Aggregated annotation facts for transparent wrapper owners.
-#[derive(Default)]
-struct TransparentWrapperAnnotationFacts {
-    /// Whether any transparent wrapper has a block-prefix annotation.
-    has_block_prefix_annotation: bool,
-    /// Whether any transparent wrapper has an own-line prefix annotation.
-    has_own_line_prefix_annotation: bool,
-    /// Whether any transparent wrapper has an own-line line-prefix annotation before `|`.
-    has_own_line_pipe_prefix_annotation: bool,
-}
 
 /// Normalize one TypeScript type-alias value through transparent grouping wrappers.
 ///
@@ -57,12 +38,9 @@ struct TransparentWrapperAnnotationFacts {
 fn normalize_typescript_type_alias_value_expression(
     context: &DestackFormatContext<'_>,
     value_id: LocalNodeId<Expression>,
-) -> NormalizedTypeAliasValueExpression {
+) -> (LocalNodeId<Expression>, Vec<LocalNodeId<Expression>>) {
     if context.options.language_type.is_destack() {
-        return NormalizedTypeAliasValueExpression {
-            value_id,
-            transparent_wrapper_prefix_annotation_owner_ids: Vec::new(),
-        };
+        return (value_id, Vec::new());
     }
 
     let mut current_id = value_id;
@@ -95,9 +73,9 @@ fn normalize_typescript_type_alias_value_expression(
                 let operands = flatten_type_binary_expression(context, current_id, *operator);
                 if operands.len() == 1 {
                     if context.has_prefix_annotation(current_id) {
-                        break;
+                        transparent_wrapper_prefix_annotation_owner_ids.push(current_id);
                     }
-                    current_id = operands[0].expression;
+                    current_id = operands[0].1;
                     continue;
                 }
             }
@@ -107,10 +85,7 @@ fn normalize_typescript_type_alias_value_expression(
         break;
     }
 
-    NormalizedTypeAliasValueExpression {
-        value_id: current_id,
-        transparent_wrapper_prefix_annotation_owner_ids,
-    }
+    (current_id, transparent_wrapper_prefix_annotation_owner_ids)
 }
 
 /// Return whether one union value ends with an own-line doc prefix annotation.
@@ -206,8 +181,10 @@ fn type_alias_value_is_type_binary_expression(
 fn transparent_wrapper_annotation_facts_for_expression(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
-) -> TransparentWrapperAnnotationFacts {
-    let mut facts = TransparentWrapperAnnotationFacts::default();
+) -> (bool, bool, bool) {
+    let mut has_block_prefix_annotation = false;
+    let mut has_own_line_prefix_annotation = false;
+    let mut has_own_line_pipe_prefix_annotation = false;
 
     context
         .visit_annotations(expression_id, |annotations| {
@@ -216,7 +193,7 @@ fn transparent_wrapper_annotation_facts_for_expression(
                 let starts_on_own_line = context.annotation_starts_on_own_line(annotation_id);
 
                 if position == AnnotationPosition::BlockPrefix {
-                    facts.has_block_prefix_annotation = true;
+                    has_block_prefix_annotation = true;
                 }
 
                 if matches!(
@@ -224,7 +201,7 @@ fn transparent_wrapper_annotation_facts_for_expression(
                     AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
                 ) && starts_on_own_line
                 {
-                    facts.has_own_line_prefix_annotation = true;
+                    has_own_line_prefix_annotation = true;
                 }
 
                 if position == AnnotationPosition::LinePrefix
@@ -233,12 +210,12 @@ fn transparent_wrapper_annotation_facts_for_expression(
                     && context.annotation_next_non_whitespace_token_type(annotation_id)
                         == Some(TokenType::ElementwiseOr)
                 {
-                    facts.has_own_line_pipe_prefix_annotation = true;
+                    has_own_line_pipe_prefix_annotation = true;
                 }
 
-                if facts.has_block_prefix_annotation
-                    && facts.has_own_line_prefix_annotation
-                    && facts.has_own_line_pipe_prefix_annotation
+                if has_block_prefix_annotation
+                    && has_own_line_prefix_annotation
+                    && has_own_line_pipe_prefix_annotation
                 {
                     break;
                 }
@@ -246,33 +223,45 @@ fn transparent_wrapper_annotation_facts_for_expression(
         })
         .unwrap_or(());
 
-    facts
+    (
+        has_block_prefix_annotation,
+        has_own_line_prefix_annotation,
+        has_own_line_pipe_prefix_annotation,
+    )
 }
 
 /// Build annotation facts for transparent wrapper owners around one type-alias value.
 fn collect_transparent_wrapper_annotation_facts(
     context: &DestackFormatContext<'_>,
     expression_ids: &[LocalNodeId<Expression>],
-) -> TransparentWrapperAnnotationFacts {
-    let mut facts = TransparentWrapperAnnotationFacts::default();
+) -> (bool, bool, bool) {
+    let mut has_block_prefix_annotation = false;
+    let mut has_own_line_prefix_annotation = false;
+    let mut has_own_line_pipe_prefix_annotation = false;
 
     for expression_id in expression_ids.iter().copied() {
-        let expression_facts =
-            transparent_wrapper_annotation_facts_for_expression(context, expression_id);
-        facts.has_block_prefix_annotation |= expression_facts.has_block_prefix_annotation;
-        facts.has_own_line_prefix_annotation |= expression_facts.has_own_line_prefix_annotation;
-        facts.has_own_line_pipe_prefix_annotation |=
-            expression_facts.has_own_line_pipe_prefix_annotation;
+        let (
+            expression_has_block_prefix_annotation,
+            expression_has_own_line_prefix_annotation,
+            expression_has_own_line_pipe_prefix_annotation,
+        ) = transparent_wrapper_annotation_facts_for_expression(context, expression_id);
+        has_block_prefix_annotation |= expression_has_block_prefix_annotation;
+        has_own_line_prefix_annotation |= expression_has_own_line_prefix_annotation;
+        has_own_line_pipe_prefix_annotation |= expression_has_own_line_pipe_prefix_annotation;
 
-        if facts.has_block_prefix_annotation
-            && facts.has_own_line_prefix_annotation
-            && facts.has_own_line_pipe_prefix_annotation
+        if has_block_prefix_annotation
+            && has_own_line_prefix_annotation
+            && has_own_line_pipe_prefix_annotation
         {
             break;
         }
     }
 
-    facts
+    (
+        has_block_prefix_annotation,
+        has_own_line_prefix_annotation,
+        has_own_line_pipe_prefix_annotation,
+    )
 }
 
 /// Format one declaration export modifier and export-head seam comments.
@@ -284,11 +273,7 @@ pub(crate) fn format_declaration_export_modifier<'ast>(
     if let Some(export) = descriptor.export {
         write!(
             f,
-            [
-                export,
-                space(),
-                f.context().declaration_export_head_annotations(node_id)
-            ]
+            [export, space(), f.context().any_prefix_annotations(node_id)]
         )?;
     }
 
@@ -724,11 +709,13 @@ pub(crate) fn format_type_alias_declaration<'ast>(
     static_parameters: &Option<Vec<LocalNodeId<Parameter>>>,
     value_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    let normalized_value = normalize_typescript_type_alias_value_expression(f.context(), value_id);
-    let value_id = normalized_value.value_id;
-    let transparent_wrapper_prefix_annotation_owner_ids =
-        normalized_value.transparent_wrapper_prefix_annotation_owner_ids;
-    let transparent_wrapper_annotation_facts = collect_transparent_wrapper_annotation_facts(
+    let (value_id, transparent_wrapper_prefix_annotation_owner_ids) =
+        normalize_typescript_type_alias_value_expression(f.context(), value_id);
+    let (
+        transparent_wrapper_has_block_prefix_annotation,
+        transparent_wrapper_has_own_line_prefix_annotation,
+        transparent_wrapper_has_own_line_pipe_prefix_annotation,
+    ) = collect_transparent_wrapper_annotation_facts(
         f.context(),
         transparent_wrapper_prefix_annotation_owner_ids.as_slice(),
     );
@@ -742,8 +729,8 @@ pub(crate) fn format_type_alias_declaration<'ast>(
         }
     ) && is_type_context(f.context(), value_id);
     let transparent_wrapper_has_own_line_pipe_prefix_annotation = value_is_type_union
-        && transparent_wrapper_annotation_facts.has_block_prefix_annotation
-        && transparent_wrapper_annotation_facts.has_own_line_pipe_prefix_annotation;
+        && transparent_wrapper_has_block_prefix_annotation
+        && transparent_wrapper_has_own_line_pipe_prefix_annotation;
 
     let header = format_with(|f| {
         // export
@@ -772,10 +759,7 @@ pub(crate) fn format_type_alias_declaration<'ast>(
         // static parameters
         if let Some(static_parameters) = static_parameters {
             write!(f, [list_like("<", ">", ",", static_parameters)])?;
-            write!(
-                f,
-                [f.context().declaration_generic_head_annotations(node_id)]
-            )?;
+            write!(f, [f.context().any_prefix_annotations(node_id)])?;
         }
 
         Ok(())
@@ -874,7 +858,7 @@ pub(crate) fn format_type_alias_declaration<'ast>(
     };
     let value_has_own_line_prefix_annotation =
         expression_has_own_line_prefix_annotation(f.context(), value_id)
-            || transparent_wrapper_annotation_facts.has_own_line_prefix_annotation;
+            || transparent_wrapper_has_own_line_prefix_annotation;
     let should_break_for_prefix_annotation = if value_is_type_binary {
         transparent_wrapper_has_own_line_pipe_prefix_annotation
     } else {
@@ -883,12 +867,9 @@ pub(crate) fn format_type_alias_declaration<'ast>(
     let should_break_for_union_trailing_doc_prefix_annotation = value_is_type_union
         && union_has_trailing_own_line_doc_prefix_annotation(f.context(), value_id);
     let value_prefers_inline_after_equals = match value_expression {
-        Expression::Parenthesized { expression } => !should_drop_parenthesized(
-            f.context(),
-            value_id,
-            *expression,
-            ParenthesizedDropMode::ExpressionWrapper,
-        ),
+        Expression::Parenthesized { expression } => {
+            !should_drop_parenthesized_expression_wrapper(f.context(), value_id, *expression)
+        }
         Expression::Index { left, .. } => {
             matches!(tree.get(*left), Expression::Parenthesized { .. })
                 || needs_parens_in_postfix_position(tree, *left)
@@ -966,7 +947,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
             } else {
                 None
             };
-        write!(f, [f.context().declaration_prefix_annotations(node_id)])?;
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
         let mut declaration_emits_boundary_before_terminator = false;
 
         match self {
@@ -1055,15 +1036,9 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 fields,
                 members,
             } => {
-                let data = EnumDeclarationFormatData {
-                    descriptor,
-                    kind: *kind,
-                    generics,
-                    heritage,
-                    fields,
-                    members,
-                };
-                if format_enum_declaration(f, node_id, data)? {
+                if format_enum_declaration(
+                    f, node_id, descriptor, *kind, generics, heritage, fields, members,
+                )? {
                     return Ok(());
                 }
             }

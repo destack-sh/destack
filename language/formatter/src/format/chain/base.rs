@@ -1,10 +1,15 @@
-use crate::format::expression::{
-    Argument, Declarator, DestackFormatContext, DestackFormatter, Expression, FormatError,
-    FormatResult, LocalNodeId, NodeTree, NodeType, PostfixPosition, StringId, is_chain_expression,
-    needs_parens_in_postfix_position, token, write_postfix_base_expression,
+use crate::format::operator::{
+    is_chain_expression, needs_parens_in_postfix_position, write_postfix_base_expression,
 };
-use destack_fir::format::Buffer;
+use crate::{DestackFormatContext, DestackFormatter};
+use destack_ast::{
+    Argument, Declarator, Expression, LocalNodeId, NodeTree, NodeType, PostfixPosition,
+};
+use destack_core::StringId;
+use destack_fir::format::{Buffer, FormatError, FormatResult};
+use destack_fir::prelude::token;
 use destack_fir::write;
+use smallvec::SmallVec;
 
 /// Extract a parenthesized base with a direct index chain.
 pub(crate) fn extract_parenthesized_index_chain(
@@ -116,6 +121,44 @@ pub(crate) enum ChainExpression {
         node_id: LocalNodeId<Expression>,
         position: PostfixPosition,
     },
+}
+
+/// Return the expression node id carried by one chain operation.
+pub(crate) fn chain_operation_node_id(operation: &ChainExpression) -> LocalNodeId<Expression> {
+    match operation {
+        ChainExpression::Member { node_id, .. }
+        | ChainExpression::Instantiation { node_id, .. }
+        | ChainExpression::Call { node_id, .. }
+        | ChainExpression::Index { node_id, .. }
+        | ChainExpression::Maybe { node_id, .. }
+        | ChainExpression::Must { node_id, .. } => *node_id,
+    }
+}
+
+/// Return whether one chain operation is an index access.
+pub(crate) fn chain_operation_is_index(operation: &ChainExpression) -> bool {
+    matches!(operation, ChainExpression::Index { .. })
+}
+
+/// Return the first operation of the first grouped line.
+pub(crate) fn first_grouped_line_operation(
+    lines: &[SmallVec<[ChainExpression; 2]>],
+) -> Option<&ChainExpression> {
+    lines.first().and_then(|line| line.first())
+}
+
+/// Return the trailing node of one chain base.
+pub(crate) fn chain_base_trailing_node_id(
+    base: &ChainExpressionBase,
+) -> Option<LocalNodeId<Expression>> {
+    if let Some(last_operation) = base.body.last() {
+        return Some(chain_operation_node_id(last_operation));
+    }
+
+    let ChainExpressionBaseHead::Path { node_id, .. } = base.head else {
+        return None;
+    };
+    Some(node_id)
 }
 
 /// Return the left operand for one chain node.

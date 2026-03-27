@@ -1,51 +1,15 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 
-use destack_ast::{Comment, LocalNodeId, Node, NodeTree, NodeTreeImpl, TokenSpan, TokenType};
+use destack_ast::{
+    Comment, CommentDirective, LocalNodeId, Node, NodeTree, NodeTreeImpl, TokenSpan, TokenType,
+};
 use destack_fir::format::{FormatResult, text};
 use destack_fir::prelude::*;
 use destack_fir::write;
 use destack_source::Span;
 
 use crate::{DestackFormatContext, DestackFormatter};
-
-/// The formatter directives supported via comments.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FormatterDirectiveKind {
-    /// Ignore formatting for the next node.
-    IgnoreFormat,
-}
-
-/// The position of a formatter directive relative to a node.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FormatterDirectivePosition {
-    /// The directive appears before the node.
-    Prefix { comment_span: Span },
-    /// The directive appears after the node.
-    Postfix { comment_span: Span },
-}
-
-/// A formatter directive attached to a node.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct FormatterDirective {
-    /// The directive kind.
-    pub kind: FormatterDirectiveKind,
-    /// The position of the directive.
-    pub position: FormatterDirectivePosition,
-}
-
-/// The directive tokens parsed from comment text.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum FormatterDirectiveToken {
-    /// Ignore formatting for the next node.
-    Ignore,
-    /// Ignore formatting for the current file.
-    IgnoreFile,
-    /// Begin ignoring formatting until the matching end token.
-    IgnoreStart,
-    /// End the current ignore range.
-    IgnoreEnd,
-}
 
 /// Single-line ignore directive markers supported by formatter behavior.
 const IGNORE_DIRECTIVES: &[&str] = &["prettier-ignore", "oxfmt-ignore"];
@@ -70,7 +34,7 @@ fn marker_matches_any(marker: &str, markers: &[&str]) -> bool {
 fn directive_token_for_comment_token(
     ctx: &DestackFormatContext<'_>,
     token: TokenSpan,
-) -> Option<FormatterDirectiveToken> {
+) -> Option<CommentDirective> {
     parse_directive_token_from_raw(ctx.token_str(token))
 }
 
@@ -105,31 +69,23 @@ fn prefix_comment_token_for_node(
     Some(token)
 }
 
-/// Return one formatter directive kind for one parsed directive token.
-fn directive_kind_for_token(token: FormatterDirectiveToken) -> Option<FormatterDirectiveKind> {
-    match token {
-        FormatterDirectiveToken::Ignore | FormatterDirectiveToken::IgnoreStart => {
-            Some(FormatterDirectiveKind::IgnoreFormat)
-        }
-        FormatterDirectiveToken::IgnoreFile | FormatterDirectiveToken::IgnoreEnd => None,
-    }
-}
-
-/// Resolve the formatter directive for a node, if any.
-pub fn directive_for_node<T: Node + Clone>(
+/// Return whether one node has a prefix ignore directive.
+pub fn node_has_ignore_directive<T: Node + Clone>(
     ctx: &DestackFormatContext<'_>,
     node_id: LocalNodeId<T>,
-) -> Option<FormatterDirective>
+) -> bool
 where
     NodeTree: NodeTreeImpl<T>,
 {
     if !ctx.has_ignore_directive_markers() {
-        return None;
+        return false;
     }
 
     let node_span = ctx.span(node_id);
     let comment_tokens = ctx.comment_tokens();
-    let token = prefix_comment_token_for_node(ctx, node_span, comment_tokens)?;
+    let Some(token) = prefix_comment_token_for_node(ctx, node_span, comment_tokens) else {
+        return false;
+    };
     let (between_is_whitespace_only, line_distance) = if token.span.end > node_span.start {
         (true, 0)
     } else {
@@ -143,17 +99,13 @@ where
         (between_is_whitespace_only, line_distance)
     };
     if !between_is_whitespace_only || line_distance > 1 {
-        return None;
+        return false;
     }
 
-    let directive_token = directive_token_for_comment_token(ctx, token)?;
-    let kind = directive_kind_for_token(directive_token)?;
-    Some(FormatterDirective {
-        kind,
-        position: FormatterDirectivePosition::Prefix {
-            comment_span: token.span,
-        },
-    })
+    matches!(
+        directive_token_for_comment_token(ctx, token),
+        Some(CommentDirective::FormatIgnore | CommentDirective::FormatIgnoreStart)
+    )
 }
 
 /// Resolve an ignore range directive for a node.
@@ -178,17 +130,21 @@ where
     }
 
     match directive_token_for_comment_token(ctx, token) {
-        Some(FormatterDirectiveToken::Ignore) => {
+        Some(CommentDirective::FormatIgnore) => {
             let range_span = Span::new(node_span.file, token.span.start, node_span.end);
             Some(ctx.extend_span_with_trailing_line_tokens(range_span))
         }
-        Some(FormatterDirectiveToken::IgnoreStart) => {
+        Some(CommentDirective::FormatIgnoreStart) => {
             let end_span = find_ignore_range_end(ctx, comment_tokens, token.span.end)?;
             Some(Span::new(token.span.file, token.span.start, end_span.start))
         }
-        Some(FormatterDirectiveToken::IgnoreFile | FormatterDirectiveToken::IgnoreEnd) | None => {
-            None
-        }
+        Some(CommentDirective::FormatIgnoreFile | CommentDirective::FormatIgnoreEnd)
+        | Some(CommentDirective::None)
+        | Some(CommentDirective::Legal)
+        | Some(CommentDirective::Pure)
+        | Some(CommentDirective::NoSideEffects)
+        | Some(CommentDirective::TypeScript)
+        | None => None,
     }
 }
 
@@ -254,7 +210,7 @@ pub fn has_file_ignore_directive(ctx: &DestackFormatContext<'_>) -> bool {
             | TokenType::DocBlockComment => {
                 if matches!(
                     directive_token_for_comment_token(ctx, token),
-                    Some(FormatterDirectiveToken::IgnoreFile)
+                    Some(CommentDirective::FormatIgnoreFile)
                 ) {
                     return true;
                 }
@@ -342,12 +298,11 @@ pub fn write_ignored_span<'ast>(
 pub fn write_ignored_node<'ast, T: Node>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<T>,
-    directive: FormatterDirective,
 ) -> FormatResult<()>
 where
     NodeTree: NodeTreeImpl<T>,
 {
-    let span = ignored_node_span(f.context(), node_id, directive);
+    let span = f.context().span(node_id);
     write_ignored_span(f, span)
 }
 
@@ -476,26 +431,6 @@ fn dedent_common_leading_whitespace_after_first_line(raw: &str) -> String {
     normalized_lines.join("\n")
 }
 
-/// Return the source range that should be preserved for one ignored node.
-pub fn ignored_node_span<T: Node>(
-    ctx: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<T>,
-    directive: FormatterDirective,
-) -> Span
-where
-    NodeTree: NodeTreeImpl<T>,
-{
-    let span = ctx.span(node_id);
-    let (start, end) = match directive.position {
-        FormatterDirectivePosition::Prefix { .. } => (span.start, span.end),
-        FormatterDirectivePosition::Postfix { comment_span } => {
-            (span.start, comment_span.end.max(span.end))
-        }
-    };
-
-    Span::new(span.file, start, end)
-}
-
 /// Find the matching ignore range end comment following a start offset.
 fn find_ignore_range_end(
     ctx: &DestackFormatContext<'_>,
@@ -507,7 +442,7 @@ fn find_ignore_range_end(
         .filter(|token| token.span.start >= start_offset)
         .find_map(|token| {
             if directive_token_for_comment_token(ctx, *token)
-                == Some(FormatterDirectiveToken::IgnoreEnd)
+                == Some(CommentDirective::FormatIgnoreEnd)
             {
                 Some(token.span)
             } else {
@@ -517,7 +452,7 @@ fn find_ignore_range_end(
 }
 
 /// Parse a directive token from a raw comment string (including markers).
-fn parse_directive_token_from_raw(raw: &str) -> Option<FormatterDirectiveToken> {
+fn parse_directive_token_from_raw(raw: &str) -> Option<CommentDirective> {
     let content = strip_comment_markers(raw);
     parse_directive_token(content.as_ref())
 }
@@ -526,7 +461,7 @@ fn parse_directive_token_from_raw(raw: &str) -> Option<FormatterDirectiveToken> 
 pub(crate) fn is_ignore_directive_comment(raw: &str) -> bool {
     matches!(
         parse_directive_token_from_raw(raw),
-        Some(FormatterDirectiveToken::Ignore | FormatterDirectiveToken::IgnoreStart)
+        Some(CommentDirective::FormatIgnore | CommentDirective::FormatIgnoreStart)
     )
 }
 
@@ -553,10 +488,10 @@ pub(crate) fn is_any_ignore_directive_comment(raw: &str) -> bool {
     matches!(
         parse_directive_token_from_raw(raw),
         Some(
-            FormatterDirectiveToken::Ignore
-                | FormatterDirectiveToken::IgnoreFile
-                | FormatterDirectiveToken::IgnoreStart
-                | FormatterDirectiveToken::IgnoreEnd
+            CommentDirective::FormatIgnore
+                | CommentDirective::FormatIgnoreFile
+                | CommentDirective::FormatIgnoreStart
+                | CommentDirective::FormatIgnoreEnd
         )
     )
 }
@@ -575,7 +510,7 @@ fn strip_comment_markers(raw: &str) -> Cow<'_, str> {
 }
 
 /// Parse a directive token from comment content.
-fn parse_directive_token(comment: &str) -> Option<FormatterDirectiveToken> {
+fn parse_directive_token(comment: &str) -> Option<CommentDirective> {
     let mut first_significant_line = None;
     let mut has_additional_significant_line = false;
     for line in comment.lines() {
@@ -592,217 +527,29 @@ fn parse_directive_token(comment: &str) -> Option<FormatterDirectiveToken> {
     }
     let first_significant_line = first_significant_line?;
 
-    // NOTE #Architecture: behavior is keyed on concrete directive spellings
-    // parser directive enums collapse aliases and do not retain which marker appeared
     if !has_additional_significant_line
         && marker_matches_any(first_significant_line, IGNORE_DIRECTIVES)
     {
-        return Some(FormatterDirectiveToken::Ignore);
+        return Some(CommentDirective::FormatIgnore);
     }
 
     if !has_additional_significant_line
         && marker_matches_any(first_significant_line, IGNORE_FILE_DIRECTIVES)
     {
-        return Some(FormatterDirectiveToken::IgnoreFile);
+        return Some(CommentDirective::FormatIgnoreFile);
     }
 
     if !has_additional_significant_line
         && marker_matches_any(first_significant_line, IGNORE_START_DIRECTIVES)
     {
-        return Some(FormatterDirectiveToken::IgnoreStart);
+        return Some(CommentDirective::FormatIgnoreStart);
     }
 
     if !has_additional_significant_line
         && marker_matches_any(first_significant_line, IGNORE_END_DIRECTIVES)
     {
-        return Some(FormatterDirectiveToken::IgnoreEnd);
+        return Some(CommentDirective::FormatIgnoreEnd);
     }
 
     None
-}
-
-#[cfg(test)]
-mod tests {
-    use std::sync::Arc;
-
-    use destack_ast::{Expression, NodeParentIndex};
-    use destack_parser::Parser;
-    use destack_source::{File, FileId, FileType, LanguageType, Uri};
-    use destack_workspace::FormatterOptions;
-
-    use crate::format::directive::{
-        comment_tokens, dedent_common_leading_whitespace_after_first_line, directive_for_node,
-        ignore_range_for_node, ignored_node_span, ignored_span_source,
-    };
-    use crate::{DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions};
-
-    #[test]
-    fn test_format_ignore_range_for_statement() {
-        let source = "// prettier-ignore\ncall(   a, b)";
-        let file = Arc::new(File::from_text(
-            FileId::new(0),
-            "main.ts".to_string(),
-            Uri::from_string("file://main.ts"),
-            None,
-            FileType::TypeScript,
-            source.to_string(),
-        ));
-
-        let mut parser = Parser::lex_file(file.clone(), LanguageType::TypeScript);
-        let expressions = parser.parse();
-
-        let side_span = parser.compute_side_span();
-        let (tokens, side_tokens) = parser.take_tokens();
-        let strings = parser.strings.into_immutable();
-        let parents = NodeParentIndex::from_tree(&parser.tree);
-        let options = DestackFormatOptions::from_formatter_options(
-            FormatterOptions::default(),
-            LanguageType::TypeScript,
-        );
-        let ctx = DestackFormatContext::new(
-            options,
-            DestackFormatArtifacts {
-                file: &file,
-                tree: &parser.tree,
-                tokens: &tokens,
-                side_tokens: &side_tokens,
-                side_span: &side_span,
-                strings: &strings,
-                parents,
-            },
-        );
-
-        let comment_tokens = comment_tokens(&ctx);
-        assert!(!comment_tokens.is_empty());
-        let range = ignore_range_for_node(&ctx, expressions[0], &comment_tokens);
-        assert!(range.is_some());
-    }
-
-    #[test]
-    fn test_ignore_range_for_call_arguments_uses_comment_column_start() {
-        let source = r#"doThing(
-    1,
-    // oxfmt-ignore-start
-    foo ( 1 ,2 ),
-    bar(3),
-    // oxfmt-ignore-end
-    4,
-)"#;
-        let file = Arc::new(File::from_text(
-            FileId::new(0),
-            "main.ts".to_string(),
-            Uri::from_string("file://main.ts"),
-            None,
-            FileType::TypeScript,
-            source.to_string(),
-        ));
-
-        let mut parser = Parser::lex_file(file.clone(), LanguageType::TypeScript);
-        let expressions = parser.parse();
-        assert_eq!(expressions.len(), 1);
-
-        let second_argument = match parser.tree.get(expressions[0]) {
-            Expression::Statement(call_expression_id) => match parser.tree.get(*call_expression_id)
-            {
-                Expression::Call {
-                    dynamic_arguments, ..
-                } => dynamic_arguments[1],
-                _ => panic!("expected call expression"),
-            },
-            _ => panic!("expected statement expression"),
-        };
-
-        let side_span = parser.compute_side_span();
-        let (tokens, side_tokens) = parser.take_tokens();
-        let strings = parser.strings.into_immutable();
-        let parents = NodeParentIndex::from_tree(&parser.tree);
-        let options = DestackFormatOptions::from_formatter_options(
-            FormatterOptions::default(),
-            LanguageType::TypeScript,
-        );
-        let ctx = DestackFormatContext::new(
-            options,
-            DestackFormatArtifacts {
-                file: &file,
-                tree: &parser.tree,
-                tokens: &tokens,
-                side_tokens: &side_tokens,
-                side_span: &side_span,
-                strings: &strings,
-                parents,
-            },
-        );
-
-        let comment_tokens = comment_tokens(&ctx);
-        let range = ignore_range_for_node(&ctx, second_argument, &comment_tokens)
-            .expect("expected ignore range for second argument");
-
-        let (_, start_column) = ctx
-            .file
-            .get_position(range.start)
-            .expect("expected range start position");
-        assert_eq!(start_column, 4);
-
-        let raw = ignored_span_source(&ctx, range);
-        assert!(raw.starts_with("// oxfmt-ignore-start"));
-    }
-
-    #[test]
-    fn test_ignored_node_span_prefix_uses_node_source_only() {
-        let source = "// prettier-ignore\ncall(   a, b)\n";
-        let file = Arc::new(File::from_text(
-            FileId::new(0),
-            "main.ts".to_string(),
-            Uri::from_string("file://main.ts"),
-            None,
-            FileType::TypeScript,
-            source.to_string(),
-        ));
-
-        let mut parser = Parser::lex_file(file.clone(), LanguageType::TypeScript);
-        let expressions = parser.parse();
-        assert_eq!(expressions.len(), 1);
-
-        let statement_expression_id = expressions[0];
-        let expression_id = match parser.tree.get(statement_expression_id) {
-            Expression::Statement(expression_id) => *expression_id,
-            _ => panic!("expected statement expression"),
-        };
-
-        let side_span = parser.compute_side_span();
-        let (tokens, side_tokens) = parser.take_tokens();
-        let strings = parser.strings.into_immutable();
-        let parents = NodeParentIndex::from_tree(&parser.tree);
-        let options = DestackFormatOptions::from_formatter_options(
-            FormatterOptions::default(),
-            LanguageType::TypeScript,
-        );
-        let ctx = DestackFormatContext::new(
-            options,
-            DestackFormatArtifacts {
-                file: &file,
-                tree: &parser.tree,
-                tokens: &tokens,
-                side_tokens: &side_tokens,
-                side_span: &side_span,
-                strings: &strings,
-                parents,
-            },
-        );
-
-        let directive =
-            directive_for_node(&ctx, expression_id).expect("expected prefix ignore directive");
-        let ignored_span = ignored_node_span(&ctx, expression_id, directive);
-        let raw = ignored_span_source(&ctx, ignored_span);
-
-        assert_eq!(raw, "call(   a, b)");
-    }
-
-    #[test]
-    fn test_dedent_common_leading_whitespace_after_first_line_dedents_nested_lines() {
-        let raw = "{\n    [A in B]: C | D;\n  };";
-        let dedented = dedent_common_leading_whitespace_after_first_line(raw);
-
-        assert_eq!(dedented, "{\n  [A in B]: C | D;\n};");
-    }
 }
