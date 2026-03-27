@@ -1,8 +1,7 @@
-use super::ownership::find_smallest_owner_enclosing_range;
-use super::render::annotation_precedes_separator;
+use crate::format::annotation::find_smallest_owner_enclosing_range;
 use crate::{
-    Annotation, DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions, TestFormatter,
-    assert_format, assert_format_output_eq, assert_format_program_idempotent_with_file_type,
+    Annotation, DestackFormatContext, DestackFormatOptions, TestFormatter, assert_format,
+    assert_format_output_eq, assert_format_program_idempotent_with_file_type,
     assert_format_program_roundtrip_with_file_type, statement_list,
 };
 use ast::{
@@ -20,15 +19,13 @@ use std::sync::Arc;
 fn context_from_formatter(formatter: &TestFormatter) -> DestackFormatContext<'_> {
     DestackFormatContext::new(
         DestackFormatOptions::default(),
-        DestackFormatArtifacts {
-            file: &formatter.file,
-            tree: &formatter.tree,
-            tokens: &formatter.tokens,
-            side_tokens: &formatter.side_tokens,
-            side_span: &formatter.side_span,
-            strings: &formatter.strings,
-            parents: NodeParentIndex::from_tree(&formatter.tree),
-        },
+        &formatter.file,
+        &formatter.tree,
+        &formatter.tokens,
+        &formatter.side_tokens,
+        &formatter.side_span,
+        &formatter.strings,
+        NodeParentIndex::from_tree(&formatter.tree),
     )
 }
 
@@ -56,6 +53,34 @@ fn javascript_xml_format_options() -> DestackFormatOptions {
     )
 }
 
+/// Return whether a separator punctuation immediately follows an annotation.
+fn annotation_precedes_separator(
+    ctx: &DestackFormatContext<'_>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> bool {
+    ctx.annotation_next_non_whitespace_token_type(annotation_id)
+        .is_some_and(|token_type| {
+            matches!(
+                token_type,
+                TokenType::Comma
+                    | TokenType::Semicolon
+                    | TokenType::LessThan
+                    | TokenType::OpenParenthesis
+                    | TokenType::CloseParenthesis
+                    | TokenType::OpenBracket
+                    | TokenType::CloseBracket
+                    | TokenType::CloseBrace
+                    | TokenType::GreaterThan
+                    | TokenType::Maybe
+                    | TokenType::Dot
+                    | TokenType::Colon
+                    | TokenType::Assign
+                    | TokenType::ElementwiseOr
+                    | TokenType::ElementwiseAnd
+            )
+        })
+}
+
 /// Format one program string with the same parse path as formatter conformance.
 fn format_program_conformance_style(source: &str, file_type: FileType) -> String {
     let file = Arc::new(File::from_text(
@@ -81,15 +106,13 @@ fn format_program_conformance_style(source: &str, file_type: FileType) -> String
     );
     let ctx = DestackFormatContext::new(
         options,
-        DestackFormatArtifacts {
-            file: &file,
-            tree: &parser.tree,
-            tokens: &tokens,
-            side_tokens: &side_tokens,
-            side_span: &side_span,
-            strings: &strings,
-            parents: NodeParentIndex::from_tree(&parser.tree),
-        },
+        &file,
+        &parser.tree,
+        &tokens,
+        &side_tokens,
+        &side_span,
+        &strings,
+        NodeParentIndex::from_tree(&parser.tree),
     );
     let formatted = fir_format!(ctx.clone(), [statement_list(&expressions)]).unwrap();
     let mut output = formatted.print().unwrap().as_str().to_string();
@@ -115,7 +138,7 @@ fn find_annotation_by_marker(
         Annotation::Blank { .. } | Annotation::Decorator { .. } => false,
     };
 
-    for (entry_index, _) in ctx.formatter_annotation_entries.iter().enumerate() {
+    for (entry_index, _) in ctx.annotation_entries.iter().enumerate() {
         let annotation_id = LocalNodeId::<Annotation>::new(entry_index as u32);
         if annotation_matches_marker(annotation_id, marker) {
             return Some(annotation_id);
@@ -130,7 +153,7 @@ fn find_annotation_by_marker_fragment(
     ctx: &DestackFormatContext<'_>,
     marker: &str,
 ) -> Option<LocalNodeId<Annotation>> {
-    for (entry_index, _) in ctx.formatter_annotation_entries.iter().enumerate() {
+    for (entry_index, _) in ctx.annotation_entries.iter().enumerate() {
         let annotation_id = LocalNodeId::<Annotation>::new(entry_index as u32);
         let matches_marker = match ctx.annotation(annotation_id) {
             Annotation::Comment { node, .. } => ctx.comment_text(node).contains(marker),
@@ -155,7 +178,7 @@ fn find_annotations_by_marker(
 ) -> Vec<LocalNodeId<Annotation>> {
     let mut annotation_ids = Vec::new();
 
-    for (entry_index, _) in ctx.formatter_annotation_entries.iter().enumerate() {
+    for (entry_index, _) in ctx.annotation_entries.iter().enumerate() {
         let annotation_id = LocalNodeId::<Annotation>::new(entry_index as u32);
         let annotation = ctx.annotation(annotation_id);
         let matches_marker = matches!(
@@ -175,7 +198,7 @@ fn find_annotation_target_owner_node(
     ctx: &DestackFormatContext<'_>,
     annotation_id: LocalNodeId<Annotation>,
 ) -> Option<usize> {
-    ctx.formatter_annotation_ids_by_node_id
+    ctx.annotation_ids_by_node_id
         .iter()
         .enumerate()
         .find_map(|(node_index, annotation_ids)| {
@@ -688,7 +711,7 @@ fn test_annotation_inline_comment_between_closing_paren_and_semicolon_is_boundar
         .expect("expected closing-paren semicolon marker annotation");
     let position = ctx.annotation(annotation_id).position();
     let owner_node_ids = ctx
-        .formatter_annotation_ids_by_node_id
+        .annotation_ids_by_node_id
         .iter()
         .enumerate()
         .filter_map(|(node_index, annotation_ids)| {
@@ -795,7 +818,7 @@ fn test_annotation_optional_call_line_boundary_comment_attaches_once() {
     } else {
         "NonExpression"
     };
-    let owner_annotation_count = ctx.formatter_annotation_ids_by_node_id[owner_node]
+    let owner_annotation_count = ctx.annotation_ids_by_node_id[owner_node]
         .iter()
         .filter(|candidate_id| candidate_id.id == annotation_id.id)
         .count();
@@ -809,7 +832,7 @@ fn test_annotation_optional_call_line_boundary_comment_attaches_once() {
     );
 
     let total_owner_occurrences = ctx
-        .formatter_annotation_ids_by_node_id
+        .annotation_ids_by_node_id
         .iter()
         .flat_map(|annotation_ids| annotation_ids.iter())
         .filter(|candidate_id| candidate_id.id == annotation_id.id)
@@ -1564,6 +1587,26 @@ fn test_annotation_do_while_semicolon_guard_comment_stays_on_guarded_expression(
     let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
 
     assert_eq!(position, AnnotationPosition::BlockPrefix);
+    assert_eq!(owner_node_type, NodeType::Expression);
+}
+
+/// Inline comments after `do` stay on the following body expression.
+#[test]
+fn test_annotation_do_while_head_inline_comment_stays_on_body_expression() {
+    let source = "do // do-inline-marker\nfoo(); while (1)\n";
+    let (formatter, _) =
+        TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
+            .expect("parse do-while inline comment source");
+    let ctx = context_from_formatter(&formatter);
+
+    let annotation_id = find_annotation_by_marker(&ctx, "do-inline-marker")
+        .expect("expected do-while inline marker annotation");
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
+        .expect("expected do-while inline marker owner node");
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
+
+    assert_eq!(position, AnnotationPosition::LinePrefix);
     assert_eq!(owner_node_type, NodeType::Expression);
 }
 
@@ -3426,7 +3469,7 @@ import x from "module";
     );
 
     let annotations = ctx
-        .formatter_annotation_ids_by_node_id
+        .annotation_ids_by_node_id
         .get(owner_node)
         .expect("expected annotation ids for comment owner node");
     let has_blank_prefix = annotations.iter().copied().any(|annotation_id| {
@@ -3921,8 +3964,7 @@ fn test_annotation_zero_argument_parenthesized_callee_comment_stays_on_parenthes
     assert_eq!(position, AnnotationPosition::LinePostfix);
     assert!(
         matches!(owner_expression, Expression::Parenthesized { .. }),
-        "expected parenthesized expression owner, got {:?}",
-        owner_expression
+        "expected parenthesized expression owner, got {owner_expression:?}"
     );
 
     assert_format_program_idempotent_with_file_type(
@@ -4042,7 +4084,7 @@ fn test_decorator_annotation_span_stops_before_inline_member_head() {
     let ctx = context_from_formatter(&formatter);
 
     let (annotation_id, owner_node) = ctx
-        .formatter_annotation_entries
+        .annotation_entries
         .iter()
         .enumerate()
         .find_map(|(index, _)| {
