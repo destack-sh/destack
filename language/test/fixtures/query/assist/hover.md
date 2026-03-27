@@ -676,3 +676,72 @@ function main(): void {
 ```query hover broken
 <none>
 ```
+
+## Imports
+
+### Hover over default imported function
+
+Hovering over a default imported function should resolve to the original default export.
+
+```ds:lib.ds
+export default function greetDefault(name: string): string {
+    return name;
+}
+```
+
+```ds:main.ds
+import greetDefault from "./lib.ds";
+
+const message = greetDefault("hi");
+//              ^^^^^^^^^^^^ use:default_greet
+```
+
+```query hover use:default_greet
+range=main.ds:3:17-3:29 signature=export function greetDefault(name: string): string documentation=<none>
+```
+
+### Hover over namespace imported function
+
+Hovering over a namespace imported function should resolve to the original exported symbol.
+
+```ds:lib.ds
+export function paint(color: string): string {
+    return color;
+}
+```
+
+```ds:main.ds
+import * as palette from "./lib.ds";
+
+const message = palette.paint("blue");
+//                      ^^^^^ use:palette_paint
+```
+
+```query hover use:palette_paint
+range=main.ds:3:25-3:30 signature=export function paint(color: string): string documentation=<none>
+```
+
+### Hover through default re-export chains
+
+Hovering over a default import re-exported as a named symbol should still resolve to the original export.
+
+```ds:lib.ds
+export default function formatCount(value: int32): int32 {
+    return value;
+}
+```
+
+```ds:barrel.ds
+export { default as formatCount } from "./lib.ds";
+```
+
+```ds:main.ds
+import { formatCount } from "./barrel.ds";
+
+const value = formatCount(1);
+//            ^^^^^^^^^^^ use:format_count
+```
+
+```query hover use:format_count
+range=main.ds:3:15-3:26 signature=export function formatCount(value: int32): int32 documentation=<none>
+```

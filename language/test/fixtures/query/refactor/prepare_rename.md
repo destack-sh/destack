@@ -656,3 +656,53 @@ type EventLabel = Message<"orders">.Label<"created">;
 ```query prepare_rename use:assoc_label
 Label
 ```
+
+## Imports And Exports
+
+### Prepare rename through default re-export alias chains
+
+Prepare rename should resolve the local imported name through default re-export alias chains.
+
+```ds:lib.ds
+export default function buildWidget(): int32 {
+    return 1;
+}
+```
+
+```ds:barrel.ds
+export { default as buildWidget } from "./lib.ds";
+```
+
+```ds:main.ds
+import { buildWidget } from "./barrel.ds";
+
+const value = buildWidget();
+//            ^^^^^^^^^^^ use:buildWidget
+```
+
+```query prepare_rename use:buildWidget
+buildWidget
+```
+
+### Prepare rename through export namespace re-export chains
+
+Prepare rename should resolve namespace member usages through namespace re-export chains.
+
+```ds:base.ds
+export function ping(): void {}
+```
+
+```ds:barrel.ds
+export * as api from "./base.ds";
+```
+
+```ds:main.ds
+import { api } from "./barrel.ds";
+
+api.ping();
+//  ^^^^ use:ping
+```
+
+```query prepare_rename use:ping
+ping
+```

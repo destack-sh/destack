@@ -146,6 +146,71 @@ const sum = value + value;
 <none>
 ```
 
+## Damaged Syntax
+
+### Inlines after malformed call statements
+
+Inline should still rewrite later valid bindings after malformed call statements.
+
+```ds:main.ds
+broken(,
+
+const value = 1;
+//    ^^^^^ target
+const total = value + 1;
+```
+
+```query inline target
+```
+
+```expected:main.ds
+broken(,
+
+const total = 1 + 1;
+```
+
+### Inlines after bare new recovery statements
+
+Inline should still rewrite later valid bindings after bare `new` recovery statements.
+
+```ds:main.ds
+new
+
+const value = 1;
+//    ^^^^^ target
+const total = value + 1;
+```
+
+```query inline target
+```
+
+```expected:main.ds
+new
+
+const total = 1 + 1;
+```
+
+### Inlines after throw recovery statements
+
+Inline should still rewrite later valid bindings after recovered `throw` statements.
+
+```ds:main.ds
+throw
+
+const value = 1;
+//    ^^^^^ target
+const total = value + 1;
+```
+
+```query inline target
+```
+
+```expected:main.ds
+throw
+
+const total = 1 + 1;
+```
+
 ## Reassignment
 
 ### Skips inlining when the symbol is reassigned
@@ -343,6 +408,44 @@ export const greeting = "hello";
 import { greeting } from "./lib.ds";
 
 const message = greeting + "!";
+```
+
+```query inline target
+<none>
+```
+
+### Skips inline for imported aliases
+
+Inline should refuse imported aliases because the owning definition lives in another file.
+
+```ds:lib.ds
+export const value = 1;
+```
+
+```ds:main.ds
+import { value as amount } from "./lib.ds";
+//                ^^^^^^ target
+
+const total = amount + 1;
+```
+
+```query inline target
+<none>
+```
+
+### Skips inline for namespace imports
+
+Inline should also refuse namespace imports because they are owned by another module.
+
+```ds:lib.ds
+export const value = 1;
+```
+
+```ds:main.ds
+import * as api from "./lib.ds";
+//          ^^^ target
+
+const total = api.value + 1;
 ```
 
 ```query inline target

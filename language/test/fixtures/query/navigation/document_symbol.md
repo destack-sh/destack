@@ -219,6 +219,19 @@ Drawable(interface) range=7:1-9:2 selection=7:11-7:19
 UserId(type_parameter) range=11:1-11:21 selection=11:6-11:12
 ```
 
+## Empty Files
+
+### Empty files return no document symbols
+
+Document symbols should return no outline entries for empty files.
+
+```ds
+```
+
+```query document_symbols $0
+<none>
+```
+
 ## Damaged Syntax
 
 ### Keep later symbols after malformed function declarations

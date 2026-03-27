@@ -261,6 +261,31 @@ export { foo } from "./lib/foo_new";
 export * from "./lib/bar_new.ds";
 ```
 
+### Updates default and namespace re-export specifiers
+
+Rename should rewrite default and namespace re-export forms too.
+
+```ds:src/lib/foo.ds
+export default function foo(): int32 {
+    return 1;
+}
+
+export const value = 1;
+```
+
+```ds:src/index.ds
+export { default as foo } from "./lib/foo";
+export * as api from "./lib/foo";
+```
+
+```query file_rename src/lib/foo.ds src/lib/bar.ds
+```
+
+```expected:src/index.ds
+export { default as foo } from "./lib/bar";
+export * as api from "./lib/bar";
+```
+
 ## Side-Effect Imports
 
 ### Updates side-effect imports
@@ -510,6 +535,54 @@ import { data } from './assets/bytes?raw#fragment';
 const value = data;
 ```
 
+## Mixed Specifiers
+
+### Updates mixed specifier kinds in one file
+
+Rename should update all module specifier forms that point at the same target while leaving plain strings alone.
+
+```ds:src/lib/foo.ds
+export const foo = 1;
+export type Foo = {
+    value: int32,
+};
+```
+
+```ds:src/main.ds
+import { foo } from "./lib/foo";
+import type { Foo } from "./lib/foo";
+import "./lib/foo?raw#fragment";
+
+async function load(): Promise<int32> {
+    const mod = await import("./lib/foo");
+    return mod.foo;
+}
+
+type LocalFoo = import("./lib/foo").Foo;
+
+const plain = "./lib/foo";
+const value: Foo = { value: foo };
+```
+
+```query file_rename src/lib/foo.ds src/lib/bar.ds
+```
+
+```expected:src/main.ds
+import { foo } from "./lib/bar";
+import type { Foo } from "./lib/bar";
+import "./lib/bar?raw#fragment";
+
+async function load(): Promise<int32> {
+    const mod = await import("./lib/bar");
+    return mod.foo;
+}
+
+type LocalFoo = import("./lib/bar").Foo;
+
+const plain = "./lib/foo";
+const value: Foo = { value: foo };
+```
+
 ## Index Specifiers
 
 ### Updates specifiers that resolve to index files
@@ -558,4 +631,56 @@ const current = value;
 import { value } from "./lib/core.ds";
 
 const current = value;
+```
+
+## Damaged Syntax
+
+### Updates valid specifiers while leaving unresolved ones alone
+
+Rename should still update later valid specifiers in files that also contain unresolved imports.
+
+```ds:src/utils/foo.ds
+export const foo = 1;
+```
+
+```ds:src/main.ds
+import { missing } from "./missing.ds";
+import { foo } from "./utils/foo";
+
+const value = foo;
+```
+
+```query file_rename src/utils/foo.ds src/utils/bar.ds
+```
+
+```expected:src/main.ds
+import { missing } from "./missing.ds";
+import { foo } from "./utils/bar";
+
+const value = foo;
+```
+
+### Updates valid specifiers after malformed imports
+
+Rename should still update later valid specifiers after one malformed import clause.
+
+```ds:src/utils/foo.ds
+export const foo = 1;
+```
+
+```ds:src/main.ds
+import { from "./broken.ds";
+import { foo } from "./utils/foo";
+
+const value = foo;
+```
+
+```query file_rename src/utils/foo.ds src/utils/bar.ds
+```
+
+```expected:src/main.ds
+import { from "./broken.ds";
+import { foo } from "./utils/bar";
+
+const value = foo;
 ```

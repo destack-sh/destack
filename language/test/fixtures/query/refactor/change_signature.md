@@ -152,6 +152,50 @@ import { ping } from "./public.ds";
 const value = ping(1, undefined);
 ```
 
+### Updates call sites through namespace re-export chains
+
+Change signature should update both direct and namespace re-export call sites in the same graph.
+
+```ds:api.ds
+export function greet(name: string, formal: boolean): string {
+//              ^^^^^ target
+    return name;
+}
+```
+
+```ds:barrel.ds
+export { greet } from "./api.ds";
+```
+
+```ds:namespace.ds
+export * as api from "./api.ds";
+```
+
+```ds:main.ds
+import { greet } from "./barrel.ds";
+import { api } from "./namespace.ds";
+
+const first = greet("Destack", true);
+const second = api.greet("Friends", false);
+```
+
+```query change_signature target name:string,formal:boolean,exclaim:boolean -
+```
+
+```expected:api
+export function greet(name: string, formal: boolean, exclaim: boolean): string {
+    return name;
+}
+```
+
+```expected:main
+import { greet } from "./barrel.ds";
+import { api } from "./namespace.ds";
+
+const first = greet("Destack", true, undefined);
+const second = api.greet("Friends", false, undefined);
+```
+
 ## Method Declaration
 
 ### Updates method parameters and member calls
@@ -446,6 +490,104 @@ import format from "./lib.ds";
 const value = format(1, undefined);
 ```
 
+### Updates default imported call sites through re-export chains
+
+Change signature should update default imported call sites even when the default export is re-exported as a named symbol.
+
+```ds:lib.ds
+export default function format(value: int32): int32 {
+//                      ^^^^^^ target
+    return value;
+}
+```
+
+```ds:barrel.ds
+export { default as format } from "./lib.ds";
+```
+
+```ds:main.ds
+import { format } from "./barrel.ds";
+
+const value = format(1);
+```
+
+```query change_signature target value:int32,scale:int32 -
+```
+
+```expected:lib
+export default function format(value: int32, scale: int32): int32 {
+    return value;
+}
+```
+
+```expected:barrel
+export { default as format } from "./lib.ds";
+```
+
+```expected:main
+import { format } from "./barrel.ds";
+
+const value = format(1, undefined);
+```
+
+## Damaged Syntax
+
+### Updates valid calls after malformed call statements
+
+Change signature should still update later valid declarations and call sites after malformed call statements.
+
+```ds:main.ds
+broken(,
+
+function add(a: int32, b: int32): int32 {
+//       ^^^ target
+    return a + b;
+}
+
+const total = add(1, 2);
+```
+
+```query change_signature target a:int32,b:int32,scale:int32 1,2,1
+```
+
+```expected:main.ds
+broken(,
+
+function add(a: int32, b: int32, scale: int32): int32 {
+    return a + b;
+}
+
+const total = add(1, 2, 1);
+```
+
+### Updates valid calls after bare new recovery statements
+
+Change signature should still update later valid declarations and call sites after bare `new` recovery statements.
+
+```ds:main.ds
+new
+
+function add(a: int32, b: int32): int32 {
+//       ^^^ target
+    return a + b;
+}
+
+const total = add(1, 2);
+```
+
+```query change_signature target a:int32,b:int32,scale:int32 1,2,1
+```
+
+```expected:main.ds
+new
+
+function add(a: int32, b: int32, scale: int32): int32 {
+    return a + b;
+}
+
+const total = add(1, 2, 1);
+```
+
 ## Non Function Symbols
 
 ### Skips change signature on non-callable bindings
@@ -455,6 +597,23 @@ Change signature should return no edits when the selected symbol is not callable
 ```ds:main.ds
 const value = 1;
 //    ^^^^^ target
+```
+
+```query change_signature target value:int32,scale:int32 -
+<none>
+```
+
+### Skips change signature on imported non-callable bindings
+
+Change signature should also refuse imported bindings that resolve to non-callable symbols.
+
+```ds:lib.ds
+export const value = 1;
+```
+
+```ds:main.ds
+import { value } from "./lib.ds";
+//       ^^^^^ target
 ```
 
 ```query change_signature target value:int32,scale:int32 -

@@ -857,3 +857,67 @@ for (let i = 0; i < 3; i++) {
 main.ds:1:10-1:16
 main.ds:5:2-5:8
 ```
+
+## Imports And Exports
+
+### Find references through default re-export alias chains
+
+Find references should include default re-export aliases, downstream imports, and call sites.
+
+```ds:lib.ds
+export default function buildWidget(): int32 {
+//                      ^^^^^^^^^^^ def:buildWidget
+    return 1;
+}
+```
+
+```ds:barrel.ds
+export { default as buildWidget } from "./lib.ds";
+//                  ^^^^^^^^^^^ use:buildWidget_reexport
+```
+
+```ds:main.ds
+import { buildWidget } from "./barrel.ds";
+//       ^^^^^^^^^^^ use:buildWidget_import
+
+const value = buildWidget();
+//            ^^^^^^^^^^^ use:buildWidget_call
+```
+
+```query find_references def:buildWidget
+def:buildWidget
+use:buildWidget_reexport
+use:buildWidget_import
+use:buildWidget_call
+```
+
+### Find references for namespace re-export aliases
+
+Find references on a namespace re-export alias should stay in the local alias graph.
+
+```ds:base.ds
+export function ping(): void {}
+```
+
+```ds:barrel.ds
+export * as api from "./base.ds";
+//           ^^^ use:api_reexport
+```
+
+```ds:main.ds
+import { api } from "./barrel.ds";
+//       ^^^ use:api_import
+
+api.ping();
+// ^^^ use:api_call
+
+const sameApi = api;
+//              ^^^ use:api_value
+```
+
+```query find_references use:api_import
+barrel.ds:1:13-1:16
+main.ds:1:10-1:13
+main.ds:3:1-3:4
+main.ds:5:17-5:20
+```

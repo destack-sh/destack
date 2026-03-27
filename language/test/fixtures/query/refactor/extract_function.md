@@ -109,6 +109,41 @@ function compute_total(base: int32): int32 {
 const total = compute_total(base);
 ```
 
+### Extracts expressions with member access and free variables
+
+Extract should preserve member access while turning the outer bindings into parameters.
+
+```ds:main.ds
+type User = {
+    name: string,
+};
+
+function main(user: User, suffix: string): string {
+    const label = user.name + suffix;
+    //            ^^^^^^^^^^^^^^^^^^ selection
+    return label;
+}
+```
+
+```query extract_function selection format_label
+```
+
+```expected:main.ds
+type User = {
+    name: string,
+};
+
+function main(user: User, suffix: string): string {
+
+    function format_label(user: User, suffix: string): string {
+        return user.name + suffix;
+    }
+
+    const label = format_label(user, suffix);
+    return label;
+}
+```
+
 ## Statement Block
 
 ### Extracts statements and returns the produced value
@@ -324,6 +359,71 @@ async function main(): Promise<int32> {
 
     const value = await load_async();
     return value;
+}
+```
+
+## Damaged Syntax
+
+### Extracts valid expressions after malformed call statements
+
+Extract should still rewrite later valid expressions after malformed call recovery.
+
+```ds:main.ds
+broken(,
+
+function main(): int32 {
+    const total = 1 + 2;
+    //            ^^^^^ selection
+    return total;
+}
+```
+
+```query extract_function selection compute_total
+```
+
+```expected:main.ds
+broken(,
+
+function main(): int32 {
+
+    function compute_total(): int32 {
+        return 1 + 2;
+    }
+
+    const total = compute_total();
+    return total;
+}
+```
+
+### Extracts statement blocks after malformed call statements
+
+Extract should still handle statement-block extraction after malformed call recovery.
+
+```ds:main.ds
+broken(,
+
+function main(base: int32): int32 {
+    const a = base + 1; const b = base + 2;
+  //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ selection
+    return a + b;
+}
+```
+
+```query extract_function selection compute_pair
+```
+
+```expected:main.ds
+broken(,
+
+function main(base: int32): int32 {
+
+    function compute_pair(base: int32): (int32, int32) {
+        const a = base + 1; const b = base + 2;
+        return (a, b);
+    }
+
+    const (a, b) = compute_pair(base);
+    return a + b;
 }
 ```
 

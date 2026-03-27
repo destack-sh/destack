@@ -65,6 +65,58 @@ const computed = 1 + 2;
 const value = computed;
 ```
 
+## Object Literals
+
+### Extracts object property values
+
+Extract should rewrite object property values without disturbing the surrounding property shape.
+
+```ds:main.ds
+const config = { total: 1 + 2 };
+//                      ^^^^^ selection
+```
+
+```query extract_variable selection computed
+```
+
+```expected:main.ds
+const computed = 1 + 2;
+const config = { total: computed };
+```
+
+## Member Access
+
+### Extracts member access expressions into local bindings
+
+Extract should rewrite member access expressions without changing the surrounding scope.
+
+```ds:main.ds
+type User = {
+    name: string,
+};
+
+function main(user: User): string {
+    const label = user.name;
+    //            ^^^^^^^^^ selection
+    return label;
+}
+```
+
+```query extract_variable selection name
+```
+
+```expected:main.ds
+type User = {
+    name: string,
+};
+
+function main(user: User): string {
+    const name = user.name;
+    const label = name;
+    return label;
+}
+```
+
 ### Extracts local initializer expressions
 
 Extract should insert a const binding in the same local scope before the rewritten statement.
@@ -80,6 +132,33 @@ function main(): void {
 ```
 
 ```expected:main.ds
+function main(): void {
+    const computed = 1 + 2;
+    const value = computed;
+}
+```
+
+## Damaged Syntax
+
+### Extracts valid expressions after malformed call statements
+
+Extract should still rewrite later valid expressions after malformed call recovery.
+
+```ds:main.ds
+broken(,
+
+function main(): void {
+    const value = 1 + 2;
+    //            ^^^^^ selection
+}
+```
+
+```query extract_variable selection computed
+```
+
+```expected:main.ds
+broken(,
+
 function main(): void {
     const computed = 1 + 2;
     const value = computed;

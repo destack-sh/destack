@@ -105,3 +105,31 @@ const message = greetDefault("Destack");
 ```query goto_definition use:greet_default
 def:greet_default
 ```
+
+### Goto definition through type-only re-export chains
+
+Type-only re-export chains should still resolve to the original type declaration.
+
+```ds:types.ds
+export type Config = string;
+//          ^^^^^^ def:Config
+```
+
+```ds:barrel_a.ds
+export type { Config as AppConfig } from "./types.ds";
+```
+
+```ds:barrel_b.ds
+export type { AppConfig } from "./barrel_a.ds";
+```
+
+```ds:main_type.ds
+import type { AppConfig } from "./barrel_b.ds";
+
+const config: AppConfig = "ok";
+//            ^^^^^^^^^ use:AppConfig
+```
+
+```query goto_definition use:AppConfig
+def:Config
+```

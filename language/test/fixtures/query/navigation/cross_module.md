@@ -47,3 +47,50 @@ Goto definition should still handle local symbols in the same file.
 ```query goto_definition use:message
 def:message
 ```
+
+## Import Shapes
+
+### Goto definition through aliased imports
+
+Goto definition should still reach the exported definition through a local import alias.
+
+```ds:alias_lib.ds
+export function greet(name: string): string {
+//              ^^^^^ def:greet
+    return "Hello, " + name;
+}
+```
+
+```ds:alias_main.ds
+import { greet as importedGreet } from "./alias_lib.ds";
+
+const greet = 1;
+const message = importedGreet("Destack");
+//              ^^^^^^^^^^^^^ use:importedGreet
+```
+
+```query goto_definition use:importedGreet
+def:greet
+```
+
+### Goto definition through namespace imports
+
+Goto definition should resolve through namespace member access across modules.
+
+```ds:namespace_lib.ds
+export function greet(name: string): string {
+//              ^^^^^ def:namespace_greet
+    return "Hello, " + name;
+}
+```
+
+```ds:namespace_main.ds
+import * as api from "./namespace_lib.ds";
+
+const message = api.greet("Destack");
+//                  ^^^^^ use:namespace_greet
+```
+
+```query goto_definition use:namespace_greet
+def:namespace_greet
+```

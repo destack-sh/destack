@@ -83,3 +83,43 @@ import type { Settings } from "./barrel.ds";
 
 const config: Settings = { enabled: true };
 ```
+
+### Rename through aliased re-exports
+
+Renaming a symbol should update the exported name while preserving re-export aliases.
+
+```ds:alias_lib.ds
+export function greet(name: string): string {
+//              ^^^^^ target:alias
+    return "Hello, " + name;
+}
+```
+
+```ds:alias_barrel.ds
+export { greet as hello } from "./alias_lib.ds";
+```
+
+```ds:alias_main.ds
+import { hello } from "./alias_barrel.ds";
+
+const message = hello("Destack");
+```
+
+```query rename target:alias "welcome"
+```
+
+```expected:alias_lib
+export function welcome(name: string): string {
+    return "Hello, " + name;
+}
+```
+
+```expected:alias_barrel
+export { welcome as hello } from "./alias_lib.ds";
+```
+
+```expected:alias_main
+import { hello } from "./alias_barrel.ds";
+
+const message = hello("Destack");
+```

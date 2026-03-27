@@ -274,3 +274,88 @@ only: refactor_extract
 top: 1
 [0] title=Extract constant kind=refactor_extract preferred=false diag=<none> edits=main.ds:2:1-2:1=>"    const extracted = a + b;\n", main.ds:2:12-2:17=>"extracted"
 ```
+
+## Damaged Syntax
+
+### Keep auto-import fixes after malformed call statements
+
+Code actions should still offer later valid auto-import fixes after one malformed call statement.
+
+```ds:lib.ds
+export function greet(): void {}
+```
+
+```ds:main.ds
+broken(,
+
+function main() {
+    $0greet();
+}
+```
+
+```query code_actions $0
+[0] title=Import greet from "./lib" kind=quick_fix preferred=true diag=<none> edits=main.ds:1:1-1:1=>"import { greet } from "./lib";\n"
+```
+
+### Keep auto-import fixes after bare new recovery statements
+
+Code actions should still offer later valid auto-import fixes after one bare `new` recovery statement.
+
+```ds:lib.ds
+export function greet(): void {}
+```
+
+```ds:main.ds
+new
+
+function main() {
+    $0greet();
+}
+```
+
+```query code_actions $0
+[0] title=Import greet from "./lib" kind=quick_fix preferred=true diag=<none> edits=main.ds:1:1-1:1=>"import { greet } from "./lib";\n"
+```
+
+### Keep auto-import fixes after throw recovery statements
+
+Code actions should still offer later valid auto-import fixes after one recovered `throw` statement.
+
+```ds:lib.ds
+export function greet(): void {}
+```
+
+```ds:main.ds
+throw
+
+function main() {
+    $0greet();
+}
+```
+
+```query code_actions $0
+[0] title=Import greet from "./lib" kind=quick_fix preferred=true diag=<none> edits=main.ds:1:1-1:1=>"import { greet } from "./lib";\n"
+```
+
+### Keep auto-import fixes after yield star recovery statements
+
+Code actions should still offer later valid auto-import fixes after one recovered `yield*` statement.
+
+```ds:lib.ds
+export function greet(): void {}
+```
+
+```ds:main.ds
+function* broken() {
+    yield*
+    const value = 1;
+}
+
+function main() {
+    $0greet();
+}
+```
+
+```query code_actions $0
+[0] title=Import greet from "./lib" kind=quick_fix preferred=true diag=<none> edits=main.ds:1:1-1:1=>"import { greet } from "./lib";\n"
+```

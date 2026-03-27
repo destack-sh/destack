@@ -145,3 +145,83 @@ class $0Root {}
 ```query type_hierarchy $0 supertypes
 <none>
 ```
+
+### Leaf classes have no subtypes
+
+Type hierarchy subtypes should be empty for leaf classes.
+
+```ds
+class Root {}
+
+class $0Leaf extends Root {}
+```
+
+```query type_hierarchy $0 subtypes
+<none>
+```
+
+## Re-Export Chains
+
+### Subtypes through multi-hop type re-exports
+
+Type hierarchy should preserve subtype edges through type-only re-export chains.
+
+```ds:types.ds
+export interface Renderable {}
+//              ^^^^^^^^^^ def:Renderable
+```
+
+```ds:barrel_a.ds
+export type { Renderable as Surface } from "./types.ds";
+```
+
+```ds:barrel_b.ds
+export type { Surface } from "./barrel_a.ds";
+```
+
+```ds:impl.ds
+import type { Surface } from "./barrel_b.ds";
+
+export class Sprite implements Surface {}
+```
+
+```query type_hierarchy def:Renderable subtypes
+impl.ds:3:1-3:42 name=Sprite kind=class selection=impl.ds:3:14-3:20
+```
+
+## Damaged Syntax
+
+### Keep supertypes after malformed declarations
+
+Type hierarchy should still resolve later supertypes after one malformed declaration.
+
+```ds
+export function broken( {}
+
+class Base {}
+//    ^^^^ def:Base
+
+class Derived extends Base {}
+//    ^^^^^^^ def:Derived
+```
+
+```query type_hierarchy def:Derived supertypes
+main.ds:3:1-3:14 name=Base kind=class selection=main.ds:3:7-3:11
+```
+
+### Keep subtypes after malformed call statements
+
+Type hierarchy should still resolve later subtypes after one malformed call statement.
+
+```ds
+broken(,
+
+class Base {}
+//    ^^^^ def:Base
+
+class Derived extends Base {}
+```
+
+```query type_hierarchy def:Base subtypes
+main.ds:5:1-5:30 name=Derived kind=class selection=main.ds:5:7-5:14
+```

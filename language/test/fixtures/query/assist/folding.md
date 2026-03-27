@@ -111,3 +111,22 @@ class Tiny {}
 ```query folding_ranges $0
 <none>
 ```
+
+## Damaged Syntax
+
+### Keep folding ranges after malformed declarations
+
+Folding ranges should still include later valid declarations after one malformed declaration.
+
+```ds
+function broken( {}
+
+class Later {
+    value: int32
+}
+```
+
+```query folding_ranges $0
+1-3
+3-5
+```

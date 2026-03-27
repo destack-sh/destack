@@ -483,3 +483,29 @@ function read(this: Counter): Counter {
 ```query goto_type_definition use:counter
 def:counter
 ```
+
+### Resolve type definition through default re-export class aliases
+
+Goto type definition should follow default re-export class aliases back to the source class.
+
+```ds:lib.ds
+export default class Widget {
+//                   ^^^^^^ def:Widget_default
+    value: int32
+}
+```
+
+```ds:barrel.ds
+export { default as Widget } from "./lib.ds";
+```
+
+```ds:main.ds
+import { Widget } from "./barrel.ds";
+
+const current: Widget = new Widget();
+//             ^^^^^^ use:Widget
+```
+
+```query goto_type_definition use:Widget
+def:Widget_default
+```
