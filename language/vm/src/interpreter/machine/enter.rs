@@ -1,0 +1,547 @@
+use std::ptr::NonNull;
+
+use destack_heap::Value;
+use {destack_engine as engine, destack_mir as mir};
+
+use super::super::state::{Frame, resize_and_clear_stack};
+use super::bind::{
+    bind_parameters_from_values, collect_argument_values_from_copies,
+    collect_argument_values_range, copy_values_between_frames, copy_values_with_plan,
+};
+use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
+use crate::executable::{
+    ArgumentRange, CopyRange, Executable, FunctionTarget, INVALID_FUNCTION_INDEX, is_invalid_value,
+};
+use crate::execute::ExecutionOutcome;
+use crate::interpreter::Interpreter;
+use crate::isolate::{ExternalCallContext, ExternalFn, ExternalFnPtr, StringInterner};
+use crate::options::IsolateOptions;
+
+/// The resolved lowered callee entry for one call.
+struct LoweredCallee {
+    /// The MIR function id for the callee.
+    function_id: mir::LocalNodeId<mir::Function>,
+    /// The lowered executable function pointer.
+    function_ptr: NonNull<crate::executable::Function>,
+}
+
+impl Interpreter {
+    /// Resolve one call target from function id and optional lowered index.
+    fn resolve_call_target(
+        executable: &Executable,
+        function: u32,
+        callee_index: u32,
+    ) -> (
+        mir::LocalNodeId<mir::Function>,
+        Option<crate::executable::FunctionTarget>,
+    ) {
+        let function_id = mir::LocalNodeId::<mir::Function>::new(function);
+        let resolved_target = if callee_index == INVALID_FUNCTION_INDEX {
+            Self::functions(executable).resolve(function_id)
+        } else {
+            Some(FunctionTarget::Lowered(callee_index))
+        };
+
+        (function_id, resolved_target)
+    }
+
+    /// Require one lowered callee from one resolved call target.
+    fn resolve_lowered_callee(
+        executable: &Executable,
+        function_id: mir::LocalNodeId<mir::Function>,
+        resolved_target: Option<FunctionTarget>,
+    ) -> RuntimeResult<LoweredCallee> {
+        // require a lowered target kind first
+        let callee_index = match resolved_target {
+            Some(FunctionTarget::Lowered(index)) => index,
+            Some(FunctionTarget::Import) | None => {
+                return Err(RuntimeError::new(Error::UndefinedFunction {
+                    function: function_id,
+                }));
+            }
+        };
+
+        // resolve the lowered function pointer
+        let function_ptr = Self::functions(executable)
+            .get_ptr_by_index(callee_index)
+            .ok_or_else(|| {
+                RuntimeError::new(Error::UndefinedFunction {
+                    function: function_id,
+                })
+            })?;
+
+        Ok(LoweredCallee {
+            function_id,
+            function_ptr,
+        })
+    }
+
+    /// Invoke one imported function with pre-collected argument values.
+    #[allow(clippy::too_many_arguments)]
+    fn call_imported_function(
+        &mut self,
+        executable: &Executable,
+        function_id: mir::LocalNodeId<mir::Function>,
+        string_interner: &mut StringInterner,
+        externals: &std::collections::HashMap<String, ExternalFn>,
+        externals_by_id: &mut Vec<Option<ExternalFnPtr>>,
+        memory: &mut destack_heap::MemoryContext<'_>,
+        arguments: &[Value],
+    ) -> RuntimeResult<Value> {
+        // resolve the external handler first
+        let handler = self.external_for_id(executable, externals, externals_by_id, function_id)?;
+
+        // call through the external context
+        let result = {
+            let memory = memory.reborrow();
+            let mut context = ExternalCallContext::new(string_interner, memory);
+            (unsafe { handler.as_ref() })(&mut context, arguments)
+        }
+        .map_err(|error| self.make_error(executable, error))?;
+
+        Ok(result)
+    }
+
+    /// Push one lowered callee frame on the call stack.
+    #[allow(clippy::too_many_arguments)]
+    fn push_lowered_call_frame(
+        &mut self,
+        executable: &Executable,
+        options: &IsolateOptions,
+        current_func: &crate::executable::Function,
+        callee: LoweredCallee,
+        arguments: ArgumentRange,
+        env: Option<Value>,
+        copies: Option<CopyRange>,
+        resume_pc: usize,
+        transfer: Option<engine::FrameTransfer>,
+        collect_stats: bool,
+    ) -> RuntimeResult<()> {
+        // reject stack overflow before allocating anything
+        if self.call_stack.len() >= options.limits.max_stack_depth {
+            return Err(self.make_error(executable, Error::StackOverflow));
+        }
+
+        // resolve the lowered callee entry metadata
+        let (entry, entry_block_id, entry_block_ptr, value_count, local_count) = unsafe {
+            let callee = callee.function_ptr.as_ref();
+            let entry = callee.entry;
+            let entry_block = &callee.blocks[entry as usize];
+
+            (
+                entry,
+                entry_block.mir_block,
+                NonNull::from(entry_block),
+                callee.value_count,
+                callee.local_count,
+            )
+        };
+
+        // record the caller continuation before mutating the stacks
+        let caller_frame = self
+            .call_stack
+            .last_mut()
+            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+        let caller_info = (caller_frame.value_base, caller_frame.value_count);
+        caller_frame.resume_pc = resume_pc;
+        caller_frame.transfer = transfer;
+
+        // allocate value and local storage for the callee
+        let value_base = self.value_stack.len();
+        let local_base = self.local_stack.len();
+        self.value_stack
+            .resize(value_base + value_count, Value::VOID);
+        self.local_stack
+            .resize(local_base + local_count, Value::VOID);
+
+        let new_frame = Frame::new(
+            unsafe { callee.function_ptr.as_ref().frame_layout },
+            callee.function_id,
+            callee.function_ptr,
+            entry_block_ptr,
+            entry_block_id,
+            entry as usize,
+            value_base,
+            value_count,
+            local_base,
+            local_count,
+            env.unwrap_or(Value::VOID),
+        );
+
+        // bind arguments from the caller into the new frame
+        let caller = self
+            .call_stack
+            .last()
+            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+        debug_assert!(
+            caller.value_base == caller_info.0 && caller.value_count == caller_info.1,
+            "caller frame moved while binding arguments"
+        );
+
+        if let Some(copies) = copies {
+            copy_values_with_plan(
+                &mut self.value_stack,
+                caller,
+                &new_frame,
+                copies,
+                current_func.copy_pool.as_slice(),
+            );
+        } else {
+            let callee_function = unsafe { callee.function_ptr.as_ref() };
+            copy_values_between_frames(
+                &mut self.value_stack,
+                caller,
+                &new_frame,
+                callee_function.argument_pool.as_slice(),
+                callee_function.parameters,
+                current_func.argument_pool.as_slice(),
+                arguments,
+            );
+        }
+
+        // push the new frame and update call stats
+        self.call_stack.push(new_frame);
+        if collect_stats {
+            self.statistics.calls_made += 1;
+            self.statistics.max_stack_depth =
+                self.statistics.max_stack_depth.max(self.call_stack.len());
+        }
+
+        Ok(())
+    }
+
+    /// Reuse the current frame for one lowered tail call.
+    fn reuse_tail_call_frame(
+        &mut self,
+        callee: LoweredCallee,
+        arguments: &[Value],
+        env: Option<Value>,
+        collect_stats: bool,
+    ) -> RuntimeResult<()> {
+        // resolve the callee entry metadata first
+        let (entry, entry_block_id, entry_block_ptr, value_count, local_count) = unsafe {
+            let callee_function = callee.function_ptr.as_ref();
+            let entry = callee_function.entry;
+            let entry_block = &callee_function.blocks[entry as usize];
+
+            (
+                entry,
+                entry_block.mir_block,
+                NonNull::from(entry_block),
+                callee_function.value_count,
+                callee_function.local_count,
+            )
+        };
+
+        // clear the current frame storage and retarget it to the callee
+        let frame = self
+            .call_stack
+            .last_mut()
+            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+        let value_base = frame.value_base;
+        let local_base = frame.local_base;
+        let value_end = value_base + value_count;
+        let local_end = local_base + local_count;
+
+        frame.stack_values.clear();
+        resize_and_clear_stack(&mut self.value_stack, value_base, value_end);
+        resize_and_clear_stack(&mut self.local_stack, local_base, local_end);
+
+        frame.function = callee.function_id;
+        frame.function_ptr = callee.function_ptr;
+        frame.block_ptr = entry_block_ptr;
+        frame.entry_block = entry_block_id;
+        frame.current_block = entry_block_id;
+        frame.block_index = entry as usize;
+        frame.resume_pc = 0;
+        frame.transfer = None;
+        frame.value_count = value_count;
+        frame.local_count = local_count;
+        frame.environment = env.unwrap_or(Value::VOID);
+
+        // bind the new arguments into the reused frame
+        let callee_function = unsafe { callee.function_ptr.as_ref() };
+        bind_parameters_from_values(
+            &mut self.value_stack,
+            frame,
+            callee_function.argument_pool.as_slice(),
+            callee_function.parameters,
+            arguments,
+        );
+
+        // update call stats for the tail call entry
+        if collect_stats {
+            self.statistics.calls_made += 1;
+        }
+
+        Ok(())
+    }
+
+    /// Apply one call transfer from the current frame.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn apply_call_transfer(
+        &mut self,
+        executable: &Executable,
+        options: &IsolateOptions,
+        string_interner: &mut StringInterner,
+        externals: &std::collections::HashMap<String, ExternalFn>,
+        externals_by_id: &mut Vec<Option<ExternalFnPtr>>,
+        memory: &mut destack_heap::MemoryContext<'_>,
+        current_func: &crate::executable::Function,
+        function: u32,
+        callee_index: u32,
+        destination: mir::Value,
+        arguments: ArgumentRange,
+        env: Option<Value>,
+        copies: Option<CopyRange>,
+        resume_pc: usize,
+        collect_stats: bool,
+    ) -> RuntimeResult<()> {
+        // resolve the target kind first
+        let (function_id, resolved_target) =
+            Self::resolve_call_target(executable, function, callee_index);
+
+        // complete imported calls immediately in the caller frame
+        if matches!(resolved_target, Some(FunctionTarget::Import)) {
+            let caller = self
+                .call_stack
+                .last()
+                .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+
+            // materialize the explicit call arguments in caller order
+            let arguments = if let Some(copies) = copies {
+                collect_argument_values_from_copies(
+                    &self.value_stack,
+                    caller,
+                    current_func.copy_pool.as_slice(),
+                    copies,
+                )
+            } else {
+                collect_argument_values_range(
+                    &self.value_stack,
+                    caller,
+                    current_func.argument_pool.as_slice(),
+                    arguments,
+                )
+            };
+
+            // invoke the imported callee outside the lowered machine
+            let result = self.call_imported_function(
+                executable,
+                function_id,
+                string_interner,
+                externals,
+                externals_by_id,
+                memory,
+                &arguments,
+            )?;
+
+            // write the return value into the caller result slot
+            let frame = self
+                .call_stack
+                .last_mut()
+                .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+            let return_destination = executable
+                .return_destination_for_position(
+                    frame.function,
+                    frame.current_block,
+                    resume_pc as u32,
+                )
+                .unwrap_or(destination);
+
+            if !is_invalid_value(return_destination) {
+                frame.set_value(&mut self.value_stack, return_destination, result);
+            }
+
+            // leave the caller positioned after the imported call
+            frame.resume_pc = resume_pc;
+            return Ok(());
+        }
+
+        // otherwise enter the lowered callee on a new frame
+        let callee = Self::resolve_lowered_callee(executable, function_id, resolved_target)?;
+        self.push_lowered_call_frame(
+            executable,
+            options,
+            current_func,
+            callee,
+            arguments,
+            env,
+            copies,
+            resume_pc,
+            None,
+            collect_stats,
+        )
+    }
+
+    /// Apply one exceptional call transfer from the current frame.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn apply_call_branch_transfer(
+        &mut self,
+        executable: &Executable,
+        options: &IsolateOptions,
+        string_interner: &mut StringInterner,
+        externals: &std::collections::HashMap<String, ExternalFn>,
+        externals_by_id: &mut Vec<Option<ExternalFnPtr>>,
+        memory: &mut destack_heap::MemoryContext<'_>,
+        current_func: &crate::executable::Function,
+        function: u32,
+        callee_index: u32,
+        arguments: ArgumentRange,
+        env: Option<Value>,
+        normal_resume_point: engine::ResumePointId,
+        unwind_resume_point: engine::ResumePointId,
+        collect_stats: bool,
+    ) -> RuntimeResult<()> {
+        // resolve the target kind first
+        let (function_id, resolved_target) =
+            Self::resolve_call_target(executable, function, callee_index);
+
+        // imported exceptional calls resume the normal branch immediately
+        if matches!(resolved_target, Some(FunctionTarget::Import)) {
+            let caller = self
+                .call_stack
+                .last()
+                .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+
+            // materialize the explicit branch-call arguments first
+            let arguments = collect_argument_values_range(
+                &self.value_stack,
+                caller,
+                current_func.argument_pool.as_slice(),
+                arguments,
+            );
+
+            // invoke the imported callee and continue through the normal branch
+            let result = self.call_imported_function(
+                executable,
+                function_id,
+                string_interner,
+                externals,
+                externals_by_id,
+                memory,
+                &arguments,
+            )?;
+
+            self.apply_resume_point_transfer(executable, normal_resume_point, result)?;
+            return Ok(());
+        }
+
+        // otherwise push the lowered callee and record both continuations
+        let callee = Self::resolve_lowered_callee(executable, function_id, resolved_target)?;
+        let caller = self
+            .call_stack
+            .last()
+            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+
+        // resume after the terminator once the branch call completes
+        let resume_pc = current_func.blocks[caller.block_index].instructions.len();
+        let transfer = engine::FrameTransfer::Call(engine::CallTransfer::Branch {
+            normal_resume_point,
+            unwind_resume_point,
+        });
+
+        self.push_lowered_call_frame(
+            executable,
+            options,
+            current_func,
+            callee,
+            arguments,
+            env,
+            None,
+            resume_pc,
+            Some(transfer),
+            collect_stats,
+        )
+    }
+
+    /// Apply one tail call transfer on the current frame.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn apply_tail_call_transfer(
+        &mut self,
+        executable: &Executable,
+        externals: &std::collections::HashMap<String, ExternalFn>,
+        externals_by_id: &mut Vec<Option<ExternalFnPtr>>,
+        string_interner: &mut StringInterner,
+        memory: &mut destack_heap::MemoryContext<'_>,
+        current_func: &crate::executable::Function,
+        function: u32,
+        callee_index: u32,
+        arguments: ArgumentRange,
+        env: Option<Value>,
+        copies: Option<CopyRange>,
+        collect_stats: bool,
+    ) -> RuntimeResult<Option<ExecutionOutcome>> {
+        // collect tail call arguments before reusing or popping the frame
+        let caller = self
+            .call_stack
+            .last()
+            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+        let argument_values = if let Some(copies) = copies {
+            collect_argument_values_from_copies(
+                &self.value_stack,
+                caller,
+                current_func.copy_pool.as_slice(),
+                copies,
+            )
+        } else {
+            collect_argument_values_range(
+                &self.value_stack,
+                caller,
+                current_func.argument_pool.as_slice(),
+                arguments,
+            )
+        };
+
+        // resolve the callee target after the arguments are materialized
+        let (function_id, resolved_target) =
+            Self::resolve_call_target(executable, function, callee_index);
+
+        // complete imported tail calls before returning to the caller
+        if matches!(resolved_target, Some(FunctionTarget::Import)) {
+            let result = self.call_imported_function(
+                executable,
+                function_id,
+                string_interner,
+                externals,
+                externals_by_id,
+                memory,
+                &argument_values,
+            )?;
+
+            // discard the current frame before delivering the tail-call result
+            let frame = self
+                .call_stack
+                .pop()
+                .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+            self.value_stack.truncate(frame.value_base);
+            self.local_stack.truncate(frame.local_base);
+
+            // complete execution immediately when there is no caller left
+            if self.call_stack.is_empty() {
+                return Ok(Some(self.complete_execution(memory.heap_ref(), result)));
+            }
+
+            // otherwise write the result into the caller return destination
+            let caller = self
+                .call_stack
+                .last_mut()
+                .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+            if let Some(destination) = executable.return_destination_for_position(
+                caller.function,
+                caller.current_block,
+                caller.resume_pc as u32,
+            ) {
+                caller.set_value(&mut self.value_stack, destination, result);
+            }
+
+            return Ok(None);
+        }
+
+        // otherwise reuse the current frame for the lowered callee
+        let callee = Self::resolve_lowered_callee(executable, function_id, resolved_target)?;
+        self.reuse_tail_call_frame(callee, &argument_values, env, collect_stats)?;
+
+        Ok(None)
+    }
+}

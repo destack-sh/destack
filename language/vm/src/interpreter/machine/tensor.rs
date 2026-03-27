@@ -1,6 +1,308 @@
-use super::*;
+use super::prelude::*;
 
 // TODO #Performance: improve VM tensor performance
+
+/// The flattened storage layout for one tensor.
+#[derive(Debug, Clone)]
+pub(crate) struct TensorLayoutInfo {
+    /// The static tensor shape.
+    pub(crate) shape: Vec<u64>,
+    /// The per-dimension strides in element units.
+    pub(crate) strides: Vec<u64>,
+    /// The total storage length in element slots.
+    pub(crate) storage_len: usize,
+}
+
+/// Convert tensor dimensions to a static shape.
+pub(crate) fn static_shape(shape: &[mir::TensorDimension]) -> Result<Vec<u64>, Error> {
+    // reject dynamic shapes for the interpreter
+    let mut dims = Vec::with_capacity(shape.len());
+    for dim in shape {
+        match dim {
+            mir::TensorDimension::Static(value) => dims.push(*value),
+            mir::TensorDimension::Dynamic => {
+                return Err(Error::UnsupportedInstruction {
+                    name: "tensor dynamic shape".to_string(),
+                });
+            }
+        }
+    }
+
+    Ok(dims)
+}
+
+/// Convert tensor strides to a static list.
+pub(crate) fn static_strides(strides: &[mir::TensorDimension]) -> Result<Vec<u64>, Error> {
+    // reject dynamic strides for the interpreter
+    let mut values = Vec::with_capacity(strides.len());
+    for dim in strides {
+        match dim {
+            mir::TensorDimension::Static(value) => values.push(*value),
+            mir::TensorDimension::Dynamic => {
+                return Err(Error::UnsupportedInstruction {
+                    name: "tensor dynamic stride".to_string(),
+                });
+            }
+        }
+    }
+
+    Ok(values)
+}
+
+/// Compute row-major strides for a shape.
+pub(crate) fn row_major_strides(shape: &[u64]) -> Vec<u64> {
+    // compute row-major strides
+    let mut strides = vec![1; shape.len()];
+    let mut stride = 1u64;
+    for (index, dim) in shape.iter().enumerate().rev() {
+        strides[index] = stride;
+        stride = stride.saturating_mul(*dim);
+    }
+
+    strides
+}
+
+/// Compute column-major strides for a shape.
+pub(crate) fn column_major_strides(shape: &[u64]) -> Vec<u64> {
+    // compute column-major strides
+    let mut strides = vec![1; shape.len()];
+    let mut stride = 1u64;
+    for (index, dim) in shape.iter().enumerate() {
+        strides[index] = stride;
+        stride = stride.saturating_mul(*dim);
+    }
+
+    strides
+}
+
+/// Compute the storage length for a shape and stride list.
+pub(crate) fn tensor_storage_len(shape: &[u64], strides: &[u64]) -> Result<usize, Error> {
+    // empty shape stores a single scalar
+    if shape.is_empty() {
+        return Ok(1);
+    }
+
+    // zero-sized shapes have zero elements
+    if shape.contains(&0) {
+        return Ok(0);
+    }
+
+    // compute max linear index
+    let mut max_index = 0u64;
+    for (dim, stride) in shape.iter().zip(strides.iter()) {
+        let count = dim.saturating_sub(1);
+        max_index = max_index.saturating_add(count.saturating_mul(*stride));
+    }
+
+    let len = max_index.saturating_add(1);
+    usize::try_from(len).map_err(|_| Error::TypeMismatch {
+        expected: "tensor storage length".to_string(),
+        actual: len.to_string(),
+    })
+}
+
+/// Resolve tensor layout information from a tensor type.
+pub(crate) fn tensor_layout_info(
+    tree: &mir::NodeTree,
+    ty: mir::LocalNodeId<mir::Type>,
+) -> Result<TensorLayoutInfo, Error> {
+    // resolve tensor shape and layout
+    let (shape, layout) = match tree.get(ty) {
+        mir::Type::Tensor { shape, layout, .. } => (shape, layout),
+        mir::Type::TensorReference { shape, layout, .. } => (shape, layout),
+        _ => {
+            return Err(Error::TypeMismatch {
+                expected: "tensor type".to_string(),
+                actual: format!("{ty:?}"),
+            });
+        }
+    };
+
+    // compute static shape and strides
+    let shape = static_shape(shape)?;
+    let strides = match layout {
+        mir::TensorLayout::RowMajor => row_major_strides(&shape),
+        mir::TensorLayout::ColumnMajor => column_major_strides(&shape),
+        mir::TensorLayout::Strided { strides } => static_strides(strides)?,
+    };
+
+    // compute storage length
+    let storage_len = tensor_storage_len(&shape, &strides)?;
+
+    Ok(TensorLayoutInfo {
+        shape,
+        strides,
+        storage_len,
+    })
+}
+
+/// Compute the linear index for a multi-dimensional index.
+pub(crate) fn tensor_linear_index(
+    indices: &[u64],
+    shape: &[u64],
+    strides: &[u64],
+) -> Result<usize, Error> {
+    // validate index length
+    if indices.len() != shape.len() || shape.len() != strides.len() {
+        return Err(Error::TypeMismatch {
+            expected: "tensor index rank".to_string(),
+            actual: format!(
+                "indices={}, shape={}, strides={}",
+                indices.len(),
+                shape.len(),
+                strides.len()
+            ),
+        });
+    }
+
+    // compute linear index
+    let mut offset = 0u64;
+    for ((index, dim), stride) in indices.iter().zip(shape.iter()).zip(strides.iter()) {
+        // reject out of bounds indices before accumulating the stride
+        if *index >= *dim {
+            return Err(Error::IndexOutOfBounds {
+                index: *index,
+                length: *dim,
+            });
+        }
+
+        // accumulate the linear offset in element units
+        offset = offset.saturating_add(index.saturating_mul(*stride));
+    }
+
+    // convert the final offset into host indexing
+    usize::try_from(offset).map_err(|_| Error::TypeMismatch {
+        expected: "tensor index".to_string(),
+        actual: offset.to_string(),
+    })
+}
+
+/// Iterate over all indices in a tensor shape.
+pub(crate) fn for_each_index<F: FnMut(&[u64])>(shape: &[u64], mut f: F) {
+    // handle scalar or empty shapes
+    if shape.is_empty() {
+        f(&[]);
+        return;
+    }
+    if shape.contains(&0) {
+        return;
+    }
+
+    // initialize index vector
+    let mut index = vec![0u64; shape.len()];
+    loop {
+        // visit the current tensor index
+        f(&index);
+
+        // increment the odometer
+        let mut dim = shape.len();
+        while dim > 0 {
+            dim -= 1;
+            index[dim] += 1;
+            if index[dim] < shape[dim] {
+                break;
+            }
+            index[dim] = 0;
+            if dim == 0 {
+                return;
+            }
+        }
+    }
+}
+
+/// Offset a pointer by an element index.
+pub(crate) fn offset_pointer(value: Value, offset: usize, length: usize) -> Result<Value, Error> {
+    // validate bounds
+    if offset >= length {
+        return Err(Error::IndexOutOfBounds {
+            index: offset as u64,
+            length: length as u64,
+        });
+    }
+
+    // preserve reference metadata
+    let reference = value.reference_meta();
+
+    // offset the pointer according to its storage class
+    match value.tag() {
+        ValueTag::ManagedReference => {
+            let Some(handle) = value.as_managed_reference() else {
+                return Err(Error::InvalidPointerType {
+                    actual: format!("{value:?}"),
+                });
+            };
+
+            let base = access::managed_packed_slot_base(handle)?;
+            let value_index = base.saturating_add(offset);
+            let byte_offset = value_index
+                .checked_mul(Value::BYTE_LEN)
+                .and_then(|value_index| u32::try_from(value_index).ok())
+                .ok_or(Error::InvalidPointerType {
+                    actual: format!("{value:?}"),
+                })?;
+            let handle = ManagedReference::with_byte_offset(handle.id(), byte_offset);
+
+            Ok(Value::managed_reference_with_meta(handle, reference))
+        }
+        ValueTag::RawPointer => {
+            let Some(pointer) = value.as_raw_pointer() else {
+                return Err(Error::InvalidPointerType {
+                    actual: format!("{value:?}"),
+                });
+            };
+
+            let base = pointer.byte_offset();
+            let byte_offset = base.saturating_add(offset);
+            let byte_offset =
+                u32::try_from(byte_offset).map_err(|_| Error::InvalidPointerType {
+                    actual: format!("{value:?}"),
+                })?;
+            let pointer = RawPointer::with_byte_offset(pointer.id(), byte_offset);
+
+            Ok(Value::raw_pointer_with_meta(pointer, reference))
+        }
+        ValueTag::StackPointer => {
+            let Some(pointer) = value.as_stack_pointer() else {
+                return Err(Error::InvalidPointerType {
+                    actual: format!("{value:?}"),
+                });
+            };
+
+            let slot = pointer.slot_offset.saturating_add(offset);
+            let pointer = StackPointer::with_offset(pointer.frame_idx, pointer.slot, slot);
+
+            Ok(Value::stack_pointer_with_meta(pointer, reference))
+        }
+        ValueTag::LocalPointer => {
+            let Some(pointer) = value.as_local_pointer() else {
+                return Err(Error::InvalidPointerType {
+                    actual: format!("{value:?}"),
+                });
+            };
+
+            let slot = pointer.slot_offset.saturating_add(offset);
+            let pointer = LocalPointer::with_offset(pointer.frame_idx, pointer.local, slot);
+
+            Ok(Value::local_pointer_with_meta(pointer, reference))
+        }
+        ValueTag::GlobalPointer => {
+            let Some(pointer) = value.as_global_pointer() else {
+                return Err(Error::InvalidPointerType {
+                    actual: format!("{value:?}"),
+                });
+            };
+
+            let slot = pointer.slot_offset.saturating_add(offset);
+
+            Ok(Value::global_pointer_with_meta(pointer.id, slot, reference))
+        }
+
+        // reject non pointer values loudly
+        _ => Err(Error::InvalidPointerType {
+            actual: format!("{value:?}"),
+        }),
+    }
+}
 
 /// Resolve the element type for one tensor or tensor reference type.
 fn tensor_element_type(
@@ -18,12 +320,12 @@ fn tensor_element_type(
     }
 }
 
-/// Handle tensor.load.
-pub(crate) fn handle_tensor_load(
-    state: &mut ExecutionState<'_, '_>,
+/// Step tensor.load.
+pub(crate) fn step_tensor_load(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::TensorLoad {
         dest,
@@ -38,11 +340,11 @@ pub(crate) fn handle_tensor_load(
     // resolve layout info
     let layout = match tensor_layout_info(state.tree(), *view_type) {
         Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
     let element_type = match tensor_element_type(state.tree(), *view_type) {
         Ok(element_type) => element_type,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     // resolve indices
@@ -52,39 +354,39 @@ pub(crate) fn handle_tensor_load(
         let value = state.get(*value_id);
         match value_to_u64(value) {
             Ok(v) => index.push(v),
-            Err(error) => return ControlFlow::Error(error),
+            Err(error) => return Transfer::Error(error),
         }
     }
     let offset = match tensor_linear_index(&index, &layout.shape, &layout.strides) {
         Ok(offset) => offset,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     // offset the view pointer
     let view_value = state.get(*view);
     let pointer = match offset_pointer(view_value, offset, layout.storage_len) {
         Ok(pointer) => pointer,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     // load element
-    let value =
-        match instruction::load_from_pointer_with_raw_pointee(state, pointer, Some(element_type)) {
-            Ok(value) => value,
-            Err(error) => return ControlFlow::Error(error),
-        };
+    let value = match access::load_from_pointer_with_raw_pointee(state, pointer, Some(element_type))
+    {
+        Ok(value) => value,
+        Err(error) => return Transfer::Error(error),
+    };
     state.set(*dest, value);
 
     // continue to next instruction
     next!(state, block, pc)
 }
 
-/// Handle tensor.store.
-pub(crate) fn handle_tensor_store(
-    state: &mut ExecutionState<'_, '_>,
+/// Step tensor.store.
+pub(crate) fn step_tensor_store(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::TensorStore {
         view,
@@ -99,11 +401,11 @@ pub(crate) fn handle_tensor_store(
     // resolve layout info
     let layout = match tensor_layout_info(state.tree(), *view_type) {
         Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
     let element_type = match tensor_element_type(state.tree(), *view_type) {
         Ok(element_type) => element_type,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     // resolve indices
@@ -113,39 +415,39 @@ pub(crate) fn handle_tensor_store(
         let value = state.get(*value_id);
         match value_to_u64(value) {
             Ok(v) => index.push(v),
-            Err(error) => return ControlFlow::Error(error),
+            Err(error) => return Transfer::Error(error),
         }
     }
     let offset = match tensor_linear_index(&index, &layout.shape, &layout.strides) {
         Ok(offset) => offset,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     // offset the view pointer
     let view_value = state.get(*view);
     let pointer = match offset_pointer(view_value, offset, layout.storage_len) {
         Ok(pointer) => pointer,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     // store element
     let value = state.get(*value);
     if let Err(error) =
-        instruction::store_to_pointer_with_raw_pointee(state, pointer, Some(element_type), value)
+        access::store_to_pointer_with_raw_pointee(state, pointer, Some(element_type), value)
     {
-        return ControlFlow::Error(error);
+        return Transfer::Error(error);
     }
 
     // continue to next instruction
     next!(state, block, pc)
 }
 
-/// Handle tensor.fill.
-pub(crate) fn handle_tensor_fill(
-    state: &mut ExecutionState<'_, '_>,
+/// Step tensor.fill.
+pub(crate) fn step_tensor_fill(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::TensorFill {
         view,
@@ -159,11 +461,11 @@ pub(crate) fn handle_tensor_fill(
     // resolve layout info
     let layout = match tensor_layout_info(state.tree(), *view_type) {
         Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
     let element_type = match tensor_element_type(state.tree(), *view_type) {
         Ok(element_type) => element_type,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
     let fill_value = state.get(*value);
     let base_pointer = state.get(*view);
@@ -172,15 +474,15 @@ pub(crate) fn handle_tensor_fill(
     for offset in 0..layout.storage_len {
         let pointer = match offset_pointer(base_pointer, offset, layout.storage_len) {
             Ok(pointer) => pointer,
-            Err(error) => return ControlFlow::Error(error),
+            Err(error) => return Transfer::Error(error),
         };
-        if let Err(error) = instruction::store_to_pointer_with_raw_pointee(
+        if let Err(error) = access::store_to_pointer_with_raw_pointee(
             state,
             pointer,
             Some(element_type),
             fill_value,
         ) {
-            return ControlFlow::Error(error);
+            return Transfer::Error(error);
         }
     }
 
@@ -188,12 +490,12 @@ pub(crate) fn handle_tensor_fill(
     next!(state, block, pc)
 }
 
-/// Handle tensor.copy.
-pub(crate) fn handle_tensor_copy(
-    state: &mut ExecutionState<'_, '_>,
+/// Step tensor.copy.
+pub(crate) fn step_tensor_copy(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::TensorCopy {
         target,
@@ -208,24 +510,24 @@ pub(crate) fn handle_tensor_copy(
     // resolve layouts
     let target_layout = match tensor_layout_info(state.tree(), *target_type) {
         Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
     let source_layout = match tensor_layout_info(state.tree(), *source_type) {
         Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
     let target_element_type = match tensor_element_type(state.tree(), *target_type) {
         Ok(element_type) => element_type,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
     let source_element_type = match tensor_element_type(state.tree(), *source_type) {
         Ok(element_type) => element_type,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     // validate element counts
     if target_layout.storage_len != source_layout.storage_len {
-        return ControlFlow::Error(Error::TypeMismatch {
+        return Transfer::Error(Error::TypeMismatch {
             expected: "matching tensor sizes".to_string(),
             actual: format!(
                 "{} vs {}",
@@ -240,27 +542,22 @@ pub(crate) fn handle_tensor_copy(
     for offset in 0..target_layout.storage_len {
         let src = match offset_pointer(source_ptr, offset, source_layout.storage_len) {
             Ok(pointer) => pointer,
-            Err(error) => return ControlFlow::Error(error),
+            Err(error) => return Transfer::Error(error),
         };
         let dst = match offset_pointer(target_ptr, offset, target_layout.storage_len) {
             Ok(pointer) => pointer,
-            Err(error) => return ControlFlow::Error(error),
+            Err(error) => return Transfer::Error(error),
         };
-        let value = match instruction::load_from_pointer_with_raw_pointee(
-            state,
-            src,
-            Some(source_element_type),
-        ) {
-            Ok(value) => value,
-            Err(error) => return ControlFlow::Error(error),
-        };
-        if let Err(error) = instruction::store_to_pointer_with_raw_pointee(
-            state,
-            dst,
-            Some(target_element_type),
-            value,
-        ) {
-            return ControlFlow::Error(error);
+        let value =
+            match access::load_from_pointer_with_raw_pointee(state, src, Some(source_element_type))
+            {
+                Ok(value) => value,
+                Err(error) => return Transfer::Error(error),
+            };
+        if let Err(error) =
+            access::store_to_pointer_with_raw_pointee(state, dst, Some(target_element_type), value)
+        {
+            return Transfer::Error(error);
         }
     }
 
@@ -268,12 +565,12 @@ pub(crate) fn handle_tensor_copy(
     next!(state, block, pc)
 }
 
-/// Handle tensor.reshape.
-pub(crate) fn handle_tensor_reshape(
-    state: &mut ExecutionState<'_, '_>,
+/// Step tensor.reshape.
+pub(crate) fn step_tensor_reshape(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::TensorReshape {
         dest,
@@ -289,13 +586,13 @@ pub(crate) fn handle_tensor_reshape(
     let tensor_value = state.get(*tensor);
     let source_slots = match aggregate_slots_vec(state, tensor_value) {
         Ok(slots) => slots,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     // resolve output layout
     let dest_layout = match tensor_layout_info(state.tree(), *dest_type) {
         Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     // compute expected element count from shape values when provided
@@ -305,7 +602,7 @@ pub(crate) fn handle_tensor_reshape(
         let value = state.get(*value_id);
         let size = match value_to_u64(value) {
             Ok(size) => size,
-            Err(error) => return ControlFlow::Error(error),
+            Err(error) => return Transfer::Error(error),
         };
         shape_len = shape_len.saturating_mul(size);
     }
@@ -315,13 +612,13 @@ pub(crate) fn handle_tensor_reshape(
 
     // validate element counts
     if source_slots.len() as u64 != shape_len {
-        return ControlFlow::Error(Error::TypeMismatch {
+        return Transfer::Error(Error::TypeMismatch {
             expected: "reshape element count".to_string(),
             actual: format!("{} vs {}", source_slots.len(), shape_len),
         });
     }
     if dest_layout.storage_len != source_slots.len() {
-        return ControlFlow::Error(Error::TypeMismatch {
+        return Transfer::Error(Error::TypeMismatch {
             expected: "reshape destination size".to_string(),
             actual: format!("{} vs {}", dest_layout.storage_len, source_slots.len()),
         });
@@ -335,12 +632,12 @@ pub(crate) fn handle_tensor_reshape(
     next!(state, block, pc)
 }
 
-/// Handle tensor.broadcast.
-pub(crate) fn handle_tensor_broadcast(
-    state: &mut ExecutionState<'_, '_>,
+/// Step tensor.broadcast.
+pub(crate) fn step_tensor_broadcast(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::TensorBroadcast {
         dest,
@@ -356,11 +653,11 @@ pub(crate) fn handle_tensor_broadcast(
     // resolve layouts
     let source_layout = match tensor_layout_info(state.tree(), *source_type) {
         Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
     let dest_layout = match tensor_layout_info(state.tree(), *dest_type) {
         Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     // resolve source slots
@@ -368,12 +665,12 @@ pub(crate) fn handle_tensor_broadcast(
     let output = {
         let source_slots = match aggregate_slots(state, tensor_value) {
             Ok(slots) => slots,
-            Err(error) => return ControlFlow::Error(error),
+            Err(error) => return Transfer::Error(error),
         };
 
         // validate dimension mapping
         if dimensions.len() != source_layout.shape.len() {
-            return ControlFlow::Error(Error::TypeMismatch {
+            return Transfer::Error(Error::TypeMismatch {
                 expected: "broadcast dimension mapping".to_string(),
                 actual: format!("{} vs {}", dimensions.len(), source_layout.shape.len()),
             });
@@ -407,7 +704,7 @@ pub(crate) fn handle_tensor_broadcast(
             let Some(slot) = output.get_mut(dst_offset) else {
                 return;
             };
-            *slot = *value;
+            *slot = value;
         });
 
         output
@@ -421,12 +718,12 @@ pub(crate) fn handle_tensor_broadcast(
     next!(state, block, pc)
 }
 
-/// Handle tensor.transpose.
-pub(crate) fn handle_tensor_transpose(
-    state: &mut ExecutionState<'_, '_>,
+/// Step tensor.transpose.
+pub(crate) fn step_tensor_transpose(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::TensorTranspose {
         dest,
@@ -442,11 +739,11 @@ pub(crate) fn handle_tensor_transpose(
     // resolve layouts
     let source_layout = match tensor_layout_info(state.tree(), *source_type) {
         Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
     let dest_layout = match tensor_layout_info(state.tree(), *dest_type) {
         Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     let output = {
@@ -454,12 +751,12 @@ pub(crate) fn handle_tensor_transpose(
         let tensor_value = state.get(*tensor);
         let source_slots = match aggregate_slots(state, tensor_value) {
             Ok(slots) => slots,
-            Err(error) => return ControlFlow::Error(error),
+            Err(error) => return Transfer::Error(error),
         };
 
         // validate permutation
         if permutation.len() != source_layout.shape.len() {
-            return ControlFlow::Error(Error::TypeMismatch {
+            return Transfer::Error(Error::TypeMismatch {
                 expected: "transpose permutation".to_string(),
                 actual: format!("{} vs {}", permutation.len(), source_layout.shape.len()),
             });
@@ -491,7 +788,7 @@ pub(crate) fn handle_tensor_transpose(
             let Some(slot) = output.get_mut(dst_offset) else {
                 return;
             };
-            *slot = *value;
+            *slot = value;
         });
 
         output
@@ -505,12 +802,12 @@ pub(crate) fn handle_tensor_transpose(
     next!(state, block, pc)
 }
 
-/// Handle tensor.slice.
-pub(crate) fn handle_tensor_slice(
-    state: &mut ExecutionState<'_, '_>,
+/// Step tensor.slice.
+pub(crate) fn step_tensor_slice(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::TensorSlice {
         dest,
@@ -529,11 +826,11 @@ pub(crate) fn handle_tensor_slice(
     // resolve layouts
     let source_layout = match tensor_layout_info(state.tree(), *source_type) {
         Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
     let dest_layout = match tensor_layout_info(state.tree(), *dest_type) {
         Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     // resolve arguments
@@ -541,7 +838,7 @@ pub(crate) fn handle_tensor_slice(
     let (offset_values, rest) = args.split_at(*offsets_count as usize);
     let (size_values, stride_values) = rest.split_at(*sizes_count as usize);
     if stride_values.len() != *strides_count as usize {
-        return ControlFlow::Error(Error::InvalidInstruction);
+        return Transfer::Error(Error::InvalidInstruction);
     }
 
     let mut offsets = Vec::with_capacity(offset_values.len());
@@ -551,21 +848,21 @@ pub(crate) fn handle_tensor_slice(
         let value = state.get(*value_id);
         match value_to_u64(value) {
             Ok(v) => offsets.push(v),
-            Err(error) => return ControlFlow::Error(error),
+            Err(error) => return Transfer::Error(error),
         }
     }
     for value_id in size_values {
         let value = state.get(*value_id);
         match value_to_u64(value) {
             Ok(v) => sizes.push(v),
-            Err(error) => return ControlFlow::Error(error),
+            Err(error) => return Transfer::Error(error),
         }
     }
     for value_id in stride_values {
         let value = state.get(*value_id);
         match value_to_u64(value) {
             Ok(v) => strides.push(v),
-            Err(error) => return ControlFlow::Error(error),
+            Err(error) => return Transfer::Error(error),
         }
     }
 
@@ -574,7 +871,7 @@ pub(crate) fn handle_tensor_slice(
         let tensor_value = state.get(*tensor);
         let source_slots = match aggregate_slots(state, tensor_value) {
             Ok(slots) => slots,
-            Err(error) => return ControlFlow::Error(error),
+            Err(error) => return Transfer::Error(error),
         };
 
         // allocate destination storage
@@ -605,7 +902,7 @@ pub(crate) fn handle_tensor_slice(
             let Some(slot) = output.get_mut(dst_offset) else {
                 return;
             };
-            *slot = *value;
+            *slot = value;
         });
 
         output
@@ -619,12 +916,12 @@ pub(crate) fn handle_tensor_slice(
     next!(state, block, pc)
 }
 
-/// Handle tensor.pad.
-pub(crate) fn handle_tensor_pad(
-    state: &mut ExecutionState<'_, '_>,
+/// Step tensor.pad.
+pub(crate) fn step_tensor_pad(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::TensorPad {
         dest,
@@ -644,11 +941,11 @@ pub(crate) fn handle_tensor_pad(
     // resolve layouts
     let source_layout = match tensor_layout_info(state.tree(), *source_type) {
         Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
     let dest_layout = match tensor_layout_info(state.tree(), *dest_type) {
         Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     // resolve arguments
@@ -656,7 +953,7 @@ pub(crate) fn handle_tensor_pad(
     let (low_values, rest) = args.split_at(*low_count as usize);
     let (high_values, interior_values) = rest.split_at(*high_count as usize);
     if interior_values.len() != *interior_count as usize {
-        return ControlFlow::Error(Error::InvalidInstruction);
+        return Transfer::Error(Error::InvalidInstruction);
     }
 
     let mut low = Vec::with_capacity(low_values.len());
@@ -666,21 +963,21 @@ pub(crate) fn handle_tensor_pad(
         let value = state.get(*value_id);
         match value_to_u64(value) {
             Ok(v) => low.push(v),
-            Err(error) => return ControlFlow::Error(error),
+            Err(error) => return Transfer::Error(error),
         }
     }
     for value_id in high_values {
         let value = state.get(*value_id);
         match value_to_u64(value) {
             Ok(v) => high.push(v),
-            Err(error) => return ControlFlow::Error(error),
+            Err(error) => return Transfer::Error(error),
         }
     }
     for value_id in interior_values {
         let value = state.get(*value_id);
         match value_to_u64(value) {
             Ok(v) => interior.push(v),
-            Err(error) => return ControlFlow::Error(error),
+            Err(error) => return Transfer::Error(error),
         }
     }
 
@@ -689,7 +986,7 @@ pub(crate) fn handle_tensor_pad(
         let tensor_value = state.get(*tensor);
         let source_slots = match aggregate_slots(state, tensor_value) {
             Ok(slots) => slots,
-            Err(error) => return ControlFlow::Error(error),
+            Err(error) => return Transfer::Error(error),
         };
 
         // allocate destination storage
@@ -740,7 +1037,7 @@ pub(crate) fn handle_tensor_pad(
             let Some(slot) = output.get_mut(dst_offset) else {
                 return;
             };
-            *slot = *value;
+            *slot = value;
         });
 
         output
@@ -754,12 +1051,12 @@ pub(crate) fn handle_tensor_pad(
     next!(state, block, pc)
 }
 
-/// Handle tensor.concat.
-pub(crate) fn handle_tensor_concat(
-    state: &mut ExecutionState<'_, '_>,
+/// Step tensor.concat.
+pub(crate) fn step_tensor_concat(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::TensorConcat {
         dest,
@@ -775,14 +1072,14 @@ pub(crate) fn handle_tensor_concat(
     // resolve destination layout
     let dest_layout = match tensor_layout_info(state.tree(), *dest_type) {
         Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     // resolve input tensors
     let tensor_ids = state.argument_slice(*tensors);
     // validate input metadata
     if tensor_ids.len() != tensor_types.len() {
-        return ControlFlow::Error(Error::InvalidInstruction);
+        return Transfer::Error(Error::InvalidInstruction);
     }
     let mut inputs = Vec::with_capacity(tensor_ids.len());
     let mut axis_sizes = Vec::with_capacity(tensor_ids.len());
@@ -790,15 +1087,15 @@ pub(crate) fn handle_tensor_concat(
         let value = state.get(*value_id);
         let slots = match aggregate_slots(state, value) {
             Ok(slots) => slots,
-            Err(error) => return ControlFlow::Error(error),
+            Err(error) => return Transfer::Error(error),
         };
         let layout = match tensor_layout_info(state.tree(), *type_id) {
             Ok(layout) => layout,
-            Err(error) => return ControlFlow::Error(error),
+            Err(error) => return Transfer::Error(error),
         };
         let axis_index = *axis as usize;
         if axis_index >= layout.shape.len() {
-            return ControlFlow::Error(Error::InvalidInstruction);
+            return Transfer::Error(Error::InvalidInstruction);
         }
         axis_sizes.push(layout.shape[axis_index]);
         inputs.push((layout, slots.to_vec()));
@@ -862,12 +1159,12 @@ pub(crate) fn handle_tensor_concat(
     next!(state, block, pc)
 }
 
-/// Handle tensor.reduce.
-pub(crate) fn handle_tensor_reduce(
-    state: &mut ExecutionState<'_, '_>,
+/// Step tensor.reduce.
+pub(crate) fn step_tensor_reduce(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::TensorReduce {
         dest,
@@ -885,11 +1182,11 @@ pub(crate) fn handle_tensor_reduce(
     // resolve layouts
     let source_layout = match tensor_layout_info(state.tree(), *source_type) {
         Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
     let dest_layout = match tensor_layout_info(state.tree(), *dest_type) {
         Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     let output = {
@@ -897,7 +1194,7 @@ pub(crate) fn handle_tensor_reduce(
         let tensor_value = state.get(*tensor);
         let source_slots = match aggregate_slots(state, tensor_value) {
             Ok(slots) => slots,
-            Err(error) => return ControlFlow::Error(error),
+            Err(error) => return Transfer::Error(error),
         };
 
         // allocate output storage
@@ -906,8 +1203,9 @@ pub(crate) fn handle_tensor_reduce(
         let reduce_axes: std::collections::HashSet<u32> = axes.iter().copied().collect();
         let mut output_index = Vec::new();
 
-        // reduce values
+        // reduce each source position into the projected destination position
         for_each_index(&source_layout.shape, |index| {
+            // build the destination index by dropping reduced axes
             output_index.clear();
             for (dim, value) in index.iter().enumerate() {
                 if !reduce_axes.contains(&(dim as u32)) {
@@ -915,6 +1213,7 @@ pub(crate) fn handle_tensor_reduce(
                 }
             }
 
+            // resolve the source and destination storage offsets
             let src_offset =
                 match tensor_linear_index(index, &source_layout.shape, &source_layout.strides) {
                     Ok(offset) => offset,
@@ -928,12 +1227,14 @@ pub(crate) fn handle_tensor_reduce(
                 Ok(offset) => offset,
                 Err(_) => return,
             };
+
+            // load the source element and update the reduced destination slot
             let Some(src_value) = source_slots.get(src_offset) else {
                 return;
             };
             if let Some(slot) = output.get_mut(dst_offset) {
                 let op = ReduceOperator::from(*operator);
-                if let Ok(value) = apply_reduce_operator(op, *slot, *src_value) {
+                if let Ok(value) = apply_reduce_operator(op, *slot, src_value) {
                     *slot = value;
                 }
             }
@@ -950,12 +1251,12 @@ pub(crate) fn handle_tensor_reduce(
     next!(state, block, pc)
 }
 
-/// Handle tensor.dot.
-pub(crate) fn handle_tensor_dot(
-    state: &mut ExecutionState<'_, '_>,
+/// Step tensor.dot.
+pub(crate) fn step_tensor_dot(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::TensorDot {
         dest,
@@ -973,15 +1274,15 @@ pub(crate) fn handle_tensor_dot(
     // resolve layouts
     let left_layout = match tensor_layout_info(state.tree(), *left_type) {
         Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
     let right_layout = match tensor_layout_info(state.tree(), *right_type) {
         Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
     let dest_layout = match tensor_layout_info(state.tree(), *dest_type) {
         Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     let output = {
@@ -990,16 +1291,16 @@ pub(crate) fn handle_tensor_dot(
         let right_value = state.get(*right);
         let left_slots = match aggregate_slots(state, left_value) {
             Ok(slots) => slots,
-            Err(error) => return ControlFlow::Error(error),
+            Err(error) => return Transfer::Error(error),
         };
         let right_slots = match aggregate_slots(state, right_value) {
             Ok(slots) => slots,
-            Err(error) => return ControlFlow::Error(error),
+            Err(error) => return Transfer::Error(error),
         };
 
         // validate storage lengths
         if left_slots.len() != right_slots.len() || left_slots.len() != dest_layout.storage_len {
-            return ControlFlow::Error(Error::TypeMismatch {
+            return Transfer::Error(Error::TypeMismatch {
                 expected: "matching tensor storage".to_string(),
                 actual: format!(
                     "{} vs {} vs {}",
@@ -1016,7 +1317,7 @@ pub(crate) fn handle_tensor_dot(
         let lhs_contract = &dimensions.lhs_contracting;
         let rhs_contract = &dimensions.rhs_contracting;
         if lhs_batch.len() != rhs_batch.len() || lhs_contract.len() != rhs_contract.len() {
-            return ControlFlow::Error(Error::InvalidInstruction);
+            return Transfer::Error(Error::InvalidInstruction);
         }
 
         let lhs_rank = left_layout.shape.len();
@@ -1038,8 +1339,9 @@ pub(crate) fn handle_tensor_dot(
         let mut lhs_index = vec![0u64; lhs_rank];
         let mut rhs_index = vec![0u64; rhs_rank];
 
-        // compute dot product
+        // compute each destination element from its batch and free dimensions
         for_each_index(&dest_layout.shape, |out_index| {
+            // project the output index into the batch and free dimensions
             for (i, dim) in lhs_batch.iter().enumerate() {
                 let value = out_index[i];
                 lhs_index[*dim as usize] = value;
@@ -1053,12 +1355,14 @@ pub(crate) fn handle_tensor_dot(
                 rhs_index[*dim as usize] = out_index[offset];
             }
 
+            // iterate the contracting dimensions and accumulate products
             let contract_shape: Vec<u64> = lhs_contract
                 .iter()
                 .map(|dim| left_layout.shape[*dim as usize])
                 .collect();
             let mut accum = None;
             for_each_index(&contract_shape, |contract_index| {
+                // inject the current contracting coordinates
                 for (i, dim) in lhs_contract.iter().enumerate() {
                     lhs_index[*dim as usize] = contract_index[i];
                 }
@@ -1066,6 +1370,7 @@ pub(crate) fn handle_tensor_dot(
                     rhs_index[*dim as usize] = contract_index[i];
                 }
 
+                // resolve both source storage offsets
                 let lhs_offset =
                     tensor_linear_index(&lhs_index, &left_layout.shape, &left_layout.strides);
                 let rhs_offset =
@@ -1073,6 +1378,8 @@ pub(crate) fn handle_tensor_dot(
                 let (Ok(lhs_offset), Ok(rhs_offset)) = (lhs_offset, rhs_offset) else {
                     return;
                 };
+
+                // load the source elements for this contraction step
                 let Some(lhs_val) = left_slots.get(lhs_offset) else {
                     return;
                 };
@@ -1080,8 +1387,9 @@ pub(crate) fn handle_tensor_dot(
                     return;
                 };
 
+                // multiply then accumulate into the running dot product
                 let product =
-                    match apply_reduce_operator(ReduceOperator::Multiply, *lhs_val, *rhs_val) {
+                    match apply_reduce_operator(ReduceOperator::Multiply, lhs_val, rhs_val) {
                         Ok(value) => value,
                         Err(_) => return,
                     };
@@ -1093,6 +1401,7 @@ pub(crate) fn handle_tensor_dot(
                 };
             });
 
+            // write the completed destination element when all offsets resolve
             if let Some(value) = accum
                 && let Ok(dst_offset) =
                     tensor_linear_index(out_index, &dest_layout.shape, &dest_layout.strides)
@@ -1113,12 +1422,12 @@ pub(crate) fn handle_tensor_dot(
     next!(state, block, pc)
 }
 
-/// Handle tensor.convolution.
-pub(crate) fn handle_tensor_convolution(
-    state: &mut ExecutionState<'_, '_>,
+/// Step tensor.convolution.
+pub(crate) fn step_tensor_convolution(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::TensorConvolution {
         dest,
@@ -1139,15 +1448,15 @@ pub(crate) fn handle_tensor_convolution(
     // resolve layouts
     let input_layout = match tensor_layout_info(state.tree(), *input_type) {
         Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
     let kernel_layout = match tensor_layout_info(state.tree(), *kernel_type) {
         Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
     let dest_layout = match tensor_layout_info(state.tree(), *dest_type) {
         Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     let output = {
@@ -1156,11 +1465,11 @@ pub(crate) fn handle_tensor_convolution(
         let kernel_value = state.get(*kernel);
         let input_slots = match aggregate_slots(state, input_value) {
             Ok(slots) => slots,
-            Err(error) => return ControlFlow::Error(error),
+            Err(error) => return Transfer::Error(error),
         };
         let kernel_slots = match aggregate_slots(state, kernel_value) {
             Ok(slots) => slots,
-            Err(error) => return ControlFlow::Error(error),
+            Err(error) => return Transfer::Error(error),
         };
 
         // derive dimension mappings
@@ -1168,7 +1477,7 @@ pub(crate) fn handle_tensor_convolution(
         let output_spatial = &dimensions.output_spatial;
         let kernel_spatial = &dimensions.kernel_spatial;
         if output_spatial.len() != spatial_rank || kernel_spatial.len() != spatial_rank {
-            return ControlFlow::Error(Error::InvalidInstruction);
+            return Transfer::Error(Error::InvalidInstruction);
         }
 
         // validate window shapes
@@ -1179,7 +1488,7 @@ pub(crate) fn handle_tensor_convolution(
             || window.rhs_dilation.len() != spatial_rank
             || window.window_reversal.len() != spatial_rank
         {
-            return ControlFlow::Error(Error::InvalidInstruction);
+            return Transfer::Error(Error::InvalidInstruction);
         }
 
         let output_batch_dim = dimensions.output_batch as usize;
@@ -1197,17 +1506,17 @@ pub(crate) fn handle_tensor_convolution(
             || kernel_input_feature_dim >= kernel_layout.shape.len()
             || kernel_output_feature_dim >= kernel_layout.shape.len()
         {
-            return ControlFlow::Error(Error::InvalidInstruction);
+            return Transfer::Error(Error::InvalidInstruction);
         }
 
         for dim in dimensions.input_spatial.iter() {
             if *dim as usize >= input_layout.shape.len() {
-                return ControlFlow::Error(Error::InvalidInstruction);
+                return Transfer::Error(Error::InvalidInstruction);
             }
         }
         for dim in output_spatial.iter() {
             if *dim as usize >= dest_layout.shape.len() {
-                return ControlFlow::Error(Error::InvalidInstruction);
+                return Transfer::Error(Error::InvalidInstruction);
             }
         }
 
@@ -1219,14 +1528,14 @@ pub(crate) fn handle_tensor_convolution(
         let mut kernel_spatial_shape = Vec::with_capacity(kernel_spatial.len());
         for dim in kernel_spatial {
             let Some(size) = kernel_layout.shape.get(*dim as usize) else {
-                return ControlFlow::Error(Error::InvalidInstruction);
+                return Transfer::Error(Error::InvalidInstruction);
             };
             kernel_spatial_shape.push(*size);
         }
 
         // validate group counts
         if *feature_group_count == 0 || *batch_group_count == 0 {
-            return ControlFlow::Error(Error::InvalidInstruction);
+            return Transfer::Error(Error::InvalidInstruction);
         }
 
         let out_features_per_group = output_feature_size / (*feature_group_count as u64);
@@ -1325,8 +1634,7 @@ pub(crate) fn handle_tensor_convolution(
                     };
 
                     let product =
-                        apply_reduce_operator(ReduceOperator::Multiply, *input_val, *kernel_val)
-                            .ok();
+                        apply_reduce_operator(ReduceOperator::Multiply, input_val, kernel_val).ok();
                     let Some(product) = product else {
                         return;
                     };
@@ -1359,12 +1667,12 @@ pub(crate) fn handle_tensor_convolution(
     next!(state, block, pc)
 }
 
-/// Handle tensor.gather.
-pub(crate) fn handle_tensor_gather(
-    state: &mut ExecutionState<'_, '_>,
+/// Step tensor.gather.
+pub(crate) fn step_tensor_gather(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::TensorGather {
         dest,
@@ -1383,15 +1691,15 @@ pub(crate) fn handle_tensor_gather(
     // resolve layouts
     let operand_layout = match tensor_layout_info(state.tree(), *operand_type) {
         Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
     let indices_layout = match tensor_layout_info(state.tree(), *indices_type) {
         Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
     let dest_layout = match tensor_layout_info(state.tree(), *dest_type) {
         Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     let output = {
@@ -1400,11 +1708,11 @@ pub(crate) fn handle_tensor_gather(
         let indices_value = state.get(*indices);
         let operand_slots = match aggregate_slots(state, operand_value) {
             Ok(slots) => slots,
-            Err(error) => return ControlFlow::Error(error),
+            Err(error) => return Transfer::Error(error),
         };
         let indices_slots = match aggregate_slots(state, indices_value) {
             Ok(slots) => slots,
-            Err(error) => return ControlFlow::Error(error),
+            Err(error) => return Transfer::Error(error),
         };
 
         let mut output = vec![Value::VOID; dest_layout.storage_len];
@@ -1446,7 +1754,7 @@ pub(crate) fn handle_tensor_gather(
                 let Some(value) = indices_slots.get(slot_index) else {
                     return;
                 };
-                if let Ok(coord) = value_to_u64(*value) {
+                if let Ok(coord) = value_to_u64(value) {
                     index_vec[i] = coord;
                 } else {
                     return;
@@ -1492,7 +1800,7 @@ pub(crate) fn handle_tensor_gather(
             let Some(slot) = output.get_mut(dst_offset) else {
                 return;
             };
-            *slot = *value;
+            *slot = value;
         });
 
         output
@@ -1506,12 +1814,12 @@ pub(crate) fn handle_tensor_gather(
     next!(state, block, pc)
 }
 
-/// Handle tensor.scatter.
-pub(crate) fn handle_tensor_scatter(
-    state: &mut ExecutionState<'_, '_>,
+/// Step tensor.scatter.
+pub(crate) fn step_tensor_scatter(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::TensorScatter {
         dest,
@@ -1532,19 +1840,19 @@ pub(crate) fn handle_tensor_scatter(
     // resolve layouts
     let operand_layout = match tensor_layout_info(state.tree(), *operand_type) {
         Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
     let indices_layout = match tensor_layout_info(state.tree(), *indices_type) {
         Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
     let updates_layout = match tensor_layout_info(state.tree(), *updates_type) {
         Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
     let dest_layout = match tensor_layout_info(state.tree(), *dest_type) {
         Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     // resolve slots
@@ -1553,15 +1861,15 @@ pub(crate) fn handle_tensor_scatter(
     let updates_value = state.get(*updates);
     let operand_slots = match aggregate_slots(state, operand_value) {
         Ok(slots) => slots.to_vec(),
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
     let indices_slots = match aggregate_slots_vec(state, indices_value) {
         Ok(slots) => slots,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
     let updates_slots = match aggregate_slots_vec(state, updates_value) {
         Ok(slots) => slots,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     let mut output = operand_slots;
@@ -1668,12 +1976,12 @@ pub(crate) fn handle_tensor_scatter(
     next!(state, block, pc)
 }
 
-/// Handle tensor.convert.
-pub(crate) fn handle_tensor_convert(
-    state: &mut ExecutionState<'_, '_>,
+/// Step tensor.convert.
+pub(crate) fn step_tensor_convert(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::TensorConvert {
         dest,
@@ -1690,7 +1998,7 @@ pub(crate) fn handle_tensor_convert(
     let source_type = match state.tree().get(*source_type) {
         mir::Type::Tensor { element, .. } => *element,
         _ => {
-            return ControlFlow::Error(Error::TypeMismatch {
+            return Transfer::Error(Error::TypeMismatch {
                 expected: "tensor type".to_string(),
                 actual: format!("{source_type:?}"),
             });
@@ -1701,12 +2009,12 @@ pub(crate) fn handle_tensor_convert(
         mir::Type::Tensor { element, .. } => {
             let layout = match tensor_layout_info(state.tree(), *dest_type) {
                 Ok(layout) => layout,
-                Err(error) => return ControlFlow::Error(error),
+                Err(error) => return Transfer::Error(error),
             };
             (*element, layout)
         }
         _ => {
-            return ControlFlow::Error(Error::TypeMismatch {
+            return Transfer::Error(Error::TypeMismatch {
                 expected: "tensor type".to_string(),
                 actual: format!("{dest_type:?}"),
             });
@@ -1718,12 +2026,12 @@ pub(crate) fn handle_tensor_convert(
         let tensor_value = state.get(*tensor);
         let source_slots = match aggregate_slots(state, tensor_value) {
             Ok(slots) => slots,
-            Err(error) => return ControlFlow::Error(error),
+            Err(error) => return Transfer::Error(error),
         };
 
         // validate storage length
         if source_slots.len() != dest_layout.storage_len {
-            return ControlFlow::Error(Error::TypeMismatch {
+            return Transfer::Error(Error::TypeMismatch {
                 expected: "matching tensor storage".to_string(),
                 actual: format!("{} vs {}", source_slots.len(), dest_layout.storage_len),
             });
@@ -1732,20 +2040,20 @@ pub(crate) fn handle_tensor_convert(
         // resolve conversion types
         let source_info = match scalar_type_info(state.tree(), source_type) {
             Ok(info) => info,
-            Err(error) => return ControlFlow::Error(error),
+            Err(error) => return Transfer::Error(error),
         };
         let dest_info = match scalar_type_info(state.tree(), dest_element) {
             Ok(info) => info,
-            Err(error) => return ControlFlow::Error(error),
+            Err(error) => return Transfer::Error(error),
         };
         let convert_mode = ScalarConvertMode::from(*mode);
 
         // allocate output storage
         let mut output = Vec::with_capacity(source_slots.len());
         for src in source_slots.iter() {
-            let converted = match convert_scalar_value(*src, source_info, dest_info, convert_mode) {
+            let converted = match convert_scalar_value(src, source_info, dest_info, convert_mode) {
                 Ok(value) => value,
-                Err(error) => return ControlFlow::Error(error),
+                Err(error) => return Transfer::Error(error),
             };
             output.push(converted);
         }
@@ -1761,12 +2069,12 @@ pub(crate) fn handle_tensor_convert(
     next!(state, block, pc)
 }
 
-/// Handle tensor.compare.
-pub(crate) fn handle_tensor_compare(
-    state: &mut ExecutionState<'_, '_>,
+/// Step tensor.compare.
+pub(crate) fn step_tensor_compare(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::TensorCompare {
         dest,
@@ -1784,15 +2092,15 @@ pub(crate) fn handle_tensor_compare(
     // resolve layouts
     let left_layout = match tensor_layout_info(state.tree(), *left_type) {
         Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
     let right_layout = match tensor_layout_info(state.tree(), *right_type) {
         Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
     let dest_layout = match tensor_layout_info(state.tree(), *dest_type) {
         Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     let output = {
@@ -1801,11 +2109,11 @@ pub(crate) fn handle_tensor_compare(
         let right_value = state.get(*right);
         let left_slots = match aggregate_slots(state, left_value) {
             Ok(slots) => slots,
-            Err(error) => return ControlFlow::Error(error),
+            Err(error) => return Transfer::Error(error),
         };
         let right_slots = match aggregate_slots(state, right_value) {
             Ok(slots) => slots,
-            Err(error) => return ControlFlow::Error(error),
+            Err(error) => return Transfer::Error(error),
         };
 
         // allocate destination storage
@@ -1837,7 +2145,7 @@ pub(crate) fn handle_tensor_compare(
             let Some(slot) = output.get_mut(dest_offset) else {
                 return;
             };
-            let Ok(result) = operator::execute_binary(*operator, *left_value, *right_value) else {
+            let Ok(result) = operator::execute_binary(*operator, left_value, right_value) else {
                 return;
             };
             *slot = result;
@@ -1854,12 +2162,12 @@ pub(crate) fn handle_tensor_compare(
     next!(state, block, pc)
 }
 
-/// Handle tensor.select.
-pub(crate) fn handle_tensor_select(
-    state: &mut ExecutionState<'_, '_>,
+/// Step tensor.select.
+pub(crate) fn step_tensor_select(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     let InstructionData::TensorSelect {
         dest,
         mask,
@@ -1873,7 +2181,7 @@ pub(crate) fn handle_tensor_select(
 
     let dest_layout = match tensor_layout_info(state.tree(), *dest_type) {
         Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     let mask_value = state.get(*mask);
@@ -1881,22 +2189,22 @@ pub(crate) fn handle_tensor_select(
     let else_value = state.get(*else_value);
     let mask_slots = match aggregate_slots(state, mask_value) {
         Ok(slots) => slots,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
     let then_slots = match aggregate_slots(state, then_value) {
         Ok(slots) => slots,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
     let else_slots = match aggregate_slots(state, else_value) {
         Ok(slots) => slots,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     if mask_slots.len() != dest_layout.storage_len
         || then_slots.len() != dest_layout.storage_len
         || else_slots.len() != dest_layout.storage_len
     {
-        return ControlFlow::Error(Error::TypeMismatch {
+        return Transfer::Error(Error::TypeMismatch {
             expected: "matching tensor elements".to_string(),
             actual: format!(
                 "{} vs {} vs {}",
@@ -1914,13 +2222,13 @@ pub(crate) fn handle_tensor_select(
         .zip(else_slots.iter())
     {
         if !matches!(mask_value.tag(), ValueTag::Bool) {
-            return ControlFlow::Error(Error::TypeMismatch {
+            return Transfer::Error(Error::TypeMismatch {
                 expected: "tensor.select mask element to be bool".to_string(),
                 actual: format!("{mask_value:?}"),
             });
         }
         let select = mask_value.raw_data() != 0;
-        output.push(if select { *then_slot } else { *else_slot });
+        output.push(if select { then_slot } else { else_slot });
     }
 
     let result = state.allocate_aggregate(output);
@@ -1928,12 +2236,12 @@ pub(crate) fn handle_tensor_select(
     next!(state, block, pc)
 }
 
-/// Handle tensor.cast.
-pub(crate) fn handle_tensor_cast(
-    state: &mut ExecutionState<'_, '_>,
+/// Step tensor.cast.
+pub(crate) fn step_tensor_cast(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::TensorCast { dest, tensor } = &block[pc].data else {
         unreachable!()
@@ -1947,12 +2255,12 @@ pub(crate) fn handle_tensor_cast(
     next!(state, block, pc)
 }
 
-/// Handle tensor.view.
-pub(crate) fn handle_tensor_view(
-    state: &mut ExecutionState<'_, '_>,
+/// Step tensor.view.
+pub(crate) fn step_tensor_view(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::TensorView {
         dest,
@@ -1971,11 +2279,11 @@ pub(crate) fn handle_tensor_view(
     // resolve layouts
     let source_layout = match tensor_layout_info(state.tree(), *source_type) {
         Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
     let dest_layout = match tensor_layout_info(state.tree(), *dest_type) {
         Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     // resolve view arguments
@@ -1983,7 +2291,7 @@ pub(crate) fn handle_tensor_view(
     let (offset_values, rest) = args.split_at(*offsets_count as usize);
     let (size_values, stride_values) = rest.split_at(*sizes_count as usize);
     if stride_values.len() != *strides_count as usize {
-        return ControlFlow::Error(Error::InvalidInstruction);
+        return Transfer::Error(Error::InvalidInstruction);
     }
 
     let mut offsets = Vec::with_capacity(offset_values.len());
@@ -1993,28 +2301,28 @@ pub(crate) fn handle_tensor_view(
         let value = state.get(*value_id);
         match value_to_u64(value) {
             Ok(v) => offsets.push(v),
-            Err(error) => return ControlFlow::Error(error),
+            Err(error) => return Transfer::Error(error),
         }
     }
     for value_id in size_values {
         let value = state.get(*value_id);
         match value_to_u64(value) {
             Ok(v) => sizes.push(v),
-            Err(error) => return ControlFlow::Error(error),
+            Err(error) => return Transfer::Error(error),
         }
     }
     for value_id in stride_values {
         let value = state.get(*value_id);
         match value_to_u64(value) {
             Ok(v) => strides.push(v),
-            Err(error) => return ControlFlow::Error(error),
+            Err(error) => return Transfer::Error(error),
         }
     }
 
     // validate sizes and strides against the destination layout
     for (expected, actual) in dest_layout.shape.iter().zip(sizes.iter()) {
         if *expected != *actual {
-            return ControlFlow::Error(Error::TypeMismatch {
+            return Transfer::Error(Error::TypeMismatch {
                 expected: "tensor.view size".to_string(),
                 actual: format!("{actual} vs {expected}"),
             });
@@ -2022,7 +2330,7 @@ pub(crate) fn handle_tensor_view(
     }
     for (expected, actual) in dest_layout.strides.iter().zip(strides.iter()) {
         if *expected != *actual {
-            return ControlFlow::Error(Error::TypeMismatch {
+            return Transfer::Error(Error::TypeMismatch {
                 expected: "tensor.view stride".to_string(),
                 actual: format!("{actual} vs {expected}"),
             });
@@ -2032,14 +2340,14 @@ pub(crate) fn handle_tensor_view(
     // compute offset into the source view
     let offset = match tensor_linear_index(&offsets, &source_layout.shape, &source_layout.strides) {
         Ok(offset) => offset,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     // offset the view pointer
     let view_value = state.get(*view);
     let pointer = match offset_pointer(view_value, offset, source_layout.storage_len) {
         Ok(pointer) => pointer,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     // set the view result

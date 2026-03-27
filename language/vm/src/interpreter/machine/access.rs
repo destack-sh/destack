@@ -6,13 +6,36 @@ use destack_heap::{
 };
 use destack_mir as mir;
 
-use super::super::state::ExecutionState;
+use super::super::state::StepState;
+use super::storage::*;
 use crate::telemetry::stat_inc;
+
+pub(crate) use super::storage::{
+    aggregate_component_values, decode_raw_value, decode_storage_value, encode_raw_value,
+    encode_storage_value, load_from_raw_pointer_typed, managed_array_reference_map,
+    managed_type_size, raw_type_size, store_to_raw_pointer_typed,
+};
 
 const POINTER_BASE_MASK: u64 = 0xFFFF_FFFF;
 const POINTER_SLOT_SHIFT: u64 = 32;
 const STACK_INDEX_MASK: u64 = 0xFFFF;
 const STACK_SLOT_SHIFT: u64 = 16;
+
+/// Build one invalid-pointer-type error for the given value.
+#[inline(always)]
+pub(super) fn invalid_pointer_type(value: Value) -> Error {
+    Error::InvalidPointerType {
+        actual: format!("{value:?}"),
+    }
+}
+
+/// Build one invalid-pointer-type error for the given description.
+#[inline(always)]
+fn invalid_pointer_description(actual: impl Into<String>) -> Error {
+    Error::InvalidPointerType {
+        actual: actual.into(),
+    }
+}
 
 /// Return the packed VM value count for one managed allocation.
 #[inline(always)]
@@ -181,7 +204,7 @@ fn string_field_offset(index: u32) -> Result<usize, Error> {
 /// Load a value from a pointer with one optional raw pointee type.
 #[inline(always)]
 pub(crate) fn load_from_pointer_with_raw_pointee(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     ptr: Value,
     raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
 ) -> Result<Value, Error> {
@@ -193,44 +216,49 @@ pub(crate) fn load_from_pointer_with_raw_pointee(
     // resolve pointer kind and load
     match ptr.tag() {
         ValueTag::ManagedReference => {
+            // load the packed managed slot directly
             let handle = ptr.as_managed_reference().unwrap();
             let value_index = managed_packed_slot_index(handle, 0)?;
             load_heap_slot(state, handle, value_index)
         }
         ValueTag::RawPointer => {
+            // require the raw pointee type before decoding raw memory
             let Some(raw_pointee) = raw_pointee else {
-                return Err(Error::InvalidPointerType {
-                    actual: "raw pointer without pointee type".to_string(),
-                });
+                return Err(invalid_pointer_description(
+                    "raw pointer without pointee type",
+                ));
             };
 
             load_from_raw_pointer_typed(state, ptr, raw_pointee)
         }
         ValueTag::StackPointer => {
+            // load one stack slot directly
             let sp = ptr.as_stack_pointer().unwrap();
             load_stack_slot(state, sp, sp.slot_offset)
         }
         ValueTag::LocalPointer => {
+            // load one local slot directly
             let lp = ptr.as_local_pointer().unwrap();
             load_local_slot(state, lp, lp.slot_offset)
         }
         ValueTag::GlobalPointer => {
+            // load one global slot directly
             let global = ptr.as_global_pointer().unwrap();
             load_global_slot(state, global)
         }
-        _ => Err(Error::InvalidPointerType {
-            actual: format!("{ptr:?}"),
-        }),
+
+        // reject non pointer values loudly
+        _ => Err(invalid_pointer_type(ptr)),
     }
 }
 
 /// Store a value to a pointer with one optional raw pointee type.
 #[inline(always)]
 pub(crate) fn store_to_pointer_with_raw_pointee(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     ptr: Value,
     raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
-    val: Value,
+    value: Value,
 ) -> Result<(), Error> {
     // track pointer stores
     if state.collect_stats {
@@ -240,69 +268,78 @@ pub(crate) fn store_to_pointer_with_raw_pointee(
     // resolve pointer kind and store
     match ptr.tag() {
         ValueTag::ManagedReference => {
+            // store into the packed managed slot directly
             let handle = ptr.as_managed_reference().unwrap();
             let value_index = managed_packed_slot_index(handle, 0)?;
-            store_heap_slot(state, handle, value_index, val)
+            store_heap_slot(state, handle, value_index, value)
         }
         ValueTag::RawPointer => {
+            // require the raw pointee type before encoding raw memory
             let Some(raw_pointee) = raw_pointee else {
-                return Err(Error::InvalidPointerType {
-                    actual: "raw pointer without pointee type".to_string(),
-                });
+                return Err(invalid_pointer_description(
+                    "raw pointer without pointee type",
+                ));
             };
 
-            store_to_raw_pointer_typed(state, ptr, raw_pointee, val)
+            store_to_raw_pointer_typed(state, ptr, raw_pointee, value)
         }
         ValueTag::StackPointer => {
+            // store one stack slot directly
             let sp = ptr.as_stack_pointer().unwrap();
-            store_stack_slot(state, sp, sp.slot_offset, val)
+            store_stack_slot(state, sp, sp.slot_offset, value)
         }
         ValueTag::LocalPointer => {
+            // store one local slot directly
             let lp = ptr.as_local_pointer().unwrap();
-            store_local_slot(state, lp, lp.slot_offset, val)
+            store_local_slot(state, lp, lp.slot_offset, value)
         }
         ValueTag::GlobalPointer => {
+            // reject immutable globals before storing the slot
             let global = ptr.as_global_pointer().unwrap();
             let global_def = state.tree().get(global.id);
             if !global_def.is_mutable() {
                 return Err(Error::ImmutableGlobalWrite { global: global.id });
             }
-            store_global_slot(state, global, val)
+
+            store_global_slot(state, global, value)
         }
-        _ => Err(Error::InvalidPointerType {
-            actual: format!("{ptr:?}"),
-        }),
+
+        // reject non pointer values loudly
+        _ => Err(invalid_pointer_type(ptr)),
     }
 }
 
 /// Load a typed value from a managed reference.
 #[inline(always)]
 pub(crate) fn load_from_managed_reference_typed(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     ptr: Value,
     pointee: mir::LocalNodeId<mir::Type>,
 ) -> Result<Value, Error> {
+    // require one managed reference value
     if ptr.tag() != ValueTag::ManagedReference {
-        return Err(Error::InvalidPointerType {
-            actual: format!("{ptr:?}"),
-        });
+        return Err(invalid_pointer_type(ptr));
     }
 
+    // reject null pointers before reading the allocation
     let handle = ptr.as_managed_reference().unwrap();
     if state.null_checks && handle.is_null() {
         return Err(Error::NullPointerDereference);
     }
 
+    // require one live managed allocation
     let heap = state.heap_ref();
     if !heap.is_managed_allocated(handle) {
         return Err(Error::InvalidManagedReference);
     }
 
+    // load packed single slot allocations directly
     if has_packed_values(heap, handle) {
         let slot_offset = managed_packed_slot_index(handle, 0)?;
         return load_heap_slot(state, handle, slot_offset);
     }
 
+    // otherwise decode the typed storage bytes
     let byte_len = managed_type_size(state.tree(), pointee)?;
     let bytes = heap
         .managed_bytes(handle)
@@ -319,14 +356,12 @@ pub(crate) fn load_from_managed_reference_typed(
 /// Load a value from a stack pointer.
 #[inline(always)]
 pub(crate) fn load_from_stack_pointer(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     ptr: Value,
 ) -> Result<Value, Error> {
     // validate pointer tag
     if ptr.tag() != ValueTag::StackPointer {
-        return Err(Error::InvalidPointerType {
-            actual: format!("{ptr:?}"),
-        });
+        return Err(invalid_pointer_type(ptr));
     }
 
     // resolve pointer
@@ -337,14 +372,12 @@ pub(crate) fn load_from_stack_pointer(
 /// Load a value from a local pointer.
 #[inline(always)]
 pub(crate) fn load_from_local_pointer(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     ptr: Value,
 ) -> Result<Value, Error> {
     // validate pointer tag
     if ptr.tag() != ValueTag::LocalPointer {
-        return Err(Error::InvalidPointerType {
-            actual: format!("{ptr:?}"),
-        });
+        return Err(invalid_pointer_type(ptr));
     }
 
     // resolve pointer
@@ -355,14 +388,12 @@ pub(crate) fn load_from_local_pointer(
 /// Load a value from a global pointer.
 #[inline(always)]
 pub(crate) fn load_from_global_pointer(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     ptr: Value,
 ) -> Result<Value, Error> {
     // validate pointer tag
     if ptr.tag() != ValueTag::GlobalPointer {
-        return Err(Error::InvalidPointerType {
-            actual: format!("{ptr:?}"),
-        });
+        return Err(invalid_pointer_type(ptr));
     }
 
     // resolve pointer
@@ -373,15 +404,13 @@ pub(crate) fn load_from_global_pointer(
 /// Store a typed value through a managed reference.
 #[inline(always)]
 pub(crate) fn store_to_managed_reference_typed(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     ptr: Value,
     pointee: mir::LocalNodeId<mir::Type>,
     val: Value,
 ) -> Result<(), Error> {
     if ptr.tag() != ValueTag::ManagedReference {
-        return Err(Error::InvalidPointerType {
-            actual: format!("{ptr:?}"),
-        });
+        return Err(invalid_pointer_type(ptr));
     }
 
     let handle = ptr.as_managed_reference().unwrap();
@@ -432,15 +461,13 @@ pub(crate) fn store_to_managed_reference_typed(
 /// Store a value through a stack pointer.
 #[inline(always)]
 pub(crate) fn store_to_stack_pointer(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     ptr: Value,
     val: Value,
 ) -> Result<(), Error> {
     // validate pointer tag
     if ptr.tag() != ValueTag::StackPointer {
-        return Err(Error::InvalidPointerType {
-            actual: format!("{ptr:?}"),
-        });
+        return Err(invalid_pointer_type(ptr));
     }
 
     // resolve pointer
@@ -451,15 +478,13 @@ pub(crate) fn store_to_stack_pointer(
 /// Store a value through a local pointer.
 #[inline(always)]
 pub(crate) fn store_to_local_pointer(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     ptr: Value,
     val: Value,
 ) -> Result<(), Error> {
     // validate pointer tag
     if ptr.tag() != ValueTag::LocalPointer {
-        return Err(Error::InvalidPointerType {
-            actual: format!("{ptr:?}"),
-        });
+        return Err(invalid_pointer_type(ptr));
     }
 
     // resolve pointer
@@ -470,15 +495,13 @@ pub(crate) fn store_to_local_pointer(
 /// Store a value through a global pointer.
 #[inline(always)]
 pub(crate) fn store_to_global_pointer(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     ptr: Value,
     val: Value,
 ) -> Result<(), Error> {
     // validate pointer tag
     if ptr.tag() != ValueTag::GlobalPointer {
-        return Err(Error::InvalidPointerType {
-            actual: format!("{ptr:?}"),
-        });
+        return Err(invalid_pointer_type(ptr));
     }
 
     // resolve pointer
@@ -490,994 +513,10 @@ pub(crate) fn store_to_global_pointer(
     store_global_slot(state, global, val)
 }
 
-/// Validate a field index against a known field count.
-#[inline(always)]
-fn check_field_index(
-    state: &ExecutionState<'_, '_>,
-    index: u32,
-    field_count: u32,
-) -> Result<(), Error> {
-    // skip checks when bounds are disabled
-    if !state.bounds_checks {
-        return Ok(());
-    }
-
-    // skip checks when the layout is unknown
-    if field_count == UNKNOWN_FIELD_COUNT {
-        return Ok(());
-    }
-
-    // reject out of bounds indices
-    if index >= field_count {
-        return Err(Error::InvalidFieldAccess {
-            index,
-            field_count: field_count as usize,
-        });
-    }
-
-    Ok(())
-}
-
-/// Validate an array index against a known length.
-#[inline(always)]
-fn check_array_index(
-    state: &ExecutionState<'_, '_>,
-    index: u64,
-    array_length: u64,
-) -> Result<(), Error> {
-    // skip checks when bounds are disabled
-    if !state.bounds_checks {
-        return Ok(());
-    }
-
-    // skip checks when the length is unknown
-    if array_length == UNKNOWN_ARRAY_LENGTH {
-        return Ok(());
-    }
-
-    // reject out of bounds indices
-    if index >= array_length {
-        return Err(Error::InvalidArrayAccess {
-            index,
-            length: array_length,
-        });
-    }
-
-    Ok(())
-}
-
-/// Resolve the byte size for one raw pointee type.
-pub(crate) fn raw_type_size(
-    tree: &mir::NodeTree,
-    ty: mir::LocalNodeId<mir::Type>,
-) -> Result<usize, Error> {
-    let size = match tree.get(ty) {
-        mir::Type::Void => 0,
-        mir::Type::Boolean => 1,
-        mir::Type::Int { width, .. } => (*width as usize).div_ceil(8),
-        mir::Type::Isize
-        | mir::Type::Usize
-        | mir::Type::TypeDescriptor
-        | mir::Type::TypeId
-        | mir::Type::Reference { .. }
-        | mir::Type::FunctionPointer { .. }
-        | mir::Type::TensorReference { .. } => tree.pointer_bytes() as usize,
-        mir::Type::Float { width } => (*width as usize).div_ceil(8),
-        mir::Type::Newtype { inner, .. } => return raw_type_size(tree, *inner),
-        mir::Type::Array { .. }
-        | mir::Type::Tuple { .. }
-        | mir::Type::Struct { .. }
-        | mir::Type::FunctionValue { .. }
-        | mir::Type::Vector { .. }
-        | mir::Type::Tensor { .. } => tree
-            .type_layout(ty)
-            .map(|layout| layout.size as usize)
-            .ok_or_else(|| Error::TypeMismatch {
-                expected: "layout-backed raw type".to_string(),
-                actual: format!("{ty:?}"),
-            })?,
-    };
-
-    Ok(size)
-}
-
-/// Resolve the byte size for one managed pointee type.
-pub(crate) fn managed_type_size(
-    tree: &mir::NodeTree,
-    ty: mir::LocalNodeId<mir::Type>,
-) -> Result<usize, Error> {
-    let size = match tree.get(ty) {
-        mir::Type::Reference {
-            kind: mir::ReferenceKind::Managed,
-            ..
-        }
-        | mir::Type::TensorReference {
-            kind: mir::ReferenceKind::Managed,
-            ..
-        } => tree.data_layout.managed_reference_layout.bytes as usize,
-        _ => raw_type_size(tree, ty)?,
-    };
-
-    Ok(size)
-}
-
-/// Build one managed reference map for a runtime array allocation.
-pub(crate) fn managed_array_reference_map(
-    tree: &mir::NodeTree,
-    element_type: mir::LocalNodeId<mir::Type>,
-    count: usize,
-) -> ReferenceMap {
-    if count == 0 {
-        return ReferenceMap::empty();
-    }
-
-    let element_size = match managed_type_size(tree, element_type) {
-        Ok(element_size) => element_size,
-        Err(_) => return ReferenceMap::empty(),
-    };
-
-    let mut offsets = Vec::new();
-    append_managed_reference_map_offsets(tree, element_type, 0, &mut offsets);
-
-    if offsets.is_empty() {
-        ReferenceMap::empty()
-    } else {
-        ReferenceMap::RepeatedReferenceOffsets {
-            count: count as u32,
-            element_size: element_size as u32,
-            offsets,
-        }
-    }
-}
-
-fn append_managed_reference_map_offsets(
-    tree: &mir::NodeTree,
-    ty: mir::LocalNodeId<mir::Type>,
-    base_offset: u32,
-    offsets: &mut Vec<u32>,
-) {
-    match tree.get(ty) {
-        mir::Type::Reference {
-            kind: mir::ReferenceKind::Managed,
-            ..
-        }
-        | mir::Type::TensorReference {
-            kind: mir::ReferenceKind::Managed,
-            ..
-        } => {
-            offsets.push(base_offset);
-        }
-        mir::Type::Newtype { inner, .. } => {
-            append_managed_reference_map_offsets(tree, *inner, base_offset, offsets);
-        }
-        mir::Type::Struct { .. }
-        | mir::Type::Tuple { .. }
-        | mir::Type::FunctionValue { .. }
-        | mir::Type::Vector { .. }
-        | mir::Type::Tensor { .. } => {
-            let Some(layout) = tree.type_layout(ty) else {
-                return;
-            };
-
-            for field in &layout.fields {
-                append_managed_reference_map_offsets(
-                    tree,
-                    field.ty,
-                    base_offset.saturating_add(field.offset),
-                    offsets,
-                );
-            }
-        }
-        mir::Type::Array {
-            element, length, ..
-        } => {
-            let Some(layout) = tree.type_layout(ty) else {
-                return;
-            };
-            let mir::LayoutType::Array { element_stride, .. } = &layout.layout_type else {
-                return;
-            };
-
-            for index in 0..*length as u32 {
-                let element_base =
-                    base_offset.saturating_add(index.saturating_mul(*element_stride));
-                append_managed_reference_map_offsets(tree, *element, element_base, offsets);
-            }
-        }
-        _ => {}
-    }
-}
-
-/// Resolve one raw struct or tuple field type and byte offset.
-fn raw_field_info(
-    tree: &mir::NodeTree,
-    aggregate_type: mir::LocalNodeId<mir::Type>,
-    index: u32,
-) -> Result<(mir::LocalNodeId<mir::Type>, usize), Error> {
-    match tree.get(aggregate_type) {
-        mir::Type::Struct { fields, .. } => {
-            let field_id =
-                fields
-                    .get(index as usize)
-                    .copied()
-                    .ok_or(Error::InvalidFieldAccess {
-                        index,
-                        field_count: fields.len(),
-                    })?;
-            let field_ty = tree.get(field_id).ty;
-            let layout = tree
-                .type_layout(aggregate_type)
-                .ok_or(Error::InvalidManagedReference)?;
-            let field = layout
-                .fields
-                .get(index as usize)
-                .ok_or(Error::InvalidFieldAccess {
-                    index,
-                    field_count: layout.fields.len(),
-                })?;
-            Ok((field_ty, field.offset as usize))
-        }
-        mir::Type::Tuple { elements, .. } => {
-            let field_ty =
-                elements
-                    .get(index as usize)
-                    .copied()
-                    .ok_or(Error::InvalidFieldAccess {
-                        index,
-                        field_count: elements.len(),
-                    })?;
-            let layout = tree
-                .type_layout(aggregate_type)
-                .ok_or(Error::InvalidManagedReference)?;
-            let field = layout
-                .fields
-                .get(index as usize)
-                .ok_or(Error::InvalidFieldAccess {
-                    index,
-                    field_count: layout.fields.len(),
-                })?;
-            Ok((field_ty, field.offset as usize))
-        }
-        mir::Type::Newtype { inner, .. } => raw_field_info(tree, *inner, index),
-        _ => Err(Error::TypeMismatch {
-            expected: "raw aggregate".to_string(),
-            actual: format!("{aggregate_type:?}"),
-        }),
-    }
-}
-
-fn managed_field_info(
-    tree: &mir::NodeTree,
-    aggregate_type: mir::LocalNodeId<mir::Type>,
-    index: u32,
-) -> Result<(mir::LocalNodeId<mir::Type>, usize), Error> {
-    match tree.get(aggregate_type) {
-        mir::Type::Struct { fields, .. } => {
-            let field_id =
-                fields
-                    .get(index as usize)
-                    .copied()
-                    .ok_or(Error::InvalidFieldAccess {
-                        index,
-                        field_count: fields.len(),
-                    })?;
-            let field_ty = tree.get(field_id).ty;
-            let layout = tree
-                .type_layout(aggregate_type)
-                .ok_or(Error::InvalidManagedReference)?;
-            let field = layout
-                .fields
-                .get(index as usize)
-                .ok_or(Error::InvalidFieldAccess {
-                    index,
-                    field_count: layout.fields.len(),
-                })?;
-            Ok((field_ty, field.offset as usize))
-        }
-        mir::Type::Tuple { elements, .. } => {
-            let field_ty =
-                elements
-                    .get(index as usize)
-                    .copied()
-                    .ok_or(Error::InvalidFieldAccess {
-                        index,
-                        field_count: elements.len(),
-                    })?;
-            let layout = tree
-                .type_layout(aggregate_type)
-                .ok_or(Error::InvalidManagedReference)?;
-            let field = layout
-                .fields
-                .get(index as usize)
-                .ok_or(Error::InvalidFieldAccess {
-                    index,
-                    field_count: layout.fields.len(),
-                })?;
-            Ok((field_ty, field.offset as usize))
-        }
-        mir::Type::Newtype { inner, .. } => managed_field_info(tree, *inner, index),
-        _ => Err(Error::TypeMismatch {
-            expected: "managed aggregate".to_string(),
-            actual: format!("{aggregate_type:?}"),
-        }),
-    }
-}
-
-/// Resolve one raw array element type and byte stride.
-fn raw_element_info(
-    tree: &mir::NodeTree,
-    array_type: mir::LocalNodeId<mir::Type>,
-) -> Result<(mir::LocalNodeId<mir::Type>, usize), Error> {
-    match tree.get(array_type) {
-        mir::Type::Array { element, .. } => {
-            let layout = tree
-                .type_layout(array_type)
-                .ok_or(Error::InvalidManagedReference)?;
-            let mir::LayoutType::Array {
-                element_stride,
-                element_type,
-                ..
-            } = &layout.layout_type
-            else {
-                return Err(Error::TypeMismatch {
-                    expected: "raw array layout".to_string(),
-                    actual: format!("{array_type:?}"),
-                });
-            };
-            debug_assert_eq!(*element, *element_type);
-            Ok((*element_type, *element_stride as usize))
-        }
-        mir::Type::Newtype { inner, .. } => raw_element_info(tree, *inner),
-        _ => Err(Error::TypeMismatch {
-            expected: "raw array".to_string(),
-            actual: format!("{array_type:?}"),
-        }),
-    }
-}
-
-fn managed_element_info(
-    tree: &mir::NodeTree,
-    array_type: mir::LocalNodeId<mir::Type>,
-) -> Result<(mir::LocalNodeId<mir::Type>, usize), Error> {
-    match tree.get(array_type) {
-        mir::Type::Array { element, .. } => {
-            let layout = tree
-                .type_layout(array_type)
-                .ok_or(Error::InvalidManagedReference)?;
-            let mir::LayoutType::Array {
-                element_stride,
-                element_type,
-                ..
-            } = &layout.layout_type
-            else {
-                return Err(Error::TypeMismatch {
-                    expected: "managed array layout".to_string(),
-                    actual: format!("{array_type:?}"),
-                });
-            };
-            debug_assert_eq!(*element, *element_type);
-            Ok((*element_type, *element_stride as usize))
-        }
-        mir::Type::Newtype { inner, .. } => managed_element_info(tree, *inner),
-        _ => Err(Error::TypeMismatch {
-            expected: "managed array".to_string(),
-            actual: format!("{array_type:?}"),
-        }),
-    }
-}
-
-/// Read one raw byte window into an owned buffer.
-fn read_raw_bytes(
-    state: &ExecutionState<'_, '_>,
-    pointer: RawPointer,
-    byte_offset: usize,
-    byte_len: usize,
-) -> Result<Vec<u8>, Error> {
-    let bytes = state
-        .heap_ref()
-        .raw_bytes(pointer)
-        .ok_or(Error::InvalidManagedReference)?;
-
-    let end = byte_offset
-        .checked_add(byte_len)
-        .ok_or(Error::InvalidFieldAccess {
-            index: byte_offset as u32,
-            field_count: bytes.len(),
-        })?;
-
-    let window = bytes
-        .get(byte_offset..end)
-        .ok_or(Error::InvalidFieldAccess {
-            index: byte_offset as u32,
-            field_count: bytes.len(),
-        })?;
-
-    Ok(window.to_vec())
-}
-
-/// Write one raw byte window from the given buffer.
-fn write_raw_bytes(
-    state: &mut ExecutionState<'_, '_>,
-    pointer: RawPointer,
-    byte_offset: usize,
-    bytes: &[u8],
-) -> Result<(), Error> {
-    let byte_len = state
-        .heap_ref()
-        .raw_byte_len(pointer)
-        .ok_or(Error::InvalidManagedReference)?;
-    let end = byte_offset
-        .checked_add(bytes.len())
-        .ok_or(Error::InvalidFieldAccess {
-            index: byte_offset as u32,
-            field_count: byte_len,
-        })?;
-
-    if end > byte_len {
-        return Err(Error::InvalidFieldAccess {
-            index: byte_offset as u32,
-            field_count: byte_len,
-        });
-    }
-
-    for (index, byte) in bytes.iter().copied().enumerate() {
-        if !state
-            .heap()
-            .set_raw_byte(pointer, byte_offset + index, byte)
-        {
-            return Err(Error::InvalidFieldAccess {
-                index: (byte_offset + index) as u32,
-                field_count: byte_len,
-            });
-        }
-    }
-
-    Ok(())
-}
-
-/// Decode one raw byte window into a VM value.
-pub(crate) fn decode_raw_value(
-    tree: &mir::NodeTree,
-    ty: mir::LocalNodeId<mir::Type>,
-    bytes: &[u8],
-) -> Result<Value, Error> {
-    match tree.get(ty) {
-        mir::Type::Void => Ok(Value::VOID),
-        mir::Type::Boolean => Ok(Value::bool(bytes.first().copied().unwrap_or(0) != 0)),
-        mir::Type::Int { width, is_signed } => {
-            let mut raw = [0u8; 8];
-            raw[..bytes.len()].copy_from_slice(bytes);
-            let raw = u64::from_le_bytes(raw);
-            if *is_signed {
-                Ok(Value::int(raw as i64, *width as u8))
-            } else {
-                Ok(Value::uint(raw, *width as u8))
-            }
-        }
-        mir::Type::Isize => {
-            let mut raw = [0u8; 8];
-            raw[..bytes.len()].copy_from_slice(bytes);
-            Ok(Value::int(
-                u64::from_le_bytes(raw) as i64,
-                tree.pointer_bits() as u8,
-            ))
-        }
-        mir::Type::Usize | mir::Type::TypeDescriptor | mir::Type::TypeId => {
-            let mut raw = [0u8; 8];
-            raw[..bytes.len()].copy_from_slice(bytes);
-            Ok(Value::uint(
-                u64::from_le_bytes(raw),
-                tree.pointer_bits() as u8,
-            ))
-        }
-        mir::Type::Float { width: 32 } => {
-            let mut raw = [0u8; 4];
-            raw[..bytes.len()].copy_from_slice(bytes);
-            Ok(Value::float32(f32::from_bits(u32::from_le_bytes(raw))))
-        }
-        mir::Type::Float { width: 64 } => {
-            let mut raw = [0u8; 8];
-            raw.copy_from_slice(bytes);
-            Ok(Value::float64(f64::from_bits(u64::from_le_bytes(raw))))
-        }
-        mir::Type::Float { width } => Err(Error::TypeMismatch {
-            expected: "supported float width".to_string(),
-            actual: width.to_string(),
-        }),
-        mir::Type::Reference { .. } => {
-            let mut raw = [0u8; 8];
-            raw[..bytes.len()].copy_from_slice(bytes);
-            let raw = u64::from_le_bytes(raw);
-
-            Ok(decode_pointer_bits(raw, tree.get(ty)))
-        }
-        mir::Type::FunctionPointer { .. } => {
-            let mut raw = [0u8; 8];
-            raw[..bytes.len()].copy_from_slice(bytes);
-            Ok(decode_pointer_bits(u64::from_le_bytes(raw), tree.get(ty)))
-        }
-        mir::Type::Newtype { inner, .. } => decode_raw_value(tree, *inner, bytes),
-        _ => Err(Error::TypeMismatch {
-            expected: "scalar or reference raw load".to_string(),
-            actual: format!("{ty:?}"),
-        }),
-    }
-}
-
-/// Decode one storage byte window into a VM value.
-pub(crate) fn decode_storage_value(
-    state: &mut ExecutionState<'_, '_>,
-    ty: mir::LocalNodeId<mir::Type>,
-    bytes: &[u8],
-) -> Result<Value, Error> {
-    match state.tree().get(ty).clone() {
-        mir::Type::Newtype { inner, .. } => decode_storage_value(state, inner, bytes),
-        mir::Type::Array { .. }
-        | mir::Type::Tuple { .. }
-        | mir::Type::Struct { .. }
-        | mir::Type::FunctionValue { .. }
-        | mir::Type::Vector { .. }
-        | mir::Type::Tensor { .. } => {
-            let tree = state.tree();
-            let component_count = aggregate_component_count(tree, ty)?;
-            let component_specs = (0..component_count)
-                .map(|index| {
-                    let (component_type, component_offset) =
-                        aggregate_component_info(tree, ty, index as u32)?;
-                    let component_byte_len = raw_type_size(tree, component_type)?;
-
-                    Ok::<_, Error>((
-                        index as u32,
-                        component_type,
-                        component_offset,
-                        component_byte_len,
-                    ))
-                })
-                .collect::<Result<Vec<_>, _>>()?;
-            let mut values = Vec::with_capacity(component_count);
-
-            // decode each aggregate component in semantic order
-            for (index, component_type, component_offset, component_byte_len) in component_specs {
-                let component_end = component_offset.checked_add(component_byte_len).ok_or(
-                    Error::InvalidFieldAccess {
-                        index,
-                        field_count: bytes.len(),
-                    },
-                )?;
-                let component_window = bytes.get(component_offset..component_end).ok_or(
-                    Error::InvalidFieldAccess {
-                        index,
-                        field_count: bytes.len(),
-                    },
-                )?;
-                let value = decode_storage_value(state, component_type, component_window)?;
-
-                values.push(value);
-            }
-
-            Ok(allocate_aggregate_value(state, values))
-        }
-        _ => decode_raw_value(state.tree(), ty, bytes),
-    }
-}
-
-/// Encode one VM value into raw bytes for the given type.
-pub(crate) fn encode_raw_value(
-    tree: &mir::NodeTree,
-    ty: mir::LocalNodeId<mir::Type>,
-    value: Value,
-) -> Result<Vec<u8>, Error> {
-    let byte_len = raw_type_size(tree, ty)?;
-
-    let bytes = match tree.get(ty) {
-        mir::Type::Void => Vec::new(),
-        mir::Type::Boolean => vec![u8::from(value.as_bool().ok_or_else(|| {
-            Error::TypeMismatch {
-                expected: "bool".to_string(),
-                actual: format!("{value:?}"),
-            }
-        })?)],
-        mir::Type::Int { .. } | mir::Type::Isize => {
-            let raw = match value.tag() {
-                ValueTag::Int => value.raw_data(),
-                ValueTag::UInt => value.raw_data(),
-                _ => {
-                    return Err(Error::TypeMismatch {
-                        expected: "integer".to_string(),
-                        actual: format!("{value:?}"),
-                    });
-                }
-            };
-            raw.to_le_bytes()[..byte_len].to_vec()
-        }
-        mir::Type::Usize | mir::Type::TypeDescriptor | mir::Type::TypeId => {
-            let raw = value.as_uint().ok_or_else(|| Error::TypeMismatch {
-                expected: "integer".to_string(),
-                actual: format!("{value:?}"),
-            })?;
-            raw.to_le_bytes()[..byte_len].to_vec()
-        }
-        mir::Type::Float { width: 32 } => {
-            let raw = value.as_float32().ok_or_else(|| Error::TypeMismatch {
-                expected: "float32".to_string(),
-                actual: format!("{value:?}"),
-            })?;
-            raw.to_bits().to_le_bytes().to_vec()
-        }
-        mir::Type::Float { width: 64 } => {
-            let raw = value.as_float64().ok_or_else(|| Error::TypeMismatch {
-                expected: "float64".to_string(),
-                actual: format!("{value:?}"),
-            })?;
-            raw.to_bits().to_le_bytes().to_vec()
-        }
-        mir::Type::Float { width } => {
-            return Err(Error::TypeMismatch {
-                expected: "supported float width".to_string(),
-                actual: width.to_string(),
-            });
-        }
-        mir::Type::Reference { address_space, .. } => {
-            let raw = match address_space {
-                mir::AddressSpace::Shared => value
-                    .as_shared_pointer()
-                    .map(|pointer| pointer.bits())
-                    .ok_or_else(|| Error::TypeMismatch {
-                        expected: "shared pointer".to_string(),
-                        actual: format!("{value:?}"),
-                    })?,
-                mir::AddressSpace::Stack => value
-                    .as_stack_pointer()
-                    .map(|pointer| Value::stack_pointer(pointer).raw_data())
-                    .ok_or_else(|| Error::TypeMismatch {
-                        expected: "stack pointer".to_string(),
-                        actual: format!("{value:?}"),
-                    })?,
-                mir::AddressSpace::Local => value
-                    .as_local_pointer()
-                    .map(|pointer| Value::local_pointer(pointer).raw_data())
-                    .ok_or_else(|| Error::TypeMismatch {
-                        expected: "local pointer".to_string(),
-                        actual: format!("{value:?}"),
-                    })?,
-                mir::AddressSpace::Global | mir::AddressSpace::Constant => value
-                    .as_global_pointer()
-                    .map(|pointer| {
-                        Value::global_pointer_with_offset(pointer.id, pointer.slot_offset)
-                            .raw_data()
-                    })
-                    .ok_or_else(|| Error::TypeMismatch {
-                        expected: "global pointer".to_string(),
-                        actual: format!("{value:?}"),
-                    })?,
-                _ => value
-                    .as_managed_reference()
-                    .map(|handle| handle.bits())
-                    .or_else(|| value.as_raw_pointer().map(|pointer| pointer.bits()))
-                    .ok_or_else(|| Error::TypeMismatch {
-                        expected: "reference".to_string(),
-                        actual: format!("{value:?}"),
-                    })?,
-            };
-            raw.to_le_bytes()[..byte_len].to_vec()
-        }
-        mir::Type::FunctionPointer { .. } => {
-            let raw = value
-                .as_function_pointer()
-                .ok_or_else(|| Error::TypeMismatch {
-                    expected: "function pointer".to_string(),
-                    actual: format!("{value:?}"),
-                })?;
-            (raw.id as u64).to_le_bytes()[..byte_len].to_vec()
-        }
-        mir::Type::Newtype { inner, .. } => return encode_raw_value(tree, *inner, value),
-        _ => {
-            return Err(Error::TypeMismatch {
-                expected: "scalar or reference raw store".to_string(),
-                actual: format!("{ty:?}"),
-            });
-        }
-    };
-
-    Ok(bytes)
-}
-
-/// Encode one VM value into storage bytes for the given type.
-pub(crate) fn encode_storage_value(
-    state: &mut ExecutionState<'_, '_>,
-    ty: mir::LocalNodeId<mir::Type>,
-    value: Value,
-) -> Result<Vec<u8>, Error> {
-    match state.tree().get(ty).clone() {
-        mir::Type::Newtype { inner, .. } => encode_storage_value(state, inner, value),
-        mir::Type::Array { .. }
-        | mir::Type::Tuple { .. }
-        | mir::Type::Struct { .. }
-        | mir::Type::FunctionValue { .. }
-        | mir::Type::Vector { .. }
-        | mir::Type::Tensor { .. } => {
-            let tree = state.tree();
-            let component_count = aggregate_component_count(tree, ty)?;
-            let component_values = aggregate_component_values(state, value, component_count)?;
-            let byte_len = raw_type_size(tree, ty)?;
-            let component_specs = (0..component_count)
-                .map(|index| {
-                    let (component_type, component_offset) =
-                        aggregate_component_info(tree, ty, index as u32)?;
-
-                    Ok::<_, Error>((index as u32, component_type, component_offset))
-                })
-                .collect::<Result<Vec<_>, _>>()?;
-            let mut bytes = vec![0; byte_len];
-
-            // encode each aggregate component into its layout slot
-            for ((index, component_type, component_offset), component_value) in component_specs
-                .into_iter()
-                .zip(component_values.into_iter())
-            {
-                let component_bytes = encode_storage_value(state, component_type, component_value)?;
-                let component_end = component_offset.checked_add(component_bytes.len()).ok_or(
-                    Error::InvalidFieldAccess {
-                        index,
-                        field_count: byte_len,
-                    },
-                )?;
-
-                if component_end > byte_len {
-                    return Err(Error::InvalidFieldAccess {
-                        index,
-                        field_count: byte_len,
-                    });
-                }
-
-                bytes[component_offset..component_end].copy_from_slice(&component_bytes);
-            }
-
-            Ok(bytes)
-        }
-        _ => encode_raw_value(state.tree(), ty, value),
-    }
-}
-
-/// Return the semantic component count for one aggregate storage type.
-fn aggregate_component_count(
-    tree: &mir::NodeTree,
-    ty: mir::LocalNodeId<mir::Type>,
-) -> Result<usize, Error> {
-    let count = match tree.get(ty) {
-        mir::Type::Array { length, .. } => *length as usize,
-        mir::Type::Tuple { elements, .. } => elements.len(),
-        mir::Type::Struct { fields, .. } => fields.len(),
-        mir::Type::FunctionValue { .. } => 2,
-        mir::Type::Vector { lanes, .. } => *lanes as usize,
-        mir::Type::Tensor { shape, layout, .. } => compute_tensor_element_count(shape, layout),
-        mir::Type::Newtype { inner, .. } => return aggregate_component_count(tree, *inner),
-        _ => {
-            return Err(Error::TypeMismatch {
-                expected: "aggregate storage type".to_string(),
-                actual: format!("{ty:?}"),
-            });
-        }
-    };
-
-    Ok(count)
-}
-
-/// Resolve one aggregate component type and byte offset for aggregate storage.
-fn aggregate_component_info(
-    tree: &mir::NodeTree,
-    ty: mir::LocalNodeId<mir::Type>,
-    index: u32,
-) -> Result<(mir::LocalNodeId<mir::Type>, usize), Error> {
-    match tree.get(ty) {
-        mir::Type::Struct { .. } | mir::Type::Tuple { .. } => raw_field_info(tree, ty, index),
-        mir::Type::Array { .. } => {
-            let (element_type, element_stride) = raw_element_info(tree, ty)?;
-            let element_offset = usize::try_from(index)
-                .ok()
-                .and_then(|index| index.checked_mul(element_stride))
-                .ok_or(Error::InvalidArrayAccess {
-                    index: index as u64,
-                    length: aggregate_component_count(tree, ty)? as u64,
-                })?;
-
-            Ok((element_type, element_offset))
-        }
-        mir::Type::FunctionValue { signature } => {
-            let layout = tree.type_layout(ty).ok_or(Error::InvalidManagedReference)?;
-            let environment = tree.function_value_environment_type();
-
-            // function values use semantic component order, not concrete field order
-            let component_type = match index {
-                0 => *signature,
-                1 => environment,
-                _ => {
-                    return Err(Error::InvalidFieldAccess {
-                        index,
-                        field_count: 2,
-                    });
-                }
-            };
-            let field = layout
-                .fields
-                .iter()
-                .find(|field| field.source_index == Some(index))
-                .or_else(|| layout.fields.get(index as usize))
-                .ok_or(Error::InvalidFieldAccess {
-                    index,
-                    field_count: layout.fields.len(),
-                })?;
-
-            Ok((component_type, field.offset as usize))
-        }
-        mir::Type::Vector { element, .. } => {
-            let element_size = raw_type_size(tree, *element)?;
-            let element_offset = usize::try_from(index)
-                .ok()
-                .and_then(|index| index.checked_mul(element_size))
-                .ok_or(Error::InvalidArrayAccess {
-                    index: index as u64,
-                    length: aggregate_component_count(tree, ty)? as u64,
-                })?;
-
-            Ok((*element, element_offset))
-        }
-        mir::Type::Tensor {
-            element,
-            shape,
-            layout,
-            ..
-        } => {
-            let element_size = raw_type_size(tree, *element)?;
-            let element_count = compute_tensor_element_count(shape, layout);
-            let element_offset = usize::try_from(index)
-                .ok()
-                .and_then(|index| index.checked_mul(element_size))
-                .ok_or(Error::InvalidArrayAccess {
-                    index: index as u64,
-                    length: element_count as u64,
-                })?;
-
-            Ok((*element, element_offset))
-        }
-        mir::Type::Newtype { inner, .. } => aggregate_component_info(tree, *inner, index),
-        _ => Err(Error::TypeMismatch {
-            expected: "aggregate storage type".to_string(),
-            actual: format!("{ty:?}"),
-        }),
-    }
-}
-
-/// Count tensor elements for one static tensor shape and layout.
-fn compute_tensor_element_count(
-    shape: &[mir::TensorDimension],
-    layout: &mir::TensorLayout,
-) -> usize {
-    let shape: Vec<u64> = shape
-        .iter()
-        .map(|dimension| match dimension {
-            mir::TensorDimension::Static(value) => *value,
-            mir::TensorDimension::Dynamic => 0,
-        })
-        .collect();
-
-    match layout {
-        mir::TensorLayout::RowMajor | mir::TensorLayout::ColumnMajor => shape
-            .iter()
-            .copied()
-            .product::<u64>()
-            .min(usize::MAX as u64)
-            as usize,
-        mir::TensorLayout::Strided { strides } => {
-            let strides: Vec<u64> = strides
-                .iter()
-                .map(|dimension| match dimension {
-                    mir::TensorDimension::Static(value) => *value,
-                    mir::TensorDimension::Dynamic => 0,
-                })
-                .collect();
-            let mut max_index = 0u64;
-
-            // compute the highest reachable logical element index
-            for (dimension, stride) in shape.iter().copied().zip(strides.iter().copied()) {
-                if dimension == 0 {
-                    continue;
-                }
-
-                max_index = max_index.saturating_add((dimension - 1).saturating_mul(stride));
-            }
-
-            max_index.saturating_add(1).min(usize::MAX as u64) as usize
-        }
-    }
-}
-
-/// Read one aggregate value into semantic component values.
-pub(crate) fn aggregate_component_values(
-    state: &ExecutionState<'_, '_>,
-    value: Value,
-    expected_count: usize,
-) -> Result<Vec<Value>, Error> {
-    if value.tag() != ValueTag::Aggregate {
-        return Err(Error::TypeMismatch {
-            expected: "aggregate".to_string(),
-            actual: format!("{value:?}"),
-        });
-    }
-
-    let handle = value.as_managed_reference().unwrap();
-    let values = state
-        .heap_ref()
-        .packed_values_to_vec(handle)
-        .ok_or(Error::InvalidManagedReference)?;
-
-    if values.len() != expected_count {
-        return Err(Error::TypeMismatch {
-            expected: format!("aggregate with {expected_count} fields"),
-            actual: format!("aggregate with {} fields", values.len()),
-        });
-    }
-
-    Ok(values)
-}
-
-/// Allocate one aggregate value from semantic components.
-fn allocate_aggregate_value(state: &mut ExecutionState<'_, '_>, values: Vec<Value>) -> Value {
-    match values.as_slice() {
-        [value] => state.allocate_single(*value),
-        [first, second] => state.allocate_pair(*first, *second),
-        _ => state.allocate_aggregate(values),
-    }
-}
-
-/// Load one typed value from raw heap bytes.
-pub(crate) fn load_from_raw_pointer_typed(
-    state: &mut ExecutionState<'_, '_>,
-    ptr: Value,
-    pointee: mir::LocalNodeId<mir::Type>,
-) -> Result<Value, Error> {
-    if ptr.tag() != ValueTag::RawPointer {
-        return Err(Error::InvalidPointerType {
-            actual: format!("{ptr:?}"),
-        });
-    }
-
-    let pointer = ptr.as_raw_pointer().unwrap();
-    if state.null_checks && pointer.is_null() {
-        return Err(Error::NullPointerDereference);
-    }
-
-    let byte_len = raw_type_size(state.tree(), pointee)?;
-    let bytes = read_raw_bytes(state, pointer, 0, byte_len)?;
-    decode_storage_value(state, pointee, &bytes)
-}
-
-/// Store one typed value into raw heap bytes.
-pub(crate) fn store_to_raw_pointer_typed(
-    state: &mut ExecutionState<'_, '_>,
-    ptr: Value,
-    pointee: mir::LocalNodeId<mir::Type>,
-    value: Value,
-) -> Result<(), Error> {
-    if ptr.tag() != ValueTag::RawPointer {
-        return Err(Error::InvalidPointerType {
-            actual: format!("{ptr:?}"),
-        });
-    }
-
-    let pointer = ptr.as_raw_pointer().unwrap();
-    if state.null_checks && pointer.is_null() {
-        return Err(Error::NullPointerDereference);
-    }
-
-    let bytes = encode_storage_value(state, pointee, value)?;
-    write_raw_bytes(state, pointer, 0, &bytes)
-}
-
 /// Get the address of a field from an aggregate or pointer.
 #[inline(always)]
 pub(crate) fn field_addr(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     aggregate: Value,
     index: u32,
     field_count: u32,
@@ -1507,9 +546,9 @@ pub(crate) fn field_addr(
             let handle = ManagedReference::with_byte_offset(handle.id(), byte_offset);
             Ok(Value::managed_reference(handle))
         }
-        ValueTag::RawPointer => Err(Error::InvalidPointerType {
-            actual: "raw pointer requires typed field access".to_string(),
-        }),
+        ValueTag::RawPointer => Err(invalid_pointer_description(
+            "raw pointer requires typed field access",
+        )),
         ValueTag::StackPointer => {
             let sp = aggregate.as_stack_pointer().unwrap();
             let slot_index = resolve_stack_field_slot(state, sp, index, field_count)?;
@@ -1538,7 +577,7 @@ pub(crate) fn field_addr(
 /// Get the address of a field from a managed reference.
 #[inline(always)]
 pub(crate) fn field_addr_managed(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     handle: ManagedReference,
     pointee: mir::LocalNodeId<mir::Type>,
     index: u32,
@@ -1584,7 +623,7 @@ pub(crate) fn field_addr_managed(
 /// Get the address of a field from a raw pointer.
 #[inline(always)]
 pub(crate) fn field_addr_raw(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     pointer: RawPointer,
     pointee: mir::LocalNodeId<mir::Type>,
     index: u32,
@@ -1617,7 +656,7 @@ pub(crate) fn field_addr_raw(
 /// Get the address of a field from a stack pointer.
 #[inline(always)]
 pub(crate) fn field_addr_stack(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     pointer: StackPointer,
     index: u32,
     field_count: u32,
@@ -1637,7 +676,7 @@ pub(crate) fn field_addr_stack(
 /// Get the address of a field from a local pointer.
 #[inline(always)]
 pub(crate) fn field_addr_local(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     pointer: LocalPointer,
     index: u32,
     field_count: u32,
@@ -1652,7 +691,7 @@ pub(crate) fn field_addr_local(
 /// Get the address of a field from a global pointer.
 #[inline(always)]
 pub(crate) fn field_addr_global(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     pointer: GlobalPointer,
     index: u32,
     field_count: u32,
@@ -1689,7 +728,7 @@ pub(crate) fn field_addr_global(
 /// Get the address of an element from an array or pointer.
 #[inline(always)]
 pub(crate) fn element_addr(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     array: Value,
     index: u64,
     array_length: u64,
@@ -1708,9 +747,9 @@ pub(crate) fn element_addr(
             let handle = ManagedReference::with_byte_offset(handle.id(), byte_offset);
             Ok(Value::managed_reference(handle))
         }
-        ValueTag::RawPointer => Err(Error::InvalidPointerType {
-            actual: "raw pointer requires typed element access".to_string(),
-        }),
+        ValueTag::RawPointer => Err(invalid_pointer_description(
+            "raw pointer requires typed element access",
+        )),
         ValueTag::StackPointer => {
             let sp = array.as_stack_pointer().unwrap();
             let slot_index = resolve_stack_element_slot(state, sp, index, array_length)?;
@@ -1739,7 +778,7 @@ pub(crate) fn element_addr(
 /// Get the address of an element from a managed reference.
 #[inline(always)]
 pub(crate) fn element_addr_managed(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     handle: ManagedReference,
     pointee: mir::LocalNodeId<mir::Type>,
     index: u64,
@@ -1792,7 +831,7 @@ pub(crate) fn element_addr_managed(
 /// Get the address of an element from a raw pointer.
 #[inline(always)]
 pub(crate) fn element_addr_raw(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     pointer: RawPointer,
     pointee: mir::LocalNodeId<mir::Type>,
     index: u64,
@@ -1832,7 +871,7 @@ pub(crate) fn element_addr_raw(
 /// Get the address of an element from a stack pointer.
 #[inline(always)]
 pub(crate) fn element_addr_stack(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     pointer: StackPointer,
     index: u64,
     array_length: u64,
@@ -1852,7 +891,7 @@ pub(crate) fn element_addr_stack(
 /// Get the address of an element from a local pointer.
 #[inline(always)]
 pub(crate) fn element_addr_local(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     pointer: LocalPointer,
     index: u64,
     array_length: u64,
@@ -1867,7 +906,7 @@ pub(crate) fn element_addr_local(
 /// Get the address of an element from a global pointer.
 #[inline(always)]
 pub(crate) fn element_addr_global(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     pointer: GlobalPointer,
     index: u64,
     array_length: u64,
@@ -1886,7 +925,7 @@ pub(crate) fn element_addr_global(
 /// Load a field from a managed heap allocation.
 #[inline(always)]
 pub(crate) fn load_field_managed(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     handle: ManagedReference,
     pointee: mir::LocalNodeId<mir::Type>,
     index: u32,
@@ -1897,19 +936,23 @@ pub(crate) fn load_field_managed(
         stat_inc!(state.engine.statistics, loads);
     }
 
+    // require one live managed allocation
     let heap = state.heap_ref();
     if !heap.is_managed_allocated(handle) {
         return Err(Error::InvalidManagedReference);
     }
 
+    // load packed fields directly when the allocation stores value slots
     if has_packed_values(heap, handle) {
         // validate field index when known
         check_field_index(state, index, field_count)?;
 
+        // reject null handles before reading the packed slot
         if state.null_checks && handle.is_null() {
             return Err(Error::NullPointerDereference);
         }
 
+        // load the packed field value directly
         let cell_len = packed_value_count(heap, handle)?;
         let value_index = managed_packed_slot_index(handle, index as usize)?;
         return heap
@@ -1920,12 +963,15 @@ pub(crate) fn load_field_managed(
             });
     }
 
+    // validate the requested field before decoding byte storage
     check_field_index(state, index, field_count)?;
 
+    // reject null handles before reading the allocation bytes
     if state.null_checks && handle.is_null() {
         return Err(Error::NullPointerDereference);
     }
 
+    // resolve the field window inside the managed byte storage
     let (field_type, field_offset) = managed_field_info(state.tree(), pointee, index)?;
     let byte_len = managed_type_size(state.tree(), field_type)?;
     let bytes = heap
@@ -1943,13 +989,15 @@ pub(crate) fn load_field_managed(
         field_count: bytes.len(),
     })?;
     let window = window.to_vec();
+
+    // decode the typed field payload
     decode_storage_value(state, field_type, &window)
 }
 
 /// Store a field into a managed heap allocation.
 #[inline(always)]
 pub(crate) fn store_field_managed(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     handle: ManagedReference,
     pointee: mir::LocalNodeId<mir::Type>,
     index: u32,
@@ -1966,6 +1014,7 @@ pub(crate) fn store_field_managed(
 
     let tree = state.tree();
 
+    // require one live managed allocation and detect its storage mode
     let is_value_array = {
         let heap = state.heap_ref();
         if !heap.is_managed_allocated(handle) {
@@ -1974,13 +1023,17 @@ pub(crate) fn store_field_managed(
         has_packed_values(heap, handle)
     };
 
+    // store packed fields directly when the allocation stores value slots
     if is_value_array {
+        // validate the requested field before indexing the packed payload
         check_field_index(state, index, field_count)?;
 
+        // reject null handles before writing the packed slot
         if null_checks && handle.is_null() {
             return Err(Error::NullPointerDereference);
         }
 
+        // write the packed field value directly
         let heap = state.heap();
         let cell_len = packed_value_count(heap, handle)?;
         let value_index = managed_packed_slot_index(handle, index as usize)?;
@@ -1994,12 +1047,15 @@ pub(crate) fn store_field_managed(
         };
     }
 
+    // validate the requested field before encoding byte storage
     check_field_index(state, index, field_count)?;
 
+    // reject null handles before writing the allocation bytes
     if null_checks && handle.is_null() {
         return Err(Error::NullPointerDereference);
     }
 
+    // encode the field payload into the managed byte storage
     let (field_type, field_offset) = managed_field_info(tree, pointee, index)?;
     let bytes = encode_storage_value(state, field_type, value)?;
     let heap = state.heap();
@@ -2021,6 +1077,7 @@ pub(crate) fn store_field_managed(
         });
     }
 
+    // write the encoded field bytes one by one
     for (offset, byte) in bytes.into_iter().enumerate() {
         if !heap.set_managed_byte(handle, start + offset, byte) {
             return Err(Error::InvalidFieldAccess {
@@ -2036,7 +1093,7 @@ pub(crate) fn store_field_managed(
 /// Load a field from a raw heap allocation.
 #[inline(always)]
 pub(crate) fn load_field_raw(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     pointer: RawPointer,
     pointee: mir::LocalNodeId<mir::Type>,
     index: u32,
@@ -2074,7 +1131,7 @@ pub(crate) fn load_field_raw(
 /// Store a field into a raw heap allocation.
 #[inline(always)]
 pub(crate) fn store_field_raw(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     pointer: RawPointer,
     pointee: mir::LocalNodeId<mir::Type>,
     index: u32,
@@ -2113,7 +1170,7 @@ pub(crate) fn store_field_raw(
 /// Load a field from a stack allocation.
 #[inline(always)]
 pub(crate) fn load_field_stack(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     pointer: StackPointer,
     index: u32,
     field_count: u32,
@@ -2191,7 +1248,7 @@ pub(crate) fn load_field_stack(
 /// Store a field into a stack allocation.
 #[inline(always)]
 pub(crate) fn store_field_stack(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     pointer: StackPointer,
     index: u32,
     field_count: u32,
@@ -2250,7 +1307,7 @@ pub(crate) fn store_field_stack(
     // fast path without bounds checks
     if !bounds_checks {
         debug_assert!(slot_index < cell.len(), "stack field out of bounds");
-        // #Safety: bounds checks are disabled and slot is trusted
+        // safety: bounds checks are disabled and slot is trusted
         unsafe {
             *cell.get_unchecked_mut(slot_index) = value;
         }
@@ -2272,7 +1329,7 @@ pub(crate) fn store_field_stack(
 /// Load a field from a global allocation.
 #[inline(always)]
 pub(crate) fn load_field_global(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     pointer: GlobalPointer,
     index: u32,
     field_count: u32,
@@ -2374,7 +1431,7 @@ pub(crate) fn load_field_global(
 /// Store a field into a global allocation.
 #[inline(always)]
 pub(crate) fn store_field_global(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     pointer: GlobalPointer,
     index: u32,
     field_count: u32,
@@ -2459,7 +1516,7 @@ pub(crate) fn store_field_global(
         // fast path without bounds checks
         if !bounds_checks {
             debug_assert!(slot_index < allocation_len, "global field out of bounds");
-            // #Safety: bounds checks are disabled and slot is trusted
+            // safety: bounds checks are disabled and slot is trusted
             store_packed_value(heap, handle, slot_index, value)?;
         } else if heap.set_packed_value(handle, slot_index, value) {
             // write the slot when in bounds
@@ -2478,7 +1535,7 @@ pub(crate) fn store_field_global(
 /// Load an element from a managed heap allocation.
 #[inline(always)]
 pub(crate) fn load_element_managed(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     handle: ManagedReference,
     pointee: mir::LocalNodeId<mir::Type>,
     index: u64,
@@ -2489,18 +1546,23 @@ pub(crate) fn load_element_managed(
         stat_inc!(state.engine.statistics, loads);
     }
 
+    // require one live managed allocation
     let heap = state.heap_ref();
     if !heap.is_managed_allocated(handle) {
         return Err(Error::InvalidManagedReference);
     }
 
+    // load packed elements directly when the allocation stores value slots
     if has_packed_values(heap, handle) {
+        // validate the requested element before indexing the packed payload
         check_array_index(state, index, array_length)?;
 
+        // reject null handles before reading the packed slot
         if state.null_checks && handle.is_null() {
             return Err(Error::NullPointerDereference);
         }
 
+        // load the packed element value directly
         let cell_len = packed_value_count(heap, handle)?;
         let value_index = managed_packed_slot_index(handle, index as usize)?;
         return heap
@@ -2511,12 +1573,15 @@ pub(crate) fn load_element_managed(
             });
     }
 
+    // validate the requested element before decoding byte storage
     check_array_index(state, index, array_length)?;
 
+    // reject null handles before reading the allocation bytes
     if state.null_checks && handle.is_null() {
         return Err(Error::NullPointerDereference);
     }
 
+    // resolve the element window inside the managed byte storage
     let (element_type, element_stride) = managed_element_info(state.tree(), pointee)?;
     let element_offset = usize::try_from(index)
         .ok()
@@ -2542,13 +1607,14 @@ pub(crate) fn load_element_managed(
     })?;
     let window = window.to_vec();
 
+    // decode the typed element payload
     decode_storage_value(state, element_type, &window)
 }
 
 /// Store an element into a managed heap allocation.
 #[inline(always)]
 pub(crate) fn store_element_managed(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     handle: ManagedReference,
     pointee: mir::LocalNodeId<mir::Type>,
     index: u64,
@@ -2565,6 +1631,7 @@ pub(crate) fn store_element_managed(
 
     let tree = state.tree();
 
+    // require one live managed allocation and detect its storage mode
     let is_value_array = {
         let heap = state.heap_ref();
         if !heap.is_managed_allocated(handle) {
@@ -2573,13 +1640,17 @@ pub(crate) fn store_element_managed(
         has_packed_values(heap, handle)
     };
 
+    // store packed elements directly when the allocation stores value slots
     if is_value_array {
+        // validate the requested element before indexing the packed payload
         check_array_index(state, index, array_length)?;
 
+        // reject null handles before writing the packed slot
         if null_checks && handle.is_null() {
             return Err(Error::NullPointerDereference);
         }
 
+        // write the packed element value directly
         let heap = state.heap();
         let allocation_len = packed_value_count(heap, handle)?;
         let value_index = managed_packed_slot_index(handle, index as usize)?;
@@ -2593,12 +1664,15 @@ pub(crate) fn store_element_managed(
         };
     }
 
+    // validate the requested element before encoding byte storage
     check_array_index(state, index, array_length)?;
 
+    // reject null handles before writing the allocation bytes
     if null_checks && handle.is_null() {
         return Err(Error::NullPointerDereference);
     }
 
+    // encode the element payload into the managed byte storage
     let (element_type, element_stride) = managed_element_info(tree, pointee)?;
     let element_offset = usize::try_from(index)
         .ok()
@@ -2627,6 +1701,7 @@ pub(crate) fn store_element_managed(
         });
     }
 
+    // write the encoded element bytes one by one
     for (offset, byte) in bytes.into_iter().enumerate() {
         if !heap.set_managed_byte(handle, start + offset, byte) {
             return Err(Error::InvalidArrayAccess {
@@ -2642,7 +1717,7 @@ pub(crate) fn store_element_managed(
 /// Load an element from a raw heap allocation.
 #[inline(always)]
 pub(crate) fn load_element_raw(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     pointer: RawPointer,
     pointee: mir::LocalNodeId<mir::Type>,
     index: u64,
@@ -2687,7 +1762,7 @@ pub(crate) fn load_element_raw(
 /// Store an element into a raw heap allocation.
 #[inline(always)]
 pub(crate) fn store_element_raw(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     pointer: RawPointer,
     pointee: mir::LocalNodeId<mir::Type>,
     index: u64,
@@ -2733,7 +1808,7 @@ pub(crate) fn store_element_raw(
 /// Load an element from a stack allocation.
 #[inline(always)]
 pub(crate) fn load_element_stack(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     pointer: StackPointer,
     index: u64,
     array_length: u64,
@@ -2790,7 +1865,7 @@ pub(crate) fn load_element_stack(
     // fast path without bounds checks
     if !state.bounds_checks {
         debug_assert!(slot_index < cell_len, "stack element out of bounds");
-        // #Safety: bounds checks are disabled and slot is trusted
+        // safety: bounds checks are disabled and slot is trusted
         let value = unsafe { *cell.get_unchecked(slot_index) };
         return Ok(value);
     }
@@ -2809,7 +1884,7 @@ pub(crate) fn load_element_stack(
 /// Store an element into a stack allocation.
 #[inline(always)]
 pub(crate) fn store_element_stack(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     pointer: StackPointer,
     index: u64,
     array_length: u64,
@@ -2865,7 +1940,7 @@ pub(crate) fn store_element_stack(
     // fast path without bounds checks
     if !bounds_checks {
         debug_assert!(slot_index < cell_len, "stack element out of bounds");
-        // #Safety: bounds checks are disabled and slot is trusted
+        // safety: bounds checks are disabled and slot is trusted
         unsafe {
             *cell.get_unchecked_mut(slot_index) = value;
         }
@@ -2887,7 +1962,7 @@ pub(crate) fn store_element_stack(
 /// Load an element from a global allocation.
 #[inline(always)]
 pub(crate) fn load_element_global(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     pointer: GlobalPointer,
     index: u64,
     array_length: u64,
@@ -2978,7 +2053,7 @@ pub(crate) fn load_element_global(
 /// Store an element into a global allocation.
 #[inline(always)]
 pub(crate) fn store_element_global(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     pointer: GlobalPointer,
     index: u64,
     array_length: u64,
@@ -3051,7 +2126,7 @@ pub(crate) fn store_element_global(
         // fast path without bounds checks
         if !bounds_checks {
             debug_assert!(slot_index < allocation_len, "global element out of bounds");
-            // #Safety: bounds checks are disabled and slot is trusted
+            // safety: bounds checks are disabled and slot is trusted
             store_packed_value(heap, handle, slot_index, value)?;
         } else if heap.set_packed_value(handle, slot_index, value) {
             // write the slot when in bounds
@@ -3070,7 +2145,7 @@ pub(crate) fn store_element_global(
 /// Get a field from an aggregate value.
 #[inline(always)]
 pub(crate) fn get_field(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     agg: Value,
     index: u32,
 ) -> Result<Value, Error> {
@@ -3094,7 +2169,7 @@ pub(crate) fn get_field(
 /// Set a field on an aggregate value.
 #[inline(always)]
 pub(crate) fn set_field(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     agg: Value,
     index: u32,
     val: Value,
@@ -3121,7 +2196,7 @@ pub(crate) fn set_field(
 /// Get an element from an array value.
 #[inline(always)]
 pub(crate) fn get_element(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     arr: Value,
     index: u64,
 ) -> Result<Value, Error> {
@@ -3141,7 +2216,7 @@ pub(crate) fn get_element(
 /// Set an element on an array value.
 #[inline(always)]
 pub(crate) fn set_element(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     arr: Value,
     index: u64,
     val: Value,
@@ -3163,7 +2238,7 @@ pub(crate) fn set_element(
 /// Load a slot from a managed heap allocation.
 #[inline(always)]
 fn load_heap_slot(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     handle: ManagedReference,
     slot_index: usize,
 ) -> Result<Value, Error> {
@@ -3205,7 +2280,7 @@ fn load_heap_slot(
 /// Store a slot into a managed heap allocation.
 #[inline(always)]
 fn store_heap_slot(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     handle: ManagedReference,
     slot_index: usize,
     value: Value,
@@ -3254,10 +2329,7 @@ fn store_heap_slot(
 
 /// Load from a global pointer, including slot offsets.
 #[inline(always)]
-fn load_global_slot(
-    state: &mut ExecutionState<'_, '_>,
-    global: GlobalPointer,
-) -> Result<Value, Error> {
+fn load_global_slot(state: &mut StepState<'_, '_>, global: GlobalPointer) -> Result<Value, Error> {
     // read the global value
     let value = state
         .globals
@@ -3289,7 +2361,7 @@ fn load_global_slot(
 /// Store through a global pointer, including slot offsets.
 #[inline(always)]
 fn store_global_slot(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     global: GlobalPointer,
     value: Value,
 ) -> Result<(), Error> {
@@ -3327,7 +2399,7 @@ fn store_global_slot(
 /// Get a field from a heap aggregate.
 #[inline(always)]
 fn get_heap_field(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     handle: ManagedReference,
     index: u32,
 ) -> Result<Value, Error> {
@@ -3370,7 +2442,7 @@ fn get_heap_field(
 /// Set a field on a heap aggregate.
 #[inline(always)]
 fn set_heap_field(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     handle: ManagedReference,
     index: u32,
     value: Value,
@@ -3418,7 +2490,7 @@ fn set_heap_field(
 /// Get an element from a heap array aggregate.
 #[inline(always)]
 fn get_heap_element(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     handle: ManagedReference,
     index: u64,
 ) -> Result<Value, Error> {
@@ -3463,7 +2535,7 @@ fn get_heap_element(
 /// Set an element on a heap array aggregate.
 #[inline(always)]
 fn set_heap_element(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     handle: ManagedReference,
     index: u64,
     value: Value,
@@ -3512,7 +2584,7 @@ fn set_heap_element(
 /// Resolve a field slot for a managed heap pointer.
 #[inline(always)]
 fn resolve_heap_field_slot(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     handle: ManagedReference,
     index: u32,
     field_count: u32,
@@ -3563,7 +2635,7 @@ fn resolve_heap_field_slot(
 /// Resolve a field slot for a stack pointer.
 #[inline(always)]
 fn resolve_stack_field_slot(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     pointer: StackPointer,
     index: u32,
     field_count: u32,
@@ -3606,7 +2678,7 @@ fn resolve_stack_field_slot(
 /// Resolve a field slot for a global pointer.
 #[inline(always)]
 fn resolve_global_field_slot(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     global: GlobalPointer,
     index: u32,
     field_count: u32,
@@ -3663,7 +2735,7 @@ fn resolve_global_field_slot(
 /// Resolve an element slot for a managed heap pointer.
 #[inline(always)]
 fn resolve_heap_element_slot(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     handle: ManagedReference,
     index: u64,
     array_length: u64,
@@ -3714,7 +2786,7 @@ fn resolve_heap_element_slot(
 /// Resolve an element slot for a stack pointer.
 #[inline(always)]
 fn resolve_stack_element_slot(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     pointer: StackPointer,
     index: u64,
     array_length: u64,
@@ -3760,7 +2832,7 @@ fn resolve_stack_element_slot(
 /// Resolve an element slot for a global pointer.
 #[inline(always)]
 fn resolve_global_element_slot(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     global: GlobalPointer,
     index: u64,
     array_length: u64,
@@ -3820,7 +2892,7 @@ fn resolve_global_element_slot(
 /// Load a slot from a stack allocation.
 #[inline(always)]
 fn load_stack_slot(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     sp: StackPointer,
     slot_index: usize,
 ) -> Result<Value, Error> {
@@ -3838,7 +2910,7 @@ fn load_stack_slot(
     // fast path without bounds checks
     if !state.bounds_checks {
         debug_assert!(slot_index < cell.len(), "stack slot out of bounds");
-        // #Safety: bounds checks are disabled and slot is trusted
+        // safety: bounds checks are disabled and slot is trusted
         let value = unsafe { *cell.get_unchecked(slot_index) };
         return Ok(value);
     }
@@ -3857,7 +2929,7 @@ fn load_stack_slot(
 /// Load a local slot from a frame.
 #[inline(always)]
 fn load_local_slot(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     pointer: LocalPointer,
     slot_offset: usize,
 ) -> Result<Value, Error> {
@@ -3882,7 +2954,7 @@ fn load_local_slot(
 /// Store a slot into a stack allocation.
 #[inline(always)]
 fn store_stack_slot(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     sp: StackPointer,
     slot_index: usize,
     value: Value,
@@ -3904,7 +2976,7 @@ fn store_stack_slot(
     // fast path without bounds checks
     if !bounds_checks {
         debug_assert!(slot_index < cell.len(), "stack slot out of bounds");
-        // #Safety: bounds checks are disabled and slot is trusted
+        // safety: bounds checks are disabled and slot is trusted
         unsafe {
             *cell.get_unchecked_mut(slot_index) = value;
         }
@@ -3926,7 +2998,7 @@ fn store_stack_slot(
 /// Store a local slot into a frame.
 #[inline(always)]
 fn store_local_slot(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     pointer: LocalPointer,
     slot_offset: usize,
     value: Value,

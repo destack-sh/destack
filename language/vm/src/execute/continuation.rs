@@ -141,33 +141,38 @@ impl Continuation {
     }
 }
 
-/// Capture one durable frame from one live frame.
-fn capture_continuation_frame(
-    executable: &Executable,
+/// Resolve the captured resume point and materialization frame for one suspended frame.
+pub(crate) fn frame_capture_materialization<'a>(
+    executable: &'a Executable,
     frame: &Frame,
-    value_stack: &[Value],
-    local_stack: &[Value],
     frame_index: usize,
     yield_state: &YieldState,
-) -> engine::FrameImage {
-    let layout = executable
-        .frame_layout_by_id(frame.frame_layout)
-        .unwrap_or_else(|| panic!("missing frame layout for id: {:?}", frame.frame_layout));
+) -> (engine::ResumePointId, &'a engine::MaterializationFrame) {
+    // resolve the captured resume point first
+    let resume_point = captured_resume_point(executable, frame, frame_index, yield_state);
 
-    let resume_point = if frame_index == yield_state.frame_index {
-        yield_state.resume_point
-    } else {
-        executable
-            .resume_point_for_position(frame.function, frame.current_block, frame.resume_pc as u32)
-            .unwrap_or_else(|| {
-                panic!(
-                    "missing generic resume point for frame position: {:?} {:?} {}",
-                    frame.function, frame.current_block, frame.resume_pc
-                )
-            })
-    };
+    // resolve the corresponding materialization frame
+    let materialization_frame = materialization_frame_for_resume_point(executable, resume_point);
 
-    // validate the fixed-slot materialization contract for this resume point
+    // validate the current fixed-slot VM contract
+    debug_assert_eq!(
+        materialization_frame.resume_point, resume_point,
+        "vm safepoint materialization should target the captured resume point"
+    );
+    debug_assert_eq!(
+        materialization_frame.frame_layout, frame.frame_layout,
+        "vm safepoint materialization should target the captured frame layout"
+    );
+
+    (resume_point, materialization_frame)
+}
+
+/// Resolve the materialization frame for one resume point.
+pub(crate) fn materialization_frame_for_resume_point(
+    executable: &Executable,
+    resume_point: engine::ResumePointId,
+) -> &engine::MaterializationFrame {
+    // resolve the safepoint materialization metadata for this resume point
     let safepoint = executable
         .safepoint_for_resume_point(resume_point)
         .unwrap_or_else(|| panic!("missing safepoint for resume point: {resume_point:?}"));
@@ -191,15 +196,48 @@ fn capture_continuation_frame(
         1,
         "vm safepoints should materialize one frame today"
     );
-    debug_assert_eq!(
-        materialization_map.frames[0].resume_point, resume_point,
-        "vm safepoint materialization should target the captured resume point"
-    );
-    debug_assert_eq!(
-        materialization_map.frames[0].frame_layout, frame.frame_layout,
-        "vm safepoint materialization should target the captured frame layout"
-    );
-    let materialization_frame = &materialization_map.frames[0];
+
+    &materialization_map.frames[0]
+}
+
+/// Resolve the captured resume point for one suspended frame.
+fn captured_resume_point(
+    executable: &Executable,
+    frame: &Frame,
+    frame_index: usize,
+    yield_state: &YieldState,
+) -> engine::ResumePointId {
+    // the yielded frame already carries the exact captured resume point
+    if frame_index == yield_state.frame_index {
+        return yield_state.resume_point;
+    }
+
+    // older frames resume from their current lowered position
+    executable
+        .resume_point_for_position(frame.function, frame.current_block, frame.resume_pc as u32)
+        .unwrap_or_else(|| {
+            panic!(
+                "missing generic resume point for frame position: {:?} {:?} {}",
+                frame.function, frame.current_block, frame.resume_pc
+            )
+        })
+}
+
+/// Capture one durable frame from one live frame.
+fn capture_continuation_frame(
+    executable: &Executable,
+    frame: &Frame,
+    value_stack: &[Value],
+    local_stack: &[Value],
+    frame_index: usize,
+    yield_state: &YieldState,
+) -> engine::FrameImage {
+    let layout = executable
+        .frame_layout_by_id(frame.frame_layout)
+        .unwrap_or_else(|| panic!("missing frame layout for id: {:?}", frame.frame_layout));
+
+    let (resume_point, materialization_frame) =
+        frame_capture_materialization(executable, frame, frame_index, yield_state);
 
     let value_slice = &value_stack[frame.value_base..frame.value_base + frame.value_count];
     let local_slice = &local_stack[frame.local_base..frame.local_base + frame.local_count];
@@ -238,29 +276,13 @@ fn restore_frame_image(
     let resume_point = executable
         .resume_point(image.resume_point)
         .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
-    // validate the fixed-slot materialization contract for this frame image
-    let safepoint = executable
-        .safepoint_for_resume_point(image.resume_point)
-        .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
-    let safepoint = executable
-        .safepoint(safepoint)
-        .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
-    let materialization_map = safepoint
-        .materialization_map
-        .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
-    let materialization_map = executable
-        .materialization_map(materialization_map)
-        .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
+    let materialization_frame =
+        materialization_frame_for_resume_point(executable, image.resume_point);
 
     if resume_point.frame_layout != image.frame_layout || resume_point.function != layout.function {
         return Err(RuntimeError::new(Error::InvalidContinuation));
     }
 
-    if materialization_map.frames.len() != 1 {
-        return Err(RuntimeError::new(Error::InvalidContinuation));
-    }
-
-    let materialization_frame = &materialization_map.frames[0];
     if materialization_frame.frame_layout != image.frame_layout
         || materialization_frame.resume_point != image.resume_point
     {

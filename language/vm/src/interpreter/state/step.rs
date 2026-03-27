@@ -11,9 +11,9 @@ use crate::isolate::{GlobalStorage, StringInterner};
 use crate::options::IsolateOptions;
 use destack_heap::{Heap, MemoryContext, Value};
 
-/// Execution state for the interpreter.
-pub(crate) struct ExecutionState<'ctx, 'iso> {
-    /// Immutable executable metadata for this execution.
+/// Step state for one interpreter instruction step.
+pub(crate) struct StepState<'ctx, 'iso> {
+    /// Immutable executable metadata for this step.
     pub(crate) executable: &'iso Executable,
     /// Immutable isolate options.
     pub(crate) options: &'iso IsolateOptions,
@@ -21,18 +21,18 @@ pub(crate) struct ExecutionState<'ctx, 'iso> {
     pub(crate) string_interner: &'iso mut StringInterner,
     /// Mutable global variable storage.
     pub(crate) globals: &'iso mut GlobalStorage,
-    /// Execution memory for this run.
+    /// Execution memory for this step.
     pub(crate) memory: MemoryContext<'iso>,
-    /// Interpreter engine state for execution.
+    /// Interpreter engine state for this step.
     pub(crate) engine: &'ctx mut Interpreter,
 
     /// Index of the current frame in the call stack.
     pub frame_index: usize,
-    /// Whether bounds checks are enabled for this execution.
+    /// Whether bounds checks are enabled for this step.
     pub bounds_checks: bool,
-    /// Whether null checks are enabled for this execution.
+    /// Whether null checks are enabled for this step.
     pub null_checks: bool,
-    /// Whether to collect execution statistics.
+    /// Whether to collect execution statistics for this step.
     pub collect_stats: bool,
 
     /// Pointer to the current frame for fast access.
@@ -55,9 +55,9 @@ pub(crate) struct ExecutionState<'ctx, 'iso> {
     switch_case_pool_len: usize,
 }
 
-impl fmt::Debug for ExecutionState<'_, '_> {
+impl fmt::Debug for StepState<'_, '_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("ExecutionState")
+        f.debug_struct("StepState")
             .field("frame_index", &self.frame_index)
             .field("value_count", &self.value_count)
             .field("local_count", &self.local_count)
@@ -70,8 +70,8 @@ impl fmt::Debug for ExecutionState<'_, '_> {
     }
 }
 
-impl<'ctx, 'iso> ExecutionState<'ctx, 'iso> {
-    /// Create state for the current frame.
+impl<'ctx, 'iso> StepState<'ctx, 'iso> {
+    /// Create step state for the current frame.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         executable: &'iso Executable,
@@ -246,6 +246,14 @@ impl<'ctx, 'iso> ExecutionState<'ctx, 'iso> {
     /// Allocate an aggregate on the managed heap.
     #[inline]
     pub(crate) fn allocate_aggregate(&mut self, values: Vec<Value>) -> Value {
+        // specialize the common singleton and pair cases
+        match values.as_slice() {
+            [value] => return self.allocate_single(*value),
+            [first, second] => return self.allocate_pair(*first, *second),
+            _ => {}
+        }
+
+        // allocate the general aggregate payload
         let handle = self
             .heap()
             .allocate_packed_values(values)

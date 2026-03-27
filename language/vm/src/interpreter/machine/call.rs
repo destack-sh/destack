@@ -1,11 +1,14 @@
 use destack_engine as engine;
 
-use super::*;
-use crate::executable::Transfer;
+use super::bind::copy_values_with_plan;
+use super::prelude::*;
+
+const VTABLE_FIELD_INDEX: u32 = 0;
+const INTERFACE_ITAB_FIELD_INDEX: u32 = 1;
 
 /// Load a field value from a heap aggregate receiver.
 fn load_receiver_field(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     receiver: Value,
     managed_pointee: Option<mir::LocalNodeId<mir::Type>>,
     field_index: u32,
@@ -18,7 +21,7 @@ fn load_receiver_field(
             };
 
             let handle = receiver.as_managed_reference().unwrap();
-            instruction::load_field_managed(
+            access::load_field_managed(
                 state,
                 handle,
                 managed_pointee,
@@ -26,9 +29,7 @@ fn load_receiver_field(
                 UNKNOWN_FIELD_COUNT,
             )
         }
-        ValueTag::Aggregate | ValueTag::String => {
-            instruction::get_field(state, receiver, field_index)
-        }
+        ValueTag::Aggregate | ValueTag::String => access::get_field(state, receiver, field_index),
         _ => Err(Error::TypeMismatch {
             expected: "aggregate".to_string(),
             actual: format!("{receiver:?}"),
@@ -38,7 +39,7 @@ fn load_receiver_field(
 
 /// Resolve the vtable dispatch target for a virtual call.
 fn resolve_virtual_dispatch_target(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     receiver: Value,
     managed_pointee: Option<mir::LocalNodeId<mir::Type>>,
     slot_id: u32,
@@ -76,7 +77,7 @@ fn resolve_virtual_dispatch_target(
 
 /// Resolve the itab dispatch target for an interface call.
 fn resolve_interface_dispatch_target(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     receiver: Value,
     managed_pointee: Option<mir::LocalNodeId<mir::Type>>,
     slot_id: u32,
@@ -118,7 +119,7 @@ fn resolve_interface_dispatch_target(
 
 /// Resolve one indirect callable into function code and environment.
 fn resolve_indirect_callable(
-    state: &ExecutionState<'_, '_>,
+    state: &StepState<'_, '_>,
     callable: Value,
     signature: mir::LocalNodeId<mir::Type>,
 ) -> Result<(mir::LocalNodeId<mir::Function>, Option<Value>), Error> {
@@ -142,7 +143,7 @@ fn resolve_indirect_callable(
         return Err(Error::InvalidInstruction);
     };
 
-    let components = instruction::aggregate_component_values(state, callable, 2)?;
+    let components = access::aggregate_component_values(state, callable, 2)?;
     let function = components[0]
         .as_function_pointer()
         .ok_or_else(|| Error::TypeMismatch {
@@ -154,11 +155,11 @@ fn resolve_indirect_callable(
 }
 
 /// Load a function pointer.
-pub(crate) fn handle_function_addr(
-    state: &mut ExecutionState<'_, '_>,
+pub(crate) fn step_function_addr(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::FunctionAddr { dest, function } = &block[pc].data else {
         unreachable!()
@@ -176,11 +177,11 @@ pub(crate) fn handle_function_addr(
 }
 
 /// Build a callable value from one function and environment.
-pub(crate) fn handle_function_value(
-    state: &mut ExecutionState<'_, '_>,
+pub(crate) fn step_function_value(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     let InstructionData::FunctionValue {
         dest,
         function,
@@ -194,7 +195,7 @@ pub(crate) fn handle_function_value(
     let function_id = mir::LocalNodeId::new(*function);
     let function_value = Value::function_pointer(function_id);
     let environment_value = state.get(*environment);
-    let value = state.allocate_aggregate(vec![function_value, environment_value]);
+    let value = state.allocate_pair(function_value, environment_value);
 
     // store result
     state.set(*dest, value);
@@ -204,11 +205,11 @@ pub(crate) fn handle_function_value(
 }
 
 /// Load the function environment pointer for the current frame.
-pub(crate) fn handle_function_environment(
-    state: &mut ExecutionState<'_, '_>,
+pub(crate) fn step_function_environment(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::FunctionEnvironment { dest } = &block[pc].data else {
         unreachable!()
@@ -217,7 +218,7 @@ pub(crate) fn handle_function_environment(
     // load current frame environment
     let environment = state.current_frame_mut().environment;
     if environment == Value::VOID {
-        return ControlFlow::Error(Error::InvalidInstruction);
+        return Transfer::Error(Error::InvalidInstruction);
     }
 
     // store result
@@ -227,10 +228,123 @@ pub(crate) fn handle_function_environment(
     next!(state, block, pc)
 }
 
+/// Resolve one lowered direct-call target for the step fast path.
+#[inline]
+fn resolve_direct_lowered_callee(
+    state: &StepState<'_, '_>,
+    function_id: mir::LocalNodeId<mir::Function>,
+    callee_index: u32,
+) -> Option<NonNull<crate::executable::Function>> {
+    // resolve the target through the precomputed table when needed
+    let resolved_target = if callee_index == INVALID_FUNCTION_INDEX {
+        state.functions().resolve(function_id)
+    } else {
+        Some(FunctionTarget::Lowered(callee_index))
+    };
+
+    // only lowered targets can use the direct fast path
+    match resolved_target {
+        Some(FunctionTarget::Lowered(index)) => state.functions().get_ptr_by_index(index),
+        Some(FunctionTarget::Import) | None => None,
+    }
+}
+
+/// Try to enter one lowered callee without returning to the transfer trampoline.
+#[inline]
+#[allow(clippy::too_many_arguments)]
+fn try_step_direct_lowered_call(
+    state: &mut StepState<'_, '_>,
+    function_id: mir::LocalNodeId<mir::Function>,
+    callee_index: u32,
+    env: Option<Value>,
+    copy_plan: Option<CopyRange>,
+    resume_pc: usize,
+) -> Option<Transfer> {
+    // NOTE #Performance: keep this path specialized to avoid the transfer trampoline on hot direct calls
+    let Some(copy_plan) = copy_plan else {
+        return None;
+    };
+
+    // require one lowered target before entering the fast path
+    let callee_ptr = resolve_direct_lowered_callee(state, function_id, callee_index)?;
+    let callee = unsafe { callee_ptr.as_ref() };
+
+    // reject stack overflow before mutating any live state
+    if state.engine.call_stack.len() >= state.options().limits.max_stack_depth {
+        return Some(Transfer::Error(Error::StackOverflow));
+    }
+
+    // store the caller resume pc before allocating the callee
+    {
+        let caller = state.current_frame_mut();
+        caller.resume_pc = resume_pc;
+    }
+
+    // allocate value and local storage for the callee
+    let value_base = state.engine.value_stack.len();
+    let local_base = state.engine.local_stack.len();
+    state
+        .engine
+        .value_stack
+        .resize(value_base + callee.value_count, Value::VOID);
+    state
+        .engine
+        .local_stack
+        .resize(local_base + callee.local_count, Value::VOID);
+
+    let entry_block = &callee.blocks[callee.entry as usize];
+    let entry_block_id = entry_block.mir_block;
+    let entry_block_ptr = NonNull::from(entry_block);
+    let new_frame = Frame::new(
+        callee.frame_layout,
+        function_id,
+        callee_ptr,
+        entry_block_ptr,
+        entry_block_id,
+        callee.entry as usize,
+        value_base,
+        callee.value_count,
+        local_base,
+        callee.local_count,
+        env.unwrap_or(Value::VOID),
+    );
+
+    // bind parameters from the current caller frame
+    let caller_index = state.frame_index;
+    let current_function_ptr = {
+        let frame = state.current_frame_mut();
+        frame.function_ptr
+    };
+    let current_function = unsafe { current_function_ptr.as_ref() };
+    let caller_ptr = {
+        let Ok(caller) = state.frame_by_index(caller_index) else {
+            return Some(Transfer::Error(Error::InvalidManagedReference));
+        };
+        caller as *const Frame
+    };
+    let caller = unsafe { &*caller_ptr };
+
+    copy_values_with_plan(
+        &mut state.engine.value_stack,
+        caller,
+        &new_frame,
+        copy_plan,
+        current_function.copy_pool.as_slice(),
+    );
+
+    // push the callee frame and continue at its entry block
+    state.engine.call_stack.push(new_frame);
+    let new_index = state.engine.call_stack.len() - 1;
+    state.enter_frame(new_index, callee);
+
+    let entry_instructions = entry_block.instructions.as_slice();
+    Some(step_instruction(state, entry_instructions, 0))
+}
+
 /// Enter a call with a resolved target function.
 #[allow(clippy::too_many_arguments)]
 fn call_with_target(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     dest: mir::Value,
     function_id: mir::LocalNodeId<mir::Function>,
     callee_index: u32,
@@ -239,97 +353,22 @@ fn call_with_target(
     copy_plan: Option<CopyRange>,
     resume_pc: usize,
     allow_direct: bool,
-) -> ControlFlow {
-    // try direct call dispatch when possible
-    if allow_direct && copy_plan.is_some() {
-        let resolved_target = if callee_index == INVALID_FUNCTION_INDEX {
-            state.functions().resolve(function_id)
-        } else {
-            Some(FunctionTarget::Lowered(callee_index))
-        };
-        let callee_ptr = match resolved_target {
-            Some(FunctionTarget::Lowered(index)) => state.functions().get_ptr_by_index(index),
-            Some(FunctionTarget::Import) | None => None,
-        };
-        if let Some(callee_ptr) = callee_ptr {
-            let callee = unsafe { callee_ptr.as_ref() };
-
-            // check stack overflow
-            if state.engine.call_stack.len() >= state.options().limits.max_stack_depth {
-                return ControlFlow::Error(Error::StackOverflow);
-            }
-
-            // store the resume pc on the caller frame
-            {
-                let caller = state.current_frame_mut();
-                caller.resume_pc = resume_pc;
-            }
-
-            // allocate new frame for callee
-            let value_base = state.engine.value_stack.len();
-            let local_base = state.engine.local_stack.len();
-            state
-                .engine
-                .value_stack
-                .resize(value_base + callee.value_count, Value::VOID);
-            state
-                .engine
-                .local_stack
-                .resize(local_base + callee.local_count, Value::VOID);
-            let entry_block = &callee.blocks[callee.entry as usize];
-            let entry_block_id = entry_block.mir_block;
-            let entry_block_ptr = NonNull::from(entry_block);
-            let new_frame = Frame::new(
-                callee.frame_layout,
-                function_id,
-                callee_ptr,
-                entry_block_ptr,
-                entry_block_id,
-                callee.entry as usize,
-                value_base,
-                callee.value_count,
-                local_base,
-                callee.local_count,
-                env.unwrap_or(Value::VOID),
-            );
-
-            // bind parameters from caller values
-            let caller_index = state.frame_index;
-            let current_function_ptr = {
-                let frame = state.current_frame_mut();
-                frame.function_ptr
-            };
-            let current_func = unsafe { current_function_ptr.as_ref() };
-            let caller_ptr = {
-                let Ok(caller) = state.frame_by_index(caller_index) else {
-                    return ControlFlow::Error(Error::InvalidManagedReference);
-                };
-                caller as *const Frame
-            };
-            let caller = unsafe { &*caller_ptr };
-            let Some(copy_plan) = copy_plan else {
-                return ControlFlow::Error(Error::InvalidInstruction);
-            };
-            copy_values_with_plan(
-                &mut state.engine.value_stack,
-                caller,
-                &new_frame,
-                copy_plan,
-                current_func.copy_pool.as_slice(),
-            );
-
-            // push new frame and refresh state
-            state.engine.call_stack.push(new_frame);
-            let new_index = state.engine.call_stack.len() - 1;
-            state.enter_frame(new_index, callee);
-
-            // continue at entry block
-            let entry_instructions = entry_block.instructions.as_slice();
-            return dispatch_instruction(state, entry_instructions, 0);
+) -> Transfer {
+    // run the specialized lowered fast path when the caller allows it
+    if allow_direct {
+        if let Some(transfer) = try_step_direct_lowered_call(
+            state,
+            function_id,
+            callee_index,
+            env,
+            copy_plan,
+            resume_pc,
+        ) {
+            return transfer;
         }
     }
 
-    // return control to trampoline
+    // otherwise bounce through the general transfer path
     Transfer::Call {
         function: function_id.id,
         callee_index,
@@ -344,18 +383,14 @@ fn call_with_target(
 /// Enter a call terminator with explicit normal and unwind continuations.
 #[allow(clippy::too_many_arguments)]
 fn call_branch_with_target(
-    state: &mut ExecutionState<'_, '_>,
     function_id: mir::LocalNodeId<mir::Function>,
     callee_index: u32,
     arguments: ArgumentRange,
     env: Option<Value>,
     normal_resume_point: engine::ResumePointId,
     unwind_resume_point: engine::ResumePointId,
-    allow_direct: bool,
-) -> ControlFlow {
-    let _ = state;
-    let _ = allow_direct;
-
+) -> Transfer {
+    // exceptional calls always go through the general transfer path
     Transfer::CallBranch {
         function: function_id.id,
         callee_index,
@@ -366,12 +401,12 @@ fn call_branch_with_target(
     }
 }
 
-/// Handle function call (returns to trampoline).
-pub(crate) fn handle_call(
-    state: &mut ExecutionState<'_, '_>,
+/// Step function call (returns to trampoline).
+pub(crate) fn step_call(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
@@ -406,12 +441,12 @@ pub(crate) fn handle_call(
     )
 }
 
-/// Handle exceptional direct call terminator.
-pub(crate) fn handle_call_branch(
-    state: &mut ExecutionState<'_, '_>,
+/// Step exceptional direct call terminator.
+pub(crate) fn step_call_branch(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     state.maybe_profile_instruction(&block[pc]);
 
     let InstructionData::CallBranch {
@@ -426,26 +461,23 @@ pub(crate) fn handle_call_branch(
     };
 
     let function_id = mir::LocalNodeId::<mir::Function>::new(*function);
-    let allow_direct = !state.collect_stats && state.options().limits.max_instructions.is_none();
 
     call_branch_with_target(
-        state,
         function_id,
         *callee_index,
         *arguments,
         None,
         *normal_resume_point,
         *unwind_resume_point,
-        allow_direct,
     )
 }
 
-/// Handle virtual call (returns to trampoline).
-pub(crate) fn handle_call_virtual(
-    state: &mut ExecutionState<'_, '_>,
+/// Step virtual call (returns to trampoline).
+pub(crate) fn step_call_virtual(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
@@ -465,7 +497,7 @@ pub(crate) fn handle_call_virtual(
     let function_id =
         match resolve_virtual_dispatch_target(state, receiver_value, *managed_pointee, *slot_id) {
             Ok(function_id) => function_id,
-            Err(error) => return ControlFlow::Error(error),
+            Err(error) => return Transfer::Error(error),
         };
 
     // skip fast path when stats or step limits are active
@@ -484,12 +516,12 @@ pub(crate) fn handle_call_virtual(
     )
 }
 
-/// Handle exceptional virtual call terminator.
-pub(crate) fn handle_call_virtual_branch(
-    state: &mut ExecutionState<'_, '_>,
+/// Step exceptional virtual call terminator.
+pub(crate) fn step_call_virtual_branch(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     state.maybe_profile_instruction(&block[pc]);
 
     let InstructionData::CallVirtualBranch {
@@ -511,26 +543,22 @@ pub(crate) fn handle_call_virtual_branch(
             Err(error) => return Transfer::Error(error),
         };
 
-    let allow_direct = !state.collect_stats && state.options().limits.max_instructions.is_none();
-
     call_branch_with_target(
-        state,
         function_id,
         INVALID_FUNCTION_INDEX,
         *arguments,
         None,
         *normal_resume_point,
         *unwind_resume_point,
-        allow_direct,
     )
 }
 
-/// Handle interface call (returns to trampoline).
-pub(crate) fn handle_call_interface(
-    state: &mut ExecutionState<'_, '_>,
+/// Step interface call (returns to trampoline).
+pub(crate) fn step_call_interface(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
@@ -554,7 +582,7 @@ pub(crate) fn handle_call_interface(
         *slot_id,
     ) {
         Ok(function_id) => function_id,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     // skip fast path when stats or step limits are active
@@ -573,12 +601,12 @@ pub(crate) fn handle_call_interface(
     )
 }
 
-/// Handle exceptional interface call terminator.
-pub(crate) fn handle_call_interface_branch(
-    state: &mut ExecutionState<'_, '_>,
+/// Step exceptional interface call terminator.
+pub(crate) fn step_call_interface_branch(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     state.maybe_profile_instruction(&block[pc]);
 
     let InstructionData::CallInterfaceBranch {
@@ -604,26 +632,22 @@ pub(crate) fn handle_call_interface_branch(
         Err(error) => return Transfer::Error(error),
     };
 
-    let allow_direct = !state.collect_stats && state.options().limits.max_instructions.is_none();
-
     call_branch_with_target(
-        state,
         function_id,
         INVALID_FUNCTION_INDEX,
         *arguments,
         None,
         *normal_resume_point,
         *unwind_resume_point,
-        allow_direct,
     )
 }
 
-/// Handle indirect call (returns to trampoline).
-pub(crate) fn handle_call_indirect(
-    state: &mut ExecutionState<'_, '_>,
+/// Step indirect call (returns to trampoline).
+pub(crate) fn step_call_indirect(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
@@ -645,7 +669,7 @@ pub(crate) fn handle_call_indirect(
     // resolve callable code and environment
     let (function_id, env) = match resolve_indirect_callable(state, callee_val, *signature) {
         Ok(resolved) => resolved,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
     let function = function_id.id;
 
@@ -683,12 +707,12 @@ pub(crate) fn handle_call_indirect(
     }
 }
 
-/// Handle exceptional indirect call terminator.
-pub(crate) fn handle_call_indirect_branch(
-    state: &mut ExecutionState<'_, '_>,
+/// Step exceptional indirect call terminator.
+pub(crate) fn step_call_indirect_branch(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     state.maybe_profile_instruction(&block[pc]);
 
     let InstructionData::CallIndirectBranch {
@@ -707,7 +731,7 @@ pub(crate) fn handle_call_indirect_branch(
     let callee_val = state.get(*callee);
     let (function_id, env) = match resolve_indirect_callable(state, callee_val, *signature) {
         Ok(resolved) => resolved,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
     let function = function_id.id;
 
@@ -723,23 +747,19 @@ pub(crate) fn handle_call_indirect_branch(
         resolved_index
     };
 
-    let allow_direct = !state.collect_stats && state.options().limits.max_instructions.is_none();
-
     call_branch_with_target(
-        state,
         function_id,
         resolved_index,
         *arguments,
         env,
         *normal_resume_point,
         *unwind_resume_point,
-        allow_direct,
     )
 }
 
 /// Enter a tail call by reusing the current frame.
 fn enter_tail_call(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     function_id: mir::LocalNodeId<mir::Function>,
     callee: &Function,
     argument_values: &[Value],
@@ -804,12 +824,12 @@ fn enter_tail_call(
     // keep frame ready for entry execution
 }
 
-/// Handle tail call to function.
-pub(crate) fn handle_tail_call(
-    state: &mut ExecutionState<'_, '_>,
+/// Step tail call to function.
+pub(crate) fn step_tail_call(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
@@ -835,7 +855,7 @@ pub(crate) fn handle_tail_call(
 
     // fall back to trampoline for unresolved targets
     let Some(resolved_index) = resolved_index else {
-        return ControlFlow::TailCall {
+        return Transfer::TailCall {
             function: *function,
             callee_index: *callee_index,
             arguments: ArgumentRange::empty(),
@@ -844,7 +864,7 @@ pub(crate) fn handle_tail_call(
         };
     };
     let Some(callee_ptr) = state.functions().get_ptr_by_index(resolved_index) else {
-        return ControlFlow::TailCall {
+        return Transfer::TailCall {
             function: *function,
             callee_index: *callee_index,
             arguments: ArgumentRange::empty(),
@@ -881,15 +901,15 @@ pub(crate) fn handle_tail_call(
     let entry_block_ptr = state.current_frame_mut().block_ptr;
     let entry_block = unsafe { entry_block_ptr.as_ref() };
     let entry_instructions = entry_block.instructions.as_slice();
-    become dispatch_instruction(state, entry_instructions, 0)
+    become step_instruction(state, entry_instructions, 0)
 }
 
-/// Handle self tail call by reusing the current frame.
-pub(crate) fn handle_tail_call_self(
-    state: &mut ExecutionState<'_, '_>,
+/// Step self tail call by reusing the current frame.
+pub(crate) fn step_tail_call_self(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
@@ -956,15 +976,15 @@ pub(crate) fn handle_tail_call_self(
 
     // continue at entry block
     let entry_instructions = entry_block.instructions.as_slice();
-    become dispatch_instruction(state, entry_instructions, 0)
+    become step_instruction(state, entry_instructions, 0)
 }
 
-/// Handle virtual tail call (returns to trampoline).
-pub(crate) fn handle_tail_call_virtual(
-    state: &mut ExecutionState<'_, '_>,
+/// Step virtual tail call (returns to trampoline).
+pub(crate) fn step_tail_call_virtual(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
@@ -983,10 +1003,10 @@ pub(crate) fn handle_tail_call_virtual(
     let function_id =
         match resolve_virtual_dispatch_target(state, receiver_value, *managed_pointee, *slot_id) {
             Ok(function_id) => function_id,
-            Err(error) => return ControlFlow::Error(error),
+            Err(error) => return Transfer::Error(error),
         };
 
-    ControlFlow::TailCall {
+    Transfer::TailCall {
         function: function_id.id,
         callee_index: INVALID_FUNCTION_INDEX,
         arguments: *arguments,
@@ -995,12 +1015,12 @@ pub(crate) fn handle_tail_call_virtual(
     }
 }
 
-/// Handle interface tail call (returns to trampoline).
-pub(crate) fn handle_tail_call_interface(
-    state: &mut ExecutionState<'_, '_>,
+/// Step interface tail call (returns to trampoline).
+pub(crate) fn step_tail_call_interface(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
@@ -1023,10 +1043,10 @@ pub(crate) fn handle_tail_call_interface(
         *slot_id,
     ) {
         Ok(function_id) => function_id,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
-    ControlFlow::TailCall {
+    Transfer::TailCall {
         function: function_id.id,
         callee_index: INVALID_FUNCTION_INDEX,
         arguments: *arguments,
@@ -1035,12 +1055,12 @@ pub(crate) fn handle_tail_call_interface(
     }
 }
 
-/// Handle indirect tail call.
-pub(crate) fn handle_tail_call_indirect(
-    state: &mut ExecutionState<'_, '_>,
+/// Step indirect tail call.
+pub(crate) fn step_tail_call_indirect(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
@@ -1061,7 +1081,7 @@ pub(crate) fn handle_tail_call_indirect(
     // resolve callable code and environment
     let (function_id, env) = match resolve_indirect_callable(state, callee_val, *signature) {
         Ok(resolved) => resolved,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
     let function = function_id.id;
 
@@ -1075,10 +1095,10 @@ pub(crate) fn handle_tail_call_indirect(
             let entry_block_ptr = state.current_frame_mut().block_ptr;
             let entry_block = unsafe { entry_block_ptr.as_ref() };
             let entry_instructions = entry_block.instructions.as_slice();
-            become dispatch_instruction(state, entry_instructions, 0)
+            become step_instruction(state, entry_instructions, 0)
         }
 
-        return ControlFlow::TailCall {
+        return Transfer::TailCall {
             function,
             callee_index: INVALID_FUNCTION_INDEX,
             arguments: *arguments,
@@ -1097,7 +1117,7 @@ pub(crate) fn handle_tail_call_indirect(
     let Some(resolved_index) = resolved_index else {
         cached_function.set(Some(function));
         cached_ptr.set(None);
-        return ControlFlow::TailCall {
+        return Transfer::TailCall {
             function,
             callee_index: INVALID_FUNCTION_INDEX,
             arguments: *arguments,
@@ -1108,7 +1128,7 @@ pub(crate) fn handle_tail_call_indirect(
     let Some(callee_ptr) = state.functions().get_ptr_by_index(resolved_index) else {
         cached_function.set(Some(function));
         cached_ptr.set(None);
-        return ControlFlow::TailCall {
+        return Transfer::TailCall {
             function,
             callee_index: INVALID_FUNCTION_INDEX,
             arguments: *arguments,
@@ -1130,5 +1150,5 @@ pub(crate) fn handle_tail_call_indirect(
     let entry_block_ptr = state.current_frame_mut().block_ptr;
     let entry_block = unsafe { entry_block_ptr.as_ref() };
     let entry_instructions = entry_block.instructions.as_slice();
-    become dispatch_instruction(state, entry_instructions, 0)
+    become step_instruction(state, entry_instructions, 0)
 }

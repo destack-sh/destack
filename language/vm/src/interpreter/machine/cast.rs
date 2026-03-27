@@ -1,11 +1,11 @@
-use super::*;
+use super::prelude::*;
 
-/// Handle cast operation.
-pub(crate) fn handle_cast(
-    state: &mut ExecutionState<'_, '_>,
+/// Step cast operation.
+pub(crate) fn step_cast(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::Cast {
         dest,
@@ -24,7 +24,7 @@ pub(crate) fn handle_cast(
     let cast_type = type_id(*to_type);
     let result = match operator::execute_cast(state.tree(), *op, argument, cast_type) {
         Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     // store result
@@ -34,12 +34,12 @@ pub(crate) fn handle_cast(
     next!(state, block, pc)
 }
 
-/// Handle select operation.
-pub(crate) fn handle_select(
-    state: &mut ExecutionState<'_, '_>,
+/// Step select operation.
+pub(crate) fn step_select(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::Select {
         dest,

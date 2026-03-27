@@ -1,13 +1,37 @@
-use super::*;
+use super::prelude::*;
 use crate::diagnostic::Error;
 use crate::telemetry::stat_inc;
 
-/// Handle field get.
-pub(crate) fn handle_field_get(
-    state: &mut ExecutionState<'_, '_>,
+/// Apply reference metadata and validate the resulting pointer value.
+#[inline(always)]
+fn build_reference_result(
+    state: &mut StepState<'_, '_>,
+    reference: destack_heap::ReferenceMeta,
+    value: Value,
+) -> Result<Value, Error> {
+    // apply reference metadata
+    let value = value.with_reference_meta(reference);
+
+    // validate reference kind
+    if let Err(error) = check_reference_kind(state, reference, value) {
+        return Err(error);
+    }
+
+    Ok(value)
+}
+
+/// Load one array index operand as an unsigned value.
+#[inline(always)]
+fn load_array_index(state: &StepState<'_, '_>, index: mir::Value) -> u64 {
+    state.get(index).as_uint().unwrap_or(0)
+}
+
+/// Step field get.
+pub(crate) fn step_field_get(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::FieldGet {
         dest,
@@ -22,9 +46,9 @@ pub(crate) fn handle_field_get(
     let agg = state.get(*aggregate);
 
     // load field value
-    let value = match instruction::get_field(state, agg, *index) {
+    let value = match access::get_field(state, agg, *index) {
         Ok(v) => v,
-        Err(e) => return ControlFlow::Error(e),
+        Err(e) => return Transfer::Error(e),
     };
 
     // store result
@@ -34,13 +58,13 @@ pub(crate) fn handle_field_get(
     next!(state, block, pc)
 }
 
-/// Handle field get for small inline aggregates (≤2 fields).
+/// Step field get for small inline aggregates (≤2 fields).
 #[inline(always)]
-pub(crate) fn handle_field_get_inline(
-    state: &mut ExecutionState<'_, '_>,
+pub(crate) fn step_field_get_inline(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::FieldGet {
         dest,
@@ -55,23 +79,23 @@ pub(crate) fn handle_field_get_inline(
     let agg = state.get(*aggregate);
     let handle = match agg.as_managed_reference() {
         Some(h) => h,
-        None => return ControlFlow::Error(Error::InvalidManagedReference),
+        None => return Transfer::Error(Error::InvalidManagedReference),
     };
 
     // reject null handles when enabled
     if state.null_checks && handle.is_null() {
-        return ControlFlow::Error(Error::NullPointerDereference);
+        return Transfer::Error(Error::NullPointerDereference);
     }
 
     // fast path: directly access the managed value
     let heap = state.heap_ref();
-    let slot_index = match instruction::managed_packed_slot_index(handle, *index as usize) {
+    let slot_index = match access::managed_packed_slot_index(handle, *index as usize) {
         Ok(slot_index) => slot_index,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
     let value = match heap.packed_value_at(handle, slot_index) {
         Some(value) => value,
-        None => return ControlFlow::Error(Error::InvalidManagedReference),
+        None => return Transfer::Error(Error::InvalidManagedReference),
     };
 
     // store result
@@ -81,13 +105,13 @@ pub(crate) fn handle_field_get_inline(
     next!(state, block, pc)
 }
 
-/// Handle field store on small managed aggregates (≤2 fields, inline storage).
+/// Step field store on small managed aggregates (≤2 fields, inline storage).
 #[inline(always)]
-pub(crate) fn handle_field_store_inline(
-    state: &mut ExecutionState<'_, '_>,
+pub(crate) fn step_field_store_inline(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::FieldStore {
         aggregate,
@@ -111,12 +135,12 @@ pub(crate) fn handle_field_store_inline(
     let agg = state.get(*aggregate);
     let handle = match agg.as_managed_reference() {
         Some(h) => h,
-        None => return ControlFlow::Error(Error::InvalidManagedReference),
+        None => return Transfer::Error(Error::InvalidManagedReference),
     };
 
     // reject null handles when enabled
     if state.null_checks && handle.is_null() {
-        return ControlFlow::Error(Error::NullPointerDereference);
+        return Transfer::Error(Error::NullPointerDereference);
     }
 
     // load value to store
@@ -124,24 +148,24 @@ pub(crate) fn handle_field_store_inline(
 
     // fast path: directly access the managed value
     let heap = state.heap();
-    let slot_index = match instruction::managed_packed_slot_index(handle, *index as usize) {
+    let slot_index = match access::managed_packed_slot_index(handle, *index as usize) {
         Ok(slot_index) => slot_index,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
     if !heap.set_packed_value(handle, slot_index, val) {
-        return ControlFlow::Error(Error::InvalidManagedReference);
+        return Transfer::Error(Error::InvalidManagedReference);
     }
 
     // continue to next instruction
     next!(state, block, pc)
 }
 
-/// Handle field addr.
-pub(crate) fn handle_field_addr(
-    state: &mut ExecutionState<'_, '_>,
+/// Step field addr.
+pub(crate) fn step_field_addr(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::FieldAddr {
         dest,
@@ -161,18 +185,15 @@ pub(crate) fn handle_field_addr(
     let agg = state.get(*aggregate);
 
     // compute field address
-    let value = match instruction::field_addr(state, agg, *index, *field_count) {
+    let value = match access::field_addr(state, agg, *index, *field_count) {
         Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
-    // apply reference metadata
-    let value = value.with_reference_meta(*reference);
-
-    // validate reference kind
-    if let Err(error) = check_reference_kind(state, *reference, value) {
-        return ControlFlow::Error(error);
-    }
+    let value = match build_reference_result(state, *reference, value) {
+        Ok(value) => value,
+        Err(error) => return Transfer::Error(error),
+    };
 
     // store result
     state.set(*dest, value);
@@ -181,12 +202,12 @@ pub(crate) fn handle_field_addr(
     next!(state, block, pc)
 }
 
-/// Handle field addr on aggregate values.
-pub(crate) fn handle_field_addr_aggregate(
-    state: &mut ExecutionState<'_, '_>,
+/// Step field addr on aggregate values.
+pub(crate) fn step_field_addr_aggregate(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::FieldAddr {
         dest,
@@ -205,7 +226,7 @@ pub(crate) fn handle_field_addr_aggregate(
     // load aggregate
     let agg = state.get(*aggregate);
     if !matches!(agg.tag(), ValueTag::Aggregate | ValueTag::String) {
-        return ControlFlow::Error(Error::TypeMismatch {
+        return Transfer::Error(Error::TypeMismatch {
             expected: "aggregate".to_string(),
             actual: format!("{agg:?}"),
         });
@@ -214,22 +235,18 @@ pub(crate) fn handle_field_addr_aggregate(
     // compute field address
     let handle = agg.as_managed_reference().unwrap();
     let Some(managed_pointee) = *managed_pointee else {
-        return ControlFlow::Error(Error::InvalidManagedReference);
+        return Transfer::Error(Error::InvalidManagedReference);
     };
     let value =
-        match instruction::field_addr_managed(state, handle, managed_pointee, *index, *field_count)
-        {
+        match access::field_addr_managed(state, handle, managed_pointee, *index, *field_count) {
             Ok(value) => value,
-            Err(error) => return ControlFlow::Error(error),
+            Err(error) => return Transfer::Error(error),
         };
 
-    // apply reference metadata
-    let value = value.with_reference_meta(*reference);
-
-    // validate reference kind
-    if let Err(error) = check_reference_kind(state, *reference, value) {
-        return ControlFlow::Error(error);
-    }
+    let value = match build_reference_result(state, *reference, value) {
+        Ok(value) => value,
+        Err(error) => return Transfer::Error(error),
+    };
 
     // store result
     state.set(*dest, value);
@@ -238,12 +255,12 @@ pub(crate) fn handle_field_addr_aggregate(
     next!(state, block, pc)
 }
 
-/// Handle field addr on managed references.
-pub(crate) fn handle_field_addr_managed(
-    state: &mut ExecutionState<'_, '_>,
+/// Step field addr on managed references.
+pub(crate) fn step_field_addr_managed(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::FieldAddr {
         dest,
@@ -262,7 +279,7 @@ pub(crate) fn handle_field_addr_managed(
     // load aggregate
     let agg = state.get(*aggregate);
     if agg.tag() != ValueTag::ManagedReference {
-        return ControlFlow::Error(Error::InvalidPointerType {
+        return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{agg:?}"),
         });
     }
@@ -270,36 +287,29 @@ pub(crate) fn handle_field_addr_managed(
     // compute field address
     let handle = agg.as_managed_reference().unwrap();
     let Some(managed_pointee) = *managed_pointee else {
-        return ControlFlow::Error(Error::InvalidManagedReference);
+        return Transfer::Error(Error::InvalidManagedReference);
     };
     let value =
-        match instruction::field_addr_managed(state, handle, managed_pointee, *index, *field_count)
-        {
+        match access::field_addr_managed(state, handle, managed_pointee, *index, *field_count) {
             Ok(value) => value,
-            Err(error) => return ControlFlow::Error(error),
+            Err(error) => return Transfer::Error(error),
         };
 
-    // apply reference metadata
-    let value = value.with_reference_meta(*reference);
+    let value = match build_reference_result(state, *reference, value) {
+        Ok(value) => value,
+        Err(error) => return Transfer::Error(error),
+    };
 
-    // validate reference kind
-    if let Err(error) = check_reference_kind(state, *reference, value) {
-        return ControlFlow::Error(error);
-    }
-
-    // store result
     state.set(*dest, value);
-
-    // continue to next instruction
     next!(state, block, pc)
 }
 
-/// Handle field addr on raw pointers.
-pub(crate) fn handle_field_addr_raw(
-    state: &mut ExecutionState<'_, '_>,
+/// Step field addr on raw pointers.
+pub(crate) fn step_field_addr_raw(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::FieldAddr {
         dest,
@@ -317,7 +327,7 @@ pub(crate) fn handle_field_addr_raw(
     // load aggregate
     let agg = state.get(*aggregate);
     if agg.tag() != ValueTag::RawPointer {
-        return ControlFlow::Error(Error::InvalidPointerType {
+        return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{agg:?}"),
         });
     }
@@ -325,35 +335,28 @@ pub(crate) fn handle_field_addr_raw(
     // compute field address
     let pointer = agg.as_raw_pointer().unwrap();
     let Some(raw_pointee) = *raw_pointee else {
-        return ControlFlow::Error(Error::InvalidManagedReference);
+        return Transfer::Error(Error::InvalidManagedReference);
     };
-    let value = match instruction::field_addr_raw(state, pointer, raw_pointee, *index, *field_count)
-    {
+    let value = match access::field_addr_raw(state, pointer, raw_pointee, *index, *field_count) {
         Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
-    // apply reference metadata
-    let value = value.with_reference_meta(*reference);
+    let value = match build_reference_result(state, *reference, value) {
+        Ok(value) => value,
+        Err(error) => return Transfer::Error(error),
+    };
 
-    // validate reference kind
-    if let Err(error) = check_reference_kind(state, *reference, value) {
-        return ControlFlow::Error(error);
-    }
-
-    // store result
     state.set(*dest, value);
-
-    // continue to next instruction
     next!(state, block, pc)
 }
 
-/// Handle field addr on stack pointers.
-pub(crate) fn handle_field_addr_stack(
-    state: &mut ExecutionState<'_, '_>,
+/// Step field addr on stack pointers.
+pub(crate) fn step_field_addr_stack(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::FieldAddr {
         dest,
@@ -371,39 +374,33 @@ pub(crate) fn handle_field_addr_stack(
     // load aggregate
     let agg = state.get(*aggregate);
     if agg.tag() != ValueTag::StackPointer {
-        return ControlFlow::Error(Error::InvalidPointerType {
+        return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{agg:?}"),
         });
     }
 
     // compute field address
     let pointer = agg.as_stack_pointer().unwrap();
-    let value = match instruction::field_addr_stack(state, pointer, *index, *field_count) {
+    let value = match access::field_addr_stack(state, pointer, *index, *field_count) {
         Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
-    // apply reference metadata
-    let value = value.with_reference_meta(*reference);
+    let value = match build_reference_result(state, *reference, value) {
+        Ok(value) => value,
+        Err(error) => return Transfer::Error(error),
+    };
 
-    // validate reference kind
-    if let Err(error) = check_reference_kind(state, *reference, value) {
-        return ControlFlow::Error(error);
-    }
-
-    // store result
     state.set(*dest, value);
-
-    // continue to next instruction
     next!(state, block, pc)
 }
 
-/// Handle field addr on global pointers.
-pub(crate) fn handle_field_addr_global(
-    state: &mut ExecutionState<'_, '_>,
+/// Step field addr on global pointers.
+pub(crate) fn step_field_addr_global(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::FieldAddr {
         dest,
@@ -421,39 +418,33 @@ pub(crate) fn handle_field_addr_global(
     // load aggregate
     let agg = state.get(*aggregate);
     if agg.tag() != ValueTag::GlobalPointer {
-        return ControlFlow::Error(Error::InvalidPointerType {
+        return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{agg:?}"),
         });
     }
 
     // compute field address
     let pointer = agg.as_global_pointer().unwrap();
-    let value = match instruction::field_addr_global(state, pointer, *index, *field_count) {
+    let value = match access::field_addr_global(state, pointer, *index, *field_count) {
         Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
-    // apply reference metadata
-    let value = value.with_reference_meta(*reference);
+    let value = match build_reference_result(state, *reference, value) {
+        Ok(value) => value,
+        Err(error) => return Transfer::Error(error),
+    };
 
-    // validate reference kind
-    if let Err(error) = check_reference_kind(state, *reference, value) {
-        return ControlFlow::Error(error);
-    }
-
-    // store result
     state.set(*dest, value);
-
-    // continue to next instruction
     next!(state, block, pc)
 }
 
-/// Handle field load.
-pub(crate) fn handle_field_load(
-    state: &mut ExecutionState<'_, '_>,
+/// Step field load.
+pub(crate) fn step_field_load(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::FieldLoad {
         dest,
@@ -471,16 +462,15 @@ pub(crate) fn handle_field_load(
     let agg = state.get(*aggregate);
 
     // compute field address
-    let pointer = match instruction::field_addr(state, agg, *index, *field_count) {
+    let pointer = match access::field_addr(state, agg, *index, *field_count) {
         Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     // load value
-    let value = match instruction::load_from_pointer_with_raw_pointee(state, pointer, *raw_pointee)
-    {
+    let value = match access::load_from_pointer_with_raw_pointee(state, pointer, *raw_pointee) {
         Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     // store result
@@ -490,12 +480,12 @@ pub(crate) fn handle_field_load(
     next!(state, block, pc)
 }
 
-/// Handle field load on aggregate values.
-pub(crate) fn handle_field_load_aggregate(
-    state: &mut ExecutionState<'_, '_>,
+/// Step field load on aggregate values.
+pub(crate) fn step_field_load_aggregate(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::FieldLoad {
         dest,
@@ -513,16 +503,16 @@ pub(crate) fn handle_field_load_aggregate(
     // load aggregate
     let agg = state.get(*aggregate);
     if !matches!(agg.tag(), ValueTag::Aggregate | ValueTag::String) {
-        return ControlFlow::Error(Error::TypeMismatch {
+        return Transfer::Error(Error::TypeMismatch {
             expected: "aggregate".to_string(),
             actual: format!("{agg:?}"),
         });
     }
 
     // load field value
-    let value = match instruction::get_field(state, agg, *index) {
+    let value = match access::get_field(state, agg, *index) {
         Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     // store result
@@ -532,12 +522,12 @@ pub(crate) fn handle_field_load_aggregate(
     next!(state, block, pc)
 }
 
-/// Handle field load on managed references.
-pub(crate) fn handle_field_load_managed(
-    state: &mut ExecutionState<'_, '_>,
+/// Step field load on managed references.
+pub(crate) fn step_field_load_managed(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::FieldLoad {
         dest,
@@ -555,7 +545,7 @@ pub(crate) fn handle_field_load_managed(
     // load aggregate
     let agg = state.get(*aggregate);
     if agg.tag() != ValueTag::ManagedReference {
-        return ControlFlow::Error(Error::InvalidPointerType {
+        return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{agg:?}"),
         });
     }
@@ -563,13 +553,12 @@ pub(crate) fn handle_field_load_managed(
     // load field value
     let handle = agg.as_managed_reference().unwrap();
     let Some(managed_pointee) = *managed_pointee else {
-        return ControlFlow::Error(Error::InvalidManagedReference);
+        return Transfer::Error(Error::InvalidManagedReference);
     };
     let value =
-        match instruction::load_field_managed(state, handle, managed_pointee, *index, *field_count)
-        {
+        match access::load_field_managed(state, handle, managed_pointee, *index, *field_count) {
             Ok(value) => value,
-            Err(error) => return ControlFlow::Error(error),
+            Err(error) => return Transfer::Error(error),
         };
 
     // store result
@@ -579,12 +568,12 @@ pub(crate) fn handle_field_load_managed(
     next!(state, block, pc)
 }
 
-/// Handle field load on raw pointers.
-pub(crate) fn handle_field_load_raw(
-    state: &mut ExecutionState<'_, '_>,
+/// Step field load on raw pointers.
+pub(crate) fn step_field_load_raw(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::FieldLoad {
         dest,
@@ -601,7 +590,7 @@ pub(crate) fn handle_field_load_raw(
     // load aggregate
     let agg = state.get(*aggregate);
     if agg.tag() != ValueTag::RawPointer {
-        return ControlFlow::Error(Error::InvalidPointerType {
+        return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{agg:?}"),
         });
     }
@@ -609,12 +598,11 @@ pub(crate) fn handle_field_load_raw(
     // load field value
     let pointer = agg.as_raw_pointer().unwrap();
     let Some(raw_pointee) = *raw_pointee else {
-        return ControlFlow::Error(Error::InvalidManagedReference);
+        return Transfer::Error(Error::InvalidManagedReference);
     };
-    let value = match instruction::load_field_raw(state, pointer, raw_pointee, *index, *field_count)
-    {
+    let value = match access::load_field_raw(state, pointer, raw_pointee, *index, *field_count) {
         Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     // store result
@@ -624,12 +612,12 @@ pub(crate) fn handle_field_load_raw(
     next!(state, block, pc)
 }
 
-/// Handle field load on stack pointers.
-pub(crate) fn handle_field_load_stack(
-    state: &mut ExecutionState<'_, '_>,
+/// Step field load on stack pointers.
+pub(crate) fn step_field_load_stack(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::FieldLoad {
         dest,
@@ -646,16 +634,16 @@ pub(crate) fn handle_field_load_stack(
     // load aggregate
     let agg = state.get(*aggregate);
     if agg.tag() != ValueTag::StackPointer {
-        return ControlFlow::Error(Error::InvalidPointerType {
+        return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{agg:?}"),
         });
     }
 
     // load field value
     let pointer = agg.as_stack_pointer().unwrap();
-    let value = match instruction::load_field_stack(state, pointer, *index, *field_count) {
+    let value = match access::load_field_stack(state, pointer, *index, *field_count) {
         Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     // store result
@@ -665,12 +653,12 @@ pub(crate) fn handle_field_load_stack(
     next!(state, block, pc)
 }
 
-/// Handle field load on global pointers.
-pub(crate) fn handle_field_load_global(
-    state: &mut ExecutionState<'_, '_>,
+/// Step field load on global pointers.
+pub(crate) fn step_field_load_global(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::FieldLoad {
         dest,
@@ -687,16 +675,16 @@ pub(crate) fn handle_field_load_global(
     // load aggregate
     let agg = state.get(*aggregate);
     if agg.tag() != ValueTag::GlobalPointer {
-        return ControlFlow::Error(Error::InvalidPointerType {
+        return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{agg:?}"),
         });
     }
 
     // load field value
     let pointer = agg.as_global_pointer().unwrap();
-    let value = match instruction::load_field_global(state, pointer, *index, *field_count) {
+    let value = match access::load_field_global(state, pointer, *index, *field_count) {
         Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     // store result
@@ -706,12 +694,12 @@ pub(crate) fn handle_field_load_global(
     next!(state, block, pc)
 }
 
-/// Handle field set.
-pub(crate) fn handle_field_set(
-    state: &mut ExecutionState<'_, '_>,
+/// Step field set.
+pub(crate) fn step_field_set(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::FieldSet {
         dest,
@@ -728,9 +716,9 @@ pub(crate) fn handle_field_set(
     let val = state.get(*value);
 
     // write field
-    let result = match instruction::set_field(state, agg, *index, val) {
+    let result = match access::set_field(state, agg, *index, val) {
         Ok(v) => v,
-        Err(e) => return ControlFlow::Error(e),
+        Err(e) => return Transfer::Error(e),
     };
 
     // store result
@@ -740,12 +728,12 @@ pub(crate) fn handle_field_set(
     next!(state, block, pc)
 }
 
-/// Handle field store.
-pub(crate) fn handle_field_store(
-    state: &mut ExecutionState<'_, '_>,
+/// Step field store.
+pub(crate) fn step_field_store(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::FieldStore {
         aggregate,
@@ -765,35 +753,34 @@ pub(crate) fn handle_field_store(
     let val = state.get(*value);
 
     // compute field address
-    let pointer = match instruction::field_addr(state, agg, *index, *field_count) {
+    let pointer = match access::field_addr(state, agg, *index, *field_count) {
         Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     let pointer = pointer.with_reference_meta(*reference);
 
     // validate reference kind
     if let Err(error) = check_reference_kind(state, *reference, pointer) {
-        return ControlFlow::Error(error);
+        return Transfer::Error(error);
     }
 
     // store value
-    if let Err(error) =
-        instruction::store_to_pointer_with_raw_pointee(state, pointer, *raw_pointee, val)
+    if let Err(error) = access::store_to_pointer_with_raw_pointee(state, pointer, *raw_pointee, val)
     {
-        return ControlFlow::Error(error);
+        return Transfer::Error(error);
     }
 
     // continue to next instruction
     next!(state, block, pc)
 }
 
-/// Handle field store on aggregate values.
-pub(crate) fn handle_field_store_aggregate(
-    state: &mut ExecutionState<'_, '_>,
+/// Step field store on aggregate values.
+pub(crate) fn step_field_store_aggregate(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::FieldStore {
         aggregate,
@@ -812,7 +799,7 @@ pub(crate) fn handle_field_store_aggregate(
     // load operands
     let agg = state.get(*aggregate);
     if !matches!(agg.tag(), ValueTag::Aggregate | ValueTag::String) {
-        return ControlFlow::Error(Error::TypeMismatch {
+        return Transfer::Error(Error::TypeMismatch {
             expected: "aggregate".to_string(),
             actual: format!("{agg:?}"),
         });
@@ -823,24 +810,24 @@ pub(crate) fn handle_field_store_aggregate(
     let pointer =
         Value::managed_reference_with_meta(agg.as_managed_reference().unwrap(), *reference);
     if let Err(error) = check_reference_kind(state, *reference, pointer) {
-        return ControlFlow::Error(error);
+        return Transfer::Error(error);
     }
 
     // store value
-    if let Err(error) = instruction::set_field(state, agg, *index, val) {
-        return ControlFlow::Error(error);
+    if let Err(error) = access::set_field(state, agg, *index, val) {
+        return Transfer::Error(error);
     }
 
     // continue to next instruction
     next!(state, block, pc)
 }
 
-/// Handle field store on managed references.
-pub(crate) fn handle_field_store_managed(
-    state: &mut ExecutionState<'_, '_>,
+/// Step field store on managed references.
+pub(crate) fn step_field_store_managed(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::FieldStore {
         aggregate,
@@ -859,7 +846,7 @@ pub(crate) fn handle_field_store_managed(
     // load operands
     let agg = state.get(*aggregate);
     if agg.tag() != ValueTag::ManagedReference {
-        return ControlFlow::Error(Error::InvalidPointerType {
+        return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{agg:?}"),
         });
     }
@@ -869,29 +856,29 @@ pub(crate) fn handle_field_store_managed(
     let handle = agg.as_managed_reference().unwrap();
     let pointer = Value::managed_reference_with_meta(handle, *reference);
     if let Err(error) = check_reference_kind(state, *reference, pointer) {
-        return ControlFlow::Error(error);
+        return Transfer::Error(error);
     }
 
     // store value
     let Some(managed_pointee) = *managed_pointee else {
-        return ControlFlow::Error(Error::InvalidManagedReference);
+        return Transfer::Error(Error::InvalidManagedReference);
     };
     if let Err(error) =
-        instruction::store_field_managed(state, handle, managed_pointee, *index, *field_count, val)
+        access::store_field_managed(state, handle, managed_pointee, *index, *field_count, val)
     {
-        return ControlFlow::Error(error);
+        return Transfer::Error(error);
     }
 
     // continue to next instruction
     next!(state, block, pc)
 }
 
-/// Handle field store on raw pointers.
-pub(crate) fn handle_field_store_raw(
-    state: &mut ExecutionState<'_, '_>,
+/// Step field store on raw pointers.
+pub(crate) fn step_field_store_raw(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::FieldStore {
         aggregate,
@@ -909,7 +896,7 @@ pub(crate) fn handle_field_store_raw(
     // load operands
     let agg = state.get(*aggregate);
     if agg.tag() != ValueTag::RawPointer {
-        return ControlFlow::Error(Error::InvalidPointerType {
+        return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{agg:?}"),
         });
     }
@@ -919,29 +906,29 @@ pub(crate) fn handle_field_store_raw(
     let raw_pointer = agg.as_raw_pointer().unwrap();
     let pointer = Value::raw_pointer_with_meta(raw_pointer, *reference);
     if let Err(error) = check_reference_kind(state, *reference, pointer) {
-        return ControlFlow::Error(error);
+        return Transfer::Error(error);
     }
 
     // store value
     let Some(raw_pointee) = *raw_pointee else {
-        return ControlFlow::Error(Error::InvalidManagedReference);
+        return Transfer::Error(Error::InvalidManagedReference);
     };
     if let Err(error) =
-        instruction::store_field_raw(state, raw_pointer, raw_pointee, *index, *field_count, val)
+        access::store_field_raw(state, raw_pointer, raw_pointee, *index, *field_count, val)
     {
-        return ControlFlow::Error(error);
+        return Transfer::Error(error);
     }
 
     // continue to next instruction
     next!(state, block, pc)
 }
 
-/// Handle field store on stack pointers.
-pub(crate) fn handle_field_store_stack(
-    state: &mut ExecutionState<'_, '_>,
+/// Step field store on stack pointers.
+pub(crate) fn step_field_store_stack(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::FieldStore {
         aggregate,
@@ -959,7 +946,7 @@ pub(crate) fn handle_field_store_stack(
     // load operands
     let agg = state.get(*aggregate);
     if agg.tag() != ValueTag::StackPointer {
-        return ControlFlow::Error(Error::InvalidPointerType {
+        return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{agg:?}"),
         });
     }
@@ -969,29 +956,27 @@ pub(crate) fn handle_field_store_stack(
     let stack_pointer = agg.as_stack_pointer().unwrap();
     let pointer = Value::stack_pointer_with_meta(stack_pointer, *reference);
     if let Err(error) = check_reference_kind(state, *reference, pointer) {
-        return ControlFlow::Error(error);
+        return Transfer::Error(error);
     }
     if let Err(error) = check_reference_mutability(state, *reference) {
-        return ControlFlow::Error(error);
+        return Transfer::Error(error);
     }
 
     // store value
-    if let Err(error) =
-        instruction::store_field_stack(state, stack_pointer, *index, *field_count, val)
-    {
-        return ControlFlow::Error(error);
+    if let Err(error) = access::store_field_stack(state, stack_pointer, *index, *field_count, val) {
+        return Transfer::Error(error);
     }
 
     // continue to next instruction
     next!(state, block, pc)
 }
 
-/// Handle field store on global pointers.
-pub(crate) fn handle_field_store_global(
-    state: &mut ExecutionState<'_, '_>,
+/// Step field store on global pointers.
+pub(crate) fn step_field_store_global(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::FieldStore {
         aggregate,
@@ -1009,7 +994,7 @@ pub(crate) fn handle_field_store_global(
     // load operands
     let agg = state.get(*aggregate);
     if agg.tag() != ValueTag::GlobalPointer {
-        return ControlFlow::Error(Error::InvalidPointerType {
+        return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{agg:?}"),
         });
     }
@@ -1020,29 +1005,28 @@ pub(crate) fn handle_field_store_global(
     let pointer =
         Value::global_pointer_with_meta(global_pointer.id, global_pointer.slot_offset, *reference);
     if let Err(error) = check_reference_kind(state, *reference, pointer) {
-        return ControlFlow::Error(error);
+        return Transfer::Error(error);
     }
     if let Err(error) = check_reference_mutability(state, *reference) {
-        return ControlFlow::Error(error);
+        return Transfer::Error(error);
     }
 
     // store value
-    if let Err(error) =
-        instruction::store_field_global(state, global_pointer, *index, *field_count, val)
+    if let Err(error) = access::store_field_global(state, global_pointer, *index, *field_count, val)
     {
-        return ControlFlow::Error(error);
+        return Transfer::Error(error);
     }
 
     // continue to next instruction
     next!(state, block, pc)
 }
 
-/// Handle element get.
-pub(crate) fn handle_element_get(
-    state: &mut ExecutionState<'_, '_>,
+/// Step element get.
+pub(crate) fn step_element_get(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::ElementGet { dest, array, index } = &block[pc].data else {
         unreachable!()
@@ -1050,13 +1034,12 @@ pub(crate) fn handle_element_get(
 
     // load array and index
     let arr = state.get(*array);
-    let idx = state.get(*index);
-    let idx_val = idx.as_uint().unwrap_or(0);
+    let idx_val = load_array_index(state, *index);
 
     // load element value
-    let value = match instruction::get_element(state, arr, idx_val) {
+    let value = match access::get_element(state, arr, idx_val) {
         Ok(v) => v,
-        Err(e) => return ControlFlow::Error(e),
+        Err(e) => return Transfer::Error(e),
     };
 
     // store result
@@ -1066,12 +1049,12 @@ pub(crate) fn handle_element_get(
     next!(state, block, pc)
 }
 
-/// Handle element addr.
-pub(crate) fn handle_element_addr(
-    state: &mut ExecutionState<'_, '_>,
+/// Step element addr.
+pub(crate) fn step_element_addr(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::ElementAddr {
         dest,
@@ -1093,32 +1076,26 @@ pub(crate) fn handle_element_addr(
     let idx_val = idx.as_uint().unwrap_or(0);
 
     // compute element address
-    let value = match instruction::element_addr(state, arr, idx_val, *array_length) {
+    let value = match access::element_addr(state, arr, idx_val, *array_length) {
         Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
-    // apply reference metadata
-    let value = value.with_reference_meta(*reference);
+    let value = match build_reference_result(state, *reference, value) {
+        Ok(value) => value,
+        Err(error) => return Transfer::Error(error),
+    };
 
-    // validate reference kind
-    if let Err(error) = check_reference_kind(state, *reference, value) {
-        return ControlFlow::Error(error);
-    }
-
-    // store result
     state.set(*dest, value);
-
-    // continue to next instruction
     next!(state, block, pc)
 }
 
-/// Handle element addr on aggregate values.
-pub(crate) fn handle_element_addr_aggregate(
-    state: &mut ExecutionState<'_, '_>,
+/// Step element addr on aggregate values.
+pub(crate) fn step_element_addr_aggregate(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::ElementAddr {
         dest,
@@ -1137,20 +1114,19 @@ pub(crate) fn handle_element_addr_aggregate(
     // load array and index
     let arr = state.get(*array);
     if arr.tag() != ValueTag::Aggregate {
-        return ControlFlow::Error(Error::TypeMismatch {
+        return Transfer::Error(Error::TypeMismatch {
             expected: "array".to_string(),
             actual: format!("{arr:?}"),
         });
     }
-    let idx = state.get(*index);
-    let idx_val = idx.as_uint().unwrap_or(0);
+    let idx_val = load_array_index(state, *index);
 
     // compute element address
     let handle = arr.as_managed_reference().unwrap();
     let Some(managed_pointee) = *managed_pointee else {
-        return ControlFlow::Error(Error::InvalidManagedReference);
+        return Transfer::Error(Error::InvalidManagedReference);
     };
-    let value = match instruction::element_addr_managed(
+    let value = match access::element_addr_managed(
         state,
         handle,
         managed_pointee,
@@ -1158,30 +1134,24 @@ pub(crate) fn handle_element_addr_aggregate(
         *array_length,
     ) {
         Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
-    // apply reference metadata
-    let value = value.with_reference_meta(*reference);
+    let value = match build_reference_result(state, *reference, value) {
+        Ok(value) => value,
+        Err(error) => return Transfer::Error(error),
+    };
 
-    // validate reference kind
-    if let Err(error) = check_reference_kind(state, *reference, value) {
-        return ControlFlow::Error(error);
-    }
-
-    // store result
     state.set(*dest, value);
-
-    // continue to next instruction
     next!(state, block, pc)
 }
 
-/// Handle element addr on managed references.
-pub(crate) fn handle_element_addr_managed(
-    state: &mut ExecutionState<'_, '_>,
+/// Step element addr on managed references.
+pub(crate) fn step_element_addr_managed(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::ElementAddr {
         dest,
@@ -1200,19 +1170,18 @@ pub(crate) fn handle_element_addr_managed(
     // load array and index
     let arr = state.get(*array);
     if arr.tag() != ValueTag::ManagedReference {
-        return ControlFlow::Error(Error::InvalidPointerType {
+        return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{arr:?}"),
         });
     }
-    let idx = state.get(*index);
-    let idx_val = idx.as_uint().unwrap_or(0);
+    let idx_val = load_array_index(state, *index);
 
     // compute element address
     let handle = arr.as_managed_reference().unwrap();
     let Some(managed_pointee) = *managed_pointee else {
-        return ControlFlow::Error(Error::InvalidManagedReference);
+        return Transfer::Error(Error::InvalidManagedReference);
     };
-    let value = match instruction::element_addr_managed(
+    let value = match access::element_addr_managed(
         state,
         handle,
         managed_pointee,
@@ -1220,30 +1189,24 @@ pub(crate) fn handle_element_addr_managed(
         *array_length,
     ) {
         Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
-    // apply reference metadata
-    let value = value.with_reference_meta(*reference);
+    let value = match build_reference_result(state, *reference, value) {
+        Ok(value) => value,
+        Err(error) => return Transfer::Error(error),
+    };
 
-    // validate reference kind
-    if let Err(error) = check_reference_kind(state, *reference, value) {
-        return ControlFlow::Error(error);
-    }
-
-    // store result
     state.set(*dest, value);
-
-    // continue to next instruction
     next!(state, block, pc)
 }
 
-/// Handle element addr on raw pointers.
-pub(crate) fn handle_element_addr_raw(
-    state: &mut ExecutionState<'_, '_>,
+/// Step element addr on raw pointers.
+pub(crate) fn step_element_addr_raw(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::ElementAddr {
         dest,
@@ -1261,45 +1224,38 @@ pub(crate) fn handle_element_addr_raw(
     // load array and index
     let arr = state.get(*array);
     if arr.tag() != ValueTag::RawPointer {
-        return ControlFlow::Error(Error::InvalidPointerType {
+        return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{arr:?}"),
         });
     }
-    let idx = state.get(*index);
-    let idx_val = idx.as_uint().unwrap_or(0);
+    let idx_val = load_array_index(state, *index);
 
     // compute element address
     let pointer = arr.as_raw_pointer().unwrap();
     let Some(raw_pointee) = *raw_pointee else {
-        return ControlFlow::Error(Error::InvalidManagedReference);
+        return Transfer::Error(Error::InvalidManagedReference);
     };
-    let value =
-        match instruction::element_addr_raw(state, pointer, raw_pointee, idx_val, *array_length) {
-            Ok(value) => value,
-            Err(error) => return ControlFlow::Error(error),
-        };
+    let value = match access::element_addr_raw(state, pointer, raw_pointee, idx_val, *array_length)
+    {
+        Ok(value) => value,
+        Err(error) => return Transfer::Error(error),
+    };
 
-    // apply reference metadata
-    let value = value.with_reference_meta(*reference);
+    let value = match build_reference_result(state, *reference, value) {
+        Ok(value) => value,
+        Err(error) => return Transfer::Error(error),
+    };
 
-    // validate reference kind
-    if let Err(error) = check_reference_kind(state, *reference, value) {
-        return ControlFlow::Error(error);
-    }
-
-    // store result
     state.set(*dest, value);
-
-    // continue to next instruction
     next!(state, block, pc)
 }
 
-/// Handle element addr on stack pointers.
-pub(crate) fn handle_element_addr_stack(
-    state: &mut ExecutionState<'_, '_>,
+/// Step element addr on stack pointers.
+pub(crate) fn step_element_addr_stack(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::ElementAddr {
         dest,
@@ -1317,41 +1273,34 @@ pub(crate) fn handle_element_addr_stack(
     // load array and index
     let arr = state.get(*array);
     if arr.tag() != ValueTag::StackPointer {
-        return ControlFlow::Error(Error::InvalidPointerType {
+        return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{arr:?}"),
         });
     }
-    let idx = state.get(*index);
-    let idx_val = idx.as_uint().unwrap_or(0);
+    let idx_val = load_array_index(state, *index);
 
     // compute element address
     let pointer = arr.as_stack_pointer().unwrap();
-    let value = match instruction::element_addr_stack(state, pointer, idx_val, *array_length) {
+    let value = match access::element_addr_stack(state, pointer, idx_val, *array_length) {
         Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
-    // apply reference metadata
-    let value = value.with_reference_meta(*reference);
+    let value = match build_reference_result(state, *reference, value) {
+        Ok(value) => value,
+        Err(error) => return Transfer::Error(error),
+    };
 
-    // validate reference kind
-    if let Err(error) = check_reference_kind(state, *reference, value) {
-        return ControlFlow::Error(error);
-    }
-
-    // store result
     state.set(*dest, value);
-
-    // continue to next instruction
     next!(state, block, pc)
 }
 
-/// Handle element addr on global pointers.
-pub(crate) fn handle_element_addr_global(
-    state: &mut ExecutionState<'_, '_>,
+/// Step element addr on global pointers.
+pub(crate) fn step_element_addr_global(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::ElementAddr {
         dest,
@@ -1369,41 +1318,34 @@ pub(crate) fn handle_element_addr_global(
     // load array and index
     let arr = state.get(*array);
     if arr.tag() != ValueTag::GlobalPointer {
-        return ControlFlow::Error(Error::InvalidPointerType {
+        return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{arr:?}"),
         });
     }
-    let idx = state.get(*index);
-    let idx_val = idx.as_uint().unwrap_or(0);
+    let idx_val = load_array_index(state, *index);
 
     // compute element address
     let pointer = arr.as_global_pointer().unwrap();
-    let value = match instruction::element_addr_global(state, pointer, idx_val, *array_length) {
+    let value = match access::element_addr_global(state, pointer, idx_val, *array_length) {
         Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
-    // apply reference metadata
-    let value = value.with_reference_meta(*reference);
+    let value = match build_reference_result(state, *reference, value) {
+        Ok(value) => value,
+        Err(error) => return Transfer::Error(error),
+    };
 
-    // validate reference kind
-    if let Err(error) = check_reference_kind(state, *reference, value) {
-        return ControlFlow::Error(error);
-    }
-
-    // store result
     state.set(*dest, value);
-
-    // continue to next instruction
     next!(state, block, pc)
 }
 
-/// Handle element load.
-pub(crate) fn handle_element_load(
-    state: &mut ExecutionState<'_, '_>,
+/// Step element load.
+pub(crate) fn step_element_load(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::ElementLoad {
         dest,
@@ -1423,16 +1365,15 @@ pub(crate) fn handle_element_load(
     let idx_val = idx.as_uint().unwrap_or(0);
 
     // compute element address
-    let pointer = match instruction::element_addr(state, arr, idx_val, *array_length) {
+    let pointer = match access::element_addr(state, arr, idx_val, *array_length) {
         Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     // load value
-    let value = match instruction::load_from_pointer_with_raw_pointee(state, pointer, *raw_pointee)
-    {
+    let value = match access::load_from_pointer_with_raw_pointee(state, pointer, *raw_pointee) {
         Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     // store result
@@ -1442,12 +1383,12 @@ pub(crate) fn handle_element_load(
     next!(state, block, pc)
 }
 
-/// Handle element load on aggregate values.
-pub(crate) fn handle_element_load_aggregate(
-    state: &mut ExecutionState<'_, '_>,
+/// Step element load on aggregate values.
+pub(crate) fn step_element_load_aggregate(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::ElementLoad {
         dest,
@@ -1465,7 +1406,7 @@ pub(crate) fn handle_element_load_aggregate(
     // load array and index
     let arr = state.get(*array);
     if arr.tag() != ValueTag::Aggregate {
-        return ControlFlow::Error(Error::TypeMismatch {
+        return Transfer::Error(Error::TypeMismatch {
             expected: "array".to_string(),
             actual: format!("{arr:?}"),
         });
@@ -1474,9 +1415,9 @@ pub(crate) fn handle_element_load_aggregate(
     let idx_val = idx.as_uint().unwrap_or(0);
 
     // load element value
-    let value = match instruction::get_element(state, arr, idx_val) {
+    let value = match access::get_element(state, arr, idx_val) {
         Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     // store result
@@ -1486,12 +1427,12 @@ pub(crate) fn handle_element_load_aggregate(
     next!(state, block, pc)
 }
 
-/// Handle element load on managed references.
-pub(crate) fn handle_element_load_managed(
-    state: &mut ExecutionState<'_, '_>,
+/// Step element load on managed references.
+pub(crate) fn step_element_load_managed(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::ElementLoad {
         dest,
@@ -1509,7 +1450,7 @@ pub(crate) fn handle_element_load_managed(
     // load array and index
     let arr = state.get(*array);
     if arr.tag() != ValueTag::ManagedReference {
-        return ControlFlow::Error(Error::InvalidPointerType {
+        return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{arr:?}"),
         });
     }
@@ -1519,9 +1460,9 @@ pub(crate) fn handle_element_load_managed(
     // load element value
     let handle = arr.as_managed_reference().unwrap();
     let Some(managed_pointee) = *managed_pointee else {
-        return ControlFlow::Error(Error::InvalidManagedReference);
+        return Transfer::Error(Error::InvalidManagedReference);
     };
-    let value = match instruction::load_element_managed(
+    let value = match access::load_element_managed(
         state,
         handle,
         managed_pointee,
@@ -1529,7 +1470,7 @@ pub(crate) fn handle_element_load_managed(
         *array_length,
     ) {
         Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     // store result
@@ -1539,12 +1480,12 @@ pub(crate) fn handle_element_load_managed(
     next!(state, block, pc)
 }
 
-/// Handle element load on raw pointers.
-pub(crate) fn handle_element_load_raw(
-    state: &mut ExecutionState<'_, '_>,
+/// Step element load on raw pointers.
+pub(crate) fn step_element_load_raw(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::ElementLoad {
         dest,
@@ -1561,7 +1502,7 @@ pub(crate) fn handle_element_load_raw(
     // load array and index
     let arr = state.get(*array);
     if arr.tag() != ValueTag::RawPointer {
-        return ControlFlow::Error(Error::InvalidPointerType {
+        return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{arr:?}"),
         });
     }
@@ -1571,13 +1512,13 @@ pub(crate) fn handle_element_load_raw(
     // load element value
     let pointer = arr.as_raw_pointer().unwrap();
     let Some(raw_pointee) = *raw_pointee else {
-        return ControlFlow::Error(Error::InvalidManagedReference);
+        return Transfer::Error(Error::InvalidManagedReference);
     };
-    let value =
-        match instruction::load_element_raw(state, pointer, raw_pointee, idx_val, *array_length) {
-            Ok(value) => value,
-            Err(error) => return ControlFlow::Error(error),
-        };
+    let value = match access::load_element_raw(state, pointer, raw_pointee, idx_val, *array_length)
+    {
+        Ok(value) => value,
+        Err(error) => return Transfer::Error(error),
+    };
 
     // store result
     state.set(*dest, value);
@@ -1586,12 +1527,12 @@ pub(crate) fn handle_element_load_raw(
     next!(state, block, pc)
 }
 
-/// Handle element load on stack pointers.
-pub(crate) fn handle_element_load_stack(
-    state: &mut ExecutionState<'_, '_>,
+/// Step element load on stack pointers.
+pub(crate) fn step_element_load_stack(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::ElementLoad {
         dest,
@@ -1608,7 +1549,7 @@ pub(crate) fn handle_element_load_stack(
     // load array and index
     let arr = state.get(*array);
     if arr.tag() != ValueTag::StackPointer {
-        return ControlFlow::Error(Error::InvalidPointerType {
+        return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{arr:?}"),
         });
     }
@@ -1617,9 +1558,9 @@ pub(crate) fn handle_element_load_stack(
 
     // load element value
     let pointer = arr.as_stack_pointer().unwrap();
-    let value = match instruction::load_element_stack(state, pointer, idx_val, *array_length) {
+    let value = match access::load_element_stack(state, pointer, idx_val, *array_length) {
         Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     // store result
@@ -1629,12 +1570,12 @@ pub(crate) fn handle_element_load_stack(
     next!(state, block, pc)
 }
 
-/// Handle element load on global pointers.
-pub(crate) fn handle_element_load_global(
-    state: &mut ExecutionState<'_, '_>,
+/// Step element load on global pointers.
+pub(crate) fn step_element_load_global(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::ElementLoad {
         dest,
@@ -1651,7 +1592,7 @@ pub(crate) fn handle_element_load_global(
     // load array and index
     let arr = state.get(*array);
     if arr.tag() != ValueTag::GlobalPointer {
-        return ControlFlow::Error(Error::InvalidPointerType {
+        return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{arr:?}"),
         });
     }
@@ -1660,9 +1601,9 @@ pub(crate) fn handle_element_load_global(
 
     // load element value
     let pointer = arr.as_global_pointer().unwrap();
-    let value = match instruction::load_element_global(state, pointer, idx_val, *array_length) {
+    let value = match access::load_element_global(state, pointer, idx_val, *array_length) {
         Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     // store result
@@ -1672,12 +1613,12 @@ pub(crate) fn handle_element_load_global(
     next!(state, block, pc)
 }
 
-/// Handle element set.
-pub(crate) fn handle_element_set(
-    state: &mut ExecutionState<'_, '_>,
+/// Step element set.
+pub(crate) fn step_element_set(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::ElementSet {
         dest,
@@ -1696,9 +1637,9 @@ pub(crate) fn handle_element_set(
     let idx_val = idx.as_uint().unwrap_or(0);
 
     // write element
-    let result = match instruction::set_element(state, arr, idx_val, val) {
+    let result = match access::set_element(state, arr, idx_val, val) {
         Ok(v) => v,
-        Err(e) => return ControlFlow::Error(e),
+        Err(e) => return Transfer::Error(e),
     };
 
     // store result
@@ -1708,12 +1649,12 @@ pub(crate) fn handle_element_set(
     next!(state, block, pc)
 }
 
-/// Handle element store.
-pub(crate) fn handle_element_store(
-    state: &mut ExecutionState<'_, '_>,
+/// Step element store.
+pub(crate) fn step_element_store(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::ElementStore {
         array,
@@ -1735,38 +1676,37 @@ pub(crate) fn handle_element_store(
     let idx_val = idx.as_uint().unwrap_or(0);
 
     // compute element address
-    let pointer = match instruction::element_addr(state, arr, idx_val, *array_length) {
+    let pointer = match access::element_addr(state, arr, idx_val, *array_length) {
         Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     let pointer = pointer.with_reference_meta(*reference);
 
     // validate reference semantics
     if let Err(error) = check_reference_kind(state, *reference, pointer) {
-        return ControlFlow::Error(error);
+        return Transfer::Error(error);
     }
     if let Err(error) = check_reference_mutability(state, *reference) {
-        return ControlFlow::Error(error);
+        return Transfer::Error(error);
     }
 
     // store value
-    if let Err(error) =
-        instruction::store_to_pointer_with_raw_pointee(state, pointer, *raw_pointee, val)
+    if let Err(error) = access::store_to_pointer_with_raw_pointee(state, pointer, *raw_pointee, val)
     {
-        return ControlFlow::Error(error);
+        return Transfer::Error(error);
     }
 
     // continue to next instruction
     next!(state, block, pc)
 }
 
-/// Handle element store on aggregate values.
-pub(crate) fn handle_element_store_aggregate(
-    state: &mut ExecutionState<'_, '_>,
+/// Step element store on aggregate values.
+pub(crate) fn step_element_store_aggregate(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::ElementStore {
         array,
@@ -1785,7 +1725,7 @@ pub(crate) fn handle_element_store_aggregate(
     // load operands
     let arr = state.get(*array);
     if arr.tag() != ValueTag::Aggregate {
-        return ControlFlow::Error(Error::TypeMismatch {
+        return Transfer::Error(Error::TypeMismatch {
             expected: "array".to_string(),
             actual: format!("{arr:?}"),
         });
@@ -1798,28 +1738,27 @@ pub(crate) fn handle_element_store_aggregate(
     let pointer =
         Value::managed_reference_with_meta(arr.as_managed_reference().unwrap(), *reference);
     if let Err(error) = check_reference_kind(state, *reference, pointer) {
-        return ControlFlow::Error(error);
+        return Transfer::Error(error);
     }
     if let Err(error) = check_reference_mutability(state, *reference) {
-        return ControlFlow::Error(error);
+        return Transfer::Error(error);
     }
 
     // store value
-    if let Err(error) = instruction::set_element(state, arr, idx_val, val) {
-        return ControlFlow::Error(error);
+    if let Err(error) = access::set_element(state, arr, idx_val, val) {
+        return Transfer::Error(error);
     }
 
     // continue to next instruction
     next!(state, block, pc)
 }
 
-// vector operations
-/// Handle element store on managed references.
-pub(crate) fn handle_element_store_managed(
-    state: &mut ExecutionState<'_, '_>,
+/// Step element store on managed references.
+pub(crate) fn step_element_store_managed(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::ElementStore {
         array,
@@ -1838,7 +1777,7 @@ pub(crate) fn handle_element_store_managed(
     // load operands
     let arr = state.get(*array);
     if arr.tag() != ValueTag::ManagedReference {
-        return ControlFlow::Error(Error::InvalidPointerType {
+        return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{arr:?}"),
         });
     }
@@ -1850,37 +1789,32 @@ pub(crate) fn handle_element_store_managed(
     let handle = arr.as_managed_reference().unwrap();
     let pointer = Value::managed_reference_with_meta(handle, *reference);
     if let Err(error) = check_reference_kind(state, *reference, pointer) {
-        return ControlFlow::Error(error);
+        return Transfer::Error(error);
     }
     if let Err(error) = check_reference_mutability(state, *reference) {
-        return ControlFlow::Error(error);
+        return Transfer::Error(error);
     }
 
     // store value
     let Some(managed_pointee) = *managed_pointee else {
-        return ControlFlow::Error(Error::InvalidManagedReference);
+        return Transfer::Error(Error::InvalidManagedReference);
     };
-    if let Err(error) = instruction::store_element_managed(
-        state,
-        handle,
-        managed_pointee,
-        idx_val,
-        *array_length,
-        val,
-    ) {
-        return ControlFlow::Error(error);
+    if let Err(error) =
+        access::store_element_managed(state, handle, managed_pointee, idx_val, *array_length, val)
+    {
+        return Transfer::Error(error);
     }
 
     // continue to next instruction
     next!(state, block, pc)
 }
 
-/// Handle element store on raw pointers.
-pub(crate) fn handle_element_store_raw(
-    state: &mut ExecutionState<'_, '_>,
+/// Step element store on raw pointers.
+pub(crate) fn step_element_store_raw(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::ElementStore {
         array,
@@ -1898,7 +1832,7 @@ pub(crate) fn handle_element_store_raw(
     // load operands
     let arr = state.get(*array);
     if arr.tag() != ValueTag::RawPointer {
-        return ControlFlow::Error(Error::InvalidPointerType {
+        return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{arr:?}"),
         });
     }
@@ -1910,32 +1844,32 @@ pub(crate) fn handle_element_store_raw(
     let raw_pointer = arr.as_raw_pointer().unwrap();
     let pointer = Value::raw_pointer_with_meta(raw_pointer, *reference);
     if let Err(error) = check_reference_kind(state, *reference, pointer) {
-        return ControlFlow::Error(error);
+        return Transfer::Error(error);
     }
     if let Err(error) = check_reference_mutability(state, *reference) {
-        return ControlFlow::Error(error);
+        return Transfer::Error(error);
     }
 
     // store value
     let Some(raw_pointee) = *raw_pointee else {
-        return ControlFlow::Error(Error::InvalidManagedReference);
+        return Transfer::Error(Error::InvalidManagedReference);
     };
     if let Err(error) =
-        instruction::store_element_raw(state, raw_pointer, raw_pointee, idx_val, *array_length, val)
+        access::store_element_raw(state, raw_pointer, raw_pointee, idx_val, *array_length, val)
     {
-        return ControlFlow::Error(error);
+        return Transfer::Error(error);
     }
 
     // continue to next instruction
     next!(state, block, pc)
 }
 
-/// Handle element store on stack pointers.
-pub(crate) fn handle_element_store_stack(
-    state: &mut ExecutionState<'_, '_>,
+/// Step element store on stack pointers.
+pub(crate) fn step_element_store_stack(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::ElementStore {
         array,
@@ -1953,7 +1887,7 @@ pub(crate) fn handle_element_store_stack(
     // load operands
     let arr = state.get(*array);
     if arr.tag() != ValueTag::StackPointer {
-        return ControlFlow::Error(Error::InvalidPointerType {
+        return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{arr:?}"),
         });
     }
@@ -1965,29 +1899,29 @@ pub(crate) fn handle_element_store_stack(
     let stack_pointer = arr.as_stack_pointer().unwrap();
     let pointer = Value::stack_pointer_with_meta(stack_pointer, *reference);
     if let Err(error) = check_reference_kind(state, *reference, pointer) {
-        return ControlFlow::Error(error);
+        return Transfer::Error(error);
     }
     if let Err(error) = check_reference_mutability(state, *reference) {
-        return ControlFlow::Error(error);
+        return Transfer::Error(error);
     }
 
     // store value
     if let Err(error) =
-        instruction::store_element_stack(state, stack_pointer, idx_val, *array_length, val)
+        access::store_element_stack(state, stack_pointer, idx_val, *array_length, val)
     {
-        return ControlFlow::Error(error);
+        return Transfer::Error(error);
     }
 
     // continue to next instruction
     next!(state, block, pc)
 }
 
-/// Handle element store on global pointers.
-pub(crate) fn handle_element_store_global(
-    state: &mut ExecutionState<'_, '_>,
+/// Step element store on global pointers.
+pub(crate) fn step_element_store_global(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::ElementStore {
         array,
@@ -2005,7 +1939,7 @@ pub(crate) fn handle_element_store_global(
     // load operands
     let arr = state.get(*array);
     if arr.tag() != ValueTag::GlobalPointer {
-        return ControlFlow::Error(Error::InvalidPointerType {
+        return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{arr:?}"),
         });
     }
@@ -2018,29 +1952,29 @@ pub(crate) fn handle_element_store_global(
     let pointer =
         Value::global_pointer_with_meta(global_pointer.id, global_pointer.slot_offset, *reference);
     if let Err(error) = check_reference_kind(state, *reference, pointer) {
-        return ControlFlow::Error(error);
+        return Transfer::Error(error);
     }
     if let Err(error) = check_reference_mutability(state, *reference) {
-        return ControlFlow::Error(error);
+        return Transfer::Error(error);
     }
 
     // store value
     if let Err(error) =
-        instruction::store_element_global(state, global_pointer, idx_val, *array_length, val)
+        access::store_element_global(state, global_pointer, idx_val, *array_length, val)
     {
-        return ControlFlow::Error(error);
+        return Transfer::Error(error);
     }
 
     // continue to next instruction
     next!(state, block, pc)
 }
 
-/// Handle aggregate construction.
-pub(crate) fn handle_aggregate(
-    state: &mut ExecutionState<'_, '_>,
+/// Step aggregate construction.
+pub(crate) fn step_aggregate(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::Aggregate { dest, elements } = &block[pc].data else {
         unreachable!()
