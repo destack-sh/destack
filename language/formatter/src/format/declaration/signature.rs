@@ -1,11 +1,5 @@
-use crate::format::analysis::{
-    next_non_whitespace_token_after_annotation, previous_non_whitespace_token_before_annotation,
-};
-use crate::format::call::{
-    SeparatorLineCommentSource, separator_line_comment_has_blank_line_before_first_comment,
-    separator_line_comment_is_own_line, separator_line_comment_source_from_annotations,
-    write_separator_line_comment_after_comma,
-};
+use crate::format::analysis::previous_non_whitespace_token_before_annotation;
+use crate::format::annotation::annotation_render_items_matching;
 use crate::format::collection::list_like;
 use crate::format::collection::property::{
     format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
@@ -357,219 +351,6 @@ fn parameter_has_line_comment_annotation(
         .unwrap_or(false)
 }
 
-/// Return separator-comment facts for one parameter annotation.
-fn parameter_separator_line_comment_annotation_info(
-    context: &DestackFormatContext<'_>,
-    annotation_id: LocalNodeId<Annotation>,
-) -> Option<(LocalNodeId<Comment>, bool, bool)> {
-    let Annotation::Comment { node, .. } = context.annotation(annotation_id) else {
-        return None;
-    };
-
-    let comment = context.tree.get::<Comment>(node);
-    // separator detachment supports slash comments and own-line block comments
-    let supports_separator_detachment = match comment.style {
-        CommentStyle::Slash => true,
-        CommentStyle::Star => context.annotation_starts_on_own_line(annotation_id),
-    };
-    if !supports_separator_detachment {
-        return None;
-    }
-
-    let annotation_span = context.annotation_span(annotation_id);
-    let previous_token = previous_non_whitespace_token_before_annotation(context, annotation_id);
-    let next_token = next_non_whitespace_token_after_annotation(context, annotation_id);
-    let preceding_separator = previous_token.filter(|token| token.token.ty == TokenType::Comma);
-    let following_comma = next_token.filter(|token| token.token.ty == TokenType::Comma);
-    let has_following_separator_before_close_parenthesis =
-        following_comma.is_some_and(|separator_token| {
-            context
-                .next_non_whitespace_token_after_span(separator_token.span)
-                .is_some_and(|after_separator| {
-                    after_separator.token.ty == TokenType::CloseParenthesis
-                })
-        });
-    let following_separator = has_following_separator_before_close_parenthesis
-        .then_some(following_comma)
-        .flatten();
-    let has_following_close_parenthesis =
-        next_token.is_some_and(|token| token.token.ty == TokenType::CloseParenthesis);
-    let has_virtual_trailing_separator = preceding_separator.is_none()
-        && following_separator.is_none()
-        && has_following_close_parenthesis
-        && context.annotation_starts_on_own_line(annotation_id);
-    if preceding_separator.is_none()
-        && following_separator.is_none()
-        && !has_virtual_trailing_separator
-    {
-        return None;
-    }
-
-    let is_own_line = separator_line_comment_is_own_line(
-        context,
-        annotation_id,
-        annotation_span,
-        preceding_separator,
-        following_separator,
-        has_virtual_trailing_separator,
-    );
-
-    let has_blank_line_before_first_comment =
-        separator_line_comment_has_blank_line_before_first_comment(
-            context,
-            annotation_span,
-            preceding_separator,
-            following_separator,
-            has_virtual_trailing_separator,
-            true,
-        );
-
-    Some((node, is_own_line, has_blank_line_before_first_comment))
-}
-
-/// Return one separator line-comment source for one parameter.
-fn parameter_separator_line_comment_source(
-    context: &DestackFormatContext<'_>,
-    parameter_id: LocalNodeId<Parameter>,
-) -> Option<SeparatorLineCommentSource> {
-    let annotations = context.annotations(parameter_id)?;
-    separator_line_comment_source_from_annotations(
-        context,
-        &annotations,
-        |annotation_id| parameter_separator_line_comment_annotation_info(context, annotation_id),
-        |_| true,
-    )
-}
-
-/// Return whether one parameter has boundary-postfix annotations that are not separator comments.
-fn parameter_has_non_separator_boundary_postfix_annotation(
-    context: &DestackFormatContext<'_>,
-    parameter_id: LocalNodeId<Parameter>,
-) -> bool {
-    context
-        .visit_annotations(parameter_id, |annotations| {
-            annotations.iter().any(|annotation_id| {
-                let position = context.annotation(*annotation_id).position();
-                if position != AnnotationPosition::LinePostfixBoundary {
-                    return false;
-                }
-
-                if matches!(context.annotation(*annotation_id), Annotation::Blank { .. }) {
-                    return false;
-                }
-
-                parameter_separator_line_comment_annotation_info(context, *annotation_id).is_none()
-            })
-        })
-        .unwrap_or(false)
-}
-
-/// Return whether one parameter supports separator-comment detachment rendering.
-fn parameter_can_render_without_separator_line_comment(
-    context: &DestackFormatContext<'_>,
-    parameter_id: LocalNodeId<Parameter>,
-) -> bool {
-    !parameter_has_non_separator_boundary_postfix_annotation(context, parameter_id)
-}
-
-/// Write one parameter without separator-boundary comments when detachment is allowed.
-fn write_parameter_without_separator_line_comment<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    parameter_id: LocalNodeId<Parameter>,
-) -> FormatResult<bool> {
-    if !parameter_can_render_without_separator_line_comment(f.context(), parameter_id) {
-        return Ok(false);
-    }
-
-    let parameter = f.context().tree.get(parameter_id);
-    format_parameter_node(parameter, parameter_id, f, true)?;
-
-    Ok(true)
-}
-
-/// Return whether one blank line should be preserved before one parameter.
-fn collect_parameter_separator_line_comment_sources(
-    context: &DestackFormatContext<'_>,
-    parameters: &[LocalNodeId<Parameter>],
-) -> Vec<Option<SeparatorLineCommentSource>> {
-    parameters
-        .iter()
-        .copied()
-        .map(|parameter_id| parameter_separator_line_comment_source(context, parameter_id))
-        .collect::<Vec<_>>()
-}
-
-/// Return whether one blank line should be preserved between adjacent parameters.
-fn preserve_blank_line_before_parameter_with_separator_comments(
-    context: &DestackFormatContext<'_>,
-    parameters: &[LocalNodeId<Parameter>],
-    separator_line_comment_sources: &[Option<SeparatorLineCommentSource>],
-    parameter_index: usize,
-) -> bool {
-    let left_parameter_id = parameters[parameter_index - 1];
-    let right_parameter_id = parameters[parameter_index];
-
-    // when separator comments are rendered after the previous comma,
-    // preserve blank lines between that cluster and the next parameter
-    if let Some(previous_separator_source) =
-        separator_line_comment_sources[parameter_index - 1].as_ref()
-        && previous_separator_source.is_own_line
-        && let Some(last_comment_id) = previous_separator_source.comment_ids.last().copied()
-    {
-        let last_comment_span = context.span(last_comment_id);
-        let right_parameter_span = context.span(right_parameter_id);
-        if let Some(between_span) = last_comment_span.gap_to(right_parameter_span) {
-            return context.has_blank_line(between_span);
-        }
-    }
-
-    let left_parameter_span = context.span(left_parameter_id);
-    let right_parameter_span = context.span(right_parameter_id);
-    let Some(between_span) = left_parameter_span.gap_to(right_parameter_span) else {
-        return false;
-    };
-
-    context.has_blank_line(between_span)
-}
-
-/// Write one separator-comment aware multiline parameter list body.
-fn write_signature_separator_comment_multiline_parameter_list<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    parameters: &[LocalNodeId<Parameter>],
-    separator_line_comment_sources: &[Option<SeparatorLineCommentSource>],
-    should_emit_trailing_separator: bool,
-) -> FormatResult<()> {
-    for (index, parameter_id) in parameters.iter().enumerate() {
-        if index > 0 {
-            if preserve_blank_line_before_parameter_with_separator_comments(
-                f.context(),
-                parameters,
-                separator_line_comment_sources,
-                index,
-            ) {
-                write!(f, [empty_line()])?;
-            } else {
-                write!(f, [hard_line_break()])?;
-            }
-        }
-
-        if let Some(comment_source) = separator_line_comment_sources[index].as_ref()
-            && !parameter_is_variadic(f.context(), *parameter_id)
-            && write_parameter_without_separator_line_comment(f, *parameter_id)?
-        {
-            write_separator_line_comment_after_comma(f, comment_source)?;
-            continue;
-        }
-
-        write!(f, [group(parameter_id)])?;
-        if index + 1 < parameters.len() || should_emit_trailing_separator {
-            write!(f, [token(",")])?;
-        }
-    }
-
-    Ok(())
-}
-
 /// Return whether a single parameter should keep compact outer parentheses.
 pub(crate) fn single_parameter_should_hug(
     context: &DestackFormatContext<'_>,
@@ -637,20 +418,11 @@ pub(crate) fn write_function_asynchrony_prefix(
     Ok(())
 }
 
-/// Represent shared function header styles.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum FunctionHeaderStyle {
-    /// The declaration-style function header.
-    Declaration,
-    /// The method-like function header.
-    MethodLike,
-}
-
 /// Write shared function header keywords and generator markers.
 pub(crate) fn write_function_header_prefix(
     f: &mut DestackFormatter<'_, '_>,
     signature: &FunctionSignature,
-    style: FunctionHeaderStyle,
+    is_declaration_style: bool,
     has_name_or_key: bool,
 ) -> FormatResult<()> {
     // abstraction
@@ -670,7 +442,7 @@ pub(crate) fn write_function_header_prefix(
     }
 
     // keyword and cardinality
-    if style == FunctionHeaderStyle::Declaration
+    if is_declaration_style
         && signature.kind == FunctionKind::Function
         && signature.mode != Some(FunctionMode::Constructor)
         && signature.mode != Some(FunctionMode::New)
@@ -681,7 +453,7 @@ pub(crate) fn write_function_header_prefix(
             write!(f, [Keyword::Function, space()])?;
         }
     } else if signature.cardinality == FunctionCardinality::Generator {
-        if style == FunctionHeaderStyle::Declaration {
+        if is_declaration_style {
             write!(f, [token("*"), space()])?;
         } else {
             write!(f, [token("*")])?;
@@ -813,6 +585,84 @@ pub(crate) fn signature_should_elide_space_before_body(
     false
 }
 
+/// Return whether one block body should be preceded by a space.
+pub(crate) fn expression_body_requires_head_space(
+    context: &DestackFormatContext<'_>,
+    body_expression: LocalNodeId<Expression>,
+) -> bool {
+    fn annotations_require_head_spacing(
+        context: &DestackFormatContext<'_>,
+        annotations: Option<Vec<LocalNodeId<Annotation>>>,
+    ) -> Option<bool> {
+        let annotations = annotations?;
+
+        let has_block_prefix_annotation = annotations.iter().copied().any(|annotation_id| {
+            matches!(
+                context.annotation(annotation_id),
+                Annotation::Blank {
+                    position: AnnotationPosition::BlockPrefix,
+                    ..
+                } | Annotation::Doc {
+                    position: AnnotationPosition::BlockPrefix,
+                    ..
+                } | Annotation::Comment {
+                    position: AnnotationPosition::BlockPrefix,
+                    ..
+                } | Annotation::Decorator {
+                    position: AnnotationPosition::BlockPrefix,
+                    ..
+                }
+            )
+        });
+        if has_block_prefix_annotation {
+            return Some(false);
+        }
+
+        let has_line_prefix_annotation = annotations.iter().copied().any(|annotation_id| {
+            matches!(
+                context.annotation(annotation_id),
+                Annotation::Blank {
+                    position: AnnotationPosition::LinePrefix,
+                    ..
+                } | Annotation::Doc {
+                    position: AnnotationPosition::LinePrefix,
+                    ..
+                } | Annotation::Comment {
+                    position: AnnotationPosition::LinePrefix,
+                    ..
+                } | Annotation::Decorator {
+                    position: AnnotationPosition::LinePrefix,
+                    ..
+                }
+            )
+        });
+        if has_line_prefix_annotation {
+            return Some(true);
+        }
+
+        None
+    }
+
+    let Expression::Block(block_id) = context.tree.get(body_expression) else {
+        return true;
+    };
+    if let Some(requires_space) =
+        annotations_require_head_spacing(context, context.annotations(*block_id))
+    {
+        return requires_space;
+    }
+
+    let block = context.tree.get(*block_id);
+    if let Some(first_expression) = block.expressions.first().copied()
+        && let Some(requires_space) =
+            annotations_require_head_spacing(context, context.annotations(first_expression))
+    {
+        return requires_space;
+    }
+
+    true
+}
+
 /// Return whether dynamic parameters should force multiline signature formatting.
 pub(crate) fn signature_parameters_should_expand(
     context: &DestackFormatContext<'_>,
@@ -852,40 +702,12 @@ pub(crate) fn write_signature_dynamic_parameter_list(
     let should_emit_trailing_separator = !disallow_trailing_separator
         && f.context().options.trailing_comma == TrailingComma::All
         && !has_variadic_tail;
-    let separator_line_comment_sources =
-        collect_parameter_separator_line_comment_sources(f.context(), parameters);
-    let use_separator_comment_multiline = should_expand
-        && separator_line_comment_sources
-            .iter()
-            .zip(parameters.iter().copied())
-            .any(|(source, parameter_id)| {
-                source.is_some()
-                    && parameter_can_render_without_separator_line_comment(
-                        f.context(),
-                        parameter_id,
-                    )
-            });
-    if use_separator_comment_multiline {
-        write!(f, [token("("), hard_line_break()])?;
-        write!(
-            f,
-            [block_indent(&format_with(
-                |f: &mut DestackFormatter<'_, '_>| {
-                    write_signature_separator_comment_multiline_parameter_list(
-                        f,
-                        parameters,
-                        &separator_line_comment_sources,
-                        should_emit_trailing_separator,
-                    )
-                }
-            ))]
-        )?;
-        write!(f, [hard_line_break(), token(")")])?;
-        return Ok(());
-    }
 
     let mut parameters_list = list_like("(", ")", ",", parameters);
     parameters_list.should_expand(should_expand);
+    if should_emit_trailing_separator {
+        parameters_list.force_trailing_separator();
+    }
     if disallow_trailing_separator {
         parameters_list.disallow_trailing_separator();
     }
@@ -895,23 +717,53 @@ pub(crate) fn write_signature_dynamic_parameter_list(
 }
 
 /// Write one empty parameter list and keep delimiter-interior comments inside `()`.
-pub(crate) fn write_empty_parameter_list_with_interior_annotations<'ast, T: Node + Clone>(
+pub(crate) fn write_empty_parameter_list_with_interior_annotations<'ast, T: Node + Clone + 'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<T>,
 ) -> FormatResult<()>
 where
     NodeTree: NodeTreeImpl<T>,
 {
-    if !f.context().has_delimited_interior_annotation(node_id) {
+    let interior_items = annotation_render_items_matching(f.context(), node_id, |position| {
+        position == AnnotationPosition::BlockInfix
+    });
+    if interior_items.is_empty() {
         write!(f, [token("()")])?;
         return Ok(());
+    }
+
+    // keep one inline block comment compact: `(/* comment */)`
+    if interior_items.len() == 1
+        && matches!(
+            f.context().annotation(interior_items[0]),
+            Annotation::Comment {
+                position: AnnotationPosition::BlockInfix,
+                ..
+            }
+        )
+        && let Annotation::Comment { node, .. } = f.context().annotation(interior_items[0])
+    {
+        let comment = f.context().tree.get::<Comment>(node);
+        if comment.style == CommentStyle::Star
+            && !f.context().annotation_starts_on_own_line(interior_items[0])
+        {
+            write!(
+                f,
+                [
+                    token("("),
+                    f.context().block_infix_annotations(node_id),
+                    token(")")
+                ]
+            )?;
+            return Ok(());
+        }
     }
 
     write!(
         f,
         [
             token("("),
-            soft_block_indent(&f.context().delimited_interior_annotations(node_id)),
+            soft_block_indent(&f.context().block_infix_annotations(node_id)),
             token(")")
         ]
     )?;
@@ -970,202 +822,5 @@ impl<'ast> FormatNode<'ast, WhereClause> for WhereClause {
         write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
 
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::{
-        Annotation, DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions,
-        TestFormatter, assert_format, assert_format_program_idempotent_with_file_type,
-    };
-    use destack_ast::{LocalNodeId, NodeParentIndex, NodeType, Parameter};
-    use destack_source::FileType;
-
-    /// Build a formatter context for signature separator-comment assertions.
-    fn context_from_formatter(formatter: &TestFormatter) -> DestackFormatContext<'_> {
-        DestackFormatContext::new(
-            DestackFormatOptions::default(),
-            DestackFormatArtifacts {
-                file: &formatter.file,
-                tree: &formatter.tree,
-                tokens: &formatter.tokens,
-                side_tokens: &formatter.side_tokens,
-                side_span: &formatter.side_span,
-                strings: &formatter.strings,
-                parents: NodeParentIndex::from_tree(&formatter.tree),
-            },
-        )
-    }
-
-    /// Find one annotation id by marker fragment.
-    fn find_annotation_by_fragment(
-        context: &DestackFormatContext<'_>,
-        marker: &str,
-    ) -> Option<LocalNodeId<Annotation>> {
-        for (entry_index, _) in context.formatter_annotation_entries.iter().enumerate() {
-            let annotation_id = LocalNodeId::<Annotation>::new(entry_index as u32);
-            let matches_marker = match context.annotation(annotation_id) {
-                Annotation::Comment { node, .. } => context.comment_text(node).contains(marker),
-                Annotation::Doc { node, .. } => {
-                    let document = context.tree.get(node);
-                    context.strings.get(document.string).contains(marker)
-                }
-                Annotation::Blank { .. } | Annotation::Decorator { .. } => false,
-            };
-            if matches_marker {
-                return Some(annotation_id);
-            }
-        }
-
-        None
-    }
-
-    /// Find one annotation owner parameter id.
-    fn find_annotation_owner_parameter_id(
-        context: &DestackFormatContext<'_>,
-        annotation_id: LocalNodeId<Annotation>,
-    ) -> Option<LocalNodeId<Parameter>> {
-        context
-            .formatter_annotation_ids_by_node_id
-            .iter()
-            .enumerate()
-            .find_map(|(node_id, annotation_ids)| {
-                if !annotation_ids
-                    .iter()
-                    .any(|candidate| candidate.id == annotation_id.id)
-                {
-                    return None;
-                }
-
-                (context.tree.get_node_type(node_id as u32) == NodeType::Parameter)
-                    .then_some(LocalNodeId::<Parameter>::new(node_id as u32))
-            })
-    }
-
-    #[test]
-    fn test_format_parameter() {
-        assert_format!(
-            "x: int32",
-            "x: int32",
-            |p| p.eat_parameter(),
-            DestackFormatOptions::default()
-        );
-    }
-
-    #[test]
-    fn test_format_parameter_with_default() {
-        assert_format!(
-            "x: int32 = 1",
-            "x: int32 = 1",
-            |p| p.eat_parameter(),
-            DestackFormatOptions::default()
-        );
-    }
-
-    #[test]
-    fn test_format_parameter_comment_between_name_and_type() {
-        assert_format!(
-            "x /* a */ : number",
-            "x /* a */ : number",
-            |p| p.eat_parameter(),
-            DestackFormatOptions::default()
-        );
-    }
-
-    #[test]
-    fn test_format_optional_parameter_comment_between_name_and_type() {
-        assert_format!(
-            "x? /* a */ : number",
-            "x? /* a */ : number",
-            |p| p.eat_parameter(),
-            DestackFormatOptions::default()
-        );
-    }
-
-    #[test]
-    fn test_format_parameter_comment_before_name() {
-        assert_format!(
-            "/* a */ x: number",
-            "/* a */ x: number",
-            |p| p.eat_parameter(),
-            DestackFormatOptions::default()
-        );
-    }
-
-    /// Trailing separator line comments in parameter lists should stay idempotent.
-    #[test]
-    fn test_format_signature_trailing_separator_line_comment_is_idempotent() {
-        let source = "f2 = (
-  currentRequest: {a: number},
-  // TODO this is a very very very very long comment that makes it go > 80 columns
-): number => {};
-";
-        assert_format_program_idempotent_with_file_type(
-            source,
-            FileType::TypeScript,
-            DestackFormatOptions::default(),
-        );
-    }
-
-    /// Own-line block separator comments in parameter lists should stay idempotent.
-    #[test]
-    fn test_format_signature_trailing_separator_block_comment_is_idempotent() {
-        let source = r#"var x = {
-  getSectionMode(
-    pageMetaData: PageMetaData,
-    sectionMetaData: SectionMetaData
-    /* $FlowFixMe This error was exposed while converting keyMirror
-     * to keyMirrorRecursive */
-  ): $Enum<SectionMode> {
-  }
-}
-
-class X2 {
-  getSectionMode(
-    pageMetaData: PageMetaData,
-    sectionMetaData: SectionMetaData = ['unknown']
-    /* $FlowFixMe This error was exposed while converting keyMirror
-     * to keyMirrorRecursive */
-  ): $Enum<SectionMode> {
-  }
-}
-"#;
-        assert_format_program_idempotent_with_file_type(
-            source,
-            FileType::TypeScript,
-            DestackFormatOptions::default(),
-        );
-    }
-
-    /// Signature separator block comments should resolve to one detachable own-line source.
-    #[test]
-    fn test_signature_separator_block_comment_source_is_detected_for_flow_style_fixture() {
-        let source = r#"class X2 {
-  getSectionMode(
-    pageMetaData: PageMetaData,
-    sectionMetaData: SectionMetaData = ["unknown"]
-    /* $FlowFixMe This error was exposed while converting keyMirror
-     * to keyMirrorRecursive */
-    ,
-  ): $Enum<SectionMode> {
-  }
-}
-"#;
-        let (formatter, _) =
-            TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
-                .expect("parse signature block comment source");
-        let context = context_from_formatter(&formatter);
-        let annotation_id = find_annotation_by_fragment(&context, "$FlowFixMe")
-            .expect("expected flow-fixme separator block annotation");
-
-        let source_info =
-            super::parameter_separator_line_comment_annotation_info(&context, annotation_id);
-        assert!(source_info.is_some(), "expected separator annotation info");
-
-        let parameter_id = find_annotation_owner_parameter_id(&context, annotation_id)
-            .expect("expected parameter owner for separator annotation");
-        let source = super::parameter_separator_line_comment_source(&context, parameter_id);
-        assert!(source.is_some(), "expected separator source for parameter");
     }
 }

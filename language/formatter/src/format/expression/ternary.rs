@@ -1,12 +1,15 @@
-use crate::Annotation;
-use crate::format::expression::{
-    AnnotationPosition, Argument, DestackFormatContext, DestackFormatter, Expression, FormatResult,
-    IfCondition, IfKind, LocalNodeId, NodeTree, NodeType, TypeLiteral, format_with, group,
-    if_group_breaks, indent, soft_block_indent, soft_line_break_or_space, space, token,
-    transparent_inner_expression,
-};
+use crate::format::chain::transparent_inner_expression;
 use crate::format::tree::tree_argument_is_wrapped_in_braces;
-use destack_fir::format::Buffer;
+use crate::{Annotation, DestackFormatContext, DestackFormatter};
+use destack_ast::{
+    AnnotationPosition, Argument, Expression, IfCondition, IfKind, LocalNodeId, NodeTree, NodeType,
+    TypeLiteral,
+};
+use destack_fir::format::{Buffer, FormatResult};
+use destack_fir::prelude::{
+    format_with, group, if_group_breaks, indent, soft_block_indent, soft_line_break_or_space,
+    space, token,
+};
 use destack_fir::{format_args, write};
 
 /// Return the value expression for an argument.

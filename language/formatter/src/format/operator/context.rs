@@ -1,13 +1,17 @@
+use crate::format::chain::transparent_inner_expression;
 use crate::format::expression::{
-    Annotation, AnnotationPosition, Argument, AssignOperator, BinaryOperator, Declaration,
-    Declarator, DependencyKind, DestackFormatContext, DestackFormatter, Expression, FormatResult,
-    IfKind, ImportAliasTarget, LocalNodeId, Member, NodeTree, NodeType, OperatorPrecedence,
-    Parameter, Property, ScalarLiteral, TypeBinaryOperator, TypeUnaryOperator, UnaryOperator,
-    WhereClause, block_indent, format_expression_without_prefix_annotations, hard_line_break,
-    is_trivial_expression, parenthesized_boundary_comments, parenthesized_has_leading_inner_trivia,
-    token, transparent_inner_expression,
+    format_expression_without_prefix_annotations, is_trivial_expression,
+    parenthesized_boundary_comments, parenthesized_has_leading_inner_trivia,
 };
-use destack_fir::format::{Buffer, Format};
+use crate::{Annotation, DestackFormatContext, DestackFormatter};
+use destack_ast::{
+    AnnotationPosition, Argument, AssignOperator, BinaryOperator, Declaration, Declarator,
+    DependencyKind, Expression, IfKind, ImportAliasTarget, LocalNodeId, Member, NodeTree, NodeType,
+    OperatorPrecedence, Parameter, Property, ScalarLiteral, TypeBinaryOperator, TypeUnaryOperator,
+    UnaryOperator, WhereClause,
+};
+use destack_fir::format::{Buffer, Format, FormatResult};
+use destack_fir::prelude::{block_indent, hard_line_break, token};
 use destack_fir::write;
 use smallvec::SmallVec;
 
@@ -259,10 +263,8 @@ pub(crate) fn is_type_context(
     node_id: LocalNodeId<Expression>,
 ) -> bool {
     if let Some(is_type_context) = context.lookup_expression_type_context(node_id) {
-        context.increment_counter("cache.type_context.hits", 1);
         return is_type_context;
     }
-    context.increment_counter("cache.type_context.misses", 1);
 
     let is_type_context = is_type_context_uncached(context, node_id);
     context.store_expression_type_context(node_id, is_type_context);
@@ -688,7 +690,13 @@ pub(crate) fn format_binary_operand_with_grouping_parentheses<'ast>(
         )
     );
     let needs_precedence_parentheses = !matches!(expression, Expression::Parenthesized { .. })
-        && expression_precedence(expression) < parent_operator.precedence()
+        && (expression_precedence(expression)
+            < binary_operator_expression_precedence(parent_operator)
+            || binary_operand_requires_grouping_parentheses(
+                f.context(),
+                parent_operator,
+                operand_id,
+            ))
         && !suppress_precedence_parentheses_for_type_binary;
     let needs_grouping_parentheses = needs_type_grouping_parentheses
         || needs_precedence_parentheses
@@ -823,47 +831,225 @@ fn redundant_parenthesized_binary_operand_can_drop(
         return false;
     }
 
-    let inner_precedence = expression_precedence(context.tree.get(inner_expression_id));
-    inner_precedence > parent_operator.precedence()
+    !binary_operand_requires_grouping_parentheses(context, parent_operator, parenthesized_id)
 }
 
-/// Returns the precedence group for a binary operator.
-/// Return precedence group for binary operators.
+/// Return formatter precedence for one binary operator.
 #[inline]
-fn binary_operator_precedence_group(operator: BinaryOperator) -> u8 {
-    // first two digits of discriminant encode precedence
-    (operator as u16 / 100) as u8
+fn binary_operator_expression_precedence(operator: BinaryOperator) -> u16 {
+    match operator {
+        BinaryOperator::Exponent
+        | BinaryOperator::WrappingExponent
+        | BinaryOperator::SaturatingExponent => 1700,
+        BinaryOperator::Multiply
+        | BinaryOperator::WrappingMultiply
+        | BinaryOperator::SaturatingMultiply
+        | BinaryOperator::Divide
+        | BinaryOperator::Remainder => 1600,
+        BinaryOperator::Add
+        | BinaryOperator::WrappingAdd
+        | BinaryOperator::SaturatingAdd
+        | BinaryOperator::Subtract
+        | BinaryOperator::WrappingSubtract
+        | BinaryOperator::SaturatingSubtract => 1500,
+        BinaryOperator::ShiftLeft
+        | BinaryOperator::SaturatingShiftLeft
+        | BinaryOperator::ShiftRight
+        | BinaryOperator::UnsignedShiftRight => 1400,
+        BinaryOperator::LessThan
+        | BinaryOperator::LessThanOrEqual
+        | BinaryOperator::GreaterThan
+        | BinaryOperator::GreaterThanOrEqual
+        | BinaryOperator::In
+        | BinaryOperator::InstanceOf => 1300,
+        BinaryOperator::Equal
+        | BinaryOperator::NotEqual
+        | BinaryOperator::EqualStrict
+        | BinaryOperator::NotEqualStrict => 1200,
+        BinaryOperator::ElementwiseAnd => 1100,
+        BinaryOperator::ElementwiseXor => 1000,
+        BinaryOperator::ElementwiseOr => 900,
+        BinaryOperator::And => 800,
+        BinaryOperator::Coalesce => 700,
+        BinaryOperator::Or => 600,
+    }
+}
+
+/// Return whether one operator belongs to the equality family.
+#[inline]
+fn binary_operator_is_equality(operator: BinaryOperator) -> bool {
+    matches!(
+        operator,
+        BinaryOperator::Equal
+            | BinaryOperator::NotEqual
+            | BinaryOperator::EqualStrict
+            | BinaryOperator::NotEqualStrict
+    )
+}
+
+/// Return whether one operator belongs to the multiplicative family.
+#[inline]
+fn binary_operator_is_multiplicative(operator: BinaryOperator) -> bool {
+    matches!(
+        operator,
+        BinaryOperator::Multiply
+            | BinaryOperator::WrappingMultiply
+            | BinaryOperator::SaturatingMultiply
+            | BinaryOperator::Divide
+            | BinaryOperator::Remainder
+    )
+}
+
+/// Return whether one operator belongs to the shift family.
+#[inline]
+fn binary_operator_is_shift(operator: BinaryOperator) -> bool {
+    matches!(
+        operator,
+        BinaryOperator::ShiftLeft
+            | BinaryOperator::SaturatingShiftLeft
+            | BinaryOperator::ShiftRight
+            | BinaryOperator::UnsignedShiftRight
+    )
+}
+
+/// Return whether one operator is a remainder operator.
+#[inline]
+fn binary_operator_is_remainder(operator: BinaryOperator) -> bool {
+    operator == BinaryOperator::Remainder
 }
 
 /// Checks if two binary operators should be flattened together.
 /// Return whether nested binaries should flatten into one group.
 #[inline]
-fn should_flatten_binary(left_operator: BinaryOperator, right_operator: BinaryOperator) -> bool {
-    let both_logical_operators = matches!(
-        left_operator,
-        BinaryOperator::And | BinaryOperator::Or | BinaryOperator::Coalesce
-    ) && matches!(
-        right_operator,
-        BinaryOperator::And | BinaryOperator::Or | BinaryOperator::Coalesce
-    );
-    if both_logical_operators && left_operator != right_operator {
+fn should_flatten_binary(parent_operator: BinaryOperator, operator: BinaryOperator) -> bool {
+    if binary_operator_expression_precedence(parent_operator)
+        != binary_operator_expression_precedence(operator)
+    {
         return false;
     }
 
-    binary_operator_precedence_group(left_operator)
-        == binary_operator_precedence_group(right_operator)
+    if matches!(
+        parent_operator,
+        BinaryOperator::Exponent
+            | BinaryOperator::WrappingExponent
+            | BinaryOperator::SaturatingExponent
+    ) {
+        return false;
+    }
+
+    if binary_operator_is_equality(parent_operator) && binary_operator_is_equality(operator) {
+        return false;
+    }
+
+    if binary_operator_is_multiplicative(parent_operator)
+        && binary_operator_is_multiplicative(operator)
+    {
+        if binary_operator_is_remainder(parent_operator) || binary_operator_is_remainder(operator) {
+            return false;
+        }
+
+        return parent_operator == operator;
+    }
+
+    if binary_operator_is_shift(parent_operator) && binary_operator_is_shift(operator) {
+        return false;
+    }
+
+    true
 }
 
-/// Represents a flattened binary expression operand with its preceding operator.
-pub(crate) struct BinaryOperand {
-    /// The operator before this operand (None for first).
-    pub(crate) operator: Option<BinaryOperator>,
-    /// The expression node.
-    pub(crate) expression: LocalNodeId<Expression>,
+/// Return whether one direct child expression is the left operand of its binary parent.
+fn binary_operand_is_left(
+    context: &DestackFormatContext<'_>,
+    operand_id: LocalNodeId<Expression>,
+) -> Option<bool> {
+    let (parent_id, parent_type) = context.parent(operand_id)?;
+    if parent_type != NodeType::Expression {
+        return None;
+    }
+
+    let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
+    let Expression::Binary { left, right, .. } = context.tree.get(parent_expression_id) else {
+        return None;
+    };
+
+    if *left == operand_id {
+        return Some(true);
+    }
+
+    if *right == operand_id {
+        return Some(false);
+    }
+
+    None
 }
 
-/// Store flattened binary operands with an inline-first buffer.
-pub(crate) type BinaryOperands = SmallVec<[BinaryOperand; 8]>;
+/// Return whether one expression is a prefix-like left operand of `in` or `instanceof`.
+fn expression_is_relational_prefix_left_operand(expression: &Expression) -> bool {
+    match expression {
+        Expression::Unary { operator, .. } => matches!(
+            operator,
+            UnaryOperator::Not
+                | UnaryOperator::Plus
+                | UnaryOperator::Negate
+                | UnaryOperator::WrappingNegate
+                | UnaryOperator::ElementwiseNot
+                | UnaryOperator::Typeof
+                | UnaryOperator::Void
+                | UnaryOperator::Dereference
+                | UnaryOperator::Spread
+        ),
+        Expression::Await { .. }
+        | Expression::AwaitMaybe { .. }
+        | Expression::Yield { .. }
+        | Expression::Delete { .. } => true,
+        _ => false,
+    }
+}
+
+/// Return whether a binary operand requires explicit grouping parentheses.
+fn binary_operand_requires_grouping_parentheses(
+    context: &DestackFormatContext<'_>,
+    parent_operator: BinaryOperator,
+    operand_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some(operand_is_left) = binary_operand_is_left(context, operand_id) else {
+        return false;
+    };
+
+    let expression_id = match context.tree.get(operand_id) {
+        Expression::Parenthesized { expression } => *expression,
+        _ => operand_id,
+    };
+    let expression = context.tree.get(expression_id);
+    if operand_is_left
+        && matches!(
+            parent_operator,
+            BinaryOperator::In | BinaryOperator::InstanceOf
+        )
+        && expression_is_relational_prefix_left_operand(expression)
+    {
+        return true;
+    }
+
+    let Expression::Binary {
+        operator: operand_operator,
+        ..
+    } = expression
+    else {
+        return false;
+    };
+
+    let parent_precedence = binary_operator_expression_precedence(parent_operator);
+    let operand_precedence = binary_operator_expression_precedence(*operand_operator);
+    if parent_precedence > operand_precedence {
+        return true;
+    }
+
+    !operand_is_left
+        && parent_precedence == operand_precedence
+        && !should_flatten_binary(parent_operator, *operand_operator)
+}
 
 /// Flattens a binary expression chain into a list of operands.
 ///
@@ -872,8 +1058,8 @@ pub(crate) fn flatten_binary_expression(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
     target_operator: BinaryOperator,
-) -> BinaryOperands {
-    let mut operands = BinaryOperands::new();
+) -> SmallVec<[(Option<BinaryOperator>, LocalNodeId<Expression>); 8]> {
+    let mut operands = SmallVec::new();
     flatten_binary_recursive(
         context,
         expression_id,
@@ -890,8 +1076,8 @@ pub(crate) fn flatten_type_binary_expression(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
     target_operator: BinaryOperator,
-) -> BinaryOperands {
-    let mut operands = BinaryOperands::new();
+) -> SmallVec<[(Option<BinaryOperator>, LocalNodeId<Expression>); 8]> {
+    let mut operands = SmallVec::new();
     flatten_type_binary_recursive(context, expression_id, target_operator, &mut operands, None);
     operands
 }
@@ -910,7 +1096,7 @@ fn flatten_type_binary_recursive(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
     target_operator: BinaryOperator,
-    operands: &mut BinaryOperands,
+    operands: &mut SmallVec<[(Option<BinaryOperator>, LocalNodeId<Expression>); 8]>,
     preceding_operator: Option<BinaryOperator>,
 ) {
     let expression_id =
@@ -934,10 +1120,7 @@ fn flatten_type_binary_recursive(
         return;
     }
 
-    operands.push(BinaryOperand {
-        operator: preceding_operator,
-        expression: expression_id,
-    });
+    operands.push((preceding_operator, expression_id));
 }
 
 /// Remove redundant parenthesized wrappers around associative type operands.
@@ -979,7 +1162,7 @@ fn flatten_binary_recursive(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
     target_operator: BinaryOperator,
-    operands: &mut BinaryOperands,
+    operands: &mut SmallVec<[(Option<BinaryOperator>, LocalNodeId<Expression>); 8]>,
     preceding_operator: Option<BinaryOperator>,
     is_root: bool,
 ) {
@@ -988,25 +1171,20 @@ fn flatten_binary_recursive(
         operator,
         right,
     } = context.tree.get(expression_id)
-        && should_flatten_binary(*operator, target_operator)
+        && *operator == target_operator
+        && (is_root || should_flatten_binary(*operator, target_operator))
         && (!context.has_annotation(expression_id) || is_root)
     {
         // recursively flatten the left side
         flatten_binary_recursive(context, *left, target_operator, operands, None, false);
 
         // add the right operand with its operator
-        operands.push(BinaryOperand {
-            operator: Some(*operator),
-            expression: *right,
-        });
+        operands.push((Some(*operator), *right));
         return;
     }
 
     // not a binary expression or different precedence - add as-is
-    operands.push(BinaryOperand {
-        operator: preceding_operator,
-        expression: expression_id,
-    });
+    operands.push((preceding_operator, expression_id));
 }
 
 /// Recursively count flattened binary operands without allocating.
@@ -1021,7 +1199,8 @@ fn count_flattened_binary_recursive(
         operator,
         right,
     } = context.tree.get(expression_id)
-        && should_flatten_binary(*operator, target_operator)
+        && *operator == target_operator
+        && (is_root || should_flatten_binary(*operator, target_operator))
         && (!context.has_annotation(expression_id) || is_root)
     {
         let left_count = count_flattened_binary_recursive(context, *left, target_operator, false);
@@ -1065,10 +1244,10 @@ pub(crate) fn expression_precedence(expr: &Expression) -> u16 {
         // type unary: use operator's precedence
         Expression::TypeUnary { operator, .. } => operator.precedence(),
 
-        // binary: use operator's precedence
-        Expression::Binary { operator, .. } => operator.precedence(),
+        // binary: use formatter precedence
+        Expression::Binary { operator, .. } => binary_operator_expression_precedence(*operator),
         Expression::TypeBinary { operator, .. } => match operator {
-            TypeBinaryOperator::Cast | TypeBinaryOperator::Satisfies => 0,
+            TypeBinaryOperator::Cast | TypeBinaryOperator::Satisfies => 500,
             _ => operator.precedence(),
         },
 

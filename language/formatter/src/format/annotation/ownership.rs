@@ -1,11 +1,8 @@
-use ast::{
-    AnnotationPosition, Block, Expression, LocalNodeId, NodeParentIndex, NodeTree, NodeType,
-};
+use ast::{Expression, LocalNodeId, NodeParentIndex, NodeTree, NodeType};
 use destack_ast as ast;
 use destack_source::{EnclosingSpan, Span};
-use smallvec::SmallVec;
 
-use super::attachment::FormatterTriviaOwnerIndex;
+use super::attachment::TriviaOwnerIndex;
 
 /// Return whether one node kind is excluded from trivia owner indexing.
 pub(crate) fn is_trivia_excluded_owner_node_id(tree: &NodeTree, node_id: u32) -> bool {
@@ -20,7 +17,7 @@ pub(crate) fn is_trivia_excluded_owner_node_id(tree: &NodeTree, node_id: u32) ->
 }
 
 /// Normalize one trivia owner id to the canonical structural owner.
-pub(crate) fn normalize_formatter_trivia_target_owner(tree: &NodeTree, owner_id: u32) -> u32 {
+pub(crate) fn normalize_trivia_target_owner(tree: &NodeTree, owner_id: u32) -> u32 {
     let mut current_id = owner_id;
 
     loop {
@@ -67,34 +64,6 @@ pub(crate) fn find_owner_in_ancestor_chain(
     }
 
     None
-}
-
-/// Return one resolved owner across one ordered candidate-owner list.
-pub(crate) fn find_owner_in_candidate_ancestry<const N: usize>(
-    parents: &NodeParentIndex,
-    candidate_owners: [Option<u32>; N],
-    mut resolve_owner: impl FnMut(u32) -> Option<u32>,
-) -> Option<u32> {
-    candidate_owners
-        .into_iter()
-        .flatten()
-        .find_map(|owner_id| find_owner_in_ancestor_chain(parents, owner_id, &mut resolve_owner))
-}
-
-/// Return whether one owner is one block node or block expression wrapper.
-pub(crate) fn is_block_like_owner(tree: &NodeTree, owner_id: u32) -> bool {
-    if tree.get_node_type(owner_id) == NodeType::Block {
-        return true;
-    }
-
-    if tree.get_node_type(owner_id) != NodeType::Expression {
-        return false;
-    }
-
-    matches!(
-        tree.get(LocalNodeId::<Expression>::new(owner_id)),
-        Expression::Block(_)
-    )
 }
 
 /// Return one preferred owner that starts at one token span.
@@ -203,7 +172,7 @@ pub(crate) fn find_owner_at_or_after_token(
 /// Find one owner of one node type at or after one semantic token index.
 pub(crate) fn find_owner_at_or_after_token_with_node_type(
     tree: &NodeTree,
-    owner_index: &FormatterTriviaOwnerIndex,
+    owner_index: &TriviaOwnerIndex,
     token_index: usize,
     node_type: NodeType,
 ) -> Option<u32> {
@@ -219,7 +188,7 @@ pub(crate) fn find_owner_at_or_after_token_with_node_type(
             continue;
         };
 
-        let candidate_owner = normalize_formatter_trivia_target_owner(tree, candidate_owner);
+        let candidate_owner = normalize_trivia_target_owner(tree, candidate_owner);
         if tree.get_node_type(candidate_owner) == node_type {
             return Some(candidate_owner);
         }
@@ -287,7 +256,7 @@ pub(crate) fn normalize_owner_with_shared_end(
     owner_id: u32,
     token_before_span: Option<Span>,
 ) -> u32 {
-    let target_node = normalize_formatter_trivia_target_owner(tree, owner_id);
+    let target_node = normalize_trivia_target_owner(tree, owner_id);
     token_before_span.map_or(target_node, |span| {
         promote_owner_by_shared_end(tree, parents, target_node, span.end)
     })
@@ -314,23 +283,6 @@ pub(crate) fn promote_rhs_expression_owner(
     target_node
 }
 
-/// Return one block-interior placement target for boundary comments.
-pub(crate) fn block_leading_comment_target(
-    tree: &NodeTree,
-    block_id: LocalNodeId<Block>,
-) -> (u32, AnnotationPosition) {
-    let block = tree.get(block_id);
-    if let Some(first_expression) = block.expressions.first().copied() {
-        return (first_expression.id, AnnotationPosition::BlockPrefix);
-    }
-
-    if block.format == ast::BlockFormat::Explicit {
-        return (block_id.id, AnnotationPosition::BlockInfix);
-    }
-
-    (block_id.id, AnnotationPosition::BlockPrefix)
-}
-
 /// Promote one owner to the nearest declaration ancestor.
 pub(crate) fn promote_owner_to_declaration_ancestor(
     tree: &NodeTree,
@@ -352,154 +304,4 @@ pub(crate) fn promote_owner_to_node_type_ancestor(
     find_owner_in_ancestor_chain(parents, owner_id, |node_id| {
         (tree.get_node_type(node_id) == node_type).then_some(node_id)
     })
-}
-
-/// Promote one owner to one statement boundary owner.
-pub(crate) fn promote_owner_to_statement_boundary(
-    tree: &NodeTree,
-    parents: &NodeParentIndex,
-    owner_id: u32,
-) -> u32 {
-    if let Some(member_owner) =
-        promote_owner_to_node_type_ancestor(tree, parents, owner_id, NodeType::Member)
-    {
-        return member_owner;
-    }
-
-    let mut statement_expression_owner = None;
-    let mut current_id = Some(owner_id);
-    while let Some(node_id) = current_id {
-        if tree.get_node_type(node_id) == NodeType::Expression
-            && tree
-                .get(LocalNodeId::<Expression>::new(node_id))
-                .is_top_level_statement()
-        {
-            statement_expression_owner = Some(node_id);
-        }
-
-        current_id = parents.get_by_id(node_id);
-    }
-    if let Some(statement_expression_owner) = statement_expression_owner {
-        return statement_expression_owner;
-    }
-
-    if let Some(declaration_owner) = promote_owner_to_declaration_ancestor(tree, parents, owner_id)
-    {
-        return declaration_owner;
-    }
-
-    if let Some(expression_owner) =
-        promote_owner_to_node_type_ancestor(tree, parents, owner_id, NodeType::Expression)
-    {
-        return expression_owner;
-    }
-
-    owner_id
-}
-
-/// Promote one owner to the nearest enclosing statement boundary owner.
-pub(crate) fn promote_owner_to_nearest_statement_boundary(
-    tree: &NodeTree,
-    parents: &NodeParentIndex,
-    owner_id: u32,
-) -> u32 {
-    if let Some(member_owner) =
-        promote_owner_to_node_type_ancestor(tree, parents, owner_id, NodeType::Member)
-    {
-        return member_owner;
-    }
-
-    let mut current_id = Some(owner_id);
-    while let Some(node_id) = current_id {
-        if tree.get_node_type(node_id) == NodeType::Expression
-            && tree
-                .get(LocalNodeId::<Expression>::new(node_id))
-                .is_top_level_statement()
-        {
-            return node_id;
-        }
-
-        current_id = parents.get_by_id(node_id);
-    }
-
-    if let Some(declaration_owner) = promote_owner_to_declaration_ancestor(tree, parents, owner_id)
-    {
-        return declaration_owner;
-    }
-
-    if let Some(expression_owner) =
-        promote_owner_to_node_type_ancestor(tree, parents, owner_id, NodeType::Expression)
-    {
-        return expression_owner;
-    }
-
-    owner_id
-}
-
-/// Promote one owner to the nearest `satisfies` expression ancestor.
-pub(crate) fn promote_owner_to_satisfies_expression_ancestor(
-    tree: &NodeTree,
-    parents: &NodeParentIndex,
-    owner_id: u32,
-) -> Option<u32> {
-    find_owner_in_ancestor_chain(parents, owner_id, |node_id| {
-        if tree.get_node_type(node_id) == NodeType::Expression {
-            let expression_id = LocalNodeId::<Expression>::new(node_id);
-            if matches!(
-                tree.get(expression_id),
-                Expression::TypeBinary {
-                    operator: ast::TypeBinaryOperator::Satisfies,
-                    ..
-                }
-            ) {
-                return Some(node_id);
-            }
-        }
-
-        None
-    })
-}
-
-/// Promote one owner to the nearest parenthesized expression ancestor.
-pub(crate) fn promote_owner_to_parenthesized_expression_ancestor(
-    tree: &NodeTree,
-    parents: &NodeParentIndex,
-    owner_id: u32,
-) -> Option<u32> {
-    find_owner_in_ancestor_chain(parents, owner_id, |node_id| {
-        if tree.get_node_type(node_id) == NodeType::Expression {
-            let expression_id = LocalNodeId::<Expression>::new(node_id);
-            if matches!(tree.get(expression_id), Expression::Parenthesized { .. }) {
-                return Some(node_id);
-            }
-        }
-
-        None
-    })
-}
-
-/// Return one lowest common ancestor for two owners.
-pub(crate) fn lowest_common_owner_ancestor(
-    tree: &NodeTree,
-    parents: &NodeParentIndex,
-    preceding_owner: u32,
-    following_owner: u32,
-) -> Option<u32> {
-    let mut preceding_chain = SmallVec::<[u32; 24]>::new();
-    let mut current_preceding = Some(preceding_owner);
-    while let Some(owner_id) = current_preceding {
-        preceding_chain.push(owner_id);
-        current_preceding = parents.get_by_id(owner_id);
-    }
-
-    let mut current_following = Some(following_owner);
-    while let Some(owner_id) = current_following {
-        if preceding_chain.contains(&owner_id) && !is_trivia_excluded_owner_node_id(tree, owner_id)
-        {
-            return Some(owner_id);
-        }
-        current_following = parents.get_by_id(owner_id);
-    }
-
-    None
 }

@@ -7,7 +7,7 @@ pub(crate) use self::binary::{
     format_leading_pipe_union_with_external_prefix, union_owns_prefix_annotations,
 };
 pub(crate) use self::context::{
-    BinaryOperands, expression_is_trivial_inline_without_annotations, expression_static_arguments,
+    expression_is_trivial_inline_without_annotations, expression_static_arguments,
     flatten_binary_expression, flatten_type_binary_expression, flattened_binary_operand_count,
     format_binary_operand_with_grouping_parentheses, is_chain_expression,
     is_object_like_type_expression, is_parameter_type_annotation,
@@ -16,6 +16,3 @@ pub(crate) use self::context::{
     write_postfix_base_expression,
 };
 pub(crate) use self::expression::format_operator_expression;
-pub(crate) use crate::format::expression::{
-    Annotation, AnnotationPosition, NodeType, TokenType, has_comment_between_expressions,
-};

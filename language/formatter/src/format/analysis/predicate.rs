@@ -1,23 +1,12 @@
-use crate::format::expression::{
-    Annotation, AnnotationPosition, Argument, Declaration, DestackFormatContext, Expression,
-    FunctionKind, LocalNodeId, NodeType, Span, TokenType, argument_is_array_literal,
-    argument_is_block_callback, argument_is_object_literal, argument_value_id_if_present,
-    is_trivial_argument, is_trivial_expression, transparent_inner_expression,
+use crate::format::chain::{argument_value_id_if_present, transparent_inner_expression};
+use crate::format::expression::is_trivial_expression;
+use crate::format::tree::{argument_is_array_literal, argument_is_object_literal};
+use crate::{Annotation, DestackFormatContext};
+use destack_ast::{
+    AnnotationPosition, Argument, Declaration, Expression, FunctionKind, Keyword, LocalNodeId,
+    NodeType, Parameter, TemplateLiteral, TokenSpan, TokenType,
 };
-use destack_ast::{Keyword, Node, NodeTree, NodeTreeImpl, TemplateLiteral, TokenSpan};
-
-/// Store shared argument simplicity checks for call and chain classifiers.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct ArgumentSimplicityOptions {
-    /// Reject any annotations on the argument node.
-    pub reject_any_argument_annotation: bool,
-    /// Reject non-blank annotations on the argument node.
-    pub reject_non_blank_argument_annotation: bool,
-    /// Reject annotations on the argument value expression.
-    pub reject_value_annotation: bool,
-    /// Reject lambda declaration values.
-    pub reject_lambda_values: bool,
-}
+use destack_source::Span;
 
 /// Return whether an expression node is a lambda declaration.
 fn expression_is_lambda_declaration(
@@ -35,32 +24,82 @@ fn expression_is_lambda_declaration(
     )
 }
 
-/// Return whether an argument satisfies shared call and chain simplicity constraints.
-pub(crate) fn argument_is_simple_with_options(
+/// Return whether an argument is trivial and free of annotations or lambda values.
+pub(crate) fn argument_is_trivial_unannotated_non_lambda_value(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
-    options: ArgumentSimplicityOptions,
 ) -> bool {
-    if options.reject_any_argument_annotation && context.has_annotation(argument_id) {
-        return false;
-    }
-    if options.reject_non_blank_argument_annotation && context.has_non_blank_annotation(argument_id)
-    {
+    if context.has_annotation(argument_id) {
         return false;
     }
 
     let Some(value_id) = argument_value_id_if_present(context.tree, argument_id) else {
         return false;
     };
-    if options.reject_lambda_values && expression_is_lambda_declaration(context, value_id) {
+    if expression_is_lambda_declaration(context, value_id) {
         return false;
     }
-    if options.reject_value_annotation && context.has_annotation(value_id) {
+    if context.has_annotation(value_id) {
         return false;
     }
 
     let value = context.tree.get(value_id);
     is_trivial_expression(context.tree, value)
+}
+
+/// Return whether an argument is a compact inline callback candidate.
+pub(crate) fn argument_is_compact_inline_callback(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let Some(value_id) = argument_value_id_if_present(context.tree, argument_id) else {
+        return false;
+    };
+    let value_id = transparent_inner_expression(context, value_id);
+    let Expression::Declaration(declaration_id) = context.tree.get(value_id) else {
+        return false;
+    };
+    let Declaration::Function {
+        signature, body, ..
+    } = context.tree.get(*declaration_id)
+    else {
+        return false;
+    };
+
+    if signature.this_parameter.is_some() || signature.return_type.is_some() {
+        return false;
+    }
+    if signature.dynamic_parameters.len() > 1 {
+        return false;
+    }
+
+    if signature
+        .dynamic_parameters
+        .first()
+        .is_some_and(|parameter_id| {
+            !matches!(
+                context.tree.get(*parameter_id),
+                Parameter::Named {
+                    modifiers: None,
+                    ty: None,
+                    default: None,
+                    ..
+                }
+            )
+        })
+    {
+        return false;
+    }
+
+    body.is_some_and(|body_id| {
+        let body_id = transparent_inner_expression(context, body_id);
+
+        match context.tree.get(body_id) {
+            Expression::Block(block_id) => context.tree.get(*block_id).expressions.len() <= 1,
+            Expression::TreeExpression { .. } => true,
+            expression => is_trivial_expression(context.tree, expression),
+        }
+    })
 }
 
 /// Return whether an expression appears in call-like argument position.
@@ -120,16 +159,16 @@ pub(crate) fn is_simple_static_argument(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    argument_is_simple_with_options(
-        context,
-        argument_id,
-        ArgumentSimplicityOptions {
-            reject_any_argument_annotation: false,
-            reject_non_blank_argument_annotation: true,
-            reject_value_annotation: false,
-            reject_lambda_values: false,
-        },
-    )
+    if context.has_non_blank_annotation(argument_id) {
+        return false;
+    }
+
+    let Some(value_id) = argument_value_id_if_present(context.tree, argument_id) else {
+        return false;
+    };
+    let value = context.tree.get(value_id);
+
+    is_trivial_expression(context.tree, value)
 }
 
 /// Return whether an argument is an interpolated template literal.
@@ -212,22 +251,6 @@ pub(crate) fn next_non_whitespace_token_after_span(
     context.next_non_whitespace_token_after_span(span)
 }
 
-/// Return the nearest non-trivia token before one span.
-pub(crate) fn previous_non_trivia_token_before_span(
-    context: &DestackFormatContext<'_>,
-    span: Span,
-) -> Option<TokenSpan> {
-    context.previous_non_trivia_token_before_span(span)
-}
-
-/// Return the nearest non-trivia token after one span.
-pub(crate) fn next_non_trivia_token_after_span(
-    context: &DestackFormatContext<'_>,
-    span: Span,
-) -> Option<TokenSpan> {
-    context.next_non_trivia_token_after_span(span)
-}
-
 /// Return the Nth non-trivia token that intersects one span.
 pub(crate) fn nth_non_trivia_token_in_span(
     context: &DestackFormatContext<'_>,
@@ -308,15 +331,6 @@ pub(crate) fn next_non_whitespace_token_after_annotation(
     next_non_whitespace_token_after_span(context, span)
 }
 
-/// Return the nearest non-trivia token after one annotation span.
-pub(crate) fn next_non_trivia_token_after_annotation(
-    context: &DestackFormatContext<'_>,
-    annotation_id: LocalNodeId<Annotation>,
-) -> Option<TokenSpan> {
-    let span = context.annotation_span(annotation_id);
-    next_non_trivia_token_after_span(context, span)
-}
-
 /// Return whether one identifier token matches one keyword.
 pub(crate) fn token_is_keyword(
     context: &DestackFormatContext<'_>,
@@ -328,128 +342,12 @@ pub(crate) fn token_is_keyword(
         .is_some_and(|parsed| parsed == keyword)
 }
 
-/// Return whether source text between two arguments contains an explicit blank line.
-pub(crate) fn call_arguments_preserve_blank_line_between(
-    context: &DestackFormatContext<'_>,
-    left_argument_id: LocalNodeId<Argument>,
-    right_argument_id: LocalNodeId<Argument>,
-) -> bool {
-    let left_span = context.span(left_argument_id);
-    let right_span = context.span(right_argument_id);
-    if left_span.file != right_span.file {
-        return false;
-    }
-
-    let right_leading_start = right_argument_leading_render_start(context, right_argument_id);
-    if right_leading_start <= left_span.end {
-        return false;
-    }
-
-    let between_span = Span::new(left_span.file, left_span.end, right_leading_start);
-    context.has_blank_line(between_span)
-}
-
-/// Return the earliest start offset rendered for one argument, including leading prefix annotations.
-fn right_argument_leading_render_start(
-    context: &DestackFormatContext<'_>,
-    right_argument_id: LocalNodeId<Argument>,
-) -> u32 {
-    let mut leading_start = context.span(right_argument_id).start;
-    collect_prefix_annotation_leading_start(context, right_argument_id, &mut leading_start);
-
-    let right_argument_value_id = argument_value_id_if_present(context.tree, right_argument_id);
-    if let Some(right_argument_value_id) = right_argument_value_id {
-        collect_prefix_annotation_leading_start(
-            context,
-            right_argument_value_id,
-            &mut leading_start,
-        );
-    }
-
-    leading_start
-}
-
-/// Update one leading start offset from prefix annotations owned by one node.
-fn collect_prefix_annotation_leading_start<T>(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<T>,
-    leading_start: &mut u32,
-) where
-    T: Node,
-    NodeTree: NodeTreeImpl<T>,
-{
-    let Some(annotation_ids) = context.annotations(node_id) else {
-        return;
-    };
-
-    for annotation_id in annotation_ids {
-        let position = context.annotation(annotation_id).position();
-        if !matches!(
-            position,
-            AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
-        ) {
-            continue;
-        }
-
-        let annotation_span = context.annotation_span(annotation_id);
-        if annotation_span.start < *leading_start {
-            *leading_start = annotation_span.start;
-        }
-    }
-}
-
-/// Return whether an argument has multiline non-blank prefix annotations.
-pub(crate) fn argument_has_multiline_prefix_annotation(
-    context: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> bool {
-    if !context.node_has_newline(argument_id) {
-        return false;
-    }
-
-    context
-        .argument_annotation_cache(argument_id)
-        .has_prefix_annotation
-}
-
-/// Return whether an argument has prefix annotations that start before the argument span.
-pub(crate) fn argument_has_leading_prefix_annotation_outside_span(
-    context: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> bool {
-    let argument_span = context.span(argument_id);
-
-    context
-        .visit_annotations(argument_id, |annotations| {
-            annotations
-                .iter()
-                .any(|annotation_id| match context.annotation(*annotation_id) {
-                    Annotation::Blank { .. } => false,
-                    Annotation::Doc { position, .. }
-                    | Annotation::Comment { position, .. }
-                    | Annotation::Decorator { position, .. } => {
-                        if !matches!(
-                            position,
-                            AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
-                        ) {
-                            return false;
-                        }
-                        let annotation_span = context.annotation_span(*annotation_id);
-                        annotation_span.start < argument_span.start
-                    }
-                })
-        })
-        .unwrap_or(false)
-}
-
 /// Return whether an argument has any slash style comment annotation.
 pub(crate) fn argument_has_line_comment_annotation(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    context
-        .argument_annotation_cache(argument_id)
-        .has_line_comment
+    context.argument_has_line_comment_annotation(argument_id)
 }
 
 /// Return whether an argument is an inline closure-cast object argument.
@@ -544,38 +442,4 @@ pub(crate) fn call_has_static_arguments(
             .is_some_and(|arguments| !arguments.is_empty()),
         _ => false,
     }
-}
-
-/// Return whether call arguments are a leading callback with a simple tail.
-pub(crate) fn call_has_leading_block_callback_with_simple_tail(
-    context: &DestackFormatContext<'_>,
-    call_node_id: LocalNodeId<Expression>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
-) -> bool {
-    if dynamic_arguments.len() < 2 {
-        return false;
-    }
-
-    if !argument_is_block_callback(context, dynamic_arguments[0]) {
-        return false;
-    }
-
-    if context.has_annotation(call_node_id)
-        || dynamic_arguments
-            .iter()
-            .copied()
-            .any(|argument_id| context.has_annotation(argument_id))
-    {
-        return false;
-    }
-
-    dynamic_arguments
-        .iter()
-        .skip(1)
-        .copied()
-        .all(|argument_id| {
-            !argument_is_block_callback(context, argument_id)
-                && !argument_is_collection_literal(context, argument_id)
-                && is_trivial_argument(context.tree, context.tree.get(argument_id))
-        })
 }

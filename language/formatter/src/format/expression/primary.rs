@@ -1,34 +1,40 @@
-use crate::format::analysis::timing;
-use crate::format::collection::{collection_nodes_have_annotations, collection_range_is_inline};
-use crate::format::directive::{
-    FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
+use super::format::{
+    array_elements_are_fill_candidates, array_has_only_boundary_comments, format_expression,
+    is_complex_argument, is_expression_breakable, is_trivial_argument,
+    sequence_expression_needs_parens, should_hoist_parenthesized_inner_cast_prefix_comments,
 };
-use crate::format::expression::{
-    Argument, BinaryOperator, DestackFormatContext, DestackFormatter, Expression, FormatResult,
-    HugOptions, Keyword, LocalNodeId, NodeType, ParenthesizedDropMode, SeparatorLineCommentSource,
-    TokenType, TypeModifier, TypePredicateSubject,
-    argument_can_render_without_separator_line_comment, argument_value_id_if_present,
-    array_elements_are_fill_candidates, array_has_only_boundary_comments, block_indent,
-    format_boundary_comment_array, format_expression, format_fill_array, format_hugged,
-    format_scalar_literal, format_static_argument_list, format_struct_literal,
-    format_template_literal, format_type_index_expression, format_type_template_literal,
-    format_with, group, hard_line_break, indent, is_assignment_left_target, is_call_like_argument,
-    is_complex_argument, is_expression_breakable, is_simple_static_argument, is_trivial_argument,
-    line_postfix_boundary, list_like, parenthesized_boundary_comments,
-    parenthesized_has_explicit_delimiters, parenthesized_has_leading_inner_comments,
-    parenthesized_has_leading_inner_newline, parenthesized_has_leading_inner_trivia,
-    sequence_expression_needs_parens, should_drop_parenthesized,
-    should_force_multiline_mapped_type, should_hoist_parenthesized_inner_cast_prefix_comments,
-    single_argument_separator_line_comment_source, soft_block_indent, soft_line_break,
-    soft_line_break_or_space, space, token, transparent_inner_expression,
-    tree_literal_should_break, write_argument_without_separator_line_comment,
-    write_separator_line_comment_after_comma,
+use super::member::{format_type_index_expression, format_type_template_literal};
+use super::object::{
+    format_boundary_comment_array, format_fill_array, format_struct_literal,
+    is_assignment_left_target,
 };
-use crate::format::tree::format_tree_literal_expression;
-use crate::{Annotation, FormatNode};
+use super::parentheses::{
+    parenthesized_boundary_comments, parenthesized_has_explicit_delimiters,
+    parenthesized_has_leading_inner_comments, parenthesized_has_leading_inner_newline,
+    parenthesized_has_leading_inner_trivia, should_drop_parenthesized_expression_wrapper,
+};
+use crate::format::analysis::{is_call_like_argument, is_simple_static_argument};
+use crate::format::chain::{
+    argument_value_id_if_present, should_force_multiline_mapped_type, transparent_inner_expression,
+};
+use crate::format::collection::literal::{format_scalar_literal, format_template_literal};
+use crate::format::collection::{
+    collection_nodes_have_annotations, collection_range_is_inline, list_like,
+};
+use crate::format::directive::node_has_ignore_directive;
+use crate::format::expression::format_static_argument_list;
+use crate::format::tree::{format_tree_literal_expression, tree_literal_should_break};
+use crate::{Annotation, DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast as ast;
-use destack_ast::{AnnotationPosition, NodeTree};
-use destack_fir::format::{Buffer, Format};
+use destack_ast::{
+    AnnotationPosition, Argument, BinaryOperator, Expression, Keyword, LocalNodeId, NodeTree,
+    NodeType, TokenType, TypeModifier, TypePredicateSubject,
+};
+use destack_fir::format::{Buffer, Format, FormatResult};
+use destack_fir::prelude::{
+    block_indent, format_with, group, hard_line_break, indent, line_postfix_boundary,
+    soft_block_indent, soft_line_break, soft_line_break_or_space, space, token,
+};
 use destack_fir::{format_args, write};
 use smallvec::SmallVec;
 
@@ -133,10 +139,6 @@ pub(crate) fn format_primary_array_expression<'ast>(
     node_id: LocalNodeId<Expression>,
     elements_ids: &[LocalNodeId<Argument>],
 ) -> FormatResult<()> {
-    let _timing = f
-        .context()
-        .timing_scope(timing::FORMAT_EXPRESSION_PRIMARY_ARRAY);
-
     if elements_ids.is_empty() {
         if f.context().has_infix_annotation(node_id) {
             write!(
@@ -190,10 +192,10 @@ pub(crate) fn format_primary_array_expression<'ast>(
 
     // annotation sensitive expansion checks
     if has_annotations {
-        let has_line_comment_annotations = elements_ids.iter().copied().any(|element_id| {
-            let annotation_cache = f.context().argument_annotation_cache(element_id);
-            annotation_cache.has_line_comment
-        });
+        let has_line_comment_annotations = elements_ids
+            .iter()
+            .copied()
+            .any(|element_id| f.context().argument_has_line_comment_annotation(element_id));
 
         can_keep_inline_boundary_comment_array = elements_are_inline_in_source
             && array_elements_are_fill_candidates(f.context().tree, elements_ids)
@@ -223,10 +225,7 @@ pub(crate) fn format_primary_array_expression<'ast>(
     let should_use_fill_layout =
         !has_annotations && array_elements_are_fill_candidates(tree, elements_ids);
 
-    if format_array_with_last_separator_line_comment(f, elements_ids)? {
-        // formatter-owned trailing separator comments around close brackets need
-        // explicit comma-before-comment emission to stay source-idempotent
-    } else if can_keep_inline_boundary_comment_array {
+    if can_keep_inline_boundary_comment_array {
         format_boundary_comment_array(f, elements_ids)?;
     } else if should_use_fill_layout {
         format_fill_array(f, elements_ids)?;
@@ -242,108 +241,19 @@ pub(crate) fn format_primary_array_expression<'ast>(
     Ok(())
 }
 
-/// Return one trailing separator comment source on the last array element.
-fn array_last_separator_line_comment_source(
-    context: &DestackFormatContext<'_>,
-    elements_ids: &[LocalNodeId<Argument>],
-) -> Option<(LocalNodeId<Argument>, SeparatorLineCommentSource)> {
-    let last_argument_id = elements_ids.last().copied()?;
-    if !argument_can_render_without_separator_line_comment(context, last_argument_id) {
-        return None;
-    }
-
-    let comment_source = single_argument_separator_line_comment_source(context, last_argument_id)?;
-
-    Some((last_argument_id, comment_source))
-}
-
-/// Format one array with the last separator line comment emitted after the trailing comma.
-fn format_array_with_last_separator_line_comment<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    elements_ids: &[LocalNodeId<Argument>],
-) -> FormatResult<bool> {
-    let Some((last_argument_id, comment_source)) =
-        array_last_separator_line_comment_source(f.context(), elements_ids)
-    else {
-        return Ok(false);
-    };
-
-    if comment_source.is_own_line {
-        write!(
-            f,
-            [group(&format_args![
-                token("["),
-                soft_block_indent(&format_with(
-                    |f: &mut DestackFormatter<'ast, '_>| -> FormatResult<()> {
-                        for (index, argument_id) in elements_ids.iter().copied().enumerate() {
-                            if index > 0 {
-                                write!(f, [token(","), space()])?;
-                            }
-
-                            if argument_id == last_argument_id {
-                                if !write_argument_without_separator_line_comment(f, argument_id)? {
-                                    write!(f, [argument_id])?;
-                                }
-                                write_separator_line_comment_after_comma(f, &comment_source)?;
-                            } else {
-                                write!(f, [argument_id])?;
-                            }
-                        }
-
-                        Ok(())
-                    }
-                )),
-                token("]")
-            ])]
-        )?;
-    } else {
-        write!(f, [token("["), hard_line_break()])?;
-        write!(
-            f,
-            [block_indent(&format_with(
-                |f: &mut DestackFormatter<'ast, '_>| -> FormatResult<()> {
-                    for (index, argument_id) in elements_ids.iter().copied().enumerate() {
-                        if index > 0 {
-                            write!(f, [hard_line_break()])?;
-                        }
-
-                        if argument_id == last_argument_id {
-                            if !write_argument_without_separator_line_comment(f, argument_id)? {
-                                write!(f, [argument_id])?;
-                            }
-                            write_separator_line_comment_after_comma(f, &comment_source)?;
-                        } else {
-                            write!(f, [argument_id, token(",")])?;
-                        }
-                    }
-
-                    Ok(())
-                }
-            ))]
-        )?;
-        write!(f, [hard_line_break(), token("]")])?;
-    }
-
-    Ok(true)
-}
-
 /// Format a tuple literal primary expression.
 pub(crate) fn format_primary_tuple_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     elements_ids: &[LocalNodeId<Argument>],
 ) -> FormatResult<()> {
-    let _timing = f
-        .context()
-        .timing_scope(timing::FORMAT_EXPRESSION_PRIMARY_TUPLE);
-
     if elements_ids.is_empty() {
         write!(f, [token("()")])?;
-    } else if !format_hugged(f, elements_ids, HugOptions::TUPLE, None, false)? {
-        // not a single huggable element: use regular formatting
+    } else {
+        // tuple layout
         let span = f.context().span(node_id);
 
-        // check for annotations that require expansion
+        // expansion triggers
         let has_annotations = f.context().has_infix_annotation(node_id)
             || collection_nodes_have_annotations(f.context(), elements_ids);
         let tree = f.context().tree;
@@ -386,13 +296,8 @@ fn array_should_expand_by_structure(tree: &NodeTree, elements: &[LocalNodeId<Arg
         return false;
     }
 
-    #[derive(Clone, Copy, PartialEq, Eq)]
-    enum ArrayChildKind {
-        Array,
-        Object,
-    }
-
-    let mut child_kind = None;
+    let mut has_array_children = false;
+    let mut has_object_children = false;
     for element_id in elements {
         let Argument::Positional { value, .. } = tree.get(*element_id) else {
             return false;
@@ -407,22 +312,22 @@ fn array_should_expand_by_structure(tree: &NodeTree, elements: &[LocalNodeId<Arg
                     return false;
                 }
 
-                if child_kind.is_some_and(|kind| kind != ArrayChildKind::Array) {
+                if has_object_children {
                     return false;
                 }
 
-                child_kind = Some(ArrayChildKind::Array);
+                has_array_children = true;
             }
             Expression::ObjectExpression { properties, .. } => {
                 if properties.len() < 2 {
                     return false;
                 }
 
-                if child_kind.is_some_and(|kind| kind != ArrayChildKind::Object) {
+                if has_array_children {
                     return false;
                 }
 
-                child_kind = Some(ArrayChildKind::Object);
+                has_object_children = true;
             }
             _ => {
                 return false;
@@ -510,9 +415,6 @@ pub(crate) fn format_primary_expression<'ast>(
             path,
             static_arguments,
         } => {
-            let _timing = f
-                .context()
-                .timing_scope(timing::FORMAT_EXPRESSION_PRIMARY_PATH);
             let boundary_annotation_buckets =
                 path_boundary_annotations_by_dot_seam(f.context(), node_id, path.segments.len());
             if let Some(boundary_annotation_buckets) = boundary_annotation_buckets {
@@ -640,9 +542,6 @@ pub(crate) fn format_primary_expression<'ast>(
             then_type,
             else_type,
         } => {
-            let _timing = f
-                .context()
-                .timing_scope(timing::FORMAT_EXPRESSION_PRIMARY_TYPE_CONDITIONAL);
             let conditional_tail = format_with(|f| {
                 write!(
                     f,
@@ -696,9 +595,6 @@ pub(crate) fn format_primary_expression<'ast>(
             modifiers,
             value,
         } => {
-            let _timing = f
-                .context()
-                .timing_scope(timing::FORMAT_EXPRESSION_PRIMARY_TYPE_MAPPED);
             let include_space = f.context().options.bracket_spacing;
             let break_parameter_clause = f.context().has_annotation(parameter.constraint)
                 || f.context().node_has_newline(parameter.constraint)
@@ -767,7 +663,7 @@ pub(crate) fn format_primary_expression<'ast>(
                         f,
                         *value,
                         value_expression,
-                        directive_for_node(f.context(), *value),
+                        node_has_ignore_directive(f.context(), *value),
                     )?;
                     write!(f, [token(field_terminator)])?;
                     write!(f, [f.context().any_infix_or_postfix_annotations(*value)])
@@ -887,9 +783,6 @@ pub(crate) fn format_primary_expression<'ast>(
 
         // struct literal
         Expression::ObjectExpression { ty, properties } => {
-            let _timing = f
-                .context()
-                .timing_scope(timing::FORMAT_EXPRESSION_PRIMARY_OBJECT);
             format_struct_literal(f, node_id, ty, properties)?;
         }
 
@@ -899,9 +792,6 @@ pub(crate) fn format_primary_expression<'ast>(
             arguments,
             elements,
         } => {
-            let _timing = f
-                .context()
-                .timing_scope(timing::FORMAT_EXPRESSION_PRIMARY_TREE);
             format_tree_literal_expression(f, node_id, left, arguments, elements)?;
         }
 
@@ -924,19 +814,11 @@ pub(crate) fn format_primary_parenthesized_expression<'ast>(
     node_id: LocalNodeId<Expression>,
     expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    let _timing = f
-        .context()
-        .timing_scope(timing::FORMAT_EXPRESSION_PRIMARY_PARENTHESES);
-
     let tree = f.context().tree;
     let expression = &expression_id;
     let inner_expression = tree.get(expression_id);
-    let should_drop_parentheses = should_drop_parenthesized(
-        f.context(),
-        node_id,
-        expression_id,
-        ParenthesizedDropMode::ExpressionWrapper,
-    );
+    let should_drop_parentheses =
+        should_drop_parenthesized_expression_wrapper(f.context(), node_id, expression_id);
 
     if should_drop_parentheses {
         write!(f, [expression_id])?;
@@ -1017,26 +899,18 @@ pub(crate) fn format_primary_parenthesized_expression<'ast>(
                 expression_id,
             )
         {
-            let inner_directive = directive_for_node(f.context(), expression_id);
+            let inner_is_ignored = node_has_ignore_directive(f.context(), expression_id);
             let format_inner_without_prefix = format_with(|f| {
                 format_expression(
                     f,
                     expression_id,
                     f.context().tree.get(expression_id),
-                    inner_directive,
+                    inner_is_ignored,
                 )?;
-                if !matches!(
-                    inner_directive,
-                    Some(FormatterDirective {
-                        kind: FormatterDirectiveKind::IgnoreFormat,
-                        position: FormatterDirectivePosition::Postfix { .. },
-                    })
-                ) {
-                    write!(
-                        f,
-                        [f.context().any_infix_or_postfix_annotations(expression_id)]
-                    )?;
-                }
+                write!(
+                    f,
+                    [f.context().any_infix_or_postfix_annotations(expression_id)]
+                )?;
                 Ok(())
             });
             write!(f, [f.context().any_prefix_annotations(expression_id)])?;

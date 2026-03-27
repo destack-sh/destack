@@ -1,11 +1,9 @@
-use crate::format::context::{
-    ANNOTATION_STATE_CACHED, ANNOTATION_STATE_NONE, Annotation, AnnotationData, AnnotationPosition,
-    Argument, ArgumentAnnotationCache, CallArgumentLayoutCache, Cell, Comment,
-    DestackFormatContext, Expression, LocalNodeId, Node, NodeTree, NodeTreeImpl, Ref, Span, ast,
+use super::format_context::{ANNOTATION_STATE_NONE, Annotation, DestackFormatContext};
+use destack_ast as ast;
+use destack_ast::{
+    AnnotationPosition, Argument, Comment, Expression, LocalNodeId, Node, NodeTree, NodeTreeImpl,
 };
-
-#[cfg(feature = "timings")]
-use crate::format::context::ANNOTATION_STATE_PRESENT;
+use destack_source::Span;
 
 impl<'a> DestackFormatContext<'a> {
     /// Return whether one annotation position is one prefix position.
@@ -20,13 +18,13 @@ impl<'a> DestackFormatContext<'a> {
     /// Get one formatter-owned annotation by id.
     #[inline]
     pub fn annotation(&self, annotation_id: LocalNodeId<Annotation>) -> Annotation {
-        self.formatter_annotation_entries[annotation_id.id as usize].annotation
+        self.annotation_entries[annotation_id.id as usize].annotation
     }
 
     /// Get one formatter-owned annotation span by id.
     #[inline]
     pub fn annotation_span(&self, annotation_id: LocalNodeId<Annotation>) -> Span {
-        self.formatter_annotation_entries[annotation_id.id as usize].span
+        self.annotation_entries[annotation_id.id as usize].span
     }
 
     /// Return whether one annotation starts on its own source line.
@@ -88,20 +86,6 @@ impl<'a> DestackFormatContext<'a> {
             .is_same_line(annotation_span.end.saturating_sub(1), next_token.span.start)
     }
 
-    /// Return whether the next non-whitespace token after one annotation matches one keyword.
-    #[inline]
-    pub fn annotation_next_token_is_keyword(
-        &self,
-        annotation_id: LocalNodeId<Annotation>,
-        keyword: ast::Keyword,
-    ) -> bool {
-        self.annotation_next_non_whitespace_token(annotation_id)
-            .is_some_and(|token| {
-                self.token_keyword(token)
-                    .is_some_and(|value| value == keyword)
-            })
-    }
-
     /// Return the next non-whitespace token type after one annotation span.
     #[inline]
     pub fn annotation_next_non_whitespace_token_type(
@@ -110,15 +94,6 @@ impl<'a> DestackFormatContext<'a> {
     ) -> Option<ast::TokenType> {
         self.annotation_next_non_whitespace_token(annotation_id)
             .map(|token| token.token.ty)
-    }
-
-    /// Return the previous non-trivia token type before one annotation span.
-    #[inline]
-    pub fn annotation_previous_non_trivia_token_type(
-        &self,
-        annotation_id: LocalNodeId<Annotation>,
-    ) -> Option<ast::TokenType> {
-        self.previous_non_trivia_token_type_before_span(self.annotation_span(annotation_id))
     }
 
     /// Return the next non-trivia token type after one annotation span.
@@ -156,93 +131,25 @@ impl<'a> DestackFormatContext<'a> {
         annotation_column > 1
     }
 
-    /// Record one annotation cache hit when instrumentation is enabled.
+    /// Return annotation ids for a node.
     #[inline]
-    #[cfg(feature = "timings")]
-    fn increment_annotation_cache_hits(&self) {
-        if self.instrumentation_enabled {
-            self.cache_stats
-                .annotation_cache_hits
-                .set(self.cache_stats.annotation_cache_hits.get() + 1);
-        }
-    }
-
-    /// Record one annotation cache hit when instrumentation is enabled.
-    #[inline]
-    #[cfg(not(feature = "timings"))]
-    fn increment_annotation_cache_hits(&self) {}
-
-    /// Record one annotation cache miss when instrumentation is enabled.
-    #[inline]
-    #[cfg(feature = "timings")]
-    fn increment_annotation_cache_misses(&self) {
-        if self.instrumentation_enabled {
-            self.cache_stats
-                .annotation_cache_misses
-                .set(self.cache_stats.annotation_cache_misses.get() + 1);
-        }
-    }
-
-    /// Record one annotation cache miss when instrumentation is enabled.
-    #[inline]
-    #[cfg(not(feature = "timings"))]
-    fn increment_annotation_cache_misses(&self) {}
-
-    /// Return cached annotation data for one node index.
-    #[inline]
-    fn annotation_data_from_cache(&self, node_index: usize) -> Ref<'_, AnnotationData> {
-        let cache = self.annotation_data_by_node_id.borrow();
-        Ref::map(cache, |cache| {
-            cache
-                .get(node_index)
-                .and_then(|entry| entry.as_ref())
-                .expect("annotation cache should contain requested node")
-        })
-    }
-
-    /// Return borrowed cached annotation data for a node.
-    #[inline]
-    fn annotation_data_for_node<T>(
+    fn annotation_ids_for_node<T>(
         &self,
         node_id: LocalNodeId<T>,
-    ) -> Option<Ref<'_, AnnotationData>>
+    ) -> Option<&[LocalNodeId<Annotation>]>
     where
         T: Node,
         NodeTree: NodeTreeImpl<T>,
     {
         let node_index = node_id.id as usize;
         let state = self.annotation_state_by_node_id[node_index].get();
-
-        // node has no annotations
         if state == ANNOTATION_STATE_NONE {
-            self.increment_annotation_cache_hits();
             return None;
         }
 
-        // cached metadata is already available
-        if state == ANNOTATION_STATE_CACHED {
-            self.increment_annotation_cache_hits();
-            return Some(self.annotation_data_from_cache(node_index));
-        }
-
-        self.increment_annotation_cache_misses();
-
-        // load annotations once and cache metadata
-        let annotation_ids = self
-            .formatter_annotation_ids_by_node_id
+        self.annotation_ids_by_node_id
             .get(node_index)
-            .map(|annotation_ids| annotation_ids.as_slice().to_vec())
-            .unwrap_or_default();
-        let annotation_data = AnnotationData::from_ids(annotation_ids, |annotation_id| {
-            self.annotation(annotation_id)
-        });
-        {
-            let mut cache = self.annotation_data_by_node_id.borrow_mut();
-            cache[node_index] = Some(annotation_data);
-        }
-        self.annotation_state_by_node_id[node_index].set(ANNOTATION_STATE_CACHED);
-
-        Some(self.annotation_data_from_cache(node_index))
+            .map(|annotation_ids| annotation_ids.as_slice())
     }
 
     /// Get annotations for a node. Annotations are sorted by position.
@@ -252,8 +159,7 @@ impl<'a> DestackFormatContext<'a> {
         T: Node,
         NodeTree: NodeTreeImpl<T>,
     {
-        self.annotation_data_for_node(node_id)
-            .map(|annotation_data| annotation_data.ids.clone())
+        self.annotation_ids_for_node(node_id).map(ToOwned::to_owned)
     }
 
     /// Read node annotations without cloning.
@@ -264,8 +170,27 @@ impl<'a> DestackFormatContext<'a> {
         NodeTree: NodeTreeImpl<T>,
         F: FnOnce(&[LocalNodeId<Annotation>]) -> R,
     {
-        self.annotation_data_for_node(node_id)
-            .map(|annotation_data| f(annotation_data.ids.as_slice()))
+        self.annotation_ids_for_node(node_id).map(f)
+    }
+
+    /// Return whether any annotation on a node matches one predicate.
+    #[inline]
+    fn any_annotation<T, F>(&self, node_id: LocalNodeId<T>, mut predicate: F) -> bool
+    where
+        T: Node,
+        NodeTree: NodeTreeImpl<T>,
+        F: FnMut(usize, LocalNodeId<Annotation>, Annotation) -> bool,
+    {
+        self.visit_annotations(node_id, |annotation_ids| {
+            annotation_ids
+                .iter()
+                .copied()
+                .enumerate()
+                .any(|(index, annotation_id)| {
+                    predicate(index, annotation_id, self.annotation(annotation_id))
+                })
+        })
+        .unwrap_or(false)
     }
 
     /// Return whether any annotation on a node matches one predicate.
@@ -302,37 +227,6 @@ impl<'a> DestackFormatContext<'a> {
 
     /// Check if a node has an annotation.
     #[inline]
-    #[cfg(feature = "timings")]
-    pub fn has_annotation<T>(&self, node_id: LocalNodeId<T>) -> bool
-    where
-        T: Node,
-        NodeTree: NodeTreeImpl<T>,
-    {
-        let node_index = node_id.id as usize;
-        let state = self.annotation_state_by_node_id[node_index].get();
-
-        // fast path when instrumentation is off
-        if !self.instrumentation_enabled {
-            return state != ANNOTATION_STATE_NONE;
-        }
-
-        // state lookup is one cache hit regardless of the presence result
-        match state {
-            ANNOTATION_STATE_NONE => {
-                self.increment_annotation_cache_hits();
-                false
-            }
-            ANNOTATION_STATE_PRESENT | ANNOTATION_STATE_CACHED => {
-                self.increment_annotation_cache_hits();
-                true
-            }
-            _ => false,
-        }
-    }
-
-    /// Check if a node has an annotation.
-    #[inline]
-    #[cfg(not(feature = "timings"))]
     pub fn has_annotation<T>(&self, node_id: LocalNodeId<T>) -> bool
     where
         T: Node,
@@ -348,8 +242,12 @@ impl<'a> DestackFormatContext<'a> {
         T: Node,
         NodeTree: NodeTreeImpl<T>,
     {
-        self.annotation_data_for_node(node_id)
-            .is_some_and(|annotation_data| annotation_data.has_prefix)
+        self.any_annotation(node_id, |_, _, annotation| {
+            matches!(
+                annotation.position(),
+                AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
+            )
+        })
     }
 
     /// Check if a node has a block prefix annotation.
@@ -359,8 +257,9 @@ impl<'a> DestackFormatContext<'a> {
         T: Node,
         NodeTree: NodeTreeImpl<T>,
     {
-        self.annotation_data_for_node(node_id)
-            .is_some_and(|annotation_data| annotation_data.has_block_prefix)
+        self.any_annotation(node_id, |_, _, annotation| {
+            annotation.position() == AnnotationPosition::BlockPrefix
+        })
     }
 
     /// Check if a node has a line prefix annotation.
@@ -370,8 +269,9 @@ impl<'a> DestackFormatContext<'a> {
         T: Node,
         NodeTree: NodeTreeImpl<T>,
     {
-        self.annotation_data_for_node(node_id)
-            .is_some_and(|annotation_data| annotation_data.has_line_prefix)
+        self.any_annotation(node_id, |_, _, annotation| {
+            annotation.position() == AnnotationPosition::LinePrefix
+        })
     }
 
     /// Check if a node has a block infix annotation.
@@ -381,8 +281,9 @@ impl<'a> DestackFormatContext<'a> {
         T: Node,
         NodeTree: NodeTreeImpl<T>,
     {
-        self.annotation_data_for_node(node_id)
-            .is_some_and(|annotation_data| annotation_data.has_infix)
+        self.any_annotation(node_id, |_, _, annotation| {
+            annotation.position() == AnnotationPosition::BlockInfix
+        })
     }
 
     /// Check if a node has a non-blank annotation.
@@ -392,8 +293,9 @@ impl<'a> DestackFormatContext<'a> {
         T: Node,
         NodeTree: NodeTreeImpl<T>,
     {
-        self.annotation_data_for_node(node_id)
-            .is_some_and(|annotation_data| annotation_data.has_non_blank)
+        self.any_annotation(node_id, |_, _, annotation| {
+            !matches!(annotation, Annotation::Blank { .. })
+        })
     }
 
     /// Check if a node has a non-blank annotation other than one boundary postfix comment.
@@ -403,8 +305,16 @@ impl<'a> DestackFormatContext<'a> {
         T: Node,
         NodeTree: NodeTreeImpl<T>,
     {
-        self.annotation_data_for_node(node_id)
-            .is_some_and(|annotation_data| annotation_data.has_non_blank_non_boundary)
+        self.any_annotation(node_id, |_, _, annotation| {
+            !matches!(annotation, Annotation::Blank { .. })
+                && !matches!(
+                    annotation,
+                    Annotation::Comment {
+                        position: AnnotationPosition::LinePostfixBoundary,
+                        ..
+                    }
+                )
+        })
     }
 
     /// Check if a node has a non-blank block infix annotation.
@@ -414,8 +324,10 @@ impl<'a> DestackFormatContext<'a> {
         T: Node,
         NodeTree: NodeTreeImpl<T>,
     {
-        self.annotation_data_for_node(node_id)
-            .is_some_and(|annotation_data| annotation_data.has_non_blank_infix)
+        self.any_annotation(node_id, |_, _, annotation| {
+            annotation.position() == AnnotationPosition::BlockInfix
+                && !matches!(annotation, Annotation::Blank { .. })
+        })
     }
 
     /// Check if a node has a postfix annotation.
@@ -425,8 +337,14 @@ impl<'a> DestackFormatContext<'a> {
         T: Node,
         NodeTree: NodeTreeImpl<T>,
     {
-        self.annotation_data_for_node(node_id)
-            .is_some_and(|annotation_data| annotation_data.has_postfix)
+        self.any_annotation(node_id, |_, _, annotation| {
+            matches!(
+                annotation.position(),
+                AnnotationPosition::BlockPostfix
+                    | AnnotationPosition::LinePostfix
+                    | AnnotationPosition::LinePostfixBoundary
+            )
+        })
     }
 
     /// Check if a node has a non-blank postfix annotation.
@@ -436,8 +354,14 @@ impl<'a> DestackFormatContext<'a> {
         T: Node,
         NodeTree: NodeTreeImpl<T>,
     {
-        self.annotation_data_for_node(node_id)
-            .is_some_and(|annotation_data| annotation_data.has_non_blank_postfix)
+        self.any_annotation(node_id, |_, _, annotation| {
+            matches!(
+                annotation.position(),
+                AnnotationPosition::BlockPostfix
+                    | AnnotationPosition::LinePostfix
+                    | AnnotationPosition::LinePostfixBoundary
+            ) && !matches!(annotation, Annotation::Blank { .. })
+        })
     }
 
     /// Check if a node has a blank postfix annotation.
@@ -447,8 +371,15 @@ impl<'a> DestackFormatContext<'a> {
         T: Node,
         NodeTree: NodeTreeImpl<T>,
     {
-        self.annotation_data_for_node(node_id)
-            .is_some_and(|annotation_data| annotation_data.has_blank_postfix)
+        self.any_annotation(node_id, |_, _, annotation| {
+            matches!(annotation, Annotation::Blank { .. })
+                && matches!(
+                    annotation.position(),
+                    AnnotationPosition::BlockPostfix
+                        | AnnotationPosition::LinePostfix
+                        | AnnotationPosition::LinePostfixBoundary
+                )
+        })
     }
 
     /// Check if a node has a blank block prefix annotation.
@@ -458,19 +389,13 @@ impl<'a> DestackFormatContext<'a> {
         T: Node,
         NodeTree: NodeTreeImpl<T>,
     {
-        self.annotation_data_for_node(node_id)
-            .is_some_and(|annotation_data| annotation_data.has_blank_prefix)
-    }
-
-    /// Check if a node has a blank prefix annotation in first position.
-    #[inline]
-    pub fn has_blank_prefix_annotation_in_first_position<T>(&self, node_id: LocalNodeId<T>) -> bool
-    where
-        T: Node,
-        NodeTree: NodeTreeImpl<T>,
-    {
-        self.annotation_data_for_node(node_id)
-            .is_some_and(|annotation_data| annotation_data.has_blank_prefix_first)
+        self.any_annotation(node_id, |_, _, annotation| {
+            matches!(annotation, Annotation::Blank { .. })
+                && matches!(
+                    annotation.position(),
+                    AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
+                )
+        })
     }
 
     /// Check if a node has a boundary postfix comment annotation.
@@ -480,141 +405,84 @@ impl<'a> DestackFormatContext<'a> {
         T: Node,
         NodeTree: NodeTreeImpl<T>,
     {
-        self.annotation_data_for_node(node_id)
-            .is_some_and(|annotation_data| annotation_data.has_boundary_comment)
+        self.any_annotation(node_id, |_, _, annotation| {
+            matches!(
+                annotation,
+                Annotation::Comment {
+                    position: AnnotationPosition::LinePostfixBoundary,
+                    ..
+                }
+            )
+        })
     }
 
-    /// Return cached annotation data for one argument node.
-    #[inline]
-    pub fn argument_annotation_cache(
-        &self,
-        argument_id: LocalNodeId<Argument>,
-    ) -> ArgumentAnnotationCache {
-        if let Some(annotation_cache) = self
-            .lookup_node_cache_value(&self.node_caches.argument_annotation_cache, argument_id.id)
-        {
-            self.increment_counter("cache.argument_annotation_cache.hits", 1);
-            return annotation_cache;
+    /// Return whether one argument has a slash-style line comment annotation.
+    pub fn argument_has_line_comment_annotation(&self, argument_id: LocalNodeId<Argument>) -> bool {
+        if !self.has_annotation(argument_id) {
+            return false;
         }
 
-        self.increment_counter("cache.argument_annotation_cache.misses", 1);
-        let annotation_cache = self.compute_argument_annotation_cache(argument_id);
-        self.store_node_cache_value(
-            &self.node_caches.argument_annotation_cache,
-            argument_id.id,
-            annotation_cache,
-        );
+        let argument_end = self.span(argument_id).end;
+        self.visit_annotations(argument_id, |annotations| {
+            annotations.iter().copied().any(|annotation_id| {
+                let Annotation::Comment { node, .. } = self.annotation(annotation_id) else {
+                    return false;
+                };
 
-        annotation_cache
+                if self.tree.get::<Comment>(node).style != ast::CommentStyle::Slash {
+                    return false;
+                }
+
+                self.annotation_span(annotation_id).start >= argument_end
+            })
+        })
+        .unwrap_or(false)
     }
 
-    /// Return cached call argument layout data for one call expression node.
-    #[inline]
-    pub fn lookup_call_argument_layout_cache(
-        &self,
-        call_node_id: LocalNodeId<Expression>,
-    ) -> Option<CallArgumentLayoutCache> {
-        self.lookup_node_cache_value(
-            &self.node_caches.call_argument_layout_cache,
-            call_node_id.id,
-        )
-    }
-
-    /// Store call argument layout data for one call expression node.
-    #[inline]
-    pub fn store_call_argument_layout_cache(
-        &self,
-        call_node_id: LocalNodeId<Expression>,
-        layout_cache: CallArgumentLayoutCache,
-    ) {
-        self.store_node_cache_value(
-            &self.node_caches.call_argument_layout_cache,
-            call_node_id.id,
-            layout_cache,
-        );
-    }
-
-    /// Return cached chain call force-expand state for one call expression node.
-    #[inline]
-    pub fn lookup_call_argument_chain_force_expand(
-        &self,
-        call_node_id: LocalNodeId<Expression>,
-    ) -> Option<bool> {
-        self.lookup_node_cache_value(
-            &self.node_caches.call_argument_chain_force_expand,
-            call_node_id.id,
-        )
-    }
-
-    /// Store one chain call force-expand state for one call expression node.
-    #[inline]
-    pub fn store_call_argument_chain_force_expand(
-        &self,
-        call_node_id: LocalNodeId<Expression>,
-        force_expand: bool,
-    ) {
-        self.store_node_cache_value(
-            &self.node_caches.call_argument_chain_force_expand,
-            call_node_id.id,
-            force_expand,
-        );
-    }
-
-    /// Compute annotation data for one argument node.
-    fn update_argument_annotation_cache_from_argument_annotations(
+    /// Return whether one argument has a slash-style prefix comment annotation.
+    pub fn argument_has_prefix_line_comment_annotation(
         &self,
         argument_id: LocalNodeId<Argument>,
-        argument_end: u32,
-        annotation_cache: &mut ArgumentAnnotationCache,
-    ) {
-        // argument annotations
+    ) -> bool {
         if !self.has_annotation(argument_id) {
-            return;
+            return false;
         }
 
         self.visit_annotations(argument_id, |annotations| {
-            for annotation_id in annotations {
-                let annotation = self.annotation(*annotation_id);
-
-                match annotation {
-                    Annotation::Blank { .. } => {}
-                    Annotation::Doc { position, .. }
-                    | Annotation::Decorator { position, .. }
-                    | Annotation::Comment { position, .. } => {
-                        if Self::is_prefix_annotation_position(position) {
-                            annotation_cache.has_prefix_annotation = true;
-                        }
-
-                        let Annotation::Comment { node, .. } = annotation else {
-                            continue;
-                        };
-                        annotation_cache.has_comment = true;
-
-                        let comment = self.tree.get::<Comment>(node);
-                        if comment.style != ast::CommentStyle::Slash {
-                            continue;
-                        }
-
-                        let annotation_span = self.annotation_span(*annotation_id);
-                        if annotation_span.start >= argument_end {
-                            annotation_cache.has_line_comment = true;
-                        }
-                        if Self::is_prefix_annotation_position(position) {
-                            annotation_cache.has_prefix_line_comment = true;
-                        }
-                    }
+            annotations.iter().copied().any(|annotation_id| {
+                let annotation = self.annotation(annotation_id);
+                if !Self::is_prefix_annotation_position(annotation.position()) {
+                    return false;
                 }
-            }
-        });
+
+                let Annotation::Comment { node, .. } = annotation else {
+                    return false;
+                };
+                self.tree.get::<Comment>(node).style == ast::CommentStyle::Slash
+            })
+        })
+        .unwrap_or(false)
     }
 
-    /// Update one argument annotation cache from one argument value expression.
-    fn update_argument_annotation_cache_from_value_annotations(
+    /// Return whether one argument has a non-blank prefix annotation signal.
+    pub fn argument_has_prefix_annotation_signal(
         &self,
         argument_id: LocalNodeId<Argument>,
-        annotation_cache: &mut ArgumentAnnotationCache,
-    ) {
-        // value annotations
+    ) -> bool {
+        if self.has_annotation(argument_id)
+            && self
+                .visit_annotations(argument_id, |annotations| {
+                    annotations.iter().copied().any(|annotation_id| {
+                        let annotation = self.annotation(annotation_id);
+                        !matches!(annotation, Annotation::Blank { .. })
+                            && Self::is_prefix_annotation_position(annotation.position())
+                    })
+                })
+                .unwrap_or(false)
+        {
+            return true;
+        }
+
         let argument_value_expression = match self.tree.get(argument_id) {
             Argument::Named { value, .. }
             | Argument::Labeled { value, .. }
@@ -623,68 +491,19 @@ impl<'a> DestackFormatContext<'a> {
             Argument::Error => None,
         };
         let Some(argument_value_expression) = argument_value_expression else {
-            return;
+            return false;
         };
+
         let value_id = self.transparent_inner_expression(argument_value_expression);
-        let declaration_annotation_target = match self.tree.get(value_id) {
-            Expression::Declaration(declaration_id) => Some(*declaration_id),
-            _ => None,
-        };
-
-        // direct value annotation state
-        if self.has_annotation(value_id) {
-            annotation_cache.has_comment = true;
-            if self.has_prefix_annotation(value_id) {
-                annotation_cache.has_prefix_annotation = true;
-            }
+        if self.has_annotation(value_id) && self.has_prefix_annotation(value_id) {
+            return true;
         }
 
-        // wrapped declaration annotation state
-        if let Some(declaration_id) = declaration_annotation_target
-            && self.has_annotation(declaration_id)
-        {
-            annotation_cache.has_comment = true;
-            if self.has_prefix_annotation(declaration_id) {
-                annotation_cache.has_prefix_annotation = true;
-            }
+        if let Expression::Declaration(declaration_id) = self.tree.get(value_id) {
+            return self.has_annotation(*declaration_id)
+                && self.has_prefix_annotation(*declaration_id);
         }
-    }
 
-    /// Compute annotation data for one argument node.
-    fn compute_argument_annotation_cache(
-        &self,
-        argument_id: LocalNodeId<Argument>,
-    ) -> ArgumentAnnotationCache {
-        let mut annotation_cache = ArgumentAnnotationCache::default();
-        let argument_span = self.span(argument_id);
-        let argument_end = argument_span.end;
-
-        self.update_argument_annotation_cache_from_argument_annotations(
-            argument_id,
-            argument_end,
-            &mut annotation_cache,
-        );
-        self.update_argument_annotation_cache_from_value_annotations(
-            argument_id,
-            &mut annotation_cache,
-        );
-
-        annotation_cache
-    }
-
-    /// Read one copyable value from an index-addressed optional cache.
-    fn lookup_node_cache_value<T: Copy>(
-        &self,
-        cache: &[Cell<Option<T>>],
-        node_id: u32,
-    ) -> Option<T> {
-        cache.get(node_id as usize).and_then(Cell::get)
-    }
-
-    /// Write one copyable value into an index-addressed optional cache.
-    fn store_node_cache_value<T: Copy>(&self, cache: &[Cell<Option<T>>], node_id: u32, value: T) {
-        if let Some(state_cell) = cache.get(node_id as usize) {
-            state_cell.set(Some(value));
-        }
+        false
     }
 }

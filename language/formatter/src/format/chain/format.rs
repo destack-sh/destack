@@ -1,17 +1,25 @@
+use super::{
+    ChainExpression, ChainExpressionBase, ChainExpressionBaseHead, chain_base_trailing_node_id,
+    chain_line_starts_with_block_prefix_annotation, chain_operation_is_index,
+    expression_is_in_conditional_branch, first_grouped_line_operation, member_is_private_hash,
+    transparent_inner_expression,
+};
+use crate::format::analysis::is_call_like_argument;
+use crate::format::call::format_call_arguments;
 use crate::format::chain::normalize::chain_layout;
-use crate::format::chain::{
-    ChainExpression, ChainExpressionBase, ChainExpressionBaseHead,
-    chain_line_starts_with_block_prefix_annotation, expression_is_in_conditional_branch,
-    format_call_arguments, member_is_private_hash, transparent_inner_expression,
-};
 use crate::format::expression::{
-    AnnotationPosition, Argument, Declaration, DestackFormatContext, DestackFormatter, Expression,
-    FormatResult, FunctionKind, LocalNodeId, NodeType, PostfixPosition, SmallVec, expand_parent,
-    format_static_argument_list, format_static_argument_list_with_relational_spacing, format_with,
-    group, indent, is_call_like_argument, soft_line_break, token, write_postfix_base_expression,
+    format_static_argument_list, format_static_argument_list_with_relational_spacing,
 };
-use destack_fir::format::Buffer;
-use destack_fir::write;
+use crate::format::operator::write_postfix_base_expression;
+use crate::{DestackFormatContext, DestackFormatter};
+use destack_ast::{
+    AnnotationPosition, Argument, Declaration, Expression, FunctionKind, LocalNodeId, NodeType,
+    PostfixPosition,
+};
+use destack_fir::format::{BestFittingMode, Buffer, FormatResult};
+use destack_fir::prelude::{expand_parent, format_with, group, hard_line_break, indent, token};
+use destack_fir::{best_fitting, write};
+use smallvec::SmallVec;
 
 /// Return whether one call operation should emit its prefix annotations.
 fn call_operation_should_emit_prefix_annotations(
@@ -49,42 +57,6 @@ fn call_operation_should_emit_prefix_annotations(
         .unwrap_or(false);
 
     !has_leading_prefix_before_left
-}
-
-/// Return whether one chain operation is an index access.
-fn chain_operation_is_index(operation: &ChainExpression) -> bool {
-    matches!(operation, ChainExpression::Index { .. })
-}
-
-/// Return the first operation of the first grouped line.
-fn first_grouped_line_operation(
-    lines: &[SmallVec<[ChainExpression; 2]>],
-) -> Option<&ChainExpression> {
-    lines.first().and_then(|line| line.first())
-}
-
-/// Return one expression node id for one chain operation.
-fn chain_operation_node_id(operation: &ChainExpression) -> LocalNodeId<Expression> {
-    match operation {
-        ChainExpression::Member { node_id, .. }
-        | ChainExpression::Instantiation { node_id, .. }
-        | ChainExpression::Call { node_id, .. }
-        | ChainExpression::Index { node_id, .. }
-        | ChainExpression::Maybe { node_id, .. }
-        | ChainExpression::Must { node_id, .. } => *node_id,
-    }
-}
-
-/// Return the trailing node of one chain base.
-fn chain_base_trailing_node_id(base: &ChainExpressionBase) -> Option<LocalNodeId<Expression>> {
-    if let Some(last_operation) = base.body.last() {
-        return Some(chain_operation_node_id(last_operation));
-    }
-
-    let ChainExpressionBaseHead::Path { node_id, .. } = base.head else {
-        return None;
-    };
-    Some(node_id)
 }
 
 /// Return whether one node has only own-line boundary postfix annotations.
@@ -135,11 +107,19 @@ fn deferred_base_boundary_owner_node_id(
 
 /// Return whether the first grouped chain line can attach directly to the base.
 fn first_grouped_line_attaches_to_base(
-    _context: &DestackFormatContext<'_>,
+    context: &DestackFormatContext<'_>,
     _node_id: LocalNodeId<Expression>,
-    _base: &ChainExpressionBase,
+    base: &ChainExpressionBase,
     lines: &[SmallVec<[ChainExpression; 2]>],
 ) -> bool {
+    let base_has_own_line_boundary_postfix =
+        chain_base_trailing_node_id(base).is_some_and(|node_id| {
+            node_has_only_own_line_boundary_postfix_annotations(context, node_id)
+        });
+    if base_has_own_line_boundary_postfix {
+        return false;
+    }
+
     if matches!(
         lines.first().and_then(|line| line.first()),
         Some(ChainExpression::Must { .. })
@@ -157,7 +137,7 @@ fn first_grouped_line_attaches_to_base(
             ChainExpression::Maybe { .. },
             ChainExpression::Call { .. } | ChainExpression::Instantiation { .. }
         ]
-    )
+    ) && base.body.is_empty()
 }
 
 /// Return whether formatting should skip the first soft break for conditional chain heads.
@@ -241,28 +221,18 @@ pub(crate) fn format_expression_chain<'ast>(
     let (base, lines, chain_should_break, instantiation_prefix_wrap_body_ops) =
         chain_layout(f.context(), node_id)?;
 
-    // indent chain lines consistently, even in assignment rhs positions
-    let should_indent_chain = true;
     let should_force_inline_lambda_argument_chain =
         !chain_should_break && chain_is_lambda_call_argument_body(f.context(), node_id);
+    let first_line_attaches_to_base =
+        first_grouped_line_attaches_to_base(f.context(), node_id, &base, &lines);
+    let deferred_base_boundary_owner_node_id = deferred_base_boundary_owner_node_id(
+        f.context(),
+        &base,
+        &lines,
+        first_line_attaches_to_base,
+    );
 
-    // chain content uses soft line breaks so the enclosing group decides fit vs break
-    let format_chain = format_with(|f| {
-        // encourage the parent to break when the chain is complex
-        if chain_should_break {
-            write!(f, [expand_parent()])?;
-        }
-
-        let first_line_attaches_to_base =
-            first_grouped_line_attaches_to_base(f.context(), node_id, &base, &lines);
-        let deferred_base_boundary_owner_node_id = deferred_base_boundary_owner_node_id(
-            f.context(),
-            &base,
-            &lines,
-            first_line_attaches_to_base,
-        );
-
-        // always print the base first so indentation aligns subsequent lines
+    let format_one_line_chain = format_with(|f| {
         format_chain_base(
             f,
             node_id,
@@ -272,84 +242,94 @@ pub(crate) fn format_expression_chain<'ast>(
             deferred_base_boundary_owner_node_id,
         )?;
 
-        // indent chained entries so each operation sits on its own line when expanded
-        // use soft line breaks so the enclosing group decides inline vs multiline
-        if !lines.is_empty() {
-            let skip_first_soft_break_for_conditional_head =
-                should_skip_first_soft_break_for_conditional_head(
-                    f.context(),
-                    node_id,
-                    &base,
-                    &lines,
-                );
-            let format_lines = format_with(|f| {
-                // each chain line renders in isolation to mirror prettier style
-                for (line_index, line) in lines.iter().enumerate() {
-                    let is_first_attached_line = line_index == 0 && first_line_attaches_to_base;
-                    let should_skip_first_soft_break =
-                        line_index == 0 && skip_first_soft_break_for_conditional_head;
-                    let should_insert_soft_break = !is_first_attached_line
-                        && !should_skip_first_soft_break
-                        && (line_index == 0
-                            || !chain_line_starts_with_block_prefix_annotation(f.context(), line));
-                    if should_insert_soft_break {
-                        write!(f, [soft_line_break()])?;
-                    }
+        for line in &lines {
+            format_chain_expression_line(f, node_id, line, deferred_base_boundary_owner_node_id)?;
+        }
 
-                    if line_index == 0
-                        && let Some(owner_node_id) = deferred_base_boundary_owner_node_id
-                    {
-                        write!(
-                            f,
-                            [f.context().line_postfix_boundary_annotations(owner_node_id)]
-                        )?;
-                    }
+        Ok(())
+    });
 
-                    format_chain_expression_line(
+    let format_expanded_chain = format_with(|f| {
+        if chain_should_break {
+            write!(f, [expand_parent()])?;
+        }
+
+        format_chain_base(
+            f,
+            node_id,
+            &base,
+            &lines,
+            instantiation_prefix_wrap_body_ops,
+            deferred_base_boundary_owner_node_id,
+        )?;
+
+        if lines.is_empty() {
+            return Ok(());
+        }
+
+        let skip_first_soft_break_for_conditional_head =
+            should_skip_first_soft_break_for_conditional_head(f.context(), node_id, &base, &lines);
+        let format_lines = format_with(|f| {
+            for (line_index, line) in lines.iter().enumerate() {
+                let is_first_attached_line = line_index == 0 && first_line_attaches_to_base;
+                let should_skip_first_break =
+                    line_index == 0 && skip_first_soft_break_for_conditional_head;
+                let should_insert_break = !is_first_attached_line
+                    && !should_skip_first_break
+                    && (line_index == 0
+                        || !chain_line_starts_with_block_prefix_annotation(f.context(), line));
+                if should_insert_break {
+                    write!(f, [hard_line_break()])?;
+                }
+
+                if line_index == 0
+                    && let Some(owner_node_id) = deferred_base_boundary_owner_node_id
+                {
+                    write!(
                         f,
-                        node_id,
-                        line,
-                        deferred_base_boundary_owner_node_id,
+                        [f.context().line_postfix_boundary_annotations(owner_node_id)]
                     )?;
                 }
-                Ok(())
-            });
-            let should_wrap_lines_in_indent = should_indent_chain && !first_line_attaches_to_base;
-            if should_wrap_lines_in_indent {
-                write!(f, [indent(&format_lines)])?;
-            } else {
-                // avoid extra indentation when the parent already indents after `=`
-                write!(f, [format_lines])?;
+
+                format_chain_expression_line(
+                    f,
+                    node_id,
+                    line,
+                    deferred_base_boundary_owner_node_id,
+                )?;
             }
+
+            Ok(())
+        });
+
+        if first_line_attaches_to_base {
+            write!(f, [format_lines])?;
+        } else {
+            write!(f, [indent(&format_lines)])?;
         }
 
         Ok(())
     });
 
     if should_force_inline_lambda_argument_chain {
-        let inline_chain = format_with(|f| {
-            format_chain_base(
-                f,
-                node_id,
-                &base,
-                &lines,
-                instantiation_prefix_wrap_body_ops,
-                None,
-            )?;
-            for line in &lines {
-                format_chain_expression_line(f, node_id, line, None)?;
-            }
-            Ok(())
-        });
-
-        return write!(f, [inline_chain]);
+        return write!(f, [format_one_line_chain]);
     }
 
     if chain_should_break {
-        return write!(f, [group(&format_chain).should_expand(true)]);
+        return write!(f, [group(&format_expanded_chain).should_expand(true)]);
     }
 
-    write!(f, [group(&format_chain)])
+    if lines.is_empty() {
+        return write!(f, [group(&format_one_line_chain)]);
+    }
+
+    write!(
+        f,
+        [
+            best_fitting![group(&format_one_line_chain), group(&format_expanded_chain)]
+                .with_mode(BestFittingMode::AllLines)
+        ]
+    )
 }
 /// Format the base segment of a chain.
 fn format_chain_base<'ast>(

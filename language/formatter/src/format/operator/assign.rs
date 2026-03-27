@@ -2,20 +2,22 @@ use crate::format::analysis::{
     previous_non_whitespace_token_before_annotation, previous_non_whitespace_token_before_span,
 };
 use crate::format::chain::{
-    flattened_binary_operand_count, has_comment_between_expressions,
-    is_assignment_chain_tail_lambda, is_chain_root, is_expression_chain,
+    has_comment_between_expressions, is_assignment_chain_tail_lambda, is_chain_root,
+    is_expression_chain, is_lambda_expression, transparent_inner_expression,
 };
-use crate::format::expression::{
-    AssignOperator, DestackFormatContext, DestackFormatter, Expression, FormatResult, LocalNodeId,
-    NodeTree, NodeType, format_with, group, hard_line_break, indent, is_assignment_left_target,
-    is_lambda_expression, soft_line_break_or_space, space, transparent_inner_expression,
-};
+use crate::format::expression::is_assignment_left_target;
 use crate::format::operator::{
-    Annotation, AnnotationPosition, TokenType, expression_is_trivial_inline_without_annotations,
+    expression_is_trivial_inline_without_annotations, flattened_binary_operand_count,
 };
-use destack_ast::{Comment, CommentStyle, Declaration, Doc, DocStyle, ScalarLiteral};
-use destack_fir::format::Buffer;
-use destack_fir::prelude::dedent;
+use crate::{Annotation, DestackFormatContext, DestackFormatter};
+use destack_ast::{
+    AnnotationPosition, AssignOperator, Comment, CommentStyle, Declaration, Doc, DocStyle,
+    Expression, LocalNodeId, NodeTree, NodeType, ScalarLiteral, TokenType,
+};
+use destack_fir::format::{Buffer, FormatResult};
+use destack_fir::prelude::{
+    dedent, format_with, group, hard_line_break, indent, soft_line_break_or_space, space,
+};
 use destack_fir::{format_args, write};
 use destack_source::Span;
 
@@ -69,7 +71,7 @@ fn expression_has_assignment_seam_inline_prefix_slash_comment(
     expression_has_assignment_seam_inline_prefix_annotation_style(
         context,
         expression_id,
-        |annotation_style| annotation_style == AssignmentSeamAnnotationStyle::Slash,
+        |is_slash_style| is_slash_style,
     )
 }
 
@@ -77,7 +79,7 @@ fn expression_has_assignment_seam_inline_prefix_slash_comment(
 fn expression_has_assignment_seam_inline_prefix_annotation_style(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
-    mut style_filter: impl FnMut(AssignmentSeamAnnotationStyle) -> bool,
+    mut style_filter: impl FnMut(bool) -> bool,
 ) -> bool {
     let mut current_expression_id = transparent_inner_expression(context, expression_id);
 
@@ -110,9 +112,9 @@ fn expression_has_assignment_seam_inline_prefix_annotation_style(
 fn annotation_is_assignment_seam_inline_prefix_comment(
     context: &DestackFormatContext<'_>,
     annotation_id: LocalNodeId<Annotation>,
-    style_filter: &mut impl FnMut(AssignmentSeamAnnotationStyle) -> bool,
+    style_filter: &mut impl FnMut(bool) -> bool,
 ) -> bool {
-    let Some((comment_span, annotation_position, annotation_style)) =
+    let Some((comment_span, annotation_position, is_slash_style)) =
         assignment_seam_annotation_style(context, annotation_id)
     else {
         return false;
@@ -123,7 +125,7 @@ fn annotation_is_assignment_seam_inline_prefix_comment(
     ) {
         return false;
     }
-    if !style_filter(annotation_style) {
+    if !style_filter(is_slash_style) {
         return false;
     }
 
@@ -148,43 +150,27 @@ fn annotation_is_assignment_seam_inline_prefix_comment(
         return false;
     }
 
-    match annotation_style {
-        AssignmentSeamAnnotationStyle::Slash => true,
-        AssignmentSeamAnnotationStyle::Star => {
-            !context.has_newline(comment_span)
-                && context.annotation_next_token_is_on_same_line(annotation_id)
-        }
+    if is_slash_style {
+        true
+    } else {
+        !context.has_newline(comment_span)
+            && context.annotation_next_token_is_on_same_line(annotation_id)
     }
-}
-
-/// Style of assignment-seam inline prefix annotations.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum AssignmentSeamAnnotationStyle {
-    /// One line `//` or `///` style annotation.
-    Slash,
-    /// Block `/* ... */` or `/** ... */` style annotation.
-    Star,
 }
 
 /// Return node id, position, and style for one assignment-seam annotation.
 fn assignment_seam_annotation_style(
     context: &DestackFormatContext<'_>,
     annotation_id: LocalNodeId<Annotation>,
-) -> Option<(Span, AnnotationPosition, AssignmentSeamAnnotationStyle)> {
+) -> Option<(Span, AnnotationPosition, bool)> {
     match context.annotation(annotation_id) {
         Annotation::Comment { node, position } => {
-            let style = match context.tree.get::<Comment>(node).style {
-                CommentStyle::Slash => AssignmentSeamAnnotationStyle::Slash,
-                CommentStyle::Star => AssignmentSeamAnnotationStyle::Star,
-            };
-            Some((context.span(node), position, style))
+            let is_slash_style = context.tree.get::<Comment>(node).style == CommentStyle::Slash;
+            Some((context.span(node), position, is_slash_style))
         }
         Annotation::Doc { node, position } => {
-            let style = match context.tree.get::<Doc>(node).style {
-                DocStyle::Slash => AssignmentSeamAnnotationStyle::Slash,
-                DocStyle::Star => AssignmentSeamAnnotationStyle::Star,
-            };
-            Some((context.span(node), position, style))
+            let is_slash_style = context.tree.get::<Doc>(node).style == DocStyle::Slash;
+            Some((context.span(node), position, is_slash_style))
         }
         _ => None,
     }

@@ -1,20 +1,26 @@
 use crate::format::analysis::{first_non_trivia_token_in_span, last_non_trivia_token_in_span};
+use crate::format::chain::{
+    chain_nodes, has_comment_between_expressions, member_has_intervening_comment,
+    transparent_inner_expression,
+};
 use crate::format::collection::{
     collection_nodes_have_annotations, collection_value_should_force_break,
 };
 use crate::format::expression::{
-    Annotation, AnnotationPosition, Argument, Declaration, DestackFormatContext, DestackFormatter,
-    Expression, FormatResult, FunctionKind, IfCondition, IfKind, LocalNodeId, NodeTree, Span,
-    TokenType, argument_value, block_indent, chain_nodes, format_with, group, hard_line_break,
-    has_comment_between_expressions, if_group_breaks, is_complex_expression,
-    is_expression_breakable, is_trivial_expression, lambda_expression_should_break,
-    line_postfix_boundary, member_has_intervening_comment, soft_block_indent,
-    soft_line_break_or_space, space, token, transparent_inner_expression,
+    argument_value, is_complex_expression, is_expression_breakable, is_trivial_expression,
 };
-use destack_ast::{Property, ScalarLiteral};
-use destack_fir::format::{Buffer, Format, GroupId};
-use destack_fir::prelude::expand_parent;
+use crate::{Annotation, DestackFormatContext, DestackFormatter};
+use destack_ast::{
+    AnnotationPosition, Argument, Declaration, Expression, FunctionKind, IfCondition, IfKind,
+    LocalNodeId, NodeTree, Property, ScalarLiteral, TokenType,
+};
+use destack_fir::format::{Buffer, FormatResult};
+use destack_fir::prelude::{
+    block_indent, format_with, group, hard_line_break, line_postfix_boundary, soft_block_indent,
+    space, token,
+};
 use destack_fir::{format_args, write};
+use destack_source::Span;
 
 /// Return whether one annotation is one line slash comment.
 fn annotation_id_is_line_slash_comment(
@@ -163,63 +169,6 @@ pub(crate) fn has_multiline_jsx_argument(
     }
 }
 
-/// Tree expression argument, using `=` for named arguments.
-#[derive(Debug, Clone, PartialEq)]
-pub(crate) struct TreeExpressionArgument {
-    pub(crate) argument_id: LocalNodeId<Argument>,
-}
-
-/// Hugging configuration for different delimiter contexts.
-pub(crate) struct HugOptions {
-    /// The opening delimiter.
-    pub(crate) open: &'static str,
-    /// The closing delimiter.
-    pub(crate) close: &'static str,
-    /// Whether to force a trailing comma.
-    pub(crate) force_trailing: bool,
-    /// Whether to include a trailing comma when the group breaks.
-    pub(crate) trailing_if_breaks: bool,
-    /// Whether to allow arrow functions.
-    pub(crate) allow_arrow_functions: bool,
-    /// Whether to handle annotations.
-    pub(crate) handle_annotations: bool,
-    /// Whether multiline object and array values can still use hugging.
-    pub(crate) allow_multiline_collection: bool,
-}
-
-impl HugOptions {
-    pub(crate) const CALL: Self = Self {
-        open: "(",
-        close: ")",
-        force_trailing: false,
-        trailing_if_breaks: false,
-        allow_arrow_functions: true,
-        handle_annotations: true,
-        allow_multiline_collection: true,
-    };
-
-    pub(crate) const TUPLE: Self = Self {
-        open: "(",
-        close: ")",
-        force_trailing: true,
-        trailing_if_breaks: false,
-        allow_arrow_functions: false,
-        handle_annotations: false,
-        allow_multiline_collection: false,
-    };
-}
-
-/// The token syntax style for one tree named attribute value.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum TreeNamedAttributeSyntaxStyle {
-    /// The attribute is shorthand: `<X disabled />`.
-    Shorthand,
-    /// The attribute uses equals with a non-braced value: `<X title="ok" />`.
-    EqualsUnbraced,
-    /// The attribute uses equals with a braced expression: `<X title={"ok"} />`.
-    EqualsBraced,
-}
-
 /// Return whether one tree argument source span is wrapped with `{ ... }`.
 pub(crate) fn tree_argument_is_wrapped_in_braces(
     context: &DestackFormatContext<'_>,
@@ -336,259 +285,242 @@ fn format_multiline_stub_comment_nodes<'ast>(
 fn tree_named_attribute_syntax_style(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
-) -> TreeNamedAttributeSyntaxStyle {
+) -> (bool, bool) {
     let argument_span = context.span(argument_id);
     let tokens = context.non_trivia_tokens_in_span(argument_span);
     let Some(assign_index) = tokens
         .iter()
         .position(|token| token.token.ty == TokenType::Assign)
     else {
-        return TreeNamedAttributeSyntaxStyle::Shorthand;
+        return (false, false);
     };
 
     if tokens
         .get(assign_index + 1)
         .is_some_and(|token| token.token.ty == TokenType::OpenBrace)
     {
-        return TreeNamedAttributeSyntaxStyle::EqualsBraced;
+        return (true, false);
     }
 
-    TreeNamedAttributeSyntaxStyle::EqualsUnbraced
+    (false, true)
 }
 
-impl<'ast> Format<DestackFormatContext<'ast>> for TreeExpressionArgument {
-    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
-        let argument = f.context().tree.get(self.argument_id);
-        let argument_is_spread = matches!(argument, Argument::Spread { .. });
-        let stub_value_id = match argument {
-            Argument::Positional { value, .. }
-                if matches!(f.context().tree.get(*value), Expression::Stub) =>
-            {
-                Some(*value)
-            }
-            _ => None,
-        };
-
-        // stub argument prefix comments and docs must stay inside `{ ... }`
-        if stub_value_id.is_none() && !argument_is_spread {
-            write!(f, [f.context().any_prefix_annotations(self.argument_id)])?;
+/// Write one tree expression argument.
+pub(crate) fn write_tree_expression_argument<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    argument_id: LocalNodeId<Argument>,
+) -> FormatResult<()> {
+    let argument = f.context().tree.get(argument_id);
+    let argument_is_spread = matches!(argument, Argument::Spread { .. });
+    let stub_value_id = match argument {
+        Argument::Positional { value, .. }
+            if matches!(f.context().tree.get(*value), Expression::Stub) =>
+        {
+            Some(*value)
         }
+        _ => None,
+    };
 
-        let mut stub_argument_annotations_rendered_inline = false;
-        match argument {
-            Argument::Named { name, value, .. } => {
-                // destack tree literals normalize boolean true and string literal attribute values
-                if f.context().options.language_type.is_destack() {
-                    let value_expr = f.context().tree.get(*value);
-                    if let Expression::ScalarLiteral(ScalarLiteral::Boolean(true)) = value_expr {
-                        write!(f, [name])?;
-                    } else {
-                        write!(f, [name])?;
-                        let is_string_literal = matches!(
-                            value_expr,
-                            Expression::ScalarLiteral(ScalarLiteral::String(_))
-                                | Expression::ScalarLiteral(ScalarLiteral::Character(_))
-                        );
-                        if is_string_literal {
-                            write!(f, [token("="), value])?;
-                        } else {
-                            format_tree_attribute_value(f, *value)?;
-                        }
-                    }
-                } else {
-                    // tsx and jsx preserve named attribute token syntax
-                    write!(f, [name])?;
-                    let value_style =
-                        tree_named_attribute_syntax_style(f.context(), self.argument_id);
-                    match value_style {
-                        TreeNamedAttributeSyntaxStyle::Shorthand => {}
-                        TreeNamedAttributeSyntaxStyle::EqualsUnbraced => {
-                            write!(f, [token("="), value])?;
-                        }
-                        TreeNamedAttributeSyntaxStyle::EqualsBraced => {
-                            format_tree_attribute_value(f, *value)?;
-                        }
-                    }
-                }
-            }
-            Argument::Labeled { label, value, .. } => {
-                // label
-                write!(f, [label])?;
-                // value
-                write!(f, [token(":"), space(), value])?;
-            }
-            Argument::Positional { value, .. } => {
-                // in tree expressions, expression children need braces too
+    // stub argument prefix comments and docs must stay inside `{ ... }`
+    if stub_value_id.is_none() && !argument_is_spread {
+        write!(f, [f.context().any_prefix_annotations(argument_id)])?;
+    }
+
+    let mut stub_argument_annotations_rendered_inline = false;
+    match argument {
+        Argument::Named { name, value, .. } => {
+            // destack tree literals normalize boolean true and string literal attribute values
+            if f.context().options.language_type.is_destack() {
                 let value_expr = f.context().tree.get(*value);
-                let argument_is_braced =
-                    tree_argument_is_wrapped_in_braces(f.context(), self.argument_id);
-                let force_multiline_braced_expression = tree_argument_has_line_comment_annotation(
-                    f.context(),
-                    self.argument_id,
-                    *value,
-                );
-                let needs_braces = argument_is_braced
-                    || !matches!(
+                if let Expression::ScalarLiteral(ScalarLiteral::Boolean(true)) = value_expr {
+                    write!(f, [name])?;
+                } else {
+                    write!(f, [name])?;
+                    let is_string_literal = matches!(
                         value_expr,
                         Expression::ScalarLiteral(ScalarLiteral::String(_))
-                            | Expression::TreeExpression { .. }
+                            | Expression::ScalarLiteral(ScalarLiteral::Character(_))
                     );
-                if needs_braces {
-                    if matches!(value_expr, Expression::Stub) {
-                        let keep_stub_prefix_inside_braces =
-                            stub_value_id.is_some_and(|value_id| {
-                                f.context()
-                                    .any_annotation_id(self.argument_id, |annotation_id| {
-                                        annotation_id_is_prefix_comment_or_doc(
-                                            f.context(),
-                                            annotation_id,
-                                        )
-                                    })
-                                    || f.context().any_annotation_id(value_id, |annotation_id| {
-                                        annotation_id_is_prefix_comment_or_doc(
-                                            f.context(),
-                                            annotation_id,
-                                        )
-                                    })
-                            });
-                        if keep_stub_prefix_inside_braces {
-                            write!(f, [token("{")])?;
-                            write!(f, [f.context().any_prefix_annotations(self.argument_id)])?;
-                            write!(f, [f.context().any_prefix_annotations(*value)])?;
-                            write!(f, [token("}")])?;
-                            stub_argument_annotations_rendered_inline = true;
-                        } else {
-                            let expression_comment_nodes = collect_stub_comment_nodes(
-                                f.context(),
-                                f.context().annotations(*value).as_deref(),
-                            );
-                            let argument_comment_nodes = collect_stub_comment_nodes(
-                                f.context(),
-                                f.context().annotations(self.argument_id).as_deref(),
-                            );
+                    if is_string_literal {
+                        write!(f, [token("="), value])?;
+                    } else {
+                        format_tree_attribute_value(f, *value)?;
+                    }
+                }
+            } else {
+                // tsx and jsx preserve named attribute token syntax
+                write!(f, [name])?;
+                let (is_equals_braced, is_equals_unbraced) =
+                    tree_named_attribute_syntax_style(f.context(), argument_id);
+                if is_equals_braced {
+                    format_tree_attribute_value(f, *value)?;
+                } else if is_equals_unbraced {
+                    write!(f, [token("="), value])?;
+                }
+            }
+        }
+        Argument::Labeled { label, value, .. } => {
+            // label
+            write!(f, [label])?;
+            // value
+            write!(f, [token(":"), space(), value])?;
+        }
+        Argument::Positional { value, .. } => {
+            // in tree expressions, expression children need braces too
+            let value_expr = f.context().tree.get(*value);
+            let argument_is_braced = tree_argument_is_wrapped_in_braces(f.context(), argument_id);
+            let force_multiline_braced_expression =
+                tree_argument_has_line_comment_annotation(f.context(), argument_id, *value);
+            let needs_braces = argument_is_braced
+                || !matches!(
+                    value_expr,
+                    Expression::ScalarLiteral(ScalarLiteral::String(_))
+                        | Expression::TreeExpression { .. }
+                );
+            if needs_braces {
+                if matches!(value_expr, Expression::Stub) {
+                    let keep_stub_prefix_inside_braces = stub_value_id.is_some_and(|value_id| {
+                        f.context().any_annotation_id(argument_id, |annotation_id| {
+                            annotation_id_is_prefix_comment_or_doc(f.context(), annotation_id)
+                        }) || f.context().any_annotation_id(value_id, |annotation_id| {
+                            annotation_id_is_prefix_comment_or_doc(f.context(), annotation_id)
+                        })
+                    });
+                    if keep_stub_prefix_inside_braces {
+                        write!(f, [token("{")])?;
+                        write!(f, [f.context().any_prefix_annotations(argument_id)])?;
+                        write!(f, [f.context().any_prefix_annotations(*value)])?;
+                        write!(f, [token("}")])?;
+                        stub_argument_annotations_rendered_inline = true;
+                    } else {
+                        let expression_comment_nodes = collect_stub_comment_nodes(
+                            f.context(),
+                            f.context().annotations(*value).as_deref(),
+                        );
+                        let argument_comment_nodes = collect_stub_comment_nodes(
+                            f.context(),
+                            f.context().annotations(argument_id).as_deref(),
+                        );
 
-                            let mut comment_nodes = expression_comment_nodes;
-                            if comment_nodes.is_empty() {
-                                comment_nodes = argument_comment_nodes;
-                                if !comment_nodes.is_empty() {
+                        let mut comment_nodes = expression_comment_nodes;
+                        if comment_nodes.is_empty() {
+                            comment_nodes = argument_comment_nodes;
+                            if !comment_nodes.is_empty() {
+                                stub_argument_annotations_rendered_inline = true;
+                            }
+                        }
+
+                        if stub_comment_nodes_have_line_comment(f.context(), &comment_nodes) {
+                            write!(
+                                f,
+                                [group(&format_args![
+                                    token("{"),
+                                    block_indent(&format_with(|f| {
+                                        format_multiline_stub_comment_nodes(f, &comment_nodes)
+                                    })),
+                                    hard_line_break(),
+                                    token("}")
+                                ])]
+                            )?;
+                        } else {
+                            write!(f, [token("{")])?;
+                            let mut wrote_stub_comment =
+                                format_inline_stub_expression_comments(f, *value)?;
+                            if !wrote_stub_comment {
+                                wrote_stub_comment =
+                                    format_inline_stub_argument_comments(f, argument_id)?;
+                                if wrote_stub_comment {
                                     stub_argument_annotations_rendered_inline = true;
                                 }
                             }
-
-                            if stub_comment_nodes_have_line_comment(f.context(), &comment_nodes) {
-                                write!(
-                                    f,
-                                    [group(&format_args![
-                                        token("{"),
-                                        block_indent(&format_with(|f| {
-                                            format_multiline_stub_comment_nodes(f, &comment_nodes)
-                                        })),
-                                        hard_line_break(),
-                                        token("}")
-                                    ])]
-                                )?;
-                            } else {
-                                write!(f, [token("{")])?;
-                                let mut wrote_stub_comment =
-                                    format_inline_stub_expression_comments(f, *value)?;
-                                if !wrote_stub_comment {
-                                    wrote_stub_comment =
-                                        format_inline_stub_argument_comments(f, self.argument_id)?;
-                                    if wrote_stub_comment {
-                                        stub_argument_annotations_rendered_inline = true;
-                                    }
-                                }
-                                write!(f, [token("}")])?;
-                            }
-                        }
-                    } else if force_multiline_braced_expression {
-                        write!(
-                            f,
-                            [group(&format_args![
-                                token("{"),
-                                block_indent(&group(value).should_expand(true)),
-                                hard_line_break(),
-                                token("}")
-                            ])]
-                        )?;
-                    } else {
-                        // keep jsx expression containers inline for common expression forms
-                        if tree_child_should_inline_braced_expression(f.context(), self.argument_id)
-                        {
-                            write!(f, [token("{"), value, token("}")])?;
-                        } else if expression_has_chain_seam_comment(f.context(), *value)
-                            || ternary_value_has_line_comment_annotation(f.context(), *value)
-                        {
-                            write!(
-                                f,
-                                [group(&format_args![
-                                    token("{"),
-                                    group(value).should_expand(true),
-                                    token("}")
-                                ])]
-                            )?;
-                        } else {
-                            write!(
-                                f,
-                                [group(&format_args![
-                                    token("{"),
-                                    soft_block_indent(&value),
-                                    token("}")
-                                ])]
-                            )?;
+                            write!(f, [token("}")])?;
                         }
                     }
-                } else {
-                    write!(f, [value])?;
-                }
-            }
-            Argument::Spread { value, .. } => {
-                // keep spread-head annotations inside `{ ... }` like prettier and oxc
-                let has_spread_comment_annotation =
-                    argument_has_comment_annotation(f.context(), self.argument_id)
-                        || expression_has_comment_annotation(f.context(), *value);
-                let spread_inner = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                    write!(f, [f.context().any_prefix_annotations(self.argument_id)])?;
-                    write!(f, [token("..."), value])
-                });
-
-                if has_spread_comment_annotation {
+                } else if force_multiline_braced_expression {
                     write!(
                         f,
                         [group(&format_args![
                             token("{"),
-                            soft_block_indent(&spread_inner),
-                            line_postfix_boundary(),
+                            block_indent(&group(value).should_expand(true)),
+                            hard_line_break(),
                             token("}")
                         ])]
                     )?;
                 } else {
-                    write!(
-                        f,
-                        [
-                            token("{"),
-                            spread_inner,
-                            line_postfix_boundary(),
-                            token("}")
-                        ]
-                    )?;
+                    // keep jsx expression containers inline for common expression forms
+                    if tree_child_should_inline_braced_expression(f.context(), argument_id) {
+                        write!(f, [token("{"), value, token("}")])?;
+                    } else if expression_has_chain_seam_comment(f.context(), *value)
+                        || ternary_value_has_line_comment_annotation(f.context(), *value)
+                    {
+                        write!(
+                            f,
+                            [group(&format_args![
+                                token("{"),
+                                group(value).should_expand(true),
+                                token("}")
+                            ])]
+                        )?;
+                    } else {
+                        write!(
+                            f,
+                            [group(&format_args![
+                                token("{"),
+                                soft_block_indent(&value),
+                                token("}")
+                            ])]
+                        )?;
+                    }
                 }
-            }
-            Argument::Error => {
-                write!(f, [token("{"), token("/* ERROR */"), token("}")])?;
+            } else {
+                write!(f, [value])?;
             }
         }
+        Argument::Spread { value, .. } => {
+            // keep spread-head annotations inside `{ ... }` like prettier and oxc
+            let has_spread_comment_annotation =
+                argument_has_comment_annotation(f.context(), argument_id)
+                    || expression_has_comment_annotation(f.context(), *value);
+            let spread_inner = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                write!(f, [f.context().any_prefix_annotations(argument_id)])?;
+                write!(f, [token("..."), value])
+            });
 
-        if !stub_argument_annotations_rendered_inline {
-            write!(
-                f,
-                [f.context()
-                    .any_infix_or_postfix_annotations(self.argument_id)]
-            )?;
+            if has_spread_comment_annotation {
+                write!(
+                    f,
+                    [group(&format_args![
+                        token("{"),
+                        soft_block_indent(&spread_inner),
+                        line_postfix_boundary(),
+                        token("}")
+                    ])]
+                )?;
+            } else {
+                write!(
+                    f,
+                    [
+                        token("{"),
+                        spread_inner,
+                        line_postfix_boundary(),
+                        token("}")
+                    ]
+                )?;
+            }
         }
-
-        Ok(())
+        Argument::Error => {
+            write!(f, [token("{"), token("/* ERROR */"), token("}")])?;
+        }
     }
+
+    if !stub_argument_annotations_rendered_inline {
+        write!(
+            f,
+            [f.context().any_infix_or_postfix_annotations(argument_id)]
+        )?;
+    }
+
+    Ok(())
 }
 
 /// Get the value expression for any tree attribute argument variant.
@@ -851,447 +783,12 @@ pub(crate) fn should_force_break_tree_attributes(
     false
 }
 
-/// Check if an expression is huggable with the given configuration.
-/// Return whether an expression is huggable in JSX position.
-#[inline]
-fn format_tree_attribute_inline_or_hugged<'ast, InlineDoc, HuggedDoc>(
-    f: &mut DestackFormatter<'ast, '_>,
-    value_id: LocalNodeId<Expression>,
-    inline_format: InlineDoc,
-    hugged_format: HuggedDoc,
-) -> FormatResult<()>
-where
-    InlineDoc: Format<DestackFormatContext<'ast>>,
-    HuggedDoc: Format<DestackFormatContext<'ast>>,
-{
-    // context-based default selection
-    if f.context().has_annotation(value_id) {
-        f.context()
-            .increment_counter("stats.jsx.attribute.by_context.hug", 1);
-        hugged_format.format(f)?;
-    } else {
-        f.context()
-            .increment_counter("stats.jsx.attribute.by_context.inline", 1);
-        inline_format.format(f)?;
-    }
-
-    Ok(())
-}
-
-/// Format a tree attribute object value using inline-or-hugged selection.
-fn format_tree_attribute_object_value<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    value_id: LocalNodeId<Expression>,
-    ty: Option<LocalNodeId<Expression>>,
-    properties: Vec<LocalNodeId<Property>>,
-) -> FormatResult<()> {
-    let inline_format = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        write!(f, [token("="), token("{"), value_id, token("}")])
-    });
-
-    let hugged_format = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        write!(
-            f,
-            [
-                token("="),
-                token("{"),
-                format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                    if let Some(ty) = ty {
-                        write!(f, [ty, space()])?;
-                    }
-                    write!(
-                        f,
-                        [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                            write!(
-                                f,
-                                [
-                                    token("{"),
-                                    block_indent(&format_with(
-                                        |f: &mut DestackFormatter<'ast, '_>| {
-                                            f.join_with(&format_args![
-                                                token(","),
-                                                soft_line_break_or_space()
-                                            ])
-                                            .entries(&properties)
-                                            .finish()?;
-                                            write!(f, [if_group_breaks(&token(","))])
-                                        }
-                                    )),
-                                    token("}")
-                                ]
-                            )
-                        }))
-                        .should_expand(true)]
-                    )
-                }),
-                token("}")
-            ]
-        )
-    });
-
-    format_tree_attribute_inline_or_hugged(f, value_id, inline_format, hugged_format)
-}
-
-/// Format a tree attribute array value using inline-or-hugged selection.
-fn format_tree_attribute_array_value<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    value_id: LocalNodeId<Expression>,
-    elements: Vec<LocalNodeId<Argument>>,
-) -> FormatResult<()> {
-    let inline_format = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        write!(f, [token("="), token("{"), value_id, token("}")])
-    });
-
-    let hugged_format = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        write!(
-            f,
-            [
-                token("="),
-                token("{"),
-                group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                    write!(
-                        f,
-                        [
-                            token("["),
-                            block_indent(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                                f.join_with(&format_args![token(","), soft_line_break_or_space()])
-                                    .entries(&elements)
-                                    .finish()?;
-                                write!(f, [if_group_breaks(&token(","))])
-                            })),
-                            token("]")
-                        ]
-                    )
-                }))
-                .should_expand(true),
-                token("}")
-            ]
-        )
-    });
-
-    format_tree_attribute_inline_or_hugged(f, value_id, inline_format, hugged_format)
-}
-
-/// Format a tree/JSX attribute value with hugging for objects and arrays.
+/// Format a tree or JSX attribute value.
 pub(crate) fn format_tree_attribute_value<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     value_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    // tree attribute layout
-    let tree = f.context().tree;
-
-    match tree.get(value_id) {
-        // object attribute value
-        Expression::ObjectExpression { ty, properties } => {
-            format_tree_attribute_object_value(f, value_id, *ty, properties.clone())?;
-        }
-
-        // array attribute value
-        Expression::ArrayExpression { elements } => {
-            format_tree_attribute_array_value(f, value_id, elements.clone())?;
-        }
-
-        // non-huggable values use regular braced formatting
-        _ => {
-            write!(f, [token("="), token("{"), value_id, token("}")])?;
-        }
-    }
-
-    Ok(())
-}
-
-pub(crate) fn is_huggable_expression(
-    tree: &NodeTree,
-    expression_id: LocalNodeId<Expression>,
-    config: &HugOptions,
-) -> bool {
-    match tree.get(expression_id) {
-        Expression::ObjectExpression { .. } | Expression::ArrayExpression { .. } => true,
-        Expression::Declaration(declaration_id) if config.allow_arrow_functions => {
-            // arrow functions stay hugged when used as the only call argument
-            if let Declaration::Function {
-                signature,
-                body: Some(_),
-                ..
-            } = tree.get(*declaration_id)
-            {
-                signature.kind == FunctionKind::Lambda
-            } else {
-                false
-            }
-        }
-        _ => false,
-    }
-}
-
-/// Format a single-element argument list with hugging for expandable elements.
-///
-/// When a single object/array (or arrow function for calls) is the only argument,
-/// format as `foo({...})` instead of `foo(\n    {...},\n)`.
-/// Returns true if hugging was applied, false if regular list_like should be used.
-pub(crate) fn format_hugged<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    arguments: &[LocalNodeId<Argument>],
-    config: HugOptions,
-    group_id: Option<GroupId>,
-    force_expand: bool,
-) -> FormatResult<bool> {
-    // only hug single positional arguments
-    if arguments.len() != 1 {
-        return Ok(false);
-    }
-
-    // resolve and normalize the single argument value
-    let argument_id = arguments[0];
-    let Some(value_id) = argument_value(f.context().tree, argument_id) else {
-        return Ok(false);
-    };
-    let value_id = transparent_inner_expression(f.context(), value_id);
-
-    // guard non-huggable value kinds
-    if !is_huggable_expression(f.context().tree, value_id, &config) {
-        return Ok(false);
-    }
-
-    // multiline empty collections are not stable hugging candidates
-    if !force_expand
-        && f.context().node_has_newline(value_id)
-        && match f.context().tree.get(value_id) {
-            Expression::ObjectExpression { properties, .. } => properties.is_empty(),
-            Expression::ArrayExpression { elements } => elements.is_empty(),
-            _ => false,
-        }
-    {
-        return Ok(false);
-    }
-
-    // multiline collection values can opt out of hugging by configuration
-    if !force_expand
-        && !config.allow_multiline_collection
-        && f.context().node_has_newline(value_id)
-        && matches!(
-            f.context().tree.get(value_id),
-            Expression::ObjectExpression { .. } | Expression::ArrayExpression { .. }
-        )
-    {
-        return Ok(false);
-    }
-
-    // collect arrow-specific layout signals once
-    let mut is_arrow_function = false;
-    let mut arrow_force_expand = false;
-    let mut arrow_trailing_line_break_if_breaks = false;
-    let mut arrow_trailing_comma_if_breaks = false;
-    if config.allow_arrow_functions
-        && let Expression::Declaration(declaration_id) = f.context().tree.get(value_id)
-        && let Declaration::Function {
-            signature,
-            body: Some(body_id),
-            ..
-        } = f.context().tree.get(*declaration_id)
-        && signature.kind == FunctionKind::Lambda
-    {
-        let body_id = transparent_inner_expression(f.context(), *body_id);
-        let body_expr = f.context().tree.get(body_id);
-        let arrow_body_is_block = matches!(body_expr, Expression::Block(_));
-        let arrow_body_is_tree = matches!(body_expr, Expression::TreeExpression { .. });
-        let arrow_body_is_lambda = matches!(
-            body_expr,
-            Expression::Declaration(nested_declaration_id)
-                if matches!(
-                    f.context().tree.get(*nested_declaration_id),
-                    Declaration::Function { signature, .. } if signature.kind == FunctionKind::Lambda
-                )
-        );
-
-        is_arrow_function = true;
-        arrow_force_expand = lambda_expression_should_break(f.context(), *declaration_id);
-        arrow_trailing_line_break_if_breaks =
-            !arrow_body_is_block && !arrow_body_is_tree && !arrow_body_is_lambda;
-        arrow_trailing_comma_if_breaks =
-            arrow_trailing_line_break_if_breaks && !arrow_body_is_lambda;
-    }
-    let trailing_if_breaks = config.trailing_if_breaks;
-
-    // build inline candidate doc
-    let inline_format = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        let inline_inner = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-            write!(f, [token(config.open), argument_id])?;
-            if config.force_trailing {
-                write!(f, [token(",")])?;
-            }
-            write!(f, [token(config.close)])
-        });
-
-        if let Some(group_id) = group_id {
-            group(&inline_inner).with_id(Some(group_id)).format(f)
-        } else {
-            write!(f, [inline_inner])
-        }
-    });
-
-    // build hugged candidate doc
-    let hugged_format_inner = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        // argument annotations
-        if config.handle_annotations {
-            if is_arrow_function {
-                write!(f, [f.context().block_prefix_annotations(argument_id)])?;
-            } else {
-                write!(f, [f.context().any_prefix_annotations(argument_id)])?;
-            }
-        }
-
-        // force expansion when arrow rules requires it
-        if arrow_force_expand {
-            write!(f, [expand_parent()])?;
-        }
-
-        // opening delimiter
-        write!(f, [token(config.open)])?;
-
-        // value payload
-        match f.context().tree.get(value_id) {
-            Expression::ObjectExpression { ty, properties } => {
-                if let Some(ty) = ty {
-                    write!(f, [ty, space()])?;
-                }
-                write!(
-                    f,
-                    [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                        write!(
-                            f,
-                            [
-                                token("{"),
-                                block_indent(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                                    f.join_with(&format_args![
-                                        token(","),
-                                        soft_line_break_or_space()
-                                    ])
-                                    .entries(properties)
-                                    .finish()?;
-                                    write!(f, [if_group_breaks(&token(","))])
-                                })),
-                                token("}")
-                            ]
-                        )
-                    }))
-                    .should_expand(true)]
-                )?;
-            }
-            Expression::ArrayExpression { elements } => {
-                write!(
-                    f,
-                    [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                        write!(
-                            f,
-                            [
-                                token("["),
-                                block_indent(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                                    f.join_with(&format_args![
-                                        token(","),
-                                        soft_line_break_or_space()
-                                    ])
-                                    .entries(elements)
-                                    .finish()?;
-                                    write!(f, [if_group_breaks(&token(","))])
-                                })),
-                                token("]")
-                            ]
-                        )
-                    }))
-                    .should_expand(true)]
-                )?;
-            }
-            Expression::Declaration(declaration_id) if config.allow_arrow_functions => {
-                if let Some(group_id) = group_id {
-                    write!(
-                        f,
-                        [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                            write!(f, [declaration_id])
-                        }))
-                        .with_id(Some(group_id))]
-                    )?;
-                } else {
-                    write!(f, [declaration_id])?;
-                }
-            }
-            _ => {
-                write!(f, [value_id])?;
-            }
-        }
-
-        // trailing comma behavior
-        if config.force_trailing {
-            write!(f, [token(",")])?;
-        } else if arrow_trailing_comma_if_breaks || trailing_if_breaks {
-            let comma = token(",");
-            let trailing_comma = if let Some(group_id) = group_id {
-                if_group_breaks(&comma).with_group_id(Some(group_id))
-            } else {
-                if_group_breaks(&comma)
-            };
-            write!(f, [trailing_comma])?;
-        }
-
-        // trailing line break behavior for arrow values
-        if arrow_trailing_line_break_if_breaks {
-            let line_break = hard_line_break();
-            let break_doc = if let Some(group_id) = group_id {
-                if_group_breaks(&line_break).with_group_id(Some(group_id))
-            } else {
-                if_group_breaks(&line_break)
-            };
-            write!(f, [break_doc])?;
-        }
-
-        // closing delimiter
-        write!(f, [token(config.close)])?;
-
-        // trailing annotations
-        if config.handle_annotations {
-            write!(
-                f,
-                [f.context().any_infix_or_postfix_annotations(argument_id)]
-            )?;
-        }
-        Ok(())
-    });
-
-    let hugged_format = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        if trailing_if_breaks || group_id.is_some() {
-            write!(
-                f,
-                [group(&hugged_format_inner)
-                    .with_id(group_id)
-                    .should_expand(arrow_force_expand)]
-            )?;
-        } else {
-            write!(f, [hugged_format_inner])?;
-        }
-        Ok(())
-    });
-
-    // forced expansion always selects hugged output
-    if force_expand {
-        hugged_format.format(f)?;
-        return Ok(true);
-    }
-
-    // context-based default selection
-    let is_annotated =
-        f.context().has_annotation(argument_id) || f.context().has_annotation(value_id);
-    let should_hug = is_annotated || arrow_force_expand;
-    if should_hug {
-        f.context()
-            .increment_counter("stats.jsx.hug.by_context.hug", 1);
-        hugged_format.format(f)?;
-    } else {
-        f.context()
-            .increment_counter("stats.jsx.hug.by_context.inline", 1);
-        inline_format.format(f)?;
-    }
-
-    Ok(true)
+    write!(f, [token("="), token("{"), value_id, token("}")])
 }
 
 /// Check whether a tree text child is whitespace-only.
@@ -1723,29 +1220,6 @@ pub(crate) fn argument_is_template_literal(
             Expression::TemplateExpression { .. }
         )
     })
-}
-
-/// Check whether an argument is a lambda expression.
-pub(crate) fn argument_is_lambda_expression(
-    context: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> bool {
-    argument_lambda_declaration_id(context, argument_id).is_some()
-}
-
-/// Check whether an argument is a function expression.
-pub(crate) fn argument_is_function_expression(
-    context: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> bool {
-    let Some(value_id) = argument_transparent_value_id(context, argument_id) else {
-        return false;
-    };
-    let Some(declaration_id) = expression_function_declaration_id(context.tree, value_id) else {
-        return false;
-    };
-
-    !declaration_is_lambda(context.tree, declaration_id)
 }
 
 /// Check whether an expression contains a call with a complex callback.

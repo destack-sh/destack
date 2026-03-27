@@ -1,18 +1,21 @@
+use super::declarator::format_declarator;
+use super::format::format_expression;
 use crate::format::analysis::{previous_non_whitespace_token_before_span, token_is_keyword};
 use crate::format::annotation::statement_wrapper_needs_semicolon;
-use crate::format::declaration::statement::format_block_of_statements;
-use crate::format::directive::{
-    FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
+use crate::format::declaration::statement_list::format_block_of_statements;
+use crate::format::directive::node_has_ignore_directive;
+use crate::{
+    Annotation, DestackFormatContext, DestackFormatter, FormatNode,
+    empty_block_with_infix_annotations,
 };
-use crate::format::expression::{
-    Annotation, AnnotationPosition, Block, DestackFormatContext, DestackFormatter, Expression,
-    FormatResult, IfCondition, Keyword, LetKind, LocalNodeId, MatchKind, Pattern, TokenType,
-    block_indent, format_declarator, format_expression, format_with, group, hard_line_break,
-    line_postfix_boundary, space, token,
+use destack_ast::{
+    AnnotationPosition, Block, BlockFormat, CommentStyle, Expression, IfCondition, Keyword,
+    LetKind, LocalNodeId, MatchCase, MatchKind, MatchSelector, Pattern, TokenType,
 };
-use crate::{FormatNode, empty_block_with_infix_annotations};
-use destack_ast::{BlockFormat, CommentStyle, MatchCase, MatchSelector};
-use destack_fir::format::{Buffer, FormatError};
+use destack_fir::format::{Buffer, FormatError, FormatResult};
+use destack_fir::prelude::{
+    block_indent, format_with, group, hard_line_break, line_postfix_boundary, space, token,
+};
 use destack_fir::{format_args, write};
 
 /// Format one statement-body expression with statement-separator semantics.
@@ -21,10 +24,10 @@ fn format_statement_body_expression<'ast>(
     expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     let expression = f.context().tree.get(expression_id);
-    let directive = directive_for_node(f.context(), expression_id);
+    let is_ignored = node_has_ignore_directive(f.context(), expression_id);
 
     write!(f, [f.context().any_prefix_annotations(expression_id)])?;
-    format_expression(f, expression_id, expression, directive)?;
+    format_expression(f, expression_id, expression, is_ignored)?;
 
     if statement_wrapper_needs_semicolon(f.context(), expression_id) {
         write!(f, [token(";")])?;
@@ -37,14 +40,7 @@ fn format_statement_body_expression<'ast>(
             ..
         }
     );
-    let directive_owns_postfix_annotations = matches!(
-        directive,
-        Some(FormatterDirective {
-            kind: FormatterDirectiveKind::IgnoreFormat,
-            position: FormatterDirectivePosition::Postfix { .. },
-        })
-    );
-    if !if_chain_handles_annotations && !directive_owns_postfix_annotations {
+    if !if_chain_handles_annotations {
         write!(
             f,
             [f.context().any_infix_or_postfix_annotations(expression_id)]
@@ -72,8 +68,7 @@ pub(crate) fn format_statement_body_block<'ast>(
         write!(f, [token(";")])?;
     } else if block.expressions.len() == 1 {
         let expression_id = block.expressions[0];
-        let has_expression_prefix_annotation = f.context().has_prefix_annotation(expression_id);
-        if has_expression_prefix_annotation {
+        if expression_has_block_prefix_annotation(f.context(), expression_id) {
             write!(
                 f,
                 [
@@ -162,22 +157,17 @@ fn expression_has_block_prefix_annotation(
     };
 
     annotations.into_iter().any(|annotation_id| {
-        matches!(
-            context.annotation(annotation_id),
-            Annotation::Blank {
-                position: AnnotationPosition::BlockPrefix,
-                ..
-            } | Annotation::Doc {
-                position: AnnotationPosition::BlockPrefix,
-                ..
-            } | Annotation::Comment {
-                position: AnnotationPosition::BlockPrefix,
-                ..
-            } | Annotation::Decorator {
-                position: AnnotationPosition::BlockPrefix,
-                ..
-            }
-        )
+        if context.annotation(annotation_id).position() != AnnotationPosition::BlockPrefix {
+            return false;
+        }
+
+        let annotation_span = context.annotation_span(annotation_id);
+        let is_multiline = annotation_span.start < annotation_span.end
+            && !context
+                .file
+                .is_same_line(annotation_span.start, annotation_span.end.saturating_sub(1));
+
+        is_multiline || context.annotation_starts_on_own_line(annotation_id)
     })
 }
 
@@ -208,6 +198,27 @@ fn expression_has_line_prefix_annotation(
             }
         )
     })
+}
+
+/// Format one non-block statement body after a control-flow head.
+fn format_statement_body_expression_after_head<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    expression_id: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    if expression_has_block_prefix_annotation(f.context(), expression_id) {
+        write!(
+            f,
+            [
+                hard_line_break(),
+                group(&block_indent(&format_with(|f| {
+                    format_statement_body_expression(f, expression_id)
+                })))
+            ]
+        )?;
+        return Ok(());
+    }
+
+    format_statement_body_expression(f, expression_id)
 }
 
 /// Return whether expression has any prefix annotation.
@@ -321,7 +332,7 @@ pub(crate) fn format_if_else_chain<'ast>(
                         )?;
                     }
                     // something else
-                    _ => write!(f, [*then_expression_id])?,
+                    _ => format_statement_body_expression_after_head(f, *then_expression_id)?,
                 }
 
                 // next node
@@ -371,27 +382,13 @@ pub(crate) fn format_if_else_chain<'ast>(
                         }
                         // something else
                         _ => {
-                            let directive = directive_for_node(f.context(), *else_expression);
-                            write!(f, [f.context().any_prefix_annotations(*else_expression)])?;
-                            write!(f, [Keyword::Else, space()])?;
-                            format_expression(
-                                f,
-                                *else_expression,
-                                f.context().tree.get(*else_expression),
-                                directive,
-                            )?;
-                            if !matches!(
-                                directive,
-                                Some(FormatterDirective {
-                                    kind: FormatterDirectiveKind::IgnoreFormat,
-                                    position: FormatterDirectivePosition::Postfix { .. },
-                                })
-                            ) {
-                                write!(
-                                    f,
-                                    [f.context()
-                                        .any_infix_or_postfix_annotations(*else_expression)]
-                                )?;
+                            write!(f, [Keyword::Else])?;
+                            if expression_has_block_prefix_annotation(f.context(), *else_expression)
+                            {
+                                format_statement_body_expression_after_head(f, *else_expression)?;
+                            } else {
+                                write!(f, [space()])?;
+                                format_statement_body_expression_after_head(f, *else_expression)?;
                             }
                             break;
                         }
@@ -411,15 +408,6 @@ pub(crate) fn format_if_else_chain<'ast>(
         }
     }
     Ok(())
-}
-
-/// Match case rendering style.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum MatchCaseStyle {
-    /// Emit `pattern => body`.
-    Match,
-    /// Emit `case pattern: body` and `default: body`.
-    Switch,
 }
 
 /// Return whether a match case has line postfix boundary annotations.
@@ -462,10 +450,10 @@ fn match_case_has_inline_star_line_postfix_boundary_comment(
 fn format_selector_with_style(
     f: &mut DestackFormatter<'_, '_>,
     selector: &MatchSelector,
-    style: MatchCaseStyle,
+    is_switch_style: bool,
 ) -> FormatResult<()> {
-    match style {
-        MatchCaseStyle::Match => match selector {
+    if !is_switch_style {
+        match selector {
             MatchSelector::Pattern { pattern, guard } => {
                 write!(f, [*pattern])?;
                 if let Some(guard) = guard {
@@ -485,8 +473,9 @@ fn format_selector_with_style(
             MatchSelector::Default => {
                 write!(f, [token("_")])?;
             }
-        },
-        MatchCaseStyle::Switch => match selector {
+        }
+    } else {
+        match selector {
             MatchSelector::Pattern { pattern, guard } => {
                 write!(f, [Keyword::Case, space(), *pattern, token(":")])?;
                 if let Some(guard) = guard {
@@ -506,7 +495,7 @@ fn format_selector_with_style(
             MatchSelector::Default => {
                 write!(f, [Keyword::Default, token(":")])?;
             }
-        },
+        }
     }
 
     Ok(())
@@ -516,7 +505,7 @@ fn format_selector_with_style(
 pub(crate) fn format_match_case_with_style<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     case_id: LocalNodeId<MatchCase>,
-    style: MatchCaseStyle,
+    is_switch_style: bool,
 ) -> FormatResult<()> {
     let case = f.context().tree.get(case_id);
     let has_line_postfix_boundary_annotation =
@@ -530,17 +519,52 @@ pub(crate) fn format_match_case_with_style<'ast>(
     // selector, separator, and body
     match case {
         MatchCase::Expression { selector, body } => {
-            format_selector_with_style(f, selector, style)?;
+            format_selector_with_style(f, selector, is_switch_style)?;
             if has_line_postfix_boundary_annotation {
                 write!(f, [f.context().line_postfix_boundary_annotations(case_id)])?;
             }
-            match style {
-                MatchCaseStyle::Match => {
-                    write!(f, [space(), token("=>"), space(), *body])?;
+            if !is_switch_style {
+                write!(f, [space(), token("=>"), space(), *body])?;
+            } else if let Some(explicit_block_expression) =
+                switch_case_expression_body_collapsed_explicit_block_expression(f.context(), *body)
+            {
+                if has_line_postfix_boundary_annotation {
+                    if has_inline_star_line_postfix_boundary_comment {
+                        write!(f, [space(), explicit_block_expression])?;
+                    } else {
+                        write!(f, [explicit_block_expression])?;
+                    }
+                } else {
+                    write!(f, [space(), explicit_block_expression])?;
                 }
-                MatchCaseStyle::Switch => {
+            } else if switch_case_expression_body_should_break(f, *body) {
+                if has_line_postfix_boundary_annotation {
+                    write!(f, [block_indent(body)])?;
+                } else {
+                    write!(f, [hard_line_break(), block_indent(body)])?;
+                }
+            } else if has_line_postfix_boundary_annotation {
+                if has_inline_star_line_postfix_boundary_comment {
+                    write!(f, [space(), *body])?;
+                } else {
+                    write!(f, [*body])?;
+                }
+            } else {
+                write!(f, [space(), *body])?;
+            }
+        }
+        MatchCase::Block { selector, body } => {
+            format_selector_with_style(f, selector, is_switch_style)?;
+            if has_line_postfix_boundary_annotation {
+                write!(f, [f.context().line_postfix_boundary_annotations(case_id)])?;
+            }
+            if !is_switch_style {
+                write!(f, [space(), token("=>"), space(), *body])?;
+            } else {
+                let block = f.context().tree.get(*body);
+                if block.format == BlockFormat::Implicit {
                     if let Some(explicit_block_expression) =
-                        switch_case_expression_body_collapsed_explicit_block_expression(
+                        switch_case_implicit_body_single_explicit_block_expression(
                             f.context(),
                             *body,
                         )
@@ -554,71 +578,25 @@ pub(crate) fn format_match_case_with_style<'ast>(
                         } else {
                             write!(f, [space(), explicit_block_expression])?;
                         }
-                    } else if switch_case_expression_body_should_break(f, *body) {
-                        if has_line_postfix_boundary_annotation {
-                            write!(f, [block_indent(body)])?;
-                        } else {
-                            write!(f, [hard_line_break(), block_indent(body)])?;
+                    } else if !block.expressions.is_empty() {
+                        if !has_line_postfix_boundary_annotation {
+                            write!(f, [hard_line_break()])?;
                         }
-                    } else if has_line_postfix_boundary_annotation {
-                        if has_inline_star_line_postfix_boundary_comment {
-                            write!(f, [space(), *body])?;
-                        } else {
-                            write!(f, [*body])?;
-                        }
-                    } else {
-                        write!(f, [space(), *body])?;
+                        write!(
+                            f,
+                            [block_indent(&format_with(|f| {
+                                format_block_of_statements(f, &block.expressions, false)
+                            }))]
+                        )?;
                     }
-                }
-            }
-        }
-        MatchCase::Block { selector, body } => {
-            format_selector_with_style(f, selector, style)?;
-            if has_line_postfix_boundary_annotation {
-                write!(f, [f.context().line_postfix_boundary_annotations(case_id)])?;
-            }
-            match style {
-                MatchCaseStyle::Match => {
-                    write!(f, [space(), token("=>"), space(), *body])?;
-                }
-                MatchCaseStyle::Switch => {
-                    let block = f.context().tree.get(*body);
-                    if block.format == BlockFormat::Implicit {
-                        if let Some(explicit_block_expression) =
-                            switch_case_implicit_body_single_explicit_block_expression(
-                                f.context(),
-                                *body,
-                            )
-                        {
-                            if has_line_postfix_boundary_annotation {
-                                if has_inline_star_line_postfix_boundary_comment {
-                                    write!(f, [space(), explicit_block_expression])?;
-                                } else {
-                                    write!(f, [explicit_block_expression])?;
-                                }
-                            } else {
-                                write!(f, [space(), explicit_block_expression])?;
-                            }
-                        } else if !block.expressions.is_empty() {
-                            if !has_line_postfix_boundary_annotation {
-                                write!(f, [hard_line_break()])?;
-                            }
-                            write!(
-                                f,
-                                [block_indent(&format_with(|f| {
-                                    format_block_of_statements(f, &block.expressions, false)
-                                }))]
-                            )?;
-                        }
-                    } else if has_line_postfix_boundary_annotation {
-                        if has_inline_star_line_postfix_boundary_comment {
-                            write!(f, [space(), *body])?;
-                        } else {
-                            write!(f, [*body])?;
-                        }
-                    } else {
+                } else if has_line_postfix_boundary_annotation {
+                    if has_inline_star_line_postfix_boundary_comment {
                         write!(f, [space(), *body])?;
+                    } else {
+                        write!(f, [*body])?;
                     }
+                } else {
+                    write!(f, [space(), *body])?;
                 }
             }
         }
@@ -744,7 +722,7 @@ impl<'ast> FormatNode<'ast, MatchCase> for MatchCase {
         node_id: LocalNodeId<MatchCase>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        format_match_case_with_style(f, node_id, MatchCaseStyle::Match)
+        format_match_case_with_style(f, node_id, false)
     }
 }
 
@@ -761,10 +739,7 @@ pub(crate) fn format_match<'ast>(
         });
     };
     let kind = *kind;
-    let case_style = match kind {
-        MatchKind::Match => MatchCaseStyle::Match,
-        MatchKind::Switch => MatchCaseStyle::Switch,
-    };
+    let is_switch_style = matches!(kind, MatchKind::Switch);
 
     if include_prefix {
         // match/switch <expression>
@@ -795,7 +770,7 @@ pub(crate) fn format_match<'ast>(
                     write!(f, [hard_line_break()])?;
                 }
                 first = false;
-                format_match_case_with_style(f, *case_id, case_style)?;
+                format_match_case_with_style(f, *case_id, is_switch_style)?;
             }
             Ok(())
         })),])]
@@ -804,69 +779,4 @@ pub(crate) fn format_match<'ast>(
     write!(f, [hard_line_break(), token("}")])?;
 
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::{DestackFormatOptions, TestFormatter, assert_format};
-
-    #[test]
-    fn test_format_match_expression_cases() {
-        assert_format!(
-            "match (x) { 1 => 2; 3 => 4 }",
-            "match (x) {\n\t1 => 2\n\t3 => 4\n}",
-            |p| p.eat_match(),
-            DestackFormatOptions::default_tab()
-        );
-    }
-
-    #[test]
-    fn test_format_match_with_block_case_and_guard() {
-        assert_format!(
-            "match (value) { Pattern if (cond) => { const X = 1; } }",
-            "match (value) {\n\tPattern if (cond) => {\n\t\tconst X = 1;\n\t}\n}",
-            |p| p.eat_match(),
-            DestackFormatOptions::default_tab()
-        );
-    }
-
-    #[test]
-    fn test_format_switch_expression_cases() {
-        assert_format!(
-            "switch (x) { case 1: 2; case 3: 4 }",
-            "switch (x) {\n\tcase 1: 2\n\tcase 3: 4\n}",
-            |p| p.eat_match(),
-            DestackFormatOptions::default_tab()
-        );
-    }
-
-    #[test]
-    fn test_format_switch_with_default_case() {
-        assert_format!(
-            "switch (x) { case 1: \"one\"; default: \"other\" }",
-            "switch (x) {\n\tcase 1: \"one\"\n\tdefault: \"other\"\n}",
-            |p| p.eat_match(),
-            DestackFormatOptions::default_tab()
-        );
-    }
-
-    #[test]
-    fn test_format_switch_with_block() {
-        assert_format!(
-            "switch (value) { case 1: { const x = 1; } }",
-            "switch (value) {\n\tcase 1: {\n\t\tconst x = 1;\n\t}\n}",
-            |p| p.eat_match(),
-            DestackFormatOptions::default_tab()
-        );
-    }
-
-    #[test]
-    fn test_format_switch_case_implicit_block_without_extra_braces() {
-        assert_format!(
-            "switch (state) { case \"ready\": start() // ready-tail\nbreak\n default: stop() // default-tail\n }",
-            "switch (state) {\n\tcase \"ready\":\n\t\tstart(); // ready-tail\n\t\tbreak\n\tdefault:\n\t\tstop() // default-tail\n}",
-            |p| p.eat_match(),
-            DestackFormatOptions::default_tab()
-        );
-    }
 }

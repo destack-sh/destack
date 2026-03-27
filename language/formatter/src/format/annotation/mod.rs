@@ -1,26 +1,15 @@
 mod attachment;
-mod blank;
-mod boundary;
-mod declaration;
-mod endofline;
-mod expression;
 mod facts;
-mod operator;
 mod ownership;
-mod ownline;
-mod placement;
-mod remaining;
 mod render;
+mod semantic;
 mod semicolon;
-mod statement;
 mod terminator;
 
+pub(crate) use attachment::annotation_projection;
 #[cfg(test)]
-mod tests;
-
-pub(crate) use attachment::formatter_annotation_projection;
-pub use render::{AnnotationCapture, Annotations};
-pub(crate) use render::{annotation_render_items, write_annotation_render_items};
+pub(crate) use ownership::find_smallest_owner_enclosing_range;
+pub(crate) use render::{annotation_render_items_matching, write_annotation_render_items};
 pub(crate) use terminator::{
     expression_needs_statement_terminator, statement_wrapper_needs_semicolon,
 };

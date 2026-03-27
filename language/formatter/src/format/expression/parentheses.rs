@@ -1,76 +1,15 @@
-use crate::format::analysis::timing;
-use crate::format::chain::flatten_type_binary_expression;
-use crate::format::expression::{
-    Annotation, AnnotationPosition, Argument, BinaryOperator, Declaration, DestackFormatContext,
-    Expression, FunctionKind, IfKind, LocalNodeId, NodeTree, NodeType, PostfixPosition, TokenType,
-    TypeBinaryOperator, needs_parens_in_postfix_position, tree_literal_should_expand,
+use crate::format::operator::{
+    flatten_type_binary_expression, is_simple_type_binary_left_expression, is_type_context,
+    needs_parens_in_postfix_position,
 };
-use crate::format::operator::{is_simple_type_binary_left_expression, is_type_context};
-use destack_ast::{Comment, CommentStyle};
+use crate::format::tree::tree_literal_should_expand;
+use crate::{Annotation, DestackFormatContext};
+use destack_ast::{
+    AnnotationPosition, Argument, BinaryOperator, Comment, CommentStyle, Declaration, Expression,
+    FunctionKind, IfKind, LocalNodeId, NodeTree, NodeType, PostfixPosition, TokenType,
+    TypeBinaryOperator,
+};
 use destack_source::Span;
-
-/// Parenthesized unwrap mode for expression contexts.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) enum ParenthesizedUnwrapMode {
-    /// Unwrap when the value is used as a member object.
-    MemberObject,
-    /// Unwrap when the value is a `new` callee wrapper.
-    NewMemberCallee,
-}
-
-/// Parenthesized drop mode for type contexts.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) enum ParenthesizedDropMode {
-    /// Drop wrappers in generic expression contexts.
-    ExpressionWrapper,
-    /// Drop wrappers around type-binary left operands.
-    TypeBinaryLeft { node_id: LocalNodeId<Expression> },
-}
-
-/// Decide whether a parenthesized expression should unwrap for a mode.
-pub(crate) fn should_unwrap_parenthesized(
-    context: &DestackFormatContext<'_>,
-    parenthesized_id: LocalNodeId<Expression>,
-    inner_expression_id: LocalNodeId<Expression>,
-    mode: ParenthesizedUnwrapMode,
-) -> bool {
-    match mode {
-        ParenthesizedUnwrapMode::MemberObject => should_unwrap_parenthesized_member_object(
-            context,
-            parenthesized_id,
-            inner_expression_id,
-        ),
-        ParenthesizedUnwrapMode::NewMemberCallee => should_unwrap_parenthesized_new_member_callee(
-            context,
-            parenthesized_id,
-            inner_expression_id,
-        ),
-    }
-}
-
-/// Decide whether a parenthesized expression should drop wrappers for a mode.
-pub(crate) fn should_drop_parenthesized(
-    context: &DestackFormatContext<'_>,
-    parenthesized_id: LocalNodeId<Expression>,
-    inner_expression_id: LocalNodeId<Expression>,
-    mode: ParenthesizedDropMode,
-) -> bool {
-    match mode {
-        ParenthesizedDropMode::ExpressionWrapper => should_drop_parenthesized_expression_wrapper(
-            context,
-            parenthesized_id,
-            inner_expression_id,
-        ),
-        ParenthesizedDropMode::TypeBinaryLeft { node_id } => {
-            should_drop_type_binary_left_parentheses(
-                context,
-                node_id,
-                parenthesized_id,
-                inner_expression_id,
-            )
-        }
-    }
-}
 
 /// Collect postfix star comments from an inner expression that should render after `)`.
 pub(crate) fn parenthesized_boundary_comments(
@@ -78,8 +17,6 @@ pub(crate) fn parenthesized_boundary_comments(
     parenthesized_id: LocalNodeId<Expression>,
     inner_expression_id: LocalNodeId<Expression>,
 ) -> Vec<LocalNodeId<Comment>> {
-    let _timing =
-        context.timing_scope(timing::FORMAT_EXPRESSION_PRIMARY_PARENTHESES_BOUNDARY_COMMENTS);
     if matches!(
         context.tree.get(inner_expression_id),
         Expression::TreeExpression { .. }
@@ -151,7 +88,7 @@ fn boundary_comment_is_owned_by_annotation(
     comment_id: LocalNodeId<Comment>,
 ) -> bool {
     context
-        .formatter_annotation_entries
+        .annotation_entries
         .iter()
         .any(|entry| matches!(entry.annotation, Annotation::Comment { node, .. } if node.id == comment_id.id))
 }
@@ -245,8 +182,6 @@ fn parenthesized_has_leading_inner_pattern(
     inner_expression_id: LocalNodeId<Expression>,
     include_newline: bool,
 ) -> bool {
-    let _timing =
-        context.timing_scope(timing::FORMAT_EXPRESSION_PRIMARY_PARENTHESES_LEADING_TRIVIA);
     if !parenthesized_has_explicit_delimiters(context, parenthesized_id, inner_expression_id) {
         return false;
     }
@@ -811,206 +746,6 @@ fn expression_has_only_type_grouping_prefix_annotations(
     })
 }
 
-/// Store signals for parenthesized type-wrapper drop mode.
-#[derive(Debug, Clone, Copy)]
-struct ParenthesizedTypeDrop {
-    /// Whether wrapper annotations include non-grouping cases.
-    has_non_grouping_wrapper_annotation: bool,
-    /// Whether inner annotations include non-grouping cases.
-    has_non_grouping_inner_annotation: bool,
-    /// Whether wrapper is one decorated class extends head.
-    wraps_decorated_class_extends_head: bool,
-    /// Whether wrapper runs in a type context.
-    is_type_context: bool,
-    /// Whether wrapper can drop as array element type wrapper.
-    can_drop_array_element_wrapper: bool,
-    /// Whether wrapper can drop as associative type binary wrapper.
-    can_drop_associative_binary_wrapper: bool,
-    /// Whether wrapper can drop as a conditional type arm inside `|` or `&`.
-    can_drop_conditional_type_grouping_wrapper: bool,
-    /// Whether wrapper is the sole operand in a type-grouping chain.
-    can_drop_single_operand_type_grouping_wrapper: bool,
-    /// Whether wrapper drop is safe in parent context.
-    is_safe_in_parent_context: bool,
-    /// Whether wrapper parent is an expression node.
-    parent_is_expression: bool,
-    /// Whether wrapper is the declared return type of one function signature.
-    parent_is_function_return_type: bool,
-    /// Whether wrapper is one conditional type arm (`extends` left or right).
-    parent_is_type_conditional_arm: bool,
-    /// Whether inner expression is one lambda declaration type.
-    inner_is_lambda_declaration: bool,
-    /// Whether inner expression is one conditional type.
-    inner_is_type_conditional: bool,
-    /// Whether inner expression is one simple type-binary left chain.
-    inner_is_simple_type_binary_left: bool,
-}
-
-/// Collect parenthesized type-wrapper drop signals.
-fn parenthesized_type_drop(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-    inner_id: LocalNodeId<Expression>,
-) -> ParenthesizedTypeDrop {
-    // annotation signals
-    let has_non_grouping_wrapper_annotation = context.has_annotation(node_id)
-        && !expression_has_only_type_grouping_prefix_annotations(context, node_id);
-    let has_non_grouping_inner_annotation = context.has_annotation(inner_id)
-        && !expression_has_only_type_grouping_prefix_annotations(context, inner_id);
-
-    // context signals
-    let wraps_decorated_class_extends_head =
-        parenthesized_wraps_decorated_class_extends_head(context, node_id, inner_id);
-    let is_type_context = is_type_context(context, node_id);
-    // early-drop signals
-    let can_drop_array_element_wrapper =
-        context
-            .parent(node_id)
-            .is_some_and(|(parent_id, parent_type)| {
-                if parent_type != NodeType::Expression {
-                    return false;
-                }
-
-                let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
-                if let Expression::Index { left, index, .. } =
-                    context.tree.get(parent_expression_id)
-                {
-                    *left == node_id
-                        && index.is_none()
-                        && !has_non_grouping_wrapper_annotation
-                        && !context.has_annotation(inner_id)
-                        && is_simple_type_binary_left_expression(context.tree, inner_id)
-                } else {
-                    false
-                }
-            });
-    let can_drop_associative_binary_wrapper =
-        parenthesized_associative_type_binary_can_drop(context, node_id, inner_id);
-    let can_drop_conditional_type_grouping_wrapper =
-        parenthesized_conditional_type_grouping_can_drop(context, node_id, inner_id);
-    let can_drop_single_operand_type_grouping_wrapper =
-        parenthesized_single_operand_type_grouping_can_drop(context, node_id);
-    // grouping signals
-    let is_safe_in_parent_context =
-        parenthesized_type_grouping_drop_is_safe_in_parent(context, node_id, inner_id);
-    let parent = context.parent(node_id);
-    let parent_is_expression =
-        parent.is_some_and(|(_, parent_type)| parent_type == NodeType::Expression);
-    let parent_is_function_return_type = parent.is_some_and(|(parent_id, parent_type)| {
-        if parent_type != NodeType::Declaration {
-            return false;
-        }
-
-        let declaration_id = LocalNodeId::<Declaration>::new(parent_id);
-        matches!(
-            context.tree.get(declaration_id),
-            Declaration::Function { signature, .. } if signature.return_type == Some(node_id)
-        )
-    });
-    let parent_is_type_conditional_arm = parent.is_some_and(|(parent_id, parent_type)| {
-        if parent_type != NodeType::Expression {
-            return false;
-        }
-
-        let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
-        matches!(
-            context.tree.get(parent_expression_id),
-            Expression::TypeConditional { left, right, .. }
-                if *left == node_id || *right == node_id
-        )
-    });
-
-    // base shape signals
-    let inner_is_lambda_declaration = matches!(
-        context.tree.get(inner_id),
-        Expression::Declaration(declaration_id)
-            if matches!(
-                context.tree.get(*declaration_id),
-                Declaration::Function { signature, .. } if signature.kind == FunctionKind::Lambda
-            )
-    );
-    let inner_is_type_conditional = matches!(
-        context.tree.get(inner_id),
-        Expression::TypeConditional { .. }
-    );
-    let inner_is_simple_type_binary_left =
-        is_simple_type_binary_left_expression(context.tree, inner_id);
-
-    ParenthesizedTypeDrop {
-        has_non_grouping_wrapper_annotation,
-        has_non_grouping_inner_annotation,
-        wraps_decorated_class_extends_head,
-        is_type_context,
-        can_drop_array_element_wrapper,
-        can_drop_associative_binary_wrapper,
-        can_drop_conditional_type_grouping_wrapper,
-        can_drop_single_operand_type_grouping_wrapper,
-        is_safe_in_parent_context,
-        parent_is_expression,
-        parent_is_function_return_type,
-        parent_is_type_conditional_arm,
-        inner_is_lambda_declaration,
-        inner_is_type_conditional,
-        inner_is_simple_type_binary_left,
-    }
-}
-
-/// Decide type-wrapper drop rules from collected signals.
-fn should_drop_parenthesized_type(signals: ParenthesizedTypeDrop) -> bool {
-    // wrapper annotations are semantic boundaries and should keep grouping
-    if signals.has_non_grouping_wrapper_annotation {
-        return false;
-    }
-
-    // decorated class extends heads must preserve explicit grouping
-    if signals.wraps_decorated_class_extends_head {
-        return false;
-    }
-
-    if !signals.is_type_context {
-        return false;
-    }
-
-    // drop redundant simple wrappers in array element position: `(number)[]` -> `number[]`
-    if signals.can_drop_array_element_wrapper {
-        return true;
-    }
-
-    if signals.can_drop_associative_binary_wrapper {
-        return true;
-    }
-
-    if signals.can_drop_conditional_type_grouping_wrapper {
-        return true;
-    }
-
-    if signals.can_drop_single_operand_type_grouping_wrapper {
-        return true;
-    }
-
-    // inner annotations are semantic boundaries outside explicit type-grouping drop paths
-    if signals.has_non_grouping_inner_annotation {
-        return false;
-    }
-
-    if !signals.is_safe_in_parent_context {
-        return false;
-    }
-
-    if !signals.parent_is_expression && signals.inner_is_type_conditional {
-        return true;
-    }
-
-    if signals.inner_is_lambda_declaration
-        && !signals.parent_is_function_return_type
-        && !signals.parent_is_type_conditional_arm
-    {
-        return true;
-    }
-
-    signals.inner_is_simple_type_binary_left
-}
-
 /// Return whether a wrapper is the only operand in a type `|` or `&` grouping chain.
 fn parenthesized_single_operand_type_grouping_can_drop(
     context: &DestackFormatContext<'_>,
@@ -1083,9 +818,119 @@ pub(crate) fn should_drop_parenthesized_type_expression(
     node_id: LocalNodeId<Expression>,
     inner_id: LocalNodeId<Expression>,
 ) -> bool {
-    let _timing = context.timing_scope(timing::FORMAT_EXPRESSION_PRIMARY_PARENTHESES_TYPE_DROP);
-    let signals = parenthesized_type_drop(context, node_id, inner_id);
-    should_drop_parenthesized_type(signals)
+    // annotation signals
+    let has_non_grouping_wrapper_annotation = context.has_annotation(node_id)
+        && !expression_has_only_type_grouping_prefix_annotations(context, node_id);
+    if has_non_grouping_wrapper_annotation {
+        return false;
+    }
+
+    let has_non_grouping_inner_annotation = context.has_annotation(inner_id)
+        && !expression_has_only_type_grouping_prefix_annotations(context, inner_id);
+
+    // wrapper context
+    if parenthesized_wraps_decorated_class_extends_head(context, node_id, inner_id) {
+        return false;
+    }
+
+    if !is_type_context(context, node_id) {
+        return false;
+    }
+
+    // early drop cases
+    let can_drop_array_element_wrapper =
+        context
+            .parent(node_id)
+            .is_some_and(|(parent_id, parent_type)| {
+                if parent_type != NodeType::Expression {
+                    return false;
+                }
+
+                let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
+                if let Expression::Index { left, index, .. } =
+                    context.tree.get(parent_expression_id)
+                {
+                    *left == node_id
+                        && index.is_none()
+                        && !context.has_annotation(inner_id)
+                        && is_simple_type_binary_left_expression(context.tree, inner_id)
+                } else {
+                    false
+                }
+            });
+    if can_drop_array_element_wrapper
+        || parenthesized_associative_type_binary_can_drop(context, node_id, inner_id)
+        || parenthesized_conditional_type_grouping_can_drop(context, node_id, inner_id)
+        || parenthesized_single_operand_type_grouping_can_drop(context, node_id)
+    {
+        return true;
+    }
+
+    // semantic boundaries
+    if has_non_grouping_inner_annotation {
+        return false;
+    }
+
+    if !parenthesized_type_grouping_drop_is_safe_in_parent(context, node_id, inner_id) {
+        return false;
+    }
+
+    // parent context
+    let parent = context.parent(node_id);
+    let parent_is_expression =
+        parent.is_some_and(|(_, parent_type)| parent_type == NodeType::Expression);
+    let parent_is_function_return_type = parent.is_some_and(|(parent_id, parent_type)| {
+        if parent_type != NodeType::Declaration {
+            return false;
+        }
+
+        let declaration_id = LocalNodeId::<Declaration>::new(parent_id);
+        matches!(
+            context.tree.get(declaration_id),
+            Declaration::Function { signature, .. } if signature.return_type == Some(node_id)
+        )
+    });
+    let parent_is_type_conditional_arm = parent.is_some_and(|(parent_id, parent_type)| {
+        if parent_type != NodeType::Expression {
+            return false;
+        }
+
+        let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
+        matches!(
+            context.tree.get(parent_expression_id),
+            Expression::TypeConditional { left, right, .. }
+                if *left == node_id || *right == node_id
+        )
+    });
+
+    // inner shape
+    let inner_is_lambda_declaration = matches!(
+        context.tree.get(inner_id),
+        Expression::Declaration(declaration_id)
+            if matches!(
+                context.tree.get(*declaration_id),
+                Declaration::Function { signature, .. } if signature.kind == FunctionKind::Lambda
+            )
+    );
+    let inner_is_type_conditional = matches!(
+        context.tree.get(inner_id),
+        Expression::TypeConditional { .. }
+    );
+    let inner_is_simple_type_binary_left =
+        is_simple_type_binary_left_expression(context.tree, inner_id);
+
+    if !parent_is_expression && inner_is_type_conditional {
+        return true;
+    }
+
+    if inner_is_lambda_declaration
+        && !parent_is_function_return_type
+        && !parent_is_type_conditional_arm
+    {
+        return true;
+    }
+
+    inner_is_simple_type_binary_left
 }
 
 /// Return whether dropping a parenthesized type grouping is safe in the parent expression context.
@@ -1418,6 +1263,21 @@ fn should_drop_parenthesized_expression_parent(
     inner_expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let inner_expression = context.tree.get(inner_expression_id);
+
+    // keep unary wrappers on the left of relational binaries:
+    // `(!foo) in bar` and `(!foo) instanceof Bar` should stay explicit
+    if matches!(
+        parent_expression,
+        Expression::Binary {
+            left,
+            operator: BinaryOperator::In | BinaryOperator::InstanceOf,
+            ..
+        } if *left == node_id
+    ) && matches!(inner_expression, Expression::Unary { .. })
+    {
+        return false;
+    }
+
     let should_drop_statement_type_binary_wrapper = matches!(
         parent_expression,
         Expression::Statement(inner_id) if inner_id.id == node_id.id
@@ -1532,8 +1392,6 @@ pub(crate) fn should_drop_parenthesized_expression_wrapper(
     ) {
         return false;
     }
-
-    let _timing = context.timing_scope(timing::FORMAT_EXPRESSION_PRIMARY_PARENTHESES_DROP_MODE);
     should_drop_parenthesized_expression_parent(
         context,
         parent_expression,

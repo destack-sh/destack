@@ -1,17 +1,24 @@
-use crate::format::collection::{collection_nodes_have_annotations, collection_nodes_have_newline};
-use crate::format::directive::any_ignore_range_for_nodes;
-use crate::format::expression::{
-    Argument, DestackFormatContext, DestackFormatter, Expression, FormatResult, LocalNodeId,
-    NodeType, Pattern, PatternField, Property, SmallVec, Span, TrailingComma, block_indent,
-    format_block_of_properties, format_with, group, hard_line_break, if_group_breaks,
-    is_tree_attribute_expression, list_like, property_has_complex_type_value,
-    property_has_complex_value, soft_block_indent, soft_line_break_or_space, space, token,
+use crate::format::analysis::is_tree_attribute_expression;
+use crate::format::collection::property::format_block_of_properties;
+use crate::format::collection::{
+    collection_nodes_have_annotations, collection_nodes_have_newline, list_like,
 };
+use crate::format::directive::any_ignore_range_for_nodes;
 use crate::format::operator::{
     is_parameter_type_annotation, is_static_type_argument_context, is_type_context,
 };
-use destack_fir::format::Buffer;
+use crate::format::tree::{property_has_complex_type_value, property_has_complex_value};
+use crate::{DestackFormatContext, DestackFormatter};
+use destack_ast::{Argument, Expression, LocalNodeId, NodeType, Pattern, PatternField, Property};
+use destack_fir::format::{Buffer, FormatResult};
+use destack_fir::prelude::{
+    block_indent, format_with, group, hard_line_break, if_group_breaks, soft_block_indent,
+    soft_line_break_or_space, space, token,
+};
 use destack_fir::{format_args, write};
+use destack_source::Span;
+use destack_workspace::TrailingComma;
+use smallvec::SmallVec;
 
 // object literal shape thresholds
 const SINGLE_PROPERTY_COUNT: usize = 1;

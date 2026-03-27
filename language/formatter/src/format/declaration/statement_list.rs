@@ -1,11 +1,12 @@
 use std::borrow::Cow;
 
 use crate::Annotation;
-use crate::format::analysis::timing;
-use crate::format::annotation::expression_needs_statement_terminator;
+use crate::format::annotation::{
+    annotation_render_items_matching, expression_needs_statement_terminator,
+    write_annotation_render_items,
+};
 use crate::format::directive::{
-    FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
-    ignore_ranges_for_nodes, write_ignored_span,
+    ignore_ranges_for_nodes, node_has_ignore_directive, write_ignored_span,
 };
 use crate::format::expression::format_expression;
 use destack_ast::{
@@ -108,12 +109,12 @@ fn write_expression_postfix_annotations<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
     expression: &Expression,
-    directive: Option<FormatterDirective>,
+    is_ignored: bool,
     use_statement_inner_annotations: bool,
 ) -> FormatResult<()> {
     if use_statement_inner_annotations && let Expression::Statement(statement_id) = expression {
         let statement_expression = f.context().tree.get(*statement_id);
-        let statement_directive = directive_for_node(f.context(), *statement_id);
+        let statement_is_ignored = node_has_ignore_directive(f.context(), *statement_id);
         let if_chain_handles_annotations = matches!(
             statement_expression,
             Expression::If {
@@ -121,15 +122,7 @@ fn write_expression_postfix_annotations<'ast>(
                 ..
             }
         );
-        if if_chain_handles_annotations
-            || matches!(
-                statement_directive,
-                Some(FormatterDirective {
-                    kind: FormatterDirectiveKind::IgnoreFormat,
-                    position: FormatterDirectivePosition::Postfix { .. },
-                })
-            )
-        {
+        if if_chain_handles_annotations || statement_is_ignored {
             return Ok(());
         }
 
@@ -146,15 +139,7 @@ fn write_expression_postfix_annotations<'ast>(
             ..
         }
     );
-    if if_chain_handles_annotations
-        || matches!(
-            directive,
-            Some(FormatterDirective {
-                kind: FormatterDirectiveKind::IgnoreFormat,
-                position: FormatterDirectivePosition::Postfix { .. },
-            })
-        )
-    {
+    if if_chain_handles_annotations || is_ignored {
         return Ok(());
     }
 
@@ -295,7 +280,6 @@ pub(crate) fn format_block_of_statements<'ast>(
     expressions: &[LocalNodeId<Expression>],
     allow_value_tail: bool,
 ) -> FormatResult<()> {
-    let _timing = f.context().timing_scope(timing::FORMAT_BLOCK_STATEMENTS);
     let organize = f.context().options.organize_imports.is_enabled();
     let tree = f.context().tree;
     let strings = f.context().strings;
@@ -340,7 +324,7 @@ pub(crate) fn format_block_of_statements<'ast>(
         let is_import_expr = imports::is_import(expression_id, tree);
         let ignore_range = ignore_ranges.get(&expression_id.id).copied();
         let has_ignore_range = ignore_range.is_some();
-        let directive = directive_for_node(f.context(), expression_id);
+        let is_ignored = node_has_ignore_directive(f.context(), expression_id);
 
         let expression_span = f.context().span(expression_id);
 
@@ -478,11 +462,15 @@ pub(crate) fn format_block_of_statements<'ast>(
                 )
         );
         if is_lambda_declaration_expression {
-            write!(f, [f.context().block_prefix_annotations(expression_id)])?;
+            let prefix_items =
+                annotation_render_items_matching(f.context(), expression_id, |position| {
+                    position == AnnotationPosition::BlockPrefix
+                });
+            write_annotation_render_items(f, &prefix_items)?;
         } else {
             write!(f, [f.context().any_prefix_annotations(expression_id)])?;
         }
-        format_expression(f, expression_id, expression, directive)?;
+        format_expression(f, expression_id, expression, is_ignored)?;
 
         // add statement terminators for statement-context expression forms
         let is_expression_context_tail = allow_value_tail && i + 1 == effective_expressions.len();
@@ -494,7 +482,7 @@ pub(crate) fn format_block_of_statements<'ast>(
             write!(f, [token(";")])?;
         }
 
-        write_expression_postfix_annotations(f, expression_id, expression, directive, false)?;
+        write_expression_postfix_annotations(f, expression_id, expression, is_ignored, false)?;
 
         prev_was_import = is_import_expr;
         if is_import_expr {

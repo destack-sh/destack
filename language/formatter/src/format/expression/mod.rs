@@ -1,69 +1,3 @@
-pub(crate) use destack_ast::{
-    AnnotationPosition, Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Declaration,
-    DeclarationDescriptor, DeclarationKind, Declarator, DependencyItem, DependencyKind,
-    DependencyMode, Expression, ForEachBinding, ForEachDeclarationKind, ForEachKind, FunctionKind,
-    IfCondition, IfKind, ImportAliasTarget, ImportSource, Keyword, LetKind, LocalNodeId, MatchKind,
-    Member, Mutability, NodeTree, NodeType, OperatorPrecedence, Parameter, Pattern, PatternField,
-    PostfixPosition, Property, ScalarLiteral, TokenType, TypeBinaryOperator, TypeLiteral,
-    TypeModifier, TypePredicateSubject, TypeUnaryOperator, UnaryOperator, WhereClause, WhileKind,
-    YieldCardinality,
-};
-pub(crate) use destack_core::StringId;
-pub(crate) use destack_fir::format::{FormatError, GroupId};
-pub(crate) use destack_fir::prelude::*;
-pub(crate) use destack_source::Span;
-pub(crate) use destack_workspace::TrailingComma;
-pub(crate) use smallvec::SmallVec;
-
-pub(crate) use self::control::*;
-use self::declarator::format_declarator;
-pub(crate) use self::format::{
-    array_elements_are_fill_candidates, array_has_only_boundary_comments,
-};
-pub(crate) use self::member::*;
-pub(crate) use self::object::*;
-pub(crate) use self::parentheses::*;
-use self::primary::format_primary_expression;
-use self::statement::format_statement_expression;
-pub(crate) use self::ternary::*;
-pub(crate) use crate::format::analysis::{
-    ArgumentSimplicityOptions, argument_is_inline_closure_cast_object,
-    argument_is_simple_with_options, call_arguments_are_multiline_span, is_call_like_argument,
-    is_simple_static_argument, is_tree_attribute_expression,
-};
-pub(crate) use crate::format::call::{
-    SeparatorLineCommentSource, argument_can_render_without_separator_line_comment,
-    format_call_expression, format_instantiation_expression,
-    single_argument_separator_line_comment_source, write_argument_without_separator_line_comment,
-    write_separator_line_comment_after_comma,
-};
-pub(crate) use crate::format::chain::{
-    argument_value_id_if_present, chain_nodes, has_comment_between_expressions,
-    has_line_comment_between_expressions, is_block_lambda_argument, is_chain_root,
-    is_expression_chain, is_lambda_expression, lambda_expression_should_break,
-    member_has_intervening_comment, should_force_multiline_mapped_type,
-    should_parenthesize_index_expression, transparent_inner_expression,
-};
-pub(crate) use crate::format::collection::list_like;
-pub(crate) use crate::format::collection::literal::{
-    format_scalar_literal, format_template_literal,
-};
-pub(crate) use crate::format::collection::property::format_block_of_properties;
-pub(crate) use crate::format::operator::{
-    flattened_binary_operand_count, is_chain_expression, needs_parens_in_postfix_position,
-    write_postfix_base_expression,
-};
-pub(crate) use crate::format::tree::{
-    HugOptions, argument_is_array_literal, argument_is_block_callback,
-    argument_is_function_expression, argument_is_lambda_expression, argument_is_object_literal,
-    argument_is_template_literal, format_hugged, property_has_complex_type_value,
-    property_has_complex_value, tree_literal_should_break, tree_literal_should_expand,
-};
-pub(crate) use crate::{Annotation, DestackFormatContext, DestackFormatter};
-
-#[cfg(test)]
-pub(crate) use crate::format::tree::expression_has_complex_callback;
-
 mod control;
 mod declarator;
 mod format;
@@ -74,11 +8,26 @@ mod primary;
 mod statement;
 mod ternary;
 
-pub(crate) use self::format::*;
+pub(crate) use self::format::{
+    expression_has_leading_prefix_comment, expression_has_static_type_arguments, format_expression,
+    format_expression_without_prefix_annotations, format_static_argument_list,
+    format_static_argument_list_with_relational_spacing,
+};
 pub use self::format::{
     is_complex_argument, is_complex_expression, is_expression_breakable, is_pattern_breakable,
     is_trivial_argument, is_trivial_expression, is_trivial_property,
 };
-
-#[cfg(test)]
-mod tests;
+pub(crate) use self::member::{
+    format_index_expression, format_member_expression, type_index_left_requires_parentheses,
+};
+pub(crate) use self::object::is_assignment_left_target;
+pub(crate) use self::parentheses::{
+    member_object_prefers_new_callee_parentheses, parenthesized_boundary_comments,
+    parenthesized_has_leading_inner_trivia, should_drop_parenthesized_expression_wrapper,
+    should_drop_type_binary_left_parentheses, should_unwrap_parenthesized_member_object,
+    should_unwrap_parenthesized_new_member_callee, type_binary_is_parenthesized_new_callee,
+    type_binary_is_parenthesized_statement_expression, type_binary_is_statement_expression,
+};
+pub(crate) use self::primary::format_primary_expression;
+pub(crate) use self::statement::format_statement_expression;
+pub(crate) use self::ternary::argument_value;

@@ -1,12 +1,16 @@
-use crate::format::chain::receiver_is_await_wrapped;
-use crate::format::expression::{
-    DestackFormatter, Expression, FormatResult, LocalNodeId, NodeTree, ParenthesizedUnwrapMode,
-    PostfixPosition, Span, StringId, format_static_argument_list, format_with, group, indent,
-    line_postfix_boundary, should_parenthesize_index_expression, should_unwrap_parenthesized,
-    soft_block_indent, soft_line_break, token, write_postfix_base_expression,
+use super::format_static_argument_list;
+use super::parentheses::should_unwrap_parenthesized_member_object;
+use crate::DestackFormatter;
+use crate::format::chain::{receiver_is_await_wrapped, should_parenthesize_index_expression};
+use crate::format::operator::write_postfix_base_expression;
+use destack_ast::{Expression, LocalNodeId, NodeTree, PostfixPosition};
+use destack_core::StringId;
+use destack_fir::format::{Buffer, FormatResult};
+use destack_fir::prelude::{
+    format_with, group, indent, line_postfix_boundary, soft_block_indent, soft_line_break, token,
 };
-use destack_fir::format::Buffer;
 use destack_fir::{format_args, write};
+use destack_source::Span;
 
 /// Return whether one member receiver ends with static instantiation arguments.
 fn expression_has_trailing_static_instantiation(
@@ -63,12 +67,8 @@ pub(crate) fn format_member_expression<'ast>(
             static_arguments,
         } => {
             let left = if let Expression::Parenthesized { expression } = f.context().tree.get(*left)
-                && should_unwrap_parenthesized(
-                    f.context(),
-                    *left,
-                    *expression,
-                    ParenthesizedUnwrapMode::MemberObject,
-                ) {
+                && should_unwrap_parenthesized_member_object(f.context(), *left, *expression)
+            {
                 *expression
             } else {
                 *left
@@ -115,12 +115,8 @@ pub(crate) fn format_member_expression<'ast>(
             static_arguments,
         } => {
             let left = if let Expression::Parenthesized { expression } = f.context().tree.get(*left)
-                && should_unwrap_parenthesized(
-                    f.context(),
-                    *left,
-                    *expression,
-                    ParenthesizedUnwrapMode::MemberObject,
-                ) {
+                && should_unwrap_parenthesized_member_object(f.context(), *left, *expression)
+            {
                 *expression
             } else {
                 *left
