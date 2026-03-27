@@ -1,3 +1,6 @@
+@import "./theme/base.css";
+@import "./theme/hero.css";
+
 .page-header {
     max-width: 48rem;
     margin: 0 auto;
@@ -10,11 +13,4 @@
     max-width: 48rem;
     margin: 0 auto;
     padding: 0 1.5rem 4rem;
-}
-
-.hero-mark,
-.hero-mark-variants,
-.sprite-mark {
-    width: 8rem;
-    height: 8rem;
 }

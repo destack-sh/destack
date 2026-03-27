@@ -24,16 +24,6 @@
       "input": "src/page.ds",
       "isEntry": true,
       "isDynamicEntry": false
-    },
-    {
-      "path": "site.js.map",
-      "type": "asset",
-      "loader": "map"
-    },
-    {
-      "path": "workspace-mark.svg",
-      "type": "asset",
-      "loader": "asset"
     }
   ]
 }

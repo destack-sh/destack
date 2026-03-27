@@ -1,0 +1,16 @@
+{
+    "name": "html-document-minify",
+    "targets": {
+        "site": {
+            "emit": "html",
+            "entry": ["src/index.html"],
+            "outFile": "dist/index.html",
+            "bundle": {
+                "minify": true,
+                "output": {
+                    "manifest": true
+                }
+            }
+        }
+    }
+}
