@@ -46,7 +46,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
 
     // run the query for the resolved span
     let context = parsed_expectation.context;
-    let actions = query::code_actions(&session.session, session.file_id, range, &context);
+    let actions = query::code_actions(&session.session, range.file, range, &context);
 
     // validate invariants before comparing against expectations
     if let Err(message) = validate_code_action_invariants(session, &actions) {

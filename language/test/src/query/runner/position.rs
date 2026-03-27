@@ -15,7 +15,7 @@ pub fn resolve_query_position(
         let Some(cursor) = session.markers.cursor(cursor_idx) else {
             return Err(format!("cursor ${cursor_idx} not found"));
         };
-        return Ok((session.file_id, cursor.offset));
+        return Ok((cursor.file_id, cursor.offset));
     }
 
     // resolve marker targets like def:foo

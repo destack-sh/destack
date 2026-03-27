@@ -203,6 +203,7 @@ impl QueryTestSession {
             for cursor in &markers.cursors {
                 all_markers.cursors.push(super::CursorMarker {
                     index: cursor.index,
+                    file_id,
                     offset: cursor.offset,
                 });
             }
@@ -254,8 +255,8 @@ fn select_primary_file_path<'a>(
     // prefer the canonical main file name first
     if let Some(file) = test.files.iter().find(|file| {
         Path::new(&file.path)
-            .file_name()
-            .is_some_and(|name| name == "main.ds")
+            .file_stem()
+            .is_some_and(|name| name == "main")
     }) {
         return &file.path;
     }
@@ -417,6 +418,7 @@ fn compile_and_index_query_modules(
 
     compiler.compile();
     session.index_query_modules(module_ids.iter().copied());
+    session.index_query_imports_for_program(program);
 
     modules_by_path
 }
