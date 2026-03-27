@@ -377,3 +377,31 @@ function main(): void {
 ```query goto_declaration broken
 <none>
 ```
+
+## Imports And Exports
+
+### Resolve declarations through default re-export alias chains
+
+Goto declaration should stop at the local import binding even through default re-export alias chains.
+
+```ds:lib.ds
+export default function buildWidget(): int32 {
+    return 1;
+}
+```
+
+```ds:barrel.ds
+export { default as buildWidget } from "./lib.ds";
+```
+
+```ds:main.ds
+import { buildWidget } from "./barrel.ds";
+//       ^^^^^^^^^^^ decl:buildWidget
+
+const value = buildWidget();
+//            ^^^^^^^^^^^ use:buildWidget
+```
+
+```query goto_declaration use:buildWidget
+decl:buildWidget
+```

@@ -40,6 +40,96 @@ active_signature=0 active_parameter=1
 signature[0] label=add(x: int32, y: int32): int32 documentation=<none> parameters=x: int32|y: int32 param_docs=<none>|<none>
 ```
 
+## Imports
+
+### Show signature for namespace imported call
+
+Signature help should resolve parameter names through namespace imports.
+
+```ds:lib.ds
+export function paint(color: string, coats: int32): void {}
+```
+
+```ds:main.ds
+import * as api from "./lib.ds";
+
+api.paint($0);
+```
+
+```query signature_help $0
+active_signature=0 active_parameter=0
+signature[0] label=paint(color: string, coats: int32): void documentation=<none> parameters=color: string|coats: int32 param_docs=<none>|<none>
+```
+
+### Show signature for default imported call
+
+Signature help should resolve parameter names through default imports.
+
+```ds:lib.ds
+export default function repeat(text: string, times: int32): string {
+    return text;
+}
+```
+
+```ds:main.ds
+import repeat from "./lib.ds";
+
+const value = repeat("hi", $0);
+```
+
+```query signature_help $0
+active_signature=0 active_parameter=1
+signature[0] label=repeat(text: string, times: int32): string documentation=<none> parameters=text: string|times: int32 param_docs=<none>|<none>
+```
+
+### Show signature through default re-export chains
+
+Signature help should still resolve through default re-export alias chains.
+
+```ds:lib.ds
+export default function format(value: int32, scale: int32): int32 {
+    return value * scale;
+}
+```
+
+```ds:barrel.ds
+export { default as format } from "./lib.ds";
+```
+
+```ds:main.ds
+import { format } from "./barrel.ds";
+
+const value = format(1, $0);
+```
+
+```query signature_help $0
+active_signature=0 active_parameter=1
+signature[0] label=format(value: int32, scale: int32): int32 documentation=<none> parameters=value: int32|scale: int32 param_docs=<none>|<none>
+```
+
+### Show signature through namespace re-export chains
+
+Signature help should still resolve through namespace re-export alias chains.
+
+```ds:lib.ds
+export function paint(color: string, coats: int32): void {}
+```
+
+```ds:barrel.ds
+export * as api from "./lib.ds";
+```
+
+```ds:main.ds
+import { api } from "./barrel.ds";
+
+api.paint("blue", $0);
+```
+
+```query signature_help $0
+active_signature=0 active_parameter=1
+signature[0] label=paint(color: string, coats: int32): void documentation=<none> parameters=color: string|coats: int32 param_docs=<none>|<none>
+```
+
 ### Keep signature help working after bare new recovery statements
 
 Signature help should still resolve later valid calls after one bare `new` recovery statement.

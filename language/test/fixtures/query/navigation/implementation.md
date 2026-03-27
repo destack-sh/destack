@@ -187,3 +187,77 @@ const _value: Base = new Derived();
 ```query goto_implementation def:Base
 impl.ds:3:14-3:21
 ```
+
+## Re-Export Chains
+
+### Find implementations through multi-hop type re-exports
+
+Implementations should still resolve through multi-hop type-only re-export chains.
+
+```ds:types.ds
+export interface Renderable {
+//              ^^^^^^^^^^ def:Renderable
+    render(): void;
+}
+```
+
+```ds:barrel_a.ds
+export type { Renderable as Surface } from "./types.ds";
+```
+
+```ds:barrel_b.ds
+export type { Surface } from "./barrel_a.ds";
+```
+
+```ds:impl.ds
+import type { Surface } from "./barrel_b.ds";
+
+export class Sprite implements Surface {
+    render(): void {}
+}
+```
+
+```query goto_implementation def:Renderable
+impl.ds:3:14-3:20
+```
+
+## Damaged Syntax
+
+### Keep interface implementations after malformed declarations
+
+Implementations should still resolve later nominal relationships after one malformed declaration.
+
+```ds
+export function broken( {}
+
+interface Drawable {
+//        ^^^^^^^^ def:Drawable
+    draw(): void;
+}
+
+class Circle implements Drawable {
+    draw(): void {}
+}
+```
+
+```query goto_implementation def:Drawable
+main.ds:7:7-7:13
+```
+
+### Keep subclasses after malformed call statements
+
+Implementations should still resolve later subclass relationships after one malformed call statement.
+
+```ds
+broken(,
+
+class Base {
+//    ^^^^ def:Base
+}
+
+class Derived extends Base {}
+```
+
+```query goto_implementation def:Base
+main.ds:6:7-6:14
+```

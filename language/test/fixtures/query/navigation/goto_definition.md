@@ -467,3 +467,29 @@ api.ping();
 ```query goto_definition use:ns_export_target
 def:ns_export_target
 ```
+
+### Goto definition through default re-export alias chains
+
+Goto definition should resolve through default re-export alias chains.
+
+```ds:lib.ds
+export default function buildWidget(): int32 {
+//                      ^^^^^^^^^^^ def:buildWidget
+    return 1;
+}
+```
+
+```ds:barrel.ds
+export { default as buildWidget } from "./lib.ds";
+```
+
+```ds:main.ds
+import { buildWidget } from "./barrel.ds";
+
+const value = buildWidget();
+//            ^^^^^^^^^^^ use:buildWidget
+```
+
+```query goto_definition use:buildWidget
+def:buildWidget
+```

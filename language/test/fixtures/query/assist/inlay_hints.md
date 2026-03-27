@@ -477,3 +477,93 @@ const result = double(21);
 main.ds:5:13 kind=type label=: int32
 main.ds:5:23 kind=parameter label=n:
 ```
+
+## Imports
+
+### Parameter hints for namespace imported calls
+
+Namespace imported calls should still use the resolved parameter names.
+
+```ds:lib.ds
+export function paint(color: string, coats: int32): void {}
+```
+
+```ds:main.ds
+import * as api from "./lib.ds";
+
+api.paint("blue", 2);
+```
+
+```query inlay_hints $0
+main.ds:3:11 kind=parameter label=color:
+main.ds:3:19 kind=parameter label=coats:
+```
+
+### Parameter hints for default imported calls
+
+Default imported calls should still use the resolved parameter names.
+
+```ds:lib.ds
+export default function repeat(text: string, times: int32): string {
+    return text;
+}
+```
+
+```ds:main.ds
+import repeat from "./lib.ds";
+
+repeat("hi", 2);
+```
+
+```query inlay_hints $0
+main.ds:3:8 kind=parameter label=text:
+main.ds:3:14 kind=parameter label=times:
+```
+
+### Parameter hints through default re-export chains
+
+Parameter hints should still resolve through default re-export alias chains.
+
+```ds:lib.ds
+export default function format(value: int32, scale: int32): int32 {
+    return value * scale;
+}
+```
+
+```ds:barrel.ds
+export { default as format } from "./lib.ds";
+```
+
+```ds:main.ds
+import { format } from "./barrel.ds";
+
+format(1, 2);
+```
+
+```query inlay_hints $0
+main.ds:3:8 kind=parameter label=value:
+main.ds:3:11 kind=parameter label=scale:
+```
+
+### Parameter hints through namespace re-export chains
+
+Parameter hints should still resolve through namespace re-export alias chains.
+
+```ds:lib.ds
+export function paint(color: string, coats: int32): void {}
+```
+
+```ds:barrel.ds
+export * as api from "./lib.ds";
+```
+
+```ds:main.ds
+import { api } from "./barrel.ds";
+
+api.paint("blue", 2);
+```
+
+```query inlay_hints $0
+main.ds:3:11 kind=parameter label=color:
+main.ds:3:19 kind=parameter label=coats:
+```

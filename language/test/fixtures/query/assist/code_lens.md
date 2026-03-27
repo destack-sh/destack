@@ -139,6 +139,48 @@ greet();
 main.ds:6:10-6:15 kind=references title=1 reference
 ```
 
+### Count references across modules
+
+Code lenses should count import and call references across module boundaries.
+
+```ds:main.ds
+export function $0ping(): void {}
+```
+
+```ds:consumer.ds
+import { ping } from "./main.ds";
+
+export function callPing(): void {
+    ping();
+}
+```
+
+```query code_lens $0
+main.ds:1:17-1:21 kind=references title=2 references
+```
+
+### Count implementations across modules
+
+Code lenses should count implementations in other files.
+
+```ds:main.ds
+export interface $0Animal {
+    speak(): void;
+}
+```
+
+```ds:impl.ds
+import type { Animal } from "./main.ds";
+
+class Dog implements Animal {
+    speak(): void {}
+}
+```
+
+```query code_lens $0
+main.ds:1:18-1:24 kind=implementations title=1 implementation
+```
+
 ## Empty Results
 
 ### Unused functions produce no lenses

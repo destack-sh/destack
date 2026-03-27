@@ -138,3 +138,54 @@ const path = "./foo.ds";
 ```query document_link $0
 <none>
 ```
+
+## Side-Effect Imports
+
+### Side-effect imports should produce links
+
+Document links should include side-effect import specifiers.
+
+```ds:main.ds
+$0import "./setup.ds";
+```
+
+```ds:setup.ds
+export const ready = true;
+```
+
+```query document_link $0
+main.ds:1:8-1:20 target=file:setup.ds tooltip=Go to ./setup.ds
+```
+
+## Unresolved Specifiers
+
+### Surface unresolved module specifiers
+
+Document links should still surface unresolved module specifiers as file targets.
+
+```ds:main.ds
+$0import { missing } from "./missing.ds";
+```
+
+```query document_link $0
+main.ds:1:25-1:39 target=file:missing.ds tooltip=Go to ./missing.ds
+```
+
+## Damaged Syntax
+
+### Keep links after malformed import clauses
+
+Document links should still resolve later valid specifiers after one malformed import clause.
+
+```ds:main.ds
+import { from "./broken.ds";
+$0import { foo } from "./foo.ds";
+```
+
+```ds:foo.ds
+export const foo = 1;
+```
+
+```query document_link $0
+main.ds:2:21-2:31 target=file:foo.ds tooltip=Go to ./foo.ds
+```

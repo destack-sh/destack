@@ -204,3 +204,112 @@ function recur(): void {
 ```query call_hierarchy def:recur incoming
 recur
 ```
+
+## Import Shapes
+
+### Outgoing calls through namespace imports
+
+Outgoing calls should resolve callee symbols through namespace imports.
+
+```ds:lib.ds
+export function helper(): void {}
+```
+
+```ds:main.ds
+import * as tools from "./lib.ds";
+
+function root(): void {
+//       ^^^^ def:root
+    tools.helper();
+}
+```
+
+```query call_hierarchy def:root outgoing
+helper
+```
+
+### Incoming calls through re-export chains
+
+Incoming calls should resolve callers through re-exported import chains.
+
+```ds:lib.ds
+export function helper(): void {}
+//              ^^^^^^ def:helper
+```
+
+```ds:barrel.ds
+export { helper } from "./lib.ds";
+```
+
+```ds:main.ds
+import { helper } from "./barrel.ds";
+
+function root(): void {
+    helper();
+}
+```
+
+```query call_hierarchy def:helper incoming
+root
+```
+
+## Empty Results
+
+### Non-callable targets have no hierarchy
+
+Non-callable symbols should not produce call hierarchy items.
+
+```ds
+struct $0Point {
+    x: int32
+}
+```
+
+```query call_hierarchy $0 incoming
+<none>
+```
+
+```query call_hierarchy $0 outgoing
+<none>
+```
+
+## Damaged Syntax
+
+### Keep incoming calls after malformed call statements
+
+Incoming call hierarchy should still resolve later valid callers after one malformed call statement.
+
+```ds
+broken(,
+
+function target(): void {
+//       ^^^^^^ def:target
+}
+
+function caller(): void {
+    target();
+}
+```
+
+```query call_hierarchy def:target incoming
+caller
+```
+
+### Keep outgoing calls after bare new recovery statements
+
+Outgoing call hierarchy should still resolve later valid callees after one bare `new` recovery statement.
+
+```ds
+new
+
+function helper(): void {}
+
+function root(): void {
+//       ^^^^ def:root
+    helper();
+}
+```
+
+```query call_hierarchy def:root outgoing
+helper
+```
