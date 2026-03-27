@@ -4,7 +4,7 @@ use crate::core::{Case, CaseResult, check_diagnostics};
 use destack_ast::{NodeParentIndex, TokenSpan};
 use destack_fir::format as fir_format;
 use destack_formatter::{
-    DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions, statement_list,
+    DestackFormatContext, DestackFormatOptions, statement_list,
 };
 use destack_parser::Parser;
 use destack_source::{
@@ -108,15 +108,13 @@ fn format_expressions(
 
     let context = DestackFormatContext::new(
         format_options,
-        DestackFormatArtifacts {
-            file,
-            tree: &parser.tree,
-            tokens,
-            side_tokens,
-            side_span: &side_span,
-            strings: &strings,
-            parents,
-        },
+        file,
+        &parser.tree,
+        tokens,
+        side_tokens,
+        &side_span,
+        &strings,
+        parents,
     );
 
     let mut result = if expressions.is_empty() {
