@@ -1,9 +1,11 @@
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
 use dashmap::mapref::entry::Entry;
 use destack_compiler::{Compiler, CompilerOptions};
+use destack_query::SessionQueryIndexExt;
 use destack_workspace::{Program, Session};
 
 use super::workspace::WorkspaceHandle;
@@ -85,6 +87,32 @@ impl LanguageService {
 
         // remove cached workspace handle
         self.handles_by_id.remove(&handle_id);
+
+        // drop the root and rebuild shared query slices for remaining programs
+        let Some(program) = self.session.remove_root(root.as_path()) else {
+            return Ok(());
+        };
+
+        self.session
+            .remove_query_imports_for_program(root.as_path());
+
+        let removed_module_ids: HashSet<_> =
+            program.modules.iter().map(|module| module.id).collect();
+        self.session
+            .remove_query_modules(removed_module_ids.iter().copied());
+
+        let mut remaining_module_ids = HashSet::new();
+        for program in self.session.programs() {
+            for module in program.modules.iter() {
+                remaining_module_ids.insert(module.id);
+            }
+        }
+        self.session
+            .index_query_modules(remaining_module_ids.iter().copied());
+
+        for program in self.session.programs() {
+            self.session.index_query_imports_for_program(&program);
+        }
 
         Ok(())
     }

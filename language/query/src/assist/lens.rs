@@ -4,7 +4,7 @@ use destack_source::{FileId, NodeSpanType, Span, Uri};
 use serde::{Deserialize, Serialize};
 
 use crate::ast::get_module_by_file_id;
-use crate::core::{AstQuery, SessionQueryIndexExt};
+use crate::core::{AstQuery, SessionQueryIndexExt, query_context};
 use crate::dir::{
     ReferenceCollectionOptions, collect_symbol_references_in_context, get_canonical_symbol,
     resolve_symbol_name,
@@ -142,7 +142,7 @@ pub fn code_lenses(session: &Session, file: FileId) -> Vec<CodeLens> {
         return Vec::new();
     };
     let module = module.as_ref();
-    let Some(ctx) = crate::core::query_context(session, module) else {
+    let Some(ctx) = query_context(session, module) else {
         return Vec::new();
     };
     let ast = ctx.ast();
@@ -272,7 +272,7 @@ fn count_references(session: &Session, symbol_id: GlobalSymbolId) -> usize {
     for module_id in session.reference_index_modules_for_target(canonical_id) {
         let module = session.modules.get(module_id);
         let module = module.as_ref();
-        let Some(ctx) = crate::core::query_context(session, module) else {
+        let Some(ctx) = query_context(session, module) else {
             continue;
         };
 

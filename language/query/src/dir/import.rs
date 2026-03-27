@@ -1,15 +1,22 @@
 use std::path::Path;
 
 use destack_ast::{
-    DependencyItem, DependencyKind, DependencyMode, Expression, ImportTarget, NodeTree,
-    ScalarLiteral, TokenType,
+    DependencyItem, DependencyKind, DependencyMode as AstDependencyMode, Expression, ImportTarget,
+    NodeTree, ScalarLiteral, TokenType,
 };
 use destack_core::StringId;
-use destack_source::{Edit, FileId, PathExt, Span};
+use destack_dir::{
+    Declaration, DependencyItem as DirDependencyItem, DependencyMode as DirDependencyMode,
+    LocalNodeId, LocalSymbolId, NodeType, SymbolSpace, SymbolType,
+};
+use destack_source::{Edit, FileId, LanguageType, PathExt, Span};
 
-use crate::core::AstQuery;
+use super::get_canonical_symbol;
+use crate::ast::get_module_by_file_id;
 use crate::core::path::{normalize_separators, relative_path};
+use crate::core::{AstQuery, DirQuery, SessionQueryIndexExt, query_context};
 use crate::format::ImportGroup;
+use destack_dir as dir;
 use destack_workspace::Session;
 
 /// Information about an existing import in the file.
@@ -43,10 +50,63 @@ pub(crate) struct ImportClauseBounds {
 }
 
 /// Return one dependency item's mode when the item is valid.
-fn dependency_item_mode(item: &DependencyItem) -> Option<DependencyMode> {
+fn dependency_item_mode(item: &DependencyItem) -> Option<AstDependencyMode> {
     match item {
         DependencyItem::Item { mode, .. } => Some(*mode),
         DependencyItem::Error => None,
+    }
+}
+
+/// Check whether a symbol type participates in the type namespace.
+pub(crate) fn is_type_symbol(symbol_type: SymbolType) -> bool {
+    matches!(
+        symbol_type,
+        SymbolType::Class
+            | SymbolType::Struct
+            | SymbolType::Interface
+            | SymbolType::Enum
+            | SymbolType::TypeAlias
+            | SymbolType::Newtype
+    )
+}
+
+/// Check whether a symbol matches a requested symbol space filter.
+pub(crate) fn matches_symbol_space_filter(
+    symbol_type: SymbolType,
+    symbol_space: SymbolSpace,
+    filter: Option<SymbolSpace>,
+) -> bool {
+    let Some(filter) = filter else {
+        return true;
+    };
+
+    match filter {
+        SymbolSpace::Type => match symbol_space {
+            SymbolSpace::Type => true,
+            SymbolSpace::TypeValue => true,
+            _ => is_type_symbol(symbol_type),
+        },
+        SymbolSpace::Value => {
+            symbol_space == SymbolSpace::Value || symbol_space == SymbolSpace::TypeValue
+        }
+        SymbolSpace::TypeValue => symbol_space == SymbolSpace::TypeValue,
+        SymbolSpace::Label => symbol_space == SymbolSpace::Label,
+    }
+}
+
+/// Check whether a symbol matches an explicit import-clause space filter.
+pub(crate) fn matches_import_clause_space_filter(
+    symbol_type: SymbolType,
+    symbol_space: SymbolSpace,
+    filter: Option<SymbolSpace>,
+) -> bool {
+    let Some(filter) = filter else {
+        return true;
+    };
+
+    match filter {
+        SymbolSpace::Type => symbol_space == SymbolSpace::Type || is_type_symbol(symbol_type),
+        _ => matches_symbol_space_filter(symbol_type, symbol_space, Some(filter)),
     }
 }
 
@@ -55,6 +115,224 @@ fn dependency_item_key(item: &DependencyItem) -> Option<StringId> {
     match item {
         DependencyItem::Item { alias, name, .. } => alias.or(name.map(|name| name.string())),
         DependencyItem::Error => None,
+    }
+}
+
+/// Resolve the local alias text for explicit import aliases.
+pub(crate) fn resolve_local_import_alias_name(
+    session: &Session,
+    symbol_id: dir::GlobalSymbolId,
+) -> Option<String> {
+    // resolve query context for the symbol module
+    let module = session.modules.get(symbol_id.module_id);
+    let module = module.as_ref();
+    let ctx = query_context(session, module)?;
+
+    // resolve the symbol declaration and support declaration/import forms
+    let declaration = {
+        let symbols = ctx.dir().symbols();
+        let symbol = symbols.get_symbol(symbol_id.local_id);
+        symbol.primary_declaration?
+    };
+    if declaration.local_id.ty == NodeType::Declaration {
+        let declaration_id: LocalNodeId<Declaration> = declaration.local_id.try_into().ok()?;
+        let dir_tree = ctx.dir().tree();
+        let declaration = dir_tree.get::<Declaration>(declaration_id);
+        let Declaration::ImportAlias { descriptor, .. } = declaration else {
+            return None;
+        };
+
+        let name_id = descriptor.name?.string();
+        return Some(session.strings.get(name_id).to_string());
+    }
+
+    if declaration.local_id.ty != NodeType::DependencyItem {
+        return None;
+    }
+
+    // resolve the local import binding name
+    let item_id: LocalNodeId<DirDependencyItem> = declaration.local_id.try_into().ok()?;
+    let dir_tree = ctx.dir().tree();
+    let local_name_id =
+        dependency_item_local_import_alias_name(dir_tree.get::<DirDependencyItem>(item_id))?;
+
+    Some(session.strings.get(local_name_id).to_string())
+}
+
+/// Collect default import aliases whose imported default export resolves to one symbol.
+pub(crate) fn collect_default_import_alias_symbols_for_export(
+    session: &Session,
+    canonical_id: dir::GlobalSymbolId,
+) -> Vec<dir::GlobalSymbolId> {
+    let mut symbols = Vec::new();
+
+    for module_id in session.reference_index_modules_for_target(canonical_id) {
+        let module = session.modules.get(module_id);
+        let module = module.as_ref();
+        if !module.is_user() {
+            continue;
+        }
+
+        let Some(ctx) = query_context(session, module) else {
+            continue;
+        };
+        let dir = ctx.dir();
+
+        let symbols_in_module = dir.symbols();
+        for symbol_index in 0..symbols_in_module.symbol_count() {
+            let local_symbol_id = LocalSymbolId::new(symbol_index);
+            let symbol_id = dir::GlobalSymbolId::new(dir.module_id(), local_symbol_id);
+            if symbol_id == canonical_id {
+                continue;
+            }
+
+            let local_alias_name =
+                local_default_import_alias_name_in_context(session, dir, local_symbol_id);
+            if local_alias_name.is_none() {
+                continue;
+            }
+
+            if get_canonical_symbol(session, symbol_id) != canonical_id {
+                continue;
+            }
+
+            symbols.push(symbol_id);
+        }
+    }
+
+    symbols
+}
+
+/// Check whether a symbol is a local import alias for a canonical target.
+pub(crate) fn is_dependency_alias_for_target(
+    session: &Session,
+    dir: DirQuery<'_>,
+    symbol_id: dir::GlobalSymbolId,
+    canonical_target: dir::GlobalSymbolId,
+) -> bool {
+    // resolve the symbol's primary declaration
+    let declaration = {
+        let symbols = dir.symbols();
+        let symbol = symbols.get_symbol(symbol_id.local_id);
+        symbol.primary_declaration
+    };
+    let Some(declaration) = declaration else {
+        return false;
+    };
+
+    // bail out when the declaration is not a dependency item
+    if declaration.local_id.ty != NodeType::DependencyItem {
+        return false;
+    }
+
+    // resolve the dependency item node
+    let Ok(item_id): Result<LocalNodeId<DirDependencyItem>, _> = declaration.local_id.try_into()
+    else {
+        return false;
+    };
+
+    // check for an alias that targets the canonical symbol
+    let dir_tree = dir.tree();
+    let item = dir_tree.get::<DirDependencyItem>(item_id);
+    let (alias, target_symbol, mode) = match item {
+        DirDependencyItem::Local {
+            alias,
+            target_symbol,
+            mode,
+            ..
+        }
+        | DirDependencyItem::Remote {
+            alias,
+            target_symbol,
+            mode,
+            ..
+        } => (alias, target_symbol, mode),
+        _ => return false,
+    };
+
+    // require an explicit alias
+    if alias.is_none() {
+        return false;
+    }
+
+    // allow default imports to be renamed with their targets
+    if *mode == DirDependencyMode::Default {
+        return false;
+    }
+
+    // compare canonical targets
+    let target_canonical = get_canonical_symbol(session, *target_symbol);
+    target_canonical == canonical_target
+}
+
+/// Resolve the local binding name for one default import symbol inside a query context.
+fn local_default_import_alias_name_in_context(
+    session: &Session,
+    dir: DirQuery<'_>,
+    local_symbol_id: LocalSymbolId,
+) -> Option<String> {
+    let declaration = {
+        let symbols = dir.symbols();
+        let symbol = symbols.get_symbol(local_symbol_id);
+        symbol.primary_declaration?
+    };
+
+    if declaration.local_id.ty != NodeType::DependencyItem {
+        return None;
+    }
+
+    let item_id: LocalNodeId<DirDependencyItem> = declaration.local_id.try_into().ok()?;
+    let local_name_id =
+        dependency_item_default_import_alias_name(dir.tree().get::<DirDependencyItem>(item_id))?;
+
+    Some(session.strings.get(local_name_id).to_string())
+}
+
+/// Resolve the local binding name for one dependency import alias.
+fn dependency_item_local_import_alias_name(
+    item: &DirDependencyItem,
+) -> Option<destack_core::StringId> {
+    match item {
+        // default imports: use the local binding name
+        DirDependencyItem::Remote {
+            mode, name, alias, ..
+        }
+        | DirDependencyItem::UnresolvedRemote {
+            mode, name, alias, ..
+        } => {
+            if *mode == DirDependencyMode::Default {
+                name.as_ref().map(|name| name.string()).or(*alias)
+            } else {
+                *alias
+            }
+        }
+
+        // local dependency items are not import aliases
+        DirDependencyItem::Local { mode, alias, .. } => {
+            if *mode == DirDependencyMode::Default {
+                None
+            } else {
+                *alias
+            }
+        }
+        _ => None,
+    }
+}
+
+/// Resolve the local binding name for one default dependency import alias.
+fn dependency_item_default_import_alias_name(
+    item: &DirDependencyItem,
+) -> Option<destack_core::StringId> {
+    match item {
+        DirDependencyItem::Remote { mode, name, .. }
+        | DirDependencyItem::UnresolvedRemote { mode, name, .. } => {
+            if *mode != DirDependencyMode::Default {
+                return None;
+            }
+
+            name.as_ref().map(|name| name.string())
+        }
+        _ => None,
     }
 }
 
@@ -135,6 +413,29 @@ pub(crate) enum ImportEditMode {
     Type,
 }
 
+impl ImportEditMode {
+    /// Resolve the auto import edit mode for one requested space and exported symbol space.
+    pub(crate) fn for_auto_import(
+        requested_space: Option<destack_dir::SymbolSpace>,
+        symbol_space: destack_dir::SymbolSpace,
+        language_type: LanguageType,
+    ) -> Self {
+        if requested_space != Some(destack_dir::SymbolSpace::Type) {
+            return Self::Value;
+        }
+
+        if symbol_space == destack_dir::SymbolSpace::Type {
+            return Self::Type;
+        }
+
+        if symbol_space == destack_dir::SymbolSpace::TypeValue && !language_type.is_destack() {
+            return Self::Type;
+        }
+
+        Self::Value
+    }
+}
+
 /// Resolve a module specifier and dependency kind for an AST expression.
 pub(crate) fn module_specifier_in_expression(
     tree: &NodeTree,
@@ -161,11 +462,11 @@ pub(crate) fn module_specifier_in_expression(
 /// Collect existing imports from a file's AST.
 pub(crate) fn collect_existing_imports(session: &Session, file_id: FileId) -> Vec<ExistingImport> {
     // get module for this file
-    let Some(module) = crate::ast::get_module_by_file_id(session, file_id) else {
+    let Some(module) = get_module_by_file_id(session, file_id) else {
         return Vec::new();
     };
     let module = module.as_ref();
-    let Some(ctx) = crate::core::query_context(session, module) else {
+    let Some(ctx) = query_context(session, module) else {
         return Vec::new();
     };
 
@@ -195,7 +496,7 @@ pub(crate) fn collect_existing_imports(session: &Session, file_id: FileId) -> Ve
             // check if it's a namespace import
             let is_namespace = items.iter().any(|item_id| {
                 let item = ctx.ast().tree().get(*item_id);
-                dependency_item_mode(item) == Some(DependencyMode::Namespace)
+                dependency_item_mode(item) == Some(AstDependencyMode::Namespace)
             });
 
             // collect specifier names
@@ -203,7 +504,7 @@ pub(crate) fn collect_existing_imports(session: &Session, file_id: FileId) -> Ve
                 .iter()
                 .filter_map(|item_id| {
                     let item = ctx.ast().tree().get(*item_id);
-                    if dependency_item_mode(item) == Some(DependencyMode::Namespace) {
+                    if dependency_item_mode(item) == Some(AstDependencyMode::Namespace) {
                         return None;
                     }
 
@@ -326,8 +627,14 @@ pub(crate) fn build_import_display_path_with_options(
         return module_path.to_string();
     };
 
-    // compute a relative path to the target module
+    // prefer package-name specifiers for external package targets
     let target_path = std::path::Path::new(module_path);
+    if let Some(display_path) =
+        build_external_package_display_path(session, source_path, target_path, strip_extension)
+    {
+        return display_path;
+    }
+
     // compute a relative path to the target module
     let relative =
         relative_path(source_dir, target_path).unwrap_or_else(|| target_path.normalize());
@@ -345,6 +652,48 @@ pub(crate) fn build_import_display_path_with_options(
 
     // return the normalized display path
     display_path
+}
+
+/// Build one package-name display path for an external package target.
+fn build_external_package_display_path(
+    session: &Session,
+    source_path: &Path,
+    target_path: &Path,
+    strip_extension: bool,
+) -> Option<String> {
+    // resolve the owning package for the target path
+    let target_package = session.packages.get_by_containing_path(target_path)?;
+    let target_package = target_package.read();
+    let target_package_path = target_package.path.as_ref()?;
+    let target_package_name = target_package.name.as_ref()?;
+
+    // keep relative imports inside the same package
+    if source_path.starts_with(target_package_path) {
+        return None;
+    }
+
+    // only rewrite dependency packages into bare package specifiers
+    if !target_package_path
+        .components()
+        .any(|component| component.as_os_str() == "node_modules")
+    {
+        return None;
+    }
+
+    // build the package subpath from the package root
+    let package_relative = target_path.strip_prefix(target_package_path).ok()?;
+    let package_relative = normalize_separators(&package_relative.to_string_lossy());
+    let package_relative = if strip_extension {
+        strip_module_extension(&package_relative)
+    } else {
+        package_relative
+    };
+
+    if package_relative.is_empty() {
+        return Some(target_package_name.to_string());
+    }
+
+    Some(format!("{target_package_name}/{package_relative}"))
 }
 
 /// Resolve a module name from a file path.

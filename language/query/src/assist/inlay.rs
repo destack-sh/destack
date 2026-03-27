@@ -3,6 +3,7 @@ use destack_dir::{Argument, Declarator, Expression, GlobalSymbolId, Pattern, Tem
 use destack_source::{FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
 
+use crate::core::with_query_context_for_file;
 use crate::dir::{dynamic_parameter_names, resolve_call_target};
 use crate::format::format_type_for_inlay_hint;
 use destack_workspace::Session;
@@ -78,7 +79,7 @@ pub struct InlayHintsResponse {
 /// Get inlay hints for a range in a file.
 pub fn inlay_hints(session: &Session, file: FileId, range: Span) -> Vec<InlayHint> {
     // resolve hints within the query context
-    crate::core::with_query_context_for_file(session, file, |ctx| {
+    with_query_context_for_file(session, file, |ctx| {
         // resolve shared dir data for hint generation
         let dir_tree = ctx.dir().tree();
         let types = ctx.dir().types();

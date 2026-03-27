@@ -815,6 +815,25 @@ impl PackageRegistry {
         Some(self.get(id))
     }
 
+    /// Get the most specific package whose directory contains the path.
+    pub fn get_by_containing_path(&self, path: &Path) -> Option<Arc<RwLock<Package>>> {
+        let package_id = self
+            .packages_by_path
+            .iter()
+            .filter_map(|entry| {
+                let package_path = entry.key();
+                if !path.starts_with(package_path) {
+                    return None;
+                }
+
+                Some((package_path.as_os_str().len(), *entry.value()))
+            })
+            .max_by_key(|(path_length, _)| *path_length)
+            .map(|(_, package_id)| package_id)?;
+
+        Some(self.get(package_id))
+    }
+
     /// Check if a package exists at the given directory path.
     pub fn contains_path(&self, path: &Path) -> bool {
         self.packages_by_path.contains_key(path)

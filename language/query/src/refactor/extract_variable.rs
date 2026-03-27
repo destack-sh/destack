@@ -6,6 +6,7 @@ use super::extract::{
     statement_span_for_expression,
 };
 use crate::ast::{get_module_by_file_id, is_simple_identifier};
+use crate::core::query_context;
 use destack_workspace::Session;
 
 /// Request payload for extract variable queries.
@@ -62,7 +63,7 @@ pub fn extract_variable(
     // resolve the module and query context
     let module = get_module_by_file_id(session, file)?;
     let module = module.as_ref();
-    let ctx = crate::core::query_context(session, module)?;
+    let ctx = query_context(session, module)?;
 
     // resolve source text for edits
     let source_file = session.files.get(file);

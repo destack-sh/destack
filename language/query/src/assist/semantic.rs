@@ -3,6 +3,7 @@ use destack_source::{FileId, NodeSpanType, Span, Uri};
 use serde::{Deserialize, Serialize};
 
 use crate::ast::get_module_by_file_id;
+use crate::core::query_context;
 use destack_workspace::Session;
 
 /// Semantic token type for LSP semantic highlighting.
@@ -130,7 +131,7 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
         return Vec::new();
     };
     let module = module.as_ref();
-    let Some(ctx) = crate::core::query_context(session, module) else {
+    let Some(ctx) = query_context(session, module) else {
         return Vec::new();
     };
 
@@ -324,7 +325,7 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
             | dir::Expression::LocalReference { target_symbol, .. }
             | dir::Expression::ModuleReference { target_symbol, .. } => {
                 let target_module = session.modules.get(target_symbol.module_id);
-                let Some(target_ctx) = crate::core::query_context(session, &target_module) else {
+                let Some(target_ctx) = query_context(session, &target_module) else {
                     continue;
                 };
                 let target_symbols = target_ctx.dir().symbols();
@@ -558,7 +559,7 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
             dir::DependencyItem::Local { target_symbol, .. }
             | dir::DependencyItem::Remote { target_symbol, .. } => {
                 let target_module = session.modules.get(target_symbol.module_id);
-                if let Some(target_ctx) = crate::core::query_context(session, &target_module) {
+                if let Some(target_ctx) = query_context(session, &target_module) {
                     let target_symbols = target_ctx.dir().symbols();
                     let symbol = target_symbols.get_symbol(target_symbol.local_id);
                     symbol_type_to_token_type(symbol.ty)

@@ -1,3 +1,5 @@
+#![allow(clippy::too_many_arguments)]
+
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_source::ModuleId;
@@ -112,7 +114,6 @@ pub fn format_declaration_signature(
 }
 
 /// Format a function signature with parameters and return type.
-#[allow(clippy::too_many_arguments)]
 fn format_function(
     name: &str,
     signature: &dir::FunctionSignature,
@@ -206,7 +207,6 @@ fn format_import_alias(name: &str, kind: dir::DependencyKind, export_prefix: &st
 }
 
 /// Format a function or method call signature without declaration keywords.
-#[allow(clippy::too_many_arguments)]
 pub fn format_call_signature(
     name: &str,
     signature: &dir::FunctionSignature,

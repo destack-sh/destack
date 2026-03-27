@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use {destack_ast as ast, destack_dir as dir};
 
 use crate::ast::{main_or_enclosing_span_for_dir_node, string_literal_span_in_enclosing};
-use crate::core::with_ast_query_for_file;
+use crate::core::{with_ast_query_for_file, with_query_context_for_file};
 use crate::dir::module_specifier_in_expression;
 use destack_workspace::Session;
 
@@ -124,7 +124,7 @@ pub fn document_links(session: &Session, file: FileId) -> Vec<DocumentLink> {
 
 /// Build document links using DIR data when available.
 fn document_links_with_dir(session: &Session, file: FileId) -> Option<Vec<DocumentLink>> {
-    crate::core::with_query_context_for_file(session, file, |ctx| {
+    with_query_context_for_file(session, file, |ctx| {
         // find all import and re-export statements
         let dir_tree = ctx.dir().tree();
         let mut links = Vec::new();

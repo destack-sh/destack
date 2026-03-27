@@ -7,7 +7,7 @@ use destack_source::{FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
 
 use crate::ast::{get_node_tree_main_span, sort_and_dedup_spans};
-use crate::core::SessionQueryIndexExt;
+use crate::core::{SessionQueryIndexExt, query_context, with_query_context_for_file};
 use crate::dir::{
     find_symbol_at_offset, get_canonical_symbol, get_symbol_definition_span,
     resolve_nominal_symbol_from_type_expression,
@@ -105,7 +105,7 @@ pub fn goto_implementation(
     // resolve the target symbol type information
     let target_module = session.modules.get(canonical_id.module_id);
     let target_module = target_module.as_ref();
-    let Some(ctx) = crate::core::query_context(session, target_module) else {
+    let Some(ctx) = query_context(session, target_module) else {
         return Some(ImplementationResult::empty());
     };
 
@@ -157,7 +157,7 @@ fn resolve_type_symbol_at_offset(
     file: FileId,
     offset: u32,
 ) -> Option<GlobalSymbolId> {
-    crate::core::with_query_context_for_file(session, file, |ctx| {
+    with_query_context_for_file(session, file, |ctx| {
         // scan expression nodes to find a type reference under the cursor
         let dir_tree = ctx.dir().tree();
         for (expression_id, _expression) in dir_tree.iter_nodes_of_type::<Expression>() {
@@ -185,7 +185,7 @@ fn resolve_type_symbol_from_node(
     file: FileId,
     node_id: LocalNodeIdAny,
 ) -> Option<GlobalSymbolId> {
-    crate::core::with_query_context_for_file(session, file, |ctx| {
+    with_query_context_for_file(session, file, |ctx| {
         let global_node_id = node_id.into_global(ctx.module_id());
         let types = ctx.dir().types();
         let type_id = types.get_declared_or_inferred_type_id(global_node_id)?;
@@ -209,7 +209,7 @@ fn resolve_type_symbol_from_expression_node(
         return None;
     };
 
-    crate::core::with_query_context_for_file(session, file, |ctx| {
+    with_query_context_for_file(session, file, |ctx| {
         resolve_nominal_symbol_from_type_expression(session, ctx.dir(), expr_id)
     })
     .unwrap_or(None)
@@ -232,7 +232,7 @@ fn collect_target_symbols(session: &Session, symbol_id: GlobalSymbolId) -> HashS
         // resolve the module and query context for the canonical symbol
         let module = session.modules.get(canonical_id.module_id);
         let module = module.as_ref();
-        let Some(ctx) = crate::core::query_context(session, module) else {
+        let Some(ctx) = query_context(session, module) else {
             continue;
         };
 
@@ -272,7 +272,7 @@ fn symbol_is_implementable(session: &Session, symbol_id: GlobalSymbolId) -> bool
     // resolve the module and query context for the symbol
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let Some(ctx) = crate::core::query_context(session, module) else {
+    let Some(ctx) = query_context(session, module) else {
         return false;
     };
 

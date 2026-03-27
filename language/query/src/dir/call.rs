@@ -3,7 +3,7 @@ use destack_dir::{
 };
 
 use crate::ast::get_node_tree_span;
-use crate::core::{DirQuery, QueryContext};
+use crate::core::{DirQuery, QueryContext, query_context};
 
 use super::{
     get_canonical_symbol, resolve_expression_symbol, resolve_member_access_symbol,
@@ -98,7 +98,7 @@ pub(crate) fn resolve_call_target(
 fn symbol_is_function(session: &Session, symbol_id: GlobalSymbolId) -> bool {
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let Some(ctx) = crate::core::query_context(session, module) else {
+    let Some(ctx) = query_context(session, module) else {
         return false;
     };
 
@@ -112,7 +112,7 @@ pub(crate) fn build_call_index_entries_for_module(
     session: &Session,
     module: &Module,
 ) -> Vec<CallIndexEntry> {
-    let Some(ctx) = crate::core::query_context(session, module) else {
+    let Some(ctx) = query_context(session, module) else {
         return Vec::new();
     };
 

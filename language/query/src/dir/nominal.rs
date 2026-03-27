@@ -4,7 +4,7 @@ use destack_source::SourcePartKey;
 use destack_workspace::{Module, NominalIndexEntry, NominalRelationKind};
 
 use super::{is_type_symbol, resolve_expression_symbol};
-use crate::core::DirQuery;
+use crate::core::{DirQuery, query_context, with_query_context_for_module};
 use destack_workspace::Session;
 
 /// Resolve a member access symbol when the cursor is on the member name.
@@ -82,7 +82,7 @@ pub(crate) fn build_nominal_index_entries_for_module(
     session: &Session,
     module: &Module,
 ) -> Vec<NominalIndexEntry> {
-    let Some(ctx) = crate::core::query_context(session, module) else {
+    let Some(ctx) = query_context(session, module) else {
         return Vec::new();
     };
 
@@ -122,7 +122,7 @@ pub(crate) fn build_nominal_index_entries_for_module(
 fn symbol_is_type_symbol(session: &Session, symbol_id: GlobalSymbolId) -> bool {
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    crate::core::with_query_context_for_module(session, module, |ctx| {
+    with_query_context_for_module(session, module, |ctx| {
         if symbol_id.local_id.id >= ctx.dir().resolved_symbols().symbol_count() {
             return false;
         }

@@ -1,11 +1,14 @@
 use destack_dir as dir;
 use std::sync::Arc;
 
-use destack_dir::{GlobalSymbolId, StaticKey, SymbolType};
+use destack_dir::{GlobalSymbolId, StaticKey, SymbolSpace, SymbolType};
 use destack_source::{FileId, ModuleId, PathExt};
 use destack_workspace::{ImportIndexEntry, Program, Session, SpecifierIndexEntry};
 
-use crate::core::{SessionQueryIndexExt, query_context, with_query_context_for_module};
+use super::module_specifier_in_expression;
+use crate::core::{
+    SessionQueryIndexExt, query_context, with_ast_query_for_module, with_query_context_for_module,
+};
 
 /// Information about an exported symbol from a module.
 #[derive(Debug, Clone)]
@@ -62,15 +65,18 @@ fn module_path_for_import(module: &destack_workspace::Module) -> Option<String> 
     Some(path.to_string())
 }
 
-/// Resolve a symbol type for an export entry.
-fn resolve_export_symbol_type(session: &Session, symbol_id: GlobalSymbolId) -> Option<SymbolType> {
+/// Resolve the symbol facts for an export entry.
+fn resolve_export_symbol_info(
+    session: &Session,
+    symbol_id: GlobalSymbolId,
+) -> Option<(SymbolType, SymbolSpace)> {
     // resolve the module query context
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
     with_query_context_for_module(session, module, |ctx| {
         let symbols = ctx.dir().resolved_symbols();
         let symbol = symbols.get_symbol(symbol_id.local_id);
-        symbol.ty
+        (symbol.ty, symbol.space)
     })
 }
 
@@ -90,7 +96,7 @@ pub(crate) fn get_module_exports_maybe(
 
     // collect exported symbols from the resolved export table
     let exported_symbols = &ctx.dir().resolved().exported_symbols;
-    for ((space, key), export) in exported_symbols.iter() {
+    for ((_, key), export) in exported_symbols.iter() {
         let StaticKey::Name(string_id) = *key else {
             continue;
         };
@@ -99,7 +105,7 @@ pub(crate) fn get_module_exports_maybe(
             continue;
         };
 
-        let Some(kind) = resolve_export_symbol_type(session, target_symbol) else {
+        let Some((kind, space)) = resolve_export_symbol_info(session, target_symbol) else {
             continue;
         };
 
@@ -107,7 +113,7 @@ pub(crate) fn get_module_exports_maybe(
         exports.push(ExportedSymbol {
             name,
             kind,
-            space: *space,
+            space,
             module_id,
             local_id: target_symbol.local_id,
             module_path: module_path.clone(),
@@ -141,6 +147,21 @@ pub(crate) fn search_importable_symbols_for_program(
         .collect()
 }
 
+/// Build import index entries for one program.
+pub(crate) fn build_import_index_entries_for_program(
+    session: &Session,
+    program: &Program,
+) -> Vec<ImportIndexEntry> {
+    let mut entries = Vec::new();
+
+    // collect every export visible from this program
+    for module in program.modules.iter() {
+        entries.extend(build_import_index_entries_for_module(session, module.id));
+    }
+
+    entries
+}
+
 /// Build import index entries for one module.
 pub(crate) fn build_import_index_entries_for_module(
     session: &Session,
@@ -170,7 +191,7 @@ pub(crate) fn build_specifier_index_entries_for_module(
 ) -> Vec<SpecifierIndexEntry> {
     let query_context = query_context(session, module);
 
-    let Some(entries) = crate::core::with_ast_query_for_module(session, module, |ast| {
+    let Some(entries) = with_ast_query_for_module(session, module, |ast| {
         let mut dir_targets = std::collections::HashMap::new();
         if let Some(ctx) = query_context.as_ref() {
             let dir_tree = ctx.dir().tree();
@@ -192,8 +213,7 @@ pub(crate) fn build_specifier_index_entries_for_module(
         let mut entries = Vec::new();
         for expression_id in ast.tree().iter_nodes::<destack_ast::Expression>() {
             let expression = ast.tree().get(expression_id);
-            let Some((target, _kind)) =
-                crate::dir::module_specifier_in_expression(ast.tree(), expression)
+            let Some((target, _kind)) = module_specifier_in_expression(ast.tree(), expression)
             else {
                 continue;
             };

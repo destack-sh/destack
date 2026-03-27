@@ -1,7 +1,7 @@
 use destack_dir::{Extension, ExtensionKind, GlobalSymbolId};
 use destack_source::ModuleId;
 
-use crate::core::{DirQuery, SessionQueryIndexExt};
+use crate::core::{DirQuery, SessionQueryIndexExt, query_context};
 
 use super::get_canonical_symbol;
 use destack_workspace::{ExtensionIndexEntry, Module, Session};
@@ -22,7 +22,7 @@ pub(crate) fn for_each_visible_extension(
     for entry in session.extension_index_entries_for_target(canonical_target) {
         let module = session.modules.get(entry.module_id);
         let module = module.as_ref();
-        let Some(ctx) = crate::core::query_context(session, module) else {
+        let Some(ctx) = query_context(session, module) else {
             continue;
         };
 
@@ -46,7 +46,7 @@ pub(crate) fn build_extension_index_entries_for_module(
     session: &Session,
     module: &Module,
 ) -> Vec<ExtensionIndexEntry> {
-    let Some(ctx) = crate::core::query_context(session, module) else {
+    let Some(ctx) = query_context(session, module) else {
         return Vec::new();
     };
 

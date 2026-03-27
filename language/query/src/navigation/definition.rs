@@ -2,7 +2,7 @@ use destack_source::{FileId, NodeSpanType, Span, Uri};
 use serde::{Deserialize, Serialize};
 
 use crate::ast::{get_module_by_file_id, get_node_tree_main_span};
-use crate::core::QueryContext;
+use crate::core::{QueryContext, query_context};
 use crate::dir::{
     SymbolAtOffset, binding_symbol_at_offset, find_symbol_at_offset, get_canonical_symbol,
     get_symbol_definition_span, get_symbol_local_definition_span, semantic_target_symbol_at_offset,
@@ -123,7 +123,7 @@ fn resolve_import_definition_at_offset(
     // resolve the module and query context for this file
     let module = get_module_by_file_id(session, file)?;
     let module = module.as_ref();
-    let ctx = crate::core::query_context(session, module)?;
+    let ctx = query_context(session, module)?;
     let ast = ctx.ast();
     let dir_tree = ctx.dir().tree();
 
@@ -204,7 +204,7 @@ pub fn goto_type_definition(
     // get the module to access type table
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let ctx = crate::core::query_context(session, module)?;
+    let ctx = query_context(session, module)?;
 
     if let Some(span) = type_definition_span_for_symbol(session, symbol_id) {
         return Some(DefinitionResult::single(span));
@@ -285,7 +285,7 @@ fn overload_definition_span_for_call_site(
     // resolve the query context for this file
     let module = get_module_by_file_id(session, file)?;
     let module = module.as_ref();
-    let ctx = crate::core::query_context(session, module)?;
+    let ctx = query_context(session, module)?;
     let dir_tree = ctx.dir().tree();
 
     // require a call/new parent where this expression is the callee
@@ -342,7 +342,7 @@ fn overload_declaration_span_for_signature(
     // resolve the symbol context and declarations
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let ctx = crate::core::query_context(session, module)?;
+    let ctx = query_context(session, module)?;
     let (primary_declaration, secondary_declarations) = {
         let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(symbol_id.local_id);

@@ -4,7 +4,7 @@ use destack_source::{FileId, Uri};
 use serde::{Deserialize, Serialize};
 
 use crate::ast::span_for_dir_node;
-use crate::core::{QueryContext, query_context};
+use crate::core::{QueryContext, query_context, with_query_context_for_file};
 use crate::dir::{
     ParameterData, doc_text_for_node_without_tags, parameter_data_for_symbol, resolve_call_target,
 };
@@ -114,7 +114,7 @@ pub struct SignatureHelpResponse {
 /// Get signature help at the given position (inside a function call).
 pub fn signature_help(session: &Session, file: FileId, offset: u32) -> Option<SignatureHelp> {
     // resolve signature help within the query context
-    crate::core::with_query_context_for_file(session, file, |ctx| {
+    with_query_context_for_file(session, file, |ctx| {
         // resolve the dir tree for traversal
         let dir_tree = ctx.dir().tree();
 

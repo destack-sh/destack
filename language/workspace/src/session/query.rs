@@ -25,9 +25,14 @@ fn word_boundary_key(name: &str) -> String {
     let mut boundary = String::new();
 
     for (index, character) in name.char_indices() {
+        let previous = name[..index].chars().next_back();
         let is_boundary = index == 0
             || character.is_uppercase()
-            || (index > 0 && name.as_bytes().get(index - 1) == Some(&b'_'));
+            || previous == Some('_')
+            || previous == Some('-')
+            || previous
+                .map(|previous| !previous.is_alphanumeric() && character.is_alphanumeric())
+                .unwrap_or(false);
 
         if is_boundary {
             boundary.extend(character.to_lowercase());
@@ -81,17 +86,19 @@ pub struct ImportIndexEntry {
 struct StoredImportIndexEntry {
     /// The lowercase search key.
     search_name: String,
+    /// The lowercase word-boundary key.
+    boundary_name: String,
     /// The exported symbol entry.
     entry: ImportIndexEntry,
 }
 
-/// One module slice inside the import index.
+/// One program slice inside the import index.
 #[derive(Debug, Clone)]
-struct ImportIndexModuleSlice {
-    /// The stored entry ids for this module.
+struct ImportIndexProgramSlice {
+    /// The stored entry ids for this program.
     entry_ids: Vec<usize>,
-    /// The workspace roots that include this module.
-    root_paths: Vec<PathBuf>,
+    /// The stored entry ids for constant-time membership checks.
+    entry_id_set: FxHashSet<usize>,
 }
 
 /// The workspace index for importable exported symbols.
@@ -99,42 +106,39 @@ struct ImportIndexModuleSlice {
 pub struct ImportIndex {
     /// The next stored entry id.
     next_entry_id: usize,
-    /// The entries grouped by exporting module.
-    entries_by_module: FxHashMap<ModuleId, ImportIndexModuleSlice>,
+    /// The entries grouped by owning program root.
+    entries_by_program: FxHashMap<PathBuf, ImportIndexProgramSlice>,
     /// The stored entries by id.
     entries_by_id: FxHashMap<usize, StoredImportIndexEntry>,
     /// The entry ids grouped by lowercase prefixes.
     entry_ids_by_prefix: FxHashMap<String, Vec<usize>>,
-    /// The entry ids grouped by containing workspace root.
-    entry_ids_by_root: FxHashMap<PathBuf, Vec<usize>>,
-    /// The entry ids visible to every root.
-    global_entry_ids: Vec<usize>,
+    /// The entry ids grouped by word-boundary prefixes.
+    entry_ids_by_boundary_prefix: FxHashMap<String, Vec<usize>>,
+    /// The entry ids grouped by contained lowercase characters.
+    entry_ids_by_character: FxHashMap<char, Vec<usize>>,
 }
 
 impl ImportIndex {
-    /// Return true when one module slice exists.
-    pub fn has_module(&self, module_id: ModuleId) -> bool {
-        self.entries_by_module.contains_key(&module_id)
+    /// Return true when one program slice exists.
+    pub fn has_program(&self, root: &Path) -> bool {
+        self.entries_by_program.contains_key(root)
     }
 
-    /// Return the number of indexed module slices.
-    pub fn module_count(&self) -> usize {
-        self.entries_by_module.len()
+    /// Return the number of indexed program slices.
+    pub fn program_count(&self) -> usize {
+        self.entries_by_program.len()
     }
 
-    /// Replace one module slice in the import index.
-    pub fn replace_module(
-        &mut self,
-        module_id: ModuleId,
-        root_paths: Vec<PathBuf>,
-        entries: Vec<ImportIndexEntry>,
-    ) {
-        self.remove_module(module_id);
+    /// Replace one program slice in the import index.
+    pub fn replace_program(&mut self, root: PathBuf, entries: Vec<ImportIndexEntry>) {
+        self.remove_program(root.as_path());
 
         let mut entry_ids = Vec::new();
+        let mut entry_id_set = FxHashSet::default();
 
         for entry in entries {
             let search_name = entry.name.to_lowercase();
+            let boundary_name = word_boundary_key(&entry.name);
             let entry_id = self.next_entry_id;
             self.next_entry_id += 1;
 
@@ -145,34 +149,44 @@ impl ImportIndex {
                     .push(entry_id);
             }
 
-            if root_paths.is_empty() {
-                self.global_entry_ids.push(entry_id);
-            } else {
-                for root_path in &root_paths {
-                    self.entry_ids_by_root
-                        .entry(root_path.clone())
-                        .or_default()
-                        .push(entry_id);
-                }
+            for prefix in search_prefixes(&boundary_name) {
+                self.entry_ids_by_boundary_prefix
+                    .entry(prefix)
+                    .or_default()
+                    .push(entry_id);
             }
 
-            self.entries_by_id
-                .insert(entry_id, StoredImportIndexEntry { search_name, entry });
+            for character in search_characters(&search_name) {
+                self.entry_ids_by_character
+                    .entry(character)
+                    .or_default()
+                    .push(entry_id);
+            }
+
+            self.entries_by_id.insert(
+                entry_id,
+                StoredImportIndexEntry {
+                    search_name,
+                    boundary_name,
+                    entry,
+                },
+            );
             entry_ids.push(entry_id);
+            entry_id_set.insert(entry_id);
         }
 
-        self.entries_by_module.insert(
-            module_id,
-            ImportIndexModuleSlice {
+        self.entries_by_program.insert(
+            root,
+            ImportIndexProgramSlice {
                 entry_ids,
-                root_paths,
+                entry_id_set,
             },
         );
     }
 
-    /// Remove one module slice from the import index.
-    pub fn remove_module(&mut self, module_id: ModuleId) {
-        let Some(slice) = self.entries_by_module.remove(&module_id) else {
+    /// Remove one program slice from the import index.
+    pub fn remove_program(&mut self, root: &Path) {
+        let Some(slice) = self.entries_by_program.remove(root) else {
             return;
         };
 
@@ -192,44 +206,46 @@ impl ImportIndex {
                 }
             }
 
-            if slice.root_paths.is_empty() {
-                remove_entry_id(&mut self.global_entry_ids, entry_id);
-            } else {
-                for root_path in &slice.root_paths {
-                    let Some(entry_ids) = self.entry_ids_by_root.get_mut(root_path) else {
-                        continue;
-                    };
+            for prefix in search_prefixes(&stored.boundary_name) {
+                let Some(entry_ids) = self.entry_ids_by_boundary_prefix.get_mut(&prefix) else {
+                    continue;
+                };
 
-                    remove_entry_id(entry_ids, entry_id);
-                    if entry_ids.is_empty() {
-                        self.entry_ids_by_root.remove(root_path);
-                    }
+                remove_entry_id(entry_ids, entry_id);
+                if entry_ids.is_empty() {
+                    self.entry_ids_by_boundary_prefix.remove(&prefix);
+                }
+            }
+
+            for character in search_characters(&stored.search_name) {
+                let Some(entry_ids) = self.entry_ids_by_character.get_mut(&character) else {
+                    continue;
+                };
+
+                remove_entry_id(entry_ids, entry_id);
+                if entry_ids.is_empty() {
+                    self.entry_ids_by_character.remove(&character);
                 }
             }
         }
     }
 
-    /// Search import entries visible from one workspace root.
-    pub fn search_root(
+    /// Search import entries for one owning program.
+    pub fn search_program(
         &self,
-        root_path: &Path,
+        root: &Path,
         query: &str,
         exclude_module: Option<ModuleId>,
     ) -> Vec<ImportIndexEntry> {
         let query = query.to_lowercase();
         let mut results = Vec::new();
+        let Some(program_slice) = self.entries_by_program.get(root) else {
+            return results;
+        };
 
-        // empty query: return all entries visible from this root
+        // empty query: return all entries for this program
         if query.is_empty() {
-            let mut candidate_ids = FxHashSet::default();
-
-            if let Some(entry_ids) = self.entry_ids_by_root.get(root_path) {
-                candidate_ids.extend(entry_ids.iter().copied());
-            }
-
-            candidate_ids.extend(self.global_entry_ids.iter().copied());
-
-            for entry_id in candidate_ids {
+            for &entry_id in &program_slice.entry_ids {
                 let Some(stored) = self.entries_by_id.get(&entry_id) else {
                     continue;
                 };
@@ -241,10 +257,22 @@ impl ImportIndex {
                 results.push(stored.entry.clone());
             }
         }
-        // non-empty query: use the prefix postings directly
-        else if let Some(entry_ids) = self.entry_ids_by_prefix.get(&query) {
-            for entry_id in entry_ids {
-                let Some(stored) = self.entries_by_id.get(entry_id) else {
+        // non-empty query: intersect keyed candidates with this program slice
+        else {
+            let mut candidate_ids = FxHashSet::default();
+
+            if let Some(entry_ids) = self.entry_ids_by_prefix.get(&query) {
+                candidate_ids.extend(entry_ids.iter().copied());
+            }
+
+            if let Some(entry_ids) = self.entry_ids_by_boundary_prefix.get(&query) {
+                candidate_ids.extend(entry_ids.iter().copied());
+            }
+
+            candidate_ids.extend(self.character_candidates(&query));
+
+            for entry_id in candidate_ids {
+                let Some(stored) = self.entries_by_id.get(&entry_id) else {
                     continue;
                 };
 
@@ -252,7 +280,7 @@ impl ImportIndex {
                 if Some(entry.module_id) == exclude_module {
                     continue;
                 }
-                if !self.is_visible_from_root(entry.module_id, root_path) {
+                if !program_slice.entry_id_set.contains(&entry_id) {
                     continue;
                 }
 
@@ -270,13 +298,33 @@ impl ImportIndex {
         results
     }
 
-    /// Return true when one module is visible from one workspace root.
-    fn is_visible_from_root(&self, module_id: ModuleId, root_path: &Path) -> bool {
-        let Some(slice) = self.entries_by_module.get(&module_id) else {
-            return false;
+    /// Collect character-bucket candidates for one lowercase query.
+    fn character_candidates(&self, query: &str) -> FxHashSet<usize> {
+        let mut query_characters = search_characters(query).into_iter();
+
+        let Some(first_character) = query_characters.next() else {
+            return FxHashSet::default();
         };
 
-        slice.root_paths.is_empty() || slice.root_paths.iter().any(|root| root == root_path)
+        let Some(initial_candidates) = self.entry_ids_by_character.get(&first_character) else {
+            return FxHashSet::default();
+        };
+
+        let mut candidate_ids: FxHashSet<_> = initial_candidates.iter().copied().collect();
+
+        for character in query_characters {
+            let Some(entry_ids) = self.entry_ids_by_character.get(&character) else {
+                return FxHashSet::default();
+            };
+
+            let character_candidates: FxHashSet<_> = entry_ids.iter().copied().collect();
+            candidate_ids.retain(|entry_id| character_candidates.contains(entry_id));
+            if candidate_ids.is_empty() {
+                return candidate_ids;
+            }
+        }
+
+        candidate_ids
     }
 }
 

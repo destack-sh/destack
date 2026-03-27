@@ -8,10 +8,11 @@ use crate::ast::{
     missing_declarator_value_at_cursor, offset_is_in_ast_type_side_span,
     previous_significant_token, token_span_at_cursor_offset, token_text,
 };
-use crate::core::{AstQuery, DirQuery};
+use crate::core::{AstQuery, DirQuery, query_context};
 use crate::dir::{
-    ObjectLiteralCursorContext, ScopeAtOffset, is_inside_object_literal_expression,
-    object_literal_cursor_context, scope_at_offset, scope_from_block_span,
+    ExpectedParameterHint, ObjectLiteralCursorContext, ScopeAtOffset,
+    is_inside_object_literal_expression, object_literal_cursor_context, scope_at_offset,
+    scope_from_block_span,
 };
 
 use super::call::{detect_call_argument_context, detect_new_expression_context};
@@ -77,6 +78,8 @@ pub(crate) enum CompletionContext {
         scope_id: Option<dir::LocalScopeId>,
         /// The scope mark for ordering visible symbols.
         scope_mark: Option<dir::LocalScopeMark>,
+        /// The active parameter hint when one is available.
+        expected_parameter: Option<ExpectedParameterHint>,
     },
     /// New expression context inside `new ...`.
     NewExpression {
@@ -190,7 +193,7 @@ pub(crate) fn completion_input_at_offset(
 
     // resolve the query context from the module
     let module = module.as_ref();
-    let Some(ctx) = crate::core::query_context(session, module) else {
+    let Some(ctx) = query_context(session, module) else {
         return unknown_completion_input();
     };
     let ast = ctx.ast();
@@ -236,7 +239,7 @@ pub(crate) fn completion_input_at_offset(
     }
 
     // check for call argument context
-    if let Some(call_context) = detect_call_argument_context(ast, dir, offset) {
+    if let Some(call_context) = detect_call_argument_context(session, ast, dir, offset) {
         return CompletionInput {
             context: call_context,
             token,

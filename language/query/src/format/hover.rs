@@ -1,3 +1,5 @@
+#![allow(clippy::too_many_arguments)]
+
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_source::ModuleId;
@@ -47,8 +49,6 @@ pub fn format_hover_markdown(
 }
 
 /// Format hover text for a member (field, method, etc).
-// allow many args for hover formatting inputs
-#[allow(clippy::too_many_arguments)]
 pub fn format_member_hover(
     artifacts: &ArtifactStore,
     strings: &StringPool,
