@@ -91,6 +91,39 @@ render(function) file=tie_a.ds range=1:1-1:34
 render(function) file=tie_b.ds range=1:1-1:34
 ```
 
+### Prefer container ordering for equal member matches
+
+Workspace symbol search should use container names as a late tie-break for equal member matches.
+
+```ds:container_rank.ds
+class BetaContainer {
+    render(): void {}
+}
+
+class AlphaContainer {
+    render(): void {}
+}
+```
+
+```query workspace_symbols render
+render(method) file=container_rank.ds range=6:5-6:22 container=AlphaContainer
+render(method) file=container_rank.ds range=2:5-2:22 container=BetaContainer
+```
+
+### Prefer stronger case matches
+
+Workspace symbol search should rank exact-case prefix matches ahead of case-folded matches.
+
+```ds:case_rank.ds
+export function HTTPServer(): void {}
+export function HttpServer(): void {}
+```
+
+```query workspace_symbols HT
+HTTPServer(function) file=case_rank.ds range=1:1-1:38
+HttpServer(function) file=case_rank.ds range=2:1-2:38
+```
+
 ## Members and Containers
 
 ### Include member symbols with containers

@@ -310,7 +310,6 @@ function test() {
 ```
 
 ```query completion $0
-test: function
 Point: struct
 any: type_parameter
 int: type_parameter
@@ -345,6 +344,27 @@ unknown: type_parameter
 character: type_parameter
 undefined: type_parameter
 unique symbol: type_parameter
+test: function
+```
+
+### Prefer type-like completions in type position
+
+Type positions should rank type-like candidates ahead of value-like matches with the same prefix.
+
+```ds
+struct PrintNode {}
+
+function PrintValue(): void {}
+
+function main() {
+    const value: Pri$0 = PrintNode {};
+}
+```
+
+```query completion $0
+top: 2
+[0] label=PrintNode kind=struct sort=10 sort_text=<none> detail=<none> edits=<none>
+[1] label=PrintValue kind=function sort=10 sort_text=<none> detail=<none> edits=<none>
 ```
 
 ### Exclude pure value symbols in type position
@@ -361,7 +381,6 @@ function test() {
 ```
 
 ```query completion $0
-test: function
 any: type_parameter
 int: type_parameter
 int8: type_parameter
@@ -395,6 +414,7 @@ unknown: type_parameter
 character: type_parameter
 undefined: type_parameter
 unique symbol: type_parameter
+test: function
 ```
 
 ### Complete imported types in type position
@@ -415,7 +435,6 @@ function configure(config: $0/*type*/ Options) {}
 
 ```query completion $0
 Options: type_parameter
-configure: function
 any: type_parameter
 int: type_parameter
 int8: type_parameter
@@ -449,6 +468,7 @@ unknown: type_parameter
 character: type_parameter
 undefined: type_parameter
 unique symbol: type_parameter
+configure: function
 ```
 
 ### Complete in generic type parameter
@@ -473,9 +493,8 @@ function test() {
 ```
 
 ```query completion $0
-test: function
-Point: struct
 Container: struct
+Point: struct
 any: type_parameter
 int: type_parameter
 int8: type_parameter
@@ -509,6 +528,7 @@ unknown: type_parameter
 character: type_parameter
 undefined: type_parameter
 unique symbol: type_parameter
+test: function
 ```
 
 ### Complete declared types in unterminated annotations
@@ -608,8 +628,8 @@ import { } from "./utils/f$0"
 
 ```query completion $0
 format: module
-forms/: folder
 format_more: module
+forms/: folder
 ```
 
 ## Import Clause
@@ -751,8 +771,8 @@ function main() {
 ```
 
 ```query completion $0
-main: function
 userName: variable
+main: function
 ```
 
 ## New Expressions
@@ -1416,7 +1436,7 @@ function main() {
 
 ```query completion $0
 top: 1
-[0] label=Engine kind=class sort=360 sort_text=0360:./lib:Engine detail=Auto import from ./lib edits=main.ds:1:1-1:1=>"import { Engine } from \"./lib\";"
+[0] label=Engine kind=class sort=100 sort_text=1:0:0:0000:0000:0005:./lib:Engine detail=Auto import from ./lib edits=main.ds:1:1-1:1=>"import { Engine } from \"./lib\";"
 ```
 
 ## Object Literal
@@ -1503,8 +1523,8 @@ function main() {
 
 ```query completion $0
 host: variable
-main: function
 port: variable
+main: function
 ```
 
 ### Avoid field completions in object value position
@@ -1552,11 +1572,11 @@ function main() {
 ```
 
 ```query completion $0
-city: field
 street: field
+city: field
 main: function
-Person: struct
 Address: struct
+Person: struct
 ```
 
 ## Scope and Variables
@@ -1575,8 +1595,8 @@ function test() {
 
 ```query completion $0
 name: variable
-test: function
 count: variable
+test: function
 as: keyword
 do: keyword
 if: keyword
@@ -1774,10 +1794,10 @@ function outer() {
 ```
 
 ```query completion $0
-inner: function
-outer: function
 innerVar: variable
 outerVar: variable
+inner: function
+outer: function
 as: keyword
 do: keyword
 if: keyword
@@ -2082,8 +2102,8 @@ toNumber: function
 toString: function
 goto: keyword
 throw: keyword
-function: keyword
 typeof: keyword
+function: keyword
 extension: keyword
 instanceof: keyword
 constructor: keyword
@@ -2107,8 +2127,8 @@ ToNumber: function
 ToString: function
 goto: keyword
 throw: keyword
-function: keyword
 typeof: keyword
+function: keyword
 extension: keyword
 instanceof: keyword
 constructor: keyword
@@ -2170,7 +2190,6 @@ function test() {
 ```
 
 ```query completion $0
-test: function
 Color: enum
 any: type_parameter
 int: type_parameter
@@ -2205,6 +2224,7 @@ unknown: type_parameter
 character: type_parameter
 undefined: type_parameter
 unique symbol: type_parameter
+test: function
 ```
 
 ### Complete enum members after dot
@@ -2224,8 +2244,8 @@ function main() {
 ```
 
 ```query completion $0
-Active: enum_member
 Pending: enum_member
+Active: enum_member
 Completed: enum_member
 ```
 
@@ -2245,9 +2265,121 @@ function main() {
 ```
 
 ```query completion $0
-main: function
-greet: function
 userName: variable
+greet: function
+main: function
+```
+
+### Prefer the active parameter name in argument position
+
+Argument completion should prefer the candidate whose name matches the active parameter.
+
+```ds
+function paint(count: int32, color: string): void {}
+
+function main() {
+    const count = 1;
+    const color = "red";
+    paint(count, co$0)
+}
+```
+
+```query completion $0
+color: variable
+count: variable
+```
+
+### Prefer callable values for callable parameters
+
+Argument completion should prefer callable candidates when the active parameter expects one callable value.
+
+```ds
+function invoke(callback: (message: string) -> void): void {}
+
+function handler(message: string): void {}
+
+function main() {
+    const hash = 1;
+    invoke(ha$0)
+}
+```
+
+```query completion $0
+handler: function
+hash: variable
+```
+
+### Prefer exact nominal type matches for parameters
+
+Argument completion should prefer candidates whose value type matches the active parameter type.
+
+```ds
+class Person {}
+class Usage {}
+
+function takes(user: Person): void {}
+
+function main() {
+    const userOne: Usage = Usage {};
+    const userTwo: Person = Person {};
+    takes(user$0)
+}
+```
+
+```query completion $0
+userTwo: variable
+userOne: variable
+```
+
+### Prefer alias-backed type matches for parameters
+
+Argument completion should keep direct alias matches ahead of candidates that only match through the alias target.
+
+```ds
+class Person {}
+class Usage {}
+
+type UserParam = Person;
+
+function takes(user: UserParam): void {}
+
+function main() {
+    const userOne: UserParam = Person {};
+    const userTwo: Person = Person {};
+    const userThree: Usage = Usage {};
+    takes(user$0)
+}
+```
+
+```query completion $0
+userOne: variable
+userTwo: variable
+userThree: variable
+```
+
+### Prefer union-member type matches for parameters
+
+Argument completion should keep candidates whose value type is part of the expected union ahead of unrelated values.
+
+```ds
+class Person {}
+class Usage {}
+class Audit {}
+
+function takes(user: Person | Usage): void {}
+
+function main() {
+    const userAudit: Audit = Audit {};
+    const userPerson: Person = Person {};
+    const userUsage: Usage = Usage {};
+    takes(user$0)
+}
+```
+
+```query completion $0
+userUsage: variable
+userPerson: variable
+userAudit: variable
 ```
 
 ## Damaged Source
@@ -2264,8 +2396,8 @@ function main() {
 ```
 
 ```query completion $0
-main: function
 userName: variable
+main: function
 ```
 
 ### Exclude destructured bindings in missing initializer position
@@ -2284,8 +2416,8 @@ function main() {
 ```
 
 ```query completion $0
-main: function
 sourceData: variable
+main: function
 ```
 
 ### Keep member completions when one initializer introduces the same label
@@ -2323,8 +2455,8 @@ greet($0)
 ```
 
 ```query completion $0
-greet: function
 userName: variable
+greet: function
 ```
 
 ### Complete after bare new recovery statements
@@ -2342,9 +2474,9 @@ function main() {
 ```
 
 ```query completion $0
-main: function
-greet: function
 userName: variable
+greet: function
+main: function
 ```
 
 ### Complete after throw recovery statements
@@ -2362,9 +2494,9 @@ function main() {
 ```
 
 ```query completion $0
-main: function
-greet: function
 userName: variable
+greet: function
+main: function
 ```
 
 ### Complete after yield star recovery statements
@@ -2382,9 +2514,9 @@ function* main() {
 ```
 
 ```query completion $0
-main: function
-greet: function
 userName: variable
+greet: function
+main: function
 ```
 
 ### Complete in missing return position
@@ -2401,9 +2533,9 @@ function main() {
 ```
 
 ```query completion $0
-main: function
-helper: function
 userName: variable
+helper: function
+main: function
 ```
 
 ### Complete in missing yield position
@@ -2418,8 +2550,8 @@ function* main() {
 ```
 
 ```query completion $0
-main: function
 userName: variable
+main: function
 ```
 
 ### Complete in unterminated function argument position
@@ -2436,9 +2568,9 @@ function main() {
 ```
 
 ```query completion $0
-main: function
-greet: function
 userName: variable
+greet: function
+main: function
 ```
 
 ### Complete after malformed function declaration
@@ -2578,7 +2710,6 @@ function test() {
 ```
 
 ```query completion $0
-test: function
 UserId: type_parameter
 OrderId: type_parameter
 any: type_parameter
@@ -2614,6 +2745,7 @@ unknown: type_parameter
 character: type_parameter
 undefined: type_parameter
 unique symbol: type_parameter
+test: function
 ```
 
 ## Generics
@@ -2635,8 +2767,8 @@ function main() {
 ```
 
 ```query completion $0
-count: field
 value: field
+count: field
 ```
 
 ## Auto Imports
@@ -2664,7 +2796,7 @@ function main() {
 ```query completion $0
 top: 2
 [0] label=formatLocal kind=function sort=10 sort_text=<none> detail=<none> edits=<none>
-[1] label=formatName kind=function sort=360 sort_text=0360:./lib:formatName detail=Auto import from ./lib edits=main.ds:1:1-1:1=>"import { formatName } from \"./lib\";"
+[1] label=formatName kind=function sort=100 sort_text=1:0:0:0000:0000:0005:./lib:formatName detail=Auto import from ./lib edits=main.ds:1:1-1:1=>"import { formatName } from \"./lib\";"
 ```
 
 ### Suggest auto imports on explicit invocation with short prefix
@@ -2683,7 +2815,31 @@ function main() {
 
 ```query completion $0
 top: 1
-[0] label=zetaGreeting kind=function sort=360 sort_text=0360:./lib:zetaGreeting detail=Auto import from ./lib edits=main.ds:1:1-1:1=>"import { zetaGreeting } from \"./lib\";"
+[0] label=zetaGreeting kind=function sort=100 sort_text=1:0:0:0000:0000:0005:./lib:zetaGreeting detail=Auto import from ./lib edits=main.ds:1:1-1:1=>"import { zetaGreeting } from \"./lib\";"
+```
+
+### Prefer stronger case matches for auto imports
+
+Auto imports should rank exact-case prefix matches ahead of case-folded matches.
+
+```ds:http_server.ds
+export function HTTPServer(): void {}
+```
+
+```ds:http_tool.ds
+export function HttpServer(): void {}
+```
+
+```ds:main.ds
+function main() {
+    HT$0
+}
+```
+
+```query completion $0
+top: 2
+[0] label=HTTPServer kind=function sort=100 sort_text=1:0:0:0000:0000:0013:./http_server:HTTPServer detail=Auto import from ./http_server edits=main.ds:1:1-1:1=>"import { HTTPServer } from \"./http_server\";"
+[1] label=HttpServer kind=function sort=100 sort_text=1:0:0:0000:0000:0011:./http_tool:HttpServer detail=Auto import from ./http_tool edits=main.ds:1:1-1:1=>"import { HttpServer } from \"./http_tool\";"
 ```
 
 ### Prefer locals over auto imports with stronger matches
@@ -2705,7 +2861,27 @@ function main() {
 ```query completion $0
 top: 2
 [0] label=setColor kind=function sort=10 sort_text=<none> detail=<none> edits=<none>
-[1] label=color kind=function sort=360 sort_text=0360:./lib:color detail=Auto import from ./lib edits=main.ds:1:1-1:1=>"import { color } from \"./lib\";"
+[1] label=color kind=function sort=100 sort_text=1:0:0:0000:0000:0005:./lib:color detail=Auto import from ./lib edits=main.ds:1:1-1:1=>"import { color } from \"./lib\";"
+```
+
+### Prefer whole name matches over longer prefixes
+
+Whole-name lexical matches should rank ahead of longer prefix matches, even when the whole match is case folded.
+
+```ds
+function Format(): void {}
+
+function formatName(): void {}
+
+function main() {
+    format$0
+}
+```
+
+```query completion $0
+top: 2
+[0] label=Format kind=function sort=10 sort_text=<none> detail=<none> edits=<none>
+[1] label=formatName kind=function sort=10 sort_text=<none> detail=<none> edits=<none>
 ```
 
 ### Skip auto imports for visible names
@@ -2727,9 +2903,9 @@ function main() {
 Widget: variable
 ```
 
-### Use type only auto imports in type position
+### Use type only auto imports for pure type exports in type position
 
-Auto imports in type position should use `import type`.
+Auto imports in type position should use `import type` for pure type exports.
 
 ```ds:lib.ds
 export type Widget = {
@@ -2743,7 +2919,88 @@ type Alias = Wid$0;
 
 ```query completion $0
 top: 1
-[0] label=Widget kind=type_parameter sort=360 sort_text=0360:./lib:Widget detail=Auto import from ./lib edits=main.ds:1:1-1:1=>"import type { Widget } from \"./lib\";"
+[0] label=Widget kind=type_parameter sort=100 sort_text=0:0:0:0000:0000:0005:./lib:Widget detail=Auto import from ./lib edits=main.ds:1:1-1:1=>"import type { Widget } from \"./lib\";"
+```
+
+### Use type only auto imports for pure type exports in .ts type position
+
+TypeScript pure type exports should also use `import type` in type position.
+
+```ts:lib.ts
+export type Widget = {
+    value: string,
+};
+```
+
+```ts:main.ts
+export {}
+
+type Alias = Wid$0
+```
+
+```query completion $0
+top: 1
+[0] label=Widget kind=type_parameter sort=100 sort_text=0:0:0:0000:0000:0005:./lib:Widget detail=Auto import from ./lib edits=main.ts:1:1-1:1=>"import type { Widget } from \"./lib\";"
+```
+
+### Use type only auto imports for type-value exports in .ts type position
+
+TypeScript type-position auto imports should stay type-only even for dual-space exports.
+
+```ts:lib.ts
+export class WobbleWidget {}
+```
+
+```ts:main.ts
+export {}
+
+type Alias = Wob$0
+```
+
+```query completion $0
+top: 1
+[0] label=WobbleWidget kind=class sort=100 sort_text=1:0:0:0000:0000:0005:./lib:WobbleWidget detail=Auto import from ./lib edits=main.ts:1:1-1:1=>"import type { WobbleWidget } from \"./lib\";"
+```
+
+### Prefer pure type exports in type position
+
+Type-position auto imports should rank pure type exports ahead of type-value exports with the same name.
+
+```ds:type_lib.ds
+export type Widget = {
+    value: string,
+};
+```
+
+```ds:class_lib.ds
+export class Widget {}
+```
+
+```ds:main.ds
+type Alias = Widg$0;
+```
+
+```query completion $0
+top: 2
+[0] label=Widget kind=type_parameter sort=100 sort_text=0:0:0:0000:0000:0010:./type_lib:Widget detail=Auto import from ./type_lib edits=main.ds:1:1-1:1=>"import type { Widget } from \"./type_lib\";"
+[1] label=Widget kind=class sort=100 sort_text=1:0:0:0000:0000:0011:./class_lib:Widget detail=Auto import from ./class_lib edits=main.ds:1:1-1:1=>"import { Widget } from \"./class_lib\";"
+```
+
+### Use value imports for type-value exports in .ds type position
+
+Destack type-value exports should stay full imports even when the reference is in type position.
+
+```ds:lib.ds
+export struct Widget {}
+```
+
+```ds:main.ds
+type Alias = Wid$0;
+```
+
+```query completion $0
+top: 1
+[0] label=Widget kind=struct sort=100 sort_text=1:0:0:0000:0000:0005:./lib:Widget detail=Auto import from ./lib edits=main.ds:1:1-1:1=>"import { Widget } from \"./lib\";"
 ```
 
 ### Prefer same folder auto imports
@@ -2776,9 +3033,41 @@ function main() {
 
 ```query completion $0
 top: 3
-[0] label=formatSameRoot kind=function sort=360 sort_text=0360:./format_root:formatSameRoot detail=Auto import from ./format_root edits=main.ds:1:1-1:1=>"import { formatSameRoot } from \"./format_root\";"
-[1] label=formatSameNearby kind=function sort=471 sort_text=0471:./near/format:formatSameNearby detail=Auto import from ./near/format edits=main.ds:1:1-1:1=>"import { formatSameNearby } from \"./near/format\";"
-[2] label=formatSameFar kind=function sort=482 sort_text=0482:./far/deeper/format:formatSameFar detail=Auto import from ./far/deeper/format edits=main.ds:1:1-1:1=>"import { formatSameFar } from \"./far/deeper/format\";"
+[0] label=formatSameRoot kind=function sort=100 sort_text=1:0:0:0000:0000:0013:./format_root:formatSameRoot detail=Auto import from ./format_root edits=main.ds:1:1-1:1=>"import { formatSameRoot } from \"./format_root\";"
+[1] label=formatSameNearby kind=function sort=100 sort_text=1:1:0:0001:0001:0013:./near/format:formatSameNearby detail=Auto import from ./near/format edits=main.ds:1:1-1:1=>"import { formatSameNearby } from \"./near/format\";"
+[2] label=formatSameFar kind=function sort=100 sort_text=1:1:0:0002:0002:0019:./far/deeper/format:formatSameFar detail=Auto import from ./far/deeper/format edits=main.ds:1:1-1:1=>"import { formatSameFar } from \"./far/deeper/format\";"
+```
+
+### Prefer same package auto imports over external packages
+
+Auto imports from the current package should rank ahead of equally named external package exports.
+
+```json:package.json
+{ "name": "app" }
+```
+
+```ds:same_package.ds
+export function formatWidget(): void {}
+```
+
+```json:node_modules/ext_pkg/package.json
+{ "name": "ext_pkg" }
+```
+
+```ds:node_modules/ext_pkg/format_widget.ds
+export function formatWidget(): void {}
+```
+
+```ds:main.ds
+function main() {
+    formatW$0
+}
+```
+
+```query completion $0
+top: 2
+[0] label=formatWidget kind=function sort=100 sort_text=1:0:0:0000:0000:0014:./same_package:formatWidget detail=Auto import from ./same_package edits=main.ds:1:1-1:1=>"import { formatWidget } from \"./same_package\";"
+[1] label=formatWidget kind=function sort=100 sort_text=1:1:2:0002:0002:0021:ext_pkg/format_widget:formatWidget detail=Auto import from ext_pkg/format_widget edits=main.ds:1:1-1:1=>"import { formatWidget } from \"ext_pkg/format_widget\";"
 ```
 
 ### Rank auto imports by proximity
@@ -2805,8 +3094,8 @@ function main() {
 
 ```query completion $0
 top: 2
-[0] label=formatNearby kind=function sort=471 sort_text=0471:./near/format:formatNearby detail=Auto import from ./near/format edits=main.ds:1:1-1:1=>"import { formatNearby } from \"./near/format\";"
-[1] label=formatFar kind=function sort=482 sort_text=0482:./far/deeper/format:formatFar detail=Auto import from ./far/deeper/format edits=main.ds:1:1-1:1=>"import { formatFar } from \"./far/deeper/format\";"
+[0] label=formatNearby kind=function sort=100 sort_text=1:1:0:0001:0001:0013:./near/format:formatNearby detail=Auto import from ./near/format edits=main.ds:1:1-1:1=>"import { formatNearby } from \"./near/format\";"
+[1] label=formatFar kind=function sort=100 sort_text=1:1:0:0002:0002:0019:./far/deeper/format:formatFar detail=Auto import from ./far/deeper/format edits=main.ds:1:1-1:1=>"import { formatFar } from \"./far/deeper/format\";"
 ```
 
 ### Tie break auto imports by path
@@ -2833,8 +3122,8 @@ function main() {
 
 ```query completion $0
 top: 2
-[0] label=formatTieAlpha kind=function sort=471 sort_text=0471:./a/format_tie:formatTieAlpha detail=Auto import from ./a/format_tie edits=main.ds:1:1-1:1=>"import { formatTieAlpha } from \"./a/format_tie\";"
-[1] label=formatTieBeta kind=function sort=471 sort_text=0471:./b/format_tie:formatTieBeta detail=Auto import from ./b/format_tie edits=main.ds:1:1-1:1=>"import { formatTieBeta } from \"./b/format_tie\";"
+[0] label=formatTieAlpha kind=function sort=100 sort_text=1:1:0:0001:0001:0014:./a/format_tie:formatTieAlpha detail=Auto import from ./a/format_tie edits=main.ds:1:1-1:1=>"import { formatTieAlpha } from \"./a/format_tie\";"
+[1] label=formatTieBeta kind=function sort=100 sort_text=1:1:0:0001:0001:0014:./b/format_tie:formatTieBeta detail=Auto import from ./b/format_tie edits=main.ds:1:1-1:1=>"import { formatTieBeta } from \"./b/format_tie\";"
 ```
 
 ### Complete constructor names after bare new
