@@ -1,13 +1,52 @@
-use super::*;
+use super::prelude::*;
 use crate::executable::Transfer;
 use crate::telemetry::stat_inc;
 
-/// Handle assume (optimizer hint).
-pub(crate) fn handle_assume(
-    state: &mut ExecutionState<'_, '_>,
+/// Record one control-flow branch in the VM statistics.
+#[inline(always)]
+fn record_branch(state: &mut StepState<'_, '_>) {
+    if state.collect_stats {
+        stat_inc!(state.engine.statistics, branches);
+    }
+}
+
+/// Return one branch jump based on the evaluated condition.
+#[inline(always)]
+fn branch_transfer(
+    is_truthy: bool,
+    then_target: u32,
+    then_copies: CopyRange,
+    else_target: u32,
+    else_copies: CopyRange,
+) -> Transfer {
+    if is_truthy {
+        return Transfer::Jump {
+            block: then_target,
+            copies: then_copies,
+        };
+    }
+
+    Transfer::Jump {
+        block: else_target,
+        copies: else_copies,
+    }
+}
+
+/// Return one default switch jump.
+#[inline(always)]
+fn default_switch_transfer(default_target: u32, default_copies: CopyRange) -> Transfer {
+    Transfer::Jump {
+        block: default_target,
+        copies: default_copies,
+    }
+}
+
+/// Step assume (optimizer hint).
+pub(crate) fn step_assume(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::Assume = &block[pc].data else {
         unreachable!()
@@ -18,12 +57,13 @@ pub(crate) fn handle_assume(
     // continue to next instruction
     next!(state, block, pc)
 }
-/// Handle return (exits tail-call chain).
-pub(crate) fn handle_return(
-    state: &mut ExecutionState<'_, '_>,
+
+/// Step return (exits tail-call chain).
+pub(crate) fn step_return(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
@@ -39,15 +79,15 @@ pub(crate) fn handle_return(
     };
 
     // return to caller
-    ControlFlow::Return(return_value)
+    Transfer::Return(return_value)
 }
 
-/// Handle yield (exits tail-call chain).
-pub(crate) fn handle_yield(
-    state: &mut ExecutionState<'_, '_>,
+/// Step yield (exits tail-call chain).
+pub(crate) fn step_yield(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
@@ -63,18 +103,18 @@ pub(crate) fn handle_yield(
     let yield_value = state.get(*value);
 
     // return yield control
-    ControlFlow::Yield {
+    Transfer::Yield {
         value: yield_value,
         resume_point: *resume_point,
     }
 }
 
-/// Handle unconditional jump (exits tail-call chain).
-pub(crate) fn handle_jump(
-    state: &mut ExecutionState<'_, '_>,
+/// Step unconditional jump (exits tail-call chain).
+pub(crate) fn step_jump(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
@@ -83,18 +123,18 @@ pub(crate) fn handle_jump(
     };
 
     // return jump control
-    ControlFlow::Jump {
+    Transfer::Jump {
         block: *target,
         copies: *copies,
     }
 }
 
-/// Handle conditional branch (exits tail-call chain).
-pub(crate) fn handle_branch(
-    state: &mut ExecutionState<'_, '_>,
+/// Step conditional branch (exits tail-call chain).
+pub(crate) fn step_branch(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
@@ -113,35 +153,24 @@ pub(crate) fn handle_branch(
     let cond = state.get(*condition);
     let is_truthy = cond.is_truthy();
 
-    // update branch statistics
-    if state.collect_stats {
-        stat_inc!(state.engine.statistics, branches);
-    }
+    // record the branch and return the chosen jump
+    record_branch(state);
 
-    // handle truthy branch
-    if is_truthy {
-        // forward then copies
-        ControlFlow::Jump {
-            block: *then_target,
-            copies: *then_copies,
-        }
-    }
-    // otherwise jump to else target
-    else {
-        // forward else copies
-        ControlFlow::Jump {
-            block: *else_target,
-            copies: *else_copies,
-        }
-    }
+    branch_transfer(
+        is_truthy,
+        *then_target,
+        *then_copies,
+        *else_target,
+        *else_copies,
+    )
 }
 
-/// Handle boolean branch (exits tail-call chain).
-pub(crate) fn handle_branch_bool(
-    state: &mut ExecutionState<'_, '_>,
+/// Step boolean branch (exits tail-call chain).
+pub(crate) fn step_branch_bool(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
@@ -160,36 +189,25 @@ pub(crate) fn handle_branch_bool(
     let cond = state.get(*condition);
     let is_truthy = cond.raw_data() != 0;
 
-    // update branch statistics
-    if state.collect_stats {
-        stat_inc!(state.engine.statistics, branches);
-    }
+    // record the branch and return the chosen jump
+    record_branch(state);
 
-    // handle truthy branch
-    if is_truthy {
-        // forward then copies
-        ControlFlow::Jump {
-            block: *then_target,
-            copies: *then_copies,
-        }
-    }
-    // otherwise jump to else target
-    else {
-        // forward else copies
-        ControlFlow::Jump {
-            block: *else_target,
-            copies: *else_copies,
-        }
-    }
+    branch_transfer(
+        is_truthy,
+        *then_target,
+        *then_copies,
+        *else_target,
+        *else_copies,
+    )
 }
 
-/// Handle fused compare-and-branch for signed integers (most common).
+/// Step fused compare-and-branch for signed integers (most common).
 #[inline(always)]
-pub(crate) fn handle_compare_and_branch_int(
-    state: &mut ExecutionState<'_, '_>,
+pub(crate) fn step_compare_and_branch_int(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
@@ -221,32 +239,25 @@ pub(crate) fn handle_compare_and_branch_int(
         _ => unreachable!(),
     };
 
-    // update branch statistics
-    if state.collect_stats {
-        stat_inc!(state.engine.statistics, branches);
-    }
+    // record the branch and return the chosen jump
+    record_branch(state);
 
-    // branch based on comparison result
-    if is_truthy {
-        ControlFlow::Jump {
-            block: *then_target,
-            copies: *then_copies,
-        }
-    } else {
-        ControlFlow::Jump {
-            block: *else_target,
-            copies: *else_copies,
-        }
-    }
+    branch_transfer(
+        is_truthy,
+        *then_target,
+        *then_copies,
+        *else_target,
+        *else_copies,
+    )
 }
 
-/// Handle fused compare-and-branch for unsigned integers.
+/// Step fused compare-and-branch for unsigned integers.
 #[inline(always)]
-pub(crate) fn handle_compare_and_branch_uint(
-    state: &mut ExecutionState<'_, '_>,
+pub(crate) fn step_compare_and_branch_uint(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
@@ -276,32 +287,25 @@ pub(crate) fn handle_compare_and_branch_uint(
         _ => unreachable!(),
     };
 
-    // update branch statistics
-    if state.collect_stats {
-        stat_inc!(state.engine.statistics, branches);
-    }
+    // record the branch and return the chosen jump
+    record_branch(state);
 
-    // branch based on comparison result
-    if is_truthy {
-        ControlFlow::Jump {
-            block: *then_target,
-            copies: *then_copies,
-        }
-    } else {
-        ControlFlow::Jump {
-            block: *else_target,
-            copies: *else_copies,
-        }
-    }
+    branch_transfer(
+        is_truthy,
+        *then_target,
+        *then_copies,
+        *else_target,
+        *else_copies,
+    )
 }
 
-/// Handle fused compare-and-branch for floats.
+/// Step fused compare-and-branch for floats.
 #[inline(always)]
-pub(crate) fn handle_compare_and_branch_float(
-    state: &mut ExecutionState<'_, '_>,
+pub(crate) fn step_compare_and_branch_float(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
@@ -333,31 +337,24 @@ pub(crate) fn handle_compare_and_branch_float(
         _ => unreachable!(),
     };
 
-    // update branch statistics
-    if state.collect_stats {
-        stat_inc!(state.engine.statistics, branches);
-    }
+    // record the branch and return the chosen jump
+    record_branch(state);
 
-    // branch based on comparison result
-    if is_truthy {
-        ControlFlow::Jump {
-            block: *then_target,
-            copies: *then_copies,
-        }
-    } else {
-        ControlFlow::Jump {
-            block: *else_target,
-            copies: *else_copies,
-        }
-    }
+    branch_transfer(
+        is_truthy,
+        *then_target,
+        *then_copies,
+        *else_target,
+        *else_copies,
+    )
 }
 
-/// Handle fused compare-and-branch (generic fallback).
-pub(crate) fn handle_compare_and_branch(
-    state: &mut ExecutionState<'_, '_>,
+/// Step fused compare-and-branch (generic fallback).
+pub(crate) fn step_compare_and_branch(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
@@ -402,32 +399,25 @@ pub(crate) fn handle_compare_and_branch(
         _ => unreachable!("compare-and-branch with non-comparison operator"),
     };
 
-    // update branch statistics
-    if state.collect_stats {
-        stat_inc!(state.engine.statistics, branches);
-    }
+    // record the branch and return the chosen jump
+    record_branch(state);
 
-    // branch based on comparison result
-    if is_truthy {
-        ControlFlow::Jump {
-            block: *then_target,
-            copies: *then_copies,
-        }
-    } else {
-        ControlFlow::Jump {
-            block: *else_target,
-            copies: *else_copies,
-        }
-    }
+    branch_transfer(
+        is_truthy,
+        *then_target,
+        *then_copies,
+        *else_target,
+        *else_copies,
+    )
 }
 
-/// Handle fused compare-and-branch with constant right operand for signed integers.
+/// Step fused compare-and-branch with constant right operand for signed integers.
 #[inline(always)]
-pub(crate) fn handle_compare_and_branch_const_int(
-    state: &mut ExecutionState<'_, '_>,
+pub(crate) fn step_compare_and_branch_const_int(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
@@ -459,32 +449,25 @@ pub(crate) fn handle_compare_and_branch_const_int(
         _ => unreachable!(),
     };
 
-    // update branch statistics
-    if state.collect_stats {
-        stat_inc!(state.engine.statistics, branches);
-    }
+    // record the branch and return the chosen jump
+    record_branch(state);
 
-    // branch based on comparison result
-    if is_truthy {
-        ControlFlow::Jump {
-            block: *then_target,
-            copies: *then_copies,
-        }
-    } else {
-        ControlFlow::Jump {
-            block: *else_target,
-            copies: *else_copies,
-        }
-    }
+    branch_transfer(
+        is_truthy,
+        *then_target,
+        *then_copies,
+        *else_target,
+        *else_copies,
+    )
 }
 
-/// Handle fused compare-and-branch with constant right operand for unsigned integers.
+/// Step fused compare-and-branch with constant right operand for unsigned integers.
 #[inline(always)]
-pub(crate) fn handle_compare_and_branch_const_uint(
-    state: &mut ExecutionState<'_, '_>,
+pub(crate) fn step_compare_and_branch_const_uint(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
@@ -514,32 +497,30 @@ pub(crate) fn handle_compare_and_branch_const_uint(
         _ => unreachable!(),
     };
 
-    // update branch statistics
-    if state.collect_stats {
-        stat_inc!(state.engine.statistics, branches);
-    }
+    // record the branch before selecting a target
+    record_branch(state);
 
     // branch based on comparison result
     if is_truthy {
-        ControlFlow::Jump {
+        Transfer::Jump {
             block: *then_target,
             copies: *then_copies,
         }
     } else {
-        ControlFlow::Jump {
+        Transfer::Jump {
             block: *else_target,
             copies: *else_copies,
         }
     }
 }
 
-/// Handle fused compare-and-branch with constant right operand for floats.
+/// Step fused compare-and-branch with constant right operand for floats.
 #[inline(always)]
-pub(crate) fn handle_compare_and_branch_const_float(
-    state: &mut ExecutionState<'_, '_>,
+pub(crate) fn step_compare_and_branch_const_float(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
@@ -578,24 +559,24 @@ pub(crate) fn handle_compare_and_branch_const_float(
 
     // branch based on comparison result
     if is_truthy {
-        ControlFlow::Jump {
+        Transfer::Jump {
             block: *then_target,
             copies: *then_copies,
         }
     } else {
-        ControlFlow::Jump {
+        Transfer::Jump {
             block: *else_target,
             copies: *else_copies,
         }
     }
 }
 
-/// Handle fused compare-and-branch with constant right operand (generic fallback).
-pub(crate) fn handle_compare_and_branch_const(
-    state: &mut ExecutionState<'_, '_>,
+/// Step fused compare-and-branch with constant right operand (generic fallback).
+pub(crate) fn step_compare_and_branch_const(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
@@ -646,24 +627,24 @@ pub(crate) fn handle_compare_and_branch_const(
 
     // branch based on comparison result
     if is_truthy {
-        ControlFlow::Jump {
+        Transfer::Jump {
             block: *then_target,
             copies: *then_copies,
         }
     } else {
-        ControlFlow::Jump {
+        Transfer::Jump {
             block: *else_target,
             copies: *else_copies,
         }
     }
 }
 
-/// Handle switch (exits tail-call chain).
-pub(crate) fn handle_switch(
-    state: &mut ExecutionState<'_, '_>,
+/// Step switch (exits tail-call chain).
+pub(crate) fn step_switch(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
@@ -691,27 +672,23 @@ pub(crate) fn handle_switch(
     for case in case_slice {
         if case.value == int_val {
             // forward case copies
-            return ControlFlow::Jump {
+            return Transfer::Jump {
                 block: case.target,
                 copies: case.copies,
             };
         }
     }
 
-    // forward default copies
-    // return default jump
-    ControlFlow::Jump {
-        block: *default_target,
-        copies: *default_copies,
-    }
+    // otherwise jump to the default target
+    default_switch_transfer(*default_target, *default_copies)
 }
 
-/// Handle switch via dense jump table (exits tail-call chain).
-pub(crate) fn handle_switch_table(
-    state: &mut ExecutionState<'_, '_>,
+/// Step switch via dense jump table (exits tail-call chain).
+pub(crate) fn step_switch_table(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
@@ -730,40 +707,32 @@ pub(crate) fn handle_switch_table(
     let switch_val = state.get(*value);
     let int_val = switch_val.as_int().unwrap_or(0);
 
-    // update branch statistics
-    if state.collect_stats {
-        stat_inc!(state.engine.statistics, branches);
-    }
+    // record the branch before selecting a target
+    record_branch(state);
 
     // resolve jump table entry
     if int_val < *min {
-        return ControlFlow::Jump {
-            block: *default_target,
-            copies: *default_copies,
-        };
+        return default_switch_transfer(*default_target, *default_copies);
     }
     let offset = (int_val - *min) as usize;
     let case_slice = state.switch_cases(*table);
     let Some(case) = case_slice.get(offset) else {
-        return ControlFlow::Jump {
-            block: *default_target,
-            copies: *default_copies,
-        };
+        return default_switch_transfer(*default_target, *default_copies);
     };
 
     // jump to resolved case
-    ControlFlow::Jump {
+    Transfer::Jump {
         block: case.target,
         copies: case.copies,
     }
 }
 
-/// Handle integer switch (exits tail-call chain).
-pub(crate) fn handle_switch_int(
-    state: &mut ExecutionState<'_, '_>,
+/// Step integer switch (exits tail-call chain).
+pub(crate) fn step_switch_int(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
@@ -781,37 +750,31 @@ pub(crate) fn handle_switch_int(
     let switch_val = state.get(*value);
     let int_val = switch_val.raw_data() as i64;
 
-    // update branch statistics
-    if state.collect_stats {
-        stat_inc!(state.engine.statistics, branches);
-    }
+    // record the branch before selecting a target
+    record_branch(state);
 
     // find matching case
     let case_slice = state.switch_cases(*cases);
     for case in case_slice {
         if case.value == int_val {
             // forward case copies
-            return ControlFlow::Jump {
+            return Transfer::Jump {
                 block: case.target,
                 copies: case.copies,
             };
         }
     }
 
-    // forward default copies
-    // return default jump
-    ControlFlow::Jump {
-        block: *default_target,
-        copies: *default_copies,
-    }
+    // otherwise jump to the default target
+    default_switch_transfer(*default_target, *default_copies)
 }
 
-/// Handle integer switch via dense jump table (exits tail-call chain).
-pub(crate) fn handle_switch_table_int(
-    state: &mut ExecutionState<'_, '_>,
+/// Step integer switch via dense jump table (exits tail-call chain).
+pub(crate) fn step_switch_table_int(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     state.maybe_profile_instruction(&block[pc]);
 
     // decode instruction data
@@ -830,40 +793,32 @@ pub(crate) fn handle_switch_table_int(
     let switch_val = state.get(*value);
     let int_val = switch_val.raw_data() as i64;
 
-    // update branch statistics
-    if state.collect_stats {
-        stat_inc!(state.engine.statistics, branches);
-    }
+    // record the branch before selecting a target
+    record_branch(state);
 
     // resolve jump table entry
     if int_val < *min {
-        return ControlFlow::Jump {
-            block: *default_target,
-            copies: *default_copies,
-        };
+        return default_switch_transfer(*default_target, *default_copies);
     }
     let offset = (int_val - *min) as usize;
     let case_slice = state.switch_cases(*table);
     let Some(case) = case_slice.get(offset) else {
-        return ControlFlow::Jump {
-            block: *default_target,
-            copies: *default_copies,
-        };
+        return default_switch_transfer(*default_target, *default_copies);
     };
 
     // jump to resolved case
-    ControlFlow::Jump {
+    Transfer::Jump {
         block: case.target,
         copies: case.copies,
     }
 }
 
-/// Handle unreachable (errors).
-pub(crate) fn handle_trap(
-    state: &mut ExecutionState<'_, '_>,
+/// Step unreachable (errors).
+pub(crate) fn step_trap(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     state.maybe_profile_instruction(&block[pc]);
 
     let InstructionData::Trap { kind, payload } = &block[pc].data else {
@@ -871,11 +826,11 @@ pub(crate) fn handle_trap(
     };
 
     match kind {
-        mir::TrapKind::Abort => ControlFlow::Error(Error::Abort),
+        mir::TrapKind::Abort => Transfer::Error(Error::Abort),
         mir::TrapKind::Panic => {
             // decode the panic payload as a managed string when present
             if is_invalid_value(*payload) {
-                return ControlFlow::Error(Error::TypeMismatch {
+                return Transfer::Error(Error::TypeMismatch {
                     expected: "non null readonly managed string".to_string(),
                     actual: "missing panic payload".to_string(),
                 });
@@ -887,20 +842,20 @@ pub(crate) fn handle_trap(
                 .string_value(state.heap_ref(), payload)
             {
                 Ok(message) => message,
-                Err(error) => return ControlFlow::Error(error),
+                Err(error) => return Transfer::Error(error),
             };
 
-            ControlFlow::Error(Error::Panic { message })
+            Transfer::Error(Error::Panic { message })
         }
     }
 }
 
-/// Handle throw terminator.
-pub(crate) fn handle_throw(
-    state: &mut ExecutionState<'_, '_>,
+/// Step throw terminator.
+pub(crate) fn step_throw(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     state.maybe_profile_instruction(&block[pc]);
 
     let InstructionData::Throw { value } = &block[pc].data else {
@@ -912,14 +867,14 @@ pub(crate) fn handle_throw(
     Transfer::Throw(value)
 }
 
-/// Handle unreachable (errors).
-pub(crate) fn handle_unreachable(
-    state: &mut ExecutionState<'_, '_>,
+/// Step unreachable (errors).
+pub(crate) fn step_unreachable(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     state.maybe_profile_instruction(&block[pc]);
 
     // return unreachable error
-    ControlFlow::Error(Error::Unreachable)
+    Transfer::Error(Error::Unreachable)
 }

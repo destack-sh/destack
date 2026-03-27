@@ -3,7 +3,7 @@ use destack_mir as mir;
 use crate::diagnostic::Error;
 use destack_heap::{Value, ValueTag};
 
-use super::instruction;
+use super::access;
 
 /// Execute a binary operation.
 #[inline(always)]
@@ -836,7 +836,7 @@ pub(crate) fn execute_cast(
 
 /// Cast one integer bit pattern into the requested pointer-shaped target type.
 fn cast_integer_to_pointer(raw: u64, target_type: &mir::Type) -> Value {
-    instruction::decode_pointer_bits(raw, target_type)
+    access::decode_pointer_bits(raw, target_type)
 }
 
 /// Truncate a signed integer to a target bit width.

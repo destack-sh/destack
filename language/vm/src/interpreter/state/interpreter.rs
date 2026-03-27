@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::ops::Deref;
 use std::ptr::NonNull;
 #[cfg(feature = "stats")]
 use std::time::Duration;
@@ -175,38 +174,6 @@ impl Interpreter {
     #[cold]
     pub(crate) fn make_error(&self, executable: &Executable, error: Error) -> RuntimeError {
         RuntimeError::new(error).with_call_stack(self.get_call_stack_info(executable))
-    }
-}
-
-/// Aggregate slots backed by a heap read guard.
-pub(crate) struct AggregateSlots<'a> {
-    /// Borrowed aggregate slot slice.
-    borrowed: Option<&'a [Value]>,
-    /// Owned aggregate slot storage.
-    owned: Option<Vec<Value>>,
-}
-
-impl<'a> AggregateSlots<'a> {
-    /// Create aggregate slots from one owned slot list.
-    pub(crate) fn owned(slots: Vec<Value>) -> Self {
-        Self {
-            borrowed: None,
-            owned: Some(slots),
-        }
-    }
-}
-
-impl<'a> Deref for AggregateSlots<'a> {
-    type Target = [Value];
-
-    fn deref(&self) -> &Self::Target {
-        if let Some(slots) = self.borrowed {
-            return slots;
-        }
-
-        self.owned
-            .as_deref()
-            .expect("aggregate slots should always have one backing")
     }
 }
 

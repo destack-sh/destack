@@ -1,500 +1,21 @@
-#![allow(elided_lifetimes_in_paths)]
+use super::prelude::*;
 
-pub(crate) use std::ptr::NonNull;
-
-pub(crate) use destack_mir as mir;
-pub(crate) use smallvec::SmallVec;
-
-pub(crate) use crate::diagnostic::Error;
-pub(crate) use destack_heap::{
-    LocalPointer, ManagedReference, RawPointer, ReferenceAddressSpace, ReferenceMeta, StackPointer,
-    Value, ValueTag,
-};
-
-pub(crate) use super::super::state::{Frame, resize_and_clear_stack};
-pub(crate) use super::run::copy_values_with_plan;
-pub(crate) use super::{instruction, next};
-pub(crate) use crate::executable::{
-    ArgumentRange, ConstValue, CopyRange, Function, FunctionTarget, INVALID_FUNCTION_INDEX,
-    INVALID_VALUE_ID, Instruction, InstructionData, Transfer as ControlFlow, UNKNOWN_FIELD_COUNT,
-    UNKNOWN_SLOT_COUNT, is_invalid_value,
-};
-pub(crate) use crate::interpreter::ExecutionState;
-
-// dispatch slot indices
-pub(crate) const VTABLE_FIELD_INDEX: u32 = 0;
-pub(crate) const INTERFACE_ITAB_FIELD_INDEX: u32 = 1;
-
-/// Build a global id from a raw value.
-#[inline]
-pub(crate) fn global_id(raw: u32) -> mir::LocalNodeId<mir::Global> {
-    mir::LocalNodeId::new(raw)
-}
-
-/// Build a type id from a raw value.
-#[inline]
-pub(crate) fn type_id(raw: u32) -> mir::LocalNodeId<mir::Type> {
-    mir::LocalNodeId::new(raw)
-}
-
-/// Collect argument values into a smallvec.
-#[inline]
-pub(crate) fn collect_values(
-    state: &mut ExecutionState<'_, '_>,
-    arguments: ArgumentRange,
-) -> SmallVec<[Value; 16]> {
-    // load argument slice
-    let argument_slice = state.argument_slice(arguments);
-    let mut args = SmallVec::with_capacity(argument_slice.len());
-
-    // resolve argument values
-    for arg in argument_slice {
-        let value = state.get(*arg);
-        args.push(value);
-    }
-
-    // return argument values
-    args
-}
-
-/// Handle intrinsic call.
-pub(crate) fn handle_intrinsic(
-    state: &mut ExecutionState<'_, '_>,
-    block: &[Instruction],
-    pc: usize,
-) -> ControlFlow {
-    // decode instruction data
-    let InstructionData::Intrinsic {
-        dest,
-        intrinsic,
-        arguments,
-    } = &block[pc].data
-    else {
-        unreachable!()
-    };
-
-    // resolve arguments
-    let args = collect_values(state, *arguments);
-
-    // execute intrinsic
-    match state.execute_intrinsic(*intrinsic, args.as_slice()) {
-        Ok(result) => {
-            if !is_invalid_value(*dest) {
-                state.set(*dest, result);
-            }
-            next!(state, block, pc)
-        }
-        Err(error) => ControlFlow::Error(error.error),
-    }
-}
-
-/// Format a reference kind label for diagnostics.
-pub(crate) fn reference_label(reference: ReferenceMeta) -> String {
-    match reference.kind() {
-        Some(kind) => {
-            let address_space = reference.address_space();
-            if matches!(address_space, ReferenceAddressSpace::Generic) {
-                format!("{kind:?}")
-            } else {
-                format!("{kind:?} addrspace({})", address_space.label())
-            }
-        }
-        None => "unknown".to_string(),
-    }
-}
-
-/// Validate reference kind against the pointer storage.
-pub(crate) fn check_reference_kind(
-    state: &ExecutionState<'_, '_>,
-    reference: ReferenceMeta,
-    pointer: Value,
-) -> Result<(), Error> {
-    if !state.options().checks.enforce_reference_kinds {
-        return Ok(());
-    }
-
-    let Some(kind) = reference.kind() else {
-        return Ok(());
-    };
-
-    let is_managed = matches!(pointer.tag(), ValueTag::ManagedReference);
-    match kind {
-        mir::ReferenceKind::Managed if !is_managed => Err(Error::InvalidReferenceKind {
-            reference: reference_label(reference),
-            actual: format!("{pointer:?}"),
-        }),
-        mir::ReferenceKind::Owned | mir::ReferenceKind::Borrowed | mir::ReferenceKind::Raw
-            if is_managed =>
-        {
-            Err(Error::InvalidReferenceKind {
-                reference: reference_label(reference),
-                actual: format!("{pointer:?}"),
-            })
-        }
-        _ => Ok(()),
-    }?;
-
-    check_reference_address_space(state, reference, pointer)
-}
-
-/// Map a runtime value to an unsigned index.
-pub(crate) fn value_to_u64(value: Value) -> Result<u64, Error> {
-    // decode integer values
-    match value.tag() {
-        ValueTag::Int => {
-            let raw = value.raw_data() as i64;
-            if raw < 0 {
-                return Err(Error::TypeMismatch {
-                    expected: "non-negative integer".to_string(),
-                    actual: format!("{value:?}"),
-                });
-            }
-            Ok(raw as u64)
-        }
-        ValueTag::UInt => Ok(value.raw_data()),
-        _ => Err(Error::TypeMismatch {
-            expected: "integer".to_string(),
-            actual: format!("{value:?}"),
-        }),
-    }
-}
-
-/// Map a runtime value to a usize index.
-pub(crate) fn value_to_usize(value: Value) -> Result<usize, Error> {
-    // convert to u64 first
-    let index = value_to_u64(value)?;
-    usize::try_from(index).map_err(|_| Error::TypeMismatch {
-        expected: "usize index".to_string(),
-        actual: format!("{value:?}"),
-    })
-}
-
-/// Load aggregate slots for an aggregate value.
-pub(crate) fn aggregate_slots<'a>(
-    state: &'a ExecutionState<'_, '_>,
-    value: Value,
-) -> Result<super::super::state::AggregateSlots<'a>, Error> {
-    // require aggregate payload
-    let handle = value
-        .as_managed_reference()
-        .ok_or_else(|| Error::TypeMismatch {
-            expected: "aggregate".to_string(),
-            actual: format!("{value:?}"),
-        })?;
-
-    let heap = state.heap_ref();
-    if !heap.is_managed_allocated(handle) {
-        return Err(Error::InvalidManagedReference);
-    }
-
-    let slots = heap
-        .packed_values_to_vec(handle)
-        .ok_or(Error::InvalidManagedReference)?;
-
-    Ok(super::super::state::AggregateSlots::owned(slots))
-}
-
-/// Load aggregate slots and copy them into a Vec.
-pub(crate) fn aggregate_slots_vec(
-    state: &ExecutionState<'_, '_>,
-    value: Value,
-) -> Result<Vec<Value>, Error> {
-    let slots = aggregate_slots(state, value)?;
-    Ok(slots.to_vec())
-}
-
-/// Tensor layout information for flattened storage.
-#[derive(Debug, Clone)]
-pub(crate) struct TensorLayoutInfo {
-    /// The static tensor shape.
-    pub(crate) shape: Vec<u64>,
-    /// The per-dimension strides in element units.
-    pub(crate) strides: Vec<u64>,
-    /// The total storage length in element slots.
-    pub(crate) storage_len: usize,
-}
-
-/// Convert tensor dimensions to a static shape.
-pub(crate) fn static_shape(shape: &[mir::TensorDimension]) -> Result<Vec<u64>, Error> {
-    // reject dynamic shapes for the interpreter
-    let mut dims = Vec::with_capacity(shape.len());
-    for dim in shape {
-        match dim {
-            mir::TensorDimension::Static(value) => dims.push(*value),
-            mir::TensorDimension::Dynamic => {
-                return Err(Error::UnsupportedInstruction {
-                    name: "tensor dynamic shape".to_string(),
-                });
-            }
-        }
-    }
-
-    Ok(dims)
-}
-
-/// Convert tensor strides to a static list.
-pub(crate) fn static_strides(strides: &[mir::TensorDimension]) -> Result<Vec<u64>, Error> {
-    // reject dynamic strides for the interpreter
-    let mut values = Vec::with_capacity(strides.len());
-    for dim in strides {
-        match dim {
-            mir::TensorDimension::Static(value) => values.push(*value),
-            mir::TensorDimension::Dynamic => {
-                return Err(Error::UnsupportedInstruction {
-                    name: "tensor dynamic stride".to_string(),
-                });
-            }
-        }
-    }
-
-    Ok(values)
-}
-
-/// Compute row-major strides for a shape.
-pub(crate) fn row_major_strides(shape: &[u64]) -> Vec<u64> {
-    // compute row-major strides
-    let mut strides = vec![1; shape.len()];
-    let mut stride = 1u64;
-    for (i, dim) in shape.iter().enumerate().rev() {
-        strides[i] = stride;
-        stride = stride.saturating_mul(*dim);
-    }
-    strides
-}
-
-/// Compute column-major strides for a shape.
-pub(crate) fn column_major_strides(shape: &[u64]) -> Vec<u64> {
-    // compute column-major strides
-    let mut strides = vec![1; shape.len()];
-    let mut stride = 1u64;
-    for (i, dim) in shape.iter().enumerate() {
-        strides[i] = stride;
-        stride = stride.saturating_mul(*dim);
-    }
-    strides
-}
-
-/// Compute the storage length for a shape and stride list.
-pub(crate) fn tensor_storage_len(shape: &[u64], strides: &[u64]) -> Result<usize, Error> {
-    // empty shape stores a single scalar
-    if shape.is_empty() {
-        return Ok(1);
-    }
-
-    // zero-sized shapes have zero elements
-    if shape.contains(&0) {
-        return Ok(0);
-    }
-
-    // compute max linear index
-    let mut max_index = 0u64;
-    for (dim, stride) in shape.iter().zip(strides.iter()) {
-        let count = dim.saturating_sub(1);
-        max_index = max_index.saturating_add(count.saturating_mul(*stride));
-    }
-    let len = max_index.saturating_add(1);
-    usize::try_from(len).map_err(|_| Error::TypeMismatch {
-        expected: "tensor storage length".to_string(),
-        actual: len.to_string(),
-    })
-}
-
-/// Resolve tensor layout information from a tensor type.
-pub(crate) fn tensor_layout_info(
-    tree: &mir::NodeTree,
-    ty: mir::LocalNodeId<mir::Type>,
-) -> Result<TensorLayoutInfo, Error> {
-    // resolve tensor shape and layout
-    let (shape, layout) = match tree.get(ty) {
-        mir::Type::Tensor { shape, layout, .. } => (shape, layout),
-        mir::Type::TensorReference { shape, layout, .. } => (shape, layout),
-        _ => {
-            return Err(Error::TypeMismatch {
-                expected: "tensor type".to_string(),
-                actual: format!("{ty:?}"),
-            });
-        }
-    };
-
-    // compute static shape
-    let shape = static_shape(shape)?;
-
-    // compute strides
-    let strides = match layout {
-        mir::TensorLayout::RowMajor => row_major_strides(&shape),
-        mir::TensorLayout::ColumnMajor => column_major_strides(&shape),
-        mir::TensorLayout::Strided { strides } => static_strides(strides)?,
-    };
-
-    // compute storage length
-    let storage_len = tensor_storage_len(&shape, &strides)?;
-
-    Ok(TensorLayoutInfo {
-        shape,
-        strides,
-        storage_len,
-    })
-}
-
-/// Compute the linear index for a multi-dimensional index.
-pub(crate) fn tensor_linear_index(
-    indices: &[u64],
-    shape: &[u64],
-    strides: &[u64],
-) -> Result<usize, Error> {
-    // validate index length
-    if indices.len() != shape.len() || shape.len() != strides.len() {
-        return Err(Error::TypeMismatch {
-            expected: "tensor index rank".to_string(),
-            actual: format!(
-                "indices={}, shape={}, strides={}",
-                indices.len(),
-                shape.len(),
-                strides.len()
-            ),
-        });
-    }
-
-    // compute linear index
-    let mut offset = 0u64;
-    for ((index, dim), stride) in indices.iter().zip(shape.iter()).zip(strides.iter()) {
-        if *index >= *dim {
-            return Err(Error::IndexOutOfBounds {
-                index: *index,
-                length: *dim,
-            });
-        }
-        offset = offset.saturating_add(index.saturating_mul(*stride));
-    }
-
-    usize::try_from(offset).map_err(|_| Error::TypeMismatch {
-        expected: "tensor index".to_string(),
-        actual: offset.to_string(),
-    })
-}
-
-/// Iterate over all indices in a tensor shape.
-pub(crate) fn for_each_index<F: FnMut(&[u64])>(shape: &[u64], mut f: F) {
-    // handle scalar or empty shapes
-    if shape.is_empty() {
-        f(&[]);
-        return;
-    }
-    if shape.contains(&0) {
-        return;
-    }
-
-    // initialize index vector
-    let mut index = vec![0u64; shape.len()];
-    loop {
-        f(&index);
-
-        // increment the odometer
-        let mut dim = shape.len();
-        while dim > 0 {
-            dim -= 1;
-            index[dim] += 1;
-            if index[dim] < shape[dim] {
-                break;
-            }
-            index[dim] = 0;
-            if dim == 0 {
-                return;
-            }
-        }
-    }
-}
-
-/// Offset a pointer by an element index.
-pub(crate) fn offset_pointer(value: Value, offset: usize, length: usize) -> Result<Value, Error> {
-    // validate bounds
-    if offset >= length {
-        return Err(Error::IndexOutOfBounds {
-            index: offset as u64,
-            length: length as u64,
-        });
-    }
-
-    // preserve reference metadata
-    let reference = value.reference_meta();
-
-    match value.tag() {
-        ValueTag::ManagedReference => {
-            let Some(handle) = value.as_managed_reference() else {
-                return Err(Error::InvalidPointerType {
-                    actual: format!("{value:?}"),
-                });
-            };
-            let base = instruction::managed_packed_slot_base(handle)?;
-            let value_index = base.saturating_add(offset);
-            let byte_offset = value_index
-                .checked_mul(Value::BYTE_LEN)
-                .and_then(|value_index| u32::try_from(value_index).ok())
-                .ok_or(Error::InvalidPointerType {
-                    actual: format!("{value:?}"),
-                })?;
-            let handle = ManagedReference::with_byte_offset(handle.id(), byte_offset);
-            Ok(Value::managed_reference_with_meta(handle, reference))
-        }
-        ValueTag::RawPointer => {
-            let Some(pointer) = value.as_raw_pointer() else {
-                return Err(Error::InvalidPointerType {
-                    actual: format!("{value:?}"),
-                });
-            };
-            let base = pointer.byte_offset();
-            let byte_offset = base.saturating_add(offset);
-            let byte_offset =
-                u32::try_from(byte_offset).map_err(|_| Error::InvalidPointerType {
-                    actual: format!("{value:?}"),
-                })?;
-            let pointer = RawPointer::with_byte_offset(pointer.id(), byte_offset);
-            Ok(Value::raw_pointer_with_meta(pointer, reference))
-        }
-        ValueTag::StackPointer => {
-            let Some(pointer) = value.as_stack_pointer() else {
-                return Err(Error::InvalidPointerType {
-                    actual: format!("{value:?}"),
-                });
-            };
-            let slot = pointer.slot_offset.saturating_add(offset);
-            let pointer = StackPointer::with_offset(pointer.frame_idx, pointer.slot, slot);
-            Ok(Value::stack_pointer_with_meta(pointer, reference))
-        }
-        ValueTag::LocalPointer => {
-            let Some(pointer) = value.as_local_pointer() else {
-                return Err(Error::InvalidPointerType {
-                    actual: format!("{value:?}"),
-                });
-            };
-            let slot = pointer.slot_offset.saturating_add(offset);
-            let pointer = LocalPointer::with_offset(pointer.frame_idx, pointer.local, slot);
-            Ok(Value::local_pointer_with_meta(pointer, reference))
-        }
-        ValueTag::GlobalPointer => {
-            let Some(pointer) = value.as_global_pointer() else {
-                return Err(Error::InvalidPointerType {
-                    actual: format!("{value:?}"),
-                });
-            };
-            let slot = pointer.slot_offset.saturating_add(offset);
-            Ok(Value::global_pointer_with_meta(pointer.id, slot, reference))
-        }
-        _ => Err(Error::InvalidPointerType {
-            actual: format!("{value:?}"),
-        }),
-    }
-}
-
-/// Reduction operators for vector/tensor reductions.
+/// Reduction operators for vector or tensor reductions.
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum ReduceOperator {
+    /// Add values.
     Add,
+    /// Multiply values.
     Multiply,
+    /// Select the minimum value.
     Min,
+    /// Select the maximum value.
     Max,
+    /// Apply bitwise or logical and.
     And,
+    /// Apply bitwise or logical or.
     Or,
+    /// Apply bitwise or logical xor.
     Xor,
 }
 
@@ -508,6 +29,20 @@ impl From<mir::VectorReduceOperator> for ReduceOperator {
             mir::VectorReduceOperator::And => ReduceOperator::And,
             mir::VectorReduceOperator::Or => ReduceOperator::Or,
             mir::VectorReduceOperator::Xor => ReduceOperator::Xor,
+        }
+    }
+}
+
+impl From<mir::TensorReduceOperator> for ReduceOperator {
+    fn from(value: mir::TensorReduceOperator) -> Self {
+        match value {
+            mir::TensorReduceOperator::Add => ReduceOperator::Add,
+            mir::TensorReduceOperator::Multiply => ReduceOperator::Multiply,
+            mir::TensorReduceOperator::Min => ReduceOperator::Min,
+            mir::TensorReduceOperator::Max => ReduceOperator::Max,
+            mir::TensorReduceOperator::And => ReduceOperator::And,
+            mir::TensorReduceOperator::Or => ReduceOperator::Or,
+            mir::TensorReduceOperator::Xor => ReduceOperator::Xor,
         }
     }
 }
@@ -670,6 +205,7 @@ pub(crate) fn convert_int_to_int(
                 actual: format!("int{width}"),
             });
         }
+
         IntValue::Signed(value)
     } else {
         let (value, width) = value
@@ -684,11 +220,13 @@ pub(crate) fn convert_int_to_int(
                 actual: format!("uint{width}"),
             });
         }
+
         IntValue::Unsigned(value)
     };
 
     // convert to destination representation
     if dest_signed {
+        // convert into the signed destination domain
         let (min, max) = signed_bounds(dest_width);
         let value = match source_value {
             IntValue::Signed(value) => value,
@@ -698,12 +236,15 @@ pub(crate) fn convert_int_to_int(
                     let clamped = clamp_or_error_signed(value, min, max, mode)?;
                     return Ok(Value::int(clamped, dest_width_u8));
                 }
+
                 value as i64
             }
         };
         let clamped = clamp_or_error_signed(i128::from(value), min, max, mode)?;
+
         Ok(Value::int(clamped, dest_width_u8))
     } else {
+        // convert into the unsigned destination domain
         let max = unsigned_max(dest_width);
         let value = match source_value {
             IntValue::Signed(value) => {
@@ -711,11 +252,13 @@ pub(crate) fn convert_int_to_int(
                     let clamped = clamp_or_error_unsigned(-1, max, mode)?;
                     return Ok(Value::uint(clamped, dest_width_u8));
                 }
+
                 value as i128
             }
             IntValue::Unsigned(value) => i128::from(value),
         };
         let clamped = clamp_or_error_unsigned(value, max, mode)?;
+
         Ok(Value::uint(clamped, dest_width_u8))
     }
 }
@@ -745,6 +288,7 @@ pub(crate) fn convert_int_to_float(
                 actual: format!("int{width}"),
             });
         }
+
         IntValue::Signed(value)
     } else {
         let (value, width) = value
@@ -759,6 +303,7 @@ pub(crate) fn convert_int_to_float(
                 actual: format!("uint{width}"),
             });
         }
+
         IntValue::Unsigned(value)
     };
 
@@ -830,6 +375,7 @@ pub(crate) fn convert_float_to_int(
                     actual: float_value.to_string(),
                 });
             }
+
             float_value
         }
         ScalarConvertMode::RoundTiesEven => float_value.round_ties_even(),
@@ -841,6 +387,7 @@ pub(crate) fn convert_float_to_int(
 
     // convert to destination integer
     if dest_signed {
+        // clamp or reject in the signed destination domain
         let (min, max) = signed_bounds(dest_width);
         let value = if rounded.is_finite() {
             rounded as i128
@@ -848,8 +395,10 @@ pub(crate) fn convert_float_to_int(
             0
         };
         let clamped = clamp_or_error_signed(value, min, max, mode)?;
+
         Ok(Value::int(clamped, dest_width_u8))
     } else {
+        // clamp or reject in the unsigned destination domain
         let max = unsigned_max(dest_width);
         let value = if rounded.is_finite() {
             rounded as i128
@@ -857,6 +406,7 @@ pub(crate) fn convert_float_to_int(
             0
         };
         let clamped = clamp_or_error_unsigned(value, max, mode)?;
+
         Ok(Value::uint(clamped, dest_width_u8))
     }
 }
@@ -927,6 +477,7 @@ pub(crate) fn signed_bounds(width: u16) -> (i64, i64) {
     let shift = (width as u32).saturating_sub(1);
     let max = (1i64 << shift) - 1;
     let min = -(1i64 << shift);
+
     (min, max)
 }
 
@@ -993,20 +544,6 @@ pub(crate) fn clamp_or_error_unsigned(
         expected: format!("unsigned range 0..={max}"),
         actual: value.to_string(),
     })
-}
-
-impl From<mir::TensorReduceOperator> for ReduceOperator {
-    fn from(value: mir::TensorReduceOperator) -> Self {
-        match value {
-            mir::TensorReduceOperator::Add => ReduceOperator::Add,
-            mir::TensorReduceOperator::Multiply => ReduceOperator::Multiply,
-            mir::TensorReduceOperator::Min => ReduceOperator::Min,
-            mir::TensorReduceOperator::Max => ReduceOperator::Max,
-            mir::TensorReduceOperator::And => ReduceOperator::And,
-            mir::TensorReduceOperator::Or => ReduceOperator::Or,
-            mir::TensorReduceOperator::Xor => ReduceOperator::Xor,
-        }
-    }
 }
 
 /// Apply a reduction operator to two values.
@@ -1181,83 +718,4 @@ pub(crate) fn apply_reduce_operator(
             }),
         },
     }
-}
-
-/// Validate reference address space against the pointer storage.
-pub(crate) fn check_reference_address_space(
-    state: &ExecutionState<'_, '_>,
-    reference: ReferenceMeta,
-    pointer: Value,
-) -> Result<(), Error> {
-    if !state.options().checks.enforce_reference_kinds {
-        return Ok(());
-    }
-
-    let address_space = reference.address_space();
-    if matches!(address_space, ReferenceAddressSpace::Generic) {
-        return Ok(());
-    }
-
-    if !address_space.is_supported_by_vm() {
-        return Err(Error::UnsupportedAddressSpace {
-            address_space: address_space.label().to_string(),
-        });
-    }
-
-    let actual_space = match pointer.tag() {
-        ValueTag::StackPointer => ReferenceAddressSpace::Stack,
-        ValueTag::LocalPointer => ReferenceAddressSpace::Stack,
-        ValueTag::GlobalPointer => ReferenceAddressSpace::Global,
-        ValueTag::ManagedReference => ReferenceAddressSpace::Generic,
-        ValueTag::RawPointer => ReferenceAddressSpace::Generic,
-        ValueTag::SharedPointer => ReferenceAddressSpace::Shared,
-        _ => {
-            return Err(Error::InvalidPointerType {
-                actual: format!("{pointer:?}"),
-            });
-        }
-    };
-
-    let is_match = match address_space {
-        ReferenceAddressSpace::Stack => matches!(actual_space, ReferenceAddressSpace::Stack),
-        ReferenceAddressSpace::Global | ReferenceAddressSpace::Constant => {
-            matches!(actual_space, ReferenceAddressSpace::Global)
-        }
-        ReferenceAddressSpace::Generic => true,
-        ReferenceAddressSpace::Shared => {
-            matches!(actual_space, ReferenceAddressSpace::Shared)
-        }
-        ReferenceAddressSpace::Local | ReferenceAddressSpace::Target => false,
-    };
-
-    if !is_match {
-        return Err(Error::InvalidAddressSpace {
-            expected: address_space.label().to_string(),
-            actual: actual_space.label().to_string(),
-        });
-    }
-
-    Ok(())
-}
-
-/// Validate reference mutability for stores.
-pub(crate) fn check_reference_mutability(
-    state: &ExecutionState<'_, '_>,
-    reference: ReferenceMeta,
-) -> Result<(), Error> {
-    if !state.options().checks.enforce_reference_mutability {
-        return Ok(());
-    }
-
-    let Some(mutability) = reference.mutability() else {
-        return Ok(());
-    };
-
-    if matches!(mutability, mir::Mutability::Immutable) {
-        return Err(Error::ImmutableReferenceWrite {
-            reference: reference_label(reference),
-        });
-    }
-
-    Ok(())
 }

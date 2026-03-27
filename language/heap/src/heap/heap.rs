@@ -37,6 +37,70 @@ impl fmt::Display for HeapCaptureError {
 
 impl Error for HeapCaptureError {}
 
+/// One lazy packed-value view over a managed allocation.
+#[derive(Debug, Clone)]
+pub struct PackedValues<'a> {
+    /// The packed allocation bytes.
+    bytes: Cow<'a, [u8]>,
+    /// The decoded slot count.
+    count: usize,
+}
+
+impl<'a> PackedValues<'a> {
+    /// Create one packed-value view from bytes and count.
+    pub fn new(bytes: Cow<'a, [u8]>, count: usize) -> Self {
+        Self { bytes, count }
+    }
+
+    /// Return the slot count.
+    pub fn len(&self) -> usize {
+        self.count
+    }
+
+    /// Report whether the slot list is empty.
+    pub fn is_empty(&self) -> bool {
+        self.count == 0
+    }
+
+    /// Load one packed value by index.
+    pub fn get(&self, index: usize) -> Option<Value> {
+        if index >= self.count {
+            return None;
+        }
+
+        let start = index.checked_mul(Value::BYTE_LEN)?;
+        let end = start.checked_add(Value::BYTE_LEN)?;
+
+        Value::from_byte_slice(self.bytes.get(start..end)?)
+    }
+
+    /// Iterate over the packed values.
+    pub fn iter(&self) -> impl Iterator<Item = Value> + '_ {
+        (0..self.count).map(|index| {
+            self.get(index)
+                .expect("packed values should decode within bounds")
+        })
+    }
+
+    /// Convert the packed values into one owned list.
+    pub fn to_vec(&self) -> Vec<Value> {
+        let mut values = Vec::with_capacity(self.count);
+        for index in 0..self.count {
+            let value = self
+                .get(index)
+                .expect("packed values should decode within bounds");
+            values.push(value);
+        }
+
+        values
+    }
+
+    /// Convert the packed values into one owned list.
+    pub fn into_vec(self) -> Vec<Value> {
+        self.to_vec()
+    }
+}
+
 /// One live local heap with managed and raw spaces.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Heap {
@@ -251,9 +315,17 @@ impl Heap {
         self.managed.packed_value_count(handle)
     }
 
+    /// Return one lazy view over the packed values.
+    pub fn packed_values(&self, handle: ManagedReference) -> Option<PackedValues<'_>> {
+        let count = self.packed_value_count(handle)?;
+        let bytes = self.managed_bytes(handle)?;
+
+        Some(PackedValues::new(bytes, count))
+    }
+
     /// Return one owned copy of the packed values.
     pub fn packed_values_to_vec(&self, handle: ManagedReference) -> Option<Vec<Value>> {
-        self.managed.packed_values_to_vec(handle)
+        self.packed_values(handle).map(|values| values.into_vec())
     }
 
     /// Set one packed value by index.

@@ -1,13 +1,46 @@
 use destack_mir as mir;
 
 use crate::diagnostic::{Error, RuntimeResult};
+use crate::executable::{Instruction, InstructionData, Transfer, is_invalid_value};
 use destack_heap::{Value, ValueTag};
 
-use super::super::state::ExecutionState;
-use super::instruction;
+use super::super::state::StepState;
+use super::{access, collect_values, next};
+
+/// Step intrinsic call.
+pub(crate) fn step_intrinsic(
+    state: &mut StepState<'_, '_>,
+    block: &[Instruction],
+    pc: usize,
+) -> Transfer {
+    // decode instruction data
+    let InstructionData::Intrinsic {
+        dest,
+        intrinsic,
+        arguments,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // resolve arguments
+    let args = collect_values(state, *arguments);
+
+    // execute intrinsic
+    match state.execute_intrinsic(*intrinsic, args.as_slice()) {
+        Ok(result) => {
+            if !is_invalid_value(*dest) {
+                state.set(*dest, result);
+            }
+
+            next!(state, block, pc)
+        }
+        Err(error) => Transfer::Error(error.error),
+    }
+}
 
 #[allow(clippy::too_many_arguments)]
-impl ExecutionState<'_, '_> {
+impl StepState<'_, '_> {
     /// Execute an intrinsic with already-resolved argument values.
     /// Used by the interpreter where values are pre-resolved.
     pub(crate) fn execute_intrinsic_resolved(
@@ -1148,8 +1181,8 @@ impl ExecutionState<'_, '_> {
         };
 
         let tree = self.tree();
-        let byte_len = instruction::raw_type_size(tree, raw_pointee)
-            .map_err(|error| self.make_error(error))?;
+        let byte_len =
+            access::raw_type_size(tree, raw_pointee).map_err(|error| self.make_error(error))?;
         let bytes = self
             .heap_ref()
             .raw_bytes(raw_pointer)
@@ -1169,7 +1202,7 @@ impl ExecutionState<'_, '_> {
             }));
         }
 
-        instruction::decode_raw_value(tree, raw_pointee, &bytes[byte_offset..end])
+        access::decode_raw_value(tree, raw_pointee, &bytes[byte_offset..end])
             .map_err(|error| self.make_error(error))
     }
 
@@ -1196,7 +1229,7 @@ impl ExecutionState<'_, '_> {
         };
 
         let tree = self.tree();
-        let bytes = instruction::encode_raw_value(tree, raw_pointee, value)
+        let bytes = access::encode_raw_value(tree, raw_pointee, value)
             .map_err(|error| self.make_error(error))?;
         let byte_len = self
             .heap_ref()
@@ -1241,7 +1274,7 @@ impl ExecutionState<'_, '_> {
                 if handle.is_null() {
                     return Err(self.make_error(Error::NullPointerDereference));
                 }
-                let slot_index = instruction::managed_packed_slot_index(handle, offset)
+                let slot_index = access::managed_packed_slot_index(handle, offset)
                     .map_err(|error| self.make_error(error))?;
                 self.heap_ref()
                     .packed_value_at(handle, slot_index)
@@ -1338,7 +1371,7 @@ impl ExecutionState<'_, '_> {
                 if handle.is_null() {
                     return Err(self.make_error(Error::NullPointerDereference));
                 }
-                let slot_index = instruction::managed_packed_slot_index(handle, offset)
+                let slot_index = access::managed_packed_slot_index(handle, offset)
                     .map_err(|error| self.make_error(error))?;
                 // resolve the managed cell
                 let error = match self.heap_ref().packed_value_count(handle) {

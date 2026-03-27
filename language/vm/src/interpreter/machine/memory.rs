@@ -1,13 +1,45 @@
-use super::*;
+use super::prelude::*;
 use crate::telemetry::stat_inc;
 
-/// Handle local variable load.
+/// Record one load in the VM statistics.
 #[inline(always)]
-pub(crate) fn handle_local_get(
-    state: &mut ExecutionState<'_, '_>,
+fn record_load(state: &mut StepState<'_, '_>) {
+    if state.collect_stats {
+        stat_inc!(state.engine.statistics, loads);
+    }
+}
+
+/// Record one store in the VM statistics.
+#[inline(always)]
+fn record_store(state: &mut StepState<'_, '_>) {
+    if state.collect_stats {
+        stat_inc!(state.engine.statistics, stores);
+    }
+}
+
+/// Load one global value directly from isolate storage.
+#[inline(always)]
+fn load_global_value(
+    state: &StepState<'_, '_>,
+    global: u32,
+) -> Result<(mir::LocalNodeId<mir::Global>, Value), Error> {
+    let global_id = global_id(global);
+    let value = state
+        .globals
+        .get(global_id)
+        .copied()
+        .ok_or(Error::UndefinedGlobal { global: global_id })?;
+
+    Ok((global_id, value))
+}
+
+/// Step local variable load.
+#[inline(always)]
+pub(crate) fn step_local_get(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::LocalGet { dest, local } = &block[pc].data else {
         unreachable!()
@@ -23,35 +55,35 @@ pub(crate) fn handle_local_get(
     next!(state, block, pc)
 }
 
-/// Handle local variable store.
+/// Step local variable store.
 #[inline(always)]
-pub(crate) fn handle_local_set(
-    state: &mut ExecutionState<'_, '_>,
+pub(crate) fn step_local_set(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::LocalSet { local, value } = &block[pc].data else {
         unreachable!()
     };
 
     // load value
-    let val = state.get(*value);
+    let value = state.get(*value);
 
     // store local value
-    state.set_local_by_index(*local, val);
+    state.set_local_by_index(*local, value);
 
     // continue to next instruction
     next!(state, block, pc)
 }
 
-/// Handle local address.
+/// Step local address.
 #[inline(always)]
-pub(crate) fn handle_local_addr(
-    state: &mut ExecutionState<'_, '_>,
+pub(crate) fn step_local_addr(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::LocalAddr {
         dest,
@@ -68,7 +100,7 @@ pub(crate) fn handle_local_addr(
 
     // validate reference kind
     if let Err(error) = check_reference_kind(state, *reference, value) {
-        return ControlFlow::Error(error);
+        return Transfer::Error(error);
     }
 
     // store result
@@ -78,12 +110,12 @@ pub(crate) fn handle_local_addr(
     next!(state, block, pc)
 }
 
-/// Handle global address.
-pub(crate) fn handle_global_addr(
-    state: &mut ExecutionState<'_, '_>,
+/// Step global address.
+pub(crate) fn step_global_addr(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::GlobalAddr {
         dest,
@@ -94,36 +126,36 @@ pub(crate) fn handle_global_addr(
         unreachable!()
     };
 
-    // write global pointer
-    let ptr = Value::global_pointer_with_meta(global_id(*global), 0, *reference);
+    // build global pointer
+    let pointer = Value::global_pointer_with_meta(global_id(*global), 0, *reference);
 
     // validate reference kind
-    if let Err(error) = check_reference_kind(state, *reference, ptr) {
-        return ControlFlow::Error(error);
+    if let Err(error) = check_reference_kind(state, *reference, pointer) {
+        return Transfer::Error(error);
     }
 
-    state.set(*dest, ptr);
+    // store result
+    state.set(*dest, pointer);
 
     // continue to next instruction
     next!(state, block, pc)
 }
 
-/// Handle global constant load.
-pub(crate) fn handle_global_const(
-    state: &mut ExecutionState<'_, '_>,
+/// Step global constant load.
+pub(crate) fn step_global_const(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::GlobalConst { dest, global } = &block[pc].data else {
         unreachable!()
     };
 
     // load global value
-    let global_id = global_id(*global);
-    let value = match state.globals.get(global_id).copied() {
-        Some(v) => v,
-        None => return ControlFlow::Error(Error::UndefinedGlobal { global: global_id }),
+    let value = match load_global_value(state, *global) {
+        Ok((_global_id, value)) => value,
+        Err(error) => return Transfer::Error(error),
     };
 
     // store value
@@ -133,28 +165,25 @@ pub(crate) fn handle_global_const(
     next!(state, block, pc)
 }
 
-/// Handle fused global address + load.
+/// Step fused global address + load.
 #[inline(always)]
-pub(crate) fn handle_global_load(
-    state: &mut ExecutionState<'_, '_>,
+pub(crate) fn step_global_load(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::GlobalLoad { dest, global } = &block[pc].data else {
         unreachable!()
     };
 
     // track loads
-    if state.collect_stats {
-        stat_inc!(state.engine.statistics, loads);
-    }
+    record_load(state);
 
     // load global value directly
-    let global_id = global_id(*global);
-    let value = match state.globals.get(global_id).copied() {
-        Some(v) => v,
-        None => return ControlFlow::Error(Error::UndefinedGlobal { global: global_id }),
+    let value = match load_global_value(state, *global) {
+        Ok((_global_id, value)) => value,
+        Err(error) => return Transfer::Error(error),
     };
 
     // store value
@@ -164,13 +193,13 @@ pub(crate) fn handle_global_load(
     next!(state, block, pc)
 }
 
-/// Handle fused global address + store.
+/// Step fused global address + store.
 #[inline(always)]
-pub(crate) fn handle_global_store(
-    state: &mut ExecutionState<'_, '_>,
+pub(crate) fn step_global_store(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::GlobalStore {
         global,
@@ -182,32 +211,30 @@ pub(crate) fn handle_global_store(
     };
 
     // track stores
-    if state.collect_stats {
-        stat_inc!(state.engine.statistics, stores);
-    }
+    record_store(state);
 
     // load value to store
-    let val = state.get(*value);
+    let value = state.get(*value);
 
     // check mutability via reference metadata
     let global_id = global_id(*global);
     if reference.mutability() != Some(mir::Mutability::Mutable) {
-        return ControlFlow::Error(Error::ImmutableGlobalWrite { global: global_id });
+        return Transfer::Error(Error::ImmutableGlobalWrite { global: global_id });
     }
 
     // store to global directly
-    state.globals.set(global_id, val);
+    state.globals.set(global_id, value);
 
     // continue to next instruction
     next!(state, block, pc)
 }
 
-/// Handle pointer load.
-pub(crate) fn handle_load(
-    state: &mut ExecutionState<'_, '_>,
+/// Step pointer load.
+pub(crate) fn step_load(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::Load {
         dest,
@@ -223,9 +250,9 @@ pub(crate) fn handle_load(
     let ptr = state.get(*pointer);
 
     // load from pointer
-    let value = match instruction::load_from_pointer_with_raw_pointee(state, ptr, *raw_pointee) {
+    let value = match access::load_from_pointer_with_raw_pointee(state, ptr, *raw_pointee) {
         Ok(v) => v,
-        Err(e) => return ControlFlow::Error(e),
+        Err(e) => return Transfer::Error(e),
     };
 
     // store loaded value
@@ -235,12 +262,12 @@ pub(crate) fn handle_load(
     next!(state, block, pc)
 }
 
-/// Handle pointer store.
-pub(crate) fn handle_store(
-    state: &mut ExecutionState<'_, '_>,
+/// Step pointer store.
+pub(crate) fn step_store(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::Store {
         pointer,
@@ -259,24 +286,24 @@ pub(crate) fn handle_store(
 
     // validate reference kind
     if let Err(error) = check_reference_kind(state, *reference, ptr) {
-        return ControlFlow::Error(error);
+        return Transfer::Error(error);
     }
 
     // write through pointer
-    if let Err(e) = instruction::store_to_pointer_with_raw_pointee(state, ptr, *raw_pointee, val) {
-        return ControlFlow::Error(e);
+    if let Err(e) = access::store_to_pointer_with_raw_pointee(state, ptr, *raw_pointee, val) {
+        return Transfer::Error(e);
     }
 
     // continue to next instruction
     next!(state, block, pc)
 }
 
-/// Handle atomic load.
-pub(crate) fn handle_atomic_load(
-    state: &mut ExecutionState<'_, '_>,
+/// Step atomic load.
+pub(crate) fn step_atomic_load(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::AtomicLoad {
         dest,
@@ -301,7 +328,7 @@ pub(crate) fn handle_atomic_load(
         mir::MemorySemantics::default(),
     ) {
         Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error.error),
+        Err(error) => return Transfer::Error(error.error),
     };
 
     // store the result
@@ -311,12 +338,12 @@ pub(crate) fn handle_atomic_load(
     next!(state, block, pc)
 }
 
-/// Handle atomic store.
-pub(crate) fn handle_atomic_store(
-    state: &mut ExecutionState<'_, '_>,
+/// Step atomic store.
+pub(crate) fn step_atomic_store(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::AtomicStore {
         pointer,
@@ -342,19 +369,19 @@ pub(crate) fn handle_atomic_store(
         mir::MemoryScope::Device,
         mir::MemorySemantics::default(),
     ) {
-        return ControlFlow::Error(error.error);
+        return Transfer::Error(error.error);
     }
 
     // continue to next instruction
     next!(state, block, pc)
 }
 
-/// Handle atomic compare exchange.
-pub(crate) fn handle_atomic_compare_exchange(
-    state: &mut ExecutionState<'_, '_>,
+/// Step atomic compare exchange.
+pub(crate) fn step_atomic_compare_exchange(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::AtomicCompareExchange {
         dest,
@@ -386,7 +413,7 @@ pub(crate) fn handle_atomic_compare_exchange(
         mir::MemorySemantics::default(),
     ) {
         Ok(result) => result,
-        Err(error) => return ControlFlow::Error(error.error),
+        Err(error) => return Transfer::Error(error.error),
     };
 
     // store the result
@@ -396,12 +423,12 @@ pub(crate) fn handle_atomic_compare_exchange(
     next!(state, block, pc)
 }
 
-/// Handle atomic read modify write.
-pub(crate) fn handle_atomic_rmw(
-    state: &mut ExecutionState<'_, '_>,
+/// Step atomic read modify write.
+pub(crate) fn step_atomic_rmw(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::AtomicRmw {
         dest,
@@ -431,7 +458,7 @@ pub(crate) fn handle_atomic_rmw(
         mir::MemorySemantics::default(),
     ) {
         Ok(result) => result,
-        Err(error) => return ControlFlow::Error(error.error),
+        Err(error) => return Transfer::Error(error.error),
     };
 
     // store the result
@@ -441,12 +468,12 @@ pub(crate) fn handle_atomic_rmw(
     next!(state, block, pc)
 }
 
-/// Handle atomic fence.
-pub(crate) fn handle_atomic_fence(
-    state: &mut ExecutionState<'_, '_>,
+/// Step atomic fence.
+pub(crate) fn step_atomic_fence(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::AtomicFence = &block[pc].data else {
         unreachable!()
@@ -459,19 +486,19 @@ pub(crate) fn handle_atomic_fence(
         mir::MemoryScope::Device,
         mir::MemorySemantics::default(),
     ) {
-        return ControlFlow::Error(error.error);
+        return Transfer::Error(error.error);
     }
 
     // continue to next instruction
     next!(state, block, pc)
 }
 
-/// Handle a synchronization barrier.
-pub(crate) fn handle_barrier(
-    state: &mut ExecutionState<'_, '_>,
+/// Step a synchronization barrier.
+pub(crate) fn step_barrier(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::Barrier = &block[pc].data else {
         unreachable!()
@@ -483,20 +510,20 @@ pub(crate) fn handle_barrier(
         mir::MemoryScope::Device,
         mir::MemorySemantics::default(),
     ) {
-        return ControlFlow::Error(error.error);
+        return Transfer::Error(error.error);
     }
 
     // continue to next instruction
     next!(state, block, pc)
 }
 
-/// Handle managed reference load.
+/// Step managed reference load.
 #[inline(always)]
-pub(crate) fn handle_load_managed(
-    state: &mut ExecutionState<'_, '_>,
+pub(crate) fn step_load_managed(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::Load {
         dest,
@@ -514,11 +541,11 @@ pub(crate) fn handle_load_managed(
 
     // load from managed reference
     let Some(managed_pointee) = *managed_pointee else {
-        return ControlFlow::Error(Error::InvalidManagedReference);
+        return Transfer::Error(Error::InvalidManagedReference);
     };
-    let value = match instruction::load_from_managed_reference_typed(state, ptr, managed_pointee) {
+    let value = match access::load_from_managed_reference_typed(state, ptr, managed_pointee) {
         Ok(v) => v,
-        Err(error) => return ControlFlow::Error(error),
+        Err(error) => return Transfer::Error(error),
     };
 
     // store loaded value
@@ -528,13 +555,13 @@ pub(crate) fn handle_load_managed(
     next!(state, block, pc)
 }
 
-/// Handle raw pointer load.
+/// Step raw pointer load.
 #[inline(always)]
-pub(crate) fn handle_load_raw(
-    state: &mut ExecutionState<'_, '_>,
+pub(crate) fn step_load_raw(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::Load {
         dest,
@@ -551,11 +578,11 @@ pub(crate) fn handle_load_raw(
 
     // load from raw pointer
     let Some(raw_pointee) = *raw_pointee else {
-        return ControlFlow::Error(Error::InvalidManagedReference);
+        return Transfer::Error(Error::InvalidManagedReference);
     };
-    let value = match instruction::load_from_raw_pointer_typed(state, ptr, raw_pointee) {
+    let value = match access::load_from_raw_pointer_typed(state, ptr, raw_pointee) {
         Ok(v) => v,
-        Err(e) => return ControlFlow::Error(e),
+        Err(e) => return Transfer::Error(e),
     };
 
     // store loaded value
@@ -565,13 +592,13 @@ pub(crate) fn handle_load_raw(
     next!(state, block, pc)
 }
 
-/// Handle stack pointer load.
+/// Step stack pointer load.
 #[inline(always)]
-pub(crate) fn handle_load_stack(
-    state: &mut ExecutionState<'_, '_>,
+pub(crate) fn step_load_stack(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::Load {
         dest,
@@ -587,9 +614,9 @@ pub(crate) fn handle_load_stack(
     let ptr = state.get(*pointer);
 
     // load from stack pointer
-    let value = match instruction::load_from_stack_pointer(state, ptr) {
+    let value = match access::load_from_stack_pointer(state, ptr) {
         Ok(v) => v,
-        Err(e) => return ControlFlow::Error(e),
+        Err(e) => return Transfer::Error(e),
     };
 
     // store loaded value
@@ -599,13 +626,13 @@ pub(crate) fn handle_load_stack(
     next!(state, block, pc)
 }
 
-/// Handle local pointer load.
+/// Step local pointer load.
 #[inline(always)]
-pub(crate) fn handle_load_local(
-    state: &mut ExecutionState<'_, '_>,
+pub(crate) fn step_load_local(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::Load {
         dest,
@@ -621,9 +648,9 @@ pub(crate) fn handle_load_local(
     let ptr = state.get(*pointer);
 
     // load from local pointer
-    let value = match instruction::load_from_local_pointer(state, ptr) {
+    let value = match access::load_from_local_pointer(state, ptr) {
         Ok(v) => v,
-        Err(e) => return ControlFlow::Error(e),
+        Err(e) => return Transfer::Error(e),
     };
 
     // store loaded value
@@ -633,13 +660,13 @@ pub(crate) fn handle_load_local(
     next!(state, block, pc)
 }
 
-/// Handle global pointer load.
+/// Step global pointer load.
 #[inline(always)]
-pub(crate) fn handle_load_global(
-    state: &mut ExecutionState<'_, '_>,
+pub(crate) fn step_load_global(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::Load {
         dest,
@@ -655,9 +682,9 @@ pub(crate) fn handle_load_global(
     let ptr = state.get(*pointer);
 
     // load from global pointer
-    let value = match instruction::load_from_global_pointer(state, ptr) {
+    let value = match access::load_from_global_pointer(state, ptr) {
         Ok(v) => v,
-        Err(e) => return ControlFlow::Error(e),
+        Err(e) => return Transfer::Error(e),
     };
 
     // store loaded value
@@ -667,13 +694,13 @@ pub(crate) fn handle_load_global(
     next!(state, block, pc)
 }
 
-/// Handle managed reference store.
+/// Step managed reference store.
 #[inline(always)]
-pub(crate) fn handle_store_managed(
-    state: &mut ExecutionState<'_, '_>,
+pub(crate) fn step_store_managed(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::Store {
         pointer,
@@ -693,29 +720,28 @@ pub(crate) fn handle_store_managed(
 
     // validate reference kind
     if let Err(error) = check_reference_kind(state, *reference, ptr) {
-        return ControlFlow::Error(error);
+        return Transfer::Error(error);
     }
 
     // write through managed reference
     let Some(managed_pointee) = *managed_pointee else {
-        return ControlFlow::Error(Error::InvalidManagedReference);
+        return Transfer::Error(Error::InvalidManagedReference);
     };
-    if let Err(e) = instruction::store_to_managed_reference_typed(state, ptr, managed_pointee, val)
-    {
-        return ControlFlow::Error(e);
+    if let Err(e) = access::store_to_managed_reference_typed(state, ptr, managed_pointee, val) {
+        return Transfer::Error(e);
     }
 
     // continue to next instruction
     next!(state, block, pc)
 }
 
-/// Handle raw pointer store.
+/// Step raw pointer store.
 #[inline(always)]
-pub(crate) fn handle_store_raw(
-    state: &mut ExecutionState<'_, '_>,
+pub(crate) fn step_store_raw(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::Store {
         pointer,
@@ -734,28 +760,28 @@ pub(crate) fn handle_store_raw(
 
     // validate reference kind
     if let Err(error) = check_reference_kind(state, *reference, ptr) {
-        return ControlFlow::Error(error);
+        return Transfer::Error(error);
     }
 
     // write through raw pointer
     let Some(raw_pointee) = *raw_pointee else {
-        return ControlFlow::Error(Error::InvalidManagedReference);
+        return Transfer::Error(Error::InvalidManagedReference);
     };
-    if let Err(e) = instruction::store_to_raw_pointer_typed(state, ptr, raw_pointee, val) {
-        return ControlFlow::Error(e);
+    if let Err(e) = access::store_to_raw_pointer_typed(state, ptr, raw_pointee, val) {
+        return Transfer::Error(e);
     }
 
     // continue to next instruction
     next!(state, block, pc)
 }
 
-/// Handle stack pointer store.
+/// Step stack pointer store.
 #[inline(always)]
-pub(crate) fn handle_store_stack(
-    state: &mut ExecutionState<'_, '_>,
+pub(crate) fn step_store_stack(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::Store {
         pointer,
@@ -774,25 +800,25 @@ pub(crate) fn handle_store_stack(
 
     // validate reference kind
     if let Err(error) = check_reference_kind(state, *reference, ptr) {
-        return ControlFlow::Error(error);
+        return Transfer::Error(error);
     }
 
     // write through stack pointer
-    if let Err(e) = instruction::store_to_stack_pointer(state, ptr, val) {
-        return ControlFlow::Error(e);
+    if let Err(e) = access::store_to_stack_pointer(state, ptr, val) {
+        return Transfer::Error(e);
     }
 
     // continue to next instruction
     next!(state, block, pc)
 }
 
-/// Handle local pointer store.
+/// Step local pointer store.
 #[inline(always)]
-pub(crate) fn handle_store_local(
-    state: &mut ExecutionState<'_, '_>,
+pub(crate) fn step_store_local(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::Store {
         pointer,
@@ -807,7 +833,7 @@ pub(crate) fn handle_store_local(
 
     // validate reference metadata
     if let Err(error) = check_reference_mutability(state, *reference) {
-        return ControlFlow::Error(error);
+        return Transfer::Error(error);
     }
 
     // load pointer and value
@@ -815,21 +841,21 @@ pub(crate) fn handle_store_local(
     let val = state.get(*value);
 
     // store to local pointer
-    if let Err(e) = instruction::store_to_local_pointer(state, ptr, val) {
-        return ControlFlow::Error(e);
+    if let Err(e) = access::store_to_local_pointer(state, ptr, val) {
+        return Transfer::Error(e);
     }
 
     // continue to next instruction
     next!(state, block, pc)
 }
 
-/// Handle global pointer store.
+/// Step global pointer store.
 #[inline(always)]
-pub(crate) fn handle_store_global(
-    state: &mut ExecutionState<'_, '_>,
+pub(crate) fn step_store_global(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::Store {
         pointer,
@@ -848,23 +874,23 @@ pub(crate) fn handle_store_global(
 
     // validate reference kind
     if let Err(error) = check_reference_kind(state, *reference, ptr) {
-        return ControlFlow::Error(error);
+        return Transfer::Error(error);
     }
 
     // write through global pointer
-    if let Err(e) = instruction::store_to_global_pointer(state, ptr, val) {
-        return ControlFlow::Error(e);
+    if let Err(e) = access::store_to_global_pointer(state, ptr, val) {
+        return Transfer::Error(e);
     }
 
     // continue to next instruction
     next!(state, block, pc)
 }
-/// Handle managed allocation.
-pub(crate) fn handle_managed_alloc(
-    state: &mut ExecutionState<'_, '_>,
+/// Step managed allocation.
+pub(crate) fn step_managed_alloc(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     let max_managed_allocations = state.options().limits.max_managed_allocations;
 
     // decode instruction data
@@ -883,14 +909,14 @@ pub(crate) fn handle_managed_alloc(
     let handle = {
         let heap = state.heap();
         if heap.managed_allocation_count() >= max_managed_allocations {
-            return ControlFlow::Error(Error::AllocationFailed);
+            return Transfer::Error(Error::AllocationFailed);
         }
 
         heap.allocate_managed_zeroed(*byte_len as usize, trace.clone(), *layout_id)
     };
     let handle = match handle {
         Ok(handle) => handle,
-        Err(error) => return ControlFlow::Error(Error::from(error)),
+        Err(error) => return Transfer::Error(Error::from(error)),
     };
     if state.collect_stats {
         state.engine.statistics.heap_allocations += 1;
@@ -899,7 +925,7 @@ pub(crate) fn handle_managed_alloc(
 
     // validate reference kind
     if let Err(error) = check_reference_kind(state, *reference, value) {
-        return ControlFlow::Error(error);
+        return Transfer::Error(error);
     }
 
     state.set(*dest, value);
@@ -908,12 +934,12 @@ pub(crate) fn handle_managed_alloc(
     next!(state, block, pc)
 }
 
-/// Handle managed array allocation.
-pub(crate) fn handle_managed_alloc_array(
-    state: &mut ExecutionState<'_, '_>,
+/// Step managed array allocation.
+pub(crate) fn step_managed_alloc_array(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     let max_managed_allocations = state.options().limits.max_managed_allocations;
 
     // decode instruction data
@@ -934,25 +960,25 @@ pub(crate) fn handle_managed_alloc_array(
     // allocate managed array storage
     let handle = {
         let tree = state.tree();
-        let element_byte_len = match instruction::managed_type_size(tree, *element_type) {
+        let element_byte_len = match access::managed_type_size(tree, *element_type) {
             Ok(byte_len) => byte_len,
-            Err(error) => return ControlFlow::Error(error),
+            Err(error) => return Transfer::Error(error),
         };
         let byte_len = match length.checked_mul(element_byte_len) {
             Some(byte_len) => byte_len,
-            None => return ControlFlow::Error(Error::AllocationFailed),
+            None => return Transfer::Error(Error::AllocationFailed),
         };
-        let trace = instruction::managed_array_reference_map(tree, *element_type, length);
+        let trace = access::managed_array_reference_map(tree, *element_type, length);
 
         let heap = state.heap();
         if heap.managed_allocation_count() >= max_managed_allocations {
-            return ControlFlow::Error(Error::AllocationFailed);
+            return Transfer::Error(Error::AllocationFailed);
         }
         heap.allocate_managed_zeroed(byte_len, trace, None)
     };
     let handle = match handle {
         Ok(handle) => handle,
-        Err(error) => return ControlFlow::Error(Error::from(error)),
+        Err(error) => return Transfer::Error(Error::from(error)),
     };
     if state.collect_stats {
         state.engine.statistics.heap_allocations += 1;
@@ -961,7 +987,7 @@ pub(crate) fn handle_managed_alloc_array(
 
     // validate reference kind
     if let Err(error) = check_reference_kind(state, *reference, value) {
-        return ControlFlow::Error(error);
+        return Transfer::Error(error);
     }
 
     state.set(*dest, value);
@@ -970,12 +996,12 @@ pub(crate) fn handle_managed_alloc_array(
     next!(state, block, pc)
 }
 
-/// Handle raw allocation.
-pub(crate) fn handle_raw_alloc(
-    state: &mut ExecutionState<'_, '_>,
+/// Step raw allocation.
+pub(crate) fn step_raw_alloc(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     let max_raw_allocations = state.options().limits.max_raw_allocations;
 
     // decode instruction data
@@ -992,7 +1018,7 @@ pub(crate) fn handle_raw_alloc(
     let ptr = {
         let heap = state.heap();
         if heap.raw_allocation_count() >= max_raw_allocations {
-            return ControlFlow::Error(Error::AllocationFailed);
+            return Transfer::Error(Error::AllocationFailed);
         }
 
         let bytes = vec![0; *byte_len as usize];
@@ -1000,7 +1026,7 @@ pub(crate) fn handle_raw_alloc(
     };
     let ptr = match ptr {
         Ok(ptr) => ptr,
-        Err(error) => return ControlFlow::Error(Error::from(error)),
+        Err(error) => return Transfer::Error(Error::from(error)),
     };
     if state.collect_stats {
         state.engine.statistics.heap_allocations += 1;
@@ -1009,7 +1035,7 @@ pub(crate) fn handle_raw_alloc(
 
     // validate reference kind
     if let Err(error) = check_reference_kind(state, *reference, value) {
-        return ControlFlow::Error(error);
+        return Transfer::Error(error);
     }
 
     state.set(*dest, value);
@@ -1018,12 +1044,12 @@ pub(crate) fn handle_raw_alloc(
     next!(state, block, pc)
 }
 
-/// Handle raw free.
-pub(crate) fn handle_raw_free(
-    state: &mut ExecutionState<'_, '_>,
+/// Step raw free.
+pub(crate) fn step_raw_free(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::RawFree { pointer } = &block[pc].data else {
         unreachable!()
@@ -1037,12 +1063,12 @@ pub(crate) fn handle_raw_free(
         // report invalid handle
         let heap = state.heap();
         if !heap.free_raw(p) {
-            return ControlFlow::Error(Error::InvalidManagedReference);
+            return Transfer::Error(Error::InvalidManagedReference);
         }
     }
     // otherwise report type mismatch
     else {
-        return ControlFlow::Error(Error::TypeMismatch {
+        return Transfer::Error(Error::TypeMismatch {
             expected: "raw_pointer".to_string(),
             actual: format!("{ptr:?}"),
         });
@@ -1052,13 +1078,13 @@ pub(crate) fn handle_raw_free(
     next!(state, block, pc)
 }
 
-/// Handle raw drop (compiler-inserted deallocation at ownership end).
+/// Step raw drop (compiler-inserted deallocation at ownership end).
 /// Semantically equivalent to raw_free but signals ownership transfer.
-pub(crate) fn handle_raw_drop(
-    state: &mut ExecutionState<'_, '_>,
+pub(crate) fn step_raw_drop(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::RawDrop { value } = &block[pc].data else {
         unreachable!()
@@ -1072,12 +1098,12 @@ pub(crate) fn handle_raw_drop(
         // report invalid handle
         let heap = state.heap();
         if !heap.free_raw(p) {
-            return ControlFlow::Error(Error::InvalidManagedReference);
+            return Transfer::Error(Error::InvalidManagedReference);
         }
     }
     // otherwise report type mismatch
     else {
-        return ControlFlow::Error(Error::TypeMismatch {
+        return Transfer::Error(Error::TypeMismatch {
             expected: "raw_pointer".to_string(),
             actual: format!("{ptr:?}"),
         });
@@ -1087,12 +1113,12 @@ pub(crate) fn handle_raw_drop(
     next!(state, block, pc)
 }
 
-/// Handle stack allocation.
-pub(crate) fn handle_stack_alloc(
-    state: &mut ExecutionState<'_, '_>,
+/// Step stack allocation.
+pub(crate) fn step_stack_alloc(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::StackAlloc {
         dest,
@@ -1117,7 +1143,7 @@ pub(crate) fn handle_stack_alloc(
 
     // validate reference kind
     if let Err(error) = check_reference_kind(state, *reference, value) {
-        return ControlFlow::Error(error);
+        return Transfer::Error(error);
     }
 
     state.set(*dest, value);
@@ -1126,12 +1152,12 @@ pub(crate) fn handle_stack_alloc(
     next!(state, block, pc)
 }
 
-/// Handle stack drop (compiler-inserted lifetime end marker).
-pub(crate) fn handle_stack_drop(
-    state: &mut ExecutionState<'_, '_>,
+/// Step stack drop (compiler-inserted lifetime end marker).
+pub(crate) fn step_stack_drop(
+    state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
-) -> ControlFlow {
+) -> Transfer {
     // decode instruction data
     let InstructionData::StackDrop { value } = &block[pc].data else {
         unreachable!()
@@ -1142,7 +1168,7 @@ pub(crate) fn handle_stack_drop(
 
     // reject non-stack values
     let Some(pointer) = pointer.as_stack_pointer() else {
-        return ControlFlow::Error(Error::TypeMismatch {
+        return Transfer::Error(Error::TypeMismatch {
             expected: "stack_pointer".to_string(),
             actual: format!("{pointer:?}"),
         });
@@ -1150,14 +1176,14 @@ pub(crate) fn handle_stack_drop(
 
     // reject cross-frame access
     if pointer.frame_idx != state.frame_index {
-        return ControlFlow::Error(Error::InvalidPointerType {
+        return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{pointer:?}"),
         });
     }
 
     // retire the stack buffer
     if !state.current_frame_mut().retire_stack_buffer(pointer.slot) {
-        return ControlFlow::Error(Error::InvalidPointerType {
+        return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{pointer:?}"),
         });
     }
