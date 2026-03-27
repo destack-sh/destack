@@ -949,29 +949,6 @@ fn format_while_expression<'ast>(
     Ok(())
 }
 
-/// Format a JavaScript `with` expression.
-fn format_with_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    value: LocalNodeId<Expression>,
-    body: LocalNodeId<Block>,
-) -> FormatResult<()> {
-    write!(
-        f,
-        [
-            Keyword::With,
-            space(),
-            token("("),
-            value,
-            line_postfix_boundary(),
-            token(")")
-        ]
-    )?;
-    if statement_body_requires_head_space(f.context(), body) {
-        write!(f, [space()])?;
-    }
-    format_statement_body_block(f, body)
-}
-
 /// Format a `for each` expression.
 fn format_for_each_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -1623,11 +1600,6 @@ pub(crate) fn format_statement_expression<'ast>(
             body,
         } => {
             format_while_expression(f, *kind, *condition, *body)?;
-        }
-
-        // with
-        Expression::With { value, body } => {
-            format_with_expression(f, *value, *body)?;
         }
 
         // for each

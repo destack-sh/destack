@@ -110,7 +110,6 @@ pub(crate) fn format_expression<'ast>(
         | Expression::Using { .. }
         | Expression::If { .. }
         | Expression::While { .. }
-        | Expression::With { .. }
         | Expression::ForEach { .. }
         | Expression::For { .. }
         | Expression::Loop { .. }
@@ -510,7 +509,6 @@ pub fn is_expression_breakable(tree: &NodeTree, expression: &Expression) -> bool
         | Expression::ForEach { .. }
         | Expression::For { .. }
         | Expression::While { .. }
-        | Expression::With { .. }
         | Expression::Import { .. }
         | Expression::Export { .. } => true,
         Expression::Binary { .. }
