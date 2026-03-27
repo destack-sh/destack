@@ -1,0 +1,3 @@
+import { headingText } from "./strings.ts";
+
+export const pageTitle = headingText;

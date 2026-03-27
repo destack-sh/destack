@@ -1,0 +1,6 @@
+#app-root {
+    min-height: 12rem;
+    background-image: url("./images/workspace-mark.svg");
+    background-repeat: no-repeat;
+    background-position: center;
+}
