@@ -1,12 +1,10 @@
 use crate::format::directive::any_ignore_range_for_nodes;
-use crate::format::expression::{
-    ParenthesizedUnwrapMode, expression_has_complex_callback, is_assignment_left_target,
-    should_unwrap_parenthesized,
-};
+use crate::format::expression::is_assignment_left_target;
 use crate::format::operator::flatten_type_binary_expression;
+use crate::format::tree::expression_has_complex_callback;
 use crate::{
-    Annotation, DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions, TestFormatter,
-    assert_format, assert_format_idempotent_with_file_type, assert_format_output_eq,
+    Annotation, DestackFormatContext, DestackFormatOptions, TestFormatter, assert_format,
+    assert_format_idempotent_with_file_type, assert_format_output_eq,
     assert_format_program_idempotent_with_file_type,
     assert_format_program_roundtrip_with_file_type, assert_format_roundtrip_with_file_type,
     statement_list,
@@ -22,15 +20,13 @@ use destack_workspace::{FormatterOptions, QuoteProperty, QuoteStyle};
 fn context_from_formatter(formatter: &TestFormatter) -> DestackFormatContext<'_> {
     DestackFormatContext::new(
         DestackFormatOptions::default(),
-        DestackFormatArtifacts {
-            file: &formatter.file,
-            tree: &formatter.tree,
-            tokens: &formatter.tokens,
-            side_tokens: &formatter.side_tokens,
-            side_span: &formatter.side_span,
-            strings: &formatter.strings,
-            parents: NodeParentIndex::from_tree(&formatter.tree),
-        },
+        &formatter.file,
+        &formatter.tree,
+        &formatter.tokens,
+        &formatter.side_tokens,
+        &formatter.side_span,
+        &formatter.strings,
+        NodeParentIndex::from_tree(&formatter.tree),
     )
 }
 
@@ -150,29 +146,6 @@ const value5 = thisIsAReallyReallyReallyReallyReallyReallyReallyReallyReallyLong
 const iter1 = createIterator(this.controller, child, this.tag as SyncFunctionComponent);
 const iter2 = createIterator(self.controller, child, self.tag as SyncFunctionComponent);
 "#;
-
-/// Find the first parenthesized expression whose inner expression satisfies a predicate.
-fn find_parenthesized_expression_by_inner(
-    tree: &NodeTree,
-    mut predicate: impl FnMut(&Expression) -> bool,
-) -> (LocalNodeId<Expression>, LocalNodeId<Expression>) {
-    for raw_node_id in 0..tree.next_id() {
-        if tree.get_node_type(raw_node_id) != NodeType::Expression {
-            continue;
-        }
-
-        let expression_id = LocalNodeId::<Expression>::new(raw_node_id);
-        let Expression::Parenthesized { expression } = tree.get(expression_id) else {
-            continue;
-        };
-        let inner_expression = tree.get(*expression);
-        if predicate(inner_expression) {
-            return (expression_id, *expression);
-        }
-    }
-
-    panic!("expected parenthesized expression matching predicate");
-}
 
 /// Simple expressions should stay on one line.
 #[test]
@@ -361,11 +334,13 @@ fn test_format_new_expression_wraps_call_member_callee() {
 
 #[test]
 fn test_format_class_first_member_no_blank_with_consistent_quote_props() {
-    let mut options = DestackFormatOptions::default();
-    options.indent_width = 2;
-    options.line_width = 80;
-    options.quote_style = QuoteStyle::Double;
-    options.quote_props = QuoteProperty::Consistent;
+    let options = DestackFormatOptions {
+        indent_width: 2,
+        line_width: 80,
+        quote_style: QuoteStyle::Double,
+        quote_props: QuoteProperty::Consistent,
+        ..DestackFormatOptions::default()
+    };
 
     assert_format_program_roundtrip_with_file_type(
         "// Class with no quotes needed\nclass A {\n  a = \"a\";\n}\n\n// Class with quotes preserved\nclass B {\n  'b' = \"b\";\n}\n",
@@ -377,10 +352,12 @@ fn test_format_class_first_member_no_blank_with_consistent_quote_props() {
 
 #[test]
 fn test_format_jsx_comment_between_statements_stays_own_line_prefix() {
-    let mut options = DestackFormatOptions::default();
-    options.indent_width = 2;
-    options.line_width = 80;
-    options.quote_style = QuoteStyle::Double;
+    let options = DestackFormatOptions {
+        indent_width: 2,
+        line_width: 80,
+        quote_style: QuoteStyle::Double,
+        ..DestackFormatOptions::default()
+    };
 
     assert_format_program_roundtrip_with_file_type(
         "[\n  {\n    baz: () => {\n      return <Foo />;\n    },\n  },\n];\n\n// Simpler attribute case\n<Component />;\n",
@@ -421,67 +398,15 @@ fn test_format_assignment_seam_inline_doc_comment_roundtrip() {
     );
 }
 
-/// Parenthesized member objects with boundary comments should not unwrap.
-#[test]
-fn test_parenthesis_rules_reject_member_object_boundary_comment() {
-    let source = "(value /* boundary */).member";
-    let (formatter, _) = TestFormatter::parse(source, |p| p.eat_expression(Default::default()))
-        .expect("parse member expression");
-    let ctx = context_from_formatter(&formatter);
-    let (parenthesized_id, inner_expression_id) =
-        find_parenthesized_expression_by_inner(&formatter.tree, |_| true);
-
-    assert!(!should_unwrap_parenthesized(
-        &ctx,
-        parenthesized_id,
-        inner_expression_id,
-        ParenthesizedUnwrapMode::MemberObject,
-    ));
-}
-
-/// Parenthesized closure-cast member objects should unwrap.
-#[test]
-fn test_parenthesis_rules_allow_closure_cast_member_object_unwrap() {
-    let source = "(/** @type {array} */ numberOrString).map((x) => x)";
-    let (formatter, _) = TestFormatter::parse(source, |p| p.eat_expression(Default::default()))
-        .expect("parse member expression");
-    let ctx = context_from_formatter(&formatter);
-    let (parenthesized_id, inner_expression_id) =
-        find_parenthesized_expression_by_inner(&formatter.tree, |_| true);
-
-    assert!(should_unwrap_parenthesized(
-        &ctx,
-        parenthesized_id,
-        inner_expression_id,
-        ParenthesizedUnwrapMode::MemberObject,
-    ));
-}
-
-/// Parenthesized ordinary-comment member objects should unwrap.
-#[test]
-fn test_parenthesis_rules_allow_ordinary_comment_member_object_unwrap() {
-    let source = "(/* ordinary */ source).next()";
-    let (formatter, _) = TestFormatter::parse(source, |p| p.eat_expression(Default::default()))
-        .expect("parse member expression");
-    let ctx = context_from_formatter(&formatter);
-    let (parenthesized_id, inner_expression_id) =
-        find_parenthesized_expression_by_inner(&formatter.tree, |_| true);
-
-    assert!(should_unwrap_parenthesized(
-        &ctx,
-        parenthesized_id,
-        inner_expression_id,
-        ParenthesizedUnwrapMode::MemberObject,
-    ));
-}
-
 /// Type-cast seams should keep trailing callsite comments on their own line.
 #[test]
 fn test_format_type_cast_node_keeps_terminal_line_comment() {
-    let mut options = DestackFormatOptions::default();
-    options.indent_width = 2;
-    options.line_width = 80;
-    options.quote_style = QuoteStyle::Double;
+    let options = DestackFormatOptions {
+        indent_width: 2,
+        line_width: 80,
+        quote_style: QuoteStyle::Double,
+        ..DestackFormatOptions::default()
+    };
 
     assert_format_program_roundtrip_with_file_type(
         "!left &&\n/** @type {boolean} */\n(\n  /** @type {Identifier} */\n  (a) === \"call\" ||\n    /** @type {Identifier} */\n    (b) === \"bind\"\n//  ^^^^^^^^^^^^^^ No need to wrap with parentheses here because the type cast node is already wrapped with parentheses.\n) && right;\n\n/** @type {Number} */ (a + b)();\n//                    ^^^^^^^ No need to wrap with parentheses here because the type cast node is already wrapped with parentheses.\n",
@@ -693,55 +618,6 @@ class A_long_long_long_long_long_long_long_long_name3
         FileType::TypeScript,
         typescript_fixture_format_options(),
     );
-}
-
-/// Decorated class arguments should be visible to argument annotation profiling.
-#[test]
-fn test_call_argument_profile_detects_decorated_class_argument() {
-    let source = "use((@decorator class {}))";
-    let (formatter, expression_id) =
-        TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| {
-            p.eat_expression(Default::default())
-        })
-        .expect("parse decorated class argument expression");
-    let ctx = context_from_formatter(&formatter);
-
-    let Expression::Call {
-        dynamic_arguments, ..
-    } = formatter.tree.get(expression_id)
-    else {
-        panic!("expected call expression");
-    };
-    assert_eq!(dynamic_arguments.len(), 1);
-
-    let profile = ctx.argument_annotation_cache(dynamic_arguments[0]);
-    assert!(
-        profile.has_prefix_annotation,
-        "expected decorated class argument to report prefix annotation"
-    );
-}
-
-/// Parenthesized new callees with optional chains should not unwrap.
-#[test]
-fn test_parenthesis_rules_reject_optional_new_callee_unwrap() {
-    let source = "new (value?.member)()";
-    let (formatter, _) = TestFormatter::parse(source, |p| p.eat_expression(Default::default()))
-        .expect("parse new expression");
-    let ctx = context_from_formatter(&formatter);
-    let (parenthesized_id, inner_expression_id) =
-        find_parenthesized_expression_by_inner(&formatter.tree, |inner_expression| {
-            matches!(
-                inner_expression,
-                Expression::Member { .. } | Expression::PrivateMember { .. }
-            )
-        });
-
-    assert!(!should_unwrap_parenthesized(
-        &ctx,
-        parenthesized_id,
-        inner_expression_id,
-        ParenthesizedUnwrapMode::NewMemberCallee,
-    ));
 }
 
 /// Sparse arrays should preserve elision slots.
@@ -2285,6 +2161,20 @@ fn test_format_export_seam_comment_keeps_async_declaration_head() {
     );
 }
 
+/// Declaration function head seam comments should stay on the function head.
+#[test]
+fn test_format_declare_function_head_comments_stay_on_function_head() {
+    let source = "declare function /* foo */ f( /* baz */ a /* taz */) /* bar */;";
+    let expected = "declare function /* foo */ f(/* baz */ a /* taz */); /* bar */";
+    assert_format_roundtrip_with_file_type(
+        source,
+        expected,
+        FileType::TypeScript,
+        |p| p.eat_expression(Default::default()),
+        typescript_fixture_format_options(),
+    );
+}
+
 /// Semicolon-guard separator comments should keep stable blank-line boundaries.
 #[test]
 fn test_format_semicolon_guard_separator_comment_is_idempotent() {
@@ -2765,6 +2655,8 @@ fn test_format_control_head_comment_before_non_block_body_is_idempotent() {
   else /* 352 */
   foo();
   while(a) /* 36 */
+  foo();
+  with(a) /* 37 */
   foo();
 }"#;
     assert_format_idempotent_with_file_type(
@@ -4506,22 +4398,23 @@ KEYPAD_NUMBERS.map(num => ( // Buttons 0-9
         TestFormatter::parse_with_file_type(source, FileType::JavaScriptXml, |p| Ok(p.parse()))
             .expect("parse first-pass source");
     let first_ctx = context_from_formatter(&first_formatter);
-    let marker_annotation_id = first_ctx
-        .formatter_annotation_entries
-        .iter()
-        .enumerate()
-        .find_map(|(entry_index, _)| {
-            let annotation_id = LocalNodeId::<Annotation>::new(entry_index as u32);
-            let Annotation::Comment { node, .. } = first_ctx.annotation(annotation_id) else {
-                return None;
-            };
+    let marker_annotation_id =
+        first_ctx
+            .annotation_entries
+            .iter()
+            .enumerate()
+            .find_map(|(entry_index, _)| {
+                let annotation_id = LocalNodeId::<Annotation>::new(entry_index as u32);
+                let Annotation::Comment { node, .. } = first_ctx.annotation(annotation_id) else {
+                    return None;
+                };
 
-            (first_ctx.comment_text(node).trim() == "Buttons 0-9").then_some(annotation_id)
-        });
+                (first_ctx.comment_text(node).trim() == "Buttons 0-9").then_some(annotation_id)
+            });
     let marker_annotation_id = marker_annotation_id
         .expect("expected formatter annotation for callback head line comment marker");
     let marker_owner_node = first_ctx
-        .formatter_annotation_ids_by_node_id
+        .annotation_ids_by_node_id
         .iter()
         .enumerate()
         .find_map(|(node_index, annotation_ids)| {

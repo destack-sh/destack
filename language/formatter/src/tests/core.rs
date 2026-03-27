@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions, statement_list};
+use crate::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_ast::{NodeParentIndex, NodeTree, TokenSpan};
 use destack_core::ImmutableStringPool;
 use destack_fir::format;
@@ -87,15 +87,13 @@ impl TestFormatter {
     {
         let context = DestackFormatContext::new(
             options,
-            DestackFormatArtifacts {
-                file: &self.file,
-                tree: &self.tree,
-                tokens: &self.tokens,
-                side_tokens: &self.side_tokens,
-                side_span: &self.side_span,
-                strings: &self.strings,
-                parents: NodeParentIndex::from_tree(&self.tree),
-            },
+            &self.file,
+            &self.tree,
+            &self.tokens,
+            &self.side_tokens,
+            &self.side_span,
+            &self.strings,
+            NodeParentIndex::from_tree(&self.tree),
         );
         let formatted = format!(context, [n]).unwrap();
         let printed = formatted.print();

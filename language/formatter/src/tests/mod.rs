@@ -1,5 +1,8 @@
-mod format_nodes;
-mod tests;
+mod annotation;
+mod call;
+mod collection;
+mod core;
+mod declaration;
+mod expression;
 
-#[cfg(test)]
-pub(crate) use tests::*;
+pub(crate) use core::*;
