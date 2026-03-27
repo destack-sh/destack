@@ -6,7 +6,7 @@ use std::sync::Arc;
 use destack_ast::NodeParentIndex;
 use destack_fir::format as fir_format;
 use destack_formatter::{
-    DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions, statement_list,
+    DestackFormatContext, DestackFormatOptions, statement_list,
 };
 use destack_parser::Parser;
 use destack_source::{DiagnosticSeverity, File, FileId, FileType, LanguageType, Uri};
@@ -47,15 +47,13 @@ fuzz_target!(|data: &[u8]| {
 
     let context = DestackFormatContext::new(
         format_options,
-        DestackFormatArtifacts {
-            file: file.as_ref(),
-            tree: &parser.tree,
-            tokens: &tokens,
-            side_tokens: &side_tokens,
-            side_span: &side_span,
-            strings: &strings,
-            parents,
-        },
+        file.as_ref(),
+        &parser.tree,
+        &tokens,
+        &side_tokens,
+        &side_span,
+        &strings,
+        parents,
     );
 
     if let Ok(formatted) = fir_format!(context.clone(), [statement_list(&expressions)]) {
