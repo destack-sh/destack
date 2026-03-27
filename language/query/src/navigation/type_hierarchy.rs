@@ -2,7 +2,7 @@ use destack_dir::{GlobalSymbolId, SymbolType};
 use destack_source::{FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
 
-use crate::core::SessionQueryIndexExt;
+use crate::core::{SessionQueryIndexExt, query_context};
 use crate::dir::{
     find_symbol_at_offset, get_canonical_symbol, get_symbol_declaration_span,
     get_symbol_definition_span, resolve_symbol_name,
@@ -111,7 +111,7 @@ pub fn prepare_type_hierarchy(
     // check if it's a type
     let module = session.modules.get(canonical_id.module_id);
     let module = module.as_ref();
-    let ctx = crate::core::query_context(session, module)?;
+    let ctx = query_context(session, module)?;
     let (kind, name) = {
         let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(canonical_id.local_id);
@@ -148,7 +148,7 @@ pub fn supertypes(session: &Session, item: &TypeHierarchyItem) -> Vec<TypeHierar
     // get the lineage for this type
     let module = session.modules.get(canonical_id.module_id);
     let module = module.as_ref();
-    let Some(ctx) = crate::core::query_context(session, module) else {
+    let Some(ctx) = query_context(session, module) else {
         return Vec::new();
     };
     let supertype_ids: Vec<GlobalSymbolId> = {
@@ -223,7 +223,7 @@ fn type_hierarchy_item_from_symbol(
     let canonical_id = get_canonical_symbol(session, symbol_id);
     let module = session.modules.get(canonical_id.module_id);
     let module = module.as_ref();
-    let ctx = crate::core::query_context(session, module)?;
+    let ctx = query_context(session, module)?;
     let (kind, name) = {
         let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(canonical_id.local_id);

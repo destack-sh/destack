@@ -2,6 +2,7 @@ use destack_core::StringPool;
 use destack_dir as dir;
 use destack_dir::{GlobalSymbolId, NodeType};
 
+use crate::core::query_context;
 use destack_workspace::Session;
 
 /// Resolve the container name for a symbol when it belongs to a type scope.
@@ -12,7 +13,7 @@ pub(crate) fn container_name_for_symbol(
     // resolve the module query context
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let ctx = crate::core::query_context(session, module)?;
+    let ctx = query_context(session, module)?;
 
     // resolve the symbol scope owner
     let symbols = ctx.dir().symbols();

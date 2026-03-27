@@ -8,7 +8,7 @@ use crate::ast::{
     get_module_by_file_id, is_simple_identifier, line_start_for_offset, main_span_for_dir_node,
     span_for_dir_node,
 };
-use crate::core::{QueryContext, SessionQueryIndexExt};
+use crate::core::{QueryContext, SessionQueryIndexExt, query_context};
 use crate::dir::{
     ReferenceCollectionOptions, collect_symbol_references_in_context, find_symbol_at_offset,
     get_canonical_symbol, get_member_access_name_span, get_symbol_definition_span, member_key_name,
@@ -63,7 +63,7 @@ pub fn inline_symbol(session: &Session, file: FileId, offset: u32) -> Option<Inl
     // resolve the module and query context
     let module = get_module_by_file_id(session, file)?;
     let module = module.as_ref();
-    let ctx = crate::core::query_context(session, module)?;
+    let ctx = query_context(session, module)?;
 
     // find the symbol at the cursor
     let symbol_at = find_symbol_at_offset(session, file, offset)?;
@@ -144,7 +144,7 @@ pub fn inline_symbol(session: &Session, file: FileId, offset: u32) -> Option<Inl
     for module_id in session.reference_index_modules_for_target(canonical_id) {
         let module = session.modules.get(module_id);
         let module = module.as_ref();
-        let Some(ctx) = crate::core::query_context(session, module) else {
+        let Some(ctx) = query_context(session, module) else {
             continue;
         };
         let spans = collect_symbol_references_in_context(

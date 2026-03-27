@@ -5,7 +5,7 @@ use destack_source::{FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
 
 use crate::ast::sort_and_dedup_spans;
-use crate::core::SessionQueryIndexExt;
+use crate::core::{SessionQueryIndexExt, query_context};
 use crate::dir::{
     find_symbol_at_offset, get_canonical_symbol, get_symbol_declaration_span,
     get_symbol_definition_span, resolve_symbol_name,
@@ -114,7 +114,7 @@ pub fn prepare_call_hierarchy(
     let canonical_id = get_canonical_symbol(session, symbol_at.symbol_id);
     let module = session.modules.get(canonical_id.module_id);
     let module = module.as_ref();
-    let ctx = crate::core::query_context(session, module)?;
+    let ctx = query_context(session, module)?;
     let name = {
         let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(canonical_id.local_id);
@@ -208,7 +208,7 @@ pub fn outgoing_calls(
     for (target_symbol_id, call_spans) in calls_with_spans {
         // only include function calls
         let target_module = session.modules.get(target_symbol_id.module_id);
-        let Some(target_ctx) = crate::core::query_context(session, &target_module) else {
+        let Some(target_ctx) = query_context(session, &target_module) else {
             continue;
         };
         let is_function = {
@@ -268,7 +268,7 @@ fn call_hierarchy_item_from_symbol(
     let canonical_id = get_canonical_symbol(session, symbol_id);
     let module = session.modules.get(canonical_id.module_id);
     let module = module.as_ref();
-    let ctx = crate::core::query_context(session, module)?;
+    let ctx = query_context(session, module)?;
     let name = {
         let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(canonical_id.local_id);

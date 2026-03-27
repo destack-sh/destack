@@ -6,7 +6,7 @@ use destack_source::{BatchEdit, Edit, File, FileEdit, FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
 
 use crate::ast::{get_module_by_file_id, span_for_dir_node};
-use crate::core::{QueryContext, SessionQueryIndexExt};
+use crate::core::{QueryContext, SessionQueryIndexExt, query_context};
 use crate::dir::{
     find_symbol_at_offset, get_canonical_symbol, resolve_expression_symbol,
     resolve_member_access_symbol,
@@ -116,7 +116,7 @@ pub fn change_signature(
     for module_id in candidate_modules {
         let module = session.modules.get(module_id);
         let module = module.as_ref();
-        let Some(ctx) = crate::core::query_context(session, module) else {
+        let Some(ctx) = query_context(session, module) else {
             continue;
         };
         let dir_tree = ctx.dir().tree();
@@ -190,7 +190,7 @@ fn constructor_owner_symbol(
     // resolve the module and query context
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let ctx = crate::core::query_context(session, module)?;
+    let ctx = query_context(session, module)?;
 
     // resolve the declaration node
     let declaration = {
@@ -282,7 +282,7 @@ fn function_parameter_span(session: &Session, symbol_id: dir::GlobalSymbolId) ->
     // resolve the module and query context
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let ctx = crate::core::query_context(session, module)?;
+    let ctx = query_context(session, module)?;
 
     // resolve the declaration node
     let declaration = {
@@ -340,7 +340,7 @@ fn function_parameter_spans(session: &Session, symbol_id: dir::GlobalSymbolId) -
     // resolve secondary declarations (overloads)
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let Some(ctx) = crate::core::query_context(session, module) else {
+    let Some(ctx) = query_context(session, module) else {
         return spans;
     };
     let secondary = {
@@ -373,7 +373,7 @@ fn function_parameter_name_positions(
     // resolve the module and query context for the symbol
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let Some(ctx) = crate::core::query_context(session, module) else {
+    let Some(ctx) = query_context(session, module) else {
         return HashMap::new();
     };
 
@@ -418,7 +418,7 @@ fn function_parameter_name_positions(
 fn parameter_span_for_node(session: &Session, node_id: dir::GlobalNodeIdAny) -> Option<Span> {
     let module = session.modules.get(node_id.module_id);
     let module = module.as_ref();
-    let ctx = crate::core::query_context(session, module)?;
+    let ctx = query_context(session, module)?;
     let dir_tree = ctx.dir().tree();
 
     match node_id.local_id.ty {

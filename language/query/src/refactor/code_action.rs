@@ -1,4 +1,5 @@
-use destack_dir as dir;
+#![allow(clippy::too_many_arguments)]
+
 use std::collections::HashSet;
 
 use destack_ast as ast;
@@ -8,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use super::{extract_function, extract_variable, inline_symbol};
 use crate::assist::{CompletionContext, completion_input_at_offset};
 use crate::ast::{get_module_by_file_id, is_simple_identifier, token_at_offset};
+use crate::core::{import_relevance, import_sort_key, query_context};
 use crate::dir::{
     ImportEditMode, build_import_display_path, build_import_edits_with_mode,
     matches_symbol_space_filter, program_for_file, search_importable_symbols_for_program,
@@ -226,7 +228,7 @@ fn collect_organize_imports_action(session: &Session, file: FileId, actions: &mu
         return;
     };
     let module = module.as_ref();
-    let ctx = crate::core::query_context(session, module);
+    let ctx = query_context(session, module);
     let Some(ctx) = ctx else {
         return;
     };
@@ -366,58 +368,53 @@ fn collect_auto_import_actions(
 ) {
     // resolve the current module for import exclusions
     let exclude_module_id = get_module_by_file_id(session, file).map(|module| module.id);
+    let program = program_for_file(session, file);
 
-    // scan diagnostics for unresolved symbol codes
-    for program in session.programs() {
-        // load diagnostics for the file
-        let diagnostics = program.diagnostic_store.diagnostics_for_file(file);
-        for diagnostic in diagnostics {
-            // skip diagnostics outside of the requested file
-            if diagnostic.file_id != file {
-                continue;
-            }
-
-            let diag_span = &diagnostic.primary_span.span;
-            if diag_span.end < range.start || diag_span.start > range.end {
-                continue;
-            }
-
-            // only handle unresolved symbol diagnostics
-            if diagnostic.code != "ER100" && diagnostic.code != "ER101" {
-                continue;
-            }
-
-            // extract the missing symbol name from the diagnostic span
-            let Some(symbol_name) = missing_symbol_name(session, &diagnostic) else {
-                continue;
-            };
-
-            let (import_mode, space_filter) =
-                auto_import_mode_for_offset(session, file, diag_span.start);
-            collect_auto_import_actions_for_symbol(
-                session,
-                file,
-                &symbol_name,
-                exclude_module_id,
-                import_mode,
-                space_filter,
-                Some(&diagnostic.code),
-                actions,
-            );
+    // scan diagnostics for unresolved symbol codes in the owning program
+    let diagnostics = program.diagnostic_store.diagnostics_for_file(file);
+    for diagnostic in diagnostics {
+        // skip diagnostics outside of the requested file
+        if diagnostic.file_id != file {
+            continue;
         }
+
+        let diag_span = &diagnostic.primary_span.span;
+        if diag_span.end < range.start || diag_span.start > range.end {
+            continue;
+        }
+
+        // only handle unresolved symbol diagnostics
+        if diagnostic.code != "ER100" && diagnostic.code != "ER101" {
+            continue;
+        }
+
+        // extract the missing symbol name from the diagnostic span
+        let Some(symbol_name) = missing_symbol_name(session, &diagnostic) else {
+            continue;
+        };
+
+        let space_filter = auto_import_space_filter_for_offset(session, file, diag_span.start);
+        collect_auto_import_actions_for_symbol(
+            session,
+            file,
+            &symbol_name,
+            exclude_module_id,
+            space_filter,
+            Some(&diagnostic.code),
+            actions,
+        );
     }
 
     // allow token-driven auto-imports when diagnostics are unavailable
     if let Some(symbol_name) = token_at_offset(session, file, range.start)
         && is_simple_identifier(&symbol_name)
     {
-        let (import_mode, space_filter) = auto_import_mode_for_offset(session, file, range.start);
+        let space_filter = auto_import_space_filter_for_offset(session, file, range.start);
         collect_auto_import_actions_for_symbol(
             session,
             file,
             &symbol_name,
             exclude_module_id,
-            import_mode,
             space_filter,
             None,
             actions,
@@ -426,34 +423,30 @@ fn collect_auto_import_actions(
 }
 
 /// Collect auto import actions for a missing symbol name.
-#[allow(clippy::too_many_arguments)]
 fn collect_auto_import_actions_for_symbol(
     session: &Session,
     file: FileId,
     symbol_name: &str,
     exclude_module_id: Option<destack_source::ModuleId>,
-    import_mode: ImportEditMode,
     space_filter: Option<SymbolSpace>,
     diagnostic_code: Option<&str>,
     actions: &mut Vec<CodeAction>,
 ) {
     // search exported symbols for exact name matches
     let program = program_for_file(session, file);
+    let current_package_id = get_module_by_file_id(session, file).map(|module| module.package_id);
+    let current_language_type = get_module_by_file_id(session, file)
+        .map(|module| module.language_type)
+        .unwrap_or_default();
     let mut candidates =
         search_importable_symbols_for_program(session, &program, symbol_name, exclude_module_id);
     candidates.retain(|export| {
         export.name == symbol_name
             && matches_symbol_space_filter(export.kind, export.space, space_filter)
     });
-    candidates.sort_by(|left, right| {
-        let left_key = auto_import_space_rank(left.space);
-        let right_key = auto_import_space_rank(right.space);
-        left.module_path
-            .cmp(&right.module_path)
-            .then_with(|| left_key.cmp(&right_key))
-    });
 
     // track seen module paths and preferred action index
+    let mut ranked_candidates = Vec::new();
     let mut seen_paths = HashSet::new();
     let mut action_index = 0;
 
@@ -470,6 +463,36 @@ fn collect_auto_import_actions_for_symbol(
         if !seen_paths.insert(display_path.clone()) {
             continue;
         }
+
+        // compute shared import relevance
+        let Some(relevance) = import_relevance(
+            session,
+            file,
+            current_package_id,
+            symbol_name,
+            &export.name,
+            space_filter,
+            export.space,
+            export.module_id,
+            module_path,
+        ) else {
+            continue;
+        };
+
+        let sort_key = import_sort_key(&relevance, &display_path, &export.name);
+        ranked_candidates.push((sort_key, export, display_path));
+    }
+
+    // sort actions with the same import relevance as completions
+    ranked_candidates.sort_by(|left, right| {
+        let left_key = (&left.0, &left.2, &left.1.name);
+        let right_key = (&right.0, &right.2, &right.1.name);
+        left_key.cmp(&right_key)
+    });
+
+    for (_, export, display_path) in ranked_candidates {
+        let import_mode =
+            ImportEditMode::for_auto_import(space_filter, export.space, current_language_type);
 
         // build import edits and skip already imported symbols
         let import_edits =
@@ -509,30 +532,19 @@ fn collect_auto_import_actions_for_symbol(
     }
 }
 
-/// Rank export spaces for auto import actions.
-fn auto_import_space_rank(space: dir::SymbolSpace) -> u8 {
-    // return the rank for the space ordering
-    match space {
-        dir::SymbolSpace::Value => 0,
-        dir::SymbolSpace::TypeValue => 1,
-        dir::SymbolSpace::Type => 2,
-        dir::SymbolSpace::Label => 3,
-    }
-}
-
-/// Resolve the import mode and space filter for an offset.
-fn auto_import_mode_for_offset(
+/// Resolve the auto import space filter for an offset.
+fn auto_import_space_filter_for_offset(
     session: &Session,
     file: FileId,
     offset: u32,
-) -> (ImportEditMode, Option<SymbolSpace>) {
+) -> Option<SymbolSpace> {
     // detect the completion context at the cursor
     let context = completion_input_at_offset(session, file, offset);
 
-    // choose import mode based on type position
+    // choose import visibility based on type position
     match context.context {
-        CompletionContext::TypePosition { .. } => (ImportEditMode::Type, Some(SymbolSpace::Type)),
-        _ => (ImportEditMode::Value, None),
+        CompletionContext::TypePosition { .. } => Some(SymbolSpace::Type),
+        _ => Some(SymbolSpace::Value),
     }
 }
 
@@ -564,56 +576,55 @@ fn collect_diagnostic_fixes(
     range: Span,
     actions: &mut Vec<CodeAction>,
 ) {
-    // iterate through all programs to find diagnostics for this file
-    for program in session.programs() {
-        // load diagnostics for the file
-        let diagnostics = program.diagnostic_store.diagnostics_for_file(file);
-        for diagnostic in diagnostics {
-            // skip diagnostics for other files
-            if diagnostic.file_id != file {
-                continue;
-            }
+    let program = program_for_file(session, file);
 
-            // check if diagnostic overlaps with the requested range
-            let diag_span = &diagnostic.primary_span.span;
-            if diag_span.end < range.start || diag_span.start > range.end {
-                continue;
-            }
+    // load diagnostics from the owning program only
+    let diagnostics = program.diagnostic_store.diagnostics_for_file(file);
+    for diagnostic in diagnostics {
+        // skip diagnostics for other files
+        if diagnostic.file_id != file {
+            continue;
+        }
 
-            // convert suggestions to code actions
-            if let Some(suggestions) = &diagnostic.suggestions {
-                for suggestion in suggestions {
-                    // skip non automatic suggestions
-                    if suggestion.applicability != Applicability::Automatic {
-                        continue;
-                    }
+        // check if diagnostic overlaps with the requested range
+        let diag_span = &diagnostic.primary_span.span;
+        if diag_span.end < range.start || diag_span.start > range.end {
+            continue;
+        }
 
-                    // create edit from suggestion
-                    let Some(replacement) = &suggestion.replacement else {
-                        continue;
-                    };
-
-                    // build the batch edit from suggestion spans
-                    let mut file_edit = FileEdit::new(file);
-                    for labeled_span in &suggestion.spans {
-                        file_edit.push(Edit::replace(labeled_span.span, replacement.clone()));
-                    }
-
-                    // skip empty edits
-                    if file_edit.is_empty() {
-                        continue;
-                    }
-
-                    let mut batch_edit = BatchEdit::new();
-                    batch_edit.files.push(file_edit);
-
-                    // build a preferred quick fix
-                    let action = CodeAction::quick_fix(&suggestion.message, batch_edit)
-                        .with_diagnostic_code(&diagnostic.code)
-                        .preferred();
-
-                    actions.push(action);
+        // convert suggestions to code actions
+        if let Some(suggestions) = &diagnostic.suggestions {
+            for suggestion in suggestions {
+                // skip non automatic suggestions
+                if suggestion.applicability != Applicability::Automatic {
+                    continue;
                 }
+
+                // create edit from suggestion
+                let Some(replacement) = &suggestion.replacement else {
+                    continue;
+                };
+
+                // build the batch edit from suggestion spans
+                let mut file_edit = FileEdit::new(file);
+                for labeled_span in &suggestion.spans {
+                    file_edit.push(Edit::replace(labeled_span.span, replacement.clone()));
+                }
+
+                // skip empty edits
+                if file_edit.is_empty() {
+                    continue;
+                }
+
+                let mut batch_edit = BatchEdit::new();
+                batch_edit.files.push(file_edit);
+
+                // build a preferred quick fix
+                let action = CodeAction::quick_fix(&suggestion.message, batch_edit)
+                    .with_diagnostic_code(&diagnostic.code)
+                    .preferred();
+
+                actions.push(action);
             }
         }
     }

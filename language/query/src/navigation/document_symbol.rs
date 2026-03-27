@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 pub use crate::SymbolKind;
 use crate::ast::{main_span_for_dir_node, span_for_dir_node};
-use crate::core::{AstQuery, QueryContext, with_ast_query_for_file};
+use crate::core::{AstQuery, QueryContext, with_ast_query_for_file, with_query_context_for_file};
 use crate::dir::{
     declaration_display_name, declaration_symbol_kind, is_synthetic_function_keyword_field,
     member_key_name, member_symbol_kind,
@@ -89,7 +89,7 @@ pub fn document_symbols(session: &Session, file: FileId) -> Vec<DocumentSymbol> 
 
 /// Build document symbols using DIR data when available.
 fn document_symbols_with_dir(session: &Session, file: FileId) -> Option<Vec<DocumentSymbol>> {
-    crate::core::with_query_context_for_file(session, file, |ctx| {
+    with_query_context_for_file(session, file, |ctx| {
         // resolve the dir tree
         let dir_tree = ctx.dir().tree();
 

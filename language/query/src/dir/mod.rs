@@ -6,6 +6,7 @@ mod expression;
 mod extensions;
 mod import;
 mod kind;
+mod lookup;
 mod member;
 mod module;
 mod namespace;
@@ -25,6 +26,7 @@ pub(crate) use expression::*;
 pub(crate) use extensions::*;
 pub(crate) use import::*;
 pub use kind::*;
+pub(crate) use lookup::*;
 pub(crate) use member::*;
 pub(crate) use module::*;
 pub(crate) use namespace::*;
@@ -34,7 +36,5 @@ pub(crate) use parameters::*;
 pub(crate) use references::*;
 pub(crate) use scope::*;
 pub use symbol::resolve_global_symbol_id;
-pub(crate) use symbol::{
-    is_type_symbol, matches_import_clause_space_filter, matches_symbol_space_filter, *,
-};
+pub(crate) use symbol::*;
 pub(crate) use visible::*;

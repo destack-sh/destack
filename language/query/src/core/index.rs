@@ -10,7 +10,7 @@ use destack_workspace::{
 
 use crate::dir::{
     build_call_index_entries_for_module, build_extension_index_entries_for_module,
-    build_import_index_entries_for_module, build_nominal_index_entries_for_module,
+    build_import_index_entries_for_program, build_nominal_index_entries_for_module,
     build_reference_index_entries_for_module, build_specifier_index_entries_for_module,
     build_symbol_index_entries_for_module,
 };
@@ -26,6 +26,12 @@ pub trait SessionQueryIndexExt {
     fn remove_query_modules<I>(&self, module_ids: I)
     where
         I: IntoIterator<Item = ModuleId>;
+
+    /// Index one program import slice into the workspace query index.
+    fn index_query_imports_for_program(&self, program: &Program);
+
+    /// Remove one program import slice from the workspace query index.
+    fn remove_query_imports_for_program(&self, root: &std::path::Path);
 
     /// Search import entries for one program.
     fn search_import_entries_for_program(
@@ -69,10 +75,6 @@ pub trait SessionQueryIndexExt {
 struct ModuleQueryIndexSlice {
     /// The module to replace.
     module_id: ModuleId,
-    /// The workspace roots that can import this module.
-    import_roots: Vec<PathBuf>,
-    /// The exported import candidates for this module.
-    import_entries: Vec<ImportIndexEntry>,
     /// The searchable workspace symbol entries for this module.
     symbol_entries: Option<Vec<SymbolIndexEntry>>,
     /// The nominal hierarchy edges for this module.
@@ -111,12 +113,6 @@ impl SessionQueryIndexExt for Session {
         // swap the prepared slices into the shared index
         self.with_query_index_mut(|query_index| {
             for slice in slices {
-                query_index.import.replace_module(
-                    slice.module_id,
-                    slice.import_roots,
-                    slice.import_entries,
-                );
-
                 if let Some(symbol_entries) = slice.symbol_entries {
                     query_index
                         .symbol
@@ -150,7 +146,6 @@ impl SessionQueryIndexExt for Session {
     {
         self.with_query_index_mut(|query_index| {
             for module_id in module_ids {
-                query_index.import.remove_module(module_id);
                 query_index.symbol.remove_module(module_id);
                 query_index.nominal.remove_module(module_id);
                 query_index.extension.remove_module(module_id);
@@ -158,6 +153,23 @@ impl SessionQueryIndexExt for Session {
                 query_index.call.remove_module(module_id);
                 query_index.specifier.remove_module(module_id);
             }
+        });
+    }
+
+    fn index_query_imports_for_program(&self, program: &Program) {
+        // derive the full program import slice before taking the write lock
+        let entries = build_import_index_entries_for_program(self, program);
+        let root = program.cwd.clone();
+
+        // swap the prepared import slice into the shared index
+        self.with_query_index_mut(|query_index| {
+            query_index.import.replace_program(root, entries);
+        });
+    }
+
+    fn remove_query_imports_for_program(&self, root: &std::path::Path) {
+        self.with_query_index_mut(|query_index| {
+            query_index.import.remove_program(root);
         });
     }
 
@@ -170,7 +182,7 @@ impl SessionQueryIndexExt for Session {
         self.with_query_index(|query_index| {
             query_index
                 .import
-                .search_root(program.cwd.as_path(), query, exclude_module)
+                .search_program(program.cwd.as_path(), query, exclude_module)
         })
     }
 
@@ -222,10 +234,6 @@ fn build_module_query_index_slice(
     module_id: ModuleId,
     module: &Module,
 ) -> ModuleQueryIndexSlice {
-    // import lookup
-    let import_entries = build_import_index_entries_for_module(session, module_id);
-    let import_roots = roots_for_module(session, module_id);
-
     // workspace symbol search
     let symbol_entries = module
         .is_user()
@@ -244,8 +252,6 @@ fn build_module_query_index_slice(
 
     ModuleQueryIndexSlice {
         module_id,
-        import_roots,
-        import_entries,
         symbol_entries,
         nominal_entries,
         extension_entries,
@@ -253,23 +259,4 @@ fn build_module_query_index_slice(
         call_entries,
         specifier_entries,
     }
-}
-
-/// Return the workspace roots that include one module.
-fn roots_for_module(session: &Session, module_id: ModuleId) -> Vec<PathBuf> {
-    let module = session.modules.get(module_id);
-    let module = module.as_ref();
-    let Some(module_path) = module.path.as_ref() else {
-        return Vec::new();
-    };
-
-    session
-        .programs()
-        .into_iter()
-        .filter_map(|program| {
-            module_path
-                .starts_with(&program.cwd)
-                .then_some(program.cwd.clone())
-        })
-        .collect()
 }

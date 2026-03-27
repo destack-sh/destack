@@ -370,6 +370,7 @@ impl LanguageService {
         // warm query indexes for the analyzed modules
         let module_ids = updates.iter().filter_map(|update| update.module_id);
         self.session.index_query_modules(module_ids);
+        self.session.index_query_imports_for_program(&program);
 
         // advance semantic revision after the update is fully applied
         self.bump_revision_for_root(&program.cwd)?;
@@ -475,6 +476,7 @@ impl LanguageService {
             // warm query indexes for the analyzed modules
             let module_ids = updates.iter().filter_map(|update| update.module_id);
             self.session.index_query_modules(module_ids);
+            self.session.index_query_imports_for_program(program);
         }
 
         // map internal updates to public records

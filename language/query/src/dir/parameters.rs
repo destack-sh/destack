@@ -1,12 +1,12 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use destack_dir::{
-    Declaration, GlobalSymbolId, LocalNodeId, Member, NodeTree, NodeType, Parameter,
+    Declaration, GlobalSymbolId, LocalNodeId, LocalTypeId, Member, NodeTree, NodeType, Parameter,
 };
 
-use crate::core::AstQuery;
+use crate::core::{AstQuery, query_context};
 
-use super::{doc_strings_for_node_or_enclosing, parse_param_docs};
+use super::{doc_strings_for_node_or_enclosing, get_canonical_symbol, parse_param_docs};
 use destack_workspace::Session;
 
 /// Parameter names and documentation collected from a declaration.
@@ -16,6 +16,21 @@ pub(crate) struct ParameterData {
     pub names: Vec<String>,
     /// Documentation keyed by parameter name.
     pub docs: HashMap<String, String>,
+}
+
+/// One expected-parameter hint for argument completion ranking.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct ExpectedParameterHint {
+    /// The parameter display name when available.
+    pub name: Option<String>,
+    /// The direct nominal type symbol when available.
+    pub type_symbol: Option<GlobalSymbolId>,
+    /// Related nominal type symbols reachable through the declared type.
+    pub type_symbols: Vec<GlobalSymbolId>,
+    /// Whether callable values are preferred.
+    pub prefers_callable: bool,
+    /// Whether constructable values are preferred.
+    pub prefers_constructable: bool,
 }
 
 /// Format a parameter into a display name.
@@ -72,7 +87,7 @@ pub(crate) fn parameter_data_for_symbol(
     // read the target module and build a query context
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let ctx = crate::core::query_context(session, module)?;
+    let ctx = query_context(session, module)?;
 
     // resolve the symbol and its primary declaration
     let global_node_id = {
@@ -121,6 +136,204 @@ pub(crate) fn parameter_data_for_symbol(
         }
 
         _ => None,
+    }
+}
+
+/// Resolve the expected-parameter hint for one active argument.
+pub(crate) fn expected_parameter_hint_for_symbol(
+    session: &Session,
+    symbol_id: GlobalSymbolId,
+    parameter_index: usize,
+) -> Option<ExpectedParameterHint> {
+    // read the target module and build a query context
+    let module = session.modules.get(symbol_id.module_id);
+    let module = module.as_ref();
+    let ctx = query_context(session, module)?;
+
+    // resolve the symbol and its primary declaration
+    let global_node_id = {
+        let symbols = ctx.dir().symbols();
+        let symbol = symbols.get_symbol(symbol_id.local_id);
+        symbol.primary_declaration?
+    };
+
+    // resolve the dynamic parameters for the declaration
+    let dir_tree = ctx.dir().tree();
+    let dynamic_parameters = match global_node_id.local_id.ty {
+        NodeType::Declaration => {
+            let declaration_id = global_node_id.local_id.try_into_typed().ok()?;
+            let declaration = dir_tree.get::<Declaration>(declaration_id);
+            let Declaration::Function { signature, .. } = declaration else {
+                return None;
+            };
+
+            signature.dynamic_parameters.clone()
+        }
+        NodeType::Member => {
+            let member_id = global_node_id.local_id.try_into_typed().ok()?;
+            let member = dir_tree.get::<Member>(member_id);
+            let Member::Method { signature, .. } = member else {
+                return None;
+            };
+
+            signature.dynamic_parameters.clone()
+        }
+        _ => return None,
+    };
+
+    // resolve the active parameter node
+    let parameter_id =
+        resolve_expected_parameter_id(dir_tree, &dynamic_parameters, parameter_index)?;
+    let parameter = dir_tree.get::<Parameter>(parameter_id);
+    let name = Some(parameter_display_name(session, parameter));
+
+    // resolve the declared parameter type and classify its shape
+    let global_parameter_id = parameter_id.into_global_any(ctx.module_id());
+    let type_id = ctx
+        .dir()
+        .types()
+        .get_declared_type_id(global_parameter_id)?;
+    let type_symbol = ctx
+        .dir()
+        .types()
+        .get_type(type_id)
+        .symbol()
+        .map(|symbol_id| get_canonical_symbol(session, symbol_id));
+    let type_symbols = collect_expected_type_symbols(session, ctx.dir().types(), type_id);
+    let (prefers_callable, prefers_constructable) =
+        expected_value_shape(ctx.dir().types(), type_id);
+
+    Some(ExpectedParameterHint {
+        name,
+        type_symbol,
+        type_symbols,
+        prefers_callable,
+        prefers_constructable,
+    })
+}
+
+/// Collect nominal type symbols that should contribute to expected-type ranking.
+fn collect_expected_type_symbols(
+    session: &Session,
+    types: &destack_dir::TypeTable,
+    type_id: LocalTypeId,
+) -> Vec<GlobalSymbolId> {
+    let mut symbols = Vec::new();
+    let mut seen_types = HashSet::new();
+    let mut seen_symbols = HashSet::new();
+
+    collect_expected_type_symbols_inner(
+        session,
+        types,
+        type_id,
+        &mut seen_types,
+        &mut seen_symbols,
+        &mut symbols,
+    );
+
+    symbols
+}
+
+/// Collect nominal symbols from one declared parameter type.
+fn collect_expected_type_symbols_inner(
+    session: &Session,
+    types: &destack_dir::TypeTable,
+    type_id: LocalTypeId,
+    seen_types: &mut HashSet<LocalTypeId>,
+    seen_symbols: &mut HashSet<GlobalSymbolId>,
+    symbols: &mut Vec<GlobalSymbolId>,
+) {
+    let type_id = types.unwrap_value_type_id(type_id);
+    if !seen_types.insert(type_id) {
+        return;
+    }
+
+    let ty = types.get_type(type_id);
+
+    // direct nominal references
+    if let destack_dir::Type::Reference { symbol, .. } = ty {
+        let canonical_symbol = get_canonical_symbol(session, *symbol);
+        if seen_symbols.insert(canonical_symbol) {
+            symbols.push(canonical_symbol);
+        }
+
+        if let Some(target_type_id) = types.get_alias_target_type_id(*symbol) {
+            collect_expected_type_symbols_inner(
+                session,
+                types,
+                target_type_id,
+                seen_types,
+                seen_symbols,
+                symbols,
+            );
+        }
+
+        return;
+    }
+
+    // nominal combinations
+    match ty {
+        destack_dir::Type::Union { elements } | destack_dir::Type::Intersection { elements } => {
+            for &element_id in elements {
+                collect_expected_type_symbols_inner(
+                    session,
+                    types,
+                    element_id,
+                    seen_types,
+                    seen_symbols,
+                    symbols,
+                );
+            }
+        }
+        destack_dir::Type::Value { value } => {
+            collect_expected_type_symbols_inner(
+                session,
+                types,
+                *value,
+                seen_types,
+                seen_symbols,
+                symbols,
+            );
+        }
+        _ => {}
+    }
+}
+
+/// Resolve the parameter node that should guide one argument index.
+fn resolve_expected_parameter_id(
+    dir_tree: &NodeTree,
+    dynamic_parameters: &[LocalNodeId<Parameter>],
+    parameter_index: usize,
+) -> Option<LocalNodeId<Parameter>> {
+    if let Some(parameter_id) = dynamic_parameters.get(parameter_index) {
+        return Some(*parameter_id);
+    }
+
+    let last_parameter_id = *dynamic_parameters.last()?;
+    let last_parameter = dir_tree.get::<Parameter>(last_parameter_id);
+    match last_parameter {
+        Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. } => {
+            Some(last_parameter_id)
+        }
+        _ => None,
+    }
+}
+
+/// Classify the expected value shape for one parameter type.
+fn expected_value_shape(types: &destack_dir::TypeTable, type_id: LocalTypeId) -> (bool, bool) {
+    let ty = types.get_type(type_id);
+
+    match ty {
+        destack_dir::Type::Function { .. } => (true, false),
+        destack_dir::Type::Object {
+            call_signatures,
+            construct_signatures,
+            ..
+        } => (
+            !call_signatures.is_empty(),
+            !construct_signatures.is_empty(),
+        ),
+        _ => (false, false),
     }
 }
 

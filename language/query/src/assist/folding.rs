@@ -3,7 +3,7 @@ use destack_dir::Declaration;
 use destack_source::{FileId, Uri};
 use serde::{Deserialize, Serialize};
 
-use crate::core::with_ast_query_for_file;
+use crate::core::{with_ast_query_for_file, with_query_context_for_file};
 use destack_workspace::Session;
 
 /// Kind of folding range.
@@ -92,7 +92,7 @@ pub fn folding_ranges(session: &Session, file: FileId) -> Vec<FoldingRange> {
 
 /// Build folding ranges using the DIR context when available.
 fn folding_ranges_with_dir(session: &Session, file: FileId) -> Option<Vec<FoldingRange>> {
-    crate::core::with_query_context_for_file(session, file, |ctx| {
+    with_query_context_for_file(session, file, |ctx| {
         // resolve the source file and dir tree
         let source_file = session.files.get(ctx.file_id());
         let dir_tree = ctx.dir().tree();

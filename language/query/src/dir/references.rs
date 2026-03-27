@@ -7,15 +7,15 @@ use destack_dir::{
 };
 use destack_source::{FileId, ModuleId, NodeSpanType, Span};
 
+use super::import::is_dependency_alias_for_target;
 use super::namespace::resolve_path_segment_symbol;
 use super::nominal::resolve_member_access_symbol;
-use super::symbol::{
+use super::{
     get_canonical_symbol, get_member_access_name_span, get_path_segment_span,
-    is_dependency_alias_for_target, symbol_matches_reference_target,
+    resolve_expression_symbol, resolve_namespace_receiver_symbol, symbol_matches_reference_target,
 };
-use super::{resolve_expression_symbol, resolve_namespace_receiver_symbol};
 use crate::ast::{get_node_tree_main_span, get_node_tree_span};
-use crate::core::{AstQuery, DirQuery};
+use crate::core::{AstQuery, DirQuery, query_context};
 use destack_workspace::{Module, Session};
 
 /// Options for collecting symbol references.
@@ -44,7 +44,7 @@ pub(crate) fn build_reference_index_entries_for_module(
     session: &Session,
     module: &Module,
 ) -> Vec<GlobalSymbolId> {
-    let Some(ctx) = crate::core::query_context(session, module) else {
+    let Some(ctx) = query_context(session, module) else {
         return Vec::new();
     };
 

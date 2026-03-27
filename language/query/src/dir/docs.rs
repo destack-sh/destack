@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use destack_ast::{AnnotationPosition, Doc};
 use destack_dir as dir;
 
+use crate::core::query_context;
 use destack_workspace::Session;
 
 use crate::core::AstQuery;
@@ -98,7 +99,7 @@ pub(crate) fn doc_text_for_symbol(
     // resolve the module query context
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let ctx = crate::core::query_context(session, module)?;
+    let ctx = query_context(session, module)?;
 
     // resolve the symbol declaration
     let declaration = {

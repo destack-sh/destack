@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use {destack_ast as ast, destack_dir as dir};
 
 use crate::ast::{is_simple_identifier, sort_and_dedup_spans, token_at_offset};
-use crate::core::SessionQueryIndexExt;
+use crate::core::{SessionQueryIndexExt, query_context};
 use crate::dir::{
     ReferenceCollectionOptions, SymbolAtOffset, collect_default_import_alias_symbols_for_export,
     collect_symbol_references_in_context, find_symbol_at_offset, get_canonical_symbol,
@@ -187,7 +187,11 @@ fn resolve_rename_target(
 
     // reject non modifier keywords at the cursor
     let token = token_at_offset(session, file, offset);
-    if token.is_some_and(|token| is_keyword(&token) && !is_modifier_keyword(&token)) {
+    if token.is_some_and(|token| {
+        ast::Keyword::from_str(&token)
+            .map(|keyword| !is_rename_target_modifier_keyword(keyword))
+            .unwrap_or(false)
+    }) {
         return None;
     }
 
@@ -267,7 +271,7 @@ fn collect_symbol_reference_spans_across_user_modules(
             continue;
         }
 
-        let Some(ctx) = crate::core::query_context(session, module) else {
+        let Some(ctx) = query_context(session, module) else {
             continue;
         };
 
@@ -338,7 +342,7 @@ fn resolve_name_from_primary_declaration(
     // resolve query context for the symbol module
     let module = session.modules.get(canonical_id.module_id);
     let module = module.as_ref();
-    let ctx = crate::core::query_context(session, module)?;
+    let ctx = query_context(session, module)?;
 
     // resolve the primary declaration node id
     let declaration = {
@@ -431,7 +435,7 @@ fn resolve_interface_member_target(
     // resolve query context for the symbol module
     let module = session.modules.get(canonical_id.module_id);
     let module = module.as_ref();
-    let ctx = crate::core::query_context(session, module)?;
+    let ctx = query_context(session, module)?;
 
     // resolve the member declaration node
     let declaration = {
@@ -515,7 +519,7 @@ fn collect_interface_member_implementations(
     for (module_id, implementing_symbols) in implementing_module_ids {
         let module = session.modules.get(module_id);
         let module = module.as_ref();
-        let Some(ctx) = crate::core::query_context(session, module) else {
+        let Some(ctx) = query_context(session, module) else {
             continue;
         };
 
@@ -577,12 +581,8 @@ fn collect_interface_member_implementations(
     members
 }
 
-/// Check whether a keyword can participate in rename as a declaration modifier.
-fn is_modifier_keyword(token: &str) -> bool {
-    let Ok(keyword) = ast::Keyword::from_str(token) else {
-        return false;
-    };
-
+/// Check whether a modifier keyword can target the declaration for rename.
+fn is_rename_target_modifier_keyword(keyword: ast::Keyword) -> bool {
     matches!(
         keyword,
         ast::Keyword::Export
@@ -599,9 +599,4 @@ fn is_modifier_keyword(token: &str) -> bool {
             | ast::Keyword::Default
             | ast::Keyword::Override
     )
-}
-
-/// Check whether a token is any language keyword.
-fn is_keyword(token: &str) -> bool {
-    ast::Keyword::from_str(token).is_ok()
 }

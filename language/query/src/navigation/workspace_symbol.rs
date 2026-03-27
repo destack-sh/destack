@@ -1,8 +1,7 @@
 use destack_source::{FileId, Span};
 use serde::{Deserialize, Serialize};
 
-use crate::core::SessionQueryIndexExt;
-use crate::core::fuzzy::score_completion;
+use crate::core::{SessionQueryIndexExt, symbol_relevance, workspace_symbol_sort_key};
 use crate::dir::SymbolKind;
 use destack_workspace::{Session, SymbolIndexEntry, SymbolIndexKind};
 
@@ -39,14 +38,14 @@ pub struct WorkspaceSymbolsResponse {
 
 /// Search for symbols across the workspace.
 ///
-/// Returns symbols whose names contain the query string (case insensitive).
+/// Returns symbols whose names match the lexical query.
 pub fn workspace_symbols(
     session: &Session,
     query: &str,
     max_results: usize,
 ) -> Vec<WorkspaceSymbol> {
     // prepare the scored symbol buffer
-    let mut scored_symbols: Vec<(u32, WorkspaceSymbol)> = Vec::new();
+    let mut scored_symbols = Vec::new();
 
     // normalize query input
     let query = query.trim();
@@ -56,35 +55,16 @@ pub fn workspace_symbols(
 
     // score the cached entries in memory
     for entry in entries {
-        let Some(score) =
-            score_workspace_symbol(&entry.name, entry.container_name.as_deref(), query)
-        else {
+        let Some(relevance) = symbol_relevance(&entry, query) else {
             continue;
         };
 
-        scored_symbols.push((score, workspace_symbol_from_index_entry(entry)));
+        let sort_key = workspace_symbol_sort_key(&relevance, &entry);
+        scored_symbols.push((sort_key, workspace_symbol_from_index_entry(entry)));
     }
 
-    // sort by score descending, then name and location for deterministic results
-    scored_symbols.sort_by(|left, right| {
-        let left_key = (
-            std::cmp::Reverse(left.0),
-            left.1.name.len(),
-            left.1.name.to_lowercase(),
-            left.1.file.0,
-            left.1.range.start,
-            left.1.range.end,
-        );
-        let right_key = (
-            std::cmp::Reverse(right.0),
-            right.1.name.len(),
-            right.1.name.to_lowercase(),
-            right.1.file.0,
-            right.1.range.start,
-            right.1.range.end,
-        );
-        left_key.cmp(&right_key)
-    });
+    // sort by lexical relevance, then kind, then location for deterministic results
+    scored_symbols.sort_by(|left, right| left.0.cmp(&right.0));
 
     // drop duplicate symbol locations
     let mut symbols = Vec::new();
@@ -108,12 +88,6 @@ pub fn workspace_symbols(
 
     // return the final symbol list
     symbols
-}
-
-/// Score a workspace symbol against the query.
-fn score_workspace_symbol(name: &str, _container: Option<&str>, query: &str) -> Option<u32> {
-    // match the symbol name against the query
-    score_completion(name, query).map(|matched| matched.score)
 }
 
 /// Convert one cached symbol entry to a workspace symbol.
