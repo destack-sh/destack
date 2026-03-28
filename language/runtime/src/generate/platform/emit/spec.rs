@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use super::codegen::ModuleCodegen;
 use super::usage::{RenderTypes, RenderUsage};
-use crate::analyze::BindingEntry;
+use crate::platform::model::BindingEntry;
 
 /// One binding module catalog keyed by extern name.
 pub(super) type ModuleBindings = BTreeMap<String, BindingEntry>;

@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use crate::analyze::{BindingEntry, CatalogBindingScope, CatalogBindingSimulation};
+use crate::platform::model::{BindingEntry, CatalogBindingScope, CatalogBindingSimulation};
 
 use super::{ModuleLayout, WorkspaceLayout};
 

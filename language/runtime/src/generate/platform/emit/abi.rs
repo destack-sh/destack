@@ -4,8 +4,9 @@ use destack_dir::EnumBackingType;
 
 use super::codegen::ModuleCodegen;
 use super::*;
-use crate::analyze::{BindingEnumValue, BindingType, ConstantEntry, ConstantValue};
-use crate::model::ModuleAbiTypes;
+use crate::platform::model::{
+    BindingEnumValue, BindingType, ConstantEntry, ConstantValue, ModuleAbiTypes,
+};
 
 impl ModuleAbiTypes {
     /// Render ABI type definitions for one runtime module.
@@ -1194,7 +1195,9 @@ fn named_storage_component_count(binding_type: &BindingType) -> Option<usize> {
 mod tests {
     use std::collections::BTreeMap;
 
-    use crate::analyze::{BindingTaggedUnionVariant, BindingType, ConstantEntry, ConstantValue};
+    use crate::platform::model::{
+        BindingTaggedUnionVariant, BindingType, ConstantEntry, ConstantValue,
+    };
 
     use super::AbiRenderer;
     use super::codegen::ModuleCodegen;

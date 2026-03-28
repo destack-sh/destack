@@ -1,12 +1,9 @@
-mod analyze;
-mod capability;
-mod emit;
 mod error;
-mod generator;
-mod model;
+mod host;
 mod option;
+mod platform;
 
-use generator::RuntimeGenerator;
+use platform::RuntimeGenerator;
 
 fn main() {
     if let Err(error) = RuntimeGenerator::run() {

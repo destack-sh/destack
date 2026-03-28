@@ -1,4 +1,4 @@
-use crate::analyze::{
+use crate::platform::model::{
     CatalogBindingAffinity, CatalogBindingBlocking, CatalogBindingReplayKind, CatalogBindingScope,
     CatalogEffectClass, CatalogReplayPayload, CatalogReplayPolicy,
 };

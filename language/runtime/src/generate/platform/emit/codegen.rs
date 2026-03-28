@@ -1,7 +1,7 @@
 use destack_dir::{EnumBackingType, IntType};
 
 use super::binding_type_requires_abi;
-use crate::analyze::{
+use crate::platform::model::{
     BindingEntry, BindingParameter, BindingTaggedUnionVariant, BindingType, CatalogBindingAffinity,
     CatalogBindingBlocking, CatalogBindingReplayKind, CatalogBindingScope,
     CatalogBindingSimulation, CatalogEntropyKind,
