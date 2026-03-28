@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use destack_dir::EnumBackingType;
 
 use super::codegen::ModuleCodegen;
-use super::*;
+use super::{binding_type_requires_abi, collect_binding_type_domains};
 use crate::platform::model::{
     BindingEnumValue, BindingType, ConstantEntry, ConstantValue, ModuleAbiTypes,
 };

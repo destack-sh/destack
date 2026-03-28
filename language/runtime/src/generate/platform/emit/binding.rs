@@ -1,7 +1,6 @@
+use super::RenderSpec;
 use super::codegen::ModuleCodegen;
 use crate::platform::model::{BindingEntry, BindingType};
-
-use super::*;
 
 /// Stateful writer for one binding module.
 pub(super) struct BindingWriter<'spec, 'output> {

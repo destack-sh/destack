@@ -3,7 +3,7 @@ use crate::platform::model::{
     CatalogEntropyKind, CatalogReplayPolicy,
 };
 
-use super::bindings::BindingWriter;
+use super::binding::BindingWriter;
 
 impl<'spec, 'output> BindingWriter<'spec, 'output> {
     /// Render the native binding set for a domain.

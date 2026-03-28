@@ -3,7 +3,7 @@ use crate::platform::model::{
     CatalogEffectClass, CatalogReplayPayload, CatalogReplayPolicy,
 };
 
-use super::bindings::BindingWriter;
+use super::binding::BindingWriter;
 use super::codegen::ModuleCodegen;
 
 impl<'spec, 'output> BindingWriter<'spec, 'output> {
