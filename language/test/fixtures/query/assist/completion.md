@@ -560,8 +560,8 @@ import { } from "$0"
 ./: folder
 ../: folder
 <root>: module
+<test>: module
 @destack/builtin: module
-<import-paths-suggest-relative-starters-for-empty-import-0>: module
 ```
 
 ### Complete relative entries with prefix

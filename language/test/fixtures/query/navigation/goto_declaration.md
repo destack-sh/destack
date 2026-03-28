@@ -8,10 +8,10 @@ Goto declaration should return the local declaration.
 
 ```ds
 const value = 1;
-//    ^^^^^ decl:value
+//      ^^^^^ decl:value
 
 const other = value;
-//            ^^^^ use:value
+//              ^^^^^ use:value
 ```
 
 ```query goto_declaration use:value
@@ -32,10 +32,10 @@ export function greet(name: string): string {
 
 ```ds:main.ds
 import { greet } from "./lib.ds";
-//       ^^^^^ decl:import_greet
+//         ^^^^^ decl:import_greet
 
 const message = greet("World");
-//              ^^^^^ use:greet
+//                ^^^^^ use:greet
 ```
 
 ```query goto_declaration use:greet
@@ -54,10 +54,10 @@ export function greet(name: string): string {
 
 ```ds:alias_main.ds
 import { greet as localGreet } from "./alias_lib.ds";
-//                ^^^^^^^^^^ decl:import_local_greet
+//                  ^^^^^^^^^^ decl:import_local_greet
 
 const message = localGreet("World");
-//              ^^^^^^^^^^ use:local_greet
+//                ^^^^^^^^^^ use:local_greet
 ```
 
 ```query goto_declaration use:local_greet
@@ -80,10 +80,10 @@ export { greet as greetAlias } from "./alias_base.ds";
 
 ```ds:alias_main.ds
 import { greetAlias } from "./alias_barrel.ds";
-//       ^^^^^^^^^^ decl:import_greet_alias
+//         ^^^^^^^^^^ decl:import_greet_alias
 
 const message = greetAlias("World");
-//              ^^^^^^^^^^ use:greet_alias
+//                ^^^^^^^^^^ use:greet_alias
 ```
 
 ```query goto_declaration use:greet_alias
@@ -102,10 +102,10 @@ export struct Thing {
 
 ```ds:main.ds
 import type { Thing } from "./types.ds";
-//            ^^^^^ decl:import_thing
+//              ^^^^^ decl:import_thing
 
 const item: Thing = Thing { value: 1 };
-//          ^^^^^ use:thing
+//            ^^^^^ use:thing
 ```
 
 ```query goto_declaration use:thing
@@ -122,10 +122,10 @@ export function ping(): void {}
 
 ```ds:main.ds
 import * as utils from "./utils.ds";
-//          ^^^^^ decl:import_utils
+//            ^^^^^ decl:import_utils
 
 utils.ping();
-// ^^^^^ use:utils
+//^^^^^ use:utils
 ```
 
 ```query goto_declaration use:utils
@@ -148,10 +148,10 @@ export { greet } from "./lib.ds";
 
 ```ds:main.ds
 import { greet } from "./bar.ds";
-//       ^^^^^ decl:import_greet
+//         ^^^^^ decl:import_greet
 
 const message = greet("World");
-//              ^^^^^ use:greet
+//                ^^^^^ use:greet
 ```
 
 ```query goto_declaration use:greet
@@ -178,14 +178,14 @@ export function settings(): int32 {
 
 ```ds:main.ds
 import type { Settings } from "./types.ds";
-//            ^^^^^^^^ decl:import_settings_type
+//              ^^^^^^^^ decl:import_settings_type
 import { settings } from "./values.ds";
-//       ^^^^^^^^ decl:import_settings_value
+//         ^^^^^^^^ decl:import_settings_value
 
 const typed: Settings = { enabled: true };
-//           ^^^^^^^^ use:settings_type_use
+//             ^^^^^^^^ use:settings_type_use
 const value = settings();
-//            ^^^^^^^^ use:settings_value_use
+//              ^^^^^^^^ use:settings_value_use
 ```
 
 ```query goto_declaration use:settings_type_use
@@ -210,10 +210,10 @@ export type Settings = {
 
 ```ds:main_alias.ds
 import type { Settings as AppSettings } from "./types_alias.ds";
-//                        ^^^^^^^^^^^ decl:import_app_settings
+//                          ^^^^^^^^^^^ decl:import_app_settings
 
 const typed: AppSettings = { enabled: true };
-//           ^^^^^^^^^^^ use:app_settings_type
+//             ^^^^^^^^^^^ use:app_settings_type
 ```
 
 ```query goto_declaration use:app_settings_type
@@ -236,10 +236,10 @@ export type { ServiceConfig as Config } from "./base_type.ds";
 
 ```ds:main_reexport_type.ds
 import type { Config } from "./barrel_type.ds";
-//            ^^^^^^ decl:import_config
+//              ^^^^^^ decl:import_config
 
 const typed: Config = { enabled: true };
-//           ^^^^^^ use:config_type
+//             ^^^^^^ use:config_type
 ```
 
 ```query goto_declaration use:config_type
@@ -258,10 +258,10 @@ export default function createValue(): int32 {
 
 ```ds:default_main.ds
 import buildValue from "./default_lib.ds";
-//     ^^^^^^^^^^ decl:import_build_value
+//       ^^^^^^^^^^ decl:import_build_value
 
 const value = buildValue();
-//            ^^^^^^^^^^ use:build_value
+//              ^^^^^^^^^^ use:build_value
 ```
 
 ```query goto_declaration use:build_value
@@ -278,10 +278,10 @@ Goto declaration should still work for later declarations after one malformed fu
 export function broken( {}
 
 export function stableLater(): void {}
-//              ^^^^^^^^^^^ decl:stableLater
+//                ^^^^^^^^^^^ decl:stableLater
 
 stableLater();
-// ^^^^^^^^^^^ use:stableLater
+//^^^^^^^^^^^ use:stableLater
 ```
 
 ```query goto_declaration use:stableLater
@@ -296,10 +296,10 @@ Goto declaration should still work for later declarations after one malformed ca
 broken(,
 
 export function stableLater(): void {}
-//              ^^^^^^^^^^^ decl:stableLater
+//                ^^^^^^^^^^^ decl:stableLater
 
 stableLater();
-// ^^^^^^^^^^^ use:stableLater
+//^^^^^^^^^^^ use:stableLater
 ```
 
 ```query goto_declaration use:stableLater
@@ -314,10 +314,10 @@ Goto declaration should still work for later declarations after one bare `new` r
 new
 
 export function stableLater(): void {}
-//              ^^^^^^^^^^^ decl:stableLater
+//                ^^^^^^^^^^^ decl:stableLater
 
 stableLater();
-// ^^^^^^^^^^^ use:stableLater
+//^^^^^^^^^^^ use:stableLater
 ```
 
 ```query goto_declaration use:stableLater
@@ -332,10 +332,10 @@ Goto declaration should still work for later declarations after one recovered `t
 throw
 
 export function stableLater(): void {}
-//              ^^^^^^^^^^^ decl:stableLater
+//                ^^^^^^^^^^^ decl:stableLater
 
 stableLater();
-// ^^^^^^^^^^^ use:stableLater
+//^^^^^^^^^^^ use:stableLater
 ```
 
 ```query goto_declaration use:stableLater
@@ -353,10 +353,10 @@ function* broken() {
 }
 
 export function stableLater(): void {}
-//              ^^^^^^^^^^^ decl:stableLater
+//                ^^^^^^^^^^^ decl:stableLater
 
 stableLater();
-// ^^^^^^^^^^^ use:stableLater
+//^^^^^^^^^^^ use:stableLater
 ```
 
 ```query goto_declaration use:stableLater
@@ -370,7 +370,7 @@ Goto declaration should return no result when the cursor is on malformed unresol
 ```ds
 function main(): void {
     missingValue.
-//  ^^^^^^^^^^^ broken
+//    ^^^^^^^^^^^^ broken
 }
 ```
 
@@ -396,10 +396,10 @@ export { default as buildWidget } from "./lib.ds";
 
 ```ds:main.ds
 import { buildWidget } from "./barrel.ds";
-//       ^^^^^^^^^^^ decl:buildWidget
+//         ^^^^^^^^^^^ decl:buildWidget
 
 const value = buildWidget();
-//            ^^^^^^^^^^^ use:buildWidget
+//              ^^^^^^^^^^^ use:buildWidget
 ```
 
 ```query goto_declaration use:buildWidget

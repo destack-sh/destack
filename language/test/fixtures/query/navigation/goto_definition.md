@@ -8,10 +8,10 @@ Goto definition on a variable reference should jump to its declaration.
 
 ```ds
 const foo = 1;
-//    ^^^ def:foo
+//      ^^^ def:foo
 
 const bar = foo;
-//          ^^^ use:foo
+//            ^^^ use:foo
 ```
 
 The `foo` in `const bar = foo` references the `foo` defined above, so goto definition should navigate from `use:foo` to `def:foo`.
@@ -26,9 +26,9 @@ Goto definition on a parameter reference should jump to the parameter declaratio
 
 ```ds
 function add(x: int32, y: int32): int32 {
-//           ^ def:x
+//             ^ def:x
     return x + y;
-//         ^ use:x
+//           ^ use:x
 }
 ```
 
@@ -46,12 +46,12 @@ Goto definition on a function call should jump to the function declaration.
 
 ```ds
 function greet(name: string): string {
-//       ^^^^^ def:greet
+//         ^^^^^ def:greet
     return "Hello, " + name;
 }
 
 const msg = greet("World");
-//          ^^^^^ use:greet
+//            ^^^^^ use:greet
 ```
 
 `greet("World")` calls the `greet` function defined above, so goto definition should navigate from `use:greet` to `def:greet`.
@@ -69,14 +69,14 @@ Goto definition on a field access should jump to the field declaration.
 ```ds
 struct Point {
     x: int32
-//  ^ def:point_x
+//    ^ def:point_x
     y: int32
 }
 
 function main() {
     const p = Point { x: 1, y: 2 };
     const value = p.x;
-//                   ^ use:point_x
+//                     ^ use:point_x
 }
 ```
 
@@ -95,7 +95,7 @@ Goto definition on a class method call should jump to the method declaration.
 ```ds
 class Logger {
     log(message: string): void {
-//  ^^^ def:logger_log
+//    ^^^ def:logger_log
         print(message);
     }
 }
@@ -103,7 +103,7 @@ class Logger {
 function main() {
     const logger = new Logger();
     logger.log("hello");
-//         ^^^ use:logger_log
+//           ^^^ use:logger_log
 }
 ```
 
@@ -124,7 +124,7 @@ struct Calculator {}
 
 extension for Calculator {
     add(x: int32, y: int32): int32 {
-//  ^^^ def:calc_add
+//    ^^^ def:calc_add
         return x + y;
     }
 }
@@ -132,7 +132,7 @@ extension for Calculator {
 function main() {
     const calc = Calculator {};
     const result = calc.add(1, 2);
-//                        ^ use:calc_add
+//                        ^^^ use:calc_add
 }
 ```
 
@@ -151,12 +151,12 @@ Goto definition on an enum member access should jump to the enum member declarat
 ```ds
 enum Status {
     Pending,
-//  ^^^^^^^ def:pending
+//    ^^^^^^^ def:pending
     Active,
 }
 
 const current = Status.Pending;
-//                     ^^^^^^^ use:pending
+//                       ^^^^^^^ use:pending
 ```
 
 ```query goto_definition use:pending
@@ -172,7 +172,7 @@ Goto definition should return no result for unresolved identifiers.
 ```ds
 function main(): void {
     missingValue;
-//  ^^^^^^^^^^^ unresolved
+//    ^^^^^^^^^^^^ unresolved
 }
 ```
 
@@ -188,11 +188,11 @@ Goto definition should still work for valid symbols in files with neighboring ma
 
 ```ds
 const value = 1;
-//    ^^^^^ def:value
+//      ^^^^^ def:value
 
 function main(): void {
     value;
-//  ^^^^^ use:value
+//    ^^^^^ use:value
     missingValue.
 }
 ```
@@ -209,10 +209,10 @@ Goto definition should still work for later declarations after one malformed fun
 export function broken( {}
 
 export function stableLater(): void {}
-//              ^^^^^^^^^^^ def:stableLater
+//                ^^^^^^^^^^^ def:stableLater
 
 stableLater();
-// ^^^^^^^^^^^ use:stableLater
+//^^^^^^^^^^^ use:stableLater
 ```
 
 ```query goto_definition use:stableLater
@@ -227,10 +227,10 @@ Goto definition should still work for later declarations after one malformed cal
 broken(,
 
 export function stableLater(): void {}
-//              ^^^^^^^^^^^ def:stableLater
+//                ^^^^^^^^^^^ def:stableLater
 
 stableLater();
-// ^^^^^^^^^^^ use:stableLater
+//^^^^^^^^^^^ use:stableLater
 ```
 
 ```query goto_definition use:stableLater
@@ -245,10 +245,10 @@ Goto definition should still work for later declarations after one bare `new` re
 new
 
 export function stableLater(): void {}
-//              ^^^^^^^^^^^ def:stableLater
+//                ^^^^^^^^^^^ def:stableLater
 
 stableLater();
-// ^^^^^^^^^^^ use:stableLater
+//^^^^^^^^^^^ use:stableLater
 ```
 
 ```query goto_definition use:stableLater
@@ -263,10 +263,10 @@ Goto definition should still work for later declarations after one recovered `th
 throw
 
 export function stableLater(): void {}
-//              ^^^^^^^^^^^ def:stableLater
+//                ^^^^^^^^^^^ def:stableLater
 
 stableLater();
-// ^^^^^^^^^^^ use:stableLater
+//^^^^^^^^^^^ use:stableLater
 ```
 
 ```query goto_definition use:stableLater
@@ -284,10 +284,10 @@ function* broken() {
 }
 
 export function stableLater(): void {}
-//              ^^^^^^^^^^^ def:stableLater
+//                ^^^^^^^^^^^ def:stableLater
 
 stableLater();
-// ^^^^^^^^^^^ use:stableLater
+//^^^^^^^^^^^ use:stableLater
 ```
 
 ```query goto_definition use:stableLater
@@ -302,24 +302,24 @@ Goto definition should resolve type imports and value imports independently in t
 
 ```ds:types.ds
 export type Options = {
-//          ^^^^^^^ def:type_options
+//            ^^^^^^^ def:type_options
     enabled: boolean,
 };
 ```
 
 ```ds:values.ds
 export const optionsValue = 1;
-//           ^^^^^^^^^^^^ def:value_options
+//             ^^^^^^^^^^^^ def:value_options
 ```
 
 ```ds:main.ds
 import type { Options } from "./types.ds";
-//            ^^^^^^^ use:type_options
+//              ^^^^^^^ use:type_options
 import { optionsValue } from "./values.ds";
 
 const typed: Options = { enabled: true };
 const value = optionsValue;
-//            ^^^^^^^^^^^^ use:value_options
+//              ^^^^^^^^^^^^ use:value_options
 ```
 
 ```query goto_definition use:type_options
@@ -336,7 +336,7 @@ Goto definition on an import alias usage should navigate to the exported source 
 
 ```ds:alias_lib.ds
 export function greetAliasSource(name: string): string {
-//              ^^^^^^^^^^^^^^^^ def:greet_alias_source
+//                ^^^^^^^^^^^^^^^^ def:greet_alias_source
     return "Hello, " + name;
 }
 ```
@@ -345,7 +345,7 @@ export function greetAliasSource(name: string): string {
 import { greetAliasSource as localGreeting } from "./alias_lib.ds";
 
 const message = localGreeting("Destack");
-//              ^^^^^^^^^^^^^ use:local_greeting
+//                ^^^^^^^^^^^^^ use:local_greeting
 ```
 
 ```query goto_definition use:local_greeting
@@ -361,7 +361,7 @@ Goto definition should fail gracefully when the source is syntactically damaged 
 ```ds
 function main(): void {
     value.
-//  ^^^^^^ broken
+//    ^^^^^ broken
 }
 ```
 
@@ -378,13 +378,13 @@ Goto definition should resolve associated type projections to the associated typ
 ```ds
 interface Envelope<T extends string> {
     type Label<U extends string> = `${T}:${U}`;
-//       ^^^^^ def:assoc_label
+//         ^^^^^ def:assoc_label
 }
 
 class Message<T extends string> implements Envelope<T> {}
 
 type EventLabel = Message<"orders">.Label<"created">;
-//                                  ^^^^^ use:assoc_label
+//                                    ^^^^^ use:assoc_label
 ```
 
 ```query goto_definition use:assoc_label
@@ -399,19 +399,19 @@ Goto definition should pick the matching overload target at each call site.
 
 ```ds
 function parse(value: int32): int32 {
-//       ^^^^^ def:parse_int
+//         ^^^^^ def:parse_int
     return value;
 }
 
 function parse(value: string): string {
-//       ^^^^^ def:parse_string
+//         ^^^^^ def:parse_string
     return value;
 }
 
 const intValue = parse(1);
-//               ^^^^^ use:parse_int
+//                 ^^^^^ use:parse_int
 const textValue = parse("ok");
-//                ^^^^^ use:parse_string
+//                  ^^^^^ use:parse_string
 ```
 
 ```query goto_definition use:parse_int
@@ -431,13 +431,13 @@ Goto definition should resolve TypeScript import alias bindings.
 ```ts:main.ts
 namespace bar {
     export const baz = 1;
-//               ^^^ def:import_alias_target
+//                 ^^^ def:import_alias_target
 }
 
 import Foo = bar.baz;
 
 const value = Foo;
-//            ^^^ use:import_alias_target
+//              ^^^ use:import_alias_target
 ```
 
 ```query goto_definition use:import_alias_target
@@ -450,7 +450,7 @@ Goto definition should resolve through export namespace re export chains.
 
 ```ds:base.ds
 export function ping(): void {}
-//              ^^^^ def:ns_export_target
+//                ^^^^ def:ns_export_target
 ```
 
 ```ds:barrel.ds
@@ -461,7 +461,7 @@ export * as api from "./base.ds";
 import { api } from "./barrel.ds";
 
 api.ping();
-//  ^^^^ use:ns_export_target
+//    ^^^^ use:ns_export_target
 ```
 
 ```query goto_definition use:ns_export_target
@@ -474,7 +474,7 @@ Goto definition should resolve through default re-export alias chains.
 
 ```ds:lib.ds
 export default function buildWidget(): int32 {
-//                      ^^^^^^^^^^^ def:buildWidget
+//                        ^^^^^^^^^^^ def:buildWidget
     return 1;
 }
 ```
@@ -487,7 +487,7 @@ export { default as buildWidget } from "./lib.ds";
 import { buildWidget } from "./barrel.ds";
 
 const value = buildWidget();
-//            ^^^^^^^^^^^ use:buildWidget
+//              ^^^^^^^^^^^ use:buildWidget
 ```
 
 ```query goto_definition use:buildWidget

@@ -13,7 +13,7 @@ function main(): int32 {
     const a = 1;
     const b = 2;
     const total = a + b;
-    //            ^^^^^ selection
+    //              ^^^^^ selection
     return total;
 }
 ```
@@ -43,7 +43,7 @@ Extract should insert a top-level function when the selection is at the module s
 
 ```ds:main.ds
 const total = 3 * 4;
-//            ^^^^^ selection
+//              ^^^^^ selection
 ```
 
 ```query extract_function selection compute_total
@@ -66,7 +66,7 @@ Extract should replace a selected return expression with a function call.
 ```ds:main.ds
 function main(): int32 {
     return 1 + 2;
-    //     ^^^^^ selection
+    //       ^^^^^ selection
 }
 ```
 
@@ -93,7 +93,7 @@ Extract should add parameters for referenced bindings outside the selection.
 ```ds:main.ds
 const base = 10;
 const total = base + 2;
-//            ^^^^^^^ selection
+//              ^^^^^^^ selection
 ```
 
 ```query extract_function selection compute_total
@@ -120,7 +120,7 @@ type User = {
 
 function main(user: User, suffix: string): string {
     const label = user.name + suffix;
-    //            ^^^^^^^^^^^^^^^^^^ selection
+    //              ^^^^^^^^^^^^^^^^^^ selection
     return label;
 }
 ```
@@ -153,7 +153,7 @@ Extract should return values that are defined in the selection and used after it
 ```ds:main.ds
 function main(): int32 {
     const a = 1; const b = 2; const c = a + b;
-  //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ selection
+  //  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ selection
     return c;
 }
 ```
@@ -183,7 +183,7 @@ Extract should bundle multiple outputs into a tuple and destructure at the call 
 ```ds:main.ds
 function main(): int32 {
     const a = 1; const b = 2;
-  //^^^^^^^^^^^^^^^^^^^^^^^^^ selection
+  //  ^^^^^^^^^^^^^^^^^^^^^^^^^ selection
     return a + b;
 }
 ```
@@ -214,7 +214,7 @@ Extract should insert a call statement when no outputs are used after the select
 function main(): int32 {
     const base = 1;
     const temp = base + 2; const value = temp * 3;
-  //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ selection
+  //  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ selection
     return base + 1;
 }
 ```
@@ -245,7 +245,7 @@ Extract should include referenced bindings as parameters and return the produced
 function main(): int32 {
     const base = 4;
     const a = base + 1; const b = base + 2;
-  //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ selection
+  //  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ selection
     return a + b;
 }
 ```
@@ -276,7 +276,7 @@ Extract should refuse to extract statement blocks that contain control flow.
 ```ds:main.ds
 function main(flag: boolean): int32 {
     if (flag) { return 1; } const value = 2;
-  //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ selection
+  //  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ selection
     return value;
 }
 ```
@@ -294,7 +294,7 @@ Extract should reject selections that do not fully cover statements.
 ```ds:main.ds
 function main(): int32 {
     const a = 1; const b = 2;
-  //      ^^^^^^^^^^^^^^^^^ selection
+  //        ^^^^^^^^^^^^^^^^^ selection
     return a + b;
 }
 ```
@@ -312,7 +312,7 @@ Extract should use `let` at the call site when the output is mutable.
 ```ds:main.ds
 function main(): int32 {
     let count = 0; count = count + 1;
-  //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ selection
+  //  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ selection
     return count;
 }
 ```
@@ -342,7 +342,7 @@ Extract should create an async function when the selection contains `await`.
 ```ds:main.ds
 async function main(): Promise<int32> {
     const value = await load_value();
-    //            ^^^^^^^^^^^^^^^^^ selection
+    //              ^^^^^^^^^^^^^^^^^ selection
     return value;
 }
 ```
@@ -373,7 +373,7 @@ broken(,
 
 function main(): int32 {
     const total = 1 + 2;
-    //            ^^^^^ selection
+    //              ^^^^^ selection
     return total;
 }
 ```
@@ -404,7 +404,7 @@ broken(,
 
 function main(base: int32): int32 {
     const a = base + 1; const b = base + 2;
-  //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ selection
+  //  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ selection
     return a + b;
 }
 ```
@@ -437,7 +437,7 @@ Extract should refuse to extract statement blocks that contain `break`.
 function main(flag: boolean): int32 {
     let count = 0;
     while (flag) { count = count + 1; break; }
-  //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ selection
+  //  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ selection
     return count;
 }
 ```
@@ -454,7 +454,7 @@ Extract should refuse to extract statement blocks that contain `continue`.
 function main(flag: boolean): int32 {
     let count = 0;
     while (flag) { count = count + 1; continue; }
-  //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ selection
+  //  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ selection
     return count;
 }
 ```
@@ -470,7 +470,7 @@ Extract should refuse to extract statement blocks that contain `throw`.
 ```ds:main.ds
 function main(flag: boolean): int32 {
     if (flag) { throw "nope"; }
-  //^^^^^^^^^^^^^^^^^^^^^^^^^^^ selection
+  //  ^^^^^^^^^^^^^^^^^^^^^^^^^^^ selection
     return 1;
 }
 ```
@@ -488,7 +488,7 @@ Extract should reject selections that start inside a block and end outside.
 ```ds:main.ds
 function main(flag: boolean): int32 {
     if (flag) { const a = 1; } const b = 2;
-  //             ^^^^^^^^^^^^^^^^^^^^^^^^^^ selection
+  //               ^^^^^^^^^^^^^^^^^^^^^^^^^^ selection
     return b;
 }
 ```

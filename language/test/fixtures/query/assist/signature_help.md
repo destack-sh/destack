@@ -260,9 +260,9 @@ active_signature=0 active_parameter=1
 signature[0] label=repeat(text: string, times: int32): string documentation=Repeat a message. parameters=text: string|times: int32 param_docs=The text to repeat|How many times to repeat
 ```
 
-### Fallback signature for unresolved calls
+### Return no signature for unresolved calls
 
-Signature help should still return a placeholder signature when the call target is unresolved.
+Signature help should return no result when the call target is unresolved.
 
 ```ds
 function main() {
@@ -390,7 +390,7 @@ Signature help should return none when the cursor is on malformed unresolved syn
 ```ds
 function main(): void {
     missingValue.
-//  ^^^^^^^^^^^ broken
+//    ^^^^^^^^^^^^ broken
 }
 ```
 

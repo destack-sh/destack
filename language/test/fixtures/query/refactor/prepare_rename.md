@@ -8,10 +8,10 @@ Prepare rename should return the current name as placeholder for local variables
 
 ```ds
 const foo = 1;
-//    ^^^ def:foo
+//      ^^^ def:foo
 
 const bar = foo + 2;
-//          ^^^ ref:foo
+//            ^^^ ref:foo
 ```
 
 When preparing to rename `foo` at its definition, we should get `foo` as the placeholder.
@@ -26,10 +26,10 @@ We can also prepare rename from a reference site.
 
 ```ds
 const value = 42;
-//    ^^^^^ def:value
+//      ^^^^^ def:value
 
 const result = value * 2;
-//             ^^^^^ ref:value
+//               ^^^^^ ref:value
 ```
 
 Preparing rename at a reference should also return the current name.
@@ -46,7 +46,7 @@ Prepare rename should fail on literals.
 
 ```ds
 const value = 42;
-//            ^^ literal
+//              ^^ literal
 ```
 
 Preparing rename on a literal should return no result.
@@ -70,7 +70,7 @@ struct Point {
 function main() {
     const p = Point { x: 1, y: 2 };
     const value = p.x;
-//                  ^ use:point_x
+//                    ^ use:point_x
 }
 ```
 
@@ -95,7 +95,7 @@ class Counter {
 function main() {
     const counter = new Counter();
     const next = counter.inc();
-//                       ^^^ use:counter_inc
+//                         ^^^ use:counter_inc
 }
 ```
 
@@ -112,9 +112,9 @@ Prepare rename should resolve member definitions.
 ```ds
 class Task {
     title: string;
-//   ^^^^^ def:title
+//    ^^^^^ def:title
     done(): bool {
-//  ^^^^ def:done
+//    ^^^^ def:done
         return false;
     }
 }
@@ -139,7 +139,7 @@ enum Status {
 }
 
 const state = Status.Pending;
-//                     ^ use:pending
+//                     ^^^^^^^ use:pending
 ```
 
 ```query prepare_rename use:pending
@@ -154,7 +154,7 @@ Prepare rename should work for type-only imports.
 
 ```ds:types.ds
 export type Options = {
-//          ^^^^^^^ def:Options
+//            ^^^^^^^ def:Options
     name: string,
 };
 ```
@@ -163,7 +163,7 @@ export type Options = {
 import type { Options } from "./types.ds";
 
 function configure(options: Options): void {
-//                          ^^^^^^^ use:Options
+//                            ^^^^^^^ use:Options
     console.log(options.name);
 }
 ```
@@ -188,7 +188,7 @@ export default function greetDefault(name: string): string {
 import greetDefault from "./default_export.ds";
 
 const message = greetDefault("Destack");
-//              ^^^^^^^^^^^^ use:default_greet
+//                ^^^^^^^^^^^^ use:default_greet
 ```
 
 ```query prepare_rename use:default_greet
@@ -209,7 +209,7 @@ export function greet(name: string): string {
 import { greet as localGreet } from "./alias_export.ds";
 
 const message = localGreet("Destack");
-//              ^^^^^^^^^^ use:local_greet_alias
+//                ^^^^^^^^^^ use:local_greet_alias
 ```
 
 ```query prepare_rename use:local_greet_alias
@@ -228,7 +228,7 @@ export function greet(name: string): string {
 
 ```ds:alias_prepare_main.ds
 import { greet as localGreet } from "./alias_prepare_lib.ds";
-//       ^^^^^ use:greet_import_name
+//         ^^^^^ use:greet_import_name
 
 const message = localGreet("Destack");
 ```
@@ -249,7 +249,7 @@ export function ping(): void {}
 import * as api from "./namespace_prepare_lib.ds";
 
 api.ping();
-// ^^^ use:namespace_alias_use
+//^^^ use:namespace_alias_use
 ```
 
 ```query prepare_rename use:namespace_alias_use
@@ -270,7 +270,7 @@ export default function greetDefault(name: string): string {
 import welcome from "./default_prepare_lib.ds";
 
 const message = welcome("Destack");
-//              ^^^^^^^ use:default_alias_use
+//                ^^^^^^^ use:default_alias_use
 ```
 
 ```query prepare_rename use:default_alias_use
@@ -285,7 +285,7 @@ Prepare rename should return the default export name when targeting the declarat
 
 ```ds
 export default function greet(name: string): string {
-//                      ^^^^^ def:default_greet
+//                        ^^^^^ def:default_greet
     return "Hello, " + name;
 }
 ```
@@ -302,7 +302,7 @@ Prepare rename should return the type parameter name.
 
 ```ds
 function wrap<T>(value: T): T {
-//            ^ def:type_param
+//              ^ def:type_param
     return value;
 }
 ```
@@ -320,7 +320,7 @@ Prepare rename should return the binding name for destructured targets.
 ```ds
 const config = { value: 1 };
 const { value } = config;
-//      ^^^^^ def:destructure
+//        ^^^^^ def:destructure
 ```
 
 ```query prepare_rename def:destructure
@@ -337,7 +337,7 @@ namespace Api {
 }
 
 Api.ping();
-//  ^^^^ use:ping
+//    ^^^^ use:ping
 ```
 
 ```query prepare_rename use:ping
@@ -373,7 +373,7 @@ function sql(parts: string[], ...values: int32): string {
 }
 
 const value = sql`select ${1}`;
-//            ^^^ use:sql_tag
+//              ^^^ use:sql_tag
 ```
 
 ```query prepare_rename use:sql_tag
@@ -408,7 +408,7 @@ function trackUsage(target: unknown): void {
 }
 
 function greet(@trackUsage name: string): string {
-//              ^^^^^^^^^^ use:track_usage_param
+//                ^^^^^^^^^^ use:track_usage_param
     return name;
 }
 ```
@@ -426,7 +426,7 @@ declare const pair: (int32, int32);
 
 const total = match (pair) {
     (left, right) => left + right
-//   ^^^^ def:match_left
+//     ^^^^ def:match_left
 };
 ```
 
@@ -440,7 +440,7 @@ Prepare rename should resolve type parameters used inside template literal spans
 
 ```ds
 type Route<T extends string> = `api:${T}`;
-//         ^ def:route_param
+//           ^ def:route_param
 ```
 
 ```query prepare_rename def:route_param
@@ -455,7 +455,7 @@ Prepare rename should resolve symbols introduced by `using` bindings.
 using session = 1;
 
 const next = session;
-//           ^^^^^^^ use:using_session
+//             ^^^^^^^ use:using_session
 ```
 
 ```query prepare_rename use:using_session
@@ -472,7 +472,7 @@ function build(): int32 {
 }
 
 const value = comptime build();
-//                      ^^^^^ use:comptime_build
+//                       ^^^^^ use:comptime_build
 ```
 
 ```query prepare_rename use:comptime_build
@@ -488,7 +488,7 @@ Prepare rename should fail on keywords.
 ```ds
 function main(): void {
     return 1;
-//  ^^^^^^ keyword:return
+//    ^^^^^^ keyword:return
 }
 ```
 
@@ -507,7 +507,7 @@ Prepare rename should return no result for unresolved identifiers.
 ```ds
 function main(): void {
     missingValue;
-//  ^^^^^^^^^^^ unresolved
+//    ^^^^^^^^^^^^ unresolved
 }
 ```
 
@@ -524,7 +524,7 @@ Prepare rename should still work for valid symbols in files with neighboring mal
 ```ds
 function main(): void {
     const value = 1;
-//        ^^^^^ target:value
+//          ^^^^^ target:value
     missingValue.
 }
 ```
@@ -541,7 +541,7 @@ Prepare rename should still work for later declarations after one malformed func
 export function broken( {}
 
 export function stableLater(): void {}
-//              ^^^^^^^^^^^ target:stableLater
+//                ^^^^^^^^^^^ target:stableLater
 
 stableLater();
 ```
@@ -558,7 +558,7 @@ Prepare rename should still work for later declarations after one malformed call
 broken(,
 
 export function stableLater(): void {}
-//              ^^^^^^^^^^^ target:stableLater
+//                ^^^^^^^^^^^ target:stableLater
 
 stableLater();
 ```
@@ -575,7 +575,7 @@ Prepare rename should still work for later declarations after one bare `new` rec
 new
 
 export function stableLater(): void {}
-//              ^^^^^^^^^^^ target:stableLater
+//                ^^^^^^^^^^^ target:stableLater
 
 stableLater();
 ```
@@ -592,7 +592,7 @@ Prepare rename should still work for later declarations after one recovered `thr
 throw
 
 export function stableLater(): void {}
-//              ^^^^^^^^^^^ target:stableLater
+//                ^^^^^^^^^^^ target:stableLater
 
 stableLater();
 ```
@@ -612,7 +612,7 @@ function* broken() {
 }
 
 export function stableLater(): void {}
-//              ^^^^^^^^^^^ target:stableLater
+//                ^^^^^^^^^^^ target:stableLater
 
 stableLater();
 ```
@@ -628,7 +628,7 @@ Prepare rename should return no result when the cursor is on malformed unresolve
 ```ds
 function main(): void {
     missingValue.
-//  ^^^^^^^^^^^ broken
+//    ^^^^^^^^^^^^ broken
 }
 ```
 
@@ -650,7 +650,7 @@ interface Envelope<T extends string> {
 class Message<T extends string> implements Envelope<T> {}
 
 type EventLabel = Message<"orders">.Label<"created">;
-//                                  ^^^^^ use:assoc_label
+//                                    ^^^^^ use:assoc_label
 ```
 
 ```query prepare_rename use:assoc_label
@@ -677,7 +677,7 @@ export { default as buildWidget } from "./lib.ds";
 import { buildWidget } from "./barrel.ds";
 
 const value = buildWidget();
-//            ^^^^^^^^^^^ use:buildWidget
+//              ^^^^^^^^^^^ use:buildWidget
 ```
 
 ```query prepare_rename use:buildWidget
@@ -700,7 +700,7 @@ export * as api from "./base.ds";
 import { api } from "./barrel.ds";
 
 api.ping();
-//  ^^^^ use:ping
+//    ^^^^ use:ping
 ```
 
 ```query prepare_rename use:ping

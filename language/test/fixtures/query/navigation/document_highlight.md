@@ -8,10 +8,10 @@ Document highlight should mark all occurrences of a symbol within the same file.
 
 ```ds
 const foo = 1;
-//    ^^^ def:foo
+//      ^^^ def:foo
 
 const bar = foo + foo;
-//          ^^^ use:foo
+//            ^^^ use:foo
 ```
 
 `foo` appears 3 times: its definition and two uses in `foo + foo`.
@@ -30,7 +30,7 @@ Document highlight on a function should mark its definition and all call sites.
 
 ```ds
 function add(x: int32, y: int32): int32 {
-//       ^^^ def:add
+//         ^^^ def:add
     return x + y;
 }
 
@@ -53,9 +53,9 @@ Document highlight should include parameter definitions and references.
 
 ```ds
 function greet(name: string): string {
-//             ^^^^ def:name
+//               ^^^^ def:name
     return "hi " + name;
-//                 ^^^^ use:name
+//                   ^^^^ use:name
 }
 ```
 
@@ -73,16 +73,16 @@ Document highlight should include the field definition and all field accesses.
 ```ds
 struct Point {
     x: int32
-//  ^ def:field_x
+//    ^ def:field_x
     y: int32
 }
 
 function main(p: Point) {
     const a = p.x;
-//              ^ use:field_x_1
+//                ^ use:field_x_1
     const b = p.x + p.x;
-//              ^ use:field_x_2
-//                    ^ use:field_x_3
+//                ^ use:field_x_2
+//                      ^ use:field_x_3
 }
 ```
 
@@ -103,13 +103,13 @@ Document highlight should respect shadowing and only highlight the selected symb
 
 ```ds
 const value = 1;
-//    ^^^^^ def:outer_value
+//      ^^^^^ def:outer_value
 
 function test() {
     const value = 2;
-//        ^^^^^ def:inner_value
+//          ^^^^^ def:inner_value
     return value;
-//         ^^^^^ use:inner_value
+//           ^^^^^ use:inner_value
 }
 ```
 
@@ -130,11 +130,11 @@ Document highlight should still work for later valid symbols in damaged files.
 function broken(
 
 const value = 1;
-//    ^^^^^ def:value
+//      ^^^^^ def:value
 
 function read(): int32 {
     return value;
-//         ^^^^^ use:value
+//           ^^^^^ use:value
 }
 ```
 
@@ -151,7 +151,7 @@ Document highlight should still work for later valid function symbols after one 
 broken(,
 
 function stableLater(): void {}
-//       ^^^^^^^^^^^ def:stableLater
+//         ^^^^^^^^^^^ def:stableLater
 
 stableLater();
 //^^^^^^^^^^^ use:stableLater
@@ -170,7 +170,7 @@ Document highlight should still work for later valid function symbols after one 
 new
 
 function stableLater(): void {}
-//       ^^^^^^^^^^^ def:stableLater
+//         ^^^^^^^^^^^ def:stableLater
 
 stableLater();
 //^^^^^^^^^^^ use:stableLater
@@ -189,7 +189,7 @@ Document highlight should still work for later valid function symbols after one 
 throw
 
 function stableLater(): void {}
-//       ^^^^^^^^^^^ def:stableLater
+//         ^^^^^^^^^^^ def:stableLater
 
 stableLater();
 //^^^^^^^^^^^ use:stableLater
@@ -211,7 +211,7 @@ function* broken() {
 }
 
 function stableLater(): void {}
-//       ^^^^^^^^^^^ def:stableLater
+//         ^^^^^^^^^^^ def:stableLater
 
 stableLater();
 //^^^^^^^^^^^ use:stableLater

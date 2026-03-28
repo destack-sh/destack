@@ -8,7 +8,7 @@ Rename should update all occurrences of a symbol to the new name.
 
 ```ds
 const foo = 1;
-//    ^^^ target
+//      ^^^ target
 
 const bar = foo + foo;
 console.log(foo);
@@ -32,7 +32,7 @@ Renaming a function parameter should update references inside the body.
 
 ```ds
 function greet(name: string): string {
-//             ^^^^ target:param
+//               ^^^^ target:param
     return "Hello, " + name;
 }
 ```
@@ -54,7 +54,7 @@ Renaming a class should update its definition and all type references.
 
 ```ds
 class Meetup {
-//    ^^^^^^ target
+//      ^^^^^^ target
     name: string
 }
 
@@ -63,8 +63,8 @@ class MeetupLanguage {
 }
 
 const m: Meetup = new Meetup();
-//       ^^^^^^ ref1
-//                   ^^^^^^ ref2
+//         ^^^^^^ ref1
+//                      ^^^^^^ ref2
 ```
 
 Renaming `Meetup` to `Event` should only update `Meetup`, not `MeetupLanguage`.
@@ -90,7 +90,7 @@ Renaming a class used as a field type should work correctly.
 
 ```ds
 class Meetup {
-//    ^^^^^^ target
+//      ^^^^^^ target
     name: string
 }
 
@@ -102,7 +102,7 @@ enum MeetupLanguage {
 class Registration {
     /// The meetup to register for.
     meetup: Meetup
-//          ^^^^^^ ref
+//            ^^^^^^ ref
     /// The language preference.
     language: MeetupLanguage
 }
@@ -139,17 +139,17 @@ Renaming an interface should update implements clauses and type annotations.
 
 ```ds
 interface Drawable {
-//         ^^^^^^^ target
+//          ^^^^^^^^ target
     function draw(): void;
 }
 
 class Sprite implements Drawable {
-//                        ^^^^^^^ ref1
+//                        ^^^^^^^^ ref1
     function draw(): void {}
 }
 
 const sprite: Drawable = new Sprite();
-//             ^^^^^^^ ref2
+//              ^^^^^^^^ ref2
 ```
 
 ```query rename target "Renderable"
@@ -174,7 +174,7 @@ Renaming an interface member should update implementations and member accesses.
 ```ds
 interface Drawable {
     draw(): void;
-//  ^^^^ target:member
+//    ^^^^ target:member
 }
 
 class Sprite implements Drawable {
@@ -211,7 +211,7 @@ Renaming an exported function should update its imports and call sites.
 
 ```ds:lib.ds
 export function greet(name: string): string {
-//              ^^^^^^ target
+//                ^^^^^ target
     return "Hello, " + name;
 }
 ```
@@ -243,7 +243,7 @@ Renaming an interface should update `export type` re-exports and `import type` r
 
 ```ds:base.ds
 export interface Drawable {
-//                 ^^^^^^^ target
+//                 ^^^^^^^^ target
     function draw(): void;
 }
 ```
@@ -291,7 +291,7 @@ Renaming a default export should update the export name and default import usage
 
 ```ds:lib_default.ds
 export default function greet(name: string): string {
-//                      ^^^^^ target:default
+//                        ^^^^^ target:default
     return "Hello, " + name;
 }
 ```
@@ -323,7 +323,7 @@ Renaming a default exported class should update the class name and default impor
 
 ```ds:widget.ds
 export default class Widget {
-//                   ^^^^^^ target:default-class
+//                     ^^^^^^ target:default-class
     value: int32;
 }
 ```
@@ -355,7 +355,7 @@ Renaming a default exported interface should update the interface name and defau
 
 ```ds:port.ds
 export default interface Port {
-//                       ^^^^ target:default-interface
+//                         ^^^^ target:default-interface
     function open(): void;
 }
 ```
@@ -394,7 +394,7 @@ Renaming a class method should update the definition and all call sites.
 ```ds
 class Counter {
     inc(): int32 {
-//  ^^^ target
+//    ^^^ target
         return 1;
     }
 }
@@ -432,7 +432,7 @@ Renaming a struct field should update the definition and field accesses.
 ```ds
 struct Point {
     x: int32
-//  ^ target
+//    ^ target
     y: int32
 }
 
@@ -464,7 +464,7 @@ Renaming a class field should update the definition and member accesses.
 ```ds
 class Counter {
     value: int32;
-//  ^^^^^ target
+//    ^^^^^ target
     inc(): int32 {
         return this.value + 1;
     }
@@ -501,7 +501,7 @@ Renaming an enum type should update the declaration name and type references.
 
 ```ds
 enum Status {
-//   ^^^^^^ target:enum
+//     ^^^^^^ target:enum
     Pending,
     Active,
 }
@@ -528,12 +528,12 @@ Renaming an enum member should update the definition and all uses.
 ```ds
 enum Status {
     Pending,
-//  ^^^^^^ target
+//    ^^^^^^^ target
     Active,
 }
 
 const state = Status.Pending;
-//                     ^ use:pending
+//                     ^^^^^^^ use:pending
 ```
 
 ```query rename target "Queued"
@@ -556,7 +556,7 @@ Renaming a namespace should update the declaration and all member accesses.
 
 ```ds
 namespace Api {
-//        ^^^ target:namespace
+//          ^^^ target:namespace
     export function greet(): string {
         return "Hello";
     }
@@ -585,7 +585,7 @@ Renaming a namespace member should update the declaration and member accesses.
 ```ds
 namespace Api {
     export function greet(): string {
-//                  ^^^^^ target:namespace-member
+//                    ^^^^^ target:namespace-member
         return "Hello";
     }
 }
@@ -613,7 +613,7 @@ Renaming a namespace member should not update local object properties with the s
 ```ds
 namespace Api {
     export function greet(): string {
-//                  ^^^^^ target:namespace-member-shadow
+//                    ^^^^^ target:namespace-member-shadow
         return "Hello";
     }
 }
@@ -660,7 +660,7 @@ Renaming a namespace should not touch shadowed local values with the same name.
 
 ```ds
 namespace Api {
-//        ^^^ target:namespace-shadow
+//          ^^^ target:namespace-shadow
     export function greet(): string {
         return "Hello";
     }
@@ -708,7 +708,7 @@ Renaming a namespace should update parenthesized receiver member accesses.
 
 ```ds
 namespace Api {
-//        ^^^ target:namespace-paren
+//          ^^^ target:namespace-paren
     export function greet(): string {
         return "Hello";
     }
@@ -738,18 +738,18 @@ Renaming a shadowed binding should only affect the selected symbol and its refer
 
 ```ds
 const value = 1;
-//    ^^^^^ def:outer
+//      ^^^^^ def:outer
 
 function main(): int32 {
     const value = 2;
-//        ^^^^^ target:inner
+//          ^^^^^ target:inner
 
     return value + 1;
-//         ^^^^^ use:inner
+//           ^^^^^ use:inner
 }
 
 const total = value + 3;
-//            ^^^^^ use:outer
+//              ^^^^^ use:outer
 ```
 
 Renaming the inner `value` to `innerValue` should not change the outer `value`.
@@ -777,7 +777,7 @@ Renaming a type alias should update type-only imports and type usages.
 
 ```ds:types.ds
 export type Options = {
-//          ^^^^^^^ target:type
+//            ^^^^^^^ target:type
     name: string,
 };
 ```
@@ -843,7 +843,7 @@ Renaming an exported symbol should update the imported name but keep the local a
 
 ```ds:lib.ds
 export function greet(name: string): string {
-//              ^^^^^ target:alias
+//                ^^^^^ target:alias
     return "Hello, " + name;
 }
 ```
@@ -885,7 +885,7 @@ export function greet(name: string): string {
 import { greet as localGreet } from "./alias_local_lib.ds";
 
 const message = localGreet("Destack");
-//              ^^^^^^^^^^ target:local_alias
+//                ^^^^^^^^^^ target:local_alias
 ```
 
 ```query rename target:local_alias "sayHello"
@@ -909,14 +909,14 @@ Renaming the imported name in an aliased import should update the exported symbo
 
 ```ds:alias_imported_lib.ds
 export function greet(name: string): string {
-//              ^^^^^ target:imported_name
+//                ^^^^^ target:imported_name
     return "Hello, " + name;
 }
 ```
 
 ```ds:alias_imported_main.ds
 import { greet as localGreet } from "./alias_imported_lib.ds";
-//       ^^^^^ use:imported_name
+//         ^^^^^ use:imported_name
 
 const message = localGreet("Destack");
 ```
@@ -948,7 +948,7 @@ export function ping(): void {}
 import * as api from "./namespace_alias_lib.ds";
 
 api.ping();
-// ^^^ target:namespace_alias
+//^^^ target:namespace_alias
 const next = api.ping();
 ```
 
@@ -972,7 +972,7 @@ Renaming a default import alias should update local alias bindings and local cal
 
 ```ds:default_alias_lib.ds
 export default function greetDefault(name: string): string {
-//                      ^^^^^^^^^^^^ def:default_alias_export
+//                        ^^^^^^^^^^^^ def:default_alias_export
     return "Hello, " + name;
 }
 ```
@@ -981,7 +981,7 @@ export default function greetDefault(name: string): string {
 import welcome from "./default_alias_lib.ds";
 
 const one = welcome("Destack");
-//          ^^^^^^^ target:default_alias
+//            ^^^^^^^ target:default_alias
 const two = welcome("Team");
 ```
 
@@ -1007,7 +1007,7 @@ Renaming an exported symbol should update namespace member accesses.
 
 ```ds:api.ds
 export function greet(name: string): string {
-//              ^^^^^ target:ns
+//                ^^^^^ target:ns
     return "Hello, " + name;
 }
 ```
@@ -1043,7 +1043,7 @@ Renaming a type parameter should update all references in the signature and body
 
 ```ds
 function wrap<T>(value: T): T {
-//             ^ target:typeparam
+//               ^ target:typeparam
     const current: T = value;
     return current;
 }
@@ -1065,7 +1065,7 @@ Renaming a class type parameter should update references in the class body.
 
 ```ds
 class Box<T> {
-//        ^ target:class-param
+//          ^ target:class-param
     value: T;
 }
 
@@ -1089,7 +1089,7 @@ Renaming an interface type parameter should update references in the interface b
 
 ```ds
 interface Store<T> {
-//              ^ target:interface-param
+//                ^ target:interface-param
     get(): T;
 }
 
@@ -1124,7 +1124,7 @@ Renaming a binding introduced by destructuring should update its usages.
 ```ds
 const config = { value: 1 };
 const { value } = config;
-//      ^^^^^ target:destructure
+//        ^^^^^ target:destructure
 
 const total = value + value;
 ```
@@ -1146,7 +1146,7 @@ Renaming a binding with a destructuring alias should preserve the property name.
 ```ds
 const config = { value: 1 };
 const { value: current } = config;
-//             ^^^^^^^ target:alias
+//               ^^^^^^^ target:alias
 
 const total = current + 1;
 ```
@@ -1169,7 +1169,7 @@ Renaming a tagged template tag should update tagged template call sites.
 
 ```ds
 function sql(parts: string[], ...values: int32): string {
-//       ^^^ target:sql_tag
+//         ^^^ target:sql_tag
     return "";
 }
 
@@ -1195,7 +1195,7 @@ Renaming a decorator function should update decorator attachment sites.
 
 ```ds
 function tracked<T>(value: T): T {
-//       ^^^^^^^ target:decorator
+//         ^^^^^^^ target:decorator
     return value;
 }
 
@@ -1227,7 +1227,7 @@ Renaming a decorator function should update member and parameter decorator sites
 
 ```ds
 function trackUsage(target: unknown): void {
-//       ^^^^^^^^^^ target:decorator_member_param
+//         ^^^^^^^^^^ target:decorator_member_param
     target;
 }
 
@@ -1268,7 +1268,7 @@ declare const pair: (int32, int32);
 
 const total = match (pair) {
     (left, right) => left + right
-//   ^^^^ target:match_left
+//     ^^^^ target:match_left
 };
 ```
 
@@ -1289,7 +1289,7 @@ Renaming a type parameter should update template literal type spans.
 
 ```ds
 type Route<T extends string> = `api:${T}`;
-//         ^ target:route_param
+//           ^ target:route_param
 
 type UsersRoute = Route<"users">;
 ```
@@ -1309,7 +1309,7 @@ Renaming a `using` binding should update local in scope usages.
 
 ```ds
 using session = 1;
-//    ^^^^^^^ target:using_session
+//      ^^^^^^^ target:using_session
 
 const first = session;
 const second = session;
@@ -1331,7 +1331,7 @@ Renaming a function should update call sites in comptime and runtime expressions
 
 ```ds
 function build(): int32 {
-//       ^^^^^ target:comptime_build
+//         ^^^^^ target:comptime_build
     return 1;
 }
 
@@ -1358,7 +1358,7 @@ Renaming a local inside a comptime block should update only block local uses.
 ```ds
 const result = comptime {
     let seed = 1;
-//      ^^^^ target:comptime_seed
+//        ^^^^ target:comptime_seed
     seed + seed
 };
 ```
@@ -1381,7 +1381,7 @@ Renaming a local binding to the same name should leave the file unchanged.
 
 ```ds
 const current = 1;
-//    ^^^^^^^ target:same_name
+//      ^^^^^^^ target:same_name
 ```
 
 ```query rename target:same_name "current"
@@ -1400,7 +1400,7 @@ Rename should still work for valid symbols in files with neighboring malformed s
 ```ds
 function main(): void {
     const value = 1;
-//        ^^^^^ target:value
+//          ^^^^^ target:value
     value;
     missingValue.
 }
@@ -1425,7 +1425,7 @@ Rename should still work for later declarations after one malformed function hea
 export function broken( {}
 
 export function stableLater(): void {}
-//              ^^^^^^^^^^^ target:stableLater
+//                ^^^^^^^^^^^ target:stableLater
 
 stableLater();
 //^^^^^^^^^^^ use:stableLater
@@ -1450,7 +1450,7 @@ Rename should still work for later declarations after one malformed call stateme
 broken(,
 
 export function stableLater(): void {}
-//              ^^^^^^^^^^^ target:stableLater
+//                ^^^^^^^^^^^ target:stableLater
 
 stableLater();
 //^^^^^^^^^^^ use:stableLater
@@ -1475,7 +1475,7 @@ Rename should still work for later declarations after one bare `new` recovery st
 new
 
 export function stableLater(): void {}
-//              ^^^^^^^^^^^ target:stableLater
+//                ^^^^^^^^^^^ target:stableLater
 
 stableLater();
 //^^^^^^^^^^^ use:stableLater
@@ -1500,7 +1500,7 @@ Rename should still work for later declarations after one recovered `throw` stat
 throw
 
 export function stableLater(): void {}
-//              ^^^^^^^^^^^ target:stableLater
+//                ^^^^^^^^^^^ target:stableLater
 
 stableLater();
 //^^^^^^^^^^^ use:stableLater
@@ -1528,7 +1528,7 @@ function* broken() {
 }
 
 export function stableLater(): void {}
-//              ^^^^^^^^^^^ target:stableLater
+//                ^^^^^^^^^^^ target:stableLater
 
 stableLater();
 //^^^^^^^^^^^ use:stableLater
@@ -1555,7 +1555,7 @@ Rename should fail when the cursor target is malformed unresolved syntax.
 ```ds
 function main(): void {
     missingValue.
-//  ^^^^^^^^^^^ broken
+//    ^^^^^^^^^^^^ broken
 }
 ```
 
@@ -1572,7 +1572,7 @@ Renaming an associated type should update declaration and projection usage sites
 ```ds
 interface Envelope<T extends string> {
     type Label<U extends string> = `${T}:${U}`;
-//       ^^^^^ target:assoc_label
+//         ^^^^^ target:assoc_label
 }
 
 class Message<T extends string> implements Envelope<T> {}
@@ -1602,7 +1602,7 @@ Renaming an await using binding should update local in-scope references.
 ```ds
 async function run(): void {
     await using resource = 1;
-//              ^^^^^^^^ target:await_using_resource
+//                ^^^^^^^^ target:await_using_resource
 
     const next = resource;
 }
@@ -1627,7 +1627,7 @@ Renaming a for using iteration binding should update loop-local references.
 declare function values(): int32[];
 
 for (using item of values()) {
-//         ^^^^ target:for_using_item
+//           ^^^^ target:for_using_item
     const next = item;
 }
 ```
@@ -1649,7 +1649,7 @@ Renaming an export using binding should update declaration and local references.
 
 ```ds
 export using cache = 1;
-//           ^^^^^ target:export_using_cache
+//             ^^^^^ target:export_using_cache
 
 const value = cache;
 ```
@@ -1671,7 +1671,7 @@ Renaming a comptime static parameter should update indexed type uses.
 
 ```ds
 type Buffer<comptime N: number> = uint8[N];
-//                   ^ target:comptime_n
+//                     ^ target:comptime_n
 ```
 
 ```query rename target:comptime_n "Size"
@@ -1687,7 +1687,7 @@ Renaming a comptime dynamic parameter should update body references.
 
 ```ds
 function createBuffer(comptime size: int): int {
-//                             ^^^^ target:comptime_size
+//                               ^^^^ target:comptime_size
     return size;
 }
 ```
@@ -1709,7 +1709,7 @@ Renaming a decorator should update match arm decorator usage.
 
 ```ds
 function cold(target: unknown): void {
-//       ^^^^ target:arm_decorator
+//         ^^^^ target:arm_decorator
     target;
 }
 
@@ -1745,7 +1745,7 @@ Renaming a decorator should update statement decorator usage.
 
 ```ds
 function unroll(target: unknown): void {
-//       ^^^^^^ target:statement_decorator
+//         ^^^^^^ target:statement_decorator
     target;
 }
 
@@ -1781,7 +1781,7 @@ namespace bar {
 }
 
 import Foo = bar.baz;
-//     ^^^ target:import_alias
+//       ^^^ target:import_alias
 
 const value = Foo;
 ```
@@ -1805,7 +1805,7 @@ Renaming an exported symbol should update namespace re export call sites.
 
 ```ds:base.ds
 export function ping(): void {}
-//              ^^^^ target:ns_export_target
+//                ^^^^ target:ns_export_target
 ```
 
 ```ds:barrel.ds
@@ -1843,7 +1843,7 @@ Renaming a type should update borrowed, owned, and pointer type usages.
 
 ```ds
 struct Buffer {
-//     ^^^^^^ target:buffer
+//       ^^^^^^ target:buffer
     value: int32
 }
 
@@ -1871,7 +1871,7 @@ Renaming a class should update explicit this parameter type annotations.
 
 ```ds
 class Counter {}
-//    ^^^^^^^ target:counter
+//      ^^^^^^^ target:counter
 
 function read(this: Counter): Counter {
     return this;

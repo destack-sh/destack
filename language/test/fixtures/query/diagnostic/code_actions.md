@@ -22,9 +22,9 @@ No code actions expected for valid code.
 <none>
 ```
 
-### No code actions for empty file
+### No code actions for minimal valid file
 
-Empty or minimal files should not generate code actions.
+Minimal valid files without diagnostics should not generate code actions.
 
 ```ds
 $0const x = 42;
@@ -265,7 +265,7 @@ Selected expression ranges should offer extract constant refactors.
 ```ds
 function main(a: int32, b: int32): int32 {
     return a + b;
-    //     ^^^^^ selection
+    //       ^^^^^ selection
 }
 ```
 

@@ -8,12 +8,12 @@ Hovering over a function reference should display its signature.
 
 ```ds
 function greet(name: string): string {
-//       ^^^^^ def:greet
+//         ^^^^^ def:greet
     return "Hello, " + name;
 }
 
 const msg = greet("World");
-//          ^^^^^ use:greet
+//            ^^^^^ use:greet
 ```
 
 Hovering over `greet` at the call site should show "function greet".
@@ -40,7 +40,7 @@ export { announce } from "./lib.ds";
 import { announce } from "./barrel.ds";
 
 const message = announce("World");
-//              ^^^^^^^^ use:announce
+//                ^^^^^^^^ use:announce
 ```
 
 Hovering over `announce` should show "function announce".
@@ -57,13 +57,13 @@ Hovering over a struct type reference should display its kind.
 
 ```ds
 struct Point {
-//     ^^^^^ def:Point
+//       ^^^^^ def:Point
     x: float32
     y: float32
 }
 
 const p: Point = Point { x: 1, y: 2 };
-//       ^^^^^ use:Point
+//         ^^^^^ use:Point
 ```
 
 Hovering over `Point` in the type annotation should show "struct Point".
@@ -83,7 +83,7 @@ type UserId = string;
 
 function main() {
     const id: UserId = "abc";
-//             ^^^^^ use:UserId
+//              ^^^^^^ use:UserId
 }
 ```
 
@@ -101,13 +101,13 @@ Hovering over a class type reference should display its kind.
 
 ```ds
 class Animal {
-//    ^^^^^^ def:Animal
+//      ^^^^^^ def:Animal
     name: string
-//  ^^^^ def:Animal.name
+//    ^^^^ def:Animal.name
 }
 
 const a: Animal = new Animal();
-//       ^^^^^^ use:Animal
+//         ^^^^^^ use:Animal
 ```
 
 Hovering over `Animal` in the type annotation should show "class Animal".
@@ -125,9 +125,9 @@ Hovering over a class field definition should show its type.
 ```ds
 class Person {
     name: string
-//  ^^^^ def:name
+//    ^^^^ def:name
     age: int32
-//  ^^^ def:age
+//    ^^^ def:age
 }
 ```
 
@@ -152,9 +152,9 @@ Hovering over a struct field should show its type.
 ```ds
 struct Vector2 {
     x: float32
-//  ^ def:x
+//    ^ def:x
     y: float32
-//  ^ def:y
+//    ^ def:y
 }
 ```
 
@@ -177,7 +177,7 @@ struct Point {
 function main() {
     const p = Point { x: 1, y: 2 };
     const value = p.x;
-//                   ^ use:point_x
+//                     ^ use:point_x
 }
 ```
 
@@ -196,7 +196,7 @@ Hovering over a method should show its signature.
 ```ds
 class Calculator {
     add(a: int32, b: int32): int32 {
-//  ^^^ def:add
+//    ^^^ def:add
         return a + b;
     }
 }
@@ -222,7 +222,7 @@ class Logger {
 function main() {
     const logger = new Logger();
     logger.log("hello");
-//         ^^^ use:logger_log
+//           ^^^ use:logger_log
 }
 ```
 
@@ -241,9 +241,9 @@ Hovering over an enum variant should show enum info.
 ```ds
 enum Color {
     Red,
-//  ^^^ def:Red
+//    ^^^ def:Red
     Green,
-//  ^^^^^ def:Green
+//    ^^^^^ def:Green
     Blue,
 }
 ```
@@ -262,8 +262,8 @@ Hovering over a function parameter should show its type.
 
 ```ds
 function multiply(x: int32, y: int32): int32 {
-//                ^ def:x_param
-//                          ^ def:y_param
+//                  ^ def:x_param
+//                            ^ def:y_param
     return x * y;
 }
 ```
@@ -284,8 +284,8 @@ Hovering over the `export` keyword of an exported function should show the funct
 
 ```ds
 export function greetExport(name: string): string {
-//^^^^ hover:export_fn
-//              ^^^^^^^^^^^ def:greetExport
+//^^^^^^ hover:export_fn
+//                ^^^^^^^^^^^ def:greetExport
     return "Hello, " + name;
 }
 ```
@@ -302,8 +302,8 @@ Hovering over the `export` keyword of an exported struct should show the struct.
 
 ```ds
 export struct ExportedPoint {
-//^^^^ hover:export_struct
-//            ^^^^^^^^^^^^^ def:ExportedPoint
+//^^^^^^ hover:export_struct
+//              ^^^^^^^^^^^^^ def:ExportedPoint
     x: float32
     y: float32
 }
@@ -319,8 +319,8 @@ Hovering over the `export` keyword of an exported class should show the class.
 
 ```ds
 export class ExportedAnimal {
-//^^^^ hover:export_class
-//           ^^^^^^^^^^^^^^ def:ExportedAnimal
+//^^^^^^ hover:export_class
+//             ^^^^^^^^^^^^^^ def:ExportedAnimal
     name: string
 }
 ```
@@ -335,8 +335,8 @@ Hovering over the `export` keyword of an exported enum should show the enum.
 
 ```ds
 export enum ExportedColor {
-//^^^^ hover:export_enum
-//          ^^^^^^^^^^^^^ def:ExportedColor
+//^^^^^^ hover:export_enum
+//            ^^^^^^^^^^^^^ def:ExportedColor
     Red,
     Green,
     Blue,
@@ -353,8 +353,8 @@ Hovering over the `export` keyword of an exported interface should show the inte
 
 ```ds
 export interface ExportedShape {
-//^^^^ hover:export_interface
-//               ^^^^^^^^^^^^^ def:ExportedShape
+//^^^^^^ hover:export_interface
+//                 ^^^^^^^^^^^^^ def:ExportedShape
     area(): float64
 }
 ```
@@ -369,8 +369,8 @@ Hovering over the `export` keyword of an exported type alias should show the typ
 
 ```ds
 export type ExportedId = string | int32
-//^^^^ hover:export_type
-//          ^^^^^^^^^^ def:ExportedId
+//^^^^^^ hover:export_type
+//            ^^^^^^^^^^ def:ExportedId
 ```
 
 ```query hover hover:export_type
@@ -383,8 +383,8 @@ Hovering over the `abstract` keyword should show the class.
 
 ```ds
 abstract class AbstractBase {
-//^^^^^^ hover:abstract_class
-//             ^^^^^^^^^^^^ def:AbstractBase
+//^^^^^^^^ hover:abstract_class
+//               ^^^^^^^^^^^^ def:AbstractBase
     abstract doSomething(): void
 }
 ```
@@ -399,8 +399,8 @@ Hovering over `export` on an abstract class should show the class.
 
 ```ds
 export abstract class ExportedAbstract {
-//^^^^ hover:export_abstract
-//                    ^^^^^^^^^^^^^^^^ def:ExportedAbstract
+//^^^^^^ hover:export_abstract
+//                      ^^^^^^^^^^^^^^^^ def:ExportedAbstract
     abstract process(): void
 }
 ```
@@ -415,8 +415,8 @@ Hovering over `declare` on an ambient declaration should show the declaration.
 
 ```ds
 declare function declaredFn(x: int32): int32
-//^^^^^ hover:declare_fn
-//               ^^^^^^^^^^ def:declaredFn
+//^^^^^^^ hover:declare_fn
+//                 ^^^^^^^^^^ def:declaredFn
 ```
 
 ```query hover hover:declare_fn
@@ -429,8 +429,8 @@ Hovering over `export` on an ambient declaration should show the declaration.
 
 ```ds
 export declare function exportDeclaredFn(x: int32): int32
-//^^^^ hover:export_declare_fn
-//                      ^^^^^^^^^^^^^^^^ def:exportDeclaredFn
+//^^^^^^ hover:export_declare_fn
+//                        ^^^^^^^^^^^^^^^^ def:exportDeclaredFn
 ```
 
 ```query hover hover:export_declare_fn
@@ -443,8 +443,8 @@ Hovering over `declare` on an ambient class should show the class.
 
 ```ds
 declare class DeclaredClass {
-//^^^^^ hover:declare_class
-//            ^^^^^^^^^^^^^ def:DeclaredClass
+//^^^^^^^ hover:declare_class
+//              ^^^^^^^^^^^^^ def:DeclaredClass
     constructor(name: string)
 }
 ```
@@ -459,8 +459,8 @@ Hovering over `export` on a namespace should show the namespace.
 
 ```ds
 export namespace ExportedNS {
-//^^^^ hover:export_ns
-//               ^^^^^^^^^^ def:ExportedNS
+//^^^^^^ hover:export_ns
+//                 ^^^^^^^^^^ def:ExportedNS
     export function inner(): void {}
 }
 ```
@@ -483,7 +483,7 @@ struct Point {
 
 function main() {
     const p: Point = Point { x: 1, y: 2 };
-//        ^ hover:local_p
+//          ^ hover:local_p
 }
 ```
 
@@ -500,7 +500,7 @@ Hovering over an inferred local variable should show the inferred type.
 ```ds
 function main() {
     const count = 1;
-//        ^ hover:local_count
+//          ^^^^^ hover:local_count
 }
 ```
 
@@ -517,15 +517,15 @@ Hovering over a documentation comment should NOT return the symbol it documents.
 ```ds
 class Person {
     /// The person's name.
-//      ^^^^^^^^^^^^^^^^^ hover:doc_span
+//        ^^^^^^^^^^^^^^^^^ range:doc_span
     name: string
-//  ^^^^ def:name_field
+//    ^^^^ def:name_field
 }
 ```
 
 Hovering over the doc comment text should return nothing (no symbol).
 
-```query hover hover:doc_span
+```query hover range:doc_span
 <none>
 ```
 
@@ -577,10 +577,10 @@ Hover should still resolve valid later declarations after one malformed function
 export function broken( {}
 
 export function stableLater(): void {}
-//              ^^^^^^^^^^^ def:stableLater
+//                ^^^^^^^^^^^ def:stableLater
 
 stableLater();
-// ^^^^^^^^^^^ use:stableLater
+//^^^^^^^^^^^ use:stableLater
 ```
 
 ```query hover use:stableLater
@@ -595,10 +595,10 @@ Hover should still resolve valid later declarations after one malformed call sta
 broken(,
 
 export function stableLater(): void {}
-//              ^^^^^^^^^^^ def:stableLater
+//                ^^^^^^^^^^^ def:stableLater
 
 stableLater();
-// ^^^^^^^^^^^ use:stableLater
+//^^^^^^^^^^^ use:stableLater
 ```
 
 ```query hover use:stableLater
@@ -613,10 +613,10 @@ Hover should still resolve valid later declarations after one bare `new` recover
 new
 
 export function stableLater(): void {}
-//              ^^^^^^^^^^^ def:stableLater
+//                ^^^^^^^^^^^ def:stableLater
 
 stableLater();
-// ^^^^^^^^^^^ use:stableLater
+//^^^^^^^^^^^ use:stableLater
 ```
 
 ```query hover use:stableLater
@@ -631,10 +631,10 @@ Hover should still resolve valid later declarations after one recovered `throw` 
 throw
 
 export function stableLater(): void {}
-//              ^^^^^^^^^^^ def:stableLater
+//                ^^^^^^^^^^^ def:stableLater
 
 stableLater();
-// ^^^^^^^^^^^ use:stableLater
+//^^^^^^^^^^^ use:stableLater
 ```
 
 ```query hover use:stableLater
@@ -652,10 +652,10 @@ function* broken() {
 }
 
 export function stableLater(): void {}
-//              ^^^^^^^^^^^ def:stableLater
+//                ^^^^^^^^^^^ def:stableLater
 
 stableLater();
-// ^^^^^^^^^^^ use:stableLater
+//^^^^^^^^^^^ use:stableLater
 ```
 
 ```query hover use:stableLater
@@ -669,7 +669,7 @@ Hover should return no symbol information when the cursor is on malformed unreso
 ```ds
 function main(): void {
     missingValue.
-//  ^^^^^^^^^^^ broken
+//    ^^^^^^^^^^^^ broken
 }
 ```
 
@@ -693,7 +693,7 @@ export default function greetDefault(name: string): string {
 import greetDefault from "./lib.ds";
 
 const message = greetDefault("hi");
-//              ^^^^^^^^^^^^ use:default_greet
+//                ^^^^^^^^^^^^ use:default_greet
 ```
 
 ```query hover use:default_greet
@@ -714,7 +714,7 @@ export function paint(color: string): string {
 import * as palette from "./lib.ds";
 
 const message = palette.paint("blue");
-//                      ^^^^^ use:palette_paint
+//                        ^^^^^ use:palette_paint
 ```
 
 ```query hover use:palette_paint
@@ -739,7 +739,7 @@ export { default as formatCount } from "./lib.ds";
 import { formatCount } from "./barrel.ds";
 
 const value = formatCount(1);
-//            ^^^^^^^^^^^ use:format_count
+//              ^^^^^^^^^^^ use:format_count
 ```
 
 ```query hover use:format_count

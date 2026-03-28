@@ -8,10 +8,10 @@ Supertypes should include the base class for a derived class.
 
 ```ds
 class Base {}
-//    ^^^^ def:Base
+//      ^^^^ def:Base
 
 class Derived extends Base {}
-//    ^^^^^^^ def:Derived
+//      ^^^^^^^ def:Derived
 ```
 
 ```query type_hierarchy def:Derived supertypes
@@ -26,10 +26,10 @@ Subtypes should include derived classes.
 
 ```ds
 class Base {}
-//    ^^^^ def:Base
+//      ^^^^ def:Base
 
 class Derived extends Base {}
-//    ^^^^^^^ def:Derived
+//      ^^^^^^^ def:Derived
 ```
 
 ```query type_hierarchy def:Base subtypes
@@ -44,10 +44,10 @@ Supertypes should include implemented interfaces.
 
 ```ds
 interface Animal {}
-//        ^^^^^^ def:Animal
+//          ^^^^^^ def:Animal
 
 class Dog implements Animal {}
-//    ^^^ def:Dog
+//      ^^^ def:Dog
 ```
 
 ```query type_hierarchy def:Dog supertypes
@@ -60,10 +60,10 @@ Subtypes should include direct implementing classes.
 
 ```ds
 interface Animal {}
-//        ^^^^^^ def:Animal
+//          ^^^^^^ def:Animal
 
 class Dog implements Animal {}
-//    ^^^ def:Dog
+//      ^^^ def:Dog
 ```
 
 ```query type_hierarchy def:Animal subtypes
@@ -78,10 +78,10 @@ Supertypes should include extended interfaces.
 
 ```ds
 interface Base {}
-//        ^^^^ def:Base
+//          ^^^^ def:Base
 
 interface Derived extends Base {}
-//        ^^^^^^^ def:Derived
+//          ^^^^^^^ def:Derived
 ```
 
 ```query type_hierarchy def:Derived supertypes
@@ -94,10 +94,10 @@ Subtypes should include interfaces that extend the target.
 
 ```ds
 interface Base {}
-//        ^^^^ def:Base
+//          ^^^^ def:Base
 
 interface Derived extends Base {}
-//        ^^^^^^^ def:Derived
+//          ^^^^^^^ def:Derived
 ```
 
 ```query type_hierarchy def:Base subtypes
@@ -112,7 +112,7 @@ Subtypes should include classes declared in other modules.
 
 ```ds:lib.ds
 export class Base {}
-//           ^^^^ def:Base
+//             ^^^^ def:Base
 ```
 
 ```ds:impl.ds
@@ -168,7 +168,7 @@ Type hierarchy should preserve subtype edges through type-only re-export chains.
 
 ```ds:types.ds
 export interface Renderable {}
-//              ^^^^^^^^^^ def:Renderable
+//                 ^^^^^^^^^^ def:Renderable
 ```
 
 ```ds:barrel_a.ds
@@ -199,10 +199,10 @@ Type hierarchy should still resolve later supertypes after one malformed declara
 export function broken( {}
 
 class Base {}
-//    ^^^^ def:Base
+//      ^^^^ def:Base
 
 class Derived extends Base {}
-//    ^^^^^^^ def:Derived
+//      ^^^^^^^ def:Derived
 ```
 
 ```query type_hierarchy def:Derived supertypes
@@ -217,7 +217,7 @@ Type hierarchy should still resolve later subtypes after one malformed call stat
 broken(,
 
 class Base {}
-//    ^^^^ def:Base
+//      ^^^^ def:Base
 
 class Derived extends Base {}
 ```
