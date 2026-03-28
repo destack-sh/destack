@@ -273,7 +273,7 @@ range=0:15-0:16
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ### Clear cache after class growth and re-query symbols
@@ -410,7 +410,7 @@ range=0:15-0:16
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ### Rescan after a mixed fix and growth and re-query symbols and diagnostics
@@ -651,7 +651,7 @@ range=0:15-0:16
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ### Reindex after one broken file fixes and another grows symbols

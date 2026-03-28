@@ -16,7 +16,7 @@ range=0:21-0:22
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ## Partial Reports
@@ -35,7 +35,7 @@ range=0:21-0:22
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ## Open Overlays
@@ -65,7 +65,7 @@ range=0:21-0:22
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ## File Creation And Removal
@@ -90,7 +90,7 @@ range=0:22-0:23
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ```lsp delete_file generated.ds [2]
@@ -126,14 +126,14 @@ range=0:17-0:18
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 
 file=b.ds
 range=0:17-0:18
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ### Fix one file and leave the other broken
@@ -161,14 +161,14 @@ range=0:17-0:18
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 
 file=b.ds
 range=0:17-0:18
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ```lsp workspace_diagnostic [1]
@@ -177,7 +177,7 @@ range=0:17-0:18
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ### Clear both workspace errors after both fixes land
@@ -205,14 +205,14 @@ range=0:17-0:18
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 
 file=b.ds
 range=0:17-0:18
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ```lsp workspace_diagnostic [1]
@@ -249,7 +249,7 @@ range=0:17-0:18
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ### Keep workspace diagnostics stable after reindexing a broken overlay
@@ -268,7 +268,7 @@ range=0:21-0:22
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ## Staggered Fixes
@@ -322,21 +322,21 @@ range=0:10-0:11
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 
 file=b.ds
 range=0:10-0:11
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 
 file=c.ds
 range=0:10-0:11
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ```lsp workspace_diagnostic [1]
@@ -345,14 +345,14 @@ range=0:10-0:11
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 
 file=c.ds
 range=0:10-0:11
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ```lsp workspace_diagnostic [2]
@@ -361,7 +361,7 @@ range=0:10-0:11
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ```lsp workspace_diagnostic [3]
@@ -427,7 +427,7 @@ range=0:10-0:11
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ```lsp workspace_diagnostic [2]
@@ -436,14 +436,14 @@ range=0:10-0:11
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 
 file=b.ds
 range=0:10-0:11
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ```lsp workspace_diagnostic [3]
@@ -452,14 +452,14 @@ range=0:10-0:11
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 
 file=c.ds
 range=0:10-0:11
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ```lsp workspace_diagnostic [4]
@@ -517,7 +517,7 @@ range=0:10-0:11
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ```lsp workspace_diagnostic [2]
@@ -526,14 +526,14 @@ range=0:10-0:11
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 
 file=b.ds
 range=0:10-0:11
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ```lsp workspace_diagnostic [3]
@@ -542,21 +542,21 @@ range=0:10-0:11
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 
 file=b.ds
 range=0:10-0:11
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 
 file=c.ds
 range=0:10-0:11
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ## Command Churn
@@ -585,21 +585,21 @@ range=0:10-0:11
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 
 file=b.ds
 range=0:10-0:11
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 
 file=c.ds
 range=0:10-0:11
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ### Rescan while one file fixes and another breaks
@@ -630,7 +630,7 @@ range=0:10-0:11
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ### Clear cache while one saved fix and one unsaved break coexist
@@ -664,7 +664,7 @@ range=0:10-0:11
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ## Mixed Save Sequences
@@ -705,7 +705,7 @@ range=0:10-0:11
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ### Save two broken files while a third overlay fixes cleanly
@@ -747,14 +747,14 @@ range=0:10-0:11
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 
 file=b.ds
 range=0:10-0:11
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ## Close And Reopen
@@ -790,14 +790,14 @@ range=0:10-0:11
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 
 file=b.ds
 range=0:10-0:11
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ### Reopen a fixed overlay after a sibling stays broken
@@ -832,5 +832,5 @@ range=0:10-0:11
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```

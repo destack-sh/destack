@@ -21,7 +21,7 @@ range=0:14-0:15
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ```lsp workspace_diagnostic [0]
@@ -30,7 +30,7 @@ range=0:14-0:15
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ```lsp save main.ds [1]
@@ -68,7 +68,7 @@ range=0:14-0:15
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ```lsp workspace_diagnostic [1]
@@ -77,7 +77,7 @@ range=0:14-0:15
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ### Close an unsaved broken overlay and return both diagnostic surfaces to clean
@@ -97,7 +97,7 @@ range=0:14-0:15
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ```lsp workspace_diagnostic [1]
@@ -106,7 +106,7 @@ range=0:14-0:15
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ```lsp close main.ds [1]
@@ -322,14 +322,14 @@ range=0:10-0:11
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 
 file=b.ds
 range=0:10-0:11
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ### Reopen one changed consumer after a saved library retarget

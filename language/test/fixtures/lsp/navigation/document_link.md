@@ -249,7 +249,7 @@ range=0:22-0:23
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ```ds:main.ds[2]
