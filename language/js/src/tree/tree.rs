@@ -3,13 +3,23 @@ use std::fmt::{Debug, Formatter};
 
 use destack_core::Arena;
 use destack_dir as dir;
+use destack_dir::GlobalSymbolId;
 use destack_source::ModuleId;
 
 use crate::{
-    Annotation, Argument, Block, Declaration, Declarator, DependencyItem, EnumField, Expression,
-    LocalNodeId, Member, Node, NodeType, Parameter, Pattern, PatternField, Property, Statement,
-    SwitchCase, Type, TypeField,
+    Annotation, Argument, ArrayElement, Block, CatchClause, Declaration, Declarator,
+    DependencyItem, EnumField, Expression, LocalNodeId, Member, Node, NodeType, Parameter, Pattern,
+    PatternField, Property, Statement, SwitchCase, TupleElement, Type, TypeField,
 };
+
+/// One stable symbol identity in lowered script output.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ScriptSymbolId {
+    /// One symbol lowered directly from source DIR.
+    Source(GlobalSymbolId),
+    /// One generated default binding for a non-code module wrapper.
+    ModuleDefault(ModuleId),
+}
 
 /// Mutable AST Node tree for a single source unit. NOT THREAD-SAFE.
 #[derive(Clone)]
@@ -31,16 +41,21 @@ pub struct NodeTree {
     pub(crate) alias_node_id_by_dir_id: HashMap<u32, u32>,
     /// The alias node id by JS AST node id.
     pub(crate) alias_node_id_by_node_id: HashMap<u32, u32>,
+    /// The symbol identity by JS AST node id.
+    pub(crate) symbol_id_by_node_id: Vec<Option<ScriptSymbolId>>,
 
     // node arenas
     pub(crate) blocks: Arena<Block>,
+    pub(crate) catch_clauses: Arena<CatchClause>,
     pub(crate) statements: Arena<Statement>,
     pub(crate) expressions: Arena<Expression>,
+    pub(crate) array_elements: Arena<ArrayElement>,
     pub(crate) declarations: Arena<Declaration>,
     pub(crate) declarators: Arena<Declarator>,
     pub(crate) properties: Arena<Property>,
     pub(crate) members: Arena<Member>,
     pub(crate) types: Arena<Type>,
+    pub(crate) tuple_elements: Arena<TupleElement>,
     pub(crate) type_fields: Arena<TypeField>,
     pub(crate) enum_fields: Arena<EnumField>,
     pub(crate) dependency_items: Arena<DependencyItem>,
@@ -84,15 +99,19 @@ impl NodeTree {
             source_id_by_node_id: Vec::with_capacity(capacity),
             alias_node_id_by_dir_id: HashMap::new(),
             alias_node_id_by_node_id: HashMap::new(),
+            symbol_id_by_node_id: Vec::with_capacity(capacity),
             // node arenas
             blocks: Arena::new(),
+            catch_clauses: Arena::new(),
             statements: Arena::new(),
             expressions: Arena::new(),
+            array_elements: Arena::new(),
             declarations: Arena::new(),
             declarators: Arena::new(),
             properties: Arena::new(),
             members: Arena::new(),
             types: Arena::new(),
+            tuple_elements: Arena::new(),
             type_fields: Arena::new(),
             enum_fields: Arena::new(),
             dependency_items: Arena::new(),
@@ -117,6 +136,7 @@ impl NodeTree {
         let local_id = <Self as NodeTreeImpl<T>>::allocate(self, node);
         self.local_id_by_node_id.push(local_id);
         self.module_by_node_id.push(module_id);
+        self.symbol_id_by_node_id.push(None);
         LocalNodeId::new(global_id)
     }
 
@@ -165,6 +185,11 @@ impl NodeTree {
         let node_id = self.insert(node, module_id);
         let source_id = self.source_id_by_node_id[dir_node_id.id as usize];
         self.source_id_by_node_id.push(source_id);
+
+        if let Some(symbol_id) = self.symbol_by_id(dir_node_id.id) {
+            self.symbol_id_by_node_id[node_id.id as usize] = Some(symbol_id);
+        }
+
         self.alias_node_id_by_dir_id
             .insert(dir_node_id.id, node_id.id);
         node_id
@@ -245,6 +270,29 @@ impl NodeTree {
         )
     }
 
+    /// Store one symbol identity for one JS AST node.
+    pub fn set_symbol<T>(&mut self, node_id: LocalNodeId<T>, symbol_id: ScriptSymbolId)
+    where
+        T: Node,
+        Self: NodeTreeImpl<T>,
+    {
+        self.symbol_id_by_node_id[node_id.id as usize] = Some(symbol_id);
+    }
+
+    /// Return the symbol identity for one JS AST node when one exists.
+    pub fn symbol<T>(&self, node_id: LocalNodeId<T>) -> Option<ScriptSymbolId>
+    where
+        T: Node,
+        Self: NodeTreeImpl<T>,
+    {
+        self.symbol_id_by_node_id[node_id.id as usize]
+    }
+
+    /// Return the symbol identity for one untyped node id when one exists.
+    pub fn symbol_by_id(&self, node_id: u32) -> Option<ScriptSymbolId> {
+        self.symbol_id_by_node_id[node_id as usize]
+    }
+
     /// Get the annotations for a node.
     pub fn get_annotations(&self, node_id: u32) -> Vec<LocalNodeId<Annotation>> {
         self.annotations_by_node_id
@@ -293,13 +341,16 @@ macro_rules! impl_node_tree_stores {
 
 impl_node_tree_stores! {
     Block => blocks,
+    CatchClause => catch_clauses,
     Statement => statements,
     Expression => expressions,
+    ArrayElement => array_elements,
     Declaration => declarations,
     Declarator => declarators,
     Property => properties,
     Member => members,
     Type => types,
+    TupleElement => tuple_elements,
     TypeField => type_fields,
     EnumField => enum_fields,
     DependencyItem => dependency_items,

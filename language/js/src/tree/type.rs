@@ -1,6 +1,6 @@
 use crate::{
     Argument, BindingModifier, Expression, FunctionSignature, Key, LocalNodeId, Node, NodeType,
-    Parameter, Path, ScalarLiteral,
+    Parameter, Path, ScalarLiteral, StringId,
 };
 
 /// A PrimitiveType is a primitive type node.
@@ -121,7 +121,9 @@ pub enum Type {
     /// Array type `T[]`.
     Array { element: Option<LocalNodeId<Type>> },
     /// Tuple type `[T1, T2, ...]`.
-    Tuple { elements: Vec<LocalNodeId<Type>> },
+    Tuple {
+        elements: Vec<LocalNodeId<TupleElement>>,
+    },
     /// Object type `{ a: T1, b: T2, ... }`.
     Object {
         properties: Vec<LocalNodeId<TypeField>>,
@@ -139,6 +141,25 @@ pub enum Type {
 
 impl Node for Type {
     const TYPE: NodeType = NodeType::Type;
+}
+
+/// One tuple type element.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TupleElement {
+    /// The optional element label.
+    pub label: Option<StringId>,
+    /// The element type.
+    pub ty: LocalNodeId<Type>,
+    /// Whether the element is optional.
+    pub is_optional: bool,
+    /// Whether the element is readonly.
+    pub is_readonly: bool,
+    /// Whether the element is a rest element.
+    pub is_rest: bool,
+}
+
+impl Node for TupleElement {
+    const TYPE: NodeType = NodeType::TupleElement;
 }
 
 /// The type of an attribute (like a property or field).
