@@ -1,0 +1,26 @@
+[package]
+name = "destack_html"
+description = "Destack HTML IR"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "src/lib.rs"
+doctest = false
+
+[dependencies]
+# language
+destack_core = { workspace = true }
+destack_source = { workspace = true }
+
+# general
+html5ever = { workspace = true }
+markup5ever_rcdom = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+smallvec = { workspace = true }
+
+[lints]
+workspace = true
