@@ -8,7 +8,7 @@ Change signature should update the parameter list and all call arguments.
 
 ```ds:main.ds
 function add(a: int32, b: int32): int32 {
-//       ^^^ target
+//         ^^^ target
     return a + b;
 }
 
@@ -34,7 +34,7 @@ Change signature should keep spread arguments with variadic parameters.
 
 ```ds:main.ds
 function sum(label: string, ...values: int32): int32 {
-//       ^^^ target
+//         ^^^ target
     return values.length;
 }
 
@@ -62,7 +62,7 @@ Change signature should preserve positional argument intent when defaults are in
 
 ```ds:main.ds
 function scale(value: int32, factor: int32): int32 {
-//       ^^^^^ target
+//         ^^^^^ target
     return value * factor;
 }
 
@@ -88,7 +88,7 @@ Change signature should update call sites reached through namespace imports.
 
 ```ds:api.ds
 export function greet(name: string, formal: boolean): string {
-//              ^^^^^ target
+//                ^^^^^ target
     return name;
 }
 ```
@@ -122,7 +122,7 @@ Change signature should update call sites reached through re-exported symbols.
 
 ```ds:lib.ds
 export function ping(value: int32): int32 {
-//              ^^^^ target
+//                ^^^^ target
     return value;
 }
 ```
@@ -158,7 +158,7 @@ Change signature should update both direct and namespace re-export call sites in
 
 ```ds:api.ds
 export function greet(name: string, formal: boolean): string {
-//              ^^^^^ target
+//                ^^^^^ target
     return name;
 }
 ```
@@ -205,7 +205,7 @@ Change signature should update method definitions and member call sites.
 ```ds:main.ds
 class Counter {
     add(a: int32, b: int32): int32 {
-//  ^^^ target
+//    ^^^ target
         return a + b;
     }
 }
@@ -236,7 +236,7 @@ Change signature should reorder arguments when parameters are reordered.
 
 ```ds:main.ds
 function pair(a: int32, b: int32): int32 {
-//       ^^^ target
+//         ^^^^ target
     return a + b;
 }
 
@@ -262,7 +262,7 @@ Change signature should omit arguments when new parameters have defaults.
 
 ```ds:main.ds
 function scale(value: int32, factor: int32): int32 {
-//       ^^^^^ target
+//         ^^^^^ target
     return value * factor;
 }
 
@@ -288,7 +288,7 @@ Change signature should insert undefined placeholders when new parameters have n
 
 ```ds:main.ds
 function scale(value: int32, factor: int32): int32 {
-//       ^^^^^ target
+//         ^^^^^ target
     return value * factor;
 }
 
@@ -315,7 +315,7 @@ Change signature should update constructor signatures and `new` call sites.
 ```ds:main.ds
 class Point {
     constructor(x: int32, y: int32) {}
-//  ^^^^^^^^^ target
+//    ^^^^^^^^^^^ target
 }
 
 const point = new Point(1, 2);
@@ -340,7 +340,7 @@ Change signature should update calls that use static type arguments.
 
 ```ds:main.ds
 function wrap<T>(value: T): T {
-//       ^^^^ target
+//         ^^^^ target
     return value;
 }
 
@@ -366,7 +366,7 @@ Change signature should keep additional arguments when the new signature is vari
 
 ```ds:main.ds
 function sum(a: int32, b: int32, c: int32): int32 {
-//       ^^^ target
+//         ^^^ target
     return a + b + c;
 }
 
@@ -393,7 +393,7 @@ Change signature should update overloads and the implementation in sync.
 ```ds:main.ds
 function format(value: int32): int32;
 function format(value: int32, scale: int32): int32 {
-//       ^^^^^ target
+//         ^^^^^^ target
     return value * scale;
 }
 
@@ -420,7 +420,7 @@ Change signature should update arrow function parameters and usages.
 
 ```ds:main.ds
 const add = (a: int32, b: int32): int32 => a + b;
-//    ^^^ target
+//      ^^^ target
 
 const total = add(1, 2);
 ```
@@ -442,7 +442,7 @@ Change signature should still rewrite the declaration when there are no local ca
 
 ```ds:main.ds
 function configure(width: int32, height: int32): int32 {
-//       ^^^^^^^^^ target
+//         ^^^^^^^^^ target
     return width + height;
 }
 ```
@@ -464,7 +464,7 @@ Change signature should update call sites that use default imports.
 
 ```ds:lib.ds
 export default function format(value: int32): int32 {
-//                      ^^^^^^ target
+//                        ^^^^^^ target
     return value;
 }
 ```
@@ -496,7 +496,7 @@ Change signature should update default imported call sites even when the default
 
 ```ds:lib.ds
 export default function format(value: int32): int32 {
-//                      ^^^^^^ target
+//                        ^^^^^^ target
     return value;
 }
 ```
@@ -540,7 +540,7 @@ Change signature should still update later valid declarations and call sites aft
 broken(,
 
 function add(a: int32, b: int32): int32 {
-//       ^^^ target
+//         ^^^ target
     return a + b;
 }
 
@@ -568,7 +568,7 @@ Change signature should still update later valid declarations and call sites aft
 new
 
 function add(a: int32, b: int32): int32 {
-//       ^^^ target
+//         ^^^ target
     return a + b;
 }
 
@@ -596,7 +596,7 @@ Change signature should return no edits when the selected symbol is not callable
 
 ```ds:main.ds
 const value = 1;
-//    ^^^^^ target
+//      ^^^^^ target
 ```
 
 ```query change_signature target value:int32,scale:int32 -
@@ -613,7 +613,7 @@ export const value = 1;
 
 ```ds:main.ds
 import { value } from "./lib.ds";
-//       ^^^^^ target
+//         ^^^^^ target
 ```
 
 ```query change_signature target value:int32,scale:int32 -
@@ -628,7 +628,7 @@ Change signature should not rewrite files when the requested signature already m
 
 ```ds:main.ds
 function identity(value: int32): int32 {
-//       ^^^^^^^^ target
+//         ^^^^^^^^ target
     return value;
 }
 

@@ -10,12 +10,12 @@ Go to type definition should navigate from a variable to its type.
 
 ```ds
 class MyClass {
-//    ^^^^^^^ def:MyClass
+//      ^^^^^^^ def:MyClass
     value: int32
 }
 
 const x: MyClass = MyClass { value: 42 };
-//    ^ use:x
+//      ^ use:x
 ```
 
 ```query goto_type_definition use:x
@@ -28,13 +28,13 @@ Go to type definition should navigate from a variable to its struct type.
 
 ```ds
 struct Point {
-//     ^^^^^ def:Point
+//       ^^^^^ def:Point
     x: float32
     y: float32
 }
 
 const p: Point = Point { x: 1.0, y: 2.0 };
-//    ^ use:p
+//      ^ use:p
 ```
 
 ```query goto_type_definition use:p
@@ -47,12 +47,12 @@ Go to type definition should work on function parameters.
 
 ```ds
 struct Config {
-//     ^^^^^^ def:Config
+//       ^^^^^^ def:Config
     enabled: bool
 }
 
 function process(cfg: Config): void {}
-//               ^^^ use:cfg
+//                 ^^^ use:cfg
 ```
 
 ```query goto_type_definition use:cfg
@@ -67,10 +67,10 @@ Go to type definition on a type should go to that type's definition.
 
 ```ds
 class Animal {}
-//    ^^^^^^ def:Animal
+//      ^^^^^^ def:Animal
 
 const x: Animal = Animal {};
-//       ^^^^^^ use:Animal
+//         ^^^^^^ use:Animal
 ```
 
 ```query goto_type_definition use:Animal
@@ -83,10 +83,10 @@ Go to type definition on a type alias should navigate to the alias declaration.
 
 ```ds
 type UserId = int32;
-//   ^^^^^^ def:UserId
+//     ^^^^^^ def:UserId
 
 const id: UserId = 1;
-//        ^^^^^^ use:UserId
+//          ^^^^^^ use:UserId
 ```
 
 ```query goto_type_definition use:UserId
@@ -99,19 +99,19 @@ Go to type definition should follow re-export chains to the original type.
 
 ```ds:types.ds
 export type Thing = string;
-//          ^^^^^ def:Thing_source
+//            ^^^^^ def:Thing_source
 ```
 
 ```ds:re_exports.ds
 export type { Thing } from "./types.ds";
-//            ^^^^^ def:Thing
+//              ^^^^^ def:Thing
 ```
 
 ```ds:main.ds
 import type { Thing } from "./re_exports.ds";
 
 const value: Thing = "ok";
-//           ^^^^^ use:Thing
+//             ^^^^^ use:Thing
 ```
 
 ```query goto_type_definition use:Thing
@@ -124,14 +124,14 @@ Go to type definition should work with enum types.
 
 ```ds
 enum Color {
-//   ^^^^^ def:Color
+//     ^^^^^ def:Color
     Red,
     Green,
     Blue,
 }
 
 const c: Color = Color.Red;
-//    ^ use:c
+//      ^ use:c
 ```
 
 ```query goto_type_definition use:c
@@ -146,7 +146,7 @@ For variables with primitive types, goto type definition returns no result.
 
 ```ds
 const x: int32 = 42;
-//    ^ use:x
+//      ^ use:x
 ```
 
 ```query goto_type_definition use:x
@@ -161,7 +161,7 @@ Go to type definition should still resolve type imports when value imports are p
 
 ```ds:types.ds
 export struct Settings {
-//            ^^^^^^^^ def:Settings
+//              ^^^^^^^^ def:Settings
     enabled: bool
 }
 ```
@@ -177,7 +177,7 @@ import type { Settings } from "./types.ds";
 import { settings } from "./values.ds";
 
 const typed: Settings = Settings { enabled: true };
-//           ^^^^^^^^ use:settings_type_use
+//             ^^^^^^^^ use:settings_type_use
 const value = settings();
 ```
 
@@ -193,7 +193,7 @@ Go to type definition should resolve aliased type-only imports to their source t
 
 ```ds:types_alias.ds
 export struct Settings {
-//            ^^^^^^^^ def:Settings_alias_source
+//              ^^^^^^^^ def:Settings_alias_source
     enabled: bool
 }
 ```
@@ -202,7 +202,7 @@ export struct Settings {
 import type { Settings as AppSettings } from "./types_alias.ds";
 
 const typed: AppSettings = AppSettings { enabled: true };
-//           ^^^^^^^^^^^ use:app_settings_type
+//             ^^^^^^^^^^^ use:app_settings_type
 ```
 
 ```query goto_type_definition use:app_settings_type
@@ -215,7 +215,7 @@ Go to type definition should follow multi-hop type-only re-export chains.
 
 ```ds:base_chain.ds
 export interface ServiceOptions {
-//               ^^^^^^^^^^^^^^ def:ServiceOptions
+//                 ^^^^^^^^^^^^^^ def:ServiceOptions
     enabled: boolean,
 }
 ```
@@ -232,7 +232,7 @@ export type { Options } from "./barrel_a.ds";
 import type { Options } from "./barrel_b.ds";
 
 const typed: Options = { enabled: true };
-//           ^^^^^^^ use:options_type
+//             ^^^^^^^ use:options_type
 ```
 
 ```query goto_type_definition use:options_type
@@ -245,7 +245,7 @@ Go to type definition should resolve default imported class aliases to the sourc
 
 ```ds:class_model.ds
 export default class Widget {
-//                   ^^^^^^ def:Widget_default
+//                     ^^^^^^ def:Widget_default
     value: int32;
 }
 ```
@@ -254,7 +254,7 @@ export default class Widget {
 import WidgetModel from "./class_model.ds";
 
 const model: WidgetModel = new WidgetModel();
-//           ^^^^^^^^^^^ use:widget_model_type
+//             ^^^^^^^^^^^ use:widget_model_type
 ```
 
 ```query goto_type_definition use:widget_model_type
@@ -267,7 +267,7 @@ Go to type definition should resolve namespaced type references from namespace i
 
 ```ds:ns_types.ds
 export struct Settings {
-//            ^^^^^^^^ def:NsSettings
+//              ^^^^^^^^ def:NsSettings
     enabled: bool
 }
 ```
@@ -276,7 +276,7 @@ export struct Settings {
 import * as models from "./ns_types.ds";
 
 const typed: models.Settings = models.Settings { enabled: true };
-//                  ^^^^^^^^ use:namespace_settings_type
+//                    ^^^^^^^^ use:namespace_settings_type
 ```
 
 ```query goto_type_definition use:namespace_settings_type
@@ -289,7 +289,7 @@ Go to type definition in a type annotation should still resolve the imported typ
 
 ```ds:shadow_types.ds
 export struct Config {
-//            ^^^^^^ def:ShadowConfig
+//              ^^^^^^ def:ShadowConfig
     enabled: bool
 }
 ```
@@ -300,7 +300,7 @@ import type { Config as SharedConfig } from "./shadow_types.ds";
 const SharedConfig = 1;
 
 function consume(config: SharedConfig): void {
-//                       ^^^^^^^^^^^ use:shared_config_type
+//                         ^^^^^^^^^^^^ use:shared_config_type
     const local = SharedConfig;
     console.log(local);
 }
@@ -320,12 +320,12 @@ Go to type definition should still work for later type uses after one malformed 
 export function broken( {}
 
 type Config = {
-//   ^^^^^^ def:Config
+//     ^^^^^^ def:Config
     enabled: boolean,
 };
 
 const current: Config = { enabled: true };
-//             ^^^^^^ use:Config
+//               ^^^^^^ use:Config
 ```
 
 ```query goto_type_definition use:Config
@@ -340,12 +340,12 @@ Go to type definition should still work for later type uses after one malformed 
 broken(,
 
 type Config = {
-//   ^^^^^^ def:Config
+//     ^^^^^^ def:Config
     enabled: boolean,
 };
 
 const current: Config = { enabled: true };
-//             ^^^^^^ use:Config
+//               ^^^^^^ use:Config
 ```
 
 ```query goto_type_definition use:Config
@@ -360,12 +360,12 @@ Go to type definition should still work for later type uses after one bare `new`
 new
 
 type Config = {
-//   ^^^^^^ def:Config
+//     ^^^^^^ def:Config
     enabled: boolean,
 };
 
 const current: Config = { enabled: true };
-//             ^^^^^^ use:Config
+//               ^^^^^^ use:Config
 ```
 
 ```query goto_type_definition use:Config
@@ -380,12 +380,12 @@ Go to type definition should still work for later type uses after one recovered 
 throw
 
 type Config = {
-//   ^^^^^^ def:Config
+//     ^^^^^^ def:Config
     enabled: boolean,
 };
 
 const current: Config = { enabled: true };
-//             ^^^^^^ use:Config
+//               ^^^^^^ use:Config
 ```
 
 ```query goto_type_definition use:Config
@@ -403,12 +403,12 @@ function* broken() {
 }
 
 type Config = {
-//   ^^^^^^ def:Config
+//     ^^^^^^ def:Config
     enabled: boolean,
 };
 
 const current: Config = { enabled: true };
-//             ^^^^^^ use:Config
+//               ^^^^^^ use:Config
 ```
 
 ```query goto_type_definition use:Config
@@ -422,7 +422,7 @@ Go to type definition should return no result when the cursor is on malformed un
 ```ds
 function main(): void {
     missingValue.
-//  ^^^^^^^^^^^ broken
+//    ^^^^^^^^^^^^ broken
 }
 ```
 
@@ -438,7 +438,7 @@ Goto type definition should resolve symbols in borrowed, owned, and pointer type
 
 ```ds
 struct Buffer {
-//     ^^^^^^ def:buffer
+//       ^^^^^^ def:buffer
     value: int32
 }
 
@@ -447,11 +447,11 @@ declare const owned: ^Buffer;
 declare const pointer: *Buffer;
 
 const a: &Buffer = borrowed;
-//    ^ use:a
+//      ^ use:a
 const b: ^Buffer = owned;
-//    ^ use:b
+//      ^ use:b
 const c: *Buffer = pointer;
-//    ^ use:c
+//      ^ use:c
 ```
 
 ```query goto_type_definition use:a
@@ -472,10 +472,10 @@ Goto type definition should resolve symbols used in explicit this parameter type
 
 ```ds
 class Counter {}
-//    ^^^^^^^ def:counter
+//      ^^^^^^^ def:counter
 
 function read(this: Counter): Counter {
-//                  ^^^^^^^ use:counter
+//                    ^^^^^^^ use:counter
     return this;
 }
 ```
@@ -490,7 +490,7 @@ Goto type definition should follow default re-export class aliases back to the s
 
 ```ds:lib.ds
 export default class Widget {
-//                   ^^^^^^ def:Widget_default
+//                     ^^^^^^ def:Widget_default
     value: int32
 }
 ```
@@ -503,7 +503,7 @@ export { default as Widget } from "./lib.ds";
 import { Widget } from "./barrel.ds";
 
 const current: Widget = new Widget();
-//             ^^^^^^ use:Widget
+//               ^^^^^^ use:Widget
 ```
 
 ```query goto_type_definition use:Widget

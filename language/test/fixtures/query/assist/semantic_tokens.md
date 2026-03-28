@@ -378,7 +378,7 @@ Semantic tokens range should only include tokens inside the requested span.
 ```ds
 function foo(): void {}
 function bar(): void {}
-//       ^^^ range:bar
+//         ^^^ range:bar
 ```
 
 ```query semantic_tokens_range range:bar
@@ -391,7 +391,7 @@ Semantic tokens range should include every token inside the span.
 
 ```ds
 function baz(): void {}
-// ^^^^^^^^^^^^^^^^^ range:baz_line
+//   ^^^^^^^^^^^^^^^^^ range:baz_line
 ```
 
 ```query semantic_tokens_range range:baz_line
@@ -406,7 +406,7 @@ Semantic token ranges that include only comments should return no semantic token
 ```ds
 function foo(): void {}
 // comment only
-// ^^^^^^^^^^^^ range:comment_line
+//   ^^^^^^^^^^^^ range:comment_line
 ```
 
 ```query semantic_tokens_range range:comment_line

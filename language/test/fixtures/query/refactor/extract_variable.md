@@ -9,7 +9,7 @@ Extract should insert a const binding before the owning statement and replace th
 ```ds:main.ds
 function total(a: int32, b: int32): int32 {
     return a + b;
-    //     ^^^^^ selection
+    //       ^^^^^ selection
 }
 ```
 
@@ -32,7 +32,7 @@ Extract should keep the declaration close to the selected expression usage.
 ```ds:main.ds
 function main(bar: int32, baz: int32): void {
     log(bar + baz);
-    //  ^^^^^^^^^ selection
+    //    ^^^^^^^^^ selection
 }
 ```
 
@@ -54,7 +54,7 @@ Extract should work at the module scope too.
 
 ```ds:main.ds
 const value = 1 + 2;
-//            ^^^^^ selection
+//              ^^^^^ selection
 ```
 
 ```query extract_variable selection computed
@@ -73,7 +73,7 @@ Extract should rewrite object property values without disturbing the surrounding
 
 ```ds:main.ds
 const config = { total: 1 + 2 };
-//                      ^^^^^ selection
+//                        ^^^^^ selection
 ```
 
 ```query extract_variable selection computed
@@ -97,7 +97,7 @@ type User = {
 
 function main(user: User): string {
     const label = user.name;
-    //            ^^^^^^^^^ selection
+    //              ^^^^^^^^^ selection
     return label;
 }
 ```
@@ -124,7 +124,7 @@ Extract should insert a const binding in the same local scope before the rewritt
 ```ds:main.ds
 function main(): void {
     const value = 1 + 2;
-    //            ^^^^^ selection
+    //              ^^^^^ selection
 }
 ```
 
@@ -149,7 +149,7 @@ broken(,
 
 function main(): void {
     const value = 1 + 2;
-    //            ^^^^^ selection
+    //              ^^^^^ selection
 }
 ```
 
@@ -173,7 +173,7 @@ Extract should fail when the requested variable name is not an identifier.
 
 ```ds:main.ds
 const value = 1 + 2;
-//            ^^^^^ selection
+//              ^^^^^ selection
 ```
 
 ```query extract_variable selection bad-name
@@ -189,7 +189,7 @@ Extract should fail when the selected expression is already the requested identi
 ```ds:main.ds
 const extracted = 1;
 const value = extracted;
-//            ^^^^^^^^^ selection
+//              ^^^^^^^^^ selection
 ```
 
 ```query extract_variable selection extracted

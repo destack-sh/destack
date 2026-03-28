@@ -8,10 +8,10 @@ Find references should return all occurrences of a symbol, including its definit
 
 ```ds
 const foo = 1;
-//    ^^^ def:foo
+//      ^^^ def:foo
 
 const bar = foo;
-//          ^^^ use:foo
+//            ^^^ use:foo
 const baz = foo + foo;
 ```
 
@@ -32,12 +32,12 @@ Find references on a function should return its definition and all call sites.
 
 ```ds
 function greet(name: string): string {
-//       ^^^^^ def:greet
+//         ^^^^^ def:greet
     return "Hello, " + name;
 }
 
 const a = greet("World");
-//        ^^^^^ use:greet
+//          ^^^^^ use:greet
 const b = greet("Test");
 ```
 
@@ -58,7 +58,7 @@ Find references should include the method definition and all call sites.
 ```ds
 class Calculator {
     add(a: int32, b: int32): int32 {
-//  ^^^ def:calc_add
+//    ^^^ def:calc_add
         return a + b;
     }
 }
@@ -66,9 +66,9 @@ class Calculator {
 function main() {
     const calc = new Calculator();
     const first = calc.add(1, 2);
-//                     ^^^ use:calc_add_1
+//                       ^^^ use:calc_add_1
     const second = calc.add(3, 4);
-//                      ^^^ use:calc_add_2
+//                        ^^^ use:calc_add_2
 }
 ```
 
@@ -89,16 +89,16 @@ Find references should include the field definition and all field accesses.
 ```ds
 struct Point {
     x: int32
-//  ^ def:field_x
+//    ^ def:field_x
     y: int32
 }
 
 function main(p: Point) {
     const a = p.x;
-//              ^ use:field_x_1
+//                ^ use:field_x_1
     const b = p.x + p.x;
-//              ^ use:field_x_2
-//                    ^ use:field_x_3
+//                ^ use:field_x_2
+//                      ^ use:field_x_3
 }
 ```
 
@@ -119,15 +119,15 @@ Find references should include imports and call sites in other modules.
 
 ```ds:lib.ds
 export function ping(): void {}
-//              ^^^^ def:ping
+//                ^^^^ def:ping
 ```
 
 ```ds:main.ds
 import { ping } from "./lib.ds";
-//       ^^^^ use:ping_import
+//         ^^^^ use:ping_import
 
 ping();
-// ^^^^ use:ping_call
+//^^^^ use:ping_call
 ```
 
 ```query find_references def:ping
@@ -144,28 +144,28 @@ Find references should keep type-only imports and value imports in their own sym
 
 ```ds:types.ds
 export type Settings = {
-//          ^^^^^^^^ def:settings_type
+//            ^^^^^^^^ def:settings_type
     enabled: boolean,
 };
 ```
 
 ```ds:values.ds
 export function settings(): int32 {
-//              ^^^^^^^^ def:settings_value
+//                ^^^^^^^^ def:settings_value
     return 1;
 }
 ```
 
 ```ds:main.ds
 import type { Settings } from "./types.ds";
-//            ^^^^^^^^ use:settings_type_import
+//              ^^^^^^^^ use:settings_type_import
 import { settings } from "./values.ds";
-//       ^^^^^^^^ use:settings_value_import
+//         ^^^^^^^^ use:settings_value_import
 
 const typed: Settings = { enabled: true };
-//          ^^^^^^^^ use:settings_type_use
+//             ^^^^^^^^ use:settings_type_use
 const value = settings();
-//            ^^^^^^^^ use:settings_value_call
+//              ^^^^^^^^ use:settings_value_call
 ```
 
 ```query find_references def:settings_type
@@ -188,7 +188,7 @@ Find references should include re-exported aliases and downstream imports.
 
 ```ds:alias_base.ds
 export function ping(): void {}
-//              ^^^^ def:ping
+//                ^^^^ def:ping
 ```
 
 ```ds:alias_barrel.ds
@@ -217,14 +217,14 @@ Find references should include enum member declarations and member accesses.
 ```ds
 enum Color {
     Red,
-//  ^^^ def:red
+//    ^^^ def:red
     Blue,
 }
 
 const first = Color.Red;
-//                   ^^^ use:red_1
+//                    ^^^ use:red_1
 const second = Color.Red;
-//                    ^^^ use:red_2
+//                     ^^^ use:red_2
 ```
 
 ```query find_references def:red
@@ -241,16 +241,16 @@ Find references for a namespace symbol should include member receivers in plain 
 
 ```ds
 namespace Api {
-//        ^^^ def:api
+//          ^^^ def:api
     export function greet(): string {
         return "Hello";
     }
 }
 
 const one = Api.greet();
-//          ^^^ use:api_1
+//            ^^^ use:api_1
 const two = (Api).greet();
-//           ^^^ use:api_2
+//             ^^^ use:api_2
 ```
 
 ```query find_references def:api
@@ -271,10 +271,10 @@ export function greet(name: string): string {
 
 ```ds:alias_main.ds
 import { greet as localGreet } from "./alias_lib.ds";
-//                ^^^^^^^^^^ def:local_greet_alias
+//                  ^^^^^^^^^^ def:local_greet_alias
 
 const first = localGreet("Destack");
-//            ^^^^^^^^^^ use:local_greet_alias
+//              ^^^^^^^^^^ use:local_greet_alias
 ```
 
 ```query find_references use:local_greet_alias
@@ -288,17 +288,17 @@ Find references on the imported side of an aliased import should follow the expo
 
 ```ds:alias_import_lib.ds
 export function greet(name: string): string {
-//              ^^^^^ def:greet_export
+//                ^^^^^ def:greet_export
     return "Hello, " + name;
 }
 ```
 
 ```ds:alias_import_main.ds
 import { greet as localGreet } from "./alias_import_lib.ds";
-//       ^^^^^ use:greet_import_name
+//         ^^^^^ use:greet_import_name
 
 const first = localGreet("Destack");
-//            ^^^^^^^^^^ use:greet_alias_call
+//              ^^^^^^^^^^ use:greet_alias_call
 ```
 
 ```query find_references use:greet_import_name
@@ -317,10 +317,10 @@ export function ping(): void {}
 
 ```ds:namespace_ref_main.ds
 import * as api from "./namespace_ref_lib.ds";
-//          ^^^ def:namespace_import_alias
+//            ^^^ def:namespace_import_alias
 
 api.ping();
-// ^^^ use:namespace_import_alias_1
+//^^^ use:namespace_import_alias_1
 (api).ping();
 // ^^^ use:namespace_import_alias_2
 ```
@@ -337,19 +337,19 @@ Find references on a default import alias should stay in the local alias graph.
 
 ```ds:default_ref_lib.ds
 export default function greetDefault(): string {
-//                      ^^^^^^^^^^^^ def:default_export_name
+//                        ^^^^^^^^^^^^ def:default_export_name
     return "hello";
 }
 ```
 
 ```ds:default_ref_main.ds
 import welcome from "./default_ref_lib.ds";
-//     ^^^^^^^ def:default_import_alias
+//       ^^^^^^^ def:default_import_alias
 
 const first = welcome();
-//            ^^^^^^^ use:default_import_alias_1
+//              ^^^^^^^ use:default_import_alias_1
 const second = welcome();
-//             ^^^^^^^ use:default_import_alias_2
+//               ^^^^^^^ use:default_import_alias_2
 ```
 
 ```query find_references use:default_import_alias_1
@@ -364,7 +364,7 @@ Find references for a namespace receiver should ignore shadowed local bindings w
 
 ```ds
 namespace Api {
-//        ^^^ def:api_shadowed
+//          ^^^ def:api_shadowed
     export function greet(): string {
         return "Hello";
     }
@@ -378,11 +378,11 @@ function localMessage(): string {
     };
 
     return Api.greet();
-//         ^^^ use:api_local_shadow
+//           ^^^ use:api_local_shadow
 }
 
 const message = Api.greet();
-//              ^^^ use:api_namespace
+//                ^^^ use:api_namespace
 ```
 
 ```query find_references def:api_shadowed
@@ -398,14 +398,14 @@ Find references on a tagged template tag should include the definition and tagge
 
 ```ds
 function sql(parts: string[], ...values: int32): string {
-//       ^^^ def:sql_tag
+//         ^^^ def:sql_tag
     return "";
 }
 
 const first = sql`select ${1}`;
-//            ^^^ use:sql_tag_1
+//              ^^^ use:sql_tag_1
 const second = sql`where ${2}`;
-//             ^^^ use:sql_tag_2
+//               ^^^ use:sql_tag_2
 ```
 
 ```query find_references def:sql_tag
@@ -420,16 +420,16 @@ Find references on a decorator function should include decorator attachment site
 
 ```ds
 function tracked<T>(value: T): T {
-//       ^^^^^^^ def:tracked
+//         ^^^^^^^ def:tracked
     return value;
 }
 
 @tracked
-//^^^^^^^ use:tracked_1
+// ^^^^^^^ use:tracked_1
 class Service {}
 
 @tracked
-//^^^^^^^ use:tracked_2
+// ^^^^^^^ use:tracked_2
 function greet(): void {}
 ```
 
@@ -445,17 +445,17 @@ Find references on a decorator function should include member and parameter deco
 
 ```ds
 function trackUsage(target: unknown): void {
-//       ^^^^^^^^^^ def:track_usage
+//         ^^^^^^^^^^ def:track_usage
 }
 
 class User {
     @trackUsage
-//   ^^^^^^^^^^ use:track_usage_member
+//     ^^^^^^^^^^ use:track_usage_member
     name: string = "";
 }
 
 function greet(@trackUsage name: string): string {
-//              ^^^^^^^^^^ use:track_usage_param
+//                ^^^^^^^^^^ use:track_usage_param
     return name;
 }
 ```
@@ -475,8 +475,8 @@ declare const pair: (int32, int32);
 
 const total = match (pair) {
     (left, right) => left + right
-//   ^^^^ def:match_left
-//                  ^^^^ use:match_left
+//     ^^^^ def:match_left
+//                     ^^^^ use:match_left
 };
 ```
 
@@ -491,8 +491,8 @@ Find references on a template literal type parameter should include references i
 
 ```ds
 type Route<T extends string> = `api:${T}`;
-//         ^ def:route_param
-//                                 ^ use:route_param
+//           ^ def:route_param
+//                                   ^ use:route_param
 
 type UsersRoute = Route<"users">;
 ```
@@ -512,12 +512,12 @@ function openSession(): int32 {
 }
 
 using session = openSession();
-//    ^^^^^^^ def:using_session
+//      ^^^^^^^ def:using_session
 
 const first = session;
-//            ^^^^^^^ use:using_session_1
+//              ^^^^^^^ use:using_session_1
 const second = session;
-//             ^^^^^^^ use:using_session_2
+//               ^^^^^^^ use:using_session_2
 ```
 
 ```query find_references def:using_session
@@ -532,14 +532,14 @@ Find references on a function should include call sites in comptime expressions.
 
 ```ds
 function scale(value: int32): int32 {
-//       ^^^^^ def:comptime_scale
+//         ^^^^^ def:comptime_scale
     return value * 2;
 }
 
 const a = comptime scale(2);
-//                 ^^^^^ use:comptime_scale_1
+//                   ^^^^^ use:comptime_scale_1
 const b = scale(3);
-//        ^^^^^ use:comptime_scale_2
+//          ^^^^^ use:comptime_scale_2
 ```
 
 ```query find_references def:comptime_scale
@@ -558,10 +558,10 @@ Find references should still resolve later declarations after one malformed func
 export function broken( {}
 
 export function stableLater(): void {}
-//              ^^^^^^^^^^^ def:stableLater
+//                ^^^^^^^^^^^ def:stableLater
 
 stableLater();
-// ^^^^^^^^^^^ use:stableLater
+//^^^^^^^^^^^ use:stableLater
 ```
 
 ```query find_references def:stableLater
@@ -577,10 +577,10 @@ Find references should still resolve later declarations after one malformed call
 broken(,
 
 export function stableLater(): void {}
-//              ^^^^^^^^^^^ def:stableLater
+//                ^^^^^^^^^^^ def:stableLater
 
 stableLater();
-// ^^^^^^^^^^^ use:stableLater
+//^^^^^^^^^^^ use:stableLater
 ```
 
 ```query find_references def:stableLater
@@ -596,10 +596,10 @@ Find references should still resolve later declarations after one bare `new` rec
 new
 
 export function stableLater(): void {}
-//              ^^^^^^^^^^^ def:stableLater
+//                ^^^^^^^^^^^ def:stableLater
 
 stableLater();
-// ^^^^^^^^^^^ use:stableLater
+//^^^^^^^^^^^ use:stableLater
 ```
 
 ```query find_references def:stableLater
@@ -615,10 +615,10 @@ Find references should still resolve later declarations after one recovered `thr
 throw
 
 export function stableLater(): void {}
-//              ^^^^^^^^^^^ def:stableLater
+//                ^^^^^^^^^^^ def:stableLater
 
 stableLater();
-// ^^^^^^^^^^^ use:stableLater
+//^^^^^^^^^^^ use:stableLater
 ```
 
 ```query find_references def:stableLater
@@ -637,10 +637,10 @@ function* broken() {
 }
 
 export function stableLater(): void {}
-//              ^^^^^^^^^^^ def:stableLater
+//                ^^^^^^^^^^^ def:stableLater
 
 stableLater();
-// ^^^^^^^^^^^ use:stableLater
+//^^^^^^^^^^^ use:stableLater
 ```
 
 ```query find_references def:stableLater
@@ -655,7 +655,7 @@ Find references should fail gracefully when the cursor is on malformed unresolve
 ```ds
 function main(): void {
     unknown.
-//  ^^^^^^^ broken
+//    ^^^^^^^ broken
 }
 ```
 
@@ -672,13 +672,13 @@ Find references on an associated type should include projection use sites.
 ```ds
 interface Envelope<T extends string> {
     type Label<U extends string> = `${T}:${U}`;
-//       ^^^^^ def:assoc_label
+//         ^^^^^ def:assoc_label
 }
 
 class Message<T extends string> implements Envelope<T> {}
 
 type EventLabel = Message<"orders">.Label<"created">;
-//                                  ^^^^^ use:assoc_label
+//                                    ^^^^^ use:assoc_label
 ```
 
 ```query find_references def:assoc_label
@@ -695,14 +695,14 @@ Find references should include calls through union receivers for shared members.
 ```ds
 class Cat {
     speak(): string {
-//  ^^^^^ def:cat_speak
+//    ^^^^^ def:cat_speak
         return "meow";
     }
 }
 
 class Dog {
     speak(): string {
-//  ^^^^^ def:dog_speak
+//    ^^^^^ def:dog_speak
         return "woof";
     }
 }
@@ -710,7 +710,7 @@ class Dog {
 declare const pet: Cat | Dog;
 
 const sound = pet.speak();
-//                ^^^^^ use:pet_speak
+//                  ^^^^^ use:pet_speak
 ```
 
 ```query find_references def:cat_speak
@@ -727,10 +727,10 @@ Find references should include bindings introduced by await using.
 ```ds
 async function run(): void {
     await using resource = 1;
-//              ^^^^^^^^ def:await_using_resource
+//                ^^^^^^^^ def:await_using_resource
 
     const next = resource;
-//               ^^^^^^^^ use:await_using_resource
+//                 ^^^^^^^^ use:await_using_resource
 }
 ```
 
@@ -747,9 +747,9 @@ Find references should include iteration bindings introduced by for using.
 declare function values(): int32[];
 
 for (using item of values()) {
-//         ^^^^ def:for_using_item
+//           ^^^^ def:for_using_item
     const next = item;
-//               ^^^^ use:for_using_item
+//                 ^^^^ use:for_using_item
 }
 ```
 
@@ -764,10 +764,10 @@ Find references should include export using declarations and local uses.
 
 ```ds
 export using cache = 1;
-//           ^^^^^ def:export_using_cache
+//             ^^^^^ def:export_using_cache
 
 const value = cache;
-//            ^^^^^ use:export_using_cache
+//              ^^^^^ use:export_using_cache
 ```
 
 ```query find_references def:export_using_cache
@@ -783,8 +783,8 @@ Find references should include uses of comptime static parameters in type expres
 
 ```ds
 type Buffer<comptime N: number> = uint8[N];
-//                   ^ def:comptime_n
-//                                    ^ use:comptime_n
+//                     ^ def:comptime_n
+//                                          ^ use:comptime_n
 ```
 
 ```query find_references def:comptime_n
@@ -798,9 +798,9 @@ Find references should include uses of comptime dynamic parameters in function b
 
 ```ds
 function createBuffer(comptime size: int): int {
-//                             ^^^^ def:comptime_size
+//                               ^^^^ def:comptime_size
     return size;
-//         ^^^^ use:comptime_size
+//           ^^^^ use:comptime_size
 }
 ```
 
@@ -817,7 +817,7 @@ Find references should include decorator usage on match arms.
 
 ```ds
 function cold(target: unknown): void {
-//       ^^^^ def:arm_decorator
+//         ^^^^ def:arm_decorator
     target;
 }
 
@@ -825,7 +825,7 @@ declare const value: int32 | string;
 
 const result = match (value) {
     @cold
-//   ^^^^ use:arm_decorator
+//     ^^^^ use:arm_decorator
     0 => "zero"
     _ => "other"
 };
@@ -842,7 +842,7 @@ Find references should include decorator usage on statements.
 
 ```ds
 function unroll(target: unknown): void {
-//       ^^^^^^ def:statement_decorator
+//         ^^^^^^ def:statement_decorator
     target;
 }
 
@@ -866,22 +866,22 @@ Find references should include default re-export aliases, downstream imports, an
 
 ```ds:lib.ds
 export default function buildWidget(): int32 {
-//                      ^^^^^^^^^^^ def:buildWidget
+//                        ^^^^^^^^^^^ def:buildWidget
     return 1;
 }
 ```
 
 ```ds:barrel.ds
 export { default as buildWidget } from "./lib.ds";
-//                  ^^^^^^^^^^^ use:buildWidget_reexport
+//                    ^^^^^^^^^^^ use:buildWidget_reexport
 ```
 
 ```ds:main.ds
 import { buildWidget } from "./barrel.ds";
-//       ^^^^^^^^^^^ use:buildWidget_import
+//         ^^^^^^^^^^^ use:buildWidget_import
 
 const value = buildWidget();
-//            ^^^^^^^^^^^ use:buildWidget_call
+//              ^^^^^^^^^^^ use:buildWidget_call
 ```
 
 ```query find_references def:buildWidget
@@ -901,18 +901,18 @@ export function ping(): void {}
 
 ```ds:barrel.ds
 export * as api from "./base.ds";
-//           ^^^ use:api_reexport
+//            ^^^ use:api_reexport
 ```
 
 ```ds:main.ds
 import { api } from "./barrel.ds";
-//       ^^^ use:api_import
+//         ^^^ use:api_import
 
 api.ping();
-// ^^^ use:api_call
+//    ^^^^ use:api_call
 
 const sameApi = api;
-//              ^^^ use:api_value
+//                ^^^ use:api_value
 ```
 
 ```query find_references use:api_import

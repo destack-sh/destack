@@ -8,7 +8,7 @@ Renaming a symbol should update its definition, re-exports, imports, and uses.
 
 ```ds:lib.ds
 export function greet(name: string): string {
-//              ^^^^^ target
+//                ^^^^^ target
     return "Hello, " + name;
 }
 ```
@@ -50,7 +50,7 @@ Renaming a type should update type-only re-exports and imports.
 
 ```ds:types.ds
 export type Options = {
-//          ^^^^^^^ target
+//            ^^^^^^^ target
     enabled: boolean,
 };
 ```
@@ -90,7 +90,7 @@ Renaming a symbol should update the exported name while preserving re-export ali
 
 ```ds:alias_lib.ds
 export function greet(name: string): string {
-//              ^^^^^ target:alias
+//                ^^^^^ target:alias
     return "Hello, " + name;
 }
 ```

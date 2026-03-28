@@ -85,7 +85,7 @@ Implementations in other modules should be included in results.
 
 ```ds:lib.ds
 export interface Drawable {
-//              ^^^^^^^ def:Drawable
+//                 ^^^^^^^^ def:Drawable
     draw(): void;
 }
 ```
@@ -125,7 +125,7 @@ Implementations should resolve through re-exported interface aliases across modu
 
 ```ds:alias_lib.ds
 export interface Renderable {
-//              ^^^^^^^^^ def:Renderable
+//                 ^^^^^^^^^^ def:Renderable
     render(): void;
 }
 ```
@@ -150,7 +150,7 @@ export struct Icon implements Renderable {
 import type { Renderable } from "./alias_barrel.ds";
 
 function draw(item: Renderable): void {
-//                  ^^^^^^^^^^ use:Renderable
+//                    ^^^^^^^^^^ use:Renderable
     item.render();
 }
 ```
@@ -168,7 +168,7 @@ Implementations should include subclasses in other modules.
 
 ```ds:lib.ds
 export class Base {}
-//           ^^^^ def:Base
+//             ^^^^ def:Base
 ```
 
 ```ds:impl.ds
@@ -196,7 +196,7 @@ Implementations should still resolve through multi-hop type-only re-export chain
 
 ```ds:types.ds
 export interface Renderable {
-//              ^^^^^^^^^^ def:Renderable
+//                 ^^^^^^^^^^ def:Renderable
     render(): void;
 }
 ```
@@ -231,7 +231,7 @@ Implementations should still resolve later nominal relationships after one malfo
 export function broken( {}
 
 interface Drawable {
-//        ^^^^^^^^ def:Drawable
+//          ^^^^^^^^ def:Drawable
     draw(): void;
 }
 
@@ -252,7 +252,7 @@ Implementations should still resolve later subclass relationships after one malf
 broken(,
 
 class Base {
-//    ^^^^ def:Base
+//      ^^^^ def:Base
 }
 
 class Derived extends Base {}

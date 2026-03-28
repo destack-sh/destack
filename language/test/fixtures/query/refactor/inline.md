@@ -8,7 +8,7 @@ Inline should replace all references and remove the declaration.
 
 ```ds:main.ds
 const base = 1 + 2;
-//    ^^^^ target
+//      ^^^^ target
 const total = base + base;
 ```
 
@@ -28,7 +28,7 @@ Inline should drop the declaration and keep the literal formatting.
 ```ds:main.ds
 function main(): int32 {
     const offset = 10;
-    //    ^^^^^ target
+    //      ^^^^^^ target
     return offset + 1;
 }
 ```
@@ -50,7 +50,7 @@ Inline should ignore type annotations and replace references with the initialize
 
 ```ds:main.ds
 const offset: int32 = 10;
-//    ^^^^^ target
+//      ^^^^^^ target
 const total = offset + 1;
 ```
 
@@ -69,7 +69,7 @@ Inline should parenthesize object literals when replacing references.
 
 ```ds:main.ds
 const config = { enabled: true };
-//    ^^^^^^ target
+//      ^^^^^^ target
 const flag = config.enabled;
 ```
 
@@ -88,7 +88,7 @@ Inline should expand shorthand properties to preserve the property name.
 
 ```ds:main.ds
 const value = 1;
-//    ^^^^^ target
+//      ^^^^^ target
 const obj = { value };
 ```
 
@@ -111,7 +111,7 @@ function next(): int32 {
 }
 
 const value = next();
-//    ^^^^^ target
+//      ^^^^^ target
 const total = value;
 ```
 
@@ -138,7 +138,7 @@ function next(): int32 {
 }
 
 const value = next();
-//    ^^^^^ target
+//      ^^^^^ target
 const sum = value + value;
 ```
 
@@ -156,7 +156,7 @@ Inline should still rewrite later valid bindings after malformed call statements
 broken(,
 
 const value = 1;
-//    ^^^^^ target
+//      ^^^^^ target
 const total = value + 1;
 ```
 
@@ -177,7 +177,7 @@ Inline should still rewrite later valid bindings after bare `new` recovery state
 new
 
 const value = 1;
-//    ^^^^^ target
+//      ^^^^^ target
 const total = value + 1;
 ```
 
@@ -198,7 +198,7 @@ Inline should still rewrite later valid bindings after recovered `throw` stateme
 throw
 
 const value = 1;
-//    ^^^^^ target
+//      ^^^^^ target
 const total = value + 1;
 ```
 
@@ -219,7 +219,7 @@ Inline should avoid inlining when the symbol is reassigned after declaration.
 
 ```ds:main.ds
 const value = 1;
-//    ^^^^^ target
+//      ^^^^^ target
 value = 2;
 const total = value + 1;
 ```
@@ -236,7 +236,7 @@ Inline should allow `let` bindings when they are never reassigned.
 
 ```ds:main.ds
 let value = 1;
-//  ^^^^^ target
+//    ^^^^^ target
 const total = value + 1;
 ```
 
@@ -256,7 +256,7 @@ Inline should refuse to inline when the initializer would resolve to different s
 ```ds:main.ds
 const base_value = 1;
 const total = base_value + 1;
-//    ^^^^^ target
+//      ^^^^^ target
 
 function main(): int32 {
     const base_value = 10;
@@ -276,7 +276,7 @@ Inline should remove only the matching declarator in multi-declarator statements
 
 ```ds:main.ds
 const base = 1, total = base + 2;
-//    ^^^^ target
+//      ^^^^ target
 const result = base + total;
 ```
 
@@ -296,7 +296,7 @@ Inline should resolve simple object destructuring paths.
 
 ```ds:main.ds
 const { name } = user;
-//      ^^^^ target
+//        ^^^^ target
 const label = name + "!";
 ```
 
@@ -315,7 +315,7 @@ Inline should resolve simple array destructuring paths.
 
 ```ds:main.ds
 const [first] = items;
-//      ^^^^^ target
+//       ^^^^^ target
 const total = first + 1;
 ```
 
@@ -334,7 +334,7 @@ Inline should replace uses inside conditionals.
 
 ```ds:main.ds
 const limit = 10;
-//    ^^^^^ target
+//      ^^^^^ target
 
 if (limit > 5) {
     console.log(limit);
@@ -358,7 +358,7 @@ Inline should replace references inside template literal interpolations.
 
 ```ds:main.ds
 const name = user.name;
-//    ^^^^ target
+//      ^^^^ target
 const label = `Hello ${name}!`;
 ```
 
@@ -377,7 +377,7 @@ Inline should update references inside class field initializers.
 
 ```ds:main.ds
 const increment = 2;
-//    ^^^^^^^^^ target
+//      ^^^^^^^^^ target
 
 class Counter {
     value: int32 = 1 + increment;
@@ -401,7 +401,7 @@ Inline should refuse to inline exported bindings referenced across modules.
 
 ```ds:lib.ds
 export const greeting = "hello";
-//           ^^^^^^^^ target
+//             ^^^^^^^^ target
 ```
 
 ```ds:main.ds
@@ -424,7 +424,7 @@ export const value = 1;
 
 ```ds:main.ds
 import { value as amount } from "./lib.ds";
-//                ^^^^^^ target
+//                  ^^^^^^ target
 
 const total = amount + 1;
 ```
@@ -443,7 +443,7 @@ export const value = 1;
 
 ```ds:main.ds
 import * as api from "./lib.ds";
-//          ^^^ target
+//            ^^^ target
 
 const total = api.value + 1;
 ```
@@ -460,7 +460,7 @@ Inline should replace references used in positional call arguments.
 
 ```ds:main.ds
 const width = 10;
-//    ^^^^^ target
+//      ^^^^^ target
 
 render(width);
 ```
@@ -480,7 +480,7 @@ Inline should resolve aliased object destructuring bindings to property access.
 
 ```ds:main.ds
 const { value: amount } = entry;
-//             ^^^^^^ target
+//               ^^^^^^ target
 const total = amount + 1;
 ```
 
@@ -499,7 +499,7 @@ Inline should return no edits for destructuring declarations with multiple bindi
 
 ```ds:main.ds
 const { left, right } = point;
-//      ^^^^ target
+//        ^^^^ target
 const total = left + right;
 ```
 

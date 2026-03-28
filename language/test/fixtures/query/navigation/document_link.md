@@ -4,7 +4,7 @@
 
 ### Import paths should produce links
 
-Document links should include import and re-export specifiers.
+Document links should include import specifiers.
 
 ```ds:main.ds
 $0import { foo } from "./foo.ds";

@@ -8,13 +8,13 @@ Incoming calls should list the functions that call the target.
 
 ```ds
 function callee(): void {
-//       ^^^^^^ def:callee
+//         ^^^^^^ def:callee
 }
 
 function caller(): void {
-//       ^^^^^^ def:caller
+//         ^^^^^^ def:caller
     callee();
-//  ^^^^^^ use:callee
+//    ^^^^^^ use:callee
 }
 ```
 
@@ -28,7 +28,7 @@ Incoming calls should include every function that invokes the target.
 
 ```ds
 function target(): void {
-//       ^^^^^^ def:target
+//         ^^^^^^ def:target
 }
 
 function caller_one(): void {
@@ -52,11 +52,11 @@ Incoming calls should report all call ranges within a caller.
 
 ```ds
 function target(): void {
-//       ^^^^^^ def:target
+//         ^^^^^^ def:target
 }
 
 function caller(): void {
-//       ^^^^^^ def:caller
+//         ^^^^^^ def:caller
     target();
     target();
 }
@@ -74,13 +74,13 @@ Outgoing calls should list the functions that the target calls.
 
 ```ds
 function leaf(): void {
-//       ^^^^ def:leaf
+//         ^^^^ def:leaf
 }
 
 function root(): void {
-//       ^^^^ def:root
+//         ^^^^ def:root
     leaf();
-//  ^^^^ use:leaf
+//    ^^^^ use:leaf
 }
 ```
 
@@ -97,7 +97,7 @@ function left(): void {}
 function right(): void {}
 
 function root(): void {
-//       ^^^^ def:root
+//         ^^^^ def:root
     left();
     right();
 }
@@ -117,7 +117,7 @@ function left(): void {}
 function right(): void {}
 
 function root(): void {
-//       ^^^^ def:root
+//         ^^^^ def:root
     left();
     right();
 }
@@ -136,7 +136,7 @@ Incoming calls should include callers from other modules.
 
 ```ds:lib.ds
 export function sink(): void {
-//              ^^^^ def:sink
+//                ^^^^ def:sink
 }
 ```
 
@@ -164,7 +164,7 @@ export function helper(): void {}
 import { helper } from "./lib.ds";
 
 function root(): void {
-//       ^^^^ def:root
+//         ^^^^ def:root
     helper();
 }
 ```
@@ -181,7 +181,7 @@ Outgoing call hierarchy should include recursive self-calls.
 
 ```ds
 function recur(): void {
-//       ^^^^^ def:recur
+//         ^^^^^ def:recur
     recur();
 }
 ```
@@ -196,7 +196,7 @@ Incoming call hierarchy should include recursive self-calls.
 
 ```ds
 function recur(): void {
-//       ^^^^^ def:recur
+//         ^^^^^ def:recur
     recur();
 }
 ```
@@ -219,7 +219,7 @@ export function helper(): void {}
 import * as tools from "./lib.ds";
 
 function root(): void {
-//       ^^^^ def:root
+//         ^^^^ def:root
     tools.helper();
 }
 ```
@@ -234,7 +234,7 @@ Incoming calls should resolve callers through re-exported import chains.
 
 ```ds:lib.ds
 export function helper(): void {}
-//              ^^^^^^ def:helper
+//                ^^^^^^ def:helper
 ```
 
 ```ds:barrel.ds
@@ -283,7 +283,7 @@ Incoming call hierarchy should still resolve later valid callers after one malfo
 broken(,
 
 function target(): void {
-//       ^^^^^^ def:target
+//         ^^^^^^ def:target
 }
 
 function caller(): void {
@@ -305,7 +305,7 @@ new
 function helper(): void {}
 
 function root(): void {
-//       ^^^^ def:root
+//         ^^^^ def:root
     helper();
 }
 ```
