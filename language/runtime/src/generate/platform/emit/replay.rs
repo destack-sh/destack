@@ -4,7 +4,7 @@ use crate::platform::model::{
 };
 use std::collections::BTreeSet;
 
-use super::bindings::BindingWriter;
+use super::binding::BindingWriter;
 use super::codegen::ModuleCodegen;
 use super::{binding_type_requires_abi, *};
 

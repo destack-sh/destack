@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use super::bindings::BindingWriter;
+use super::binding::BindingWriter;
 
 impl<'spec, 'output> BindingWriter<'spec, 'output> {
     /// Render the shared header for generated binding files.

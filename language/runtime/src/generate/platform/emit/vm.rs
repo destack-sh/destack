@@ -3,7 +3,7 @@ use crate::platform::model::{
     CatalogReplayPolicy,
 };
 
-use super::bindings::BindingWriter;
+use super::binding::BindingWriter;
 use super::{
     VmDecodeUsage, binding_type_requires_context_for_decode,
     binding_type_requires_context_for_encode,
