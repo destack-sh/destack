@@ -1,12 +1,13 @@
 #![allow(unused_variables)]
 
 use crate::{
-    Annotation, Argument, Block, Declaration, Declarator, DependencyItem, EnumField, Expression,
-    LocalNodeId, Member, NodeTree, NodeType, Parameter, Pattern, PatternField, Property, Statement,
-    SwitchCase, Type, TypeField, walk_annotation, walk_argument, walk_block, walk_declaration,
-    walk_declarator, walk_dependency_item, walk_enum_field, walk_expression, walk_member,
-    walk_parameter, walk_pattern, walk_pattern_field, walk_property, walk_statement,
-    walk_switch_case, walk_type, walk_type_field,
+    Annotation, Argument, ArrayElement, Block, CatchClause, Declaration, Declarator,
+    DependencyItem, EnumField, Expression, LocalNodeId, Member, NodeTree, NodeType, Parameter,
+    Pattern, PatternField, Property, Statement, SwitchCase, TupleElement, Type, TypeField,
+    walk_annotation, walk_argument, walk_array_element, walk_block, walk_catch_clause,
+    walk_declaration, walk_declarator, walk_dependency_item, walk_enum_field, walk_expression,
+    walk_member, walk_parameter, walk_pattern, walk_pattern_field, walk_property, walk_statement,
+    walk_switch_case, walk_tuple_element, walk_type, walk_type_field,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -23,6 +24,16 @@ pub trait NodeVisitor {
     /// Visit a block.
     fn visit_block(&mut self, tree: &NodeTree, id: LocalNodeId<Block>, block: &Block) {
         walk_block(self, tree, id, block);
+    }
+
+    /// Visit a catch clause.
+    fn visit_catch_clause(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<CatchClause>,
+        catch_clause: &CatchClause,
+    ) {
+        walk_catch_clause(self, tree, id, catch_clause);
     }
 
     /// Visit a statement.
@@ -43,6 +54,16 @@ pub trait NodeVisitor {
         expression: &Expression,
     ) {
         destack_core::ensure_sufficient_stack(|| walk_expression(self, tree, id, expression));
+    }
+
+    /// Visit one array element.
+    fn visit_array_element(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<ArrayElement>,
+        array_element: &ArrayElement,
+    ) {
+        walk_array_element(self, tree, id, array_element);
     }
 
     /// Visit a switch case.
@@ -135,6 +156,16 @@ pub trait NodeVisitor {
         walk_type(self, tree, id, ty);
     }
 
+    /// Visit a tuple element.
+    fn visit_tuple_element(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<TupleElement>,
+        tuple_element: &TupleElement,
+    ) {
+        walk_tuple_element(self, tree, id, tuple_element);
+    }
+
     /// Visit a type field.
     fn visit_type_field(
         &mut self,
@@ -192,6 +223,15 @@ impl NodeVisitor for CapturingNodeVisitor {
 
     fn visit_block(&mut self, tree: &NodeTree, id: LocalNodeId<Block>, _block: &Block) {
         self.visit_any(tree, NodeType::Block, id.id);
+    }
+
+    fn visit_catch_clause(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<CatchClause>,
+        _catch_clause: &CatchClause,
+    ) {
+        self.visit_any(tree, NodeType::CatchClause, id.id);
     }
 
     fn visit_statement(
@@ -278,6 +318,15 @@ impl NodeVisitor for CapturingNodeVisitor {
         self.visit_any(tree, NodeType::Argument, id.id);
     }
 
+    fn visit_array_element(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<ArrayElement>,
+        _array_element: &ArrayElement,
+    ) {
+        self.visit_any(tree, NodeType::ArrayElement, id.id);
+    }
+
     fn visit_pattern(&mut self, tree: &NodeTree, id: LocalNodeId<Pattern>, _pattern: &Pattern) {
         self.visit_any(tree, NodeType::Pattern, id.id);
     }
@@ -293,6 +342,15 @@ impl NodeVisitor for CapturingNodeVisitor {
 
     fn visit_type(&mut self, tree: &NodeTree, id: LocalNodeId<Type>, _ty: &Type) {
         self.visit_any(tree, NodeType::Type, id.id);
+    }
+
+    fn visit_tuple_element(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<TupleElement>,
+        _tuple_element: &TupleElement,
+    ) {
+        self.visit_any(tree, NodeType::TupleElement, id.id);
     }
 
     fn visit_annotation(

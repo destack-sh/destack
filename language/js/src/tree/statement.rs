@@ -1,7 +1,7 @@
 use crate::{
-    Argument, AssignOperator, Asynchrony, Block, Declaration, DeclarationDescriptor, Declarator,
-    DependencyItem, DependencyKind, Expression, LocalNodeId, Mutability, Node, NodeType, Pattern,
-    StringId,
+    Argument, AssignOperator, Asynchrony, Block, CatchClause, Declaration, DeclarationDescriptor,
+    Declarator, DependencyItem, DependencyKind, Expression, LocalNodeId, Mutability, Node,
+    NodeType, Pattern, StringId, SwitchCase,
 };
 use destack_source::ModuleId;
 
@@ -63,6 +63,11 @@ pub enum Statement {
         mutability: Mutability,
         declarators: Vec<LocalNodeId<Declarator>>,
     },
+    /// Var binding.
+    Var {
+        descriptor: DeclarationDescriptor,
+        declarators: Vec<LocalNodeId<Declarator>>,
+    },
     /// Using binding.
     Using {
         asynchrony: Asynchrony,
@@ -89,37 +94,45 @@ pub enum Statement {
         condition: LocalNodeId<Expression>,
         body: LocalNodeId<Block>,
     },
+    /// Do while statement.
+    DoWhile {
+        body: LocalNodeId<Block>,
+        condition: LocalNodeId<Expression>,
+    },
     /// For statement.
     For {
-        initialization: Option<LocalNodeId<Expression>>,
+        initialization: Option<ForInitialization>,
         condition: Option<LocalNodeId<Expression>>,
         increment: Option<LocalNodeId<Expression>>,
         body: LocalNodeId<Block>,
     },
     /// For in statement.
     ForIn {
-        name: StringId,
+        declaration_kind: Option<ForEachDeclarationKind>,
+        pattern: LocalNodeId<Pattern>,
         iterator: LocalNodeId<Expression>,
         body: LocalNodeId<Block>,
     },
     /// For of statement.
     ForOf {
+        asynchrony: Asynchrony,
+        declaration_kind: Option<ForEachDeclarationKind>,
         pattern: LocalNodeId<Pattern>,
         iterator: LocalNodeId<Expression>,
         body: LocalNodeId<Block>,
+    },
+    /// Switch statement.
+    Switch {
+        value: LocalNodeId<Expression>,
+        cases: Vec<LocalNodeId<SwitchCase>>,
     },
 
     /// Try statement.
     Try {
         try_block: LocalNodeId<Block>,
-        catch_pattern: Option<LocalNodeId<Pattern>>,
-        catch_block: LocalNodeId<Block>,
+        catch_clause: Option<LocalNodeId<CatchClause>>,
         finally_block: Option<LocalNodeId<Block>>,
     },
-    /// Await statement.
-    Await { value: LocalNodeId<Expression> },
-    /// Yield statement.
-    Yield { value: LocalNodeId<Expression> },
     /// Throw statement.
     Throw { value: LocalNodeId<Expression> },
     /// Continue statement.
@@ -138,6 +151,29 @@ impl Node for Statement {
     const TYPE: NodeType = NodeType::Statement;
 }
 
+/// The declaration keyword used by a for each binding.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ForEachDeclarationKind {
+    /// `var` declaration keyword.
+    Var,
+    /// `let` declaration keyword.
+    Let,
+    /// `const` declaration keyword.
+    Const,
+}
+
+/// The initializer of one for statement.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ForInitialization {
+    /// One expression initializer.
+    Expression(LocalNodeId<Expression>),
+    /// One declaration initializer.
+    Declaration {
+        declaration_kind: ForEachDeclarationKind,
+        declarators: Vec<LocalNodeId<Declarator>>,
+    },
+}
+
 impl Statement {
     /// Returns true if this statement needs a trailing semicolon.
     pub fn needs_semicolon(&self) -> bool {
@@ -148,6 +184,7 @@ impl Statement {
             | Statement::For { .. }
             | Statement::ForIn { .. }
             | Statement::ForOf { .. }
+            | Statement::Switch { .. }
             | Statement::Try { .. }
             | Statement::Block { .. }
             | Statement::Labelled { .. } => false,
@@ -160,11 +197,11 @@ impl Statement {
             | Statement::Export { .. }
             | Statement::ExportValue { .. }
             | Statement::Let { .. }
+            | Statement::Var { .. }
             | Statement::Using { .. }
             | Statement::Assign { .. }
             | Statement::Expression { .. }
-            | Statement::Await { .. }
-            | Statement::Yield { .. }
+            | Statement::DoWhile { .. }
             | Statement::Throw { .. }
             | Statement::Continue { .. }
             | Statement::Break { .. }

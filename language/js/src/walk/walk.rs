@@ -1,8 +1,8 @@
 use crate::{
-    Annotation, Argument, Block, Declaration, DeclarationDescriptor, Declarator, DependencyItem,
-    EnumField, Expression, FunctionSignature, Generics, Heritage, Key, LocalNodeId, LocalNodeIdAny,
-    Member, NodeTree, NodeType, NodeVisitor, Parameter, Pattern, PatternField, Property, Statement,
-    SwitchCase, TemplateLiteral, Type, TypeField,
+    Annotation, Argument, ArrayElement, Block, CatchClause, Declaration, DeclarationDescriptor,
+    Declarator, DependencyItem, EnumField, Expression, FunctionSignature, Generics, Heritage, Key,
+    LocalNodeId, LocalNodeIdAny, Member, NodeTree, NodeType, NodeVisitor, Parameter, Pattern,
+    PatternField, Property, Statement, SwitchCase, TemplateLiteral, TupleElement, Type, TypeField,
 };
 
 /// Walk any node.
@@ -18,6 +18,10 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
             let block = tree.blocks.get(local_idx);
             walk_block(visitor, tree, LocalNodeId::new(node_id), block);
         }
+        NodeType::CatchClause => {
+            let catch_clause = tree.catch_clauses.get(local_idx);
+            walk_catch_clause(visitor, tree, LocalNodeId::new(node_id), catch_clause);
+        }
         NodeType::Statement => {
             let statement = tree.statements.get(local_idx);
             walk_statement(visitor, tree, LocalNodeId::new(node_id), statement);
@@ -25,6 +29,10 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
         NodeType::Expression => {
             let expression = tree.expressions.get(local_idx);
             walk_expression(visitor, tree, LocalNodeId::new(node_id), expression);
+        }
+        NodeType::ArrayElement => {
+            let array_element = tree.array_elements.get(local_idx);
+            walk_array_element(visitor, tree, LocalNodeId::new(node_id), array_element);
         }
         NodeType::Declaration => {
             let declaration = tree.declarations.get(local_idx);
@@ -45,6 +53,10 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
         NodeType::Type => {
             let ty = tree.types.get(local_idx);
             walk_type(visitor, tree, LocalNodeId::new(node_id), ty);
+        }
+        NodeType::TupleElement => {
+            let tuple_element = tree.tuple_elements.get(local_idx);
+            walk_tuple_element(visitor, tree, LocalNodeId::new(node_id), tuple_element);
         }
         NodeType::TypeField => {
             let attribute = tree.type_fields.get(local_idx);
@@ -93,6 +105,11 @@ pub fn walk_root<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, root
             let block = tree.get(block_id);
             visitor.visit_block(tree, block_id, block);
         }
+        NodeType::CatchClause => {
+            let catch_clause_id = LocalNodeId::<CatchClause>::new(root.id);
+            let catch_clause = tree.get(catch_clause_id);
+            visitor.visit_catch_clause(tree, catch_clause_id, catch_clause);
+        }
         NodeType::Statement => {
             let statement_id = LocalNodeId::<Statement>::new(root.id);
             let statement = tree.get(statement_id);
@@ -102,6 +119,11 @@ pub fn walk_root<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, root
             let expression_id = LocalNodeId::<Expression>::new(root.id);
             let expression = tree.get(expression_id);
             visitor.visit_expression(tree, expression_id, expression);
+        }
+        NodeType::ArrayElement => {
+            let array_element_id = LocalNodeId::<ArrayElement>::new(root.id);
+            let array_element = tree.get(array_element_id);
+            visitor.visit_array_element(tree, array_element_id, array_element);
         }
         NodeType::Declaration => {
             let declaration_id = LocalNodeId::<Declaration>::new(root.id);
@@ -127,6 +149,11 @@ pub fn walk_root<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, root
             let type_id = LocalNodeId::<Type>::new(root.id);
             let ty = tree.get(type_id);
             visitor.visit_type(tree, type_id, ty);
+        }
+        NodeType::TupleElement => {
+            let tuple_element_id = LocalNodeId::<TupleElement>::new(root.id);
+            let tuple_element = tree.get(tuple_element_id);
+            visitor.visit_tuple_element(tree, tuple_element_id, tuple_element);
         }
         NodeType::TypeField => {
             let type_field_id = LocalNodeId::<TypeField>::new(root.id);
@@ -279,6 +306,15 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
                 visitor.visit_declarator(tree, *declarator_id, declarator);
             }
         }
+        Statement::Var {
+            descriptor: _,
+            declarators,
+        } => {
+            for declarator_id in declarators {
+                let declarator = tree.get(*declarator_id);
+                visitor.visit_declarator(tree, *declarator_id, declarator);
+            }
+        }
         Statement::Assign {
             left,
             operator: _,
@@ -313,6 +349,12 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
             let body_block = tree.get(*body);
             visitor.visit_block(tree, *body, body_block);
         }
+        Statement::DoWhile { body, condition } => {
+            let body_block = tree.get(*body);
+            visitor.visit_block(tree, *body, body_block);
+            let condition_expr = tree.get(*condition);
+            visitor.visit_expression(tree, *condition, condition_expr);
+        }
         Statement::For {
             initialization,
             condition,
@@ -320,8 +362,21 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
             body,
         } => {
             if let Some(initialization) = initialization {
-                let initialization_expr = tree.get(*initialization);
-                visitor.visit_expression(tree, *initialization, initialization_expr);
+                match initialization {
+                    crate::ForInitialization::Expression(initialization) => {
+                        let initialization_expr = tree.get(*initialization);
+                        visitor.visit_expression(tree, *initialization, initialization_expr);
+                    }
+                    crate::ForInitialization::Declaration {
+                        declaration_kind: _,
+                        declarators,
+                    } => {
+                        for declarator_id in declarators {
+                            let declarator = tree.get(*declarator_id);
+                            visitor.visit_declarator(tree, *declarator_id, declarator);
+                        }
+                    }
+                }
             }
             if let Some(condition) = condition {
                 let condition_expr = tree.get(*condition);
@@ -335,16 +390,7 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
             visitor.visit_block(tree, *body, body_block);
         }
         Statement::ForIn {
-            name: _,
-            iterator,
-            body,
-        } => {
-            let iterator_expr = tree.get(*iterator);
-            visitor.visit_expression(tree, *iterator, iterator_expr);
-            let body_block = tree.get(*body);
-            visitor.visit_block(tree, *body, body_block);
-        }
-        Statement::ForOf {
+            declaration_kind: _,
             pattern,
             iterator,
             body,
@@ -356,32 +402,44 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
             let body_block = tree.get(*body);
             visitor.visit_block(tree, *body, body_block);
         }
+        Statement::ForOf {
+            asynchrony: _,
+            declaration_kind: _,
+            pattern,
+            iterator,
+            body,
+        } => {
+            let pattern_node = tree.get(*pattern);
+            visitor.visit_pattern(tree, *pattern, pattern_node);
+            let iterator_expr = tree.get(*iterator);
+            visitor.visit_expression(tree, *iterator, iterator_expr);
+            let body_block = tree.get(*body);
+            visitor.visit_block(tree, *body, body_block);
+        }
+        Statement::Switch { value, cases } => {
+            let value_expr = tree.get(*value);
+            visitor.visit_expression(tree, *value, value_expr);
+
+            for switch_case_id in cases {
+                let switch_case = tree.get(*switch_case_id);
+                visitor.visit_switch_case(tree, *switch_case_id, switch_case);
+            }
+        }
         Statement::Try {
             try_block,
-            catch_pattern,
-            catch_block,
+            catch_clause,
             finally_block,
         } => {
             let try_block_node = tree.get(*try_block);
             visitor.visit_block(tree, *try_block, try_block_node);
-            if let Some(pattern) = catch_pattern {
-                let pattern_node = tree.get(*pattern);
-                visitor.visit_pattern(tree, *pattern, pattern_node);
+            if let Some(catch_clause) = catch_clause {
+                let catch_clause_node = tree.get(*catch_clause);
+                visitor.visit_catch_clause(tree, *catch_clause, catch_clause_node);
             }
-            let catch_block_node = tree.get(*catch_block);
-            visitor.visit_block(tree, *catch_block, catch_block_node);
             if let Some(finally_block) = finally_block {
                 let finally_block_node = tree.get(*finally_block);
                 visitor.visit_block(tree, *finally_block, finally_block_node);
             }
-        }
-        Statement::Await { value } => {
-            let value_expr = tree.get(*value);
-            visitor.visit_expression(tree, *value, value_expr);
-        }
-        Statement::Yield { value } => {
-            let value_expr = tree.get(*value);
-            visitor.visit_expression(tree, *value, value_expr);
         }
         Statement::Throw { value } => {
             let value_expr = tree.get(*value);
@@ -474,6 +532,8 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 }
             }
         }
+        Expression::ImportMeta => {}
+        Expression::NewTarget => {}
         Expression::PrivateIdentifier { name: _ } => {}
         Expression::ScalarLiteral { value: _ } => {}
         Expression::TemplateLiteral { value } => match value {
@@ -505,7 +565,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::ArrayLiteral { elements } => {
             for element_id in elements {
                 let element = tree.get(*element_id);
-                visitor.visit_expression(tree, *element_id, element);
+                visitor.visit_array_element(tree, *element_id, element);
             }
         }
         Expression::SequenceExpression { expressions } => {
@@ -527,6 +587,19 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::TypeUnary { operator: _, right } => {
             let expression_node = tree.get(*right);
             visitor.visit_expression(tree, *right, expression_node);
+        }
+        Expression::Await { value } => {
+            let value_expr = tree.get(*value);
+            visitor.visit_expression(tree, *value, value_expr);
+        }
+        Expression::Yield {
+            is_delegate: _,
+            value,
+        } => {
+            if let Some(value) = value {
+                let value_expr = tree.get(*value);
+                visitor.visit_expression(tree, *value, value_expr);
+            }
         }
         Expression::Unary { operator: _, right } => {
             let expression_node = tree.get(*right);
@@ -966,10 +1039,44 @@ pub fn walk_switch_case<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::SwitchCase, id.id);
 
-    let value_expr = tree.get(switch_case.value);
-    visitor.visit_expression(tree, switch_case.value, value_expr);
+    if let Some(value) = switch_case.value {
+        let value_expr = tree.get(value);
+        visitor.visit_expression(tree, value, value_expr);
+    }
+
     let body_block = tree.get(switch_case.body);
     visitor.visit_block(tree, switch_case.body, body_block);
+}
+
+/// Walk a catch clause.
+pub fn walk_catch_clause<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: LocalNodeId<CatchClause>,
+    catch_clause: &CatchClause,
+) {
+    visitor.visit_any(tree, NodeType::CatchClause, id.id);
+
+    if let Some(pattern) = catch_clause.pattern {
+        let pattern_node = tree.get(pattern);
+        visitor.visit_pattern(tree, pattern, pattern_node);
+    }
+
+    let body_block = tree.get(catch_clause.body);
+    visitor.visit_block(tree, catch_clause.body, body_block);
+}
+
+/// Walk one tuple element.
+pub fn walk_tuple_element<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: LocalNodeId<TupleElement>,
+    tuple_element: &TupleElement,
+) {
+    visitor.visit_any(tree, NodeType::TupleElement, id.id);
+
+    let ty = tree.get(tuple_element.ty);
+    visitor.visit_type(tree, tuple_element.ty, ty);
 }
 
 /// Walk a parameter.
@@ -1066,6 +1173,24 @@ pub fn walk_argument<V: NodeVisitor + ?Sized>(
     }
 }
 
+/// Walk one array element.
+pub fn walk_array_element<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: LocalNodeId<ArrayElement>,
+    array_element: &ArrayElement,
+) {
+    visitor.visit_any(tree, NodeType::ArrayElement, id.id);
+
+    match array_element {
+        ArrayElement::Expression { value } | ArrayElement::Spread { value } => {
+            let value_expr = tree.get(*value);
+            visitor.visit_expression(tree, *value, value_expr);
+        }
+        ArrayElement::Elision => {}
+    }
+}
+
 /// Walk a pattern.
 pub fn walk_pattern<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
@@ -1081,10 +1206,10 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
             name: _,
         } => {}
         Pattern::Hole => {}
-        Pattern::Array { elements } => {
-            for element_id in elements {
-                let element = tree.get(*element_id);
-                visitor.visit_pattern(tree, *element_id, element);
+        Pattern::Array { fields } => {
+            for field_id in fields {
+                let field = tree.get(*field_id);
+                visitor.visit_pattern_field(tree, *field_id, field);
             }
         }
         Pattern::Object { fields } => {
@@ -1231,8 +1356,8 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
         }
         Type::Tuple { elements } => {
             for element_id in elements {
-                let element_ty = tree.get(*element_id);
-                visitor.visit_type(tree, *element_id, element_ty);
+                let tuple_element = tree.get(*element_id);
+                visitor.visit_tuple_element(tree, *element_id, tuple_element);
             }
         }
         Type::Object { properties } => {

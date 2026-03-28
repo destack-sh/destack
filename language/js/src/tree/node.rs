@@ -5,13 +5,16 @@ use std::marker::PhantomData;
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum NodeType {
     Block,
+    CatchClause,
     Statement,
     Expression,
+    ArrayElement,
     Declaration,
     Declarator,
     Property,
     Member,
     Type,
+    TupleElement,
     TypeField,
     EnumField,
     DependencyItem,
@@ -29,13 +32,16 @@ impl NodeType {
     pub fn name(&self) -> &'static str {
         match self {
             NodeType::Block => "block",
+            NodeType::CatchClause => "catch clause",
             NodeType::Statement => "statement",
             NodeType::Expression => "expression",
+            NodeType::ArrayElement => "array element",
             NodeType::Declaration => "declaration",
             NodeType::Declarator => "declarator",
             NodeType::Property => "property",
             NodeType::Member => "member",
             NodeType::Type => "type",
+            NodeType::TupleElement => "tuple element",
             NodeType::TypeField => "type field",
             NodeType::EnumField => "enum field",
             NodeType::DependencyItem => "dependency item",

@@ -27,6 +27,10 @@ pub enum Expression {
         path: Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
+    /// Import meta expression.
+    ImportMeta,
+    /// New target expression.
+    NewTarget,
     /// Private identifier.
     PrivateIdentifier { name: StringId },
     /// Scalar literal.
@@ -35,7 +39,7 @@ pub enum Expression {
     TemplateLiteral { value: TemplateLiteral },
     /// Array literal.
     ArrayLiteral {
-        elements: Vec<LocalNodeId<Expression>>,
+        elements: Vec<LocalNodeId<ArrayElement>>,
     },
     /// Sequence expression (JS comma operator).
     SequenceExpression {
@@ -60,6 +64,7 @@ pub enum Expression {
         operator: TypeBinaryOperator,
         right: LocalNodeId<Expression>,
     },
+
     /// Unary operation.
     Unary {
         operator: UnaryOperator,
@@ -124,6 +129,13 @@ pub enum Expression {
         target_module: Option<ModuleId>,
         arguments: Vec<LocalNodeId<Argument>>,
     },
+    /// Await expression.
+    Await { value: LocalNodeId<Expression> },
+    /// Yield expression.
+    Yield {
+        is_delegate: bool,
+        value: Option<LocalNodeId<Expression>>,
+    },
     /// New.
     New {
         left: LocalNodeId<Expression>,
@@ -154,4 +166,19 @@ pub enum Expression {
 
 impl Node for Expression {
     const TYPE: NodeType = NodeType::Expression;
+}
+
+/// One element in an array literal.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ArrayElement {
+    /// One positional array element.
+    Expression { value: LocalNodeId<Expression> },
+    /// One spread array element.
+    Spread { value: LocalNodeId<Expression> },
+    /// One elided array slot.
+    Elision,
+}
+
+impl Node for ArrayElement {
+    const TYPE: NodeType = NodeType::ArrayElement;
 }

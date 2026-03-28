@@ -9,7 +9,9 @@ pub enum Pattern {
         name: StringId,
     },
     /// Array pattern (like `[1, 2, .., x, 3]`).
-    Array { elements: Vec<LocalNodeId<Pattern>> },
+    Array {
+        fields: Vec<LocalNodeId<PatternField>>,
+    },
     /// Object pattern (like `{ a: 1, b: 2, ..., x: 3 }`).
     Object {
         fields: Vec<LocalNodeId<PatternField>>,
