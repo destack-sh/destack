@@ -69,3 +69,75 @@ const /*no_signature_trigger*/value = 1;
 
 ```lsp no_signature_help_for_trigger_reason no_signature_trigger [0]
 ```
+
+## Imports
+
+### Namespace imported calls show signature help
+
+Signature help should resolve parameter names through namespace imports.
+
+```ds:lib.ds
+export function paint(color: string, coats: int32): void {}
+```
+
+```ds:main.ds
+import * as api from "./lib.ds";
+
+api.paint("blue", /*signature*/2);
+```
+
+```lsp signature_label
+paint(color: string, coats: int32): void
+```
+
+```lsp active_parameter
+1
+```
+
+### Default re-exported calls show signature help
+
+Signature help should resolve through default re-export alias chains.
+
+```ds:lib.ds
+export default function repeat(text: string, times: int32): string {
+    return text;
+}
+```
+
+```ds:barrel.ds
+export { default as repeat } from "./lib.ds";
+```
+
+```ds:main.ds
+import { repeat } from "./barrel.ds";
+
+const value = repeat("hi", /*signature*/2);
+```
+
+```lsp signature_label
+repeat(text: string, times: int32): string
+```
+
+```lsp active_parameter
+1
+```
+
+### Trailing commas keep the last parameter active
+
+Signature help should keep the final parameter active after a trailing comma.
+
+```ds:main.ds
+function add(x: int32, y: int32): int32 {
+    return x + y;
+}
+
+const result = add(1, 2,/*signature*/);
+```
+
+```lsp signature_label
+add(x: int32, y: int32): int32
+```
+
+```lsp active_parameter
+1
+```

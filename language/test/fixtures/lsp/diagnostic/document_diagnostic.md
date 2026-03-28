@@ -23,7 +23,7 @@ range=0:21-0:22
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ### Editing an overlay changes diagnostics
@@ -44,7 +44,7 @@ range=0:21-0:22
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ### Saving persists overlay diagnostics
@@ -68,7 +68,7 @@ range=0:21-0:22
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ### Closing reverts to disk diagnostics
@@ -116,7 +116,7 @@ range=0:14-0:15
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ## Document diagnostics
@@ -138,7 +138,7 @@ range=0:21-0:22
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ```lsp document_diagnostic main.ds [1]
@@ -168,7 +168,7 @@ range=0:21-0:22
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ```lsp document_diagnostic main.ds [2]
@@ -201,7 +201,7 @@ range=0:21-0:22
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ### Drop an unsaved error after the overlay closes
@@ -264,7 +264,7 @@ range=0:10-0:11
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ```lsp document_diagnostic a.ds [1]
@@ -273,7 +273,7 @@ range=0:10-0:11
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ### Clear one file while another remains broken through save and close
@@ -306,7 +306,7 @@ range=0:10-0:11
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ### Preserve one saved broken file while another closes cleanly
@@ -336,7 +336,7 @@ range=0:10-0:11
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ### Fix the last broken file after two earlier saves
@@ -382,7 +382,7 @@ range=0:10-0:11
 severity=error
 code=EP001
 source=destack
-message=parse error: unexpected ; in Expression
+message=parse error: unexpected ; in Declarator
 ```
 
 ```lsp workspace_diagnostic [2]
