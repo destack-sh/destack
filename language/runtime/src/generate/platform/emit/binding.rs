@@ -1,5 +1,5 @@
 use super::codegen::ModuleCodegen;
-use crate::analyze::{BindingEntry, BindingType};
+use crate::platform::model::{BindingEntry, BindingType};
 
 use super::*;
 
@@ -104,7 +104,7 @@ impl<'a> RenderSpec<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::analyze::{BindingTaggedUnionVariant, BindingType};
+    use crate::platform::model::{BindingTaggedUnionVariant, BindingType};
 
     use super::ModuleCodegen;
 

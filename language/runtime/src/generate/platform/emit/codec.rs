@@ -1,7 +1,8 @@
 use super::codegen::ModuleCodegen;
-use crate::analyze::{BindingEnumValue, BindingEnumVariant, BindingField, BindingType};
-use crate::emit::binding_type_requires_abi;
+use crate::platform::model::{BindingEnumValue, BindingEnumVariant, BindingField, BindingType};
 use destack_dir::EnumBackingType;
+
+use super::binding_type_requires_abi;
 
 impl<'a> ModuleCodegen<'a> {
     /// Render one native owned decode expression.

@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use crate::analyze::{
+use crate::platform::model::{
     BindingCatalog, BindingField, BindingTaggedUnionVariant, BindingType, ConstantCatalog,
 };
 

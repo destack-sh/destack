@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 
 use super::docs::GeneratedDocumentation;
 use super::{BindingSymbol, RenderSpec};
-use crate::analyze::{BindingEntry, BindingType};
+use crate::platform::model::{BindingEntry, BindingType};
 
 /// Render one generated test harness for a platform module.
 pub(crate) fn render_test_harness(spec: &RenderSpec<'_>) -> String {
@@ -526,15 +526,15 @@ impl<'spec, 'output> HarnessWriter<'spec, 'output> {
 mod tests {
     use std::collections::BTreeMap;
 
-    use crate::analyze::{
+    use crate::platform::model::{
         BindingParameter, CatalogBindingAffinity, CatalogBindingBlocking, CatalogBindingReplayKind,
         CatalogBindingScope, CatalogBindingSimulation, CatalogEffectClass, CatalogReplayPayload,
         CatalogReplayPolicy,
     };
 
     use super::render_test_harness;
-    use crate::analyze::{BindingEntry, BindingType};
-    use crate::emit::RenderSpec;
+    use crate::platform::emit::RenderSpec;
+    use crate::platform::model::{BindingEntry, BindingType};
 
     /// Render optional harness parameters directly in generated output.
     #[test]

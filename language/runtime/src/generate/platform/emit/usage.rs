@@ -4,7 +4,7 @@ use destack_dir::{EnumBackingType, IntType};
 
 use super::ModuleBindings;
 use super::replay::{collect_replay_named_types, collect_replay_vm_named_types};
-use crate::analyze::{
+use crate::platform::model::{
     BindingType, CatalogBindingReplayKind, CatalogBindingScope, CatalogBindingSimulation,
     CatalogEffectClass, CatalogReplayPayload, CatalogReplayPolicy,
 };
