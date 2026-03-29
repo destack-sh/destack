@@ -172,8 +172,8 @@ pub fn walk_attribute<V: NodeVisitor + ?Sized>(
 #[cfg(test)]
 mod tests {
     use crate::{
-        Attribute, CapturingNodeVisitor, Content, Document, Element, Name, Namespace, NodeTree,
-        NodeType, NodeVisitor, NodeVisitorOptions, walk_root,
+        Attribute, AttributeValue, AttributeValueForm, CapturingNodeVisitor, Content, Document,
+        Element, Name, Namespace, NodeTree, NodeType, NodeVisitor, NodeVisitorOptions, walk_root,
     };
     use destack_source::{FileId, Span};
 
@@ -204,7 +204,11 @@ mod tests {
                     namespace: Namespace::Html,
                     local: "src".to_string(),
                 },
-                value: Some("./asset.png".to_string()),
+                authored_name: None,
+                value: Some(AttributeValue {
+                    value: "./asset.png".to_string(),
+                    form: AttributeValueForm::DoubleQuoted,
+                }),
             },
             Span::new(FileId::new(1), 5, 21),
         );
@@ -215,6 +219,11 @@ mod tests {
                     namespace: Namespace::Html,
                     local: "img".to_string(),
                 },
+                authored_start_tag_name: None,
+                has_authored_end_tag: false,
+                authored_end_tag_name: None,
+                is_self_closing: false,
+                self_closing_style: None,
                 attributes: vec![attribute],
                 children: Vec::new(),
                 content: None,
@@ -246,7 +255,11 @@ mod tests {
                     namespace: Namespace::Html,
                     local: "src".to_string(),
                 },
-                value: Some("./asset.png".to_string()),
+                authored_name: None,
+                value: Some(AttributeValue {
+                    value: "./asset.png".to_string(),
+                    form: AttributeValueForm::DoubleQuoted,
+                }),
             },
             Span::new(FileId::new(1), 5, 21),
         );
@@ -257,6 +270,11 @@ mod tests {
                     namespace: Namespace::Html,
                     local: "img".to_string(),
                 },
+                authored_start_tag_name: None,
+                has_authored_end_tag: false,
+                authored_end_tag_name: None,
+                is_self_closing: false,
+                self_closing_style: None,
                 attributes: vec![attribute],
                 children: Vec::new(),
                 content: None,

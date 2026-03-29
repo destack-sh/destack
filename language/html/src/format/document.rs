@@ -1,0 +1,200 @@
+use destack_fir::format::{FormatResult, format};
+use destack_fir::prelude::*;
+use destack_fir::write;
+
+use super::HtmlFormatOptions;
+use super::content::write_content;
+use super::context::HtmlFormatContext;
+use crate::{Doctype, DoctypeKind, DoctypeQuoteStyle, Document, Fragment, LocalNodeId, NodeTree};
+
+/// Format one HTML document as pretty HTML.
+pub fn format_document(
+    tree: &NodeTree,
+    document: LocalNodeId<Document>,
+    options: HtmlFormatOptions,
+) -> FormatResult<String> {
+    let context = HtmlFormatContext::new(options);
+    let formatted = format(
+        context,
+        destack_fir::format_args![format_with(|f| write_document(tree, document, f))],
+    )?;
+
+    Ok(formatted.print()?.into_str())
+}
+
+/// Format one HTML fragment as pretty HTML.
+pub fn format_fragment(
+    tree: &NodeTree,
+    fragment: LocalNodeId<Fragment>,
+    options: HtmlFormatOptions,
+) -> FormatResult<String> {
+    let context = HtmlFormatContext::new(options);
+    let formatted = format(
+        context,
+        destack_fir::format_args![format_with(|f| write_fragment(tree, fragment, f))],
+    )?;
+
+    Ok(formatted.print()?.into_str())
+}
+
+/// Write one HTML document.
+fn write_document(
+    tree: &NodeTree,
+    document_id: LocalNodeId<Document>,
+    f: &mut Formatter<'_, HtmlFormatContext>,
+) -> FormatResult<()> {
+    let document = tree.get(document_id);
+    let mut is_first = true;
+
+    // doctype
+    if let Some(doctype) = document.doctype {
+        let doctype = tree.get(doctype);
+        write_doctype(doctype, f)?;
+        is_first = false;
+    }
+
+    // children
+    for child in &document.children {
+        if !is_first {
+            write!(f, [hard_line_break()])?;
+        }
+
+        write_content(tree, *child, false, f)?;
+        is_first = false;
+    }
+
+    // trailing newline
+    if document.doctype.is_some() || !document.children.is_empty() {
+        write!(f, [hard_line_break()])?;
+    }
+
+    Ok(())
+}
+
+/// Write one HTML doctype.
+fn write_doctype(doctype: &Doctype, f: &mut Formatter<'_, HtmlFormatContext>) -> FormatResult<()> {
+    let doctype_keyword = f.context().render_doctype_keyword(doctype);
+
+    write!(
+        f,
+        [
+            text("<!"),
+            text(doctype_keyword),
+            space(),
+            text(&doctype.name)
+        ]
+    )?;
+
+    // kind and ids
+    match doctype.kind {
+        DoctypeKind::NameOnly => {}
+        DoctypeKind::Public => {
+            let keyword = f.context().render_doctype_kind_keyword(doctype, "PUBLIC");
+
+            write!(f, [space(), text(keyword), space()])?;
+            write_doctype_id(
+                &doctype.public_id,
+                doctype
+                    .public_id_quote_style
+                    .unwrap_or(DoctypeQuoteStyle::DoubleQuoted),
+                f,
+            )?;
+
+            if !doctype.system_id.is_empty() {
+                write!(f, [space()])?;
+                write_doctype_id(
+                    &doctype.system_id,
+                    doctype
+                        .system_id_quote_style
+                        .unwrap_or(DoctypeQuoteStyle::DoubleQuoted),
+                    f,
+                )?;
+            }
+        }
+        DoctypeKind::System => {
+            let keyword = f.context().render_doctype_kind_keyword(doctype, "SYSTEM");
+
+            write!(f, [space(), text(keyword), space()])?;
+            write_doctype_id(
+                &doctype.system_id,
+                doctype
+                    .system_id_quote_style
+                    .unwrap_or(DoctypeQuoteStyle::DoubleQuoted),
+                f,
+            )?;
+        }
+    }
+
+    // closing
+    write!(f, [text(">")])
+}
+
+/// Write one HTML doctype id with one authored quote style.
+fn write_doctype_id(
+    value: &str,
+    quote_style: DoctypeQuoteStyle,
+    f: &mut Formatter<'_, HtmlFormatContext>,
+) -> FormatResult<()> {
+    let quote = HtmlFormatContext::render_doctype_quote(quote_style);
+
+    write!(f, [text(quote)])?;
+
+    // escaped value
+    match quote_style {
+        DoctypeQuoteStyle::DoubleQuoted => {
+            super::content::write_double_quoted_html_value(value, f)?;
+        }
+        DoctypeQuoteStyle::SingleQuoted => {
+            super::content::write_single_quoted_html_value(value, f)?;
+        }
+    }
+
+    write!(f, [text(quote)])
+}
+
+/// Write one HTML fragment.
+fn write_fragment(
+    tree: &NodeTree,
+    fragment_id: LocalNodeId<Fragment>,
+    f: &mut Formatter<'_, HtmlFormatContext>,
+) -> FormatResult<()> {
+    let fragment = tree.get(fragment_id);
+
+    for (index, child) in fragment.children.iter().enumerate() {
+        if index > 0 {
+            write!(f, [hard_line_break()])?;
+        }
+
+        write_content(tree, *child, false, f)?;
+    }
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{HtmlFormatOptions, format_document};
+    use crate::parse_html;
+    use destack_source::{File, FileId, FileType, Uri};
+
+    /// Preserve element nesting while formatting one HTML document.
+    #[test]
+    fn test_format_document() {
+        let file = File::from_text(
+            FileId::new(1),
+            "index.html".to_string(),
+            Uri::from_string("test:///index.html"),
+            None,
+            FileType::Html,
+            String::new(),
+        );
+        let source = "<div><span>hi</span><span>bye</span></div>";
+        let (tree, document) = parse_html(&file, source);
+        let formatted = format_document(&tree, document, HtmlFormatOptions::default()).unwrap();
+
+        assert_eq!(
+            formatted,
+            "<div>\n    <span>hi</span>\n    <span>bye</span>\n</div>\n"
+        );
+    }
+}
