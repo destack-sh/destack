@@ -1,135 +1,29 @@
 use crate::diagnostic::RuntimeResult;
+use crate::platform::NativeAbiCodec;
+#[cfg(any(target_os = "android", target_os = "ios"))]
+use crate::platform::NativeArray;
+use crate::platform::abi::NativeStringRef;
 use crate::platform::os::abi_generated::{
     BackgroundConflictPolicyValue, BackgroundEventMetadataValue, BackgroundEventValue,
-    BackgroundNetworkRequirementValue, BackgroundStatusValue, BackgroundTaskDescriptorValue,
-    BackgroundTaskExpiredEventValue, BackgroundTaskOptionsValue, BackgroundTaskReadyEventValue,
-    BackgroundTaskResultValue, BackgroundTaskScheduleKindValue, BackgroundTaskScheduleValue,
-    BackgroundTriggerKindValue,
+    BackgroundNetworkRequirementValue, BackgroundTaskDescriptorValue,
+    BackgroundTaskExpiredEventValue, BackgroundTaskReadyEventValue,
+    BackgroundTaskScheduleKindValue, BackgroundTaskScheduleValue, BackgroundTriggerKindValue,
 };
-use crate::platform::{NativeAbiCodec, NativeArray};
-use crate::runtime::{BindingCallContext, NativeStringRef};
+#[cfg(any(target_os = "android", target_os = "ios"))]
+use crate::platform::os::abi_generated::{
+    BackgroundStatusValue, BackgroundTaskOptionsValue, BackgroundTaskResultValue,
+};
+use crate::runtime::BindingCallContext;
 
-/// One host background scheduler status payload.
-#[derive(Clone, Copy, Debug)]
-#[repr(u32)]
-pub(crate) enum HostBackgroundStatus {
-    /// Background scheduling is unavailable.
-    Unavailable = 1,
-    /// Background scheduling is restricted.
-    Restricted = 2,
-    /// Background scheduling is available.
-    Available = 3,
-}
-
-/// One host background trigger kind payload.
-#[derive(Clone, Copy, Debug)]
-#[repr(u32)]
-pub(crate) enum HostBackgroundTriggerKind {
-    /// One app-refresh style task.
-    AppRefresh = 1,
-    /// One processing style task.
-    Processing = 2,
-}
-
-/// One host background task-result payload.
-#[derive(Clone, Copy, Debug)]
-#[repr(u32)]
-pub(crate) enum HostBackgroundTaskResult {
-    /// The task completed successfully.
-    Success = 1,
-    /// The task should be retried later.
-    Retry = 2,
-    /// The task failed and should not be retried automatically.
-    Failure = 3,
-}
-
-/// One host background network-requirement payload.
-#[derive(Clone, Copy, Debug)]
-#[repr(u32)]
-pub(crate) enum HostBackgroundNetworkRequirement {
-    /// No network route is required.
-    None = 1,
-    /// One network route is required.
-    Connected = 2,
-    /// One unmetered network route is required.
-    Unmetered = 3,
-}
-
-/// One host background conflict-policy payload.
-#[derive(Clone, Copy, Debug)]
-#[repr(u32)]
-pub(crate) enum HostBackgroundConflictPolicy {
-    /// Replace one existing registration.
-    Replace = 1,
-    /// Keep one existing registration.
-    Keep = 2,
-}
-
-/// One host background schedule-kind payload.
-#[derive(Clone, Copy, Debug)]
-#[repr(u32)]
-pub(crate) enum HostBackgroundTaskScheduleKind {
-    /// One single future execution.
-    Once = 1,
-    /// One recurring execution stream.
-    Recurring = 2,
-}
-
-/// One host background task-schedule payload.
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub(crate) struct HostBackgroundTaskSchedule {
-    /// The declared schedule class.
-    pub kind: HostBackgroundTaskScheduleKind,
-    /// Whether the earliest execution target is present.
-    pub has_earliest_begin_unix_ns: bool,
-    /// The earliest execution target in UTC nanoseconds.
-    pub earliest_begin_unix_ns: u64,
-    /// Whether the repeat interval is present.
-    pub has_repeat_interval_ns: bool,
-    /// The repeat interval in nanoseconds for recurring schedules.
-    pub repeat_interval_ns: u64,
-}
-
-/// One host background task-options payload.
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub(crate) struct HostBackgroundTaskOptions {
-    /// The stable task identifier.
-    pub identifier: NativeStringRef,
-    /// The trigger class.
-    pub trigger: HostBackgroundTriggerKind,
-    /// The requested schedule payload.
-    pub schedule: HostBackgroundTaskSchedule,
-    /// The requested network requirement.
-    pub network: HostBackgroundNetworkRequirement,
-    /// Whether charging power is required.
-    pub requires_charging: bool,
-    /// Whether idle mode is required.
-    pub requires_idle: bool,
-    /// The registration conflict policy.
-    pub conflict_policy: HostBackgroundConflictPolicy,
-}
-
-/// One host background task-descriptor payload.
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub(crate) struct HostBackgroundTaskDescriptor {
-    /// The stable task identifier.
-    pub identifier: NativeStringRef,
-    /// The trigger class.
-    pub trigger: HostBackgroundTriggerKind,
-    /// The effective schedule payload.
-    pub schedule: HostBackgroundTaskSchedule,
-    /// The effective network requirement.
-    pub network: HostBackgroundNetworkRequirement,
-    /// Whether charging power is required.
-    pub requires_charging: bool,
-    /// Whether idle mode is required.
-    pub requires_idle: bool,
-    /// The registration conflict policy.
-    pub conflict_policy: HostBackgroundConflictPolicy,
-}
+use crate::host::abi::background::{
+    HostBackgroundConflictPolicy, HostBackgroundEvent, HostBackgroundEventKind,
+    HostBackgroundEventMetadata, HostBackgroundNetworkRequirement, HostBackgroundTaskDescriptor,
+    HostBackgroundTaskSchedule, HostBackgroundTaskScheduleKind, HostBackgroundTriggerKind,
+};
+#[cfg(any(target_os = "android", target_os = "ios"))]
+use crate::host::abi::background::{
+    HostBackgroundStatus, HostBackgroundTaskOptions, HostBackgroundTaskResult,
+};
 
 impl NativeAbiCodec for HostBackgroundTaskDescriptor {
     type Value = BackgroundTaskDescriptorValue;
@@ -159,44 +53,9 @@ impl NativeAbiCodec for HostBackgroundTaskDescriptor {
     }
 }
 
-/// One host background event metadata payload.
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub(crate) struct HostBackgroundEventMetadata {
-    /// The monotonic event timestamp in nanoseconds.
-    pub timestamp_ns: u64,
-    /// The monotonic sequence number for this event stream.
-    pub sequence: u64,
-    /// The stable task identifier.
-    pub identifier: NativeStringRef,
-    /// The stable execution identifier for this scheduled execution.
-    pub execution_id: NativeStringRef,
-    /// The host execution deadline in UTC nanoseconds.
-    pub deadline_unix_ns: u64,
-}
-
-/// One host background event kind payload.
-#[derive(Clone, Copy, Debug)]
-#[repr(u32)]
-pub(crate) enum HostBackgroundEventKind {
-    /// One task-ready event.
-    TaskReady = 1,
-    /// One task-expired event.
-    TaskExpired = 2,
-}
-
-/// One host background event payload.
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub(crate) struct HostBackgroundEvent {
-    /// The event kind.
-    pub kind: HostBackgroundEventKind,
-    /// The shared event metadata.
-    pub metadata: HostBackgroundEventMetadata,
-}
-
 /// One owned host background task-options payload.
 #[derive(Debug)]
+#[cfg(any(target_os = "android", target_os = "ios"))]
 pub(crate) struct HostBackgroundTaskOptionsPayload {
     /// The owned identifier storage.
     identifier_storage: String,
@@ -204,6 +63,7 @@ pub(crate) struct HostBackgroundTaskOptionsPayload {
     abi: HostBackgroundTaskOptions,
 }
 
+#[cfg(any(target_os = "android", target_os = "ios"))]
 impl HostBackgroundTaskOptionsPayload {
     /// Build one owned host background task-options payload.
     pub(crate) fn new(options: &BackgroundTaskOptionsValue) -> Self {
@@ -233,6 +93,7 @@ impl HostBackgroundTaskOptionsPayload {
 }
 
 /// Decode one host background status into one runtime value.
+#[cfg(any(target_os = "android", target_os = "ios"))]
 pub(crate) fn decode_status(status: HostBackgroundStatus) -> BackgroundStatusValue {
     match status {
         HostBackgroundStatus::Unavailable => BackgroundStatusValue::Unavailable,
@@ -242,6 +103,7 @@ pub(crate) fn decode_status(status: HostBackgroundStatus) -> BackgroundStatusVal
 }
 
 /// Decode one host background descriptor array into runtime values.
+#[cfg(any(target_os = "android", target_os = "ios"))]
 pub(crate) unsafe fn decode_descriptors(
     descriptors: NativeArray<HostBackgroundTaskDescriptor>,
 ) -> RuntimeResult<Vec<BackgroundTaskDescriptorValue>> {
@@ -251,6 +113,7 @@ pub(crate) unsafe fn decode_descriptors(
 }
 
 /// Decode one host background descriptor into one runtime value.
+#[cfg(any(target_os = "android", target_os = "ios"))]
 pub(crate) fn decode_descriptor(
     descriptor: HostBackgroundTaskDescriptor,
 ) -> RuntimeResult<BackgroundTaskDescriptorValue> {
@@ -258,6 +121,7 @@ pub(crate) fn decode_descriptor(
 }
 
 /// Encode one runtime background result into one host payload.
+#[cfg(any(target_os = "android", target_os = "ios"))]
 pub(crate) fn encode_result(result: BackgroundTaskResultValue) -> HostBackgroundTaskResult {
     match result {
         BackgroundTaskResultValue::Success => HostBackgroundTaskResult::Success,
