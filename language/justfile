@@ -218,6 +218,14 @@ generate:
     just generate-schema
     just generate-conformance-schema
 
+# check committed generated source and runtime artifacts for drift
+generate-check:
+    bash scripts/check-generated.sh
+
+# check all generated files for drift, including conformance and stress fixtures
+generate-check-full:
+    bash scripts/check-generated.sh full
+
 # regenerate unicode tables
 generate-unicode:
     cd unicode && python3 src/generate.py
