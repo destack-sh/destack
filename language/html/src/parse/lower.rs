@@ -1,12 +1,16 @@
 use crate::{
-    Attribute, Comment, Content, Doctype, Document, Element, Fragment, Instruction, Name,
-    Namespace, NodeSpanKind, NodeTree, Text,
+    Attribute, AttributeValue, AttributeValueForm, Comment, Content, Doctype, DoctypeKind,
+    DoctypeQuoteStyle, Document, Element, Fragment, Instruction, LocalNodeId, Name, Namespace,
+    NodeSpanKind, NodeTree, SelfClosingStyle, Text,
 };
 use destack_source::{FileId, Span};
 use html5ever::{Attribute as Html5Attribute, QualName};
 use markup5ever_rcdom::{Handle, NodeData};
 
-use super::source::{HtmlSourceCursor, RawHtmlAttribute, RawHtmlEndTag, RawHtmlSourceAttribute};
+use super::source::{
+    HtmlSourceCursor, RawHtmlAttribute, RawHtmlAttributeValueForm, RawHtmlDoctypeKind,
+    RawHtmlDoctypeQuoteStyle, RawHtmlEndTag, RawHtmlSelfClosingStyle, RawHtmlSourceAttribute,
+};
 
 /// One HTML DOM lowerer.
 pub(crate) struct Lowerer<'a, 'source> {
@@ -23,7 +27,7 @@ impl<'a, 'source> Lowerer<'a, 'source> {
     }
 
     /// Lower one parsed DOM document into one owned HTML tree.
-    pub(crate) fn lower_document(&mut self, root: &Handle) -> crate::LocalNodeId<Document> {
+    pub(crate) fn lower_document(&mut self, root: &Handle) -> LocalNodeId<Document> {
         let mut doctype = None;
         let children = self.lower_children(root, &mut doctype, None);
         let span = Span::new(self.cursor.file_id, 0, self.cursor.source.len() as u32);
@@ -35,9 +39,9 @@ impl<'a, 'source> Lowerer<'a, 'source> {
     fn lower_children(
         &mut self,
         parent: &Handle,
-        doctype: &mut Option<crate::LocalNodeId<Doctype>>,
+        doctype: &mut Option<LocalNodeId<Doctype>>,
         raw_text_end_tag_name: Option<&str>,
-    ) -> Vec<crate::LocalNodeId<Content>> {
+    ) -> Vec<LocalNodeId<Content>> {
         let mut children = Vec::new();
 
         // child handles
@@ -52,9 +56,9 @@ impl<'a, 'source> Lowerer<'a, 'source> {
     fn lower_handle(
         &mut self,
         handle: &Handle,
-        doctype: &mut Option<crate::LocalNodeId<Doctype>>,
+        doctype: &mut Option<LocalNodeId<Doctype>>,
         raw_text_end_tag_name: Option<&str>,
-        children: &mut Vec<crate::LocalNodeId<Content>>,
+        children: &mut Vec<LocalNodeId<Content>>,
     ) {
         match &handle.data {
             // document passthrough
@@ -71,17 +75,48 @@ impl<'a, 'source> Lowerer<'a, 'source> {
                 system_id,
             } => {
                 if doctype.is_none() {
-                    let span = self
+                    let matched_doctype = self
                         .cursor
                         .match_doctype()
-                        .unwrap_or_else(|| Span::new(self.cursor.file_id, 0, 0));
+                        .unwrap_or_else(|| panic!("missing authored doctype source match"));
                     let doctype_node = self.tree.insert(
                         Doctype {
-                            name: name.to_string(),
+                            name: if matched_doctype.name.is_empty() {
+                                name.to_string()
+                            } else {
+                                matched_doctype.name.clone()
+                            },
+                            doctype_keyword: matched_doctype.doctype_keyword.clone(),
+                            kind: match matched_doctype.kind {
+                                RawHtmlDoctypeKind::NameOnly => DoctypeKind::NameOnly,
+                                RawHtmlDoctypeKind::Public => DoctypeKind::Public,
+                                RawHtmlDoctypeKind::System => DoctypeKind::System,
+                            },
+                            kind_keyword: matched_doctype.kind_keyword.clone(),
                             public_id: public_id.to_string(),
+                            public_id_quote_style: matched_doctype.public_id_quote_style.map(
+                                |style| match style {
+                                    RawHtmlDoctypeQuoteStyle::DoubleQuoted => {
+                                        DoctypeQuoteStyle::DoubleQuoted
+                                    }
+                                    RawHtmlDoctypeQuoteStyle::SingleQuoted => {
+                                        DoctypeQuoteStyle::SingleQuoted
+                                    }
+                                },
+                            ),
                             system_id: system_id.to_string(),
+                            system_id_quote_style: matched_doctype.system_id_quote_style.map(
+                                |style| match style {
+                                    RawHtmlDoctypeQuoteStyle::DoubleQuoted => {
+                                        DoctypeQuoteStyle::DoubleQuoted
+                                    }
+                                    RawHtmlDoctypeQuoteStyle::SingleQuoted => {
+                                        DoctypeQuoteStyle::SingleQuoted
+                                    }
+                                },
+                            ),
                         },
-                        span,
+                        matched_doctype.span,
                     );
 
                     *doctype = Some(doctype_node);
@@ -96,6 +131,11 @@ impl<'a, 'source> Lowerer<'a, 'source> {
                             .advance_past_end_tag(end_tag_name)
                             .unwrap_or(RawHtmlEndTag {
                                 span: Span::new(
+                                    self.cursor.file_id,
+                                    self.cursor.source.len() as u32,
+                                    self.cursor.source.len() as u32,
+                                ),
+                                name_span: Span::new(
                                     self.cursor.file_id,
                                     self.cursor.source.len() as u32,
                                     self.cursor.source.len() as u32,
@@ -174,6 +214,24 @@ impl<'a, 'source> Lowerer<'a, 'source> {
                 let raw_attributes: Vec<_> =
                     attrs.borrow().iter().map(lower_raw_attribute).collect();
                 let matched_start_tag = self.cursor.match_start_tag(&name.local);
+
+                // synthetic html shell
+                if should_flatten_synthetic_html_element(
+                    &name,
+                    matched_start_tag.is_none(),
+                    &raw_attributes,
+                ) {
+                    let nested_children = if is_raw_text_element_name(&name.local) {
+                        self.lower_children(handle, doctype, Some(&name.local))
+                    } else {
+                        self.lower_children(handle, doctype, None)
+                    };
+
+                    children.extend(nested_children);
+
+                    return;
+                }
+
                 let start_tag_span = matched_start_tag
                     .as_ref()
                     .map(|tag| tag.span)
@@ -194,6 +252,7 @@ impl<'a, 'source> Lowerer<'a, 'source> {
                     .unwrap_or_default();
                 let attributes = lower_attributes(
                     self.tree,
+                    self.cursor.source,
                     self.cursor.file_id,
                     &raw_attributes,
                     source_attributes,
@@ -207,9 +266,12 @@ impl<'a, 'source> Lowerer<'a, 'source> {
                     .as_ref()
                     .is_some_and(|tag| tag.is_self_closing);
                 let is_void = is_void_element_name(&name.local);
+                let mut has_authored_end_tag = false;
                 let mut fragment = None;
+                let mut authored_end_tag_name = None;
                 let element_end_span = if !is_self_closing && !is_void {
                     let end_tag = self.cursor.advance_past_end_tag(&name.local);
+                    has_authored_end_tag = end_tag.is_some();
 
                     // template content
                     if let Some(template_contents) = template_contents.borrow().clone() {
@@ -231,6 +293,10 @@ impl<'a, 'source> Lowerer<'a, 'source> {
                         fragment = Some(fragment_node);
                     }
 
+                    authored_end_tag_name = end_tag
+                        .as_ref()
+                        .map(|tag| slice_source(self.cursor.source, tag.name_span).to_string());
+
                     end_tag
                         .map(|tag| tag.span.end)
                         .unwrap_or(start_tag_span.end)
@@ -240,6 +306,19 @@ impl<'a, 'source> Lowerer<'a, 'source> {
                 let element = self.tree.insert(
                     Content::Element(Element {
                         name,
+                        authored_start_tag_name: matched_start_tag
+                            .as_ref()
+                            .map(|tag| tag.name.clone()),
+                        has_authored_end_tag,
+                        authored_end_tag_name,
+                        is_self_closing,
+                        self_closing_style: matched_start_tag
+                            .as_ref()
+                            .and_then(|tag| tag.self_closing_style)
+                            .map(|style| match style {
+                                RawHtmlSelfClosingStyle::Compact => SelfClosingStyle::Compact,
+                                RawHtmlSelfClosingStyle::Spaced => SelfClosingStyle::Spaced,
+                            }),
                         attributes,
                         children: children_nodes,
                         content: fragment,
@@ -256,10 +335,11 @@ impl<'a, 'source> Lowerer<'a, 'source> {
 /// Lower one parsed element attribute list.
 fn lower_attributes(
     tree: &mut NodeTree,
+    source: &str,
     file_id: FileId,
     raw_attributes: &[RawHtmlAttribute],
     source_attributes: &[RawHtmlSourceAttribute],
-) -> Vec<crate::LocalNodeId<Attribute>> {
+) -> Vec<LocalNodeId<Attribute>> {
     raw_attributes
         .iter()
         .enumerate()
@@ -271,7 +351,26 @@ fn lower_attributes(
             let attribute_id = tree.insert(
                 Attribute {
                     name: attribute.name.clone(),
-                    value: Some(attribute.value.clone()),
+                    authored_name: source_attribute
+                        .map(|attribute| slice_source(source, attribute.name_span).to_string()),
+                    value: match (
+                        source_attribute.and_then(|attribute| attribute.value_form),
+                        source_attribute.and_then(|attribute| attribute.value_span),
+                    ) {
+                        (Some(form), Some(_value_span)) => Some(AttributeValue {
+                            value: attribute.value.clone(),
+                            form: match form {
+                                RawHtmlAttributeValueForm::DoubleQuoted => {
+                                    AttributeValueForm::DoubleQuoted
+                                }
+                                RawHtmlAttributeValueForm::SingleQuoted => {
+                                    AttributeValueForm::SingleQuoted
+                                }
+                                RawHtmlAttributeValueForm::Unquoted => AttributeValueForm::Unquoted,
+                            },
+                        }),
+                        _ => None,
+                    },
                 },
                 span,
             );
@@ -290,6 +389,14 @@ fn lower_attributes(
         .collect()
 }
 
+/// Slice one authored source span.
+fn slice_source(source: &str, span: Span) -> &str {
+    let start = span.start as usize;
+    let end = span.end as usize;
+
+    &source[start..end]
+}
+
 /// Lower one parsed name into one owned HTML name.
 fn lower_name(name: &QualName) -> Name {
     Name {
@@ -305,6 +412,19 @@ fn lower_raw_attribute(attribute: &Html5Attribute) -> RawHtmlAttribute {
         name: lower_name(&attribute.name),
         value: attribute.value.to_string(),
     }
+}
+
+/// Return whether one unmatched HTML element is one synthetic shell node.
+fn should_flatten_synthetic_html_element(
+    name: &Name,
+    is_unmatched: bool,
+    attributes: &[RawHtmlAttribute],
+) -> bool {
+    if !is_unmatched || !attributes.is_empty() || name.namespace != Namespace::Html {
+        return false;
+    }
+
+    true
 }
 
 /// Lower one namespace URI into one stable enum.

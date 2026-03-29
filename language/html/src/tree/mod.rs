@@ -1,4 +1,5 @@
 mod attribute;
+mod content;
 mod document;
 mod fragment;
 mod name;
@@ -8,6 +9,7 @@ mod visit;
 mod walk;
 
 pub use attribute::*;
+pub use content::*;
 pub use destack_core::{Arena, StringId, StringPool};
 pub use destack_source::{File, FileId, Span};
 pub use document::*;

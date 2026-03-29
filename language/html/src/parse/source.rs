@@ -23,6 +23,27 @@ pub(crate) struct RawHtmlStartTag {
     pub(crate) end: usize,
     /// Whether the tag used self closing syntax.
     pub(crate) is_self_closing: bool,
+    /// The authored self closing slash form when one exists.
+    pub(crate) self_closing_style: Option<RawHtmlSelfClosingStyle>,
+}
+
+/// One authored doctype match.
+#[derive(Debug, Clone)]
+pub(crate) struct RawHtmlDoctype {
+    /// The full authored doctype span.
+    pub(crate) span: Span,
+    /// The authored `doctype` keyword spelling.
+    pub(crate) doctype_keyword: String,
+    /// The authored doctype name spelling.
+    pub(crate) name: String,
+    /// The authored doctype keyword form.
+    pub(crate) kind: RawHtmlDoctypeKind,
+    /// The authored `public` or `system` keyword spelling when one exists.
+    pub(crate) kind_keyword: Option<String>,
+    /// The authored public id quote style when one exists.
+    pub(crate) public_id_quote_style: Option<RawHtmlDoctypeQuoteStyle>,
+    /// The authored system id quote style when one exists.
+    pub(crate) system_id_quote_style: Option<RawHtmlDoctypeQuoteStyle>,
 }
 
 /// One authored end tag match.
@@ -30,6 +51,8 @@ pub(crate) struct RawHtmlStartTag {
 pub(crate) struct RawHtmlEndTag {
     /// The full authored end tag span.
     pub(crate) span: Span,
+    /// The authored end tag name.
+    pub(crate) name_span: Span,
     /// The byte offset where the end tag begins.
     pub(crate) start: usize,
 }
@@ -43,6 +66,48 @@ pub(crate) struct RawHtmlSourceAttribute {
     pub(crate) name_span: Span,
     /// The authored value span when one exists.
     pub(crate) value_span: Option<Span>,
+    /// The authored value form when one exists.
+    pub(crate) value_form: Option<RawHtmlAttributeValueForm>,
+}
+
+/// One authored HTML attribute value form.
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum RawHtmlAttributeValueForm {
+    /// One double-quoted value.
+    DoubleQuoted,
+    /// One single-quoted value.
+    SingleQuoted,
+    /// One unquoted value.
+    Unquoted,
+}
+
+/// One authored doctype keyword form.
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum RawHtmlDoctypeKind {
+    /// One bare `<!doctype name>` form.
+    NameOnly,
+    /// One `PUBLIC` doctype form.
+    Public,
+    /// One `SYSTEM` doctype form.
+    System,
+}
+
+/// One authored doctype quote style.
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum RawHtmlDoctypeQuoteStyle {
+    /// One double-quoted id.
+    DoubleQuoted,
+    /// One single-quoted id.
+    SingleQuoted,
+}
+
+/// One authored self closing slash form.
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum RawHtmlSelfClosingStyle {
+    /// One compact `/>` close.
+    Compact,
+    /// One spaced ` />` close.
+    Spaced,
 }
 
 /// One source cursor over authored HTML.
@@ -67,7 +132,7 @@ impl<'a> HtmlSourceCursor<'a> {
     }
 
     /// Match the next authored doctype.
-    pub(crate) fn match_doctype(&mut self) -> Option<Span> {
+    pub(crate) fn match_doctype(&mut self) -> Option<RawHtmlDoctype> {
         let bytes = self.source.as_bytes();
         let mut index = self.offset;
 
@@ -79,16 +144,107 @@ impl<'a> HtmlSourceCursor<'a> {
             }
 
             if has_ascii_prefix_ignore_case(&self.source[index..], "<!doctype") {
-                let end = advance_after_markup_declaration(self.source, index);
-                self.offset = end;
+                let doctype = self.parse_doctype(index)?;
+                self.offset = doctype.span.end as usize;
 
-                return Some(Span::new(self.file_id, index as u32, end as u32));
+                return Some(doctype);
             }
 
             index += 1;
         }
 
         None
+    }
+
+    /// Parse one authored doctype at one known `<!doctype` position.
+    fn parse_doctype(&self, start: usize) -> Option<RawHtmlDoctype> {
+        let bytes = self.source.as_bytes();
+        let doctype_keyword_start = start + 2;
+        let doctype_keyword_end = doctype_keyword_start + "doctype".len();
+        let mut index = doctype_keyword_end;
+
+        index = skip_whitespace(bytes, index);
+        let name_start = index;
+        index = advance_name(bytes, index);
+        let name_end = index;
+        index = skip_whitespace(bytes, index);
+
+        let mut kind = RawHtmlDoctypeKind::NameOnly;
+        let mut kind_keyword = None;
+        let mut public_id_quote_style = None;
+        let mut system_id_quote_style = None;
+
+        // keyword
+        if has_ascii_prefix_ignore_case(&self.source[index..], "public") {
+            let keyword_start = index;
+            kind = RawHtmlDoctypeKind::Public;
+            index += "public".len();
+            kind_keyword = Some(self.source[keyword_start..index].to_string());
+            index = skip_whitespace(bytes, index);
+            let (quote_style, next_index) = self.parse_doctype_quoted_id(index)?;
+            public_id_quote_style = Some(quote_style);
+            let next_index = skip_whitespace(bytes, next_index);
+
+            if let Some((quote_style, _)) = self.parse_optional_doctype_quoted_id(next_index) {
+                system_id_quote_style = Some(quote_style);
+            }
+        } else if has_ascii_prefix_ignore_case(&self.source[index..], "system") {
+            let keyword_start = index;
+            kind = RawHtmlDoctypeKind::System;
+            index += "system".len();
+            kind_keyword = Some(self.source[keyword_start..index].to_string());
+            index = skip_whitespace(bytes, index);
+            let (quote_style, _) = self.parse_doctype_quoted_id(index)?;
+            system_id_quote_style = Some(quote_style);
+        }
+
+        let end = advance_after_markup_declaration(self.source, start);
+
+        Some(RawHtmlDoctype {
+            span: Span::new(self.file_id, start as u32, end as u32),
+            doctype_keyword: self.source[doctype_keyword_start..doctype_keyword_end].to_string(),
+            name: self.source[name_start..name_end].to_string(),
+            kind,
+            kind_keyword,
+            public_id_quote_style,
+            system_id_quote_style,
+        })
+    }
+
+    /// Parse one required quoted doctype id.
+    fn parse_doctype_quoted_id(&self, index: usize) -> Option<(RawHtmlDoctypeQuoteStyle, usize)> {
+        let bytes = self.source.as_bytes();
+        let quote = *bytes.get(index)?;
+
+        if quote != b'"' && quote != b'\'' {
+            return None;
+        }
+
+        let mut next_index = index + 1;
+
+        while next_index < bytes.len() && bytes[next_index] != quote {
+            next_index += 1;
+        }
+
+        if next_index >= bytes.len() {
+            return None;
+        }
+
+        let quote_style = if quote == b'"' {
+            RawHtmlDoctypeQuoteStyle::DoubleQuoted
+        } else {
+            RawHtmlDoctypeQuoteStyle::SingleQuoted
+        };
+
+        Some((quote_style, next_index + 1))
+    }
+
+    /// Parse one optional quoted doctype id.
+    fn parse_optional_doctype_quoted_id(
+        &self,
+        index: usize,
+    ) -> Option<(RawHtmlDoctypeQuoteStyle, usize)> {
+        self.parse_doctype_quoted_id(index)
     }
 
     /// Match the next authored text span.
@@ -157,7 +313,7 @@ impl<'a> HtmlSourceCursor<'a> {
                 continue;
             }
 
-            let Some(tag) = parse_start_tag(self.source, self.file_id, index) else {
+            let Some(tag) = self.parse_start_tag(index) else {
                 index += 1;
                 continue;
             };
@@ -199,7 +355,7 @@ impl<'a> HtmlSourceCursor<'a> {
                 continue;
             }
 
-            let Some((name, end)) = parse_end_tag(self.source, index) else {
+            let Some((name, end)) = self.parse_end_tag(index) else {
                 index += 1;
                 continue;
             };
@@ -209,6 +365,11 @@ impl<'a> HtmlSourceCursor<'a> {
 
                 return Some(RawHtmlEndTag {
                     span: Span::new(self.file_id, index as u32, end as u32),
+                    name_span: Span::new(
+                        self.file_id,
+                        index as u32 + 2,
+                        (index + 2 + name.len()) as u32,
+                    ),
                     start: index,
                 });
             }
@@ -218,140 +379,163 @@ impl<'a> HtmlSourceCursor<'a> {
 
         None
     }
-}
 
-/// Parse one authored start tag at one known '<' position.
-fn parse_start_tag(source: &str, file_id: FileId, start: usize) -> Option<RawHtmlStartTag> {
-    let bytes = source.as_bytes();
-    let mut index = start + 1;
+    /// Parse one authored start tag at one known `<` position.
+    fn parse_start_tag(&self, start: usize) -> Option<RawHtmlStartTag> {
+        let bytes = self.source.as_bytes();
+        let mut index = start + 1;
 
-    if index >= bytes.len() || !is_name_start(bytes[index]) {
-        return None;
-    }
-
-    let name_start = index;
-    index = advance_name(bytes, index);
-    let name_end = index;
-    let mut attributes = Vec::new();
-
-    loop {
-        index = skip_whitespace(bytes, index);
-
-        if index >= bytes.len() {
+        if index >= bytes.len() || !is_name_start(bytes[index]) {
             return None;
         }
 
-        // normal close
-        if bytes[index] == b'>' {
-            let end = index + 1;
+        let name_start = index;
+        index = advance_name(bytes, index);
+        let name_end = index;
+        let mut attributes = Vec::new();
 
-            return Some(RawHtmlStartTag {
-                span: Span::new(file_id, start as u32, end as u32),
-                name: source[name_start..name_end].to_string(),
-                attributes,
-                end,
-                is_self_closing: false,
-            });
-        }
-
-        // self closing close
-        if bytes[index] == b'/' && bytes.get(index + 1) == Some(&b'>') {
-            let end = index + 2;
-
-            return Some(RawHtmlStartTag {
-                span: Span::new(file_id, start as u32, end as u32),
-                name: source[name_start..name_end].to_string(),
-                attributes,
-                end,
-                is_self_closing: true,
-            });
-        }
-
-        let attribute_start = index;
-        let attribute_name_start = index;
-        index = advance_attribute_name(bytes, index);
-
-        if attribute_name_start == index {
-            index += 1;
-            continue;
-        }
-
-        let attribute_name_end = index;
-        index = skip_whitespace(bytes, index);
-
-        // optional attribute value
-        let value_span = if bytes.get(index) == Some(&b'=') {
-            index += 1;
+        loop {
             index = skip_whitespace(bytes, index);
 
             if index >= bytes.len() {
-                None
-            } else if bytes[index] == b'"' || bytes[index] == b'\'' {
-                let quote = bytes[index];
-                let value_start = index + 1;
-                index += 1;
-
-                while index < bytes.len() && bytes[index] != quote {
-                    index += 1;
-                }
-
-                let value_end = index.min(bytes.len());
-
-                if index < bytes.len() {
-                    index += 1;
-                }
-
-                Some(Span::new(file_id, value_start as u32, value_end as u32))
-            } else {
-                let value_start = index;
-
-                while index < bytes.len()
-                    && !bytes[index].is_ascii_whitespace()
-                    && !matches!(bytes[index], b'>' | b'/')
-                {
-                    index += 1;
-                }
-
-                Some(Span::new(file_id, value_start as u32, index as u32))
+                return None;
             }
-        } else {
-            None
-        };
-        let attribute_end = value_span
-            .map(|span| span.end as usize)
-            .unwrap_or(attribute_name_end);
 
-        attributes.push(RawHtmlSourceAttribute {
-            span: Span::new(file_id, attribute_start as u32, attribute_end as u32),
-            name_span: Span::new(
-                file_id,
-                attribute_name_start as u32,
-                attribute_name_end as u32,
-            ),
-            value_span,
-        });
+            // normal close
+            if bytes[index] == b'>' {
+                let end = index + 1;
+
+                return Some(RawHtmlStartTag {
+                    span: Span::new(self.file_id, start as u32, end as u32),
+                    name: self.source[name_start..name_end].to_string(),
+                    attributes,
+                    end,
+                    is_self_closing: false,
+                    self_closing_style: None,
+                });
+            }
+
+            // self closing close
+            if bytes[index] == b'/' && bytes.get(index + 1) == Some(&b'>') {
+                let end = index + 2;
+                let self_closing_style = if index > start && bytes[index - 1].is_ascii_whitespace()
+                {
+                    RawHtmlSelfClosingStyle::Spaced
+                } else {
+                    RawHtmlSelfClosingStyle::Compact
+                };
+
+                return Some(RawHtmlStartTag {
+                    span: Span::new(self.file_id, start as u32, end as u32),
+                    name: self.source[name_start..name_end].to_string(),
+                    attributes,
+                    end,
+                    is_self_closing: true,
+                    self_closing_style: Some(self_closing_style),
+                });
+            }
+
+            let attribute_start = index;
+            let attribute_name_start = index;
+            index = advance_attribute_name(bytes, index);
+
+            if attribute_name_start == index {
+                index += 1;
+                continue;
+            }
+
+            let attribute_name_end = index;
+            index = skip_whitespace(bytes, index);
+
+            // optional attribute value
+            let (value_span, value_form) = if bytes.get(index) == Some(&b'=') {
+                index += 1;
+                index = skip_whitespace(bytes, index);
+
+                if index >= bytes.len() {
+                    (None, None)
+                } else if bytes[index] == b'"' || bytes[index] == b'\'' {
+                    let quote = bytes[index];
+                    let value_start = index + 1;
+                    index += 1;
+
+                    while index < bytes.len() && bytes[index] != quote {
+                        index += 1;
+                    }
+
+                    let value_end = index.min(bytes.len());
+
+                    if index < bytes.len() {
+                        index += 1;
+                    }
+
+                    (
+                        Some(Span::new(
+                            self.file_id,
+                            value_start as u32,
+                            value_end as u32,
+                        )),
+                        Some(if quote == b'"' {
+                            RawHtmlAttributeValueForm::DoubleQuoted
+                        } else {
+                            RawHtmlAttributeValueForm::SingleQuoted
+                        }),
+                    )
+                } else {
+                    let value_start = index;
+
+                    while index < bytes.len()
+                        && !bytes[index].is_ascii_whitespace()
+                        && !matches!(bytes[index], b'>' | b'/')
+                    {
+                        index += 1;
+                    }
+
+                    (
+                        Some(Span::new(self.file_id, value_start as u32, index as u32)),
+                        Some(RawHtmlAttributeValueForm::Unquoted),
+                    )
+                }
+            } else {
+                (None, None)
+            };
+            let attribute_end = value_span
+                .map(|span| span.end as usize)
+                .unwrap_or(attribute_name_end);
+
+            attributes.push(RawHtmlSourceAttribute {
+                span: Span::new(self.file_id, attribute_start as u32, attribute_end as u32),
+                name_span: Span::new(
+                    self.file_id,
+                    attribute_name_start as u32,
+                    attribute_name_end as u32,
+                ),
+                value_span,
+                value_form,
+            });
+        }
     }
-}
 
-/// Parse one authored end tag at one known '</' position.
-fn parse_end_tag(source: &str, start: usize) -> Option<(String, usize)> {
-    let bytes = source.as_bytes();
-    let mut index = start + 2;
+    /// Parse one authored end tag at one known `</` position.
+    fn parse_end_tag(&self, start: usize) -> Option<(String, usize)> {
+        let bytes = self.source.as_bytes();
+        let mut index = start + 2;
 
-    if index >= bytes.len() || !is_name_start(bytes[index]) {
-        return None;
+        if index >= bytes.len() || !is_name_start(bytes[index]) {
+            return None;
+        }
+
+        let name_start = index;
+        index = advance_name(bytes, index);
+        let name_end = index;
+        index = skip_whitespace(bytes, index);
+
+        if bytes.get(index) != Some(&b'>') {
+            return None;
+        }
+
+        Some((self.source[name_start..name_end].to_string(), index + 1))
     }
-
-    let name_start = index;
-    index = advance_name(bytes, index);
-    let name_end = index;
-    index = skip_whitespace(bytes, index);
-
-    if bytes.get(index) != Some(&b'>') {
-        return None;
-    }
-
-    Some((source[name_start..name_end].to_string(), index + 1))
 }
 
 /// Advance after one HTML comment.

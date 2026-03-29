@@ -216,7 +216,10 @@ impl_node_tree_store!(Attribute, attributes);
 mod tests {
     use destack_source::FileId;
 
-    use crate::{Attribute, Content, Document, Element, Name, Namespace, NodeSpanKind, NodeTree};
+    use crate::{
+        Attribute, AttributeValue, AttributeValueForm, Content, Document, Element, Fragment, Name,
+        Namespace, NodeSpanKind, NodeTree, Text,
+    };
 
     /// Store the main span and side spans for inserted nodes.
     #[test]
@@ -229,7 +232,11 @@ mod tests {
                     namespace: Namespace::Html,
                     local: "src".to_string(),
                 },
-                value: Some("./asset.png".to_string()),
+                authored_name: None,
+                value: Some(AttributeValue {
+                    value: "./asset.png".to_string(),
+                    form: AttributeValueForm::DoubleQuoted,
+                }),
             },
             destack_source::Span::new(FileId::new(1), 5, 21),
         );
@@ -263,13 +270,13 @@ mod tests {
     fn test_element_keeps_template_content_fragment() {
         let mut tree = NodeTree::new();
         let text = tree.insert(
-            Content::Text(crate::Text {
+            Content::Text(Text {
                 value: "fragment".to_string(),
             }),
             destack_source::Span::new(FileId::new(1), 20, 28),
         );
         let fragment = tree.insert(
-            crate::Fragment {
+            Fragment {
                 children: vec![text],
             },
             destack_source::Span::new(FileId::new(1), 10, 39),
@@ -281,6 +288,11 @@ mod tests {
                     namespace: Namespace::Html,
                     local: "template".to_string(),
                 },
+                authored_start_tag_name: None,
+                has_authored_end_tag: false,
+                authored_end_tag_name: None,
+                is_self_closing: false,
+                self_closing_style: None,
                 attributes: Vec::new(),
                 children: Vec::new(),
                 content: Some(fragment),

@@ -1,7 +1,6 @@
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 
-use crate::{Fragment, Name};
 use serde::{Deserialize, Serialize};
 
 /// The type of one HTML node.
@@ -98,57 +97,4 @@ impl<T: Node> From<LocalNodeId<T>> for LocalNodeIdAny {
 /// One typed node.
 pub trait Node: Sized {
     const TYPE: NodeType;
-}
-
-/// One HTML node.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum Content {
-    /// One element node.
-    Element(Element),
-    /// One text node.
-    Text(Text),
-    /// One comment node.
-    Comment(Comment),
-    /// One instruction node.
-    Instruction(Instruction),
-}
-
-impl Node for Content {
-    const TYPE: NodeType = NodeType::Content;
-}
-
-/// One HTML element node.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Element {
-    /// The element name.
-    pub name: Name,
-    /// The attributes in source order.
-    pub attributes: Vec<LocalNodeId<crate::Attribute>>,
-    /// The child nodes.
-    pub children: Vec<LocalNodeId<Content>>,
-    /// The template contents fragment when one exists.
-    pub content: Option<LocalNodeId<Fragment>>,
-}
-
-/// One HTML text node.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Text {
-    /// The authored text contents.
-    pub value: String,
-}
-
-/// One HTML comment node.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Comment {
-    /// The authored comment contents.
-    pub value: String,
-}
-
-/// One HTML instruction node.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Instruction {
-    /// The instruction target.
-    pub target: String,
-    /// The instruction contents.
-    pub contents: String,
 }
