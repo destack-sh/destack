@@ -2,6 +2,7 @@
 #![allow(unused_variables)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::NativeSlice;
 use crate::platform::fs::{
     AccessMode, AllocFlags, AtFlags, CopyFlags, Dirent, FileAdvice, FileLockFlags, FileMode,
     FileOffset, FileSize, MmapAdvice, MmapFlags, MmapProt, MmapSyncFlags, OpenFlags, OpenOptions,
@@ -11,7 +12,7 @@ use crate::platform::fs::{
 use crate::platform::net::SocketHandle;
 use crate::platform::resource::{DirectoryHandle, FileHandle, PipeHandle, ResourceId};
 use crate::platform::{NativeArray, PlatformError};
-use crate::runtime::{BindingCallContext, NativeSlice};
+use crate::runtime::BindingCallContext;
 
 pub(crate) use crate::platform::fs::simulation::native::*;
 

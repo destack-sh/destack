@@ -1,4 +1,5 @@
 use crate::diagnostic::RuntimeResult;
+use crate::platform::abi::NativeSlice;
 use crate::platform::crypto::{
     CryptoAgreementDeriveKeyRequest, CryptoArgon2idRequest, CryptoAsymmetricEncryptionParameters,
     CryptoCertificateDescriptor, CryptoCertificateFormat, CryptoCertificateListPage,
@@ -13,7 +14,7 @@ use crate::platform::crypto::{
     CryptoStoreOptions, CryptoStoreProvider, host as host_crypto,
 };
 use crate::platform::{NativeArray, resource};
-use crate::runtime::{BindingCallContext, NativeSlice};
+use crate::runtime::BindingCallContext;
 
 /// Derive one symmetric key from one local private key and one peer public key.
 ///

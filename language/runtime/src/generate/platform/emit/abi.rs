@@ -122,8 +122,11 @@ impl AbiRenderer<'_> {
         }
         if has_named_types {
             output.push_str(
-            "use crate::platform::{NativeArray, NativeAbiCodec, NativeSlice, NativeStringRef, NativeStringSlice, VmAbiCodec, VmCollectionElement};\n",
-        );
+                "use crate::platform::abi::{NativeSlice, NativeStringRef, NativeStringSlice};\n",
+            );
+            output.push_str(
+                "use crate::platform::{NativeArray, NativeAbiCodec, VmAbiCodec, VmCollectionElement};\n",
+            );
             output.push_str("use crate::runtime::BindingCallContext;\n");
         }
         if needs_vm_value_codec {

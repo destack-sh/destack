@@ -9,6 +9,7 @@
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::NativeSlice;
 use crate::platform::crypto::{
     CryptoAgreementDeriveKeyRequest, CryptoAgreementDeriveKeyRequestVm, CryptoArgon2idRequest,
     CryptoArgon2idRequestVm, CryptoAsymmetricEncryptionAlgorithm,
@@ -70,7 +71,7 @@ use crate::platform::crypto::{
     CryptostoremaccapabilityReplayRecord, CryptostoresignaturecapabilityReplayRecord,
 };
 use crate::platform::{
-    NativeArray, NativeSlice, PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice,
+    NativeArray, PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice,
     abi as platform_abi,
 };
 use crate::runtime::bindings::{

@@ -1,9 +1,10 @@
 use crate::diagnostic::RuntimeResult;
+use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::display::{
     DisplayDescriptor, DisplayMode, DisplayMonitorListRequest, DisplayMonitorOpenOptions,
 };
-use crate::platform::{NativeSlice, core as core_platform, resource};
-use crate::runtime::{BindingCallContext, NativeStringRef};
+use crate::platform::{core as core_platform, resource};
+use crate::runtime::BindingCallContext;
 
 use super::snapshot::{
     descriptor_from_value, enumerate_monitor_snapshots_for_operation, snapshot_by_display_handle,

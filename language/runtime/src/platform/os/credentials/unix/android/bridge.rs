@@ -5,6 +5,7 @@ use crate::host::android::abi::credentials::ffi::{
     destack_host_android_credentials_write,
 };
 use crate::host::core::HostStatus;
+use crate::platform::abi::NativeSlice;
 use crate::platform::os::credentials::core::{
     CredentialAuthenticationOptionsOwned, CredentialQueryOwned, CredentialRecordOwned,
     CredentialWriteOptionsOwned, OS_CREDENTIALS_AUTHENTICATE_OPERATION,
@@ -15,7 +16,7 @@ use crate::platform::os::credentials::unix::android::core::{
     decode_authentication_mechanism, host_session_id, host_status_result,
 };
 use crate::platform::os::{CredentialAuthenticationMechanism, CredentialAuthenticationResult};
-use crate::runtime::{BindingCallContext, NativeSlice};
+use crate::runtime::BindingCallContext;
 
 /// Initial scratch buffer size for Android host credential reads.
 const INITIAL_ANDROID_READ_BUFFER_BYTES: usize = 512;

@@ -1,9 +1,10 @@
 use crate::diagnostic::RuntimeResult;
+use crate::platform::VmSlice;
+use crate::platform::abi::NativeSlice;
 use crate::platform::device::SerialEventValue;
 use crate::platform::device::tests::{DeviceHarnessContext, with_harness_context};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource::SerialPortHandle;
-use crate::platform::{NativeSlice, VmSlice};
 
 use super::core::{
     assert_platform_error_codes, close_descriptor, open_serial_handle, open_test_pty_pair,

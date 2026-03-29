@@ -85,18 +85,27 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
             ));
         }
 
-        let mut native_imports = Vec::new();
+        let mut native_abi_imports = Vec::new();
         if usage.native_usage.uses_platform_slice {
-            native_imports.push("NativeSlice");
-        }
-        if usage.native_usage.uses_platform_array {
-            native_imports.push("NativeArray");
+            native_abi_imports.push("NativeSlice");
         }
         if usage.native_usage.uses_platform_string_ref {
-            native_imports.push("NativeStringRef");
+            native_abi_imports.push("NativeStringRef");
         }
         if usage.native_usage.uses_platform_string_slice {
-            native_imports.push("NativeStringSlice");
+            native_abi_imports.push("NativeStringSlice");
+        }
+
+        if !native_abi_imports.is_empty() {
+            self.output.push_str(&format!(
+                "use crate::platform::abi::{{{}}};\n",
+                native_abi_imports.join(", ")
+            ));
+        }
+
+        let mut native_imports = Vec::new();
+        if usage.native_usage.uses_platform_array {
+            native_imports.push("NativeArray");
         }
         native_imports.push("RuntimeStatus");
         if !native_imports.is_empty() {

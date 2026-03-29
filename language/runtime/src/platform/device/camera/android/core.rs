@@ -27,6 +27,7 @@ pub(super) use crate::host::android::abi::camera::types::{
     AndroidHostCameraStreamCapabilityHeader, AndroidHostCameraStreamConfigHeader,
 };
 pub(super) use crate::host::core::HostStatus;
+pub(super) use crate::platform::abi::{NativeSlice, NativeStringRef};
 pub(super) use crate::platform::core::android::{
     checked_u32_length, host_session_id, host_status_result, invalid_data,
 };
@@ -61,7 +62,7 @@ pub(super) use crate::platform::device::{
 };
 pub(super) use crate::platform::fs::core as core_fs;
 pub(super) use crate::platform::resource::{ResourceEntry, ResourceFinalizer, ResourceKind};
-pub(super) use crate::platform::{NativeSlice, NativeStringRef, PlatformError, resource};
+pub(super) use crate::platform::{PlatformError, resource};
 pub(super) use crate::runtime::BindingCallContext;
 pub(super) use parking_lot::Mutex;
 

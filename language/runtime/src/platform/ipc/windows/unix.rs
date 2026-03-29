@@ -1,7 +1,8 @@
 use crate::diagnostic::RuntimeResult;
+use crate::platform::abi::NativeSlice;
 use crate::platform::ipc::UnixReceiveAncillary;
 use crate::platform::{core as core_platform, resource};
-use crate::runtime::{BindingCallContext, NativeSlice};
+use crate::runtime::BindingCallContext;
 
 /// Unix ancillary receive operation.
 const UNIX_RECEIVE_OPERATION: &str = "destack.ipc.unix.receive";

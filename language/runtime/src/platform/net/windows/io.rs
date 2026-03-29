@@ -9,6 +9,7 @@ use windows_sys::Win32::Networking::WinSock::{
 
 use super::util::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::NativeSlice;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::net::{
     SocketControlBufferAbi, SocketHandle, SocketMessageFlags, SocketRecvFrom, SocketRecvMessage,
@@ -16,7 +17,7 @@ use crate::platform::net::{
 };
 use crate::platform::resource::TransferredHandle;
 use crate::platform::{NativeArray, PlatformError, core as core_platform};
-use crate::runtime::{BindingCallContext, NativeSlice};
+use crate::runtime::BindingCallContext;
 
 /// Resolve the `WSARecvMsg` extension pointer for a socket.
 fn receive_message_extension(socket: usize) -> RuntimeResult<LPFN_WSARECVMSG> {

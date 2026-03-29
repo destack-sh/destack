@@ -14,7 +14,8 @@ use crate::platform::net::{
 use crate::platform::resource::{ListenerHandle, SocketHandle};
 use crate::platform::{NativeArray, PlatformError};
 
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
+use crate::platform::abi::{NativeSlice, NativeStringRef};
+use crate::runtime::BindingCallContext;
 
 pub(crate) use host_net::{
     destack_net_accept, destack_net_close, destack_net_close_listener,

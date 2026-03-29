@@ -11,7 +11,7 @@ use super::{
     uds_path_address_native, uds_path_address_vm, vm_slice_of_slices,
 };
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::abi::{NativeAbi, VmAbi};
+use crate::platform::abi::{NativeAbi, NativeSlice, NativeStringRef, VmAbi};
 use crate::platform::fs::{OsPath, OsPathBytes, OsPathUtf16, PathBytesAbi, PathUtf16Abi};
 use crate::platform::net::{
     KeepAliveConfig, KeepAliveConfigVm, Linger, LingerVm, NetInterface, NetInterfaceVm,
@@ -26,7 +26,6 @@ use crate::platform::net::{
 };
 use crate::platform::resource::{ListenerHandle, SocketHandle};
 use crate::platform::{NativeArray, PlatformError, VmArray, VmSlice, net as platform_net};
-use crate::runtime::{NativeSlice, NativeStringRef};
 
 #[path = "harness.generated.rs"]
 mod generated;

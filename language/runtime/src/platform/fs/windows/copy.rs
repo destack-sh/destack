@@ -4,10 +4,11 @@ use super::io::{destack_fs_pread, destack_fs_pwrite};
 use super::util::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
+use crate::platform::abi::NativeSlice;
 use crate::platform::fs::{
     CopyFlags, FileHandle, FileOffset, FileSize, OsPath, PathBytes, PathUtf16, core as core_fs,
 };
-use crate::runtime::{BindingCallContext, NativeSlice};
+use crate::runtime::BindingCallContext;
 
 /// Copyfile flag to reject replacing an existing destination.
 const COPYFILE_FAIL_IF_EXISTS: u32 = 0x1;

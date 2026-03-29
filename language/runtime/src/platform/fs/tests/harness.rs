@@ -11,7 +11,7 @@ use super::{
     tcp_stream_socket_type,
 };
 use crate::diagnostic::{DiagnosticId, RuntimeError, RuntimeResult, RuntimeStatus};
-use crate::platform::abi::NativeAbi;
+use crate::platform::abi::{NativeAbi, NativeSlice, NativeStringRef};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::fs::{
     self as platform_fs, Dirent, DirentNext, DirentNextVm, DirentVm, OpenOptions, OpenOptionsVm,
@@ -21,7 +21,6 @@ use crate::platform::fs::{
 use crate::platform::net::{self as core_net, AcceptFlags, SocketFamily, vm as platform_net_vm};
 use crate::platform::resource::{ListenerHandle, ResourceId, SocketHandle};
 use crate::platform::{NativeArray, PlatformError, VmArray, VmSlice};
-use crate::runtime::{NativeSlice, NativeStringRef};
 use crate::tests::platform::{is_privileged_test_mode, vm_test_raw_values};
 
 #[path = "harness.generated.rs"]

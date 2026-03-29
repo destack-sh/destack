@@ -2,6 +2,7 @@ use super::core::{
     assert_bluetooth_supported_not_supported_or_permission, close_bluetooth_device,
     close_bluetooth_scan,
 };
+use crate::platform::abi::NativeStringRef;
 use crate::platform::device::tests::{
     assert_ok_or_expected_error, vm_context_mut, with_harness_context, with_native_context,
 };
@@ -9,7 +10,7 @@ use crate::platform::device::{
     BluetoothScanEvent, BluetoothScanEventValue, native as device_native, vm as device_vm,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::{NativeAbiCodec, NativeStringRef, VmAbiCodec};
+use crate::platform::{NativeAbiCodec, VmAbiCodec};
 use destack_vm as vm;
 
 /// Query one GATT service list from one discovered bluetooth device when present.

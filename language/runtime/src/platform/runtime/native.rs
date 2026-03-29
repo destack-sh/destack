@@ -6,6 +6,7 @@ use super::{
     RuntimeRequestCodec,
 };
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::NativeStringRef;
 use crate::platform::core::{ensure_out, io_not_found};
 use crate::platform::runtime::{
     AgentCreateOptions, AgentDescriptor, AgentFilter, AgentHandle, AgentId, BranchDescriptor,
@@ -20,7 +21,7 @@ use crate::platform::runtime::{
     WorldCreateOptions, WorldDescriptor, WorldHandle, WorldResourceId, WorldViewHandle,
     WorldViewOptions,
 };
-use crate::platform::{NativeArray, NativeStringRef, PlatformError};
+use crate::platform::{NativeArray, PlatformError};
 use crate::runtime;
 use crate::runtime::control::inspect::labels_match_selectors;
 use crate::runtime::control::{control_table, empty_vm_engine};

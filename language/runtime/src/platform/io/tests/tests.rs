@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::abi::VmAbi;
+use crate::platform::abi::{NativeSlice, VmAbi};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::fs::core as core_fs;
 use crate::platform::io::{
@@ -24,7 +24,7 @@ use crate::platform::resource::{
     CompletionHandle, DeviceHandle, PollHandle, ResourceEntry, ResourceId, ResourceKind,
 };
 use crate::platform::{PlatformError, VmArray, VmSlice, fs};
-use crate::runtime::{BindingCallContext, NativeSlice};
+use crate::runtime::BindingCallContext;
 use crate::tests::platform::error_code_from_runtime_error;
 pub(crate) use crate::tests::platform::{
     assert_not_supported_result, assert_platform_error_code, is_not_supported_code,

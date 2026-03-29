@@ -1,4 +1,6 @@
 use crate::diagnostic::RuntimeResult;
+use crate::platform::VmSlice;
+use crate::platform::abi::NativeSlice;
 use crate::platform::device::tests::{
     DeviceHarnessContext, HarnessValue, assert_ok_or_expected_error,
     assert_supported_or_not_supported, with_harness_context,
@@ -11,7 +13,6 @@ use crate::platform::device::{
 };
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource::{ResourceId, UsbDeviceHandle, UsbWatchHandle};
-use crate::platform::{NativeSlice, VmSlice};
 
 use super::core::{assert_usb_descriptor_shape, usb_descriptor_list_value};
 

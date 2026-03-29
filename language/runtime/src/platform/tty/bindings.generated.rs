@@ -9,13 +9,14 @@
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::NativeSlice;
 use crate::platform::tty::{
     PtyPair, PtyPairVm, TtyMode, TtyModeVm, TtySize, TtySizeVm, TtyTermiosAttributes,
     TtyTermiosAttributesValue, TtyTermiosAttributesVm, TtyTermiosFlowAction, TtyTermiosQueue,
     TtyTermiosSetAction, TtytermiosattributesReplayRecord,
 };
 use crate::platform::{
-    NativeSlice, PlatformError, RuntimeStatus, VmAggregateCodec, VmSlice, abi as platform_abi,
+    PlatformError, RuntimeStatus, VmAggregateCodec, VmSlice, abi as platform_abi,
 };
 use crate::runtime::bindings::{
     BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,

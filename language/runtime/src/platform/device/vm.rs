@@ -1,5 +1,6 @@
 use super::host as device_host;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::NativeSlice;
 use crate::platform::core::{NativeAbiCodec, VmAbiCodec, call_out};
 use crate::platform::device::{
     BluetoothAdapterDescriptor, BluetoothAdapterDescriptorVm, BluetoothAdapterEvent,
@@ -35,7 +36,7 @@ use crate::platform::device::{
     UsbStringDescriptor, UsbStringDescriptorVm,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::{NativeSlice, VmSlice, resource};
+use crate::platform::{VmSlice, resource};
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
 

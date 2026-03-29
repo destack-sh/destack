@@ -18,12 +18,13 @@ use windows_sys::Win32::System::Threading::GetCurrentProcess;
 
 use super::util::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::NativeSlice;
 use crate::platform::fs::core::{DecodedMmapFlags, decode_mmap_flags, validate_mapping_length};
 use crate::platform::fs::{
     FileHandle, FileOffset, FileSize, MmapAdvice, MmapFlags, MmapProt, MmapSyncFlags,
 };
 use crate::platform::{PlatformError, core as core_platform};
-use crate::runtime::{BindingCallContext, NativeSlice};
+use crate::runtime::BindingCallContext;
 
 /// Stored metadata for a Windows mapping.
 #[derive(Debug, Clone, Copy)]

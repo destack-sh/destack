@@ -3,9 +3,10 @@ use windows_sys::Win32::Storage::FileSystem::{ReadFile, WriteFile};
 use super::core::{io_error, tty_binding, tty_handle, validate_buffer_length};
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::abi::NativeSlice;
 use crate::platform::resource;
 use crate::platform::tty::core::ensure_out;
-use crate::runtime::{BindingCallContext, NativeSlice};
+use crate::runtime::BindingCallContext;
 
 /// Read bytes from a terminal.
 ///

@@ -30,7 +30,8 @@ use crate::platform::net::{
 use crate::platform::resource::{ListenerHandle, SocketHandle};
 use crate::platform::{NativeArray, PlatformError, VmArray, VmSlice};
 
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
+use crate::platform::abi::{NativeSlice, NativeStringRef};
+use crate::runtime::BindingCallContext;
 
 /// Accept a new connection from a listener.
 ///

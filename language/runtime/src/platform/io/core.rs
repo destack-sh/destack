@@ -5,6 +5,7 @@ use std::time::Instant;
 use parking_lot::Mutex;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::NativeSlice;
 #[cfg(unix)]
 use crate::platform::core as core_platform;
 use crate::platform::diagnostic::io_error_code_from_errno;
@@ -17,7 +18,7 @@ use crate::platform::proactor::{
     ProactorOp, ProactorRequest,
 };
 use crate::platform::resource::{self, ResourceEntry, ResourceKind};
-use crate::platform::{NativeSlice, PlatformError, PlatformErrorCode, ResourceId};
+use crate::platform::{PlatformError, PlatformErrorCode, ResourceId};
 use crate::runtime::BindingCallContext;
 use crate::runtime::poller::{
     HostPoller, HostPollerFlags, PlatformInterest, PollerEvent, PollerEventPayload, PollerToken,

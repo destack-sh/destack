@@ -5,6 +5,7 @@
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::{NativeSlice, NativeStringRef, NativeStringSlice};
 use crate::platform::os::tests::OsHarnessContext;
 use crate::platform::os::{
     BackgroundConflictPolicy, BackgroundEvent, BackgroundEventMetadata, BackgroundEventMetadataVm,
@@ -65,8 +66,8 @@ use crate::platform::os::{
     PowerState, SystemSnapshot, SystemSnapshotVm, native as os_native, vm as os_vm,
 };
 use crate::platform::{
-    NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
-    PlatformError as HarnessPlatformError, VmAbiCodec, VmArray, VmSlice, fs, resource,
+    NativeAbiCodec, NativeArray, PlatformError as HarnessPlatformError, VmAbiCodec, VmArray,
+    VmSlice, fs, resource,
 };
 use destack_vm as vm;
 

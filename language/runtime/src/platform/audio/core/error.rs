@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::NativeStringRef;
 use crate::platform::audio::{
     AudioBackend, AudioDeviceDirection, AudioStreamConfig, AudioStreamOpenOptions,
     AudioStreamRequirementFlags, AudioStreamStateKind, AudioStreamTransferMode,
@@ -8,7 +9,7 @@ use crate::platform::audio::{
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource::ResourceKind;
 use crate::platform::{PlatformError, resource};
-use crate::runtime::{BindingCallContext, NativeStringRef};
+use crate::runtime::BindingCallContext;
 
 use super::constants::{
     AUDIO_DEVICE_RESOURCE_LABEL, AUDIO_EVENT_RESOURCE_LABEL, AUDIO_STREAM_RESOURCE_LABEL,

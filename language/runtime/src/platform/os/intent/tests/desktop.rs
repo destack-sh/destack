@@ -1,11 +1,11 @@
 use destack_vm as vm;
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::abi::VmAbi;
+use crate::platform::abi::{NativeStringRef, VmAbi};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::fs::core as core_fs;
 use crate::platform::os::tests::{HarnessContext, HarnessValue, with_harness_context};
-use crate::platform::{NativeStringRef, VmArray, fs};
+use crate::platform::{VmArray, fs};
 use crate::tests::platform::assert_runtime_error_code;
 
 /// Build one harness string payload for the active lane.

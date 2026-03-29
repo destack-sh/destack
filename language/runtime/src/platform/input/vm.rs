@@ -1,6 +1,7 @@
 use destack_vm;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::core::{
     VmAbiCodec, bytes_to_vm, call_out, map_native_array_to_vm, map_native_slice_to_vm,
     store_bytes_from_vm as bytes_from_vm, store_string_from_vm as string_from_vm,
@@ -21,7 +22,7 @@ use crate::platform::input::{
     host as host_input,
 };
 use crate::platform::{NativeAbiCodec, VmArray, VmSlice, resource};
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
+use crate::runtime::BindingCallContext;
 
 /// Convert one native device-info payload into its VM shape.
 fn device_info_to_vm(

@@ -14,12 +14,13 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformErrorCode;
 #[cfg(target_os = "linux")]
 use crate::platform::ResourceId;
+use crate::platform::abi::NativeSlice;
 #[cfg(target_os = "linux")]
 use crate::platform::diagnostic::io_error_code_from_errno;
 use crate::platform::io::{UringFeatures, UringParameters};
 #[cfg(target_os = "linux")]
 use crate::platform::resource::{ResourceEntry, ResourceKind};
-use crate::platform::{NativeSlice, PlatformError, resource};
+use crate::platform::{PlatformError, resource};
 use crate::runtime::BindingCallContext;
 
 /// Resource label for io_uring ring payloads.

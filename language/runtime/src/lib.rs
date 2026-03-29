@@ -4,11 +4,8 @@
 #![allow(clippy::missing_safety_doc)]
 #![allow(clippy::too_many_arguments)]
 
-#[cfg(not(feature = "generator"))]
 pub mod diagnostic;
-#[cfg(not(feature = "generator"))]
 pub mod host;
-#[cfg(not(feature = "generator"))]
 pub mod platform;
 #[cfg(not(feature = "generator"))]
 pub mod runtime;

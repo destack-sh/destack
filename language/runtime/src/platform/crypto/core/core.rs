@@ -9,6 +9,7 @@ use parking_lot::Mutex;
 use zeroize::Zeroize;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::crypto::{
     CryptoCipherAlgorithm, CryptoCipherDirection, CryptoCipherOutput, CryptoDigestAlgorithm,
     CryptoKeyAlgorithm, CryptoKeyKind, CryptoKeyUsageMask, CryptoMacParameters, CryptoNamedCurve,
@@ -17,7 +18,7 @@ use crate::platform::crypto::{
 };
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource::ResourceEntry;
-use crate::platform::{NativeSlice, NativeStringRef, PlatformError, resource};
+use crate::platform::{PlatformError, resource};
 use crate::runtime::BindingCallContext;
 
 pub(super) use super::constants::*;

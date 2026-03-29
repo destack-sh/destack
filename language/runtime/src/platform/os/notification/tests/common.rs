@@ -4,6 +4,7 @@ use destack_vm::{ExternalCallContext, StringHandle};
 use destack_workspace::RuntimeOptions;
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::abi::NativeStringRef;
 use crate::platform::os::abi_generated::{
     NotificationCategoryValue, NotificationDeliveredEventValue, NotificationEventMetadataValue,
     NotificationEventOpenOptionsValue, NotificationEventValue, NotificationImmediateTriggerValue,
@@ -17,7 +18,7 @@ use crate::platform::os::{
     NotificationPriority, NotificationRequest, NotificationRequestVm,
     NotificationScheduledDescriptor, NotificationScheduledDescriptorVm,
 };
-use crate::platform::{NativeAbiCodec, NativeArray, NativeStringRef, VmAbiCodec, VmArray};
+use crate::platform::{NativeAbiCodec, NativeArray, VmAbiCodec, VmArray};
 
 /// Enable one notification declaration for notification request tests.
 pub(super) fn enable_notification_declaration(options: &mut RuntimeOptions) {

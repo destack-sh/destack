@@ -26,15 +26,14 @@ pub(super) use windows::Foundation::TypedEventHandler;
 pub(super) use windows::Storage::Streams::{DataReader, DataWriter, IBuffer};
 pub(super) use windows::core::{Error as WinError, Ref};
 
+pub(super) use crate::platform::abi::{NativeSlice, NativeStringRef};
 pub(super) use crate::platform::device::{
     BluetoothAdapterDescriptor, BluetoothDeviceDescriptor, BluetoothGattCharacteristic,
     BluetoothGattDescriptor, BluetoothGattService, BluetoothGattValueEvent, BluetoothGattWriteMode,
     BluetoothScanEvent, BluetoothScanFilter, BluetoothSessionEvent,
 };
 pub(super) use crate::platform::resource::{ResourceEntry, ResourceFinalizer, ResourceKind};
-pub(super) use crate::platform::{
-    NativeAbiCodec, NativeSlice, NativeStringRef, PlatformError, resource,
-};
+pub(super) use crate::platform::{NativeAbiCodec, PlatformError, resource};
 pub(super) use crate::runtime::BindingCallContext;
 
 pub(super) use crate::diagnostic::{RuntimeError, RuntimeResult as DiagnosticResult};

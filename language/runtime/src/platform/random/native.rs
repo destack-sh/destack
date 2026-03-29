@@ -1,8 +1,9 @@
 use crate::diagnostic::RuntimeResult;
+use crate::platform::abi::NativeSlice;
 use crate::platform::random::{
     RandomStream, RandomStreamDomain, RandomStreamState, SecureRandomMetadata,
 };
-use crate::runtime::{self, BindingCallContext, NativeSlice};
+use crate::runtime::{self, BindingCallContext};
 
 /// Fill a slice with cryptographically secure random bytes.
 ///

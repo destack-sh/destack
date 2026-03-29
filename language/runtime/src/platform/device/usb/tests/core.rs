@@ -1,12 +1,13 @@
 use std::collections::BTreeSet;
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::VmSlice;
+use crate::platform::abi::NativeSlice;
 use crate::platform::device::tests::{DeviceHarnessContext, HarnessValue};
 use crate::platform::device::{
     UsbDeviceDescriptor, UsbDeviceDescriptorValue, UsbDeviceDescriptorVm, UsbHotplugEvent,
     UsbHotplugEventValue, UsbHotplugEventVm,
 };
-use crate::platform::{NativeSlice, VmSlice};
 
 /// Decode one listed USB descriptor slice from one native or VM harness result.
 pub(super) fn usb_descriptor_list_value(

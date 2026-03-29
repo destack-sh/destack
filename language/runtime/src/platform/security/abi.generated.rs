@@ -8,11 +8,12 @@
 #![allow(clippy::len_zero)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
+use crate::platform::abi::{
+    BindingAbi, NativeAbi, NativeSlice, NativeStringRef, NativeStringSlice, VmAbi,
+};
 use crate::platform::{
-    NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
-    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmCollectionElement,
-    VmSlice, VmValueCodec, security as platform_security,
+    NativeAbiCodec, NativeArray, PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec,
+    VmArray, VmCollectionElement, VmSlice, VmValueCodec, security as platform_security,
 };
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;

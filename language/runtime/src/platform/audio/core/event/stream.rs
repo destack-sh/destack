@@ -1,9 +1,10 @@
 use std::sync::{Arc, Mutex};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::NativeSlice;
 use crate::platform::audio::{AudioEvent, AudioEventDeliveryMode, AudioEventSubscriptionOptions};
 use crate::platform::resource::{AudioEventHandle, ResourceEntry, ResourceKind};
-use crate::platform::{NativeSlice, PlatformError, core as core_platform};
+use crate::platform::{PlatformError, core as core_platform};
 use crate::runtime::{BindingCallContext, RuntimeScheduledCallbackControl};
 
 use super::super::constants::{

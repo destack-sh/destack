@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::abi::NativeStringRef;
 use crate::platform::core::{self as core_platform};
 use crate::platform::device::midi::core::{
     MidiOutputRecordValue, MidiPortDescriptorValue, remove_labeled_resource,
@@ -11,7 +12,7 @@ use crate::platform::device::{
     MidiProtocol, MidiVirtualOutputCreateOptions,
 };
 use crate::platform::resource;
-use crate::runtime::{BindingCallContext, NativeStringRef};
+use crate::runtime::BindingCallContext;
 
 use super::core::{WindowsMidiOutputSession, insert_output_resource};
 use super::descriptor::{filtered_descriptors, resolve_endpoint};

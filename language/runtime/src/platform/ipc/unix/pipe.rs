@@ -1,7 +1,8 @@
 use crate::diagnostic::RuntimeResult;
+use crate::platform::abi::NativeSlice;
 use crate::platform::ipc::PipePair;
 use crate::platform::{core as core_platform, resource};
-use crate::runtime::{BindingCallContext, NativeSlice};
+use crate::runtime::BindingCallContext;
 
 use super::core::{io_error, pipe_descriptor, register_pipe_descriptor};
 

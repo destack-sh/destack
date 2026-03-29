@@ -20,7 +20,8 @@ use super::{
     binding_affinity_name, current_agent_context, current_event_loop_scope,
     with_binding_call_arena,
 };
-use crate::runtime::{Hooks, NativeSlice, NativeStringRef, NativeStringSlice, PolicyCallId};
+use crate::platform::abi::{NativeSlice, NativeStringRef, NativeStringSlice};
+use crate::runtime::{Hooks, PolicyCallId};
 use destack_workspace::{RuntimeAccess, RuntimeDiagnosticLevel, TimeMode};
 
 /// TLS payload for native runtime calls.

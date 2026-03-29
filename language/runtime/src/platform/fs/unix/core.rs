@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use super::os;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::NativeSlice;
 use crate::platform::fs::{
     DirentKind, FileMode, FileOffset, FileSize, PathBytes, PathUtf16, Stat, core as core_fs,
 };
@@ -10,7 +11,7 @@ use crate::platform::resource::{
     DirectoryHandle, FileHandle, ResourceFinalizer, ResourceId, ResourceKind,
 };
 use crate::platform::{PlatformError, core as core_platform};
-use crate::runtime::{BindingCallContext, NativeSlice};
+use crate::runtime::BindingCallContext;
 
 use std::ffi::CString;
 use std::os::unix::ffi::OsStrExt;

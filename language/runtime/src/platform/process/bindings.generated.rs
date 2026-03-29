@@ -9,6 +9,7 @@
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::{NativeSlice, NativeStringRef, NativeStringSlice};
 use crate::platform::process::{
     ExecAtFlags, GroupId, ProcessFdAction, ProcessFdActionClose, ProcessFdActionCloseVm,
     ProcessFdActionDup2, ProcessFdActionDup2Vm, ProcessFdActionOpen, ProcessFdActionOpenVm,
@@ -31,8 +32,8 @@ use crate::platform::process::{
     SignalEventVm, SignalFdFlags, SignalMaskHow, SyscallFilterFlags, UserId,
 };
 use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError, RuntimeStatus,
-    VmAggregateCodec, VmArray, VmSlice, abi as platform_abi,
+    NativeArray, PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice,
+    abi as platform_abi,
 };
 use crate::runtime::bindings::{
     BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,

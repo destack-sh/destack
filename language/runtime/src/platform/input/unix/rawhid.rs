@@ -7,13 +7,14 @@ use super::core as input_core;
 use super::linux as input_linux;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::NativeSlice;
 #[cfg(target_os = "linux")]
 use crate::platform::core as core_platform;
 #[cfg(target_os = "linux")]
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{InputRawHidReport, validation as input_validation};
 use crate::platform::{PlatformError, resource};
-use crate::runtime::{BindingCallContext, NativeSlice};
+use crate::runtime::BindingCallContext;
 
 /// Linux hidraw node prefix.
 const HIDRAW_NODE_PREFIX: &str = "hidraw";

@@ -9,6 +9,7 @@
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::NativeSlice;
 use crate::platform::random::{
     RandomStream, RandomStreamDomain, RandomStreamState, RandomStreamStateValue,
     RandomStreamStateVm, RandomstreamstateReplayRecord, SecureRandomMetadata,
@@ -16,8 +17,7 @@ use crate::platform::random::{
     SecurerandommetadataReplayRecord,
 };
 use crate::platform::{
-    NativeSlice, PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice,
-    abi as platform_abi,
+    PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice, abi as platform_abi,
 };
 use crate::runtime::bindings::{
     BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,

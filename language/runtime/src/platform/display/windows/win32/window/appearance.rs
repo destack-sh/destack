@@ -5,9 +5,10 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
 };
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::abi::NativeStringRef;
 use crate::platform::display::{WindowChromeKind, WindowIconSet, WindowVisibility};
 use crate::platform::{core as core_platform, resource};
-use crate::runtime::{BindingCallContext, NativeStringRef};
+use crate::runtime::BindingCallContext;
 
 use super::constants::{WINDOW_ICON_BIG_DEFAULT, WINDOW_ICON_SMALL_DEFAULT};
 use super::core::{apply_window_style, normalize_opacity, show_command};

@@ -1,5 +1,6 @@
 use super::{core, win32};
 use crate::diagnostic::RuntimeResult;
+use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::display::{
     DisplayBackend, DisplayBackendCapabilityFlags, DisplayBackendDescriptor, DisplayColorState,
     DisplayDescriptor, DisplayGammaRamp, DisplayHdrMode, DisplayMode, DisplayMonitorEvent,
@@ -10,7 +11,7 @@ use crate::platform::display::{
     WindowSizeConstraints, WindowState, WindowVisibility,
 };
 use crate::platform::{NativeArray, core as core_platform, resource};
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
+use crate::runtime::BindingCallContext;
 
 /// List windows display backend descriptors for the active host.
 pub(crate) fn display_backend_descriptors(

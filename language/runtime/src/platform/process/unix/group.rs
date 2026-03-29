@@ -3,11 +3,11 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 #[cfg(any(target_os = "linux", target_os = "android"))]
 use crate::platform::PlatformErrorCode;
+use crate::platform::abi::{NativeSlice, NativeStringRef};
 #[cfg(any(target_os = "linux", target_os = "android"))]
 use crate::platform::diagnostic::process_error_code_from_errno;
 #[cfg(any(target_os = "linux", target_os = "android"))]
 use crate::platform::process::core as core_process;
-use crate::runtime::{NativeSlice, NativeStringRef};
 
 use crate::runtime::BindingCallContext;
 

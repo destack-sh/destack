@@ -3,6 +3,7 @@ use std::sync::Arc;
 use parking_lot::Mutex;
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::abi::NativeStringRef;
 use crate::platform::core::{self as core_platform};
 use crate::platform::device::midi::core::{
     MidiInputRecordValue, MidiPortDescriptorValue, input_queue_capacity, read_queued_batch,
@@ -14,8 +15,8 @@ use crate::platform::device::{
     MidiVirtualInputCreateOptions,
 };
 use crate::platform::resource;
+use crate::runtime::BindingCallContext;
 use crate::runtime::control::queue::BoundedQueue;
-use crate::runtime::{BindingCallContext, NativeStringRef};
 
 use super::core::{WindowsMidiInputSession, insert_input_resource};
 use super::descriptor::{filtered_descriptors, resolve_endpoint};

@@ -1,8 +1,9 @@
 use super::core::require_out;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::NativeSlice;
 use crate::platform::io::{UringFeatures, UringParameters};
 use crate::platform::{PlatformError, resource};
-use crate::runtime::{BindingCallContext, NativeSlice};
+use crate::runtime::BindingCallContext;
 
 /// Close one io_uring ring.
 ///

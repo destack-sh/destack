@@ -6,13 +6,14 @@ use windows_sys::Win32::Networking::WinSock::{
 use super::io::destack_net_recv_from as recv_from_socket;
 use super::util::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::NativeSlice;
 use crate::platform::net::{
     SocketAddress, SocketFamily, SocketHandle, SocketMessageFlags, SocketRecvFrom, UdpMessageFlags,
     UdpReceive,
 };
 use crate::platform::resource::{ResourceEntry, ResourceKind};
 use crate::platform::{PlatformError, core as core_platform};
-use crate::runtime::{BindingCallContext, NativeSlice};
+use crate::runtime::BindingCallContext;
 
 /// Create a UDP socket.
 ///

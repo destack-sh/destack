@@ -120,11 +120,13 @@ impl<'spec, 'output> HarnessWriter<'spec, 'output> {
             ));
         }
 
+        let native_abi_imports = ["NativeSlice", "NativeStringRef", "NativeStringSlice"].join(", ");
+        self.output.push_str(&format!(
+            "use crate::platform::abi::{{{native_abi_imports}}};\n"
+        ));
+
         let mut platform_imports = BTreeSet::from([
             "NativeArray".to_string(),
-            "NativeSlice".to_string(),
-            "NativeStringRef".to_string(),
-            "NativeStringSlice".to_string(),
             "PlatformError as HarnessPlatformError".to_string(),
             "VmArray".to_string(),
             "VmSlice".to_string(),
@@ -585,7 +587,8 @@ mod tests {
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::os::tests::HarnessContext;
 use crate::platform::os::{native as os_native, vm as os_vm};
-use crate::platform::{NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError as HarnessPlatformError, VmArray, VmSlice, fs, resource};
+use crate::platform::abi::{NativeSlice, NativeStringRef, NativeStringSlice};
+use crate::platform::{NativeArray, PlatformError as HarnessPlatformError, VmArray, VmSlice, fs, resource};
 use destack_vm as vm;
 
 impl<'call> HarnessContext<'call> {
@@ -719,7 +722,8 @@ impl<Native, Vm> HarnessValue<Native, Vm> {
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::display::tests::DisplayHarnessContext;
 use crate::platform::display::{WindowAspectRatio, WindowAspectRatioVm, native as display_native, vm as display_vm};
-use crate::platform::{NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError as HarnessPlatformError, VmArray, VmSlice, fs, resource};
+use crate::platform::abi::{NativeSlice, NativeStringRef, NativeStringSlice};
+use crate::platform::{NativeArray, PlatformError as HarnessPlatformError, VmArray, VmSlice, fs, resource};
 use destack_vm as vm;
 
 impl<'call> DisplayHarnessContext<'call> {

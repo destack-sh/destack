@@ -16,6 +16,7 @@ use crate::host::macos::request::contact::{
 use crate::host::windows::request::contact::{
     WindowsContactHooks as DesktopContactHooks, set_windows_contact_test_hooks,
 };
+use crate::platform::abi::NativeStringRef;
 use crate::platform::os::abi_generated::{
     ContactDraftValue, ContactPageValue, ContactQueryValue, ContactValue,
 };
@@ -25,7 +26,7 @@ use crate::platform::os::{
     ContactNameValue, ContactOrganizationValue, ContactPage, ContactPageVm, ContactPhoneValue,
     ContactQuery, ContactQueryVm, ContactVm,
 };
-use crate::platform::{NativeAbiCodec, NativeStringRef, VmAbiCodec};
+use crate::platform::{NativeAbiCodec, VmAbiCodec};
 
 /// Shared desktop contact test state.
 #[derive(Default)]

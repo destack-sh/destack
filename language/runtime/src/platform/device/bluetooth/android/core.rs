@@ -29,6 +29,7 @@ pub(super) use crate::host::android::abi::bluetooth::types::{
     AndroidHostBluetoothScanFilterHeader, AndroidHostBluetoothSessionEventHeader,
 };
 pub(super) use crate::host::core::HostStatus;
+pub(super) use crate::platform::abi::{NativeSlice, NativeStringRef};
 pub(super) use crate::platform::core::android::{
     checked_u32_length, host_session_id, host_status_result, invalid_data,
 };
@@ -57,7 +58,7 @@ pub(super) use crate::platform::device::{
     BluetoothServiceDataFilterValue, BluetoothSessionEvent,
 };
 pub(super) use crate::platform::resource::{ResourceEntry, ResourceFinalizer, ResourceKind};
-pub(super) use crate::platform::{NativeSlice, NativeStringRef, PlatformError, resource};
+pub(super) use crate::platform::{PlatformError, resource};
 pub(super) use crate::runtime::BindingCallContext;
 pub(super) use crate::runtime::control::queue::BoundedQueue;
 

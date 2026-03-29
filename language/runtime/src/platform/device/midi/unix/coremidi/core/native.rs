@@ -1,5 +1,5 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::NativeStringRef;
+use crate::platform::abi::NativeStringRef;
 use crate::platform::core::{self as core_platform};
 use crate::platform::device::midi::core::binding_timestamp_now;
 

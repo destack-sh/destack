@@ -1,6 +1,7 @@
 use destack_vm;
 
 use crate::diagnostic::{DiagnosticId, DiagnosticStore, RuntimeError, RuntimeResult};
+use crate::platform::abi::NativeStringRef;
 use crate::platform::diagnostic::{
     PlatformError as DiagnosticPlatformError, PlatformErrorCode as DiagnosticPlatformErrorCode,
     PlatformErrorContext as DiagnosticPlatformErrorContext,
@@ -31,7 +32,7 @@ use crate::platform::error::{
     PlatformSystemSourceWinsock, PlatformSystemSourceWinsockVm,
 };
 use crate::platform::{NativeArray, VmArray};
-use crate::runtime::{BindingCallContext, NativeStringRef};
+use crate::runtime::BindingCallContext;
 
 /// String storage adapter for native runtime calls.
 #[derive(Debug)]

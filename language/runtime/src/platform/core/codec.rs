@@ -2,7 +2,7 @@ use std::mem::MaybeUninit;
 
 use super::{NativeAbiCodec, VmAbiCodec};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::abi::{NativeAbi, VmAbi};
+use crate::platform::abi::{NativeAbi, NativeSlice, NativeStringRef, NativeStringSlice, VmAbi};
 use crate::platform::fs::{
     OsPath, OsPathBytesVm, OsPathUtf16Vm, OsPathVm, PathBytes, PathBytesAbi, PathBytesVm,
     PathUtf16, PathUtf16Abi, PathUtf16Vm, core as core_fs,
@@ -10,7 +10,7 @@ use crate::platform::fs::{
 use crate::platform::{
     NativeArray, PlatformError, VmAggregateCodec, VmArray, VmCollectionElement, VmSlice,
 };
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef, NativeStringSlice};
+use crate::runtime::BindingCallContext;
 use destack_vm as vm;
 
 /// Mechanical native binding codec for one binding call.

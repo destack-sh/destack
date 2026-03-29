@@ -1,11 +1,12 @@
 use crate::diagnostic::RuntimeResult;
+use crate::platform::abi::NativeSlice;
 use crate::platform::crypto::{
     CryptoAsymmetricEncryptionParameters, CryptoKeyDescriptor, CryptoKeyFormat,
     CryptoKeyGenerationRequest, CryptoKeyImportRequest, CryptoKeyPair, CryptoKeyWrapParameters,
     CryptoPrivateKeyExportRequest, CryptoSignatureParameters, core as crypto_core,
 };
 use crate::platform::resource;
-use crate::runtime::{BindingCallContext, NativeSlice};
+use crate::runtime::BindingCallContext;
 
 use crate::platform::crypto::core::{decode_bytes, write_out_bytes, write_out_value};
 

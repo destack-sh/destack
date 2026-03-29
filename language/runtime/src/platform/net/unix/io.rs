@@ -2,10 +2,11 @@ use super::core::*;
 use super::os;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::NativeSlice;
 use crate::platform::net::*;
 use crate::platform::resource::{ResourceEntry, TransferredHandle};
 use crate::platform::{core as core_platform, *};
-use crate::runtime::{BindingCallContext, NativeSlice};
+use crate::runtime::BindingCallContext;
 
 use std::os::unix::io::RawFd;
 

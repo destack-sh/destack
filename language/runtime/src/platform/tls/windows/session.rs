@@ -3,13 +3,14 @@ use std::io::{Read, Write};
 use windows_sys::Win32::Networking::WinSock::{SOCKET, SOCKET_ERROR, WSAGetLastError, recv, send};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::net::core as core_net;
 use crate::platform::resource::ResourceKind;
 use crate::platform::tls::{
     TlsHandshakeStatus, TlsRole, TlsSessionResumptionState, core as core_tls,
 };
 use crate::platform::{PlatformError, resource};
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
+use crate::runtime::BindingCallContext;
 
 /// Socket transport adapter for TLS over winsock sockets.
 struct WindowsSocketTransport {

@@ -3,10 +3,11 @@ use objc2_core_graphics::{kCGFloatingWindowLevel, kCGNormalWindowLevel};
 use objc2_foundation::NSString;
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::abi::NativeStringRef;
 use crate::platform::core as core_platform;
 use crate::platform::display::{WindowChromeKind, WindowIconSet, WindowVisibility, unsupported};
 use crate::platform::resource::WindowHandle;
-use crate::runtime::{BindingCallContext, NativeStringRef};
+use crate::runtime::BindingCallContext;
 
 use super::{icon, reconcile};
 use crate::platform::display::unix::appkit::event::publish_state_deltas;

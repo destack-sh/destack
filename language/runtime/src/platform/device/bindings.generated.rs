@@ -9,6 +9,7 @@
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::device::{
     BluetoothAdapterAttachedEvent, BluetoothAdapterAttachedEventValue,
     BluetoothAdapterAttachedEventVm, BluetoothAdapterChangedEvent,
@@ -153,8 +154,8 @@ use crate::platform::device::{
     UsbisochronoustransferresultReplayRecord, UsbstringdescriptorReplayRecord,
 };
 use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmAggregateCodec,
-    VmArray, VmSlice, abi as platform_abi,
+    NativeArray, PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice,
+    abi as platform_abi,
 };
 use crate::runtime::bindings::{
     BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,

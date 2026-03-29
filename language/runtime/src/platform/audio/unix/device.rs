@@ -3,6 +3,7 @@ use std::sync::Arc;
 use super::super::{backend_descriptors, resolve_requested_backend};
 use super::core as audio_platform_core;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::audio::{
     AudioBackend, AudioBackendDescriptor, AudioBackendSelectionPolicy, AudioDeviceDescriptor,
     AudioDeviceDirection, AudioDeviceListFlags, AudioDeviceListRequest, AudioDeviceOpenOptions,
@@ -10,7 +11,7 @@ use crate::platform::audio::{
 };
 use crate::platform::resource::{ResourceEntry, ResourceKind};
 use crate::platform::{PlatformError, core as core_platform, resource};
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
+use crate::runtime::BindingCallContext;
 
 /// List host audio backends.
 ///

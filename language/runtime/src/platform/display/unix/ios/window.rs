@@ -1,4 +1,5 @@
 use crate::diagnostic::RuntimeResult;
+use crate::platform::abi::NativeStringRef;
 use crate::platform::display::{
     WindowAspectRatio, WindowAttentionLevel, WindowChromeKind, WindowCursorIcon, WindowCursorMode,
     WindowDescriptor, WindowIconSet, WindowLogicalSize, WindowModeOptions, WindowOptions,
@@ -6,7 +7,7 @@ use crate::platform::display::{
     WindowVisibility, unsupported,
 };
 use crate::platform::resource;
-use crate::runtime::{BindingCallContext, NativeStringRef};
+use crate::runtime::BindingCallContext;
 
 /// Close one window.
 pub(crate) unsafe fn window_close(

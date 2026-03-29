@@ -5,6 +5,7 @@
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::{NativeSlice, NativeStringRef, NativeStringSlice};
 use crate::platform::process::tests::ProcessHarnessContext;
 use crate::platform::process::{
     ExecAtFlags, GroupId, ProcessFdAction, ProcessFdActionClose, ProcessFdActionCloseVm,
@@ -24,8 +25,8 @@ use crate::platform::process::{
     vm as process_vm,
 };
 use crate::platform::{
-    NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
-    PlatformError as HarnessPlatformError, VmAbiCodec, VmArray, VmSlice, fs, resource, thread,
+    NativeAbiCodec, NativeArray, PlatformError as HarnessPlatformError, VmAbiCodec, VmArray,
+    VmSlice, fs, resource, thread,
 };
 use destack_vm as vm;
 

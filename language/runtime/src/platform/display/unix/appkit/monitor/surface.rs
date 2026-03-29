@@ -1,10 +1,11 @@
 use crate::diagnostic::RuntimeResult;
+use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::display::{
     DisplayColorState, DisplayDescriptor, DisplayHdrMode, DisplayMonitorListRequest,
     DisplayMonitorOpenOptions,
 };
 use crate::platform::{core as core_platform, resource};
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
+use crate::runtime::BindingCallContext;
 
 use super::{descriptor_from_value, enumerate_monitor_snapshots, monitor_snapshot_by_display_id};
 use crate::platform::display::unix::appkit::{core, resource as display_resource};

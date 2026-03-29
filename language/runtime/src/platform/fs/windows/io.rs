@@ -12,12 +12,13 @@ use windows_sys::Win32::System::IO::{GetOverlappedResult, OVERLAPPED, OVERLAPPED
 
 use super::util::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::NativeSlice;
 use crate::platform::fs::{
     FileHandle, FileOffset, FileSize, ReadWriteFlags, SpliceCursor, SpliceFlags, core as core_fs,
 };
 use crate::platform::net::SocketHandle;
 use crate::platform::resource::{PipeHandle, ResourceId, ResourceKind};
-use crate::platform::{NativeSlice, PlatformError, core as core_platform};
+use crate::platform::{PlatformError, core as core_platform};
 use crate::runtime::BindingCallContext;
 
 #[link(name = "mswsock")]

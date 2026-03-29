@@ -13,6 +13,7 @@ use crate::host::android::abi::midi::types::{
     AndroidHostMidiPortDescriptorHeader,
 };
 use crate::host::core::HostStatus;
+use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::core::android::host_status_result;
 use crate::platform::device::midi::core::{
     MidiEventValue, MidiInputRecordValue, MidiOutputRecordValue, MidiPortDescriptorValue,
@@ -23,7 +24,7 @@ use crate::platform::device::{
 };
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::{PlatformError, core as core_platform};
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
+use crate::runtime::BindingCallContext;
 
 use super::super::descriptor::{
     decode_input_records, decode_native_events, decode_opened_port, decode_port_descriptors,

@@ -7,9 +7,9 @@ use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::crypto::bindings_generated as bindings;
 use crate::platform::{NativeArray, PlatformError};
-use crate::runtime::{NativeSlice, NativeStringRef};
 
 use crate::runtime::BindingCallContext;
 use bindings::*;

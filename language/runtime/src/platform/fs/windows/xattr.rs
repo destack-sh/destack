@@ -15,11 +15,12 @@ use windows_sys::Win32::System::IO::IO_STATUS_BLOCK;
 
 use super::util::{file_handle, last_os_error, wide_from_bytes, wide_from_utf16};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::fs::{OsPath, PathBytes, PathUtf16, XattrFlags, core as core_fs};
 use crate::platform::resource::FileHandle;
 use crate::platform::{NativeArray, PlatformError, core as core_platform};
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
+use crate::runtime::BindingCallContext;
 
 const STATUS_SUCCESS: NTSTATUS = 0;
 const STATUS_BUFFER_OVERFLOW: NTSTATUS = 0x8000_0005u32 as i32;

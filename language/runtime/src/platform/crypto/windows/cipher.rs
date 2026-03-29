@@ -1,9 +1,10 @@
 use crate::diagnostic::RuntimeResult;
+use crate::platform::abi::NativeSlice;
 use crate::platform::crypto::{
     CryptoCipherDirection, CryptoCipherOutput, CryptoCipherParameters, core as crypto_core,
 };
 use crate::platform::resource;
-use crate::runtime::{BindingCallContext, NativeSlice};
+use crate::runtime::BindingCallContext;
 
 use crate::platform::crypto::core::{cipher_output, decode_bytes, write_out_value};
 

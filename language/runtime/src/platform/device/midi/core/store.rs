@@ -1,9 +1,10 @@
 use crate::diagnostic::RuntimeResult;
+use crate::platform::abi::NativeSlice;
 use crate::platform::device::{
     MidiBackendDescriptor, MidiBackendDescriptorVm, MidiEvent, MidiEventVm, MidiInputRecord,
     MidiInputRecordVm, MidiPortDescriptor, MidiPortDescriptorVm,
 };
-use crate::platform::{NativeArray, NativeSlice, VmArray, VmSlice};
+use crate::platform::{NativeArray, VmArray, VmSlice};
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
 

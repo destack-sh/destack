@@ -11,13 +11,14 @@ use super::{
 };
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform;
+use crate::platform::abi::NativeSlice;
 use crate::platform::core::{
     bytes_to_vm, call_out, intern_string_to_vm as string_to_vm, map_native_slice_to_vm,
     store_bytes_from_vm as bytes_from_vm, store_string_from_vm as string_from_vm,
     store_vm_byte_slices,
 };
 use crate::platform::{VmSlice, resource};
-use crate::runtime::{BindingCallContext, NativeSlice};
+use crate::runtime::BindingCallContext;
 
 type NativeByteVectors = NativeSlice<NativeSlice<u8>>;
 type VmByteVectorList = Vec<VmSlice<u8>>;

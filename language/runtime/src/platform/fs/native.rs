@@ -1,8 +1,9 @@
 use crate::diagnostic::RuntimeResult;
 use crate::platform::NativeArray;
+use crate::platform::abi::NativeSlice;
 use crate::platform::fs::{OsPath, XattrFlags};
 use crate::platform::resource::FileHandle;
-use crate::runtime::{BindingCallContext, NativeSlice};
+use crate::runtime::BindingCallContext;
 
 pub(crate) use super::host::*;
 

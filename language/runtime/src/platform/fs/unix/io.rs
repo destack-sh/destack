@@ -1,12 +1,13 @@
 use super::core::*;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::NativeSlice;
 #[cfg(not(target_os = "linux"))]
 use crate::platform::fs::core as core_fs;
 use crate::platform::fs::*;
 use crate::platform::resource::*;
 use crate::platform::{core as core_platform, *};
-use crate::runtime::{BindingCallContext, NativeSlice};
+use crate::runtime::BindingCallContext;
 
 use std::os::unix::io::RawFd;
 

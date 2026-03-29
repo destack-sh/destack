@@ -1,4 +1,4 @@
-use crate::platform::NativeStringRef;
+use crate::platform::abi::NativeStringRef;
 use crate::platform::display::unix::wayland::mode_display;
 use crate::platform::display::{
     WindowBorderlessModeOptions, WindowLogicalSize, WindowModeOptions, WindowPhysicalSize,

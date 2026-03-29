@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::fs::OsPath;
 use crate::platform::net::{
     AcceptFlags, Linger, ResolveFlags, ReverseLookupFlags, ReverseLookupName, SocketAddress,
@@ -9,7 +10,7 @@ use crate::platform::net::{
 };
 use crate::platform::resource::{ListenerHandle, SocketHandle};
 use crate::platform::{NativeArray, PlatformError};
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
+use crate::runtime::BindingCallContext;
 
 pub(crate) use crate::platform::net::simulation::native::*;
 

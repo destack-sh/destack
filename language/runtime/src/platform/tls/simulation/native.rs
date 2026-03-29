@@ -3,7 +3,7 @@
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
-use crate::runtime::{NativeSlice, NativeStringRef, NativeStringSlice};
+use crate::platform::abi::{NativeSlice, NativeStringRef, NativeStringSlice};
 
 use crate::runtime::BindingCallContext;
 
