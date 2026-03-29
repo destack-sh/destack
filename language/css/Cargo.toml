@@ -1,0 +1,28 @@
+[package]
+name = "destack_css"
+description = "Destack CSS IR"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "src/lib.rs"
+doctest = false
+
+[dependencies]
+# language
+destack_core = { workspace = true }
+destack_fir = { workspace = true }
+destack_source = { workspace = true }
+
+# general
+cssparser = { workspace = true }
+lightningcss = { workspace = true, features = ["serde", "into_owned"] }
+parcel_selectors = { workspace = true }
+selector_cssparser = { package = "cssparser", version = "0.33.0" }
+serde = { workspace = true, features = ["derive"] }
+
+[lints]
+workspace = true
