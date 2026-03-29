@@ -1,37 +1,26 @@
-/// String metadata flags.
-enum StringFlag {
-    /// Hash field has been computed.
-    HasHash = 1,
-    /// Payload is ASCII-only.
-    IsAscii = 2,
-    /// Payload points at static read-only data.
-    IsStatic = 4,
-    /// String contents are interned.
-    IsInterned = 8,
-    /// Payload is owned outside the managed heap.
-    IsExternal = 16,
-}
-
-/// Bitmask of string flags.
-newtype StringFlags = uint32;
-
 /// Native UTF-8 string with cached UTF-16 length for TypeScript compatibility.
 export struct String {
     /// UTF-16 code unit count (for .length compatibility with JS/TS).
     lengthUtf16: uint32;
     /// Byte length of UTF-8 data.
     lengthBytes: uint32;
-    /// Cached hash (0 = not yet computed).
-    hash: uint64;
-    /// Allocated capacity in bytes.
-    capacity: uint32;
-    /// Runtime metadata flags.
-    flags: StringFlags;
     /// Pointer to UTF-8 byte data.
     data: *uint8;
 }
 
-// TODO: support proper native String
+/// Mutable UTF-8 string builder with growable backing storage.
+export struct StringBuilder {
+    /// UTF-16 code unit count for the current contents.
+    lengthUtf16: uint32;
+    /// Byte length of the current UTF-8 contents.
+    lengthBytes: uint32;
+    /// Allocated payload capacity in bytes.
+    capacity: uint32;
+    /// Pointer to UTF-8 byte data.
+    data: *uint8;
+}
+
+// TODO #Incomplete: support proper native String and StringBuilder
 
 extension for String {
     /// The length in UTF-16 code units (TypeScript-compatible).
