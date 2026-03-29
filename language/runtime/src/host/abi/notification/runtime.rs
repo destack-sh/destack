@@ -1,57 +1,25 @@
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::error::{invalid_argument_value, not_supported};
+use crate::host::core::error::invalid_argument_value;
+#[cfg(any(target_os = "android", target_os = "ios"))]
+use crate::host::core::error::not_supported;
+#[cfg(any(target_os = "android", target_os = "ios"))]
 use crate::platform::NativeAbiCodec;
+use crate::platform::abi::NativeStringRef;
 use crate::platform::os::abi_generated::{
     NotificationDeliveredEventValue, NotificationDismissedEventValue,
     NotificationEventMetadataValue, NotificationEventValue, NotificationImmediateTriggerValue,
     NotificationInteractedEventValue, NotificationInteractedPayloadValue, NotificationPriority,
     NotificationRequestValue, NotificationTriggerValue,
 };
-use crate::runtime::{BindingCallContext, NativeStringRef};
+#[cfg(any(target_os = "android", target_os = "ios"))]
+use crate::runtime::BindingCallContext;
 
-/// One host mobile notification request payload.
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub(crate) struct HostNotificationRequest {
-    /// The stable runtime notification identifier.
-    pub identifier: NativeStringRef,
-    /// The primary notification title.
-    pub title: NativeStringRef,
-    /// The primary notification body text.
-    pub body: NativeStringRef,
-}
-
-/// The simplified notification event kind passed through the mobile host ABI.
-#[derive(Clone, Copy, Debug)]
-#[repr(u32)]
-pub(crate) enum HostNotificationEventKind {
-    /// The notification was delivered.
-    Delivered = 1,
-    /// The notification was activated by the user.
-    Activated = 2,
-    /// The notification was dismissed.
-    Dismissed = 3,
-}
-
-/// One mobile notification event payload.
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub(crate) struct HostNotificationEvent {
-    /// The notification interaction kind.
-    pub kind: HostNotificationEventKind,
-    /// The event sequence number for this stream.
-    pub sequence: u64,
-    /// The monotonic event timestamp in nanoseconds.
-    pub timestamp_ns: u64,
-    /// The simplified request associated with this event.
-    pub request: HostNotificationRequest,
-    /// Whether the host provided one action identifier.
-    pub has_action_identifier: bool,
-    /// The action identifier for interactive notifications when available.
-    pub action_identifier: NativeStringRef,
-}
+use crate::host::abi::notification::{
+    HostNotificationEvent, HostNotificationEventKind, HostNotificationRequest,
+};
 
 /// Encode one mobile notification request payload for the host ABI.
+#[cfg(any(target_os = "android", target_os = "ios"))]
 pub(crate) fn encode_notification_request(
     binding: &BindingCallContext,
     request: &NotificationRequestValue,
@@ -95,7 +63,6 @@ pub(crate) fn encode_notification_request(
 /// Decode one mobile notification event payload from the host ABI.
 pub(crate) fn decode_notification_event(
     event: HostNotificationEvent,
-    operation: &'static str,
 ) -> RuntimeResult<NotificationEventValue> {
     let request = decode_notification_request(
         event.request,
@@ -120,7 +87,6 @@ pub(crate) fn decode_notification_event(
             let action_id = decode_optional_string(
                 event.has_action_identifier,
                 event.action_identifier,
-                operation,
                 "HostNotificationEvent.action_identifier",
             )?;
 
@@ -155,7 +121,6 @@ fn decode_notification_request(
     let action_id = decode_optional_string(
         has_action_identifier,
         action_identifier,
-        "notification event",
         "HostNotificationEvent.action_identifier",
     )?;
 
@@ -190,7 +155,6 @@ fn decode_required_string(value: NativeStringRef, argument: &'static str) -> Run
 fn decode_optional_string(
     is_present: bool,
     value: NativeStringRef,
-    _operation: &'static str,
     argument: &'static str,
 ) -> RuntimeResult<Option<String>> {
     if !is_present {
