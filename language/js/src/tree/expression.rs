@@ -182,3 +182,158 @@ pub enum ArrayElement {
 impl Node for ArrayElement {
     const TYPE: NodeType = NodeType::ArrayElement;
 }
+
+/// One local expression precedence level for JS printing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) enum Precedence {
+    /// Comma and lowest-precedence expressions.
+    Lowest,
+    /// Assignment expressions.
+    Assignment,
+    /// Conditional expressions.
+    Conditional,
+    /// Nullish coalescing expressions.
+    Coalesce,
+    /// Logical or expressions.
+    LogicalOr,
+    /// Logical and expressions.
+    LogicalAnd,
+    /// Bitwise or expressions.
+    BitwiseOr,
+    /// Bitwise xor expressions.
+    BitwiseXor,
+    /// Bitwise and expressions.
+    BitwiseAnd,
+    /// Equality expressions.
+    Equality,
+    /// Relational expressions.
+    Compare,
+    /// Shift expressions.
+    Shift,
+    /// Additive expressions.
+    Add,
+    /// Multiplicative expressions.
+    Multiply,
+    /// Exponent expressions.
+    Exponent,
+    /// Prefix expressions.
+    Prefix,
+    /// Postfix expressions.
+    Postfix,
+    /// Primary expressions.
+    Primary,
+}
+
+impl Precedence {
+    /// Return the next tighter precedence level.
+    pub(crate) fn tighter(self) -> Self {
+        match self {
+            Self::Lowest => Self::Assignment,
+            Self::Assignment => Self::Conditional,
+            Self::Conditional => Self::Coalesce,
+            Self::Coalesce => Self::LogicalOr,
+            Self::LogicalOr => Self::LogicalAnd,
+            Self::LogicalAnd => Self::BitwiseOr,
+            Self::BitwiseOr => Self::BitwiseXor,
+            Self::BitwiseXor => Self::BitwiseAnd,
+            Self::BitwiseAnd => Self::Equality,
+            Self::Equality => Self::Compare,
+            Self::Compare => Self::Shift,
+            Self::Shift => Self::Add,
+            Self::Add => Self::Multiply,
+            Self::Multiply => Self::Exponent,
+            Self::Exponent => Self::Prefix,
+            Self::Prefix => Self::Postfix,
+            Self::Postfix => Self::Primary,
+            Self::Primary => Self::Primary,
+        }
+    }
+}
+
+impl Expression {
+    /// Return this expression without redundant explicit parentheses.
+    pub(crate) fn without_parentheses<'a>(
+        tree: &'a crate::NodeTree,
+        expression: &'a Self,
+    ) -> &'a Self {
+        let mut expression = expression;
+
+        while let Self::Parenthesized {
+            expression: inner_expression_id,
+        } = expression
+        {
+            expression = tree.get(*inner_expression_id);
+        }
+
+        expression
+    }
+
+    /// Return the local precedence for this expression.
+    pub(crate) fn precedence(&self) -> Precedence {
+        match self {
+            Self::SequenceExpression { .. } => Precedence::Lowest,
+            Self::Yield { .. } => Precedence::Assignment,
+            Self::Assign { .. } | Self::AssignBinary { .. } => Precedence::Assignment,
+            Self::IfTernary { .. } => Precedence::Conditional,
+            Self::Binary { operator, .. } => operator.precedence(),
+            Self::Await { .. } | Self::Unary { .. } | Self::TypeUnary { .. } => Precedence::Prefix,
+            Self::Maybe { .. }
+            | Self::Must { .. }
+            | Self::Member { .. }
+            | Self::PrivateMember { .. }
+            | Self::Index { .. }
+            | Self::Call { .. }
+            | Self::ImportCall { .. }
+            | Self::New { .. } => Precedence::Postfix,
+            Self::ArrowFunction { .. } => Precedence::Conditional,
+            Self::TypeBinary { operator, .. } => operator.precedence(),
+            Self::Declaration { .. }
+            | Self::Path { .. }
+            | Self::ImportMeta
+            | Self::NewTarget
+            | Self::PrivateIdentifier { .. }
+            | Self::ScalarLiteral { .. }
+            | Self::TemplateLiteral { .. }
+            | Self::ArrayLiteral { .. }
+            | Self::ObjectLiteral { .. }
+            | Self::Parenthesized { .. }
+            | Self::Missing
+            | Self::Stub
+            | Self::Error => Precedence::Primary,
+        }
+    }
+}
+
+impl BinaryOperator {
+    /// Return the local precedence for this binary operator.
+    pub(crate) fn precedence(self) -> Precedence {
+        match self {
+            Self::Multiply | Self::Divide | Self::Remainder => Precedence::Multiply,
+            Self::Exponent => Precedence::Exponent,
+            Self::Add | Self::Subtract => Precedence::Add,
+            Self::ShiftLeft | Self::ShiftRight | Self::UnsignedShiftRight => Precedence::Shift,
+            Self::ElementwiseAnd => Precedence::BitwiseAnd,
+            Self::ElementwiseXor => Precedence::BitwiseXor,
+            Self::ElementwiseOr => Precedence::BitwiseOr,
+            Self::Equal | Self::NotEqual | Self::EqualStrict | Self::NotEqualStrict => {
+                Precedence::Equality
+            }
+            Self::LessThan
+            | Self::LessThanOrEqual
+            | Self::GreaterThan
+            | Self::GreaterThanOrEqual
+            | Self::In
+            | Self::InstanceOf => Precedence::Compare,
+            Self::And => Precedence::LogicalAnd,
+            Self::Or => Precedence::LogicalOr,
+            Self::Coalesce => Precedence::Coalesce,
+        }
+    }
+}
+
+impl TypeBinaryOperator {
+    /// Return the local precedence for this type binary operator.
+    pub(crate) fn precedence(self) -> Precedence {
+        Precedence::Compare
+    }
+}

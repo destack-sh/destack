@@ -15,9 +15,11 @@ doctest = false
 # language
 destack_core = { workspace = true }
 destack_dir = { workspace = true }
+destack_fir = { workspace = true }
 destack_source = { workspace = true }
 
 # general
+serde_json = { workspace = true }
 smallvec = { workspace = true }
 
 [lints]
