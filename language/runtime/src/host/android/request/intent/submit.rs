@@ -10,9 +10,9 @@ use crate::host::core::{
     HOST_STATUS_NOT_FOUND, HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK,
     HOST_STATUS_PERMISSION_DENIED, HostRequest, HostRequestOutcome, HostRequestResult,
 };
+use crate::platform::abi::{NativeStringRef, NativeStringSlice};
 use crate::platform::diagnostic::{PlatformError, PlatformErrorCode};
 use crate::platform::fs::core as core_fs;
-use crate::runtime::{NativeStringRef, NativeStringSlice};
 
 /// Return one Android intent request outcome when supported.
 pub(crate) fn submit_intent_request(

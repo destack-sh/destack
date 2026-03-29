@@ -10,9 +10,9 @@ use crate::host::ios::abi::intent::{
     destack_host_ios_intent_open_url, destack_host_ios_intent_share_paths,
     destack_host_ios_intent_share_text,
 };
+use crate::platform::abi::{NativeStringRef, NativeStringSlice};
 use crate::platform::diagnostic::{PlatformError, PlatformErrorCode};
 use crate::platform::fs::core as core_fs;
-use crate::runtime::{NativeStringRef, NativeStringSlice};
 
 /// Return one iOS intent request outcome when supported.
 pub(crate) fn submit_intent_request(

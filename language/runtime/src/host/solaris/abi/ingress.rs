@@ -10,7 +10,7 @@ use crate::host::unix::abi::ingress::{
     decode_unix_permission_name, decode_unix_power_mode, decode_unix_thermal_state,
     unix_runtime_status,
 };
-use crate::runtime::NativeStringRef;
+use crate::platform::abi::NativeStringRef;
 
 /// Notify the runtime host about one Solaris application lifecycle transition.
 #[unsafe(no_mangle)]

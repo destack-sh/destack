@@ -7,8 +7,9 @@ use crate::host::android::abi::notification::{
 use crate::host::core::callback::decode_callback_host_status;
 use crate::host::core::error::not_supported;
 use crate::host::core::{HostRequest, HostRequestOutcome, HostRequestResult};
+use crate::platform::abi::NativeSlice;
 use crate::platform::os::abi_generated::NotificationRequestValue;
-use crate::runtime::{BindingCallContext, NativeSlice};
+use crate::runtime::BindingCallContext;
 
 /// Return one Android notification request outcome when supported.
 pub(crate) fn submit_notification_request(

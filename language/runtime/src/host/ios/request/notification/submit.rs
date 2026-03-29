@@ -7,8 +7,9 @@ use crate::host::ios::abi::notification::{
     destack_host_ios_notification_cancel, destack_host_ios_notification_cancel_all,
     destack_host_ios_notification_post,
 };
+use crate::platform::abi::NativeSlice;
 use crate::platform::os::abi_generated::NotificationRequestValue;
-use crate::runtime::{BindingCallContext, NativeSlice};
+use crate::runtime::BindingCallContext;
 
 /// Return one iOS notification request outcome when supported.
 pub(crate) fn submit_notification_request(

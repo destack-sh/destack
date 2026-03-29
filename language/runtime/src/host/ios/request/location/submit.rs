@@ -5,8 +5,8 @@ use crate::host::ios::abi::location::{
     destack_host_ios_location_last_known, destack_host_ios_location_services_enabled,
     destack_host_ios_location_watch_close, destack_host_ios_location_watch_open,
 };
-use crate::platform::os::{LocationSample, LocationWatchOptions};
-use crate::runtime::NativeStringRef;
+use crate::platform::abi::NativeStringRef;
+use crate::platform::os::LocationSample;
 
 /// Return one iOS location request outcome when supported.
 pub(crate) fn submit_location_request(
@@ -28,11 +28,11 @@ pub(crate) fn submit_location_request(
             let mut sample = LocationSample {
                 latitude_degrees: 0.0,
                 longitude_degrees: 0.0,
-                altitude_meters: None,
-                horizontal_accuracy_meters: None,
-                vertical_accuracy_meters: None,
-                speed_meters_per_second: None,
-                heading_degrees: None,
+                altitude_meters: f64::NAN,
+                horizontal_accuracy_meters: f64::NAN,
+                vertical_accuracy_meters: f64::NAN,
+                speed_meters_per_second: f64::NAN,
+                heading_degrees: f64::NAN,
                 timestamp_unix_ns: 0,
             };
             let status = unsafe { destack_host_ios_location_last_known(runtime_id, &mut sample) };

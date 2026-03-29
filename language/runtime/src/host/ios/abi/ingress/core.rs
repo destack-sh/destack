@@ -1,6 +1,6 @@
 use crate::diagnostic::{RuntimeResult, RuntimeStatus};
 use crate::host::core::error::invalid_argument_value;
-use crate::runtime::{NativeStringRef, NativeStringSlice};
+use crate::platform::abi::{NativeStringRef, NativeStringSlice};
 
 /// Decode one optional callback string argument.
 pub(super) fn decode_optional_string(

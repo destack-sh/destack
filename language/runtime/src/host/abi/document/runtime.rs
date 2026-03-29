@@ -21,17 +21,14 @@ pub(crate) struct HostDocumentRequestPayload {
 
 impl HostDocumentRequestPayload {
     /// Build one owned host document request payload.
-    pub(crate) fn new(request_id: u64, options: &DocumentPickOptionsValue) -> Self {
+    pub(crate) fn new(
+        request_id: u64,
+        options: &DocumentPickOptionsValue,
+    ) -> Self {
         let mime_type_storage = options.mime_types.clone();
-        let mime_type_refs = mime_type_storage
-            .iter()
-            .map(NativeStringRef::from)
-            .collect::<Vec<_>>();
+        let mime_type_refs = mime_type_storage.iter().map(NativeStringRef::from).collect::<Vec<_>>();
         let extension_storage = options.extensions.clone();
-        let extension_refs = extension_storage
-            .iter()
-            .map(NativeStringRef::from)
-            .collect::<Vec<_>>();
+        let extension_refs = extension_storage.iter().map(NativeStringRef::from).collect::<Vec<_>>();
 
         let abi = HostDocumentRequest {
             request_id: request_id,

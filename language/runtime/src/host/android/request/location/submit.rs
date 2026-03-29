@@ -5,8 +5,8 @@ use crate::host::android::abi::location::{
 };
 use crate::host::core::callback::decode_callback_host_status;
 use crate::host::core::{HostRequest, HostRequestOutcome, HostRequestResult};
-use crate::platform::os::{LocationSample, LocationWatchOptions};
-use crate::runtime::NativeStringRef;
+use crate::platform::abi::NativeStringRef;
+use crate::platform::os::LocationSample;
 
 /// Return one Android location request outcome when supported.
 pub(crate) fn submit_location_request(
@@ -29,11 +29,11 @@ pub(crate) fn submit_location_request(
             let mut sample = LocationSample {
                 latitude_degrees: 0.0,
                 longitude_degrees: 0.0,
-                altitude_meters: None,
-                horizontal_accuracy_meters: None,
-                vertical_accuracy_meters: None,
-                speed_meters_per_second: None,
-                heading_degrees: None,
+                altitude_meters: f64::NAN,
+                horizontal_accuracy_meters: f64::NAN,
+                vertical_accuracy_meters: f64::NAN,
+                speed_meters_per_second: f64::NAN,
+                heading_degrees: f64::NAN,
                 timestamp_unix_ns: 0,
             };
             let status =

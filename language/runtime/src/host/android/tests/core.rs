@@ -4,13 +4,7 @@ use crate::host::Platform;
 use crate::host::android::abi::bindings::{
     AndroidHostBindings, destack_host_android_register_bindings,
 };
-use crate::host::android::abi::bluetooth::types::AndroidHostBluetoothCallbacks;
-use crate::host::android::abi::camera::types::AndroidHostCameraCallbacks;
-use crate::host::android::abi::credentials::callbacks::AndroidHostCredentialsCallbacks;
-use crate::host::android::abi::crypto::callbacks::AndroidHostCryptoCallbacks;
-use crate::host::android::abi::midi::types::AndroidHostMidiCallbacks;
 use crate::host::android::abi::registry::unregister_android_bindings;
-use crate::host::android::abi::usb::types::AndroidHostUsbCallbacks;
 use crate::host::core::registry::HostSessionRegistrationGuard;
 use crate::host::core::{HostQueue, HostSessionId, HostSessionRegistry};
 
@@ -45,94 +39,4 @@ fn unregister_android_bindings_for_runtime(runtime_id: HostSessionId) {
 /// Register one runtime-scoped Android host bindings payload.
 pub(crate) fn register_android_bindings(runtime_id: u64, bindings: AndroidHostBindings) -> u32 {
     unsafe { destack_host_android_register_bindings(runtime_id, bindings) }
-}
-
-/// Register one runtime-scoped Android credentials callback payload.
-pub(crate) fn register_android_bindings_credentials(
-    runtime_id: u64,
-    callbacks: AndroidHostCredentialsCallbacks,
-) -> u32 {
-    // install one credentials-only callback lane
-    register_android_bindings(
-        runtime_id,
-        AndroidHostBindings {
-            credentials: callbacks,
-            ..AndroidHostBindings::default()
-        },
-    )
-}
-
-/// Register one runtime-scoped Android crypto callback payload.
-pub(crate) fn register_android_bindings_crypto(
-    runtime_id: u64,
-    callbacks: AndroidHostCryptoCallbacks,
-) -> u32 {
-    // install one crypto-only callback lane
-    register_android_bindings(
-        runtime_id,
-        AndroidHostBindings {
-            crypto: callbacks,
-            ..AndroidHostBindings::default()
-        },
-    )
-}
-
-/// Register one runtime-scoped Android MIDI callback payload.
-pub(crate) fn register_android_bindings_midi(
-    runtime_id: u64,
-    callbacks: AndroidHostMidiCallbacks,
-) -> u32 {
-    // install one midi-only callback lane
-    register_android_bindings(
-        runtime_id,
-        AndroidHostBindings {
-            midi: callbacks,
-            ..AndroidHostBindings::default()
-        },
-    )
-}
-
-/// Register one runtime-scoped Android Bluetooth callback payload.
-pub(crate) fn register_android_bindings_bluetooth(
-    runtime_id: u64,
-    callbacks: AndroidHostBluetoothCallbacks,
-) -> u32 {
-    // install one bluetooth-only callback lane
-    register_android_bindings(
-        runtime_id,
-        AndroidHostBindings {
-            bluetooth: callbacks,
-            ..AndroidHostBindings::default()
-        },
-    )
-}
-
-/// Register one runtime-scoped Android camera callback payload.
-pub(crate) fn register_android_bindings_camera(
-    runtime_id: u64,
-    callbacks: AndroidHostCameraCallbacks,
-) -> u32 {
-    // install one camera-only callback lane
-    register_android_bindings(
-        runtime_id,
-        AndroidHostBindings {
-            camera: callbacks,
-            ..AndroidHostBindings::default()
-        },
-    )
-}
-
-/// Register one runtime-scoped Android USB callback payload.
-pub(crate) fn register_android_bindings_usb(
-    runtime_id: u64,
-    callbacks: AndroidHostUsbCallbacks,
-) -> u32 {
-    // install one usb-only callback lane
-    register_android_bindings(
-        runtime_id,
-        AndroidHostBindings {
-            usb: callbacks,
-            ..AndroidHostBindings::default()
-        },
-    )
 }
