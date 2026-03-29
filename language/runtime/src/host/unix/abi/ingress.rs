@@ -1,7 +1,7 @@
 use crate::diagnostic::{RuntimeResult, RuntimeStatus};
 use crate::host::core::error::invalid_argument_value;
 use crate::host::{HostMemoryPressureLevel, HostPowerMode, HostThermalState};
-use crate::runtime::NativeStringRef;
+use crate::platform::abi::NativeStringRef;
 
 use crate::host::unix::ingress::notify::UnixApplicationLifecycle;
 

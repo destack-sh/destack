@@ -12,8 +12,8 @@ use crate::host::windows::ingress::notify::{
     windows_notify_thermal_state_changed, windows_notify_wake, windows_notify_wall_clock_changed,
 };
 use crate::host::{HostMemoryPressureLevel, HostPowerMode, HostThermalState};
+use crate::platform::abi::{NativeStringRef, NativeStringSlice};
 use crate::platform::os::abi_generated::LocationSampleValue;
-use crate::runtime::{NativeStringRef, NativeStringSlice};
 
 pub(crate) const WINDOWS_LIFECYCLE_CREATED: u32 = 0;
 pub(crate) const WINDOWS_LIFECYCLE_ACTIVATED: u32 = 1;

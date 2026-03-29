@@ -1,4 +1,9 @@
+#![allow(unused_imports)]
+
+#[path = "callbacks.generated.rs"]
 pub(crate) mod callbacks;
+#[path = "ffi.generated.rs"]
 pub(crate) mod ffi;
-#[cfg(test)]
-mod tests;
+
+pub(crate) use callbacks::*;
+pub(crate) use ffi::*;

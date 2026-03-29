@@ -6,8 +6,8 @@ use crate::host::core::{
     HOST_STATUS_PERMISSION_DENIED,
 };
 use crate::platform::PlatformError;
+use crate::platform::abi::NativeStringRef;
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::runtime::NativeStringRef;
 
 /// Decode one callback-host status code into one runtime result.
 pub(crate) fn decode_callback_host_status(

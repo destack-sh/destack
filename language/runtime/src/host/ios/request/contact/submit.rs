@@ -2,19 +2,22 @@ use std::mem::MaybeUninit;
 
 use crate::diagnostic::RuntimeResult;
 use crate::host::abi::contact::{
-    decode_contact, decode_contact_page, encode_contact_draft, encode_contact_query,
+    HostContactCreateResponse, HostContactPageResponse, HostContactResponse,
+    decode_contact_create_response, decode_contact_page_response, decode_contact_response,
+    encode_contact_draft, encode_contact_query,
 };
 use crate::host::core::callback::decode_callback_host_status;
 use crate::host::core::{HostRequest, HostRequestOutcome, HostRequestResult};
 use crate::host::ios::abi::contact::{
-    destack_host_ios_contact_create, destack_host_ios_contact_delete,
+    destack_host_ios_contact_create, destack_host_ios_contact_delete_contact,
     destack_host_ios_contact_list, destack_host_ios_contact_read, destack_host_ios_contact_search,
     destack_host_ios_contact_update,
 };
+use crate::platform::abi::NativeStringRef;
 use crate::platform::os::abi_generated::{
-    Contact, ContactDraftValue, ContactPage, ContactPageValue, ContactQueryValue, ContactValue,
+    ContactDraftValue, ContactPageValue, ContactQueryValue, ContactValue,
 };
-use crate::runtime::{BindingCallContext, NativeStringRef};
+use crate::runtime::BindingCallContext;
 
 /// Return one iOS contact request outcome when supported.
 pub(crate) fn submit_contact_request(
@@ -57,8 +60,9 @@ pub(crate) fn submit_contact_request(
             Ok(Some(HostRequestOutcome::immediate(HostRequestResult::None)))
         }
         HostRequest::OsContactDelete { id } => {
-            let call_status =
-                unsafe { destack_host_ios_contact_delete(runtime_id, NativeStringRef::from(id)) };
+            let call_status = unsafe {
+                destack_host_ios_contact_delete_contact(runtime_id, NativeStringRef::from(id))
+            };
             decode_callback_host_status(call_status, request.operation_name())?;
 
             Ok(Some(HostRequestOutcome::immediate(HostRequestResult::None)))
@@ -75,13 +79,12 @@ fn submit_contact_list(
 ) -> RuntimeResult<ContactPageValue> {
     let binding = BindingCallContext::from_current_agent_for_native()?;
     let query = encode_contact_query(&binding, query);
-    let mut output_page = MaybeUninit::<ContactPage>::uninit();
-    let status =
-        unsafe { destack_host_ios_contact_list(runtime_id, query, output_page.as_mut_ptr()) };
+    let mut response = MaybeUninit::<HostContactPageResponse>::uninit();
+    let status = unsafe { destack_host_ios_contact_list(runtime_id, query, response.as_mut_ptr()) };
     decode_callback_host_status(status, operation)?;
 
-    let output_page = unsafe { output_page.assume_init() };
-    unsafe { decode_contact_page(output_page) }
+    let response = unsafe { response.assume_init() };
+    unsafe { decode_contact_page_response(response, operation) }
 }
 
 /// Submit one iOS contact-search request.
@@ -93,19 +96,19 @@ fn submit_contact_search(
 ) -> RuntimeResult<ContactPageValue> {
     let binding = BindingCallContext::from_current_agent_for_native()?;
     let query = encode_contact_query(&binding, query);
-    let mut output_page = MaybeUninit::<ContactPage>::uninit();
+    let mut response = MaybeUninit::<HostContactPageResponse>::uninit();
     let status = unsafe {
         destack_host_ios_contact_search(
             runtime_id,
             NativeStringRef::from(query_text),
             query,
-            output_page.as_mut_ptr(),
+            response.as_mut_ptr(),
         )
     };
     decode_callback_host_status(status, operation)?;
 
-    let output_page = unsafe { output_page.assume_init() };
-    unsafe { decode_contact_page(output_page) }
+    let response = unsafe { response.assume_init() };
+    unsafe { decode_contact_page_response(response, operation) }
 }
 
 /// Submit one iOS contact-read request.
@@ -114,18 +117,14 @@ fn submit_contact_read(
     operation: &'static str,
     id: &str,
 ) -> RuntimeResult<ContactValue> {
-    let mut output_contact = MaybeUninit::<Contact>::uninit();
+    let mut response = MaybeUninit::<HostContactResponse>::uninit();
     let status = unsafe {
-        destack_host_ios_contact_read(
-            runtime_id,
-            NativeStringRef::from(id),
-            output_contact.as_mut_ptr(),
-        )
+        destack_host_ios_contact_read(runtime_id, NativeStringRef::from(id), response.as_mut_ptr())
     };
     decode_callback_host_status(status, operation)?;
 
-    let output_contact = unsafe { output_contact.assume_init() };
-    unsafe { decode_contact(output_contact) }
+    let response = unsafe { response.assume_init() };
+    unsafe { decode_contact_response(response, operation) }
 }
 
 /// Submit one iOS contact-create request.
@@ -136,13 +135,13 @@ fn submit_contact_create(
 ) -> RuntimeResult<String> {
     let binding = BindingCallContext::from_current_agent_for_native()?;
     let draft = encode_contact_draft(&binding, contact);
-    let mut output_id = MaybeUninit::<NativeStringRef>::uninit();
+    let mut response = MaybeUninit::<HostContactCreateResponse>::uninit();
     let status =
-        unsafe { destack_host_ios_contact_create(runtime_id, draft, output_id.as_mut_ptr()) };
+        unsafe { destack_host_ios_contact_create(runtime_id, draft, response.as_mut_ptr()) };
     decode_callback_host_status(status, operation)?;
 
-    let output_id = unsafe { output_id.assume_init() };
-    Ok(unsafe { output_id.as_str()? }.to_string())
+    let response = unsafe { response.assume_init() };
+    unsafe { decode_contact_create_response(response, operation) }
 }
 
 /// Submit one iOS contact-update request.

@@ -11,7 +11,7 @@ use crate::host::macos::ingress::notify::{
     macos_notify_thermal_state_changed, macos_notify_wake, macos_notify_wall_clock_changed,
 };
 use crate::host::{HostMemoryPressureLevel, HostPowerMode, HostThermalState};
-use crate::runtime::{NativeStringRef, NativeStringSlice};
+use crate::platform::abi::{NativeStringRef, NativeStringSlice};
 
 /// macOS lifecycle code for `applicationDidFinishLaunching`.
 pub(crate) const MACOS_LIFECYCLE_DID_FINISH_LAUNCHING: u32 = 0;

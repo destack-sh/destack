@@ -43,7 +43,7 @@ pub(crate) fn session_capabilities(host_session_id: HostSessionId) -> PlatformCa
     let background_callbacks = &bindings.background;
     let has_background_callbacks = background_callbacks.status.is_some()
         || background_callbacks.list.is_some()
-        || background_callbacks.register.is_some()
+        || background_callbacks.register_task.is_some()
         || background_callbacks.unregister.is_some()
         || background_callbacks.trigger_test.is_some()
         || background_callbacks.complete.is_some();
@@ -62,11 +62,10 @@ pub(crate) fn session_capabilities(host_session_id: HostSessionId) -> PlatformCa
         || contact_callbacks.read.is_some();
     let has_contact_write_callbacks = contact_callbacks.create.is_some()
         || contact_callbacks.update.is_some()
-        || contact_callbacks.delete.is_some();
+        || contact_callbacks.delete_contact.is_some();
 
     let media_callbacks = &bindings.media;
-    let has_media_read_callbacks =
-        media_callbacks.list.is_some() || media_callbacks.describe.is_some();
+    let has_media_read_callbacks = media_callbacks.list.is_some() || media_callbacks.read.is_some();
     let has_media_write_callbacks =
         media_callbacks.import_path.is_some() || media_callbacks.delete.is_some();
 
@@ -136,14 +135,21 @@ pub(crate) fn session_capabilities(host_session_id: HostSessionId) -> PlatformCa
 mod tests {
     use crate::host::HOST_STATUS_OK;
     use crate::host::abi::background::{
-        HostBackgroundStatus, HostBackgroundTaskDescriptor, HostBackgroundTaskOptions,
-        HostBackgroundTaskResult,
+        HostBackgroundCompleteRequest, HostBackgroundListResponse, HostBackgroundStatusResponse,
+        HostBackgroundTaskOptions, HostBackgroundTriggerTestRequest,
+        HostBackgroundTriggerTestResponse, HostBackgroundUnregisterRequest,
     };
     use crate::host::abi::calendar::{
-        HostCalendarDescriptorArray, HostCalendarEventDraft, HostCalendarEventId,
+        HostCalendarEventCreateResponse, HostCalendarEventDraft, HostCalendarListResponse,
+    };
+    use crate::host::abi::contact::{
+        HostContactCreateResponse, HostContactDraft, HostContactPageResponse, HostContactQuery,
     };
     use crate::host::abi::document::HostDocumentRequest;
-    use crate::host::abi::media::{HostMediaPage, HostMediaQuery};
+    use crate::host::abi::media::{
+        HostMediaImportPathRequest, HostMediaImportPathResponse, HostMediaListRequest,
+        HostMediaListResponse,
+    };
     use crate::host::abi::notification::HostNotificationRequest;
     use crate::host::abi::permission::HostPermissionRequest;
     use crate::host::android::abi::background::callbacks::AndroidHostBackgroundCallbacks;
@@ -160,9 +166,7 @@ mod tests {
         callback_test_lock, register_android_bindings, register_android_runtime,
     };
     use crate::host::core::HostSessionId;
-    use crate::platform::NativeArray;
-    use crate::platform::os::abi_generated::{ContactDraft, ContactPage};
-    use crate::runtime::NativeStringRef;
+    use crate::platform::abi::NativeStringRef;
     use crate::runtime::capability::PlatformCapability;
 
     use super::{session_capabilities, static_capabilities};
@@ -209,7 +213,7 @@ mod tests {
 
     unsafe extern "C" fn test_background_status_callback(
         _runtime_id: u64,
-        _status: *mut HostBackgroundStatus,
+        _response: *mut HostBackgroundStatusResponse,
     ) -> u32 {
         HOST_STATUS_OK
     }
@@ -223,37 +227,36 @@ mod tests {
 
     unsafe extern "C" fn test_background_list_callback(
         _runtime_id: u64,
-        _output_descriptors: *mut NativeArray<HostBackgroundTaskDescriptor>,
+        _response: *mut HostBackgroundListResponse,
     ) -> u32 {
         HOST_STATUS_OK
     }
 
     unsafe extern "C" fn test_background_unregister_callback(
         _runtime_id: u64,
-        _identifier: NativeStringRef,
+        _request: HostBackgroundUnregisterRequest,
     ) -> u32 {
         HOST_STATUS_OK
     }
 
     unsafe extern "C" fn test_background_trigger_test_callback(
         _runtime_id: u64,
-        _identifier: NativeStringRef,
-        _is_triggered: *mut bool,
+        _request: HostBackgroundTriggerTestRequest,
+        _response: *mut HostBackgroundTriggerTestResponse,
     ) -> u32 {
         HOST_STATUS_OK
     }
 
     unsafe extern "C" fn test_background_complete_callback(
         _runtime_id: u64,
-        _execution_id: NativeStringRef,
-        _result: HostBackgroundTaskResult,
+        _request: HostBackgroundCompleteRequest,
     ) -> u32 {
         HOST_STATUS_OK
     }
 
     unsafe extern "C" fn test_calendar_list_callback(
         _runtime_id: u64,
-        _output_calendars: *mut HostCalendarDescriptorArray,
+        _response: *mut HostCalendarListResponse,
     ) -> u32 {
         HOST_STATUS_OK
     }
@@ -261,40 +264,39 @@ mod tests {
     unsafe extern "C" fn test_calendar_event_create_callback(
         _runtime_id: u64,
         _event: HostCalendarEventDraft,
-        _output_id: *mut HostCalendarEventId,
+        _response: *mut HostCalendarEventCreateResponse,
     ) -> u32 {
         HOST_STATUS_OK
     }
 
     unsafe extern "C" fn test_contact_list_callback(
         _runtime_id: u64,
-        _query: crate::host::abi::contact::HostContactQuery,
-        _output_page: *mut ContactPage,
+        _query: HostContactQuery,
+        _response: *mut HostContactPageResponse,
     ) -> u32 {
         HOST_STATUS_OK
     }
 
     unsafe extern "C" fn test_contact_create_callback(
         _runtime_id: u64,
-        _draft: ContactDraft,
-        _output_id: *mut NativeStringRef,
+        _draft: HostContactDraft,
+        _response: *mut HostContactCreateResponse,
     ) -> u32 {
         HOST_STATUS_OK
     }
 
     unsafe extern "C" fn test_media_list_callback(
         _runtime_id: u64,
-        _query: HostMediaQuery,
-        _output_page: *mut HostMediaPage,
+        _request: HostMediaListRequest,
+        _response: *mut HostMediaListResponse,
     ) -> u32 {
         HOST_STATUS_OK
     }
 
     unsafe extern "C" fn test_media_import_path_callback(
         _runtime_id: u64,
-        _path: NativeStringRef,
-        _kind: i32,
-        _output_id: *mut NativeStringRef,
+        _request: HostMediaImportPathRequest,
+        _response: *mut HostMediaImportPathResponse,
     ) -> u32 {
         HOST_STATUS_OK
     }
@@ -308,7 +310,7 @@ mod tests {
 
     unsafe extern "C" fn test_notification_cancel_callback(
         _runtime_id: u64,
-        _id: crate::runtime::NativeSlice<u8>,
+        _identifier: NativeStringRef,
     ) -> u32 {
         HOST_STATUS_OK
     }
@@ -372,7 +374,7 @@ mod tests {
                 background: AndroidHostBackgroundCallbacks {
                     status: Some(test_background_status_callback),
                     list: Some(test_background_list_callback),
-                    register: Some(test_background_register_callback),
+                    register_task: Some(test_background_register_callback),
                     unregister: Some(test_background_unregister_callback),
                     trigger_test: Some(test_background_trigger_test_callback),
                     complete: Some(test_background_complete_callback),

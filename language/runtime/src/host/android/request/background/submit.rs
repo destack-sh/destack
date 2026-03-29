@@ -7,13 +7,13 @@ use crate::host::abi::background::{
 };
 use crate::host::android::abi::background::{
     destack_host_android_background_complete, destack_host_android_background_list,
-    destack_host_android_background_register, destack_host_android_background_status,
+    destack_host_android_background_register_task, destack_host_android_background_status,
     destack_host_android_background_trigger_test, destack_host_android_background_unregister,
 };
 use crate::host::core::callback::decode_callback_host_status;
 use crate::host::core::{HostRequest, HostRequestOutcome, HostRequestResult};
 use crate::platform::NativeArray;
-use crate::runtime::NativeStringRef;
+use crate::platform::abi::NativeStringRef;
 
 /// Return one Android background request outcome when supported.
 pub(crate) fn submit_background_request(
@@ -51,7 +51,7 @@ pub(crate) fn submit_background_request(
         HostRequest::OsBackgroundRegister { options } => {
             let options = HostBackgroundTaskOptionsPayload::new(options);
             let call_status =
-                unsafe { destack_host_android_background_register(runtime_id, options.abi()) };
+                unsafe { destack_host_android_background_register_task(runtime_id, options.abi()) };
             decode_callback_host_status(call_status, request.operation_name())?;
 
             Ok(Some(HostRequestOutcome::immediate(HostRequestResult::None)))

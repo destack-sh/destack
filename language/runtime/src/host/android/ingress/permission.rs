@@ -6,14 +6,14 @@ use crate::host::{HostEvent, HostPermissionEvent};
 /// Submit one Android permission-result callback.
 pub(crate) fn android_notify_permission_result(
     session_handle: HostSessionHandle,
-    request_id: Option<u64>,
+    request_id: u64,
     permission: &str,
     granted: bool,
 ) -> RuntimeResult<()> {
     let queue = android_host_queue(session_handle)?;
 
     queue.enqueue(HostEvent::Permission(HostPermissionEvent {
-        request_id: request_id.map(HostRequestId),
+        request_id: Some(HostRequestId(request_id)),
         permission: permission.to_string(),
         granted,
     }));

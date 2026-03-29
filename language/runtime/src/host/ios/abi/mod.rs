@@ -1,5 +1,7 @@
 pub(crate) mod background;
+#[path = "bindings.generated.rs"]
 pub(crate) mod bindings;
+#[path = "bridge.generated.rs"]
 pub(crate) mod bridge;
 pub(crate) mod calendar;
 pub(crate) mod contact;

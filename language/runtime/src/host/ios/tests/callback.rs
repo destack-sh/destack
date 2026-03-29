@@ -63,7 +63,7 @@ fn test_notify_permission_result_enqueues_permission_event_for_runtime_bridge() 
         HostSessionRegistry::register_queue(Platform::IOS, runtime_id, Arc::clone(&queue), None);
     let runtime_id = registration.host_session_id();
 
-    ios_notify_permission_result(runtime_id.0, Some(7), "camera", true).unwrap();
+    ios_notify_permission_result(runtime_id.0, 7, "camera", true).unwrap();
 
     let events = queue.poll_events(Some(0)).unwrap();
     assert_eq!(
