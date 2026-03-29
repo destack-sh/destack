@@ -9,6 +9,7 @@
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::NativeSlice;
 use crate::platform::io::{
     CompletionEvent, CompletionEventVm, CompletionOperation, CompletionOperationKind,
     CompletionOperationVm, DescriptorControlCommand, DescriptorControlFlags, DescriptorRequest,
@@ -18,7 +19,7 @@ use crate::platform::io::{
     UringFeaturesVm, UringParameters, UringParametersVm,
 };
 use crate::platform::{
-    NativeArray, NativeSlice, PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice,
+    NativeArray, PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice,
     abi as platform_abi,
 };
 use crate::runtime::bindings::{

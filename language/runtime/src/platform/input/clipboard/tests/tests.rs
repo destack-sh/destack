@@ -1,6 +1,8 @@
 use destack_vm as vm;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::VmSlice;
+use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::core::{NativeAbiCodec, VmAbiCodec};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::tests::{HarnessValue, InputHarnessContext as HarnessContext};
@@ -9,7 +11,6 @@ use crate::platform::input::{
     ClipboardItemRepresentationKind, ClipboardItemRepresentationValue, ClipboardItemValue,
     ClipboardItemVm, ClipboardPresentationStyle,
 };
-use crate::platform::{NativeSlice, NativeStringRef, VmSlice};
 use crate::tests::platform::error_code_from_runtime_error;
 
 /// Saved clipboard snapshot used to restore host state after one test.

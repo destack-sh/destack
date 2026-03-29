@@ -2,6 +2,7 @@ use destack_vm;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform;
+use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::core::{
     call_out, intern_string_to_vm as string_to_vm, map_native_array_to_vm, map_native_slice_to_vm,
     optional_intern_string_to_vm as optional_string_to_vm, store_string_from_vm as string_from_vm,
@@ -21,7 +22,7 @@ use crate::platform::display::{
 };
 use crate::platform::fs::OsPathVm;
 use crate::platform::{NativeArray, PlatformError, VmArray, VmSlice, resource};
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
+use crate::runtime::BindingCallContext;
 
 /// Encode one native binding payload into one VM binding payload.
 fn vm_value_from_native<Native, Vm>(

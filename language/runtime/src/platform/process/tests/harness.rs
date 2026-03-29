@@ -7,6 +7,7 @@ use super::{
     vm_process_fd_action_slice, vm_process_stdio_slice, vm_string, vm_string_slice,
 };
 use crate::diagnostic::RuntimeResult;
+use crate::platform::abi::{NativeSlice, NativeStringRef, NativeStringSlice};
 use crate::platform::fs::native as fs_native;
 use crate::platform::process::{
     GroupId, ProcessFdAction, ProcessFdActionVm, ProcessSpawnOptions, ProcessSpawnOptionsVm,
@@ -17,7 +18,6 @@ use crate::platform::process::{ProcessCpuSet, ProcessCpuSetVm};
 #[cfg(any(target_os = "linux", windows))]
 use crate::platform::thread::ThreadCpu;
 use crate::platform::{NativeArray, VmArray, VmSlice, fs, process as process_platform, resource};
-use crate::runtime::{NativeSlice, NativeStringRef, NativeStringSlice};
 use crate::tests::platform::{vm_test_byte_array, vm_test_byte_slice, vm_test_string};
 
 #[path = "harness.generated.rs"]

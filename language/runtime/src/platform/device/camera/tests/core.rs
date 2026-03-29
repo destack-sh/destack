@@ -2,6 +2,7 @@ use std::collections::BTreeSet;
 use std::sync::{Mutex, OnceLock};
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::device::tests::{
     DeviceHarnessContext, HarnessValue, assert_ok_or_expected_error, vm_context_mut,
     with_harness_context, with_native_context,
@@ -13,7 +14,7 @@ use crate::platform::device::{
 };
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource::{CameraDeviceHandle, CameraStreamHandle};
-use crate::platform::{NativeAbiCodec, NativeSlice, NativeStringRef, VmAbiCodec, VmSlice};
+use crate::platform::{NativeAbiCodec, VmAbiCodec, VmSlice};
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
 

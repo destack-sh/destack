@@ -2,10 +2,11 @@ use super::core::*;
 use super::io::destack_net_recv_from as recv_from_socket;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::NativeSlice;
 use crate::platform::net::*;
 use crate::platform::resource::*;
 use crate::platform::{core as core_platform, *};
-use crate::runtime::{BindingCallContext, NativeSlice};
+use crate::runtime::BindingCallContext;
 
 /// Create a UDP socket.
 ///

@@ -2,6 +2,7 @@ use destack_vm;
 
 use super::CryptoHarnessContext;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::crypto::{
     CryptoAgreementDeriveKeyRequest, CryptoAgreementDeriveKeyRequestVm, CryptoArgon2idRequest,
     CryptoArgon2idRequestVm, CryptoAsymmetricEncryptionParameters,
@@ -27,7 +28,6 @@ use crate::platform::{
     NativeArray, PlatformError, VmArray, VmCollectionElement, VmSlice, VmValueCodec,
     crypto as platform_crypto, resource,
 };
-use crate::runtime::{NativeSlice, NativeStringRef};
 use crate::tests::platform::vm_test_string;
 
 #[path = "harness.generated.rs"]

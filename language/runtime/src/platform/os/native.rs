@@ -1,8 +1,9 @@
 #![allow(clippy::missing_safety_doc)]
 #![cfg_attr(test, allow(dead_code))]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::core::{io_not_found, io_would_block};
-use crate::platform::{NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, PlatformError};
+use crate::platform::{NativeAbiCodec, NativeArray, PlatformError};
 
 use crate::runtime::BindingCallContext;
 

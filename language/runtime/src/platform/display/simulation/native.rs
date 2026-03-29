@@ -1,12 +1,13 @@
 #![allow(dead_code)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
+use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::display::{
     DisplayBackendDescriptor, DisplayDragBeginOptions, DisplayDragOperation,
 };
 use crate::platform::fs::OsPath;
 use crate::platform::resource::DisplayDragSessionHandle;
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
+use crate::runtime::BindingCallContext;
 
 /// List display backends that are available for the active target.
 pub(crate) unsafe fn destack_display_backend_list(

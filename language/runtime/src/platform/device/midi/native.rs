@@ -1,11 +1,12 @@
 use super::{core as midi_core, host};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::device::{
     MidiBackendDescriptor, MidiEvent, MidiEventSubscriptionOptions, MidiInputPortOpenOptions,
     MidiInputRecord, MidiOutputPortOpenOptions, MidiOutputRecord, MidiPortDescriptor,
     MidiPortListOptions, MidiVirtualInputCreateOptions, MidiVirtualOutputCreateOptions,
 };
-use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError, resource};
+use crate::platform::{NativeArray, PlatformError, resource};
 use crate::runtime::BindingCallContext;
 
 /// Write one value through one native out pointer.

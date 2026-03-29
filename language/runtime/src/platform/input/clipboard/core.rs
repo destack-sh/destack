@@ -1,10 +1,11 @@
 use crate::diagnostic::RuntimeResult;
+use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::fs::OsPath;
 use crate::platform::input::{
     ClipboardItem, ClipboardItemDescriptor, ClipboardItemRepresentationDescriptor,
     ClipboardItemRepresentationKind, ClipboardPresentationStyle,
 };
-use crate::platform::{NativeAbiCodec, NativeSlice, NativeStringRef, core as core_platform};
+use crate::platform::{NativeAbiCodec, core as core_platform};
 use crate::runtime::BindingCallContext;
 
 /// Clipboard read-text binding name.

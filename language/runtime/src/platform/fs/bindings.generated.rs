@@ -9,6 +9,7 @@
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::fs::{
     AccessMode, AllocFlags, AtFlags, CopyFlags, Dirent, DirentKind, DirentNext, DirentNextEnd,
     DirentNextEndValue, DirentNextEndVm, DirentNextEntry, DirentNextEntryValue, DirentNextEntryVm,
@@ -32,8 +33,8 @@ use crate::platform::fs::{
     WatchremoveeventReplayRecord, WatchrenameeventReplayRecord, XattrFlags,
 };
 use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmAggregateCodec,
-    VmArray, VmSlice, abi as platform_abi,
+    NativeArray, PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice,
+    abi as platform_abi,
 };
 use crate::runtime::bindings::{
     BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,

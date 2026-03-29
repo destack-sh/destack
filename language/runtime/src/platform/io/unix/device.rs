@@ -5,10 +5,11 @@ use libc::{O_CLOEXEC, c_void};
 
 use super::core::{host_control_ioctl, require_out};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
+use crate::platform::abi::NativeSlice;
 use crate::platform::fs::{OsPath, OsPathBytes, OsPathUtf16};
 use crate::platform::io::{DescriptorRequest, DescriptorResult, core as io_core};
 use crate::platform::resource::{self, ResourceEntry, ResourceFinalizer, ResourceKind};
-use crate::platform::{NativeSlice, PlatformError};
 use crate::runtime::BindingCallContext;
 
 /// Open flags that would create or rewrite filesystem entries instead of opening devices.

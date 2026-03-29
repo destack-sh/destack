@@ -4,6 +4,7 @@ use super::linux as input_linux;
 #[cfg(target_os = "macos")]
 use super::macos as input_macos;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::input::{
     InputAxisMetadata, InputButtonMetadata, InputCapabilityMetadataFidelity,
     InputCapabilityMetadataOrigin, InputDeviceCapabilities, InputDeviceCapabilityKind,
@@ -12,7 +13,7 @@ use crate::platform::input::{
 };
 use crate::platform::resource::ResourceEntry;
 use crate::platform::{PlatformError, resource};
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
+use crate::runtime::BindingCallContext;
 
 /// Build one capabilities payload from available device summary metadata.
 fn derive_capabilities_from_device_summary(

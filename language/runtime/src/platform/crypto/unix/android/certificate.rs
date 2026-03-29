@@ -6,9 +6,10 @@ use crate::host::android::abi::crypto::ffi::{
     destack_host_android_crypto_supports_certificate_write,
 };
 use crate::host::core::HostStatus;
+use crate::platform::abi::NativeSlice;
 use crate::platform::crypto::CryptoStoreKind;
 use crate::platform::crypto::host::unix::core as unix_core;
-use crate::runtime::{BindingCallContext, NativeSlice};
+use crate::runtime::BindingCallContext;
 
 use super::core::{
     configured_system_certificate_directories, configured_system_certificate_files,

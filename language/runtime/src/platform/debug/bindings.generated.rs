@@ -9,13 +9,13 @@
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::NativeStringRef;
 use crate::platform::debug::{
     InspectorEndpoint, InspectorEndpointValue, InspectorEndpointVm, InspectorendpointReplayRecord,
     ProfileKind, TraceLevel,
 };
 use crate::platform::{
-    NativeArray, NativeStringRef, PlatformError, RuntimeStatus, VmAggregateCodec, VmArray,
-    abi as platform_abi,
+    NativeArray, PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, abi as platform_abi,
 };
 use crate::runtime::bindings::{
     BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,

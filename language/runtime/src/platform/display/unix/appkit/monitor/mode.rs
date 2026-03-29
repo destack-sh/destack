@@ -5,9 +5,10 @@ use objc2_core_graphics::{
 };
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::abi::NativeSlice;
 use crate::platform::display::DisplayMode;
 use crate::platform::{core as core_platform, resource};
-use crate::runtime::{BindingCallContext, NativeSlice};
+use crate::runtime::BindingCallContext;
 
 use super::{core as monitor_core, monitor_snapshot_by_display_id};
 use crate::platform::display::unix::appkit::{core, event, resource as display_resource};

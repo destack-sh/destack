@@ -1,7 +1,7 @@
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::NativeSlice;
 use crate::platform::{PlatformError, PlatformErrorCode};
-use crate::runtime::NativeSlice;
 
 use crate::runtime::BindingCallContext;
 

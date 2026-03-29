@@ -3,8 +3,9 @@ use std::time::Duration;
 use std::time::Instant;
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::abi::NativeStringRef;
 use crate::platform::{core as core_platform, resource};
-use crate::runtime::{BindingCallContext, NativeStringRef};
+use crate::runtime::BindingCallContext;
 
 use super::core::{io_error, posix_name, register_semaphore, semaphore_pointer, timed_out};
 #[cfg(any(target_os = "linux", target_os = "android"))]

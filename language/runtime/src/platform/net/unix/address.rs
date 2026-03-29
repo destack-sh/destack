@@ -1,10 +1,11 @@
 use super::core::*;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::NativeStringRef;
 use crate::platform::net::*;
 use crate::platform::resource::*;
 use crate::platform::{core as core_platform, *};
-use crate::runtime::{BindingCallContext, NativeStringRef};
+use crate::runtime::BindingCallContext;
 
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};

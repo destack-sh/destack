@@ -13,6 +13,7 @@ use crate::diagnostic::RuntimeStatus;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 #[cfg(windows)]
 use crate::platform::abi::NativeAbi;
+use crate::platform::abi::{NativeSlice, NativeStringRef};
 #[cfg(windows)]
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::net::{
@@ -21,7 +22,7 @@ use crate::platform::net::{
 use crate::platform::{
     NativeArray, PlatformError, VmAggregateCodec, VmArray, VmSlice, fs as platform_fs,
 };
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
+use crate::runtime::BindingCallContext;
 pub(crate) use crate::tests::platform::assert_platform_error_codes_with_privileged_policy;
 use crate::tests::runtime::TestRuntime;
 use platform_fs::{Dirent, DirentVm, OsPath, OsPathVm, WatchEvent, WatchEventVm};

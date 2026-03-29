@@ -17,9 +17,9 @@ use super::super::{
 };
 use super::{AudioHarnessContext, HarnessValue};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::core::BackendSupport;
 use crate::platform::{VmSlice, resource};
-use crate::runtime::{NativeSlice, NativeStringRef};
 
 type NativeByteVectors = NativeSlice<NativeSlice<u8>>;
 type VmByteVectors = VmSlice<VmSlice<u8>>;

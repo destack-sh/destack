@@ -1,10 +1,10 @@
 use super::IpcHarnessContext;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::{NativeSlice, NativeStringRef};
 #[cfg(target_os = "linux")]
 use crate::platform::ipc::{MessageQueueReceive, MessageQueueReceiveVm};
 use crate::platform::ipc::{UnixPeerCredentials, UnixReceiveAncillary, UnixReceiveAncillaryVm};
 use crate::platform::{PlatformError, VmSlice, resource};
-use crate::runtime::{NativeSlice, NativeStringRef};
 use crate::tests::platform::vm_test_string;
 
 #[path = "harness.generated.rs"]

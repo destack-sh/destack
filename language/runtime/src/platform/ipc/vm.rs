@@ -1,11 +1,12 @@
 use crate::diagnostic::RuntimeResult;
+use crate::platform::abi::NativeSlice;
 use crate::platform::core::{call_out, store_string_from_vm};
 use crate::platform::ipc::{
     MessageQueueReceive, MessageQueueReceiveVm, PipePairVm, SharedMemoryMappingVm,
     UnixReceiveAncillaryVm,
 };
 use crate::platform::{VmArray, VmSlice, resource};
-use crate::runtime::{BindingCallContext, NativeSlice};
+use crate::runtime::BindingCallContext;
 use destack_vm;
 
 /// Build one mutable native byte slice from one vec.

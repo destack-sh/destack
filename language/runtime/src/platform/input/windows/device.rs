@@ -4,6 +4,7 @@ use std::sync::atomic::Ordering;
 
 use super::{core as input_core, raw as raw_input, xinput as xinput_input};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
     InputAxisMetadata, InputButtonMetadata, InputCapabilityMetadataFidelity,
@@ -13,7 +14,7 @@ use crate::platform::input::{
 };
 use crate::platform::resource::{ResourceEntry, ResourceKind};
 use crate::platform::{PlatformError, resource};
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
+use crate::runtime::BindingCallContext;
 
 /// Enumerate windows input devices and raw-input devices.
 pub(super) fn list_devices(

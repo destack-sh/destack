@@ -11,6 +11,7 @@ use destack_vm as vm;
 use destack_workspace::RuntimeOptions;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::NativeSlice;
 use crate::platform::fs::{
     OsPath, OsPathBytesVm, OsPathUtf16Vm, OsPathVm, PathBytesAbi, PathUtf16Abi,
 };
@@ -18,7 +19,7 @@ use crate::platform::resource::SocketHandle;
 use crate::platform::{
     NativeArray, PlatformError, VmArray, VmSlice, VmValueCodec, net as platform_net,
 };
-use crate::runtime::{BindingCallContext, NativeSlice};
+use crate::runtime::BindingCallContext;
 #[cfg(windows)]
 pub(crate) use crate::tests::platform::assert_not_supported_result;
 pub(crate) use crate::tests::platform::{

@@ -8,10 +8,11 @@ use windows_sys::Win32::Storage::FileSystem::{
 
 use super::core::{host_control_ioctl, require_out};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::NativeSlice;
 use crate::platform::fs::OsPath;
 use crate::platform::io::{DescriptorRequest, DescriptorResult};
 use crate::platform::resource::{self, ResourceEntry, ResourceFinalizer, ResourceKind};
-use crate::platform::{NativeSlice, PlatformError, core as core_platform};
+use crate::platform::{PlatformError, core as core_platform};
 use crate::runtime::BindingCallContext;
 
 use std::os::windows::ffi::OsStrExt;

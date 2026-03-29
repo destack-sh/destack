@@ -3,9 +3,10 @@ use windows_sys::Win32::Storage::FileSystem::{ReadFile, WriteFile};
 use windows_sys::Win32::System::Pipes::CreatePipe;
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::abi::NativeSlice;
 use crate::platform::ipc::PipePair;
 use crate::platform::{core as core_platform, resource};
-use crate::runtime::{BindingCallContext, NativeSlice};
+use crate::runtime::BindingCallContext;
 
 use super::core::{pipe_handle, register_pipe_handle, validate_handle};
 

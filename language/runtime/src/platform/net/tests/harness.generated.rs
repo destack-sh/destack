@@ -5,6 +5,7 @@
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::{NativeSlice, NativeStringRef, NativeStringSlice};
 use crate::platform::net::tests::NetHarnessContext;
 use crate::platform::net::{
     AcceptFlags, KeepAliveConfig, KeepAliveConfigVm, Linger, LingerVm, NetInterface,
@@ -26,8 +27,8 @@ use crate::platform::net::{
     UdsPathAddressVm, UdsUnnamedAddress, UdsUnnamedAddressVm, native as net_native, vm as net_vm,
 };
 use crate::platform::{
-    NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
-    PlatformError as HarnessPlatformError, VmAbiCodec, VmArray, VmSlice, fs, resource,
+    NativeAbiCodec, NativeArray, PlatformError as HarnessPlatformError, VmAbiCodec, VmArray,
+    VmSlice, fs, resource,
 };
 use destack_vm as vm;
 

@@ -2,10 +2,11 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::VmSlice;
+use crate::platform::abi::NativeSlice;
 use crate::platform::device::tests::{DeviceHarnessContext, with_harness_context};
 use crate::platform::device::{SerialEventValue, SerialInputSignals, SerialOutputSignals};
 use crate::platform::resource::SerialPortHandle;
-use crate::platform::{NativeSlice, VmSlice};
 
 use super::core::{
     open_virtual_serial_handle, serial_event_value, serial_input_signals_value,

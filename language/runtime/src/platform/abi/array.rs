@@ -4,7 +4,9 @@ use destack_vm as vm;
 
 use super::slice::VmSliceBuilder;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::{PlatformError, VmAggregateCodec, VmCollectionElement, VmSlice};
+use crate::platform::diagnostic::PlatformError;
+
+use super::{VmAggregateCodec, VmCollectionElement, VmSlice};
 
 /// FFI array for raw native bindings.
 #[repr(C)]

@@ -4,11 +4,12 @@ use super::core::{
     serial_descriptor_value, serial_write_bytes_argument, slave_path, write_all,
 };
 use crate::diagnostic::RuntimeResult;
+use crate::platform::abi::NativeSlice;
 use crate::platform::device::tests::{DeviceHarnessContext, with_harness_context};
 use crate::platform::device::{SerialDataBits, SerialParity, SerialPortConfig, SerialStopBits};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource::SerialPortHandle;
-use crate::platform::{NativeAbiCodec, NativeSlice, VmSlice};
+use crate::platform::{NativeAbiCodec, VmSlice};
 
 /// Open, configure, read, write, and close one serial endpoint through one pty slave path.
 #[test]

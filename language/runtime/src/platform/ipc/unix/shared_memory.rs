@@ -1,7 +1,8 @@
 use crate::diagnostic::RuntimeResult;
+use crate::platform::abi::NativeStringRef;
 use crate::platform::ipc::SharedMemoryMapping;
 use crate::platform::{core as core_platform, resource};
-use crate::runtime::{BindingCallContext, NativeStringRef};
+use crate::runtime::BindingCallContext;
 
 #[cfg(not(target_os = "android"))]
 use super::core::posix_name;

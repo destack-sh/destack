@@ -2,13 +2,14 @@ use std::io::{Read, Write};
 use std::os::unix::io::RawFd;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::net::core as core_net;
 use crate::platform::resource::ResourceKind;
 use crate::platform::tls::{
     TlsHandshakeStatus, TlsRole, TlsSessionResumptionState, core as core_tls,
 };
 use crate::platform::{PlatformError, resource};
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
+use crate::runtime::BindingCallContext;
 
 /// Socket transport adapter for TLS over unix descriptors.
 struct UnixSocketTransport {

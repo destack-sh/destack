@@ -1,9 +1,9 @@
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::{NativeSlice, NativeStringSlice};
 use crate::platform::process::core as core_process;
 use crate::platform::resource::{ResourceFinalizer, ResourceId};
 use crate::platform::{PlatformError, core as core_platform};
-use crate::runtime::{NativeSlice, NativeStringSlice};
 
 use crate::runtime::BindingCallContext;
 use windows_sys::Win32::Foundation::{

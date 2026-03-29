@@ -17,6 +17,7 @@ use crate::host::android::abi::crypto::ffi::{
     destack_host_android_crypto_supports_hardware_secret_key,
 };
 use crate::host::core::HostStatus;
+use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::core as core_platform;
 use crate::platform::crypto::core::{
     self as crypto_core, HostGeneratedKeyPair, HostKeyBackend, HostKeyMaterial,
@@ -28,7 +29,7 @@ use crate::platform::crypto::{
     CryptoKeyUsageMask, CryptoMacAlgorithm, CryptoMacParameters, CryptoNamedCurve,
     CryptoSignatureAlgorithm, CryptoSignatureParameters, CryptoStoreKind,
 };
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
+use crate::runtime::BindingCallContext;
 
 use super::core::{host_session_id, host_status_result, host_store_kind, invalid_data};
 

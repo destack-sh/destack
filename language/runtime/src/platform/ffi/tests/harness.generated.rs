@@ -8,7 +8,8 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::ffi::tests::FfiHarnessContext;
 use crate::platform::{{NativeAbiCodec, VmAbiCodec}};
 use crate::platform::ffi::{FfiPointer, native as ffi_native, vm as ffi_vm};
-use crate::platform::{NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError as HarnessPlatformError, VmArray, VmSlice, fs, resource};
+use crate::platform::abi::{NativeSlice, NativeStringRef, NativeStringSlice};
+use crate::platform::{NativeArray, PlatformError as HarnessPlatformError, VmArray, VmSlice, fs, resource};
 use destack_vm as vm;
 
 impl<'call> FfiHarnessContext<'call> {

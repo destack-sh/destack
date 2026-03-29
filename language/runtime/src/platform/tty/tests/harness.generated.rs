@@ -5,6 +5,7 @@
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::{NativeSlice, NativeStringRef, NativeStringSlice};
 use crate::platform::tty::tests::TtyHarnessContext;
 use crate::platform::tty::{
     PtyPair, PtyPairVm, TtyMode, TtyModeVm, TtySize, TtySizeVm, TtyTermiosAttributes,
@@ -12,8 +13,8 @@ use crate::platform::tty::{
     native as tty_native, vm as tty_vm,
 };
 use crate::platform::{
-    NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
-    PlatformError as HarnessPlatformError, VmAbiCodec, VmArray, VmSlice, fs, process, resource,
+    NativeAbiCodec, NativeArray, PlatformError as HarnessPlatformError, VmAbiCodec, VmArray,
+    VmSlice, fs, process, resource,
 };
 use destack_vm as vm;
 

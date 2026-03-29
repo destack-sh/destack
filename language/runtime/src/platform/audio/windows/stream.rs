@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use super::core as audio_platform_core;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::audio::core::{
     AUDIO_STREAM_RESOURCE_LABEL, AudioStreamFinalizer, EVENT_POLL_INTERVAL_NS,
     MAX_STREAM_READ_BYTES, STREAM_STATUS_INPUT_UNDERFLOW, STREAM_STATUS_OUTPUT_OVERFLOW,
@@ -22,7 +23,7 @@ use crate::platform::audio::{
     AudioStreamStatusFlags, AudioStreamSupport, AudioStreamTiming,
 };
 use crate::platform::resource::{ResourceEntry, ResourceKind};
-use crate::platform::{NativeSlice, NativeStringRef, PlatformError, resource};
+use crate::platform::{PlatformError, resource};
 use crate::runtime::BindingCallContext;
 
 /// Flatten one vectorized byte-buffer payload into one contiguous payload.

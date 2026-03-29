@@ -13,10 +13,10 @@ use super::call::BindingCallContext;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::HostSession;
 use crate::platform::NativeArray;
+use crate::platform::abi::{NativeSlice, NativeStringRef, NativeStringSlice};
 use crate::runtime::bindings::BindingAffinity;
 use crate::runtime::scheduler::{EventLoop, MicrotaskId, TaskId};
 use crate::runtime::world::World;
-use crate::runtime::{NativeSlice, NativeStringRef, NativeStringSlice};
 
 thread_local! {
     /// TLS slot for the current runtime execution context.

@@ -1,10 +1,11 @@
 use crate::diagnostic::RuntimeResult;
+use crate::platform::abi::NativeSlice;
 use crate::platform::crypto::{
     CryptoCipherAlgorithm, CryptoDigestAlgorithm, CryptoKdfAlgorithm, CryptoKeyAgreementAlgorithm,
     CryptoKeyAlgorithm, CryptoKeyFormat, CryptoKeyResidency, CryptoKeyWrapAlgorithm,
     CryptoMacAlgorithm, CryptoNamedCurve, CryptoSignatureAlgorithm, core as crypto_core,
 };
-use crate::runtime::{BindingCallContext, NativeSlice};
+use crate::runtime::BindingCallContext;
 
 use crate::platform::crypto::core::write_out_value;
 

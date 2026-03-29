@@ -16,6 +16,7 @@ use serde::Deserialize;
 use zeroize::{Zeroize, Zeroizing};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::crypto::{
     CryptoAsymmetricEncryptionAlgorithm, CryptoAsymmetricEncryptionParameters,
     CryptoDigestAlgorithm, CryptoKeyAlgorithm, CryptoKeyDescriptor, CryptoKeyDescriptorAes,
@@ -28,7 +29,7 @@ use crate::platform::crypto::{
     CryptoSignatureParameters, CryptoStoreKind, host as crypto_host,
 };
 use crate::platform::{PlatformError, core as core_platform, resource};
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
+use crate::runtime::BindingCallContext;
 
 use super::core::{
     CRYPTO_KEY_RESOURCE_KIND, CryptoKeyMaterial, CryptoKeyResource, CryptoStoreProvenanceResource,

@@ -3,9 +3,10 @@ use std::ffi::{CStr, c_char, c_int, c_ulong};
 use std::sync::Arc;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::NativeStringRef;
 use crate::platform::core::{self as core_platform, DynamicLibrary};
 use crate::platform::device::midi::core::binding_timestamp_now;
-use crate::platform::{NativeStringRef, PlatformError, PlatformErrorCode};
+use crate::platform::{PlatformError, PlatformErrorCode};
 
 use super::super::abi::{JackApi, JackClient, JackPort};
 use super::session::{

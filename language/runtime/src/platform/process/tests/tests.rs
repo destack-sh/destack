@@ -12,12 +12,12 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use destack_vm as vm;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::abi::VmAbi;
+use crate::platform::abi::{NativeStringRef, VmAbi};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::fs::core as core_fs;
 use crate::platform::resource::{self, ResourceId};
 use crate::platform::{PlatformError, VmArray, VmSlice, fs, process as process_platform};
-use crate::runtime::{BindingCallContext, NativeStringRef};
+use crate::runtime::BindingCallContext;
 pub(crate) use crate::tests::platform::{
     assert_platform_error_code_with_privileged_policy,
     assert_platform_error_codes_with_privileged_policy,

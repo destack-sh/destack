@@ -5,6 +5,7 @@
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::{NativeSlice, NativeStringRef, NativeStringSlice};
 use crate::platform::device::tests::DeviceHarnessContext;
 use crate::platform::device::{
     BluetoothAdapterAttachedEvent, BluetoothAdapterAttachedEventVm, BluetoothAdapterChangedEvent,
@@ -94,8 +95,8 @@ use crate::platform::device::{
     vm as device_vm,
 };
 use crate::platform::{
-    NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
-    PlatformError as HarnessPlatformError, VmAbiCodec, VmArray, VmSlice, core, fs, resource,
+    NativeAbiCodec, NativeArray, PlatformError as HarnessPlatformError, VmAbiCodec, VmArray,
+    VmSlice, core, fs, resource,
 };
 use destack_vm as vm;
 

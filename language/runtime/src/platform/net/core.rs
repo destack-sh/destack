@@ -1,4 +1,5 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::NativeSlice;
 #[cfg(unix)]
 use crate::platform::fs::{OsPath, core as core_fs};
 #[cfg(any(target_os = "linux", target_os = "macos"))]
@@ -16,7 +17,7 @@ use crate::platform::net::{PACKET_BACKEND_CAP_FANOUT, PACKET_BACKEND_CAP_RING};
 use crate::platform::net::{PacketBackendSelectionPolicy, PacketCaptureOptions};
 use crate::platform::resource::{ResourceEntry, ResourceKind};
 use crate::platform::{PlatformError, ResourceId};
-use crate::runtime::{BindingCallContext, NativeSlice};
+use crate::runtime::BindingCallContext;
 #[cfg(windows)]
 use destack_workspace::PlatformWindowsPacketBackend;
 

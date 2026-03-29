@@ -1,10 +1,11 @@
 use crate::diagnostic::RuntimeResult;
+use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::display::{
     DisplayColorState, DisplayDescriptor, DisplayGammaRamp, DisplayHdrMode, DisplayMode,
     DisplayMonitorListRequest, DisplayMonitorOpenOptions, unsupported,
 };
 use crate::platform::resource;
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
+use crate::runtime::BindingCallContext;
 
 /// Close one display endpoint.
 pub(crate) unsafe fn monitor_close(

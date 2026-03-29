@@ -5,6 +5,7 @@
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::{NativeSlice, NativeStringRef, NativeStringSlice};
 use crate::platform::input::tests::InputHarnessContext;
 use crate::platform::input::{
     ClipboardItem, ClipboardItemDescriptor, ClipboardItemDescriptorVm, ClipboardItemRepresentation,
@@ -54,8 +55,8 @@ use crate::platform::input::{
     InputWindowTargetVm, native as input_native, vm as input_vm,
 };
 use crate::platform::{
-    NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
-    PlatformError as HarnessPlatformError, VmAbiCodec, VmArray, VmSlice, display, fs, resource,
+    NativeAbiCodec, NativeArray, PlatformError as HarnessPlatformError, VmAbiCodec, VmArray,
+    VmSlice, display, fs, resource,
 };
 use destack_vm as vm;
 

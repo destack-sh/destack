@@ -1,6 +1,6 @@
+use crate::platform::abi::NativeSlice;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::{VmSlice, resource};
-use crate::runtime::NativeSlice;
 
 use super::core::{assert_runtime_error_code, unique_ipc_name};
 use super::{HarnessValue, IpcHarnessContext, with_harness_context};

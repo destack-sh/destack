@@ -16,6 +16,7 @@ use crate::host::macos::request::calendar::{
 use crate::host::windows::request::calendar::{
     WindowsCalendarHooks as DesktopCalendarHooks, set_windows_calendar_test_hooks,
 };
+use crate::platform::abi::NativeStringRef;
 use crate::platform::os::abi_generated::{
     CalendarAbsoluteReminderValue, CalendarDescriptorValue, CalendarEventDraftValue,
     CalendarEventQueryValue, CalendarEventValue, CalendarRelativeReminderValue,
@@ -27,7 +28,7 @@ use crate::platform::os::{
     CalendarEventDraft, CalendarEventDraftVm, CalendarEventQuery, CalendarEventQueryVm,
     CalendarEventVm,
 };
-use crate::platform::{NativeAbiCodec, NativeArray, NativeStringRef, VmAbiCodec, VmArray};
+use crate::platform::{NativeAbiCodec, NativeArray, VmAbiCodec, VmArray};
 
 /// Shared desktop calendar test state.
 #[derive(Default)]

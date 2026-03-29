@@ -2,12 +2,8 @@
 
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::{
-    PlatformError,
-    NativeSlice,
-    NativeArray,
-    NativeStringRef,
-};
+use crate::platform::abi::{NativeSlice, NativeStringRef};
+use crate::platform::{PlatformError, NativeArray};
 
 use crate::runtime::BindingCallContext;
 
@@ -17,11 +13,6 @@ use crate::platform::os::{BackgroundEvent, BackgroundEventOpenOptions, Backgroun
 /// Report completion for one scheduled background-task execution.
 ///
 /// Submit final execution status for one scheduled task execution token.
-/// Success finalizes this execution.
-/// Retry asks the host to retry this one execution sooner than the next scheduled occurrence when supported.
-/// Failure finalizes this execution without an earlier retry.
-/// One-shot registrations end after one definitive success or failure.
-/// Recurring registrations continue on their regular schedule after one definitive success or failure.
 ///
 /// # Platform
 /// Unix and Windows.

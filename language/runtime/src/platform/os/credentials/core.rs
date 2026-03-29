@@ -8,6 +8,7 @@ use destack_vm as vm;
 use parking_lot::Mutex;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::{
     CredentialAccessibility, CredentialAuthenticationOptions, CredentialAuthenticationOptionsVm,
@@ -16,7 +17,7 @@ use crate::platform::os::{
     CredentialRecordVm, CredentialWriteOptions, CredentialWriteOptionsVm,
 };
 use crate::platform::{PlatformError, VmSlice, core as core_platform};
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
+use crate::runtime::BindingCallContext;
 
 /// Operation name for credentials read.
 pub(crate) const OS_CREDENTIALS_READ_OPERATION: &str = "destack.os.credentials.read";

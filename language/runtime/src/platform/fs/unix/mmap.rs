@@ -1,11 +1,12 @@
 use super::core::*;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::NativeSlice;
 use crate::platform::fs::core::{decode_mmap_flags, validate_mapping_length};
 use crate::platform::fs::*;
 use crate::platform::resource::*;
 use crate::platform::{core as core_platform, *};
-use crate::runtime::{BindingCallContext, NativeSlice};
+use crate::runtime::BindingCallContext;
 
 /// Create a file-backed memory mapping.
 ///

@@ -1,11 +1,12 @@
 use crate::diagnostic::RuntimeResult;
+use crate::platform::abi::NativeSlice;
 use crate::platform::core::call_out;
 use crate::platform::tty::{
     PtyPairVm, TtyModeVm, TtySizeVm, TtyTermiosAttributes, TtyTermiosAttributesVm,
     TtyTermiosFlowAction, TtyTermiosQueue, TtyTermiosSetAction,
 };
 use crate::platform::{VmSlice, process, resource};
-use crate::runtime::{BindingCallContext, NativeSlice};
+use crate::runtime::BindingCallContext;
 use destack_vm as vm;
 
 use super::host as host_tty;

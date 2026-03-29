@@ -5,6 +5,7 @@
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::{NativeSlice, NativeStringRef, NativeStringSlice};
 use crate::platform::ipc::tests::IpcHarnessContext;
 use crate::platform::ipc::{
     MessageQueueReceive, MessageQueueReceiveVm, PipePair, PipePairVm, SharedMemoryMapping,
@@ -12,8 +13,8 @@ use crate::platform::ipc::{
     UnixReceiveAncillaryVm, native as ipc_native, vm as ipc_vm,
 };
 use crate::platform::{
-    NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
-    PlatformError as HarnessPlatformError, VmAbiCodec, VmArray, VmSlice, fs, resource,
+    NativeAbiCodec, NativeArray, PlatformError as HarnessPlatformError, VmAbiCodec, VmArray,
+    VmSlice, fs, resource,
 };
 use destack_vm as vm;
 

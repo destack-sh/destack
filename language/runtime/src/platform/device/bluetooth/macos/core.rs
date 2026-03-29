@@ -25,6 +25,7 @@ pub(super) use objc2_foundation::{
 pub(super) use parking_lot::{Condvar, Mutex};
 
 pub(super) use crate::diagnostic::{RuntimeError, RuntimeResult};
+pub(super) use crate::platform::abi::{NativeSlice, NativeStringRef};
 pub(super) use crate::platform::core::{self as core_platform, NativeAbiCodec};
 pub(super) use crate::platform::device::bluetooth::core::{
     BLUETOOTH_ADAPTER_WATCH_RESOURCE_LABEL, BLUETOOTH_DEVICE_RESOURCE_LABEL,
@@ -50,7 +51,7 @@ pub(super) use crate::platform::device::{
 };
 pub(super) use crate::platform::diagnostic::PlatformErrorCode;
 pub(super) use crate::platform::resource::{ResourceEntry, ResourceFinalizer, ResourceKind};
-pub(super) use crate::platform::{NativeSlice, NativeStringRef, PlatformError, resource};
+pub(super) use crate::platform::{PlatformError, resource};
 pub(super) use crate::runtime::BindingCallContext;
 pub(super) use crate::runtime::control::queue::BoundedQueue;
 

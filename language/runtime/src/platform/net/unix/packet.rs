@@ -5,6 +5,7 @@ use crate::platform::net::core::select_packet_backend_for_open;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
+use crate::platform::abi::NativeSlice;
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::net::*;
@@ -12,7 +13,7 @@ use crate::platform::net::*;
 use crate::platform::resource::{ResourceFinalizer, ResourceId};
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 use crate::platform::{core as core_platform, *};
-use crate::runtime::{BindingCallContext, NativeSlice};
+use crate::runtime::BindingCallContext;
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 use std::collections::HashMap;
 

@@ -6,13 +6,14 @@ use super::core::{
     slave_path,
 };
 use crate::diagnostic::RuntimeResult;
+use crate::platform::VmSlice;
+use crate::platform::abi::NativeSlice;
 use crate::platform::device::SerialOutputSignals;
 #[cfg(unix)]
 use crate::platform::device::SerialPortOpenOptions;
 use crate::platform::device::tests::{DeviceHarnessContext, with_harness_context};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource::{ResourceId, SerialPortHandle, SerialWatchHandle};
-use crate::platform::{NativeSlice, VmSlice};
 
 /// Reject one unknown serial handle across the full session surface.
 #[test]

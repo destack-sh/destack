@@ -1,6 +1,7 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::{NativeSlice, NativeStringRef, NativeStringSlice};
 use crate::platform::{NativeArray, VmAggregateCodec, VmArray, VmCollectionElement, VmSlice};
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef, NativeStringSlice};
+use crate::runtime::BindingCallContext;
 use destack_vm as vm;
 
 /// Mechanical native ABI codec for one materialized Rust value.

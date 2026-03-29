@@ -2,12 +2,12 @@ use destack_vm as vm;
 
 use super::TlsHarnessContext;
 use crate::diagnostic::RuntimeResult;
+use crate::platform::abi::{NativeSlice, NativeStringRef, NativeStringSlice};
 #[cfg(windows)]
 use crate::platform::net::{SocketFamily, SocketProtocol};
 use crate::platform::net::{SocketPair, SocketType, native as net_native, vm as net_vm};
 use crate::platform::tls::{TlsContextOptions, TlsContextOptionsVm, TlsRole, TlsVersion};
 use crate::platform::{ResourceId, VmSlice, resource};
-use crate::runtime::{NativeSlice, NativeStringRef, NativeStringSlice};
 use crate::tests::platform::{vm_test_raw_values, vm_test_string};
 
 #[path = "harness.generated.rs"]

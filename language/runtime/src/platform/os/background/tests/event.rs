@@ -4,6 +4,7 @@ use destack_vm::{ExternalCallContext, StringHandle};
 
 use super::core::{enable_background_declaration, with_background_test_environment};
 use crate::diagnostic::RuntimeResult;
+use crate::platform::abi::NativeStringRef;
 use crate::platform::os::abi_generated::{
     BackgroundConflictPolicyValue, BackgroundEventMetadataValue, BackgroundEventValue,
     BackgroundNetworkRequirementValue, BackgroundTaskExpiredEventValue,
@@ -14,7 +15,7 @@ use crate::platform::os::{
     BackgroundEvent, BackgroundEventOpenOptions, BackgroundEventOpenOptionsVm, BackgroundEventVm,
     BackgroundTaskOptions, BackgroundTaskOptionsVm, BackgroundTriggerKind,
 };
-use crate::platform::{NativeAbiCodec, NativeStringRef, VmAbiCodec};
+use crate::platform::{NativeAbiCodec, VmAbiCodec};
 
 /// Exercise desktop background ready events through the real backend contract.
 #[test]

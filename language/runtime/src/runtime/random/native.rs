@@ -1,8 +1,9 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
+use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::random::{
     RandomStream, RandomStreamDomain, RandomStreamState, SecureRandomMetadata, SecureRandomSource,
 };
-use crate::platform::{NativeSlice, NativeStringRef, PlatformError};
 use crate::runtime::BindingCallContext;
 use crate::runtime::random::{RandomStreamId, StreamStateDecodeError};
 

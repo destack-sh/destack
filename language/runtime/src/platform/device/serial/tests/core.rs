@@ -7,6 +7,8 @@ use crate::diagnostic::RuntimeError;
 use crate::diagnostic::RuntimeResult;
 #[cfg(unix)]
 use crate::platform::PlatformError;
+use crate::platform::VmSlice;
+use crate::platform::abi::NativeSlice;
 use crate::platform::device::serial::{SerialTestController, install_test_serial_port};
 use crate::platform::device::tests::{DeviceHarnessContext, HarnessValue};
 use crate::platform::device::{
@@ -19,7 +21,6 @@ use crate::platform::device::{
 };
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource::SerialPortHandle;
-use crate::platform::{NativeSlice, VmSlice};
 use crate::tests::platform::assert_ok_or_expected_error;
 
 /// Build one default serial configuration for serial tests.

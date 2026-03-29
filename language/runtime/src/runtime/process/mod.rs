@@ -1,4 +1,3 @@
-mod abi;
 mod agent;
 mod call;
 mod callback;
@@ -15,7 +14,6 @@ pub(crate) mod service;
 pub(crate) mod thread;
 mod worker;
 
-pub use abi::*;
 pub use agent::*;
 pub use call::*;
 pub(crate) use callback::*;

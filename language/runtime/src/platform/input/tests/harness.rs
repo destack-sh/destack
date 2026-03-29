@@ -4,6 +4,7 @@ use destack_vm as vm;
 
 use super::InputHarnessContext;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::input::{
     InputDeviceCapabilities, InputDeviceCapabilitiesVm, InputDeviceCapabilityKind,
     InputDeviceDescriptor, InputDeviceDescriptorVm, InputDeviceKind, InputEvent, InputEventAction,
@@ -19,7 +20,6 @@ use crate::platform::input::{
     InputWindowTarget, InputWindowTargetVm,
 };
 use crate::platform::{NativeAbiCodec, NativeArray, PlatformError, VmAbiCodec, VmArray, VmSlice};
-use crate::runtime::{NativeSlice, NativeStringRef};
 use crate::tests::platform::vm_test_string;
 
 #[path = "harness.generated.rs"]

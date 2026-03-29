@@ -20,12 +20,13 @@ use windows_sys::Win32::Networking::WinSock::{
 
 use super::util::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::NativeStringRef;
 use crate::platform::net::{
     NetInterface, NetInterfaceFlags, ResolveFlags, ReverseLookupFlags, ReverseLookupName,
     SocketAddress, SocketFamily, SocketHandle,
 };
 use crate::platform::{NativeArray, PlatformError, core as core_platform};
-use crate::runtime::{BindingCallContext, NativeStringRef};
+use crate::runtime::BindingCallContext;
 
 /// Reverse-lookup flag bit for numeric host output.
 const REVERSE_LOOKUP_FLAG_NUMERIC_HOST: u32 = 0x1;

@@ -3,10 +3,11 @@ use x11rb::protocol::xproto::{AtomEnum, ConnectionExt as XprotoConnectionExt, Pr
 use x11rb::wrapper::ConnectionExt as X11WrapperConnectionExt;
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::abi::NativeStringRef;
 use crate::platform::core as core_platform;
 use crate::platform::display::{WindowChromeKind, WindowIconSet, WindowVisibility};
 use crate::platform::resource::WindowHandle;
-use crate::runtime::{BindingCallContext, NativeStringRef};
+use crate::runtime::BindingCallContext;
 
 use super::icon::net_wm_icon_payload;
 use super::{

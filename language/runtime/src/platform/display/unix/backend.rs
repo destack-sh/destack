@@ -10,6 +10,7 @@ use super::wayland;
 #[cfg(target_os = "linux")]
 use super::x11;
 use crate::diagnostic::RuntimeResult;
+use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::display::{
     DisplayBackend, DisplayBackendCapabilityFlags, DisplayBackendDescriptor, DisplayColorState,
     DisplayDescriptor, DisplayGammaRamp, DisplayHdrMode, DisplayMode, DisplayMonitorEvent,
@@ -20,7 +21,7 @@ use crate::platform::display::{
     WindowSizeConstraints, WindowState, WindowVisibility,
 };
 use crate::platform::{NativeArray, core as core_platform, resource};
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
+use crate::runtime::BindingCallContext;
 
 macro_rules! dispatch_backend {
     ($backend:expr, $operation:literal, $function:ident($binding:expr $(, $arg:expr)* $(,)?)) => {{

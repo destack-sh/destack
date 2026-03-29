@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use super::core as audio_platform_core;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::audio::{
     AudioEventKind, AudioStreamAvailability, AudioStreamConfig, AudioStreamDescriptor,
     AudioStreamOpenOptions, AudioStreamRequirementFlags, AudioStreamState, AudioStreamStateKind,
@@ -9,7 +10,7 @@ use crate::platform::audio::{
 };
 use crate::platform::resource::{ResourceEntry, ResourceKind};
 use crate::platform::{PlatformError, core as core_platform, resource};
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
+use crate::runtime::BindingCallContext;
 
 /// Flatten one vectorized byte-buffer payload into one contiguous payload.
 unsafe fn flatten_vectorized_buffers(

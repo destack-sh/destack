@@ -20,6 +20,7 @@ use rustls::{
 };
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::{NativeSlice, NativeStringRef, NativeStringSlice};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::net::core as core_net;
 use crate::platform::resource::{ResourceEntry, ResourceKind};
@@ -27,7 +28,7 @@ use crate::platform::tls::{
     TlsContextOptions, TlsHandshakeStatus, TlsHostnameVerificationMode, TlsRole,
     TlsSessionResumptionMode, TlsSessionResumptionState, TlsVersion,
 };
-use crate::platform::{NativeSlice, NativeStringRef, NativeStringSlice, PlatformError, resource};
+use crate::platform::{PlatformError, resource};
 use crate::runtime::BindingCallContext;
 
 /// Canonical resource kind used for tls context resources.

@@ -1,9 +1,10 @@
 use super::{core as input_core, raw as raw_input};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::NativeSlice;
 use crate::platform::input::{InputRawHidReport, validation as input_validation};
 use crate::platform::{PlatformError, resource};
-use crate::runtime::{BindingCallContext, NativeSlice};
+use crate::runtime::BindingCallContext;
 
 /// Resolve one opened raw-hid-capable device descriptor.
 fn resolve_raw_hid_device(

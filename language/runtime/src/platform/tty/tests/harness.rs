@@ -1,8 +1,8 @@
 use super::TtyHarnessContext;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::NativeSlice;
 use crate::platform::tty::{TtyMode, TtyModeVm, TtySize, TtySizeVm};
 use crate::platform::{PlatformError, VmSlice};
-use crate::runtime::NativeSlice;
 
 #[path = "harness.generated.rs"]
 mod generated;

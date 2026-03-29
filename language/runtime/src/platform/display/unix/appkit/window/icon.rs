@@ -198,8 +198,8 @@ pub(crate) fn window_icon_image(
 
 #[cfg(test)]
 mod tests {
+    use crate::platform::abi::NativeSlice;
     use crate::platform::display::{WindowIconImage, WindowIconPixelFormat, WindowIconSet};
-    use crate::runtime::NativeSlice;
 
     use super::{best_icon_index, decode_window_icons};
 

@@ -5,8 +5,9 @@ use std::thread;
 use std::time::Duration;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::{PlatformError, VmSlice, display, resource};
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
+use crate::runtime::BindingCallContext;
 pub(crate) use crate::tests::execution::run_execution_case_or_return;
 pub(crate) use crate::tests::platform::{
     error_code_from_runtime_error as error_code, is_not_supported_code,

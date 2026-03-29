@@ -13,6 +13,7 @@ mod harness;
 use destack_vm as vm;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::core::BackendSupport;
 use crate::platform::device::{
     MidiBackend, MidiBackendCapabilityFlags, MidiBackendDescriptor, MidiBackendDescriptorVm,
@@ -26,8 +27,8 @@ use crate::platform::device::{
     MidiRecordFraming, MidiVirtualInputCreateOptions, MidiVirtualInputCreateOptionsVm,
     MidiVirtualOutputCreateOptions, MidiVirtualOutputCreateOptionsVm,
 };
-use crate::platform::{NativeArray, NativeSlice, PlatformError, VmArray, VmSlice};
-use crate::runtime::{BindingCallContext, NativeStringRef};
+use crate::platform::{NativeArray, PlatformError, VmArray, VmSlice};
+use crate::runtime::BindingCallContext;
 pub(crate) use crate::tests::platform::{assert_ok_or_expected_error, assert_platform_error_codes};
 use crate::tests::runtime::TestRuntime;
 pub(crate) use harness::HarnessValue;

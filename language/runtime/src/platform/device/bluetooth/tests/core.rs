@@ -1,6 +1,8 @@
 use std::collections::BTreeSet;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::VmSlice;
+use crate::platform::abi::NativeSlice;
 use crate::platform::device::tests::{
     DeviceHarnessContext, HarnessValue, assert_ok_or_expected_error,
 };
@@ -11,7 +13,6 @@ use crate::platform::device::{
 };
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource::{BluetoothDeviceHandle, BluetoothScanHandle};
-use crate::platform::{NativeSlice, VmSlice};
 use crate::runtime::BindingCallContext;
 
 /// Assert one Bluetooth result is success, not-supported, or permission-gated.

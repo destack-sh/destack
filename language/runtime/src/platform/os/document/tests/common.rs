@@ -7,14 +7,13 @@ use crate::diagnostic::RuntimeResult;
 use crate::host::macos::request::document::set_macos_document_test_pick_hook;
 #[cfg(windows)]
 use crate::host::windows::request::document::set_windows_document_test_pick_hook;
+use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::os::abi_generated::{DocumentDescriptorValue, DocumentPickOptionsValue};
 use crate::platform::os::tests::{HarnessContext, HarnessValue, with_harness_context};
 use crate::platform::os::{
     DocumentDescriptor, DocumentDescriptorVm, DocumentPickOptions, DocumentPickOptionsVm,
 };
-use crate::platform::{
-    NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, VmAbiCodec, VmArray, VmSlice,
-};
+use crate::platform::{NativeAbiCodec, NativeArray, VmAbiCodec, VmArray, VmSlice};
 
 /// Shared picker-test mutex that serializes the process-global picker hook.
 pub(super) static TEST_DOCUMENT_PICK_MUTEX: OnceLock<Mutex<()>> = OnceLock::new();

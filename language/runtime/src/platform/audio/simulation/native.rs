@@ -10,8 +10,9 @@ use super::super::{
     AudioStreamState, AudioStreamSupport, AudioStreamTiming,
 };
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::{PlatformError, resource};
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
+use crate::runtime::BindingCallContext;
 
 fn unsupported(operation: &'static str) -> Box<RuntimeError> {
     RuntimeError::from(PlatformError::not_supported(operation)).boxed()

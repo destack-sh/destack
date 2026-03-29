@@ -7,7 +7,7 @@ use parking_lot::{Condvar, Mutex};
 
 use super::core::SERIAL_PORT_RESOURCE_LABEL;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::abi::NativeAbi;
+use crate::platform::abi::{NativeAbi, NativeSlice};
 use crate::platform::core::{
     io_operation_error, io_would_block, monotonic_now_ns, timeout_deadline,
 };
@@ -20,7 +20,7 @@ use crate::platform::device::{
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::fs::core as core_fs;
 use crate::platform::resource::{ResourceEntry, ResourceFinalizer, ResourceKind};
-use crate::platform::{NativeSlice, PlatformError, fs, resource};
+use crate::platform::{PlatformError, fs, resource};
 use crate::runtime::BindingCallContext;
 use crate::runtime::control::queue::BoundedQueue;
 

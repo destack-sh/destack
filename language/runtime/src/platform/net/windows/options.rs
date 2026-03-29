@@ -25,13 +25,14 @@ use windows_sys::Win32::Networking::WinSock::{
 
 use super::util::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::net::{
     KeepAliveConfig, Linger, SocketFamily, SocketHandle, SocketOptionLevel, SocketOptionName,
     SocketTimestampingMode, UdpSourceMembershipV4, UdpSourceMembershipV6,
 };
 use crate::platform::resource::{ResourceEntry, ResourceKind};
 use crate::platform::{NativeArray, PlatformError, core as core_platform};
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
+use crate::runtime::BindingCallContext;
 
 /// Operation tag for interface-index lookup.
 const INTERFACE_INDEX_OPERATION: &str = "destack.net.interface.interfaceIndex";

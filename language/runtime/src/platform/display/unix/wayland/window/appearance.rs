@@ -7,9 +7,10 @@ use wayland_protocols::wp::alpha_modifier::v1::client::wp_alpha_modifier_surface
 use wayland_protocols::xdg::decoration::zv1::client::zxdg_toplevel_decoration_v1;
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::abi::NativeStringRef;
 use crate::platform::display::{WindowChromeKind, WindowIconSet, WindowRole, WindowVisibility};
 use crate::platform::{core as core_platform, resource};
-use crate::runtime::{BindingCallContext, NativeStringRef};
+use crate::runtime::BindingCallContext;
 
 use super::{
     create_memfd_file, decoration_mode_for_window, icon, normalize_opacity, opacity_multiplier,

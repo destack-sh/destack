@@ -1,5 +1,5 @@
 use super::core::{assert_bluetooth_supported_not_supported_or_permission, close_bluetooth_scan};
-use crate::platform::NativeStringRef;
+use crate::platform::abi::NativeStringRef;
 use crate::platform::device::tests::{vm_context_mut, with_harness_context, with_native_context};
 use crate::platform::device::{native as device_native, vm as device_vm};
 use destack_vm as vm;

@@ -5,6 +5,7 @@
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::{NativeSlice, NativeStringRef, NativeStringSlice};
 use crate::platform::memory::tests::MemoryHarnessContext;
 use crate::platform::memory::{
     MemoryAdvice, MemoryProtection, MemoryRange, MemoryRangeVm, MemoryRemapFlags,
@@ -12,8 +13,8 @@ use crate::platform::memory::{
     vm as memory_vm,
 };
 use crate::platform::{
-    NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
-    PlatformError as HarnessPlatformError, VmAbiCodec, VmArray, VmSlice, fs, resource,
+    NativeAbiCodec, NativeArray, PlatformError as HarnessPlatformError, VmAbiCodec, VmArray,
+    VmSlice, fs, resource,
 };
 use destack_vm as vm;
 

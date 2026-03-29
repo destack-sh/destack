@@ -1,6 +1,7 @@
 use destack_vm;
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::abi::NativeSlice;
 use crate::platform::core::{
     bytes_array_to_vm, call_out, intern_string_to_vm as string_ref_to_vm,
     os_path_to_vm as path_ref_to_vm, store_bytes_array_from_vm,
@@ -22,7 +23,7 @@ use crate::platform::process::{
     SignalMaskHow, SyscallFilterFlags, UserId, host as host_process,
 };
 use crate::platform::{VmAggregateCodec, VmArray, VmSlice, fs, resource};
-use crate::runtime::{BindingCallContext, NativeSlice};
+use crate::runtime::BindingCallContext;
 
 fn process_spawn_options_from_vm(
     binding: &BindingCallContext,

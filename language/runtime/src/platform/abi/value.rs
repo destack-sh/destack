@@ -1,7 +1,7 @@
 use destack_vm as vm;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError;
+use crate::platform::diagnostic::PlatformError;
 
 /// Codec for VM values inside replay helpers.
 pub trait VmValueCodec: Copy {

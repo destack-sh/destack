@@ -3,13 +3,13 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use destack_vm;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::NativeStringRef;
 use crate::platform::os::{
     CredentialAccessibility, CredentialAuthenticationOptions, CredentialAuthenticationOptionsVm,
     CredentialAuthenticationPolicy, CredentialAuthenticationRequirement, CredentialQuery,
     CredentialQueryVm, CredentialRecord, CredentialRecordVm, CredentialWriteOptions,
     CredentialWriteOptionsVm,
 };
-use crate::runtime::NativeStringRef;
 pub(super) use crate::tests::platform::{
     assert_runtime_error_code, vm_test_byte_slice, vm_test_string,
 };
