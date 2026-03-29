@@ -17,6 +17,10 @@ mod property;
 mod statement;
 mod tree;
 mod r#type;
+mod visit;
+mod walk;
+
+pub(crate) use expression::Precedence;
 
 pub use annotation::*;
 pub use argument::*;
@@ -39,3 +43,5 @@ pub use property::*;
 pub use statement::*;
 pub use tree::*;
 pub use r#type::*;
+pub use visit::*;
+pub use walk::*;

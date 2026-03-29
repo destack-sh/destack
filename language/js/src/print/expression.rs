@@ -1,0 +1,397 @@
+use super::printer::Printer;
+use crate::tree::Precedence;
+use crate::{
+    ArrayElement, Asynchrony, Expression, FunctionCardinality, JsPrintResult, Keyword, LocalNodeId,
+    Parameter, PostfixPosition, ScalarLiteral, TypeUnaryOperator,
+};
+use destack_source::NodeSpanType;
+
+impl<'a> Printer<'a> {
+    /// Print one expression.
+    pub(crate) fn print_expression(
+        &mut self,
+        expression_id: LocalNodeId<Expression>,
+        expression: &Expression,
+        parent_precedence: Precedence,
+    ) -> JsPrintResult<()> {
+        let expression = Expression::without_parentheses(self.tree, expression);
+        let current_precedence = expression.precedence();
+        let needs_wrap = current_precedence < parent_precedence;
+
+        if needs_wrap {
+            self.write_punct("(");
+        }
+
+        match expression {
+            Expression::Declaration { declaration } => {
+                self.print_declaration_id(*declaration)?;
+            }
+            Expression::ArrowFunction { signature, body } => {
+                if signature.asynchrony == Asynchrony::Async {
+                    self.write_keyword(Keyword::Async);
+                }
+
+                if signature.cardinality == FunctionCardinality::Generator {
+                    self.write_punct("*");
+                }
+
+                if self.include_types
+                    && let Some(static_parameters) = signature
+                        .generics
+                        .as_ref()
+                        .and_then(|generics| generics.static_parameters.as_ref())
+                    && !static_parameters.is_empty()
+                {
+                    self.write_punct("<");
+                    self.print_parameter_list(static_parameters)?;
+                    self.write_punct(">");
+                }
+
+                if self.can_print_bare_arrow_parameter(signature.dynamic_parameters.as_slice()) {
+                    let parameter = self.tree.get(signature.dynamic_parameters[0]);
+                    let Parameter::Named { name, .. } = parameter else {
+                        unreachable!("bare arrow parameters must be simple named parameters");
+                    };
+
+                    self.write_string_id(*name);
+                } else {
+                    self.write_punct("(");
+                    self.print_parameter_list(&signature.dynamic_parameters)?;
+                    self.write_punct(")");
+                }
+
+                if self.include_types
+                    && let Some(return_type) = signature.return_type
+                {
+                    self.write_punct(":");
+                    self.print_type_id(return_type)?;
+                }
+
+                self.write_punct("=>");
+                self.print_expression_id_with_precedence(*body, Precedence::Assignment)?;
+            }
+            Expression::Path {
+                path,
+                static_arguments,
+            } => {
+                self.print_path(path);
+
+                if self.include_types
+                    && let Some(static_arguments) = static_arguments
+                {
+                    self.print_type_arguments(static_arguments)?;
+                }
+            }
+            Expression::ImportMeta => {
+                self.write_punct("import.meta");
+            }
+            Expression::NewTarget => {
+                self.write_punct("new.target");
+            }
+            Expression::PrivateIdentifier { name } => {
+                self.write_punct("#");
+                self.write_string_id(*name);
+            }
+            Expression::ScalarLiteral { value } => {
+                self.print_scalar_literal(value);
+            }
+            Expression::TemplateLiteral { value } => {
+                self.print_template_literal(value)?;
+            }
+            Expression::ArrayLiteral { elements } => {
+                self.write_punct("[");
+                self.print_array_element_list(elements)?;
+                self.write_punct("]");
+            }
+            Expression::SequenceExpression { expressions } => {
+                self.print_expression_list(expressions)?;
+            }
+            Expression::ObjectLiteral { properties } => {
+                self.write_punct("{");
+                self.print_property_list(properties)?;
+                self.write_punct("}");
+            }
+            Expression::TypeUnary { operator, right } => {
+                self.write_type_unary_operator(*operator);
+
+                if matches!(
+                    operator,
+                    TypeUnaryOperator::Type
+                        | TypeUnaryOperator::Readonly
+                        | TypeUnaryOperator::Typeof
+                        | TypeUnaryOperator::Keyof
+                        | TypeUnaryOperator::AsComptime
+                        | TypeUnaryOperator::AsConst
+                ) {
+                    self.write_punct(" ");
+                }
+
+                self.print_expression_id_with_precedence(*right, Precedence::Prefix)?;
+            }
+            Expression::TypeBinary {
+                left,
+                operator,
+                right,
+            } => {
+                self.print_expression_id_with_precedence(*left, operator.precedence())?;
+                self.write_type_binary_operator(*operator);
+                self.print_expression_id_with_precedence(*right, operator.precedence().tighter())?;
+            }
+            Expression::Await { value } => {
+                self.write_keyword(Keyword::Await);
+                self.print_expression_id_with_precedence(*value, Precedence::Prefix)?;
+            }
+            Expression::Yield { is_delegate, value } => {
+                self.write_keyword(Keyword::Yield);
+
+                if *is_delegate {
+                    self.write_punct("*");
+                }
+
+                if let Some(value) = value {
+                    self.print_expression_id_with_precedence(*value, Precedence::Assignment)?;
+                }
+            }
+            Expression::Unary { operator, right } => {
+                self.write_unary_operator(*operator);
+
+                self.print_expression_id_with_precedence(*right, Precedence::Prefix)?;
+            }
+            Expression::Binary {
+                left,
+                operator,
+                right,
+            } => {
+                let precedence = operator.precedence();
+                let left_precedence = if *operator == crate::BinaryOperator::Exponent {
+                    precedence.tighter()
+                } else {
+                    precedence
+                };
+                let right_precedence = if *operator == crate::BinaryOperator::Exponent {
+                    precedence
+                } else {
+                    precedence.tighter()
+                };
+
+                self.print_expression_id_with_precedence(*left, left_precedence)?;
+                self.write_binary_operator(*operator);
+                self.print_expression_id_with_precedence(*right, right_precedence)?;
+            }
+            Expression::Assign { left, right } => {
+                self.print_expression_id_with_precedence(*left, Precedence::Postfix)?;
+                self.write_punct("=");
+                self.print_expression_id_with_precedence(*right, Precedence::Assignment)?;
+            }
+            Expression::AssignBinary {
+                left,
+                operator,
+                right,
+            } => {
+                self.print_expression_id_with_precedence(*left, Precedence::Postfix)?;
+                self.write_assign_operator(*operator);
+                self.print_expression_id_with_precedence(*right, Precedence::Assignment)?;
+            }
+            Expression::Maybe { position, left } => {
+                self.print_expression_id_with_precedence(*left, Precedence::Postfix)?;
+
+                if *position == PostfixPosition::Indirect {
+                    self.write_punct(".");
+                }
+
+                self.write_punct("?");
+            }
+            Expression::Must { position, left } => {
+                self.print_expression_id_with_precedence(*left, Precedence::Postfix)?;
+
+                if *position == PostfixPosition::Indirect {
+                    self.write_punct(".");
+                }
+
+                self.write_punct("!");
+            }
+            Expression::Member {
+                left,
+                name,
+                static_arguments,
+            } => {
+                self.print_expression_id_with_precedence(*left, Precedence::Postfix)?;
+                self.write_punct(".");
+                self.write_string_id(*name);
+
+                if self.include_types
+                    && let Some(static_arguments) = static_arguments
+                {
+                    self.print_type_arguments(static_arguments)?;
+                }
+            }
+            Expression::PrivateMember {
+                left,
+                name,
+                static_arguments,
+            } => {
+                self.print_expression_id_with_precedence(*left, Precedence::Postfix)?;
+                self.write_punct(".#");
+                self.write_string_id(*name);
+
+                if self.include_types
+                    && let Some(static_arguments) = static_arguments
+                {
+                    self.print_type_arguments(static_arguments)?;
+                }
+            }
+            Expression::Index {
+                position,
+                left,
+                right,
+            } => {
+                self.print_expression_id_with_precedence(*left, Precedence::Postfix)?;
+
+                if *position == PostfixPosition::Indirect {
+                    self.write_punct(".");
+                }
+
+                self.write_punct("[");
+                self.print_expression_id_with_precedence(*right, Precedence::Lowest)?;
+                self.write_punct("]");
+            }
+            Expression::Call {
+                position,
+                left,
+                static_arguments,
+                dynamic_arguments,
+            } => {
+                self.print_expression_id_with_precedence(*left, Precedence::Postfix)?;
+
+                if *position == PostfixPosition::Indirect {
+                    self.write_punct(".");
+                }
+
+                if self.include_types
+                    && let Some(static_arguments) = static_arguments
+                {
+                    self.print_type_arguments(static_arguments)?;
+                }
+
+                self.write_punct("(");
+                self.print_argument_list(dynamic_arguments)?;
+                self.write_punct(")");
+            }
+            Expression::ImportCall {
+                target, arguments, ..
+            } => {
+                let target_expression = self.tree.get(*target);
+                let target_span = self.source_part_span(expression_id.id, NodeSpanType::Main);
+
+                self.write_punct("import");
+                self.write_punct("(");
+
+                if let Expression::ScalarLiteral {
+                    value: ScalarLiteral::String(value),
+                } = target_expression
+                {
+                    self.write_string_literal_with_source_span(*value, target_span);
+                } else {
+                    self.print_expression_id_with_precedence(*target, Precedence::Lowest)?;
+                }
+
+                if !arguments.is_empty() {
+                    self.write_punct(",");
+                    self.print_argument_list(arguments)?;
+                }
+
+                self.write_punct(")");
+            }
+            Expression::New {
+                left,
+                static_arguments,
+                dynamic_arguments,
+            } => {
+                self.write_keyword(Keyword::New);
+                self.print_expression_id_with_precedence(*left, Precedence::Postfix)?;
+
+                if self.include_types
+                    && let Some(static_arguments) = static_arguments
+                {
+                    self.print_type_arguments(static_arguments)?;
+                }
+
+                self.write_punct("(");
+                self.print_argument_list(dynamic_arguments)?;
+                self.write_punct(")");
+            }
+            Expression::IfTernary {
+                condition,
+                then_expression,
+                else_expression,
+            } => {
+                self.print_expression_id_with_precedence(*condition, Precedence::Conditional)?;
+                self.write_punct("?");
+                self.print_expression_id_with_precedence(*then_expression, Precedence::Assignment)?;
+                self.write_punct(":");
+
+                if let Some(else_expression) = else_expression {
+                    self.print_expression_id_with_precedence(
+                        *else_expression,
+                        Precedence::Assignment,
+                    )?;
+                }
+            }
+            Expression::Parenthesized { .. } => {
+                unreachable!("parenthesized expressions are unwrapped")
+            }
+            Expression::Missing => {
+                self.write_punct("/* MISSING */");
+            }
+            Expression::Stub => {}
+            Expression::Error => {
+                self.write_punct("/* ERROR */");
+            }
+        }
+
+        if needs_wrap {
+            self.write_punct(")");
+        }
+
+        Ok(())
+    }
+
+    /// Print one array element.
+    pub(crate) fn print_array_element(
+        &mut self,
+        array_element: &ArrayElement,
+    ) -> JsPrintResult<()> {
+        match array_element {
+            ArrayElement::Expression { value } => {
+                self.print_expression_id(*value)?;
+            }
+            ArrayElement::Spread { value } => {
+                self.write_punct("...");
+                self.print_expression_id(*value)?;
+            }
+            ArrayElement::Elision => {}
+        }
+
+        Ok(())
+    }
+
+    /// Return whether one arrow function may omit parameter parentheses.
+    pub(crate) fn can_print_bare_arrow_parameter(
+        &self,
+        parameters: &[LocalNodeId<Parameter>],
+    ) -> bool {
+        if self.include_types || parameters.len() != 1 {
+            return false;
+        }
+
+        matches!(
+            self.tree.get(parameters[0]),
+            Parameter::Named {
+                modifiers: None,
+                ty: None,
+                default: None,
+                ..
+            }
+        )
+    }
+}

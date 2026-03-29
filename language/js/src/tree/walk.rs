@@ -203,6 +203,17 @@ pub fn walk_root<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, root
     }
 }
 
+/// Walk one root list through the visitor entry points.
+pub fn walk_roots<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    roots: &[LocalNodeIdAny],
+) {
+    for root in roots {
+        walk_root(visitor, tree, root);
+    }
+}
+
 // ----------------------------------------------------------------------------
 // Groupings
 // ----------------------------------------------------------------------------
