@@ -1,14 +1,4 @@
-use crate::Name;
 use destack_source::{FileId, Span};
-
-/// One lowered raw HTML attribute before source span attachment.
-#[derive(Debug, Clone)]
-pub(crate) struct RawHtmlAttribute {
-    /// The parsed attribute name.
-    pub(crate) name: Name,
-    /// The authored attribute value.
-    pub(crate) value: String,
-}
 
 /// One authored start tag match.
 #[derive(Debug, Clone)]
@@ -114,11 +104,11 @@ pub(crate) enum RawHtmlSelfClosingStyle {
 #[derive(Debug, Clone)]
 pub(crate) struct HtmlSourceCursor<'a> {
     /// The authored source text.
-    pub(crate) source: &'a str,
+    source: &'a str,
     /// The current byte offset.
-    pub(crate) offset: usize,
+    offset: usize,
     /// The owning source file.
-    pub(crate) file_id: FileId,
+    file_id: FileId,
 }
 
 impl<'a> HtmlSourceCursor<'a> {
@@ -129,6 +119,39 @@ impl<'a> HtmlSourceCursor<'a> {
             offset: 0,
             file_id,
         }
+    }
+
+    /// Return the owning source file id.
+    pub(crate) fn file_id(&self) -> FileId {
+        self.file_id
+    }
+
+    /// Return the current byte offset.
+    pub(crate) fn offset(&self) -> usize {
+        self.offset
+    }
+
+    /// Set the current byte offset.
+    pub(crate) fn set_offset(&mut self, offset: usize) {
+        self.offset = offset;
+    }
+
+    /// Return the authored source length in bytes.
+    pub(crate) fn source_len(&self) -> usize {
+        self.source.len()
+    }
+
+    /// Slice one authored source span.
+    pub(crate) fn slice(&self, span: Span) -> &str {
+        let start = span.start as usize;
+        let end = span.end as usize;
+
+        &self.source[start..end]
+    }
+
+    /// Return one empty span in the owning file.
+    pub(crate) fn empty_span(&self) -> Span {
+        Span::new(self.file_id, 0, 0)
     }
 
     /// Match the next authored doctype.
@@ -143,7 +166,7 @@ impl<'a> HtmlSourceCursor<'a> {
                 continue;
             }
 
-            if has_ascii_prefix_ignore_case(&self.source[index..], "<!doctype") {
+            if Self::has_ascii_prefix_ignore_case(&self.source[index..], "<!doctype") {
                 let doctype = self.parse_doctype(index)?;
                 self.offset = doctype.span.end as usize;
 
@@ -163,11 +186,11 @@ impl<'a> HtmlSourceCursor<'a> {
         let doctype_keyword_end = doctype_keyword_start + "doctype".len();
         let mut index = doctype_keyword_end;
 
-        index = skip_whitespace(bytes, index);
+        index = Self::skip_whitespace(bytes, index);
         let name_start = index;
-        index = advance_name(bytes, index);
+        index = Self::advance_name(bytes, index);
         let name_end = index;
-        index = skip_whitespace(bytes, index);
+        index = Self::skip_whitespace(bytes, index);
 
         let mut kind = RawHtmlDoctypeKind::NameOnly;
         let mut kind_keyword = None;
@@ -175,30 +198,30 @@ impl<'a> HtmlSourceCursor<'a> {
         let mut system_id_quote_style = None;
 
         // keyword
-        if has_ascii_prefix_ignore_case(&self.source[index..], "public") {
+        if Self::has_ascii_prefix_ignore_case(&self.source[index..], "public") {
             let keyword_start = index;
             kind = RawHtmlDoctypeKind::Public;
             index += "public".len();
             kind_keyword = Some(self.source[keyword_start..index].to_string());
-            index = skip_whitespace(bytes, index);
+            index = Self::skip_whitespace(bytes, index);
             let (quote_style, next_index) = self.parse_doctype_quoted_id(index)?;
             public_id_quote_style = Some(quote_style);
-            let next_index = skip_whitespace(bytes, next_index);
+            let next_index = Self::skip_whitespace(bytes, next_index);
 
             if let Some((quote_style, _)) = self.parse_optional_doctype_quoted_id(next_index) {
                 system_id_quote_style = Some(quote_style);
             }
-        } else if has_ascii_prefix_ignore_case(&self.source[index..], "system") {
+        } else if Self::has_ascii_prefix_ignore_case(&self.source[index..], "system") {
             let keyword_start = index;
             kind = RawHtmlDoctypeKind::System;
             index += "system".len();
             kind_keyword = Some(self.source[keyword_start..index].to_string());
-            index = skip_whitespace(bytes, index);
+            index = Self::skip_whitespace(bytes, index);
             let (quote_style, _) = self.parse_doctype_quoted_id(index)?;
             system_id_quote_style = Some(quote_style);
         }
 
-        let end = advance_after_markup_declaration(self.source, start);
+        let end = self.advance_after_markup_declaration(start);
 
         Some(RawHtmlDoctype {
             span: Span::new(self.file_id, start as u32, end as u32),
@@ -266,7 +289,7 @@ impl<'a> HtmlSourceCursor<'a> {
     /// Match the next authored comment span.
     pub(crate) fn match_comment(&mut self) -> Option<Span> {
         let start = self.source[self.offset..].find("<!--")? + self.offset;
-        let end = advance_after_comment(self.source, start);
+        let end = self.advance_after_comment(start);
         self.offset = end;
 
         Some(Span::new(self.file_id, start as u32, end as u32))
@@ -275,7 +298,7 @@ impl<'a> HtmlSourceCursor<'a> {
     /// Match the next authored instruction span.
     pub(crate) fn match_instruction(&mut self) -> Option<Span> {
         let start = self.source[self.offset..].find("<?")? + self.offset;
-        let end = advance_after_processing_instruction(self.source, start);
+        let end = self.advance_after_processing_instruction(start);
         self.offset = end;
 
         Some(Span::new(self.file_id, start as u32, end as u32))
@@ -294,22 +317,22 @@ impl<'a> HtmlSourceCursor<'a> {
             }
 
             if self.source[index..].starts_with("<!--") {
-                index = advance_after_comment(self.source, index);
+                index = self.advance_after_comment(index);
                 continue;
             }
 
             if self.source[index..].starts_with("<!") {
-                index = advance_after_markup_declaration(self.source, index);
+                index = self.advance_after_markup_declaration(index);
                 continue;
             }
 
             if self.source[index..].starts_with("<?") {
-                index = advance_after_processing_instruction(self.source, index);
+                index = self.advance_after_processing_instruction(index);
                 continue;
             }
 
             if self.source[index..].starts_with("</") {
-                index = advance_after_end_tag(self.source, index);
+                index = self.advance_after_end_tag(index);
                 continue;
             }
 
@@ -318,7 +341,7 @@ impl<'a> HtmlSourceCursor<'a> {
                 continue;
             };
 
-            if tag_name_matches(&tag.name, expected_local_name) {
+            if Self::tag_name_matches(&tag.name, expected_local_name) {
                 self.offset = tag.end;
 
                 return Some(tag);
@@ -346,7 +369,7 @@ impl<'a> HtmlSourceCursor<'a> {
             }
 
             if self.source[index..].starts_with("<!--") {
-                index = advance_after_comment(self.source, index);
+                index = self.advance_after_comment(index);
                 continue;
             }
 
@@ -360,7 +383,7 @@ impl<'a> HtmlSourceCursor<'a> {
                 continue;
             };
 
-            if tag_name_matches(&name, expected_local_name) {
+            if Self::tag_name_matches(&name, expected_local_name) {
                 self.offset = end;
 
                 return Some(RawHtmlEndTag {
@@ -385,17 +408,17 @@ impl<'a> HtmlSourceCursor<'a> {
         let bytes = self.source.as_bytes();
         let mut index = start + 1;
 
-        if index >= bytes.len() || !is_name_start(bytes[index]) {
+        if index >= bytes.len() || !Self::is_name_start(bytes[index]) {
             return None;
         }
 
         let name_start = index;
-        index = advance_name(bytes, index);
+        index = Self::advance_name(bytes, index);
         let name_end = index;
         let mut attributes = Vec::new();
 
         loop {
-            index = skip_whitespace(bytes, index);
+            index = Self::skip_whitespace(bytes, index);
 
             if index >= bytes.len() {
                 return None;
@@ -437,7 +460,7 @@ impl<'a> HtmlSourceCursor<'a> {
 
             let attribute_start = index;
             let attribute_name_start = index;
-            index = advance_attribute_name(bytes, index);
+            index = Self::advance_attribute_name(bytes, index);
 
             if attribute_name_start == index {
                 index += 1;
@@ -445,12 +468,12 @@ impl<'a> HtmlSourceCursor<'a> {
             }
 
             let attribute_name_end = index;
-            index = skip_whitespace(bytes, index);
+            index = Self::skip_whitespace(bytes, index);
 
             // optional attribute value
             let (value_span, value_form) = if bytes.get(index) == Some(&b'=') {
                 index += 1;
-                index = skip_whitespace(bytes, index);
+                index = Self::skip_whitespace(bytes, index);
 
                 if index >= bytes.len() {
                     (None, None)
@@ -521,14 +544,14 @@ impl<'a> HtmlSourceCursor<'a> {
         let bytes = self.source.as_bytes();
         let mut index = start + 2;
 
-        if index >= bytes.len() || !is_name_start(bytes[index]) {
+        if index >= bytes.len() || !Self::is_name_start(bytes[index]) {
             return None;
         }
 
         let name_start = index;
-        index = advance_name(bytes, index);
+        index = Self::advance_name(bytes, index);
         let name_end = index;
-        index = skip_whitespace(bytes, index);
+        index = Self::skip_whitespace(bytes, index);
 
         if bytes.get(index) != Some(&b'>') {
             return None;
@@ -536,96 +559,96 @@ impl<'a> HtmlSourceCursor<'a> {
 
         Some((self.source[name_start..name_end].to_string(), index + 1))
     }
-}
 
-/// Advance after one HTML comment.
-fn advance_after_comment(source: &str, start: usize) -> usize {
-    source[start + 4..]
-        .find("-->")
-        .map(|index| start + 4 + index + 3)
-        .unwrap_or(source.len())
-}
-
-/// Advance after one markup declaration.
-fn advance_after_markup_declaration(source: &str, start: usize) -> usize {
-    source[start + 2..]
-        .find('>')
-        .map(|index| start + 2 + index + 1)
-        .unwrap_or(source.len())
-}
-
-/// Advance after one processing instruction.
-fn advance_after_processing_instruction(source: &str, start: usize) -> usize {
-    source[start + 2..]
-        .find("?>")
-        .map(|index| start + 2 + index + 2)
-        .or_else(|| {
-            source[start + 2..]
-                .find('>')
-                .map(|index| start + 2 + index + 1)
-        })
-        .unwrap_or(source.len())
-}
-
-/// Advance after one end tag without validating its name.
-fn advance_after_end_tag(source: &str, start: usize) -> usize {
-    source[start + 2..]
-        .find('>')
-        .map(|index| start + 2 + index + 1)
-        .unwrap_or(source.len())
-}
-
-/// Return whether two authored tag names match semantically.
-fn tag_name_matches(authored_name: &str, expected_local_name: &str) -> bool {
-    authored_name
-        .rsplit(':')
-        .next()
-        .is_some_and(|name| name.eq_ignore_ascii_case(expected_local_name))
-}
-
-/// Return whether one source prefix matches ASCII case insensitively.
-fn has_ascii_prefix_ignore_case(value: &str, prefix: &str) -> bool {
-    value
-        .get(..prefix.len())
-        .is_some_and(|value| value.eq_ignore_ascii_case(prefix))
-}
-
-/// Skip one run of ASCII whitespace.
-fn skip_whitespace(bytes: &[u8], mut index: usize) -> usize {
-    while index < bytes.len() && bytes[index].is_ascii_whitespace() {
-        index += 1;
+    /// Advance after one HTML comment.
+    fn advance_after_comment(&self, start: usize) -> usize {
+        self.source[start + 4..]
+            .find("-->")
+            .map(|index| start + 4 + index + 3)
+            .unwrap_or(self.source.len())
     }
 
-    index
-}
-
-/// Advance over one HTML tag name.
-fn advance_name(bytes: &[u8], mut index: usize) -> usize {
-    while index < bytes.len() && is_name_continue(bytes[index]) {
-        index += 1;
+    /// Advance after one markup declaration.
+    fn advance_after_markup_declaration(&self, start: usize) -> usize {
+        self.source[start + 2..]
+            .find('>')
+            .map(|index| start + 2 + index + 1)
+            .unwrap_or(self.source.len())
     }
 
-    index
-}
-
-/// Advance over one HTML attribute name.
-fn advance_attribute_name(bytes: &[u8], mut index: usize) -> usize {
-    while index < bytes.len()
-        && !bytes[index].is_ascii_whitespace()
-        && !matches!(bytes[index], b'=' | b'>' | b'/')
-    {
-        index += 1;
+    /// Advance after one processing instruction.
+    fn advance_after_processing_instruction(&self, start: usize) -> usize {
+        self.source[start + 2..]
+            .find("?>")
+            .map(|index| start + 2 + index + 2)
+            .or_else(|| {
+                self.source[start + 2..]
+                    .find('>')
+                    .map(|index| start + 2 + index + 1)
+            })
+            .unwrap_or(self.source.len())
     }
 
-    index
-}
+    /// Advance after one end tag without validating its name.
+    fn advance_after_end_tag(&self, start: usize) -> usize {
+        self.source[start + 2..]
+            .find('>')
+            .map(|index| start + 2 + index + 1)
+            .unwrap_or(self.source.len())
+    }
 
-/// Return whether one byte can start one HTML name.
-fn is_name_start(byte: u8) -> bool {
-    byte.is_ascii_alphabetic()
-}
+    /// Return whether two authored tag names match semantically.
+    fn tag_name_matches(authored_name: &str, expected_local_name: &str) -> bool {
+        authored_name
+            .rsplit(':')
+            .next()
+            .is_some_and(|name| name.eq_ignore_ascii_case(expected_local_name))
+    }
 
-/// Return whether one byte can continue one HTML name.
-fn is_name_continue(byte: u8) -> bool {
-    byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b':' | b'.')
+    /// Return whether one source prefix matches ASCII case insensitively.
+    fn has_ascii_prefix_ignore_case(value: &str, prefix: &str) -> bool {
+        value
+            .get(..prefix.len())
+            .is_some_and(|value| value.eq_ignore_ascii_case(prefix))
+    }
+
+    /// Skip one run of ASCII whitespace.
+    fn skip_whitespace(bytes: &[u8], mut index: usize) -> usize {
+        while index < bytes.len() && bytes[index].is_ascii_whitespace() {
+            index += 1;
+        }
+
+        index
+    }
+
+    /// Advance over one HTML tag name.
+    fn advance_name(bytes: &[u8], mut index: usize) -> usize {
+        while index < bytes.len() && Self::is_name_continue(bytes[index]) {
+            index += 1;
+        }
+
+        index
+    }
+
+    /// Advance over one HTML attribute name.
+    fn advance_attribute_name(bytes: &[u8], mut index: usize) -> usize {
+        while index < bytes.len()
+            && !bytes[index].is_ascii_whitespace()
+            && !matches!(bytes[index], b'=' | b'>' | b'/')
+        {
+            index += 1;
+        }
+
+        index
+    }
+
+    /// Return whether one byte can start one HTML name.
+    fn is_name_start(byte: u8) -> bool {
+        byte.is_ascii_alphabetic()
+    }
+
+    /// Return whether one byte can continue one HTML name.
+    fn is_name_continue(byte: u8) -> bool {
+        byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b':' | b'.')
+    }
 }

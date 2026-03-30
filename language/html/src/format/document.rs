@@ -2,10 +2,10 @@ use destack_fir::format::{FormatResult, format};
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use super::HtmlFormatOptions;
+use super::attribute::{write_double_quoted_value, write_single_quoted_value};
 use super::content::write_content;
-use super::context::HtmlFormatContext;
-use crate::{Doctype, DoctypeKind, DoctypeQuoteStyle, Document, Fragment, LocalNodeId, NodeTree};
+use super::context::{HtmlFormatContext, HtmlFormatOptions};
+use crate::{Doctype, DoctypeKind, DoctypeQuoteStyle, Document, LocalNodeId, NodeTree};
 
 /// Format one HTML document as pretty HTML.
 pub fn format_document(
@@ -22,23 +22,8 @@ pub fn format_document(
     Ok(formatted.print()?.into_str())
 }
 
-/// Format one HTML fragment as pretty HTML.
-pub fn format_fragment(
-    tree: &NodeTree,
-    fragment: LocalNodeId<Fragment>,
-    options: HtmlFormatOptions,
-) -> FormatResult<String> {
-    let context = HtmlFormatContext::new(options);
-    let formatted = format(
-        context,
-        destack_fir::format_args![format_with(|f| write_fragment(tree, fragment, f))],
-    )?;
-
-    Ok(formatted.print()?.into_str())
-}
-
 /// Write one HTML document.
-fn write_document(
+pub(crate) fn write_document(
     tree: &NodeTree,
     document_id: LocalNodeId<Document>,
     f: &mut Formatter<'_, HtmlFormatContext>,
@@ -141,34 +126,11 @@ fn write_doctype_id(
 
     // escaped value
     match quote_style {
-        DoctypeQuoteStyle::DoubleQuoted => {
-            super::content::write_double_quoted_html_value(value, f)?;
-        }
-        DoctypeQuoteStyle::SingleQuoted => {
-            super::content::write_single_quoted_html_value(value, f)?;
-        }
+        DoctypeQuoteStyle::DoubleQuoted => write_double_quoted_value(value, f)?,
+        DoctypeQuoteStyle::SingleQuoted => write_single_quoted_value(value, f)?,
     }
 
     write!(f, [text(quote)])
-}
-
-/// Write one HTML fragment.
-fn write_fragment(
-    tree: &NodeTree,
-    fragment_id: LocalNodeId<Fragment>,
-    f: &mut Formatter<'_, HtmlFormatContext>,
-) -> FormatResult<()> {
-    let fragment = tree.get(fragment_id);
-
-    for (index, child) in fragment.children.iter().enumerate() {
-        if index > 0 {
-            write!(f, [hard_line_break()])?;
-        }
-
-        write_content(tree, *child, false, f)?;
-    }
-
-    Ok(())
 }
 
 #[cfg(test)]

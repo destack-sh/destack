@@ -2,9 +2,11 @@ use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
 
+use super::attribute::write_attribute;
 use super::context::HtmlFormatContext;
+use super::name::write_authored_or_resolved_name;
 use crate::print::Printer;
-use crate::{AttributeValue, AttributeValueForm, Content, Element, LocalNodeId, Name, NodeTree};
+use crate::{Content, Element, LocalNodeId, NodeTree};
 
 /// Write one content node.
 pub(crate) fn write_content(
@@ -72,11 +74,7 @@ pub(crate) fn write_element(
         let attribute = tree.get(*attribute_id);
 
         write!(f, [space()])?;
-        write_authored_or_resolved_name(f.context().attribute_name(attribute), &attribute.name, f)?;
-
-        if let Some(value) = &attribute.value {
-            write_attribute_value(value, f)?;
-        }
+        write_attribute(tree, attribute, f)?;
     }
 
     // self closing
@@ -153,25 +151,6 @@ pub(crate) fn write_element(
     Ok(())
 }
 
-/// Write one authored name when present, otherwise one resolved name.
-fn write_authored_or_resolved_name(
-    authored_name: Option<&str>,
-    name: &Name,
-    f: &mut Formatter<'_, HtmlFormatContext>,
-) -> FormatResult<()> {
-    // authored name
-    if let Some(authored_name) = authored_name {
-        return write!(f, [text(authored_name)]);
-    }
-
-    // qualified fallback
-    if let Some(prefix) = &name.prefix {
-        write!(f, [text(prefix), text(":")])?;
-    }
-
-    write!(f, [text(&name.local)])
-}
-
 /// Return whether one element can stay inline.
 fn can_inline_element(
     tree: &NodeTree,
@@ -209,87 +188,6 @@ fn write_text(
             '&' => write!(f, [text("&amp;")])?,
             '<' => write!(f, [text("&lt;")])?,
             '>' => write!(f, [text("&gt;")])?,
-            _ => write!(f, [text(&character.to_string())])?,
-        }
-    }
-
-    Ok(())
-}
-
-/// Write one authored attribute value form.
-fn write_attribute_value(
-    value: &AttributeValue,
-    f: &mut Formatter<'_, HtmlFormatContext>,
-) -> FormatResult<()> {
-    match value.form {
-        AttributeValueForm::DoubleQuoted => {
-            write!(f, [token("="), text("\"")])?;
-            write_double_quoted_html_value(&value.value, f)?;
-            write!(f, [text("\"")])
-        }
-        AttributeValueForm::SingleQuoted => {
-            write!(f, [token("="), text("'")])?;
-            write_single_quoted_html_value(&value.value, f)?;
-            write!(f, [text("'")])
-        }
-        AttributeValueForm::Unquoted => {
-            write!(f, [token("=")])?;
-            write_unquoted_html_value(&value.value, f)
-        }
-    }
-}
-
-/// Write one double-quoted HTML value.
-pub(crate) fn write_double_quoted_html_value(
-    value: &str,
-    f: &mut Formatter<'_, HtmlFormatContext>,
-) -> FormatResult<()> {
-    for character in value.chars() {
-        match character {
-            '&' => write!(f, [text("&amp;")])?,
-            '"' => write!(f, [text("&quot;")])?,
-            '<' => write!(f, [text("&lt;")])?,
-            '>' => write!(f, [text("&gt;")])?,
-            _ => write!(f, [text(&character.to_string())])?,
-        }
-    }
-
-    Ok(())
-}
-
-/// Write one single-quoted HTML value.
-pub(crate) fn write_single_quoted_html_value(
-    value: &str,
-    f: &mut Formatter<'_, HtmlFormatContext>,
-) -> FormatResult<()> {
-    for character in value.chars() {
-        match character {
-            '&' => write!(f, [text("&amp;")])?,
-            '\'' => write!(f, [text("&#39;")])?,
-            '<' => write!(f, [text("&lt;")])?,
-            '>' => write!(f, [text("&gt;")])?,
-            _ => write!(f, [text(&character.to_string())])?,
-        }
-    }
-
-    Ok(())
-}
-
-/// Write one unquoted HTML value.
-pub(crate) fn write_unquoted_html_value(
-    value: &str,
-    f: &mut Formatter<'_, HtmlFormatContext>,
-) -> FormatResult<()> {
-    for character in value.chars() {
-        match character {
-            '&' => write!(f, [text("&amp;")])?,
-            '"' => write!(f, [text("&quot;")])?,
-            '\'' => write!(f, [text("&#39;")])?,
-            '<' => write!(f, [text("&lt;")])?,
-            '>' => write!(f, [text("&gt;")])?,
-            '=' => write!(f, [text("&#61;")])?,
-            '`' => write!(f, [text("&#96;")])?,
-            character if character.is_ascii_whitespace() => write!(f, [text("&#32;")])?,
             _ => write!(f, [text(&character.to_string())])?,
         }
     }

@@ -25,6 +25,7 @@ impl<'a> Printer<'a> {
 
     /// Render one authored element start tag name.
     pub(crate) fn render_element_start_tag_name(&self, element: &Element) -> String {
+        // authored spelling
         element
             .authored_start_tag_name
             .clone()
@@ -33,6 +34,7 @@ impl<'a> Printer<'a> {
 
     /// Render one authored element end tag name.
     pub(crate) fn render_element_end_tag_name(&self, element: &Element) -> String {
+        // authored spelling
         element
             .authored_end_tag_name
             .clone()
@@ -42,6 +44,7 @@ impl<'a> Printer<'a> {
 
     /// Render one authored attribute name.
     pub(crate) fn render_attribute_name(&self, attribute: &Attribute) -> String {
+        // authored spelling
         attribute
             .authored_name
             .clone()
@@ -50,8 +53,11 @@ impl<'a> Printer<'a> {
 
     /// Render one qualified HTML name.
     pub(crate) fn render_name(name: &Name) -> String {
+        // qualified name
         match &name.prefix {
             Some(prefix) => format!("{prefix}:{}", name.local),
+
+            // resolved fallback
             None => match &name.namespace {
                 Namespace::Other(_)
                 | Namespace::Html
@@ -96,16 +102,21 @@ impl<'a> Printer<'a> {
     /// Write one authored attribute value form.
     pub(crate) fn write_attribute_value_form(&mut self, value: &AttributeValue) {
         match value.form {
+            // double-quoted
             AttributeValueForm::DoubleQuoted => {
                 self.source.push('"');
                 self.write_double_quoted_attribute_value(&value.value);
                 self.source.push('"');
             }
+
+            // single-quoted
             AttributeValueForm::SingleQuoted => {
                 self.source.push('\'');
                 self.write_single_quoted_attribute_value(&value.value);
                 self.source.push('\'');
             }
+
+            // unquoted
             AttributeValueForm::Unquoted => {
                 self.write_unquoted_attribute_value(&value.value);
             }

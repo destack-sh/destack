@@ -2,7 +2,7 @@ use destack_fir::format::{FormatContext, FormatOptions};
 use destack_fir::print::PrintOptions;
 use destack_source::{File, FileType, IndentStyle, LineEnding};
 
-use crate::{Attribute, Doctype, DoctypeQuoteStyle, Element, SelfClosingStyle};
+use crate::{Doctype, DoctypeQuoteStyle, Element, SelfClosingStyle};
 
 /// HTML format options.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -112,11 +112,6 @@ impl HtmlFormatContext {
             .authored_end_tag_name
             .as_deref()
             .or(element.authored_start_tag_name.as_deref())
-    }
-
-    /// Return one authored attribute name.
-    pub(crate) fn attribute_name<'a>(&self, attribute: &'a Attribute) -> Option<&'a str> {
-        attribute.authored_name.as_deref()
     }
 
     /// Render one authored doctype keyword.
