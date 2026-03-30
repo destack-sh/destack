@@ -11,6 +11,8 @@ pub enum ArtifactFamily {
     LibraryEnvironment,
     /// Parsed module syntax tree.
     Ast,
+    /// Parsed non-code module data.
+    Data,
     /// Base DIR before semantic resolution.
     DirBase,
     /// Profile prepared DIR.
@@ -54,7 +56,8 @@ impl ArtifactFamily {
             | Self::LanguageEnvironment
             | Self::IntrinsicEnvironment
             | Self::LibraryEnvironment
-            | Self::Ast => Some(PersistedImageValidation::SelfContained),
+            | Self::Ast
+            | Self::Data => Some(PersistedImageValidation::SelfContained),
 
             Self::DirBase
             | Self::DirPrepared

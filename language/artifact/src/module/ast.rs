@@ -24,8 +24,6 @@ pub struct Ast {
     pub side_tokens: Vec<ast::TokenSpan>,
     /// Stable anchor expression for diagnostics.
     pub anchor_expression: Option<ast::LocalNodeId<ast::Expression>>,
-    /// Parsed data-module payload for json, toml, and yaml modules.
-    pub data_value: Option<serde_json::Value>,
 }
 
 impl Ast {
@@ -41,7 +39,6 @@ impl Ast {
             tokens: Vec::new(),
             side_tokens: Vec::new(),
             anchor_expression: None,
-            data_value: None,
         }
     }
 
@@ -67,7 +64,6 @@ impl Ast {
             tokens,
             side_tokens,
             anchor_expression: None,
-            data_value: None,
         }
     }
 

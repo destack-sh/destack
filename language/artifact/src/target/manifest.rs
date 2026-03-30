@@ -59,6 +59,8 @@ pub enum BuildManifestFileType {
 pub enum BuildManifestLoader {
     /// JavaScript output.
     Js,
+    /// CSS output.
+    Css,
     /// TypeScript output.
     Ts,
     /// HTML output.

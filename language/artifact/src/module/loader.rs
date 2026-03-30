@@ -99,9 +99,14 @@ impl Loader {
         matches!(self, Loader::Text | Loader::Base64)
     }
 
+    /// Whether this loader produces asset reference modules.
+    pub fn is_file(&self) -> bool {
+        matches!(self, Loader::File)
+    }
+
     /// Whether this loader produces binary modules.
     pub fn is_binary(&self) -> bool {
-        matches!(self, Loader::Binary | Loader::File)
+        matches!(self, Loader::Binary)
     }
 
     /// Parse a loader from an import attribute type value string.
@@ -117,6 +122,7 @@ impl Loader {
             "yaml" => Some(Loader::Yaml),
             "text" => Some(Loader::Text),
             "binary" => Some(Loader::Binary),
+            "file" => Some(Loader::File),
             "base64" => Some(Loader::Base64),
             _ => None,
         }
