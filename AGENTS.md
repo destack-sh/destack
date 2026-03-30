@@ -77,15 +77,15 @@ Abstraction salad names like "seam", "lane" are to be treated with high suspicio
 
 ### Logic
 
-Long methods are allowed if the logic isn't meaningfully extractable.
-Prefer pure(ish) functions, pass in context explicitly when needed (usually as the last argument).
-
-Break larger code blocks into logical chunks with whitespace and/or preamble comments.
-All logic in functions and outside should be broken into small-ish coherent blocks (2-8 lines or so) with a preceding comment.
-Logic blocks are always separated by blank lines (except the first).
-Usually you want the comment before the if clause / loop / whatever, not inside.
-Every logic block should have a comment (returns may omit the comment), and every logic block (except the first) should have a blank line before it.
-The return value implicit or explicit should also have a blank line before it, even if it's uncommented (which is, again, fine).
+- Fewer overloads are better
+- Long methods are allowed if the logic isn't meaningfully extractable.
+- Prefer pure(ish) functions, pass in context explicitly when needed (usually as the last argument).
+- Break larger code blocks into logical chunks with whitespace and/or preamble comments.
+- All logic in functions and outside should be broken into small-ish coherent blocks (2-8 lines or so) with a preceding comment.
+- Logic blocks are always separated by blank lines (except the first).
+- Usually you want the comment before the if clause / loop / whatever, not inside.
+- Every logic block should have a comment (returns may omit the comment), and every logic block (except the first) should have a blank line before it.
+- The return value implicit or explicit should also have a blank line before it, even if it's uncommented (which is, again, fine).
 
 Use temporary variables for non-trivial operations (yes, it's deliberately verbose):
 ```rust
@@ -94,10 +94,15 @@ let second_digit = (dt_bytes[1] - b'0') as i64;
 let number = 10 * first_digit + second_digit;
 ```
 
-Try to make logic "incrementally granular" (as per Casey Muratori), i.e., ideally we should be able to reuse logic at various pieces of granularity.
-Conceptually, this means not hiding details too much, and assuming (especially internally) that the caller is a consenting adult.
-More specifically, for example, when a function takes an array of something, try to make it work on a single "element" instead and just loop in the caller.
-Prefer parameteric mutability. etc. etc. that sort of thing.
+- Try to make logic "incrementally granular" (as per Casey Muratori), i.e., ideally we should be able to reuse logic at various pieces of granularity.
+- Conceptually, this means not hiding details too much, and assuming (especially internally) that the caller is a consenting adult.
+- More specifically, for example, when a function takes an array of something, try to make it work on a single "element" instead and just loop in the caller.
+- Prefer parameteric mutability. etc. etc. that sort of thing.
+
+### Refactoring
+
+- Do not introduce "transitional" or "for now" logic, we always want the final ideal shape, nothing in between
+- It is often better to break / change the source directly and then let the compiler guide
 
 ### Errors
 
@@ -136,13 +141,16 @@ Ideally, you should format code *before* running it (via tests or otherwise), so
 
 Toolchain: `nightly-2025-11-27` (see `rust-toolchain.toml`).
 - If you encounter an ICE, just do `cargo clean` (same if you run out of disk space)
-
 Imports:
 - Comments/documentation goes before *all* attributes (like `#[inline]`, `#[derive]`, etc.)
 - No `crate::X` within functions, prefer relative references (again, imports at the top)
 - Place imports at the top, prefer `use std::time::Instant` patterns
 - Just use `pub use submodule::*` for public exports, we use `pub` properly
 - Relatedly, we like to just use `use crate::x` directly at the top level (when possible)
+- `mod.rs` and `main.rs` are intended strictly for re-exports
+- Modules should either be `module.rs` or have `module/mod.rs` + real `module/whatever.rs`, never both
+- Avoid `include!` or convoluted `#[path]` to bypass
+- Avoid nesting `mod x { }` inside a file (except for `tests`)
 
 Logic:
 - Put constants at the top of the file (no magic numbers/values)
@@ -156,7 +164,7 @@ Logic:
 
 Lints and warnings:
 - Fix all the lints from `cargo check -p <crate>` and `cargo clippy -p <crate>`
-- Most clippy allow stuff should go on top of the impl, not individual functions (like too many arguments is almost always fine at a broad scope)
+- Most clippy allow stuff should go on top of the `impl`, not individual functions (like too many arguments is almost always fine at a broad scope)
 - In general, ignore too many arguments and type complexity warnings
 - Put lint suppression at the top of the impl block, not individual functions
 
