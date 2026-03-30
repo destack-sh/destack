@@ -1,8 +1,20 @@
-use destack_js::ScriptModule;
+use destack_core::StringPool;
+use destack_js::{Expression, LocalNodeId, LocalNodeIdAny, NodeTree};
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::SourceMapArtifact;
+
+/// One generated script module wrapper.
+#[derive(Debug, Clone)]
+pub struct ScriptModule {
+    /// The lowered script tree.
+    pub tree: NodeTree,
+    /// The root nodes in the lowered tree.
+    pub roots: Vec<LocalNodeIdAny>,
+    /// The string pool for the lowered tree.
+    pub strings: StringPool,
+}
 
 /// One generated script artifact.
 #[derive(Debug, Clone)]
@@ -11,6 +23,8 @@ pub struct ScriptArtifact {
     pub language: ScriptLanguage,
     /// The generated script module.
     pub module: ScriptModule,
+    /// The generated script slot when one exists.
+    pub slot: Option<ScriptSlot>,
     /// The generated module dependency summary.
     pub linkage: ScriptLinkage,
     /// The generated declaration payload when one exists.
@@ -19,6 +33,22 @@ pub struct ScriptArtifact {
     pub source_map: Option<SourceMapArtifact>,
     /// Whether the module has top level side effects.
     pub has_top_level_side_effects: bool,
+}
+
+/// One generated script slot inside a script artifact.
+#[derive(Debug, Clone)]
+pub struct ScriptSlot {
+    /// The expression node that holds the slot value.
+    pub expression_id: LocalNodeId<Expression>,
+    /// The semantic kind of slot.
+    pub kind: ScriptSlotKind,
+}
+
+/// The semantic kind of one generated script slot.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ScriptSlotKind {
+    /// One file-loader URL that must be linked later.
+    LinkedAssetUrl,
 }
 
 /// One generated script declaration payload.

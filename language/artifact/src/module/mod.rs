@@ -1,4 +1,5 @@
 mod ast;
+mod data;
 mod dir;
 mod edge;
 mod graph;
@@ -8,6 +9,7 @@ mod loader;
 mod mir;
 
 pub use ast::*;
+pub use data::*;
 pub use dir::*;
 pub use edge::*;
 pub use graph::*;

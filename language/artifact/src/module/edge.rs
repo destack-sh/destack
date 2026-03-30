@@ -19,6 +19,8 @@ pub enum ModuleEdgeRelation {
     DocumentStylesheet,
     /// A stylesheet import edge.
     StyleImport,
+    /// A stylesheet URL resource edge.
+    StyleUrl,
     /// A non-code resource reference edge.
     Resource,
 }

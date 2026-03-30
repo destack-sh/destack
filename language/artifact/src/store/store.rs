@@ -8,8 +8,8 @@ use destack_source::{DiagnosticCollection, FileId, ModuleId, ProfileId};
 
 use super::pin::ArtifactPin;
 use crate::{
-    ArtifactDependency, ArtifactKey, ArtifactStamp, ArtifactVersion, Ast, DirAnalyzed, DirBase,
-    DirDeclared, DirElaborated, DirInterface, DirPatched, DirPrepared, DirResolved,
+    ArtifactDependency, ArtifactKey, ArtifactStamp, ArtifactVersion, Ast, Data, DirAnalyzed,
+    DirBase, DirDeclared, DirElaborated, DirInterface, DirPatched, DirPrepared, DirResolved,
     IntrinsicEnvironment, LanguageEnvironment, LibraryEnvironment, MirBase, MirOptimized,
     ModuleGraph, ModuleOutput, PackageOutput,
 };
@@ -54,6 +54,8 @@ pub struct ArtifactStore {
 
     /// AST artifacts by module.
     asts: ArtifactMap<Ast>,
+    /// Parsed data artifacts by module.
+    datas: ArtifactMap<Data>,
 
     /// Base DIR artifacts by module.
     dir_bases: ArtifactMap<DirBase>,
@@ -167,6 +169,9 @@ impl ArtifactStore {
             ArtifactKey::Ast { .. } => {
                 self.asts.remove(version);
             }
+            ArtifactKey::Data { .. } => {
+                self.datas.remove(version);
+            }
             ArtifactKey::DirBase { .. } => {
                 self.dir_bases.remove(version);
             }
@@ -220,6 +225,7 @@ impl ArtifactStore {
                 self.evict_matching(&self.lib_environments, key)
             }
             ArtifactKey::Ast { .. } => self.evict_matching(&self.asts, key),
+            ArtifactKey::Data { .. } => self.evict_matching(&self.datas, key),
             ArtifactKey::DirBase { .. } => self.evict_matching(&self.dir_bases, key),
             ArtifactKey::DirPrepared { .. } => self.evict_matching(&self.dir_prepared, key),
             ArtifactKey::DirResolved { .. } => self.evict_matching(&self.dir_resolved, key),
@@ -345,6 +351,7 @@ impl ArtifactStore {
             }
             ArtifactKey::LibraryEnvironment { .. } => self.lib_environments.contains_key(version),
             ArtifactKey::Ast { .. } => self.asts.contains_key(version),
+            ArtifactKey::Data { .. } => self.datas.contains_key(version),
             ArtifactKey::DirBase { .. } => self.dir_bases.contains_key(version),
             ArtifactKey::DirPrepared { .. } => self.dir_prepared.contains_key(version),
             ArtifactKey::DirResolved { .. } => self.dir_resolved.contains_key(version),
@@ -438,6 +445,14 @@ impl ArtifactStore {
         let is_expected_key = matches!(&version.key, ArtifactKey::Ast { .. });
 
         self.publish(&self.asts, version, payload, is_expected_key, "Ast");
+    }
+
+    /// Publish one data payload at one exact version.
+    pub fn publish_data(&self, version: ArtifactVersion, payload: impl Into<Arc<Data>>) {
+        let payload = payload.into();
+        let is_expected_key = matches!(&version.key, ArtifactKey::Data { .. });
+
+        self.publish(&self.datas, version, payload, is_expected_key, "Data");
     }
 
     /// Publish one base DIR at one exact version.
@@ -690,6 +705,11 @@ impl ArtifactStore {
         self.asts.get(version).map(|entry| entry.value().clone())
     }
 
+    /// Get one data artifact.
+    pub fn data(&self, version: &ArtifactVersion) -> Option<Arc<Data>> {
+        self.datas.get(version).map(|entry| entry.value().clone())
+    }
+
     /// Get one base DIR artifact.
     pub fn dir_base(&self, version: &ArtifactVersion) -> Option<Arc<DirBase>> {
         self.dir_bases
@@ -782,6 +802,7 @@ impl ArtifactStore {
         self.intrinsic_environments.clear();
         self.lib_environments.clear();
         self.asts.clear();
+        self.datas.clear();
         self.dir_bases.clear();
         self.dir_prepared.clear();
         self.dir_resolved.clear();

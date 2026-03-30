@@ -88,6 +88,8 @@ pub enum ArtifactKey<P = ProfileId> {
     LibraryEnvironment { profile: P },
     /// Parsed module syntax tree.
     Ast { module: ModuleId },
+    /// Parsed non-code module data.
+    Data { module: ModuleId },
     /// Base DIR.
     DirBase { module: ModuleId },
     /// Profile prepared DIR.
@@ -157,6 +159,11 @@ impl<P> ArtifactKey<P> {
     /// Build one AST artifact key.
     pub fn ast(module: ModuleId) -> Self {
         Self::Ast { module }
+    }
+
+    /// Build one data artifact key.
+    pub fn data(module: ModuleId) -> Self {
+        Self::Data { module }
     }
 
     /// Build one base DIR artifact key.
@@ -235,6 +242,7 @@ impl<P> ArtifactKey<P> {
             Self::IntrinsicEnvironment { .. } => ArtifactFamily::IntrinsicEnvironment,
             Self::LibraryEnvironment { .. } => ArtifactFamily::LibraryEnvironment,
             Self::Ast { .. } => ArtifactFamily::Ast,
+            Self::Data { .. } => ArtifactFamily::Data,
             Self::DirBase { .. } => ArtifactFamily::DirBase,
             Self::DirPrepared { .. } => ArtifactFamily::DirPrepared,
             Self::DirResolved { .. } => ArtifactFamily::DirResolved,
@@ -254,6 +262,7 @@ impl<P> ArtifactKey<P> {
     pub fn module_id(&self) -> Option<ModuleId> {
         match self {
             Self::Ast { module }
+            | Self::Data { module }
             | Self::DirBase { module }
             | Self::DirPrepared { module, .. }
             | Self::DirResolved { module, .. }
@@ -292,6 +301,7 @@ impl ArtifactKey<ProfileId> {
             | Self::MirBase { profile, .. }
             | Self::MirOptimized { profile, .. } => Some(*profile),
             Self::Ast { .. }
+            | Self::Data { .. }
             | Self::DirBase { .. }
             | Self::ModuleOutput { .. }
             | Self::PackageOutput { .. } => None,
@@ -317,6 +327,7 @@ impl ArtifactKey<ProfileId> {
                 profile: profile_key_for_id(*profile),
             },
             Self::Ast { module } => ArtifactImageKey::Ast { module: *module },
+            Self::Data { module } => ArtifactImageKey::Data { module: *module },
             Self::DirBase { module } => ArtifactImageKey::DirBase { module: *module },
             Self::DirPrepared { module, profile } => ArtifactImageKey::DirPrepared {
                 module: *module,
