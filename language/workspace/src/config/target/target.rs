@@ -419,9 +419,34 @@ impl Target {
         !self.emits_assembled_output()
     }
 
-    /// Return whether this target should minify assembled JavaScript or HTML output.
+    /// Return whether this target should minify assembled JavaScript, HTML, or CSS output text.
     pub fn should_minify_bundle_output(&self) -> bool {
-        self.bundle.minify.is_enabled()
+        self.bundle.minify.minifies_output()
+    }
+
+    /// Return whether this target should compact printed bundled JavaScript output.
+    pub fn should_minify_bundle_script_output(&self) -> bool {
+        self.bundle.minify.enabled || self.bundle.minify.whitespace
+    }
+
+    /// Return whether this target should structurally minify bundled JavaScript syntax.
+    pub fn should_minify_bundle_script_syntax(&self) -> bool {
+        self.bundle.minify.enabled || self.bundle.minify.syntax
+    }
+
+    /// Return whether this target should structurally minify bundled CSS output.
+    pub fn should_minify_bundle_css_syntax(&self) -> bool {
+        self.bundle.minify.enabled || self.bundle.minify.syntax
+    }
+
+    /// Return whether this target should compact bundled CSS output whitespace.
+    pub fn should_minify_bundle_css_whitespace(&self) -> bool {
+        self.bundle.minify.enabled || self.bundle.minify.whitespace
+    }
+
+    /// Return whether this target should structurally minify bundled HTML output.
+    pub fn should_minify_bundle_html_output(&self) -> bool {
+        self.bundle.minify.minifies_output()
     }
 
     /// Return whether this target emits any source map data.
