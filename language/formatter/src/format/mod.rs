@@ -6,8 +6,10 @@ mod context;
 pub mod declaration;
 pub mod directive;
 pub mod expression;
+mod file;
 pub mod operator;
 pub mod tree;
 
 pub use context::*;
 pub use declaration::statement::{empty_block_with_infix_annotations, statement_list};
+pub use file::*;
