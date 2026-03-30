@@ -1,9 +1,9 @@
 use crate::{
-    Annotation, Argument, Block, Declaration, DeclarationDescriptor, Declarator, Decorator,
-    DependencyItem, EnumField, Expression, ForEachBinding, FunctionSignature, Generics, Heritage,
-    IfCondition, ImportAliasTarget, ImportTarget, Key, LocalNodeId, MatchCase, MatchSelector,
-    Member, NodeTree, NodeType, NodeVisitor, Parameter, Pattern, PatternField, Property,
-    TemplateLiteral, WhereClause,
+    Annotation, Argument, Blank, Block, Comment, Declaration, DeclarationDescriptor, Declarator,
+    Decorator, DependencyItem, Doc, EnumField, Expression, ForEachBinding, FunctionSignature,
+    Generics, Heritage, IfCondition, ImportAliasTarget, ImportTarget, Key, LocalNodeId,
+    LocalNodeIdAny, MatchCase, MatchSelector, Member, NodeTree, NodeType, NodeVisitor, Parameter,
+    Pattern, PatternField, Property, TemplateLiteral, WhereClause,
 };
 
 /// Walk any node.
@@ -97,6 +97,118 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
             let decorator = tree.decorators.get(local_idx);
             walk_decorator(visitor, tree, LocalNodeId::new(node_id), decorator);
         }
+    }
+}
+
+/// Walk one root node through the visitor entry points.
+pub fn walk_root<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, root: &LocalNodeIdAny) {
+    match root.ty {
+        NodeType::Expression => {
+            let expression_id = LocalNodeId::<Expression>::new(root.id);
+            let expression = tree.get(expression_id);
+            visitor.visit_expression(tree, expression_id, expression);
+        }
+        NodeType::Block => {
+            let block_id = LocalNodeId::<Block>::new(root.id);
+            let block = tree.get(block_id);
+            visitor.visit_block(tree, block_id, block);
+        }
+        NodeType::Declaration => {
+            let declaration_id = LocalNodeId::<Declaration>::new(root.id);
+            let declaration = tree.get(declaration_id);
+            visitor.visit_declaration(tree, declaration_id, declaration);
+        }
+        NodeType::Property => {
+            let property_id = LocalNodeId::<Property>::new(root.id);
+            let property = tree.get(property_id);
+            visitor.visit_property(tree, property_id, property);
+        }
+        NodeType::Member => {
+            let member_id = LocalNodeId::<Member>::new(root.id);
+            let member = tree.get(member_id);
+            visitor.visit_member(tree, member_id, member);
+        }
+        NodeType::EnumField => {
+            let enum_field_id = LocalNodeId::<EnumField>::new(root.id);
+            let enum_field = tree.get(enum_field_id);
+            visitor.visit_enum_field(tree, enum_field_id, enum_field);
+        }
+        NodeType::WhereClause => {
+            let where_clause_id = LocalNodeId::<WhereClause>::new(root.id);
+            let where_clause = tree.get(where_clause_id);
+            visitor.visit_where_clause(tree, where_clause_id, where_clause);
+        }
+        NodeType::DependencyItem => {
+            let dependency_item_id = LocalNodeId::<DependencyItem>::new(root.id);
+            let dependency_item = tree.get(dependency_item_id);
+            visitor.visit_dependency_item(tree, dependency_item_id, dependency_item);
+        }
+        NodeType::Parameter => {
+            let parameter_id = LocalNodeId::<Parameter>::new(root.id);
+            let parameter = tree.get(parameter_id);
+            visitor.visit_parameter(tree, parameter_id, parameter);
+        }
+        NodeType::Argument => {
+            let argument_id = LocalNodeId::<Argument>::new(root.id);
+            let argument = tree.get(argument_id);
+            visitor.visit_argument(tree, argument_id, argument);
+        }
+        NodeType::MatchCase => {
+            let match_case_id = LocalNodeId::<MatchCase>::new(root.id);
+            let match_case = tree.get(match_case_id);
+            visitor.visit_match_case(tree, match_case_id, match_case);
+        }
+        NodeType::Pattern => {
+            let pattern_id = LocalNodeId::<Pattern>::new(root.id);
+            let pattern = tree.get(pattern_id);
+            visitor.visit_pattern(tree, pattern_id, pattern);
+        }
+        NodeType::PatternField => {
+            let pattern_field_id = LocalNodeId::<PatternField>::new(root.id);
+            let pattern_field = tree.get(pattern_field_id);
+            visitor.visit_pattern_field(tree, pattern_field_id, pattern_field);
+        }
+        NodeType::Declarator => {
+            let declarator_id = LocalNodeId::<Declarator>::new(root.id);
+            let declarator = tree.get(declarator_id);
+            visitor.visit_declarator(tree, declarator_id, declarator);
+        }
+        NodeType::Annotation => {
+            let annotation_id = LocalNodeId::<Annotation>::new(root.id);
+            let annotation = tree.get(annotation_id);
+            visitor.visit_annotation(tree, annotation_id, annotation);
+        }
+        NodeType::Blank => {
+            let blank_id = LocalNodeId::<Blank>::new(root.id);
+            let blank = tree.get(blank_id);
+            visitor.visit_blank(tree, blank_id, blank);
+        }
+        NodeType::Doc => {
+            let doc_id = LocalNodeId::<Doc>::new(root.id);
+            let doc = tree.get(doc_id);
+            visitor.visit_doc(tree, doc_id, doc);
+        }
+        NodeType::Comment => {
+            let comment_id = LocalNodeId::<Comment>::new(root.id);
+            let comment = tree.get(comment_id);
+            visitor.visit_comment(tree, comment_id, comment);
+        }
+        NodeType::Decorator => {
+            let decorator_id = LocalNodeId::<Decorator>::new(root.id);
+            let decorator = tree.get(decorator_id);
+            visitor.visit_decorator(tree, decorator_id, decorator);
+        }
+    }
+}
+
+/// Walk one root list through the visitor entry points.
+pub fn walk_roots<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    roots: &[LocalNodeIdAny],
+) {
+    for root in roots {
+        walk_root(visitor, tree, root);
     }
 }
 
