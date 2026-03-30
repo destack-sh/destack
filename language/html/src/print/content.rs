@@ -38,6 +38,21 @@ impl<'a> Printer<'a> {
 
     /// Print one element.
     pub(crate) fn print_element(&mut self, element: &Element) {
+        // synthetic element
+        if element.authored_start_tag_name.is_none() {
+            let content = element
+                .content
+                .map(|content| self.tree.get(content).children.clone())
+                .unwrap_or_else(|| element.children.clone());
+            let is_raw_text = Self::is_raw_text_element_name(&element.name.local);
+
+            for child in &content {
+                self.print_content_with_mode(*child, is_raw_text);
+            }
+
+            return;
+        }
+
         let start_tag_name = self.render_element_start_tag_name(element);
         let end_tag_name = self.render_element_end_tag_name(element);
 

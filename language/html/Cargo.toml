@@ -11,6 +11,9 @@ rust-version.workspace = true
 path = "src/lib.rs"
 doctest = false
 
+[features]
+trace_tokenizer = []
+
 [dependencies]
 # language
 destack_core = { workspace = true }
@@ -18,10 +21,12 @@ destack_fir = { workspace = true }
 destack_source = { workspace = true }
 
 # general
-html5ever = { workspace = true }
-markup5ever_rcdom = { workspace = true }
+log = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 smallvec = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true, features = ["preserve_order"] }
 
 [lints]
 workspace = true

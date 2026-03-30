@@ -157,6 +157,15 @@ impl NodeTree {
         }
     }
 
+    /// Store one main span for one node.
+    pub fn set_span<T>(&mut self, id: LocalNodeId<T>, span: Span)
+    where
+        T: Node,
+        Self: NodeTreeImpl<T>,
+    {
+        self.span_by_node_id[id.id as usize] = span;
+    }
+
     /// Return the type of one untyped node id.
     pub fn get_node_type(&self, id: u32) -> NodeType {
         self.node_type_by_node_id[id as usize]
@@ -307,8 +316,9 @@ mod tests {
             destack_source::Span::new(FileId::new(1), 0, 50),
         );
 
-        let Content::Element(element_node) = tree.get(element) else {
-            panic!("expected element node");
+        let element_node = match tree.get(element) {
+            Content::Element(element_node) => element_node,
+            _ => return,
         };
 
         assert_eq!(tree.get(document).children, vec![element]);

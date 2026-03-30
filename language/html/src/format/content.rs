@@ -37,6 +37,21 @@ pub(crate) fn write_element(
     element: &Element,
     f: &mut Formatter<'_, HtmlFormatContext>,
 ) -> FormatResult<()> {
+    // synthetic element
+    if element.authored_start_tag_name.is_none() {
+        let content = element
+            .content
+            .map(|content| tree.get(content).children.clone())
+            .unwrap_or_else(|| element.children.clone());
+        let is_raw_text = Printer::is_raw_text_element_name(&element.name.local);
+
+        for child in &content {
+            write_content(tree, *child, is_raw_text, f)?;
+        }
+
+        return Ok(());
+    }
+
     // content
     let content = element
         .content
