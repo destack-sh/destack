@@ -247,6 +247,11 @@ impl TargetBundleMinify {
     pub fn is_enabled(&self) -> bool {
         self.enabled || self.syntax || self.whitespace || self.identifiers
     }
+
+    /// Return whether output text should be compacted or structurally minified.
+    pub fn minifies_output(&self) -> bool {
+        self.enabled || self.syntax || self.whitespace
+    }
 }
 
 /// Generated code controls for one output.
@@ -785,7 +790,7 @@ impl From<&TargetBundleMinifyJson> for TargetBundleMinify {
                     enabled: true,
                     syntax: true,
                     whitespace: true,
-                    identifiers: true,
+                    identifiers: false,
                     keep_names: false,
                 }
             }
