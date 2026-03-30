@@ -1,8 +1,9 @@
 use destack_runtime::host::abi::describe::{
-    HostAbiField, HostAbiModule, HostAbiNamedType, HostAbiNamedTypeDefinition,
+    HostAbiField, HostAbiModule, HostAbiModulePlatform, HostAbiNamedType,
+    HostAbiNamedTypeDefinition,
 };
 
-use super::{HostIngress, HostRequest};
+use super::{HostIngress, HostPlatform, HostRequest};
 
 /// One resolved host named type.
 #[derive(Clone)]
@@ -83,6 +84,8 @@ impl HostType {
 pub(crate) struct HostModule {
     /// The authored host ABI module.
     abi: HostAbiModule,
+    /// The supported host platforms.
+    platforms: Vec<HostPlatform>,
     /// The resolved request surfaces.
     requests: Vec<HostRequest>,
     /// The resolved ingress surfaces.
@@ -95,12 +98,19 @@ impl HostModule {
     /// Build one resolved host module from one authored host ABI module.
     pub(crate) fn new(abi: HostAbiModule) -> Self {
         // resolved surfaces
+        let platforms = abi
+            .platforms
+            .iter()
+            .copied()
+            .map(HostPlatform::from_abi)
+            .collect();
         let requests = abi.requests.iter().cloned().map(HostRequest::new).collect();
         let ingresses = abi.ingress.iter().cloned().map(HostIngress::new).collect();
         let types = abi.types.iter().cloned().map(HostType::new).collect();
 
         let module = Self {
             abi,
+            platforms,
             requests,
             ingresses,
             types,
@@ -124,6 +134,16 @@ impl HostModule {
     /// Return the resolved request surfaces.
     pub(crate) fn requests(&self) -> &[HostRequest] {
         &self.requests
+    }
+
+    /// Return the supported host platforms.
+    pub(crate) fn platforms(&self) -> &[HostPlatform] {
+        &self.platforms
+    }
+
+    /// Return whether this module supports one platform.
+    pub(crate) fn supports_platform(&self, platform: HostPlatform) -> bool {
+        self.platforms().contains(&platform)
     }
 
     /// Return the resolved named types.
@@ -164,5 +184,29 @@ impl HostModule {
             "unsupported ingress count for host module {}",
             self.name()
         );
+
+        // platform shape
+        let mut platforms = BTreeSet::new();
+        for platform in &self.abi.platforms {
+            assert!(
+                platforms.insert(platform_name(*platform)),
+                "duplicate platform on host module {}",
+                self.name()
+            );
+        }
+
+        assert!(
+            !self.platforms.is_empty(),
+            "missing platforms for host module {}",
+            self.name()
+        );
+    }
+}
+
+/// Return the stable label for one authored module platform.
+fn platform_name(platform: HostAbiModulePlatform) -> &'static str {
+    match platform {
+        HostAbiModulePlatform::Ios => "ios",
+        HostAbiModulePlatform::Android => "android",
     }
 }

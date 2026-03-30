@@ -10,7 +10,7 @@ use super::cpp::{
 use super::docs::push_cpp_doc_comment;
 use super::kotlin::{
     android_kotlin_method_name, android_kotlin_native_name, android_kotlin_parameter_name,
-    android_kotlin_process_name,
+    android_kotlin_runtime_abi_binary_name, android_runtime_bridge_method_name,
 };
 use super::name::android_pascal_case;
 use destack_runtime::host::abi::describe::{
@@ -119,7 +119,7 @@ pub(super) fn android_cpp_type_uses_jni_strings(module: &HostAbiModule, ty: &Hos
 /// Return the JNI signature for one flattened Android bridge leaf.
 fn android_cpp_leaf_jni_signature(module: &HostAbiModule, ty: &HostAbiType) -> String {
     match ty {
-        HostAbiType::U8 | HostAbiType::I8 | HostAbiType::I16 => "I".to_string(),
+        HostAbiType::U8 | HostAbiType::U16 | HostAbiType::I8 | HostAbiType::I16 => "I".to_string(),
         HostAbiType::U32 | HostAbiType::I32 => "I".to_string(),
         HostAbiType::U64 | HostAbiType::HostRequestId => "J".to_string(),
         HostAbiType::Bool => "Z".to_string(),
@@ -144,6 +144,65 @@ fn android_cpp_leaf_jni_signature(module: &HostAbiModule, ty: &HostAbiType) -> S
             other
         ),
     }
+}
+
+/// Return the JVM signature for one Android runtime ingress parameter.
+fn android_cpp_runtime_ingress_parameter_signature(
+    module: &HostAbiModule,
+    ty: &HostAbiType,
+) -> String {
+    match ty {
+        HostAbiType::HostSessionHandle | HostAbiType::U64 | HostAbiType::HostRequestId => {
+            "J".to_string()
+        }
+        HostAbiType::U8
+        | HostAbiType::U16
+        | HostAbiType::I8
+        | HostAbiType::I16
+        | HostAbiType::U32
+        | HostAbiType::I32 => "I".to_string(),
+        HostAbiType::Bool => "Z".to_string(),
+        HostAbiType::F64 => "D".to_string(),
+        HostAbiType::StringRef => "Ljava/lang/String;".to_string(),
+        HostAbiType::StringSlice => "[Ljava/lang/String;".to_string(),
+        HostAbiType::Named(name) if android_named_type_is_enum(module, name) => "I".to_string(),
+        HostAbiType::Named(name) => {
+            format!("L{};", android_runtime_named_binary_name(module, name))
+        }
+        HostAbiType::NativeSlice(inner) => {
+            let HostAbiType::Named(_) = inner.as_ref() else {
+                panic!(
+                    "unsupported Android runtime ingress slice signature for {:?}",
+                    ty
+                );
+            };
+
+            "Ljava/util/List;".to_string()
+        }
+        other => panic!(
+            "unsupported Android runtime ingress parameter signature for {:?}",
+            other
+        ),
+    }
+}
+
+/// Return the JVM signature for one Android runtime ingress method.
+fn android_cpp_runtime_ingress_signature(
+    module: &HostAbiModule,
+    ingress: &HostAbiFunction,
+) -> String {
+    let mut signature = String::from("(");
+
+    for parameter in &ingress.parameters {
+        signature.push_str(&android_cpp_runtime_ingress_parameter_signature(
+            module,
+            &parameter.ty,
+        ));
+    }
+
+    signature.push_str(")[J");
+
+    signature
 }
 
 /// Return the JNI return signature for one Android request.
@@ -196,15 +255,6 @@ fn android_cpp_getter_name(field_name: &str, is_bool: bool) -> String {
 /// Return the method-id slot name for one request.
 fn android_cpp_method_id_name(request: &HostAbiFunction) -> String {
     format!("{}_method", android_kotlin_method_name(request.name))
-}
-
-/// Return the RuntimeBridge method name for one generated request.
-fn android_kotlin_bridge_method_name(module: &HostAbiModule, request: &HostAbiFunction) -> String {
-    format!(
-        "{}{}",
-        android_kotlin_parameter_name(module.name),
-        android_pascal_case(request.name)
-    )
 }
 
 /// Return the decode helper function name for one named ABI type.
@@ -265,7 +315,9 @@ fn android_cpp_output_storage_name(name: &str) -> String {
 /// Return the getter signature for one object-returning field.
 fn android_cpp_object_signature(module: &HostAbiModule, ty: &HostAbiType) -> String {
     match ty {
-        HostAbiType::U8 | HostAbiType::I8 | HostAbiType::I16 => "()Ljava/lang/Integer;".to_string(),
+        HostAbiType::U8 | HostAbiType::U16 | HostAbiType::I8 | HostAbiType::I16 => {
+            "()Ljava/lang/Integer;".to_string()
+        }
         HostAbiType::U32 | HostAbiType::I32 | HostAbiType::HostStatus => {
             "()Ljava/lang/Integer;".to_string()
         }
@@ -289,7 +341,7 @@ fn android_cpp_object_signature(module: &HostAbiModule, ty: &HostAbiType) -> Str
 /// Return the default C++ value for one ABI type.
 fn android_cpp_default_value(module: &HostAbiModule, ty: &HostAbiType) -> String {
     match ty {
-        HostAbiType::U8 | HostAbiType::I8 | HostAbiType::I16 => "0".to_string(),
+        HostAbiType::U8 | HostAbiType::U16 | HostAbiType::I8 | HostAbiType::I16 => "0".to_string(),
         HostAbiType::U32 | HostAbiType::I32 | HostAbiType::U64 | HostAbiType::HostRequestId => {
             "0".to_string()
         }
@@ -320,7 +372,7 @@ fn android_cpp_primitive_getter_call(
     getter_name: &str,
 ) -> String {
     match ty {
-        HostAbiType::U8 | HostAbiType::I8 | HostAbiType::I16 => format!(
+        HostAbiType::U8 | HostAbiType::U16 | HostAbiType::I8 | HostAbiType::I16 => format!(
             "static_cast<{}>(call_int_getter(env, {object_name}, \"{getter_name}\"))",
             render_cpp_type(ty)
         ),
@@ -407,12 +459,7 @@ pub(super) fn render_generic_cpp_methods_source(module: &HostAbiModule) -> Strin
         &HostAbiType::NativeSlice(Box::new(HostAbiType::I16)),
     );
     let needs_encode_helpers = !encode_root_types.is_empty();
-    let needs_decode_helpers = request_output_types.iter().any(|ty| {
-        matches!(
-            ty,
-            HostAbiType::Named(_) | HostAbiType::NativeArray(_) | HostAbiType::NativeSlice(_)
-        )
-    });
+    let needs_decode_helpers = !request_output_types.is_empty();
     let needs_vector_output_storage = request_output_types
         .iter()
         .any(|ty| matches!(ty, HostAbiType::NativeArray(_)));
@@ -432,9 +479,9 @@ pub(super) fn render_generic_cpp_methods_source(module: &HostAbiModule) -> Strin
         .collect();
 
     output.push_str("// generated by generate-bindings: do not edit\n\n");
-    output.push_str("#include \"../../types.h\"\n");
-    output.push_str("#include \"../../jni.h\"\n");
-    output.push_str("#include \"../../registry.h\"\n");
+    output.push_str("#include \"../types.h\"\n");
+    output.push_str("#include \"../jni.h\"\n");
+    output.push_str("#include \"../registry.h\"\n");
     output.push_str("#include \"callbacks.generated.h\"\n\n");
     output.push_str("#include <deque>\n");
     output.push_str("#include <string>\n");
@@ -746,7 +793,7 @@ pub(super) fn render_generic_cpp_methods_source(module: &HostAbiModule) -> Strin
         output.push_str("            bridge_class,\n");
         output.push_str(&format!(
             "            \"{}\",\n",
-            android_kotlin_bridge_method_name(module, request)
+            android_runtime_bridge_method_name(module, request)
         ));
         output.push_str(&format!("            \"{}\"\n", signature));
         output.push_str("        );\n");
@@ -1239,6 +1286,7 @@ fn render_android_cpp_encode_helpers(
                             format!(",\n        value.{} ? JNI_TRUE : JNI_FALSE", field.name)
                         }
                         HostAbiType::U8
+                        | HostAbiType::U16
                         | HostAbiType::I8
                         | HostAbiType::I16
                         | HostAbiType::U32
@@ -1340,7 +1388,7 @@ fn render_android_cpp_encode_helpers(
 /// Return the JVM signature for one request-side object field.
 fn android_cpp_request_object_signature(module: &HostAbiModule, ty: &HostAbiType) -> String {
     match ty {
-        HostAbiType::U8 | HostAbiType::I8 | HostAbiType::I16 => "I".to_string(),
+        HostAbiType::U8 | HostAbiType::U16 | HostAbiType::I8 | HostAbiType::I16 => "I".to_string(),
         HostAbiType::U32 | HostAbiType::I32 => "I".to_string(),
         HostAbiType::U64 | HostAbiType::HostRequestId => "J".to_string(),
         HostAbiType::Bool => "Z".to_string(),
@@ -1448,7 +1496,7 @@ fn android_cpp_object_decode_expression(
         HostAbiType::StringRef => {
             format!("string_ref_from_java(env, static_cast<jstring>({value_name}), string_storage)")
         }
-        HostAbiType::U8 | HostAbiType::I8 | HostAbiType::I16 => format!(
+        HostAbiType::U8 | HostAbiType::U16 | HostAbiType::I8 | HostAbiType::I16 => format!(
             "static_cast<{}>(call_int_getter(env, {value_name}, \"intValue\"))",
             render_cpp_type(ty)
         ),
@@ -1712,7 +1760,7 @@ fn render_android_cpp_request_call_arguments(
             HostAbiType::Named(name) if android_named_type_is_enum(module, name) => {
                 format!("static_cast<jint>({})", leaf.expr)
             }
-            HostAbiType::U8 | HostAbiType::I8 | HostAbiType::I16 => {
+            HostAbiType::U8 | HostAbiType::U16 | HostAbiType::I8 | HostAbiType::I16 => {
                 format!("static_cast<jint>({})", leaf.expr)
             }
             HostAbiType::NativeSlice(inner) => {
@@ -1781,7 +1829,12 @@ fn render_android_cpp_output_decode(
                 output_parameter.expr, response_object_name, getter_name
             ));
         }
-        HostAbiType::U32 | HostAbiType::I32 => {
+        HostAbiType::U8
+        | HostAbiType::U16
+        | HostAbiType::I8
+        | HostAbiType::I16
+        | HostAbiType::U32
+        | HostAbiType::I32 => {
             output.push_str(&format!(
                 "{prefix}*{} = static_cast<{}>(call_int_getter(env, {}, \"{}\"));\n",
                 output_parameter.expr,
@@ -1799,7 +1852,36 @@ fn render_android_cpp_output_decode(
                 getter_name
             ));
         }
+        HostAbiType::F64 => {
+            output.push_str(&format!(
+                "{prefix}*{} = static_cast<double>(call_double_getter(env, {}, \"{}\"));\n",
+                output_parameter.expr, response_object_name, getter_name
+            ));
+        }
         HostAbiType::Named(_) => {
+            let value_name = format!("{}_value", output_parameter.name);
+            output.push_str(&format!(
+                "{prefix}jobject {} = call_object_getter(env, {}, \"{}\", \"{}\");\n",
+                value_name,
+                response_object_name,
+                getter_name,
+                android_cpp_object_signature(module, &output_parameter.ty)
+            ));
+            output.push_str(&format!("{prefix}if ({} == nullptr) {{\n", value_name));
+            output.push_str(&format!("{prefix}    status = HOST_STATUS_FAILED;\n"));
+            output.push_str(&format!("{prefix}}} else {{\n"));
+            output.push_str(&format!(
+                "{prefix}    *{} = {};\n",
+                output_parameter.expr,
+                android_cpp_object_decode_expression(module, &output_parameter.ty, &value_name)
+            ));
+            output.push_str(&format!(
+                "{prefix}    env->DeleteLocalRef({});\n",
+                value_name
+            ));
+            output.push_str(&format!("{prefix}}}\n"));
+        }
+        HostAbiType::NativeSlice(_) => {
             let value_name = format!("{}_value", output_parameter.name);
             output.push_str(&format!(
                 "{prefix}jobject {} = call_object_getter(env, {}, \"{}\", \"{}\");\n",
@@ -1912,8 +1994,8 @@ pub(super) fn render_generic_cpp_runtime_jni_wrapper_source(
     let needs_runtime_decode_storage = !decode_root_types.is_empty();
 
     output.push_str("// generated by generate-bindings: do not edit\n\n");
-    output.push_str("#include \"../../types.h\"\n");
-    output.push_str("#include \"../../jni.h\"\n");
+    output.push_str("#include \"../types.h\"\n");
+    output.push_str("#include \"../jni.h\"\n");
     output.push_str("#include \"runtime.generated.h\"\n\n");
     output.push_str("#include <deque>\n");
     output.push_str("#include <string>\n");
@@ -1966,13 +2048,9 @@ pub(super) fn render_generic_cpp_runtime_jni_wrapper_source(
         ),
         0,
     );
-    output.push_str("extern \"C\" JNIEXPORT jlongArray JNICALL\n");
-    output.push_str(&format!(
-        "Java_dev_destack_runtime_android_bridge_{}_{}_{}(\n",
-        module.name,
-        android_kotlin_process_name(module),
-        android_kotlin_native_name(ingress)
-    ));
+    output.push_str("static jlongArray ");
+    output.push_str(&android_kotlin_native_name(ingress));
+    output.push_str("(\n");
     output.push_str("    JNIEnv *env,\n");
     output.push_str("    jobject /* abi */");
 
@@ -2031,6 +2109,44 @@ pub(super) fn render_generic_cpp_runtime_jni_wrapper_source(
     output.push_str("    );\n\n");
     output.push_str("    return runtime_status_array(env, status);\n");
     output.push_str("}\n");
+
+    output.push('\n');
+    push_cpp_doc_comment(
+        &mut output,
+        &format!("Register the {} runtime ingress JNI methods.", module.name),
+        0,
+    );
+    output.push_str(&format!(
+        "bool register_{}_runtime_natives(JNIEnv *env) {{\n",
+        module.name
+    ));
+    output.push_str("    JNINativeMethod methods[] = {\n");
+    output.push_str("        {\n");
+    output.push_str(&format!(
+        "            const_cast<char *>(\"{}\"),\n",
+        android_kotlin_native_name(ingress)
+    ));
+    output.push_str(&format!(
+        "            const_cast<char *>(\"{}\"),\n",
+        android_cpp_runtime_ingress_signature(module, ingress)
+    ));
+    output.push_str(&format!(
+        "            reinterpret_cast<void *>({}),\n",
+        android_kotlin_native_name(ingress)
+    ));
+    output.push_str("        },\n");
+    output.push_str("    };\n\n");
+    output.push_str("    return register_native_methods(\n");
+    output.push_str("        env,\n");
+    output.push_str(&format!(
+        "        \"{}\",\n",
+        android_kotlin_runtime_abi_binary_name()
+    ));
+    output.push_str("        methods,\n");
+    output.push_str("        static_cast<jint>(sizeof(methods) / sizeof(methods[0]))\n");
+    output.push_str("    );\n");
+    output.push_str("}\n");
+
     output
 }
 
@@ -2040,7 +2156,7 @@ fn render_android_cpp_jni_parameter_type(_module: &HostAbiModule, ty: &HostAbiTy
         HostAbiType::HostSessionHandle | HostAbiType::U64 | HostAbiType::HostRequestId => {
             "jlong".to_string()
         }
-        HostAbiType::U32 | HostAbiType::I32 => "jint".to_string(),
+        HostAbiType::U16 | HostAbiType::U32 | HostAbiType::I32 => "jint".to_string(),
         HostAbiType::Bool => "jboolean".to_string(),
         HostAbiType::F64 => "jdouble".to_string(),
         HostAbiType::StringRef => "jstring".to_string(),
@@ -2059,6 +2175,7 @@ fn android_cpp_jni_decode_expression(
         HostAbiType::U64 | HostAbiType::HostRequestId => {
             format!("static_cast<uint64_t>({value_name})")
         }
+        HostAbiType::U16 => format!("static_cast<uint16_t>({value_name})"),
         HostAbiType::U32 => format!("static_cast<uint32_t>({value_name})"),
         HostAbiType::I32 => format!("static_cast<int32_t>({value_name})"),
         HostAbiType::Bool => format!("{value_name} == JNI_TRUE"),

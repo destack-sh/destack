@@ -3,6 +3,7 @@ use super::cpp::{
     android_cpp_callback_field_name, render_cpp_parameter_declaration, render_cpp_type,
 };
 use super::docs::push_cpp_doc_comment;
+use super::kotlin::{render_kotlin_runtime_abi, render_kotlin_runtime_bridge};
 use crate::host::model::{HostArtifact, HostCatalog, HostPlatform};
 use crate::platform::model::WorkspaceLayout;
 use destack_runtime::host::abi::describe::{
@@ -16,11 +17,25 @@ pub(crate) fn render_binding_files(
     generated_catalog: &HostCatalog,
 ) -> Vec<HostArtifact> {
     let generated_modules: Vec<_> = generated_catalog
-        .modules()
-        .iter()
+        .modules_for_platform(HostPlatform::Android)
+        .into_iter()
         .map(|module| module.abi().clone())
         .collect();
     vec![
+        HostArtifact {
+            path: layout
+                .language_root
+                .join("runtime/android/kotlin/src/main/kotlin/dev/destack/runtime/android/bridge/RuntimeAbi.generated.kt"),
+            contents: render_kotlin_runtime_abi(
+                generated_catalog.runtime_ingresses(HostPlatform::Android),
+            ),
+        },
+        HostArtifact {
+            path: layout
+                .language_root
+                .join("runtime/android/kotlin/src/main/kotlin/dev/destack/runtime/android/bridge/RuntimeBridge.generated.kt"),
+            contents: render_kotlin_runtime_bridge(&generated_modules),
+        },
         HostArtifact {
             path: layout
                 .language_root
@@ -36,13 +51,13 @@ pub(crate) fn render_binding_files(
         HostArtifact {
             path: layout
                 .language_root
-                .join("runtime/android/kotlin/src/main/cpp/bridge/generated/types.generated.h"),
+                .join("runtime/android/kotlin/src/main/cpp/bridge/types.generated.h"),
             contents: render_types_generated_header(generated_catalog, &generated_modules),
         },
         HostArtifact {
             path: layout
                 .language_root
-                .join("runtime/android/kotlin/src/main/cpp/bridge/generated/registry.generated.h"),
+                .join("runtime/android/kotlin/src/main/cpp/bridge/registry.generated.h"),
             contents: render_registry_generated_header(generated_catalog, &generated_modules),
         },
     ]
@@ -127,6 +142,44 @@ fn render_loader_source(generated_catalog: &HostCatalog) -> String {
     output.push_str("#include \"loader.h\"\n\n");
     output.push_str("#include <dlfcn.h>\n");
     output.push_str("#include <stdlib.h>\n\n");
+    output.push_str("extern \"C\" {\n");
+    output.push_str("uint32_t destack_host_android_register_runtime_bridge_bindings(\n");
+    output.push_str("    uint64_t session_handle,\n");
+    output.push_str("    AndroidRuntimeBridgeBindings callbacks\n");
+    output.push_str(") __attribute__((weak));\n");
+    output.push_str("void destack_host_android_unregister_runtime_bridge_bindings(\n");
+    output.push_str("    uint64_t session_handle\n");
+    output.push_str(") __attribute__((weak));\n");
+
+    for spec in generated_catalog.runtime_bindings() {
+        output.push('\n');
+        output.push_str(&format!(
+            "{} destack_host_android_{}(\n",
+            spec.result_type.android_name(),
+            spec.field_name
+        ));
+
+        if spec.parameters.is_empty() {
+            output.push_str("    void\n");
+        } else {
+            for (index, parameter) in spec.parameters.iter().enumerate() {
+                let trailing = if index + 1 == spec.parameters.len() {
+                    ""
+                } else {
+                    ","
+                };
+                let declaration = render_cpp_parameter_declaration(
+                    parameter.ty.android_name(),
+                    parameter.name,
+                );
+                output.push_str(&format!("    {declaration}{trailing}\n"));
+            }
+        }
+
+        output.push_str(") __attribute__((weak));\n");
+    }
+
+    output.push_str("}\n\n");
     output.push_str("namespace {\n\n");
     output.push_str("void *symbol_handle = nullptr;\n");
     output.push_str("RuntimeBindings runtime_bindings = {\n");
@@ -147,6 +200,41 @@ fn render_loader_source(generated_catalog: &HostCatalog) -> String {
     output.push_str("    }\n\n");
     output.push_str("    *slot = reinterpret_cast<SymbolFunction>(dlsym(handle, name));\n");
     output.push_str("}\n\n");
+    output.push_str("/// Resolve one directly linked runtime binding table.\n");
+    output.push_str("bool resolve_linked_runtime_bindings(RuntimeBindings *out_bindings) {\n");
+    output.push_str("    RuntimeBindings bindings = {\n");
+    output.push_str(
+        "        .register_runtime_bridge_bindings = destack_host_android_register_runtime_bridge_bindings,\n",
+    );
+    output.push_str(
+        "        .unregister_runtime_bridge_bindings = destack_host_android_unregister_runtime_bridge_bindings,\n",
+    );
+
+    for spec in generated_catalog.runtime_bindings() {
+        output.push_str(&format!(
+            "        .{} = destack_host_android_{},\n",
+            spec.field_name, spec.field_name
+        ));
+    }
+
+    output.push_str("    };\n\n");
+    output.push_str("    if (\n");
+    output.push_str("        bindings.register_runtime_bridge_bindings == nullptr ||\n");
+    output.push_str("        bindings.unregister_runtime_bridge_bindings == nullptr");
+
+    for spec in generated_catalog.runtime_bindings() {
+        output.push_str(&format!(
+            " ||\n        bindings.{} == nullptr",
+            spec.field_name
+        ));
+    }
+
+    output.push_str("\n    ) {\n");
+    output.push_str("        return false;\n");
+    output.push_str("    }\n\n");
+    output.push_str("    *out_bindings = bindings;\n\n");
+    output.push_str("    return true;\n");
+    output.push_str("}\n\n");
     output.push_str("/// Resolve the runtime symbol handle for this process.\n");
     output.push_str("void *resolve_symbol_handle() {\n");
     output.push_str("    if (symbol_handle != nullptr) {\n");
@@ -161,15 +249,17 @@ fn render_loader_source(generated_catalog: &HostCatalog) -> String {
     output.push_str("            return symbol_handle;\n");
     output.push_str("        }\n");
     output.push_str("    }\n\n");
-    output.push_str("    symbol_handle = dlopen(nullptr, RTLD_NOW | RTLD_LOCAL);\n\n");
-    output.push_str("    return symbol_handle;\n");
+    output.push_str("    return nullptr;\n");
     output.push_str("}\n\n");
     output.push_str("}\n\n");
     output.push_str("/// Resolve the runtime bridge bindings from the current process.\n");
     output.push_str("uint32_t resolve_runtime_bindings(RuntimeBindings *out_bindings) {\n");
+    output.push_str("    if (resolve_linked_runtime_bindings(out_bindings)) {\n");
+    output.push_str("        return HOST_STATUS_OK;\n");
+    output.push_str("    }\n\n");
     output.push_str("    void *handle = resolve_symbol_handle();\n");
     output.push_str("    if (handle == nullptr) {\n");
-    output.push_str("        return HOST_STATUS_FAILED;\n");
+    output.push_str("        return HOST_STATUS_NOT_FOUND;\n");
     output.push_str("    }\n\n");
     output.push_str("    resolve_symbol_once(&runtime_bindings.register_runtime_bridge_bindings, handle, \"destack_host_android_register_runtime_bridge_bindings\");\n");
     output.push_str("    resolve_symbol_once(&runtime_bindings.unregister_runtime_bridge_bindings, handle, \"destack_host_android_unregister_runtime_bridge_bindings\");\n");
@@ -279,16 +369,11 @@ fn render_registry_generated_header(
     generated_catalog: &HostCatalog,
     generated_modules: &[HostAbiModule],
 ) -> String {
-    let manual_slots: Vec<_> = generated_catalog
-        .bridge_lanes(HostPlatform::Android)
-        .iter()
-        .filter(|lane| generated_catalog.module(lane.field_name).is_none())
-        .collect();
     let mut output = String::new();
     output.push_str("// generated by generate-bindings: do not edit\n\n");
     output.push_str("#ifndef DESTACK_RUNTIME_ANDROID_BRIDGE_REGISTRY_GENERATED_H\n");
     output.push_str("#define DESTACK_RUNTIME_ANDROID_BRIDGE_REGISTRY_GENERATED_H\n\n");
-    output.push_str("#include \"../types.h\"\n");
+    output.push_str("#include \"types.h\"\n");
 
     for module in generated_modules {
         output.push_str(&format!(
@@ -325,35 +410,46 @@ fn render_registry_generated_header(
     }
 
     output.push_str("}\n\n");
+    output.push_str("/// Register the generated runtime ingress JNI methods.\n");
+    output.push_str("inline bool register_generated_runtime_bridge_natives(JNIEnv *env) {\n");
+
+    let native_modules: Vec<_> = generated_modules
+        .iter()
+        .filter(|module| module.name == "intent" || !module.ingress.is_empty())
+        .collect();
+
+    if native_modules.is_empty() {
+        output.push_str("    return true;\n");
+    } else {
+        output.push_str("    return\n");
+
+        for (index, module) in native_modules.iter().enumerate() {
+            let trailing = if index + 1 == native_modules.len() {
+                ";"
+            } else {
+                " &&"
+            };
+            output.push_str(&format!(
+                "        register_{}_runtime_natives(env){}\n",
+                module.name, trailing
+            ));
+        }
+    }
+
+    output.push_str("}\n\n");
     output.push_str(
         "/// Build one runtime bridge callback table with the generated host ABI modules.\n",
     );
-    output
-        .push_str("inline AndroidRuntimeBridgeBindings make_generated_runtime_bridge_bindings(\n");
-
-    for (index, lane) in manual_slots.iter().enumerate() {
-        let trailing = if index + 1 == manual_slots.len() {
-            ""
-        } else {
-            ","
-        };
-        output.push_str(&format!(
-            "    {} {}{}\n",
-            lane.callback_type,
-            android_runtime_slot_parameter_name(lane.field_name),
-            trailing
-        ));
-    }
-
-    output.push_str(") {\n");
+    output.push_str(
+        "inline AndroidRuntimeBridgeBindings make_generated_runtime_bridge_bindings() {\n",
+    );
     output.push_str("    return AndroidRuntimeBridgeBindings {\n");
 
     for lane in generated_catalog.bridge_lanes(HostPlatform::Android) {
-        let value = if let Some(module) = generated_catalog.module(lane.field_name) {
-            android_generated_runtime_slot_factory(module.abi())
-        } else {
-            android_runtime_slot_parameter_name(lane.field_name)
-        };
+        let module = generated_catalog
+            .module(lane.field_name)
+            .unwrap_or_else(|| panic!("missing Android runtime bridge module {}", lane.field_name));
+        let value = android_generated_runtime_slot_factory(module.abi());
         output.push_str(&format!("        .{} = {},\n", lane.field_name, value));
     }
 
@@ -623,11 +719,6 @@ fn android_generated_runtime_slot_type(module: &HostAbiModule) -> String {
         "AndroidHost{}Callbacks",
         android_runtime_slot_segment(module.name)
     )
-}
-
-/// Return the parameter name for one Android runtime slot.
-fn android_runtime_slot_parameter_name(slot_name: &str) -> String {
-    slot_name.to_string()
 }
 
 /// Return the type segment for one Android runtime slot.

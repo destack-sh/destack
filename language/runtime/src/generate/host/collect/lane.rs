@@ -1,7 +1,6 @@
 use crate::host::model::{CallbackLane, HostModule, HostPlatform};
 use destack_runtime::host::abi::core::{
-    HostAbiManualLane, HostAbiPlatform, host_abi_binding_lane_names, host_abi_bridge_lane_names,
-    host_abi_manual_lanes,
+    HostAbiPlatform, host_abi_binding_lane_names, host_abi_bridge_lane_names,
 };
 
 /// Collect the callback-backed host binding lanes for one platform.
@@ -52,31 +51,20 @@ fn collect_platform_lane(
     name: &'static str,
     modules: &[HostModule],
 ) -> CallbackLane {
+    let generator_platform = match platform {
+        HostAbiPlatform::Ios => HostPlatform::Ios,
+        HostAbiPlatform::Android => HostPlatform::Android,
+    };
+
     // generated lane
-    if let Some(module) = modules.iter().find(|module| module.name() == name) {
+    if let Some(module) = modules
+        .iter()
+        .find(|module| module.name() == name && module.supports_platform(generator_platform))
+    {
         return generated_lane(platform, module);
     }
 
-    // handwritten lane
-    if let Some(lane) = host_abi_manual_lanes(platform)
-        .iter()
-        .find(|lane| lane.name == name)
-    {
-        return manual_lane(lane);
-    }
-
     panic!("missing host callback lane for {:?}: {name}", platform);
-}
-
-/// Lower one handwritten callback lane.
-fn manual_lane(lane: &HostAbiManualLane) -> CallbackLane {
-    CallbackLane {
-        field_name: lane.name,
-        subject: lane.subject.to_string(),
-        callback_type: lane.callback_type.to_string(),
-        module_name: lane.module_name,
-        submodule_name: lane.submodule_name,
-    }
 }
 
 /// Build one generated callback lane from one generated host module.

@@ -5,8 +5,6 @@ use destack_runtime::host::abi::describe::{HostAbiFunction, HostAbiParameter, Ho
 pub(crate) struct HostIngress {
     /// The authored ingress callback.
     abi: HostAbiFunction,
-    /// The encoded payload parameter.
-    encoded_parameter: HostAbiParameter,
 }
 
 impl HostIngress {
@@ -24,28 +22,15 @@ impl HostIngress {
             abi.name
         );
 
-        // encoded payload
-        let mut encoded_parameters = abi.parameters.iter().filter(|parameter| {
-            matches!(
-                parameter.ty,
-                HostAbiType::Named(_) | HostAbiType::NativeSlice(_)
-            )
-        });
-        let encoded_parameter = encoded_parameters
-            .next()
-            .cloned()
-            .unwrap_or_else(|| panic!("missing encoded ingress parameter for {}", abi.name));
-
         assert!(
-            encoded_parameters.next().is_none(),
-            "unsupported ingress payload shape for {}",
+            abi.parameters
+                .iter()
+                .any(|parameter| !matches!(parameter.ty, HostAbiType::HostSessionHandle)),
+            "missing ingress payload parameter for {}",
             abi.name
         );
 
-        Self {
-            abi,
-            encoded_parameter,
-        }
+        Self { abi }
     }
 
     /// Return the canonical ingress name.
@@ -61,10 +46,5 @@ impl HostIngress {
     /// Return the ordered authored parameters.
     pub(crate) fn parameters(&self) -> &[HostAbiParameter] {
         &self.abi.parameters
-    }
-
-    /// Return the encoded payload parameter.
-    pub(crate) fn encoded_parameter(&self) -> &HostAbiParameter {
-        &self.encoded_parameter
     }
 }
