@@ -335,6 +335,11 @@ impl Repository {
             return Ok(Vec::new());
         }
 
+        // collect candidate source paths from disk first
+        let mut candidates =
+            self.collect_manifest_candidate_paths(package_id, target_id, package_directory)?;
+
+        // keep already-known package modules too
         let module_ids = self
             .package_module_ids(revision, package_id)
             .map_err(|error| TargetDiscoveryIssue::Repository {
@@ -342,7 +347,6 @@ impl Repository {
                 target: *target_id,
                 message: error.to_string(),
             })?;
-        let mut candidates = Vec::new();
 
         for module_id in module_ids {
             let module = self.module(revision, module_id).map_err(|error| {
@@ -359,7 +363,9 @@ impl Repository {
                 continue;
             };
 
-            candidates.push(module_path);
+            if !candidates.contains(&module_path) {
+                candidates.push(module_path);
+            }
         }
 
         Ok(Self::select_manifest_entry_paths(
@@ -386,6 +392,69 @@ impl Repository {
         }
 
         selected_paths
+    }
+
+    /// Collect manifest entry candidates from one package directory.
+    fn collect_manifest_candidate_paths(
+        &self,
+        package_id: PackageId,
+        target_id: &TargetId,
+        package_directory: &Path,
+    ) -> Result<Vec<PathBuf>, TargetDiscoveryIssue> {
+        let mut candidates = Vec::new();
+
+        self.collect_manifest_candidate_paths_recursive(
+            package_id,
+            target_id,
+            package_directory,
+            &mut candidates,
+        )?;
+
+        Ok(candidates)
+    }
+
+    /// Collect manifest entry candidates from one package directory recursively.
+    fn collect_manifest_candidate_paths_recursive(
+        &self,
+        package_id: PackageId,
+        target_id: &TargetId,
+        directory: &Path,
+        candidates: &mut Vec<PathBuf>,
+    ) -> Result<(), TargetDiscoveryIssue> {
+        let entries =
+            self.fs
+                .read_dir(directory)
+                .map_err(|error| TargetDiscoveryIssue::Repository {
+                    package: package_id,
+                    target: *target_id,
+                    message: error.to_string(),
+                })?;
+
+        for entry in entries {
+            let metadata =
+                self.fs
+                    .metadata(&entry)
+                    .map_err(|error| TargetDiscoveryIssue::Repository {
+                        package: package_id,
+                        target: *target_id,
+                        message: error.to_string(),
+                    })?;
+
+            // recurse into directories
+            if metadata.is_directory {
+                self.collect_manifest_candidate_paths_recursive(
+                    package_id, target_id, &entry, candidates,
+                )?;
+                continue;
+            }
+
+            // keep regular files only
+            if metadata.is_file {
+                candidates.push(entry);
+            }
+        }
+
+        Ok(())
     }
 
     /// Resolve selected entry paths to package-local module ids.
@@ -443,6 +512,25 @@ impl Repository {
                 })?;
 
         let resolved_path = package_directory.join(entry_path);
+
+        // require one real filesystem entry first
+        let path_exists =
+            self.fs
+                .exists(&resolved_path)
+                .map_err(|error| TargetDiscoveryIssue::Repository {
+                    package: package_id,
+                    target: *target_id,
+                    message: error.to_string(),
+                })?;
+        if !path_exists {
+            return Err(TargetDiscoveryIssue::MissingEntry {
+                package: package_id,
+                target: *target_id,
+                path: resolved_path,
+            });
+        }
+
+        // then resolve the repository module
         self.resolve_entry_module_id(revision, package_id, &resolved_path)
             .ok_or(TargetDiscoveryIssue::MissingEntry {
                 package: package_id,
@@ -475,7 +563,19 @@ impl Repository {
 
         candidate_paths.push(entry_path.to_path_buf());
 
+        // return the first existing path with one repository module
         for candidate_path in &candidate_paths {
+            let path_exists = self.fs.exists(candidate_path).map_err(|error| {
+                TargetDiscoveryIssue::Repository {
+                    package: package_id,
+                    target: *target_id,
+                    message: error.to_string(),
+                }
+            })?;
+            if !path_exists {
+                continue;
+            }
+
             if let Some(module_id) =
                 self.resolve_entry_module_id(revision, package_id, candidate_path)
             {
