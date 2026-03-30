@@ -1,3 +1,1 @@
-export const headingText = "Document Minify";
-
-export const pageTitle = headingText;
+export const headingText="Document Minify";export const pageTitle=headingText;
