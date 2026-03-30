@@ -1,10 +1,10 @@
 const pageSections = ["overview", "settings", "activity"];
 export function normalizePageSlug(slug = "overview") {
-    return pageSections.includes(slug) ? slug : "overview";
+    return pageSections.includes(slug)?slug:"overview";
 }
 export function getSectionBadge(slug = "overview") {
     const normalizedSlug = normalizePageSlug(slug);
-    if (normalizedSlug === "activity") {
+    if(normalizedSlug === "activity") {
         return "live";
     }
     return "guide";
@@ -16,10 +16,10 @@ export function pageHeading(slug = "overview") {
 }
 export function getPageSummary(slug = "overview") {
     const normalizedSlug = normalizePageSlug(slug);
-    if (normalizedSlug == "settings") {
+    if(normalizedSlug == "settings") {
         return "Inspect editors, notifications, and access controls";
     }
-    if (normalizedSlug == "activity") {
+    if(normalizedSlug == "activity") {
         return "Track job history, retries, and audit events";
     }
     return "Review workspace configuration and owner settings";
