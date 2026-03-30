@@ -15,6 +15,7 @@ pub(crate) fn render_module_files(
     let generated_layout = HostLayout::new(layout);
     let module_segment = module.name();
     let package_segment = android_package_segment(module.abi());
+    let kotlin_abi = render_kotlin_abi(module.abi());
     let mut files = vec![
         HostArtifact::new(
             generated_layout.android_cpp_runtime_header(module_segment),
@@ -34,15 +35,17 @@ pub(crate) fn render_module_files(
         ),
     ];
 
-    if module.has_ingress() {
+    if !kotlin_abi.is_empty() {
         files.insert(
             0,
             HostArtifact::new(
                 generated_layout.android_kotlin_abi(module_segment, &package_segment),
-                render_kotlin_abi(module.abi()),
+                kotlin_abi,
             ),
         );
+    }
 
+    if module.has_ingress() || matches!(module.name(), "intent") {
         if let Some(contents) = render_cpp_ingress_bridge_source(module.abi()) {
             files.push(HostArtifact::new(
                 generated_layout.android_cpp_ingress_source(module_segment),

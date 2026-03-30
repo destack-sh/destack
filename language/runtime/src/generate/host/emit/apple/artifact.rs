@@ -2,12 +2,12 @@ use std::collections::BTreeSet;
 
 use super::docs::push_c_doc_comment;
 use super::name::apple_pascal_case;
-use super::swift::render_swift_abi;
+use super::swift::{render_swift_abi, render_swift_runtime_abi, render_swift_runtime_bridge};
 use crate::host::model::{HostArtifact, HostCatalog, HostLayout, HostModule, HostPlatform};
 use crate::platform::model::WorkspaceLayout;
 use destack_runtime::host::abi::describe::{
     HostAbiEnumRepresentation, HostAbiField, HostAbiFunction, HostAbiModule, HostAbiNamedType,
-    HostAbiNamedTypeDefinition, HostAbiType,
+    HostAbiNamedTypeDefinition, HostAbiParameter, HostAbiType,
 };
 
 /// Render the generated Apple bridge binding files.
@@ -16,15 +16,15 @@ pub(crate) fn render_binding_files(
     generated_catalog: &HostCatalog,
 ) -> Vec<HostArtifact> {
     let generated_modules: Vec<_> = generated_catalog
-        .modules()
-        .iter()
+        .modules_for_platform(HostPlatform::Ios)
+        .into_iter()
         .map(|module| module.abi().clone())
         .collect();
     vec![
         HostArtifact {
             path: layout
                 .language_root
-                .join("runtime/apple/bridge/BridgeC/include/Bridge/Generated/BaseTypes.generated.h"),
+                .join("runtime/apple/bridge/BridgeC/include/Bridge/BaseTypes.generated.h"),
             contents: render_bridge_base_types_header(),
         },
         HostArtifact {
@@ -36,28 +36,171 @@ pub(crate) fn render_binding_files(
         HostArtifact {
             path: layout
                 .language_root
-                .join("runtime/apple/bridge/BridgeC/include/Bridge/Generated/AbiTypes.generated.h"),
+                .join("runtime/apple/bridge/BridgeC/include/Bridge/AbiTypes.generated.h"),
             contents: render_abi_types_header(&generated_modules),
         },
         HostArtifact {
             path: layout
                 .language_root
-                .join("runtime/apple/bridge/BridgeC/include/Bridge/Generated/RuntimeBridge.generated.h"),
+                .join("runtime/apple/bridge/BridgeC/include/Bridge/RuntimeBridge.generated.h"),
             contents: render_runtime_bridge_header(generated_catalog),
         },
         HostArtifact {
             path: layout
                 .language_root
-                .join("runtime/apple/bridge/BridgeC/include/Bridge/Generated/Public.generated.h"),
+                .join("runtime/apple/bridge/BridgeC/include/Bridge/Public.generated.h"),
             contents: render_public_generated_header(),
         },
         HostArtifact {
             path: layout
                 .language_root
-                .join("runtime/apple/ios/Sources/RuntimeHostIOS/Bridge/Generated/RuntimeAbi.generated.swift"),
-            contents: render_runtime_abi_helper(generated_catalog),
+                .join("runtime/apple/bridge/BridgeC/Bridge/loader.c"),
+            contents: render_loader_source(generated_catalog),
+        },
+        HostArtifact {
+            path: layout
+                .language_root
+                .join("runtime/apple/ios/Sources/RuntimeHostIOS/Bridge/RuntimeAbi.generated.swift"),
+            contents: render_runtime_abi_generated(generated_catalog, &generated_modules),
+        },
+        HostArtifact {
+            path: layout.language_root.join(
+                "runtime/apple/ios/Sources/RuntimeHostIOS/Bridge/RuntimeBridge.generated.swift",
+            ),
+            contents: render_swift_runtime_bridge(&generated_modules),
         },
     ]
+}
+
+fn render_loader_source(generated_catalog: &HostCatalog) -> String {
+    let mut output = String::new();
+    output.push_str("#include \"Bridge/Types.h\"\n");
+    output.push_str("#include \"Bridge/Loader.h\"\n\n");
+    output.push_str("#include <dlfcn.h>\n");
+    output.push_str("#include <stddef.h>\n");
+    output.push_str("#include <stdlib.h>\n\n");
+    render_apple_direct_runtime_binding_declarations(&mut output, generated_catalog);
+    output.push_str(
+        "#define RESOLVE_SYMBOL_ONCE(slot, type, handle, name) \\\n+    do { \\\n+        if ((slot) == NULL) { \\\n+            (slot) = (type)dlsym((handle), (name)); \\\n+        } \\\n+    } while (0)\n\n",
+    );
+    output.push_str("static void *symbol_handle = NULL;\n\n");
+    output.push_str("static RuntimeBindings runtime_bindings = {\n");
+    output.push_str("    .register_runtime_bridge_bindings = NULL,\n");
+    output.push_str("    .unregister_runtime_bridge_bindings = NULL,\n");
+
+    for spec in generated_catalog.runtime_bindings() {
+        output.push_str(&format!("    .{} = NULL,\n", spec.field_name));
+    }
+
+    output.push_str("};\n\n");
+    output.push_str("/// Resolve one directly linked runtime binding table.\n");
+    output.push_str("static int resolve_linked_runtime_bindings(RuntimeBindings *out_bindings) {\n");
+    output.push_str("    RuntimeBindings bindings = {\n");
+    output.push_str(
+        "        .register_runtime_bridge_bindings = destack_host_ios_register_runtime_bridge_bindings,\n",
+    );
+    output.push_str(
+        "        .unregister_runtime_bridge_bindings = destack_host_ios_unregister_runtime_bridge_bindings,\n",
+    );
+
+    for spec in generated_catalog.runtime_bindings() {
+        output.push_str(&format!(
+            "        .{} = destack_host_ios_{},\n",
+            spec.field_name, spec.field_name
+        ));
+    }
+
+    output.push_str("    };\n\n");
+    output.push_str("    if (\n");
+    output.push_str("        bindings.register_runtime_bridge_bindings == NULL ||\n");
+    output.push_str("        bindings.unregister_runtime_bridge_bindings == NULL");
+
+    for spec in generated_catalog.runtime_bindings() {
+        output.push_str(&format!(
+            " ||\n        bindings.{} == NULL",
+            spec.field_name
+        ));
+    }
+
+    output.push_str("\n    ) {\n");
+    output.push_str("        return 0;\n");
+    output.push_str("    }\n\n");
+    output.push_str("    *out_bindings = bindings;\n\n");
+    output.push_str("    return 1;\n");
+    output.push_str("}\n\n");
+    output.push_str("/// Resolve the shared runtime symbol handle from one explicit library path.\n");
+    output.push_str("static void *resolve_symbol_handle(void) {\n");
+    output.push_str("    if (symbol_handle != NULL) {\n");
+    output.push_str("        return symbol_handle;\n");
+    output.push_str("    }\n\n");
+    output.push_str("    const char *library_path = getenv(\"DESTACK_RUNTIME_HOST_BRIDGE_LIBRARY\");\n");
+    output.push_str("    if (library_path != NULL && library_path[0] != '\\0') {\n");
+    output.push_str("        symbol_handle = dlopen(library_path, RTLD_NOW | RTLD_GLOBAL);\n");
+    output.push_str("        if (symbol_handle != NULL) {\n");
+    output.push_str("            return symbol_handle;\n");
+    output.push_str("        }\n");
+    output.push_str("    }\n\n");
+    output.push_str("    return NULL;\n");
+    output.push_str("}\n\n");
+    output.push_str("/// Resolve the runtime bridge bindings from the current process.\n");
+    output.push_str("uint32_t resolve_runtime_bindings(RuntimeBindings *out_bindings) {\n");
+    output.push_str("    if (resolve_linked_runtime_bindings(out_bindings)) {\n");
+    output.push_str("        return 0;\n");
+    output.push_str("    }\n\n");
+    output.push_str("    void *handle = resolve_symbol_handle();\n");
+    output.push_str("    if (handle == NULL) {\n");
+    output.push_str("        return 3;\n");
+    output.push_str("    }\n\n");
+    output.push_str("    RESOLVE_SYMBOL_ONCE(runtime_bindings.register_runtime_bridge_bindings, RegisterRuntimeBridgeBindingsFunction, handle, \"destack_host_ios_register_runtime_bridge_bindings\");\n");
+    output.push_str("    RESOLVE_SYMBOL_ONCE(runtime_bindings.unregister_runtime_bridge_bindings, UnregisterRuntimeBridgeBindingsFunction, handle, \"destack_host_ios_unregister_runtime_bridge_bindings\");\n");
+
+    for spec in generated_catalog.runtime_bindings() {
+        output.push_str(&format!(
+            "    RESOLVE_SYMBOL_ONCE(runtime_bindings.{}, {}, handle, \"destack_host_ios_{}\");\n",
+            spec.field_name, spec.type_name, spec.field_name
+        ));
+    }
+
+    output.push_str("\n    if (\n");
+    output.push_str("        runtime_bindings.register_runtime_bridge_bindings == NULL ||\n");
+    output.push_str("        runtime_bindings.unregister_runtime_bridge_bindings == NULL");
+
+    for spec in generated_catalog.runtime_bindings() {
+        output.push_str(&format!(
+            " ||\n        runtime_bindings.{} == NULL",
+            spec.field_name
+        ));
+    }
+
+    output.push_str("\n    ) {\n");
+    output.push_str("        return 3;\n");
+    output.push_str("    }\n\n");
+    output.push_str("    *out_bindings = runtime_bindings;\n\n");
+    output.push_str("    return 0;\n");
+    output.push_str("}\n\n");
+    output.push_str("/// Register one mobile bridge callback table for one runtime session.\n");
+    output.push_str("uint32_t destack_runtime_host_ios_register_runtime_bridge_bindings(\n");
+    output.push_str("    uint64_t session_handle,\n");
+    output.push_str("    IosRuntimeBridgeBindings callbacks\n");
+    output.push_str(") {\n");
+    output.push_str("    RuntimeBindings bindings = {0};\n");
+    output.push_str("    uint32_t status = resolve_runtime_bindings(&bindings);\n");
+    output.push_str("    if (status != 0) {\n");
+    output.push_str("        return status;\n");
+    output.push_str("    }\n\n");
+    output.push_str("    return bindings.register_runtime_bridge_bindings(session_handle, callbacks);\n");
+    output.push_str("}\n\n");
+    output.push_str("/// Unregister one mobile bridge callback table for one runtime session.\n");
+    output.push_str("void destack_runtime_host_ios_unregister_runtime_bridge_bindings(\n");
+    output.push_str("    uint64_t session_handle\n");
+    output.push_str(") {\n");
+    output.push_str("    RuntimeBindings bindings = {0};\n");
+    output.push_str("    if (resolve_runtime_bindings(&bindings) != 0) {\n");
+    output.push_str("        return;\n");
+    output.push_str("    }\n\n");
+    output.push_str("    bindings.unregister_runtime_bridge_bindings(session_handle);\n");
+    output.push_str("}\n");
+    output
 }
 
 /// Render the generated Apple bridge artifacts for one module.
@@ -72,7 +215,7 @@ pub(crate) fn render_module_files(
         render_swift_abi(module),
     )];
 
-    if module.has_ingress() {
+    if module_has_generated_ingress(module.abi()) {
         files.insert(
             0,
             HostArtifact::new(
@@ -154,6 +297,10 @@ fn render_bridge_base_types_header() -> String {
 
 /// Render one generated Apple ingress bridge source.
 fn render_bridge_source(module: &HostAbiModule) -> String {
+    if module.name == "intent" {
+        return render_intent_bridge_source();
+    }
+
     let mut output = String::new();
     let ingress = single_ingress(module);
     let module_segment = apple_module_segment(module);
@@ -161,8 +308,11 @@ fn render_bridge_source(module: &HostAbiModule) -> String {
     output.push_str("// generated by generate-bindings: do not edit\n\n");
     output.push_str("#include \"Bridge/Types.h\"\n");
     output.push_str(&format!(
-        "#include \"Bridge/Generated/{module_segment}/Runtime.generated.h\"\n\n"
+        "#include \"Bridge/{module_segment}/Runtime.generated.h\"\n\n"
     ));
+
+    render_simple_bridge_helpers(&mut output, ingress);
+
     push_c_doc_comment(
         &mut output,
         &format!(
@@ -201,12 +351,57 @@ fn render_bridge_source(module: &HostAbiModule) -> String {
             output.push_str(", ");
         }
 
-        output.push_str(parameter.name);
+        output.push_str(&render_simple_bridge_argument(parameter));
     }
 
     output.push_str(");\n");
     output.push_str("}\n");
     output
+}
+
+fn render_simple_bridge_helpers(output: &mut String, ingress: &HostAbiFunction) {
+    let uses_string_ref = ingress
+        .parameters
+        .iter()
+        .any(|parameter| matches!(parameter.ty, HostAbiType::StringRef));
+    let uses_string_slice = ingress
+        .parameters
+        .iter()
+        .any(|parameter| matches!(parameter.ty, HostAbiType::StringSlice));
+
+    if uses_string_ref {
+        output.push_str(
+            "/// Convert one public string reference into one internal string reference.\n",
+        );
+        output.push_str("static NativeStringRef native_string_ref(DestackRustStringRef value) {\n");
+        output.push_str("    NativeStringRef native = {\n");
+        output.push_str("        .data = value.data,\n");
+        output.push_str("        .len = value.len,\n");
+        output.push_str("    };\n\n");
+        output.push_str("    return native;\n");
+        output.push_str("}\n\n");
+    }
+
+    if uses_string_slice {
+        output.push_str("/// Convert one public string slice into one internal string slice.\n");
+        output.push_str(
+            "static NativeStringSlice native_string_slice(DestackRustStringSlice values) {\n",
+        );
+        output.push_str("    NativeStringSlice native = {\n");
+        output.push_str("        .data = (const NativeStringRef *)values.data,\n");
+        output.push_str("        .len = values.len,\n");
+        output.push_str("    };\n\n");
+        output.push_str("    return native;\n");
+        output.push_str("}\n\n");
+    }
+}
+
+fn render_simple_bridge_argument(parameter: &HostAbiParameter) -> String {
+    match parameter.ty {
+        HostAbiType::StringRef => format!("native_string_ref({})", parameter.name),
+        HostAbiType::StringSlice => format!("native_string_slice({})", parameter.name),
+        _ => parameter.name.to_string(),
+    }
 }
 
 /// Render one generated Apple ABI-types header.
@@ -263,10 +458,6 @@ fn render_bridge_types_header(generated_catalog: &HostCatalog) -> String {
     output.push_str("#include \"../RuntimeHostAppleBridge.h\"\n\n");
     output.push_str("#include <stdbool.h>\n");
     output.push_str("#include <stdint.h>\n\n");
-    output.push_str("typedef struct NativeSlice {\n");
-    output.push_str("    uint8_t *data;\n");
-    output.push_str("    uint32_t len;\n");
-    output.push_str("} NativeSlice;\n\n");
     output.push_str("typedef struct NativeStringRef {\n");
     output.push_str("    const uint8_t *data;\n");
     output.push_str("    uint32_t len;\n");
@@ -324,28 +515,9 @@ fn render_public_generated_header() -> String {
     output.push_str("// generated by generate-bindings: do not edit\n\n");
     output.push_str("#ifndef RUNTIME_HOST_APPLE_BRIDGE_PUBLIC_GENERATED_H\n");
     output.push_str("#define RUNTIME_HOST_APPLE_BRIDGE_PUBLIC_GENERATED_H\n\n");
-    output.push_str("#include \"BaseTypes.generated.h\"\n");
-    output.push_str("#include \"AbiTypes.generated.h\"\n\n");
+    output.push_str("#include \"BaseTypes.generated.h\"\n\n");
 
     for typedef in APPLE_PUBLIC_OPTIONAL_TYPES {
-        render_apple_public_struct_typedef(&mut output, typedef);
-        output.push('\n');
-    }
-
-    render_apple_public_enum_typedef(&mut output, &APPLE_PUBLIC_LOCATION_ACCURACY);
-    output.push('\n');
-
-    for typedef in APPLE_PUBLIC_MANUAL_TYPES {
-        render_apple_public_struct_typedef(&mut output, typedef);
-        output.push('\n');
-    }
-
-    for typedef in APPLE_PUBLIC_CALLBACK_TYPES {
-        render_apple_public_callback_typedef(&mut output, typedef);
-        output.push('\n');
-    }
-
-    for typedef in APPLE_PUBLIC_CALLBACK_STRUCTS {
         render_apple_public_struct_typedef(&mut output, typedef);
         output.push('\n');
     }
@@ -372,46 +544,6 @@ struct ApplePublicStructTypedef {
     name: &'static str,
     /// The ordered fields.
     fields: &'static [ApplePublicField],
-}
-
-/// One generated Apple public enum variant.
-struct ApplePublicEnumVariant {
-    /// The variant documentation.
-    documentation: &'static str,
-    /// The variant name.
-    name: &'static str,
-    /// The raw discriminant value.
-    value: u32,
-}
-
-/// One generated Apple public enum typedef.
-struct ApplePublicEnumTypedef {
-    /// The typedef documentation.
-    documentation: &'static str,
-    /// The typedef name.
-    name: &'static str,
-    /// The ordered variants.
-    variants: &'static [ApplePublicEnumVariant],
-}
-
-/// One generated Apple public callback parameter.
-struct ApplePublicCallbackParameter {
-    /// The parameter type name.
-    ty: &'static str,
-    /// The parameter name.
-    name: &'static str,
-}
-
-/// One generated Apple public callback typedef.
-struct ApplePublicCallbackTypedef {
-    /// The typedef documentation.
-    documentation: &'static str,
-    /// The typedef name.
-    name: &'static str,
-    /// The result type name.
-    result_type: &'static str,
-    /// The ordered parameters.
-    parameters: &'static [ApplePublicCallbackParameter],
 }
 
 const APPLE_PUBLIC_OPTIONAL_TYPES: &[ApplePublicStructTypedef] = &[
@@ -481,335 +613,6 @@ const APPLE_PUBLIC_OPTIONAL_TYPES: &[ApplePublicStructTypedef] = &[
     },
 ];
 
-const APPLE_PUBLIC_LOCATION_ACCURACY: ApplePublicEnumTypedef = ApplePublicEnumTypedef {
-    documentation: "The location accuracy preference passed through the Apple bridge.",
-    name: "DestackRustLocationAccuracy",
-    variants: &[
-        ApplePublicEnumVariant {
-            documentation: "Passive updates with minimal power use.",
-            name: "DESTACK_RUST_LOCATION_ACCURACY_PASSIVE",
-            value: 1,
-        },
-        ApplePublicEnumVariant {
-            documentation: "Coarse accuracy.",
-            name: "DESTACK_RUST_LOCATION_ACCURACY_LOW",
-            value: 2,
-        },
-        ApplePublicEnumVariant {
-            documentation: "Balanced power and accuracy.",
-            name: "DESTACK_RUST_LOCATION_ACCURACY_BALANCED",
-            value: 3,
-        },
-        ApplePublicEnumVariant {
-            documentation: "Fine accuracy.",
-            name: "DESTACK_RUST_LOCATION_ACCURACY_HIGH",
-            value: 4,
-        },
-        ApplePublicEnumVariant {
-            documentation: "Best available accuracy.",
-            name: "DESTACK_RUST_LOCATION_ACCURACY_BEST",
-            value: 5,
-        },
-    ],
-};
-
-const APPLE_PUBLIC_MANUAL_TYPES: &[ApplePublicStructTypedef] = &[
-    ApplePublicStructTypedef {
-        documentation: "One location watch-options payload passed through the Apple bridge.",
-        name: "DestackRustLocationWatchOptions",
-        fields: &[
-            ApplePublicField {
-                documentation: "The requested accuracy preference.",
-                ty: "DestackRustLocationAccuracy",
-                name: "accuracy",
-            },
-            ApplePublicField {
-                documentation: "The minimum interval between updates in nanoseconds.",
-                ty: "uint64_t",
-                name: "minimum_interval_ns",
-            },
-            ApplePublicField {
-                documentation: "The minimum distance delta in meters.",
-                ty: "double",
-                name: "minimum_distance_meters",
-            },
-            ApplePublicField {
-                documentation: "Whether heading should be included when available.",
-                ty: "bool",
-                name: "include_heading",
-            },
-        ],
-    },
-    ApplePublicStructTypedef {
-        documentation: "One location sample payload passed through the Apple bridge.",
-        name: "DestackRustLocationSample",
-        fields: &[
-            ApplePublicField {
-                documentation: "The latitude in degrees.",
-                ty: "double",
-                name: "latitude_degrees",
-            },
-            ApplePublicField {
-                documentation: "The longitude in degrees.",
-                ty: "double",
-                name: "longitude_degrees",
-            },
-            ApplePublicField {
-                documentation: "The altitude in meters above mean sea level.",
-                ty: "double",
-                name: "altitude_meters",
-            },
-            ApplePublicField {
-                documentation: "The horizontal accuracy radius in meters.",
-                ty: "double",
-                name: "horizontal_accuracy_meters",
-            },
-            ApplePublicField {
-                documentation: "The vertical accuracy in meters.",
-                ty: "double",
-                name: "vertical_accuracy_meters",
-            },
-            ApplePublicField {
-                documentation: "The speed in meters per second.",
-                ty: "double",
-                name: "speed_meters_per_second",
-            },
-            ApplePublicField {
-                documentation: "The heading in degrees.",
-                ty: "double",
-                name: "heading_degrees",
-            },
-            ApplePublicField {
-                documentation: "The UTC timestamp in nanoseconds.",
-                ty: "uint64_t",
-                name: "timestamp_unix_ns",
-            },
-        ],
-    },
-];
-
-const APPLE_PUBLIC_CALLBACK_TYPES: &[ApplePublicCallbackTypedef] = &[
-    ApplePublicCallbackTypedef {
-        documentation: "The can-open-url callback type registered for one runtime session.",
-        name: "DestackRustIntentCanOpenUrlCallback",
-        result_type: "uint32_t",
-        parameters: &[
-            ApplePublicCallbackParameter {
-                ty: "uint64_t",
-                name: "session_handle",
-            },
-            ApplePublicCallbackParameter {
-                ty: "DestackRustStringRef",
-                name: "url",
-            },
-            ApplePublicCallbackParameter {
-                ty: "bool *",
-                name: "is_supported",
-            },
-        ],
-    },
-    ApplePublicCallbackTypedef {
-        documentation: "The open-url callback type registered for one runtime session.",
-        name: "DestackRustIntentOpenUrlCallback",
-        result_type: "uint32_t",
-        parameters: &[
-            ApplePublicCallbackParameter {
-                ty: "uint64_t",
-                name: "session_handle",
-            },
-            ApplePublicCallbackParameter {
-                ty: "DestackRustStringRef",
-                name: "url",
-            },
-        ],
-    },
-    ApplePublicCallbackTypedef {
-        documentation: "The open-path callback type registered for one runtime session.",
-        name: "DestackRustIntentOpenPathCallback",
-        result_type: "uint32_t",
-        parameters: &[
-            ApplePublicCallbackParameter {
-                ty: "uint64_t",
-                name: "session_handle",
-            },
-            ApplePublicCallbackParameter {
-                ty: "DestackRustStringRef",
-                name: "path",
-            },
-        ],
-    },
-    ApplePublicCallbackTypedef {
-        documentation: "The share-text callback type registered for one runtime session.",
-        name: "DestackRustIntentShareTextCallback",
-        result_type: "uint32_t",
-        parameters: &[
-            ApplePublicCallbackParameter {
-                ty: "uint64_t",
-                name: "session_handle",
-            },
-            ApplePublicCallbackParameter {
-                ty: "DestackRustStringRef",
-                name: "text",
-            },
-            ApplePublicCallbackParameter {
-                ty: "bool",
-                name: "has_content_type",
-            },
-            ApplePublicCallbackParameter {
-                ty: "DestackRustStringRef",
-                name: "content_type",
-            },
-        ],
-    },
-    ApplePublicCallbackTypedef {
-        documentation: "The share-paths callback type registered for one runtime session.",
-        name: "DestackRustIntentSharePathsCallback",
-        result_type: "uint32_t",
-        parameters: &[
-            ApplePublicCallbackParameter {
-                ty: "uint64_t",
-                name: "session_handle",
-            },
-            ApplePublicCallbackParameter {
-                ty: "DestackRustStringSlice",
-                name: "paths",
-            },
-            ApplePublicCallbackParameter {
-                ty: "bool",
-                name: "has_content_type",
-            },
-            ApplePublicCallbackParameter {
-                ty: "DestackRustStringRef",
-                name: "content_type",
-            },
-        ],
-    },
-    ApplePublicCallbackTypedef {
-        documentation: "The location-services-enabled callback type registered for one runtime session.",
-        name: "DestackRustLocationServicesEnabledCallback",
-        result_type: "uint32_t",
-        parameters: &[
-            ApplePublicCallbackParameter {
-                ty: "uint64_t",
-                name: "session_handle",
-            },
-            ApplePublicCallbackParameter {
-                ty: "bool *",
-                name: "is_enabled",
-            },
-        ],
-    },
-    ApplePublicCallbackTypedef {
-        documentation: "The last-known-location callback type registered for one runtime session.",
-        name: "DestackRustLocationLastKnownCallback",
-        result_type: "uint32_t",
-        parameters: &[
-            ApplePublicCallbackParameter {
-                ty: "uint64_t",
-                name: "session_handle",
-            },
-            ApplePublicCallbackParameter {
-                ty: "DestackRustLocationSample *",
-                name: "sample",
-            },
-        ],
-    },
-    ApplePublicCallbackTypedef {
-        documentation: "The location-watch-open callback type registered for one runtime session.",
-        name: "DestackRustLocationWatchOpenCallback",
-        result_type: "uint32_t",
-        parameters: &[
-            ApplePublicCallbackParameter {
-                ty: "uint64_t",
-                name: "session_handle",
-            },
-            ApplePublicCallbackParameter {
-                ty: "DestackRustStringRef",
-                name: "watch_id",
-            },
-            ApplePublicCallbackParameter {
-                ty: "DestackRustLocationWatchOptions",
-                name: "options",
-            },
-        ],
-    },
-    ApplePublicCallbackTypedef {
-        documentation: "The location-watch-close callback type registered for one runtime session.",
-        name: "DestackRustLocationWatchCloseCallback",
-        result_type: "uint32_t",
-        parameters: &[
-            ApplePublicCallbackParameter {
-                ty: "uint64_t",
-                name: "session_handle",
-            },
-            ApplePublicCallbackParameter {
-                ty: "DestackRustStringRef",
-                name: "watch_id",
-            },
-        ],
-    },
-];
-
-const APPLE_PUBLIC_CALLBACK_STRUCTS: &[ApplePublicStructTypedef] = &[
-    ApplePublicStructTypedef {
-        documentation: "The intent callbacks registered for one runtime session.",
-        name: "IosHostIntentCallbacks",
-        fields: &[
-            ApplePublicField {
-                documentation: "The can-open-url callback.",
-                ty: "DestackRustIntentCanOpenUrlCallback",
-                name: "can_open_url",
-            },
-            ApplePublicField {
-                documentation: "The open-url callback.",
-                ty: "DestackRustIntentOpenUrlCallback",
-                name: "open_url",
-            },
-            ApplePublicField {
-                documentation: "The open-path callback.",
-                ty: "DestackRustIntentOpenPathCallback",
-                name: "open_path",
-            },
-            ApplePublicField {
-                documentation: "The share-text callback.",
-                ty: "DestackRustIntentShareTextCallback",
-                name: "share_text",
-            },
-            ApplePublicField {
-                documentation: "The share-paths callback.",
-                ty: "DestackRustIntentSharePathsCallback",
-                name: "share_paths",
-            },
-        ],
-    },
-    ApplePublicStructTypedef {
-        documentation: "The location callbacks registered for one runtime session.",
-        name: "IosHostLocationCallbacks",
-        fields: &[
-            ApplePublicField {
-                documentation: "The services-enabled callback.",
-                ty: "DestackRustLocationServicesEnabledCallback",
-                name: "services_enabled",
-            },
-            ApplePublicField {
-                documentation: "The last-known callback.",
-                ty: "DestackRustLocationLastKnownCallback",
-                name: "last_known",
-            },
-            ApplePublicField {
-                documentation: "The watch-open callback.",
-                ty: "DestackRustLocationWatchOpenCallback",
-                name: "watch_open",
-            },
-            ApplePublicField {
-                documentation: "The watch-close callback.",
-                ty: "DestackRustLocationWatchCloseCallback",
-                name: "watch_close",
-            },
-        ],
-    },
-];
-
 /// Render one generated Apple public struct typedef.
 fn render_apple_public_struct_typedef(output: &mut String, typedef: &ApplePublicStructTypedef) {
     output.push_str(&format!("/// {}\n", typedef.documentation));
@@ -823,61 +626,11 @@ fn render_apple_public_struct_typedef(output: &mut String, typedef: &ApplePublic
     output.push_str(&format!("}} {};\n", typedef.name));
 }
 
-/// Render one generated Apple public enum typedef.
-fn render_apple_public_enum_typedef(output: &mut String, typedef: &ApplePublicEnumTypedef) {
-    output.push_str(&format!("/// {}\n", typedef.documentation));
-    output.push_str(&format!("typedef enum {} {{\n", typedef.name));
-
-    for (index, variant) in typedef.variants.iter().enumerate() {
-        let trailing = if index + 1 == typedef.variants.len() {
-            ""
-        } else {
-            ","
-        };
-        output.push_str(&format!("    /// {}\n", variant.documentation));
-        output.push_str(&format!(
-            "    {} = {}{}\n",
-            variant.name, variant.value, trailing
-        ));
-    }
-
-    output.push_str(&format!("}} {};\n", typedef.name));
-}
-
-/// Render one generated Apple public callback typedef.
-fn render_apple_public_callback_typedef(output: &mut String, typedef: &ApplePublicCallbackTypedef) {
-    output.push_str(&format!("/// {}\n", typedef.documentation));
-    output.push_str(&format!(
-        "typedef {} (*{})(",
-        typedef.result_type, typedef.name
-    ));
-
-    if typedef.parameters.is_empty() {
-        output.push_str("void");
-    } else {
-        output.push('\n');
-
-        for (index, parameter) in typedef.parameters.iter().enumerate() {
-            let trailing = if index + 1 == typedef.parameters.len() {
-                ""
-            } else {
-                ","
-            };
-            output.push_str(&format!(
-                "    {} {}{}\n",
-                parameter.ty, parameter.name, trailing
-            ));
-        }
-    }
-
-    output.push_str(");\n");
-}
-
 /// Render one generated Apple runtime-bridge public header.
 fn render_runtime_bridge_header(generated_catalog: &HostCatalog) -> String {
     let generated_ingress_names = generated_catalog
-        .modules()
-        .iter()
+        .modules_for_platform(HostPlatform::Ios)
+        .into_iter()
         .flat_map(|module| module.abi().ingress.iter().map(|ingress| ingress.name))
         .collect::<BTreeSet<_>>();
     let mut output = String::new();
@@ -885,12 +638,12 @@ fn render_runtime_bridge_header(generated_catalog: &HostCatalog) -> String {
     output.push_str("#ifndef RUNTIME_HOST_APPLE_BRIDGE_RUNTIME_GENERATED_H\n");
     output.push_str("#define RUNTIME_HOST_APPLE_BRIDGE_RUNTIME_GENERATED_H\n\n");
 
-    for module in generated_catalog.modules() {
+    for module in generated_catalog.modules_for_platform(HostPlatform::Ios) {
         render_apple_generated_callback_typedefs(&mut output, module.abi());
         output.push('\n');
     }
 
-    for module in generated_catalog.modules() {
+    for module in generated_catalog.modules_for_platform(HostPlatform::Ios) {
         render_apple_generated_callback_struct(&mut output, module.abi());
         output.push('\n');
     }
@@ -928,8 +681,8 @@ fn render_runtime_bridge_header(generated_catalog: &HostCatalog) -> String {
     output.push_str("    uint64_t session_handle\n");
     output.push_str(");\n\n");
 
-    for module in generated_catalog.modules() {
-        if !module.has_ingress() {
+    for module in generated_catalog.modules_for_platform(HostPlatform::Ios) {
+        if !module_has_generated_ingress(module.abi()) {
             continue;
         }
 
@@ -951,37 +704,19 @@ fn render_runtime_bridge_header(generated_catalog: &HostCatalog) -> String {
 }
 
 /// Render one generated Apple runtime-assembly helper.
-fn render_runtime_abi_helper(generated_catalog: &HostCatalog) -> String {
-    let manual_slots: Vec<_> = generated_catalog
-        .bridge_lanes(HostPlatform::Ios)
-        .iter()
-        .filter(|lane| generated_catalog.module(lane.field_name).is_none())
-        .collect();
+fn render_runtime_abi_generated(
+    generated_catalog: &HostCatalog,
+    _generated_modules: &[HostAbiModule],
+) -> String {
     let mut output = String::new();
-    output.push_str("// generated by generate-bindings: do not edit\n\n");
-    output.push_str("import Foundation\n");
-    output.push_str("import RuntimeHostAppleBridgeC\n\n");
+    output.push_str(&render_swift_runtime_abi(
+        generated_catalog.runtime_ingresses(HostPlatform::Ios),
+    ));
+    output.push('\n');
     output.push_str(
         "/// Build one runtime bridge callback table with the generated host ABI modules.\n",
     );
-    output.push_str("func makeGeneratedRuntimeBridgeBindings(\n");
-
-    for (index, lane) in manual_slots.iter().enumerate() {
-        let trailing = if index + 1 == manual_slots.len() {
-            ""
-        } else {
-            ","
-        };
-        output.push_str(&format!(
-            "  {} {}: {}{}\n",
-            lane.field_name,
-            apple_runtime_slot_parameter_name(lane.field_name),
-            lane.callback_type,
-            trailing
-        ));
-    }
-
-    output.push_str(") -> IosRuntimeBridgeBindings {\n");
+    output.push_str("func makeGeneratedRuntimeBridgeBindings() -> IosRuntimeBridgeBindings {\n");
     output.push_str("  IosRuntimeBridgeBindings(\n");
 
     for (index, lane) in generated_catalog
@@ -994,11 +729,10 @@ fn render_runtime_abi_helper(generated_catalog: &HostCatalog) -> String {
         } else {
             ","
         };
-        let value = if let Some(module) = generated_catalog.module(lane.field_name) {
-            apple_generated_runtime_slot_factory(module.abi())
-        } else {
-            apple_runtime_slot_parameter_name(lane.field_name)
-        };
+        let module = generated_catalog
+            .module_for_platform(HostPlatform::Ios, lane.field_name)
+            .unwrap_or_else(|| panic!("missing iOS runtime bridge module {}", lane.field_name));
+        let value = apple_generated_runtime_slot_factory(module.abi());
 
         output.push_str(&format!("    {}: {}{}\n", lane.field_name, value, trailing));
     }
@@ -1006,6 +740,47 @@ fn render_runtime_abi_helper(generated_catalog: &HostCatalog) -> String {
     output.push_str("  )\n");
     output.push_str("}\n");
     output
+}
+
+fn render_apple_direct_runtime_binding_declarations(output: &mut String, generated_catalog: &HostCatalog) {
+    output.push_str("extern uint32_t destack_host_ios_register_runtime_bridge_bindings(\n");
+    output.push_str("    uint64_t session_handle,\n");
+    output.push_str("    IosRuntimeBridgeBindings callbacks\n");
+    output.push_str(") __attribute__((weak_import));\n");
+    output.push_str("extern void destack_host_ios_unregister_runtime_bridge_bindings(\n");
+    output.push_str("    uint64_t session_handle\n");
+    output.push_str(") __attribute__((weak_import));\n");
+
+    for spec in generated_catalog.runtime_bindings() {
+        output.push('\n');
+        output.push_str(&format!(
+            "extern {} destack_host_ios_{}(\n",
+            spec.result_type.apple_public_name(),
+            spec.field_name
+        ));
+
+        if spec.parameters.is_empty() {
+            output.push_str("    void\n");
+        } else {
+            for (index, parameter) in spec.parameters.iter().enumerate() {
+                let trailing = if index + 1 == spec.parameters.len() {
+                    ""
+                } else {
+                    ","
+                };
+                output.push_str(&format!(
+                    "    {} {}{}\n",
+                    parameter.ty.apple_public_name(),
+                    parameter.name,
+                    trailing
+                ));
+            }
+        }
+
+        output.push_str(") __attribute__((weak_import));\n");
+    }
+
+    output.push('\n');
 }
 
 /// One generated Apple container type.
@@ -1081,6 +856,11 @@ fn render_apple_generated_callback_struct(output: &mut String, module: &HostAbiM
 
 /// Render one generated Apple ingress declaration for one module.
 fn render_apple_generated_ingress_declaration(output: &mut String, module: &HostAbiModule) {
+    if module.name == "intent" {
+        render_intent_ingress_declarations(output);
+        return;
+    }
+
     let ingress = single_ingress(module);
     let ingress_subject = render_apple_generated_ingress_subject(module);
     push_c_doc_comment(
@@ -1190,6 +970,10 @@ fn render_apple_generated_callback_type_name(
 
 /// Return the Apple ingress subject phrase for one generated module.
 fn render_apple_generated_ingress_subject(module: &HostAbiModule) -> String {
+    if module.name == "intent" {
+        return "intent event".to_string();
+    }
+
     let ingress = single_ingress(module);
 
     ingress
@@ -1214,11 +998,6 @@ fn apple_generated_runtime_slot_type(module: &HostAbiModule) -> String {
     )
 }
 
-/// Return the parameter name for one Apple runtime slot.
-fn apple_runtime_slot_parameter_name(slot_name: &str) -> String {
-    format!("{slot_name}Callbacks")
-}
-
 /// Return the type segment for one Apple runtime slot.
 fn apple_runtime_slot_segment(name: &str) -> String {
     let mut output = String::new();
@@ -1236,6 +1015,10 @@ fn apple_runtime_slot_segment(name: &str) -> String {
 
 /// Render one generated Apple runtime header.
 fn render_runtime_header(module: &HostAbiModule) -> String {
+    if module.name == "intent" {
+        return render_intent_runtime_header();
+    }
+
     let ingress = single_ingress(module);
     let module_segment = apple_module_segment(module);
     let header_guard = apple_runtime_header_guard(module);
@@ -1244,7 +1027,7 @@ fn render_runtime_header(module: &HostAbiModule) -> String {
     output.push_str("// generated by generate-bindings: do not edit\n\n");
     output.push_str(&format!("#ifndef {header_guard}\n"));
     output.push_str(&format!("#define {header_guard}\n\n"));
-    output.push_str("#include \"../../Types.h\"\n\n");
+    output.push_str("#include \"../Types.h\"\n\n");
 
     push_c_doc_comment(&mut output, ingress.documentation, 0);
     output.push_str(&format!(
@@ -1278,13 +1061,17 @@ fn render_runtime_header(module: &HostAbiModule) -> String {
 
 /// Render one generated Apple runtime source file.
 fn render_runtime_source(module: &HostAbiModule) -> String {
+    if module.name == "intent" {
+        return render_intent_runtime_source();
+    }
+
     let ingress = single_ingress(module);
     let module_segment = apple_module_segment(module);
     let mut output = String::new();
     output.push_str("// generated by generate-bindings: do not edit\n\n");
     output.push_str("#include \"Bridge/Types.h\"\n");
     output.push_str(&format!(
-        "#include \"Bridge/Generated/{module_segment}/Runtime.generated.h\"\n"
+        "#include \"Bridge/{module_segment}/Runtime.generated.h\"\n"
     ));
     output.push_str("#include \"Bridge/Loader.h\"\n\n");
     output.push_str("/// Convert one host status code into one runtime status.\n");
@@ -1339,6 +1126,448 @@ fn render_runtime_source(module: &HostAbiModule) -> String {
     output
 }
 
+/// Render the generated Apple BridgeC intent ingress declarations.
+fn render_intent_ingress_declarations(output: &mut String) {
+    render_intent_ingress_declaration(
+        output,
+        "open_url",
+        "intent open-url event",
+        &[
+            ("uint64_t", "session_handle"),
+            ("bool", "has_source"),
+            ("DestackRustStringRef", "source"),
+            ("DestackRustStringRef", "url"),
+        ],
+    );
+    output.push('\n');
+
+    render_intent_ingress_declaration(
+        output,
+        "open_file",
+        "intent open-file event",
+        &[
+            ("uint64_t", "session_handle"),
+            ("bool", "has_source"),
+            ("DestackRustStringRef", "source"),
+            ("DestackRustStringRef", "path"),
+            ("bool", "has_content_type"),
+            ("DestackRustStringRef", "content_type"),
+        ],
+    );
+    output.push('\n');
+
+    render_intent_ingress_declaration(
+        output,
+        "share_text",
+        "intent share-text event",
+        &[
+            ("uint64_t", "session_handle"),
+            ("bool", "has_source"),
+            ("DestackRustStringRef", "source"),
+            ("DestackRustStringRef", "text"),
+            ("bool", "has_content_type"),
+            ("DestackRustStringRef", "content_type"),
+        ],
+    );
+    output.push('\n');
+
+    render_intent_ingress_declaration(
+        output,
+        "share_files",
+        "intent share-files event",
+        &[
+            ("uint64_t", "session_handle"),
+            ("bool", "has_source"),
+            ("DestackRustStringRef", "source"),
+            ("DestackRustStringSlice", "paths"),
+            ("bool", "has_content_type"),
+            ("DestackRustStringRef", "content_type"),
+        ],
+    );
+    output.push('\n');
+
+    render_intent_ingress_declaration(
+        output,
+        "custom_action",
+        "intent custom-action event",
+        &[
+            ("uint64_t", "session_handle"),
+            ("bool", "has_source"),
+            ("DestackRustStringRef", "source"),
+            ("DestackRustStringRef", "action"),
+            ("bool", "has_url"),
+            ("DestackRustStringRef", "url"),
+            ("DestackRustStringSlice", "paths"),
+            ("bool", "has_text"),
+            ("DestackRustStringRef", "text"),
+            ("bool", "has_content_type"),
+            ("DestackRustStringRef", "content_type"),
+        ],
+    );
+}
+
+/// Render one generated Apple BridgeC intent ingress declaration.
+fn render_intent_ingress_declaration(
+    output: &mut String,
+    lane_name: &str,
+    subject: &str,
+    parameters: &[(&str, &str)],
+) {
+    push_c_doc_comment(
+        output,
+        &format!("Deliver one {subject} into one runtime session."),
+        0,
+    );
+    output.push_str(&format!(
+        "DestackRustRuntimeStatus destack_runtime_host_ios_notify_intent_{lane_name}(\n"
+    ));
+
+    for (index, (ty, name)) in parameters.iter().enumerate() {
+        let trailing = if index + 1 == parameters.len() {
+            ""
+        } else {
+            ","
+        };
+        output.push_str(&format!("    {ty} {name}{trailing}\n"));
+    }
+
+    output.push_str(");\n");
+}
+
+/// Render one generated Apple BridgeC intent ingress bridge source.
+fn render_intent_bridge_source() -> String {
+    let mut output = String::new();
+    output.push_str("// generated by generate-bindings: do not edit\n\n");
+    output.push_str("#include \"Bridge/Types.h\"\n");
+    output.push_str("#include \"Bridge/Intent/Runtime.generated.h\"\n\n");
+    output
+        .push_str("/// Convert one public string reference into one internal string reference.\n");
+    output.push_str("static NativeStringRef native_string_ref(DestackRustStringRef value) {\n");
+    output.push_str("    NativeStringRef native = {\n");
+    output.push_str("        .data = value.data,\n");
+    output.push_str("        .len = value.len,\n");
+    output.push_str("    };\n\n");
+    output.push_str("    return native;\n");
+    output.push_str("}\n\n");
+    output.push_str("/// Convert one public string slice into one internal string slice.\n");
+    output.push_str(
+        "static NativeStringSlice native_string_slice(DestackRustStringSlice values) {\n",
+    );
+    output.push_str("    NativeStringSlice native = {\n");
+    output.push_str("        .data = (const NativeStringRef *)values.data,\n");
+    output.push_str("        .len = values.len,\n");
+    output.push_str("    };\n\n");
+    output.push_str("    return native;\n");
+    output.push_str("}\n\n");
+
+    output.push_str("/// Deliver one intent open-url event into the runtime ingress path.\n");
+    output.push_str("DestackRustRuntimeStatus destack_runtime_host_ios_notify_intent_open_url(\n");
+    output.push_str("    uint64_t session_handle,\n");
+    output.push_str("    bool has_source,\n");
+    output.push_str("    DestackRustStringRef source,\n");
+    output.push_str("    DestackRustStringRef url\n");
+    output.push_str(") {\n");
+    output.push_str("    return send_intent_open_url(\n");
+    output.push_str("        session_handle,\n");
+    output.push_str("        has_source,\n");
+    output.push_str("        native_string_ref(source),\n");
+    output.push_str("        native_string_ref(url)\n");
+    output.push_str("    );\n");
+    output.push_str("}\n\n");
+
+    output.push_str("/// Deliver one intent open-file event into the runtime ingress path.\n");
+    output.push_str("DestackRustRuntimeStatus destack_runtime_host_ios_notify_intent_open_file(\n");
+    output.push_str("    uint64_t session_handle,\n");
+    output.push_str("    bool has_source,\n");
+    output.push_str("    DestackRustStringRef source,\n");
+    output.push_str("    DestackRustStringRef path,\n");
+    output.push_str("    bool has_content_type,\n");
+    output.push_str("    DestackRustStringRef content_type\n");
+    output.push_str(") {\n");
+    output.push_str("    return send_intent_open_file(\n");
+    output.push_str("        session_handle,\n");
+    output.push_str("        has_source,\n");
+    output.push_str("        native_string_ref(source),\n");
+    output.push_str("        native_string_ref(path),\n");
+    output.push_str("        has_content_type,\n");
+    output.push_str("        native_string_ref(content_type)\n");
+    output.push_str("    );\n");
+    output.push_str("}\n\n");
+
+    output.push_str("/// Deliver one intent share-text event into the runtime ingress path.\n");
+    output
+        .push_str("DestackRustRuntimeStatus destack_runtime_host_ios_notify_intent_share_text(\n");
+    output.push_str("    uint64_t session_handle,\n");
+    output.push_str("    bool has_source,\n");
+    output.push_str("    DestackRustStringRef source,\n");
+    output.push_str("    DestackRustStringRef text,\n");
+    output.push_str("    bool has_content_type,\n");
+    output.push_str("    DestackRustStringRef content_type\n");
+    output.push_str(") {\n");
+    output.push_str("    return send_intent_share_text(\n");
+    output.push_str("        session_handle,\n");
+    output.push_str("        has_source,\n");
+    output.push_str("        native_string_ref(source),\n");
+    output.push_str("        native_string_ref(text),\n");
+    output.push_str("        has_content_type,\n");
+    output.push_str("        native_string_ref(content_type)\n");
+    output.push_str("    );\n");
+    output.push_str("}\n\n");
+
+    output.push_str("/// Deliver one intent share-files event into the runtime ingress path.\n");
+    output
+        .push_str("DestackRustRuntimeStatus destack_runtime_host_ios_notify_intent_share_files(\n");
+    output.push_str("    uint64_t session_handle,\n");
+    output.push_str("    bool has_source,\n");
+    output.push_str("    DestackRustStringRef source,\n");
+    output.push_str("    DestackRustStringSlice paths,\n");
+    output.push_str("    bool has_content_type,\n");
+    output.push_str("    DestackRustStringRef content_type\n");
+    output.push_str(") {\n");
+    output.push_str("    return send_intent_share_files(\n");
+    output.push_str("        session_handle,\n");
+    output.push_str("        has_source,\n");
+    output.push_str("        native_string_ref(source),\n");
+    output.push_str("        native_string_slice(paths),\n");
+    output.push_str("        has_content_type,\n");
+    output.push_str("        native_string_ref(content_type)\n");
+    output.push_str("    );\n");
+    output.push_str("}\n\n");
+
+    output.push_str("/// Deliver one intent custom-action event into the runtime ingress path.\n");
+    output.push_str(
+        "DestackRustRuntimeStatus destack_runtime_host_ios_notify_intent_custom_action(\n",
+    );
+    output.push_str("    uint64_t session_handle,\n");
+    output.push_str("    bool has_source,\n");
+    output.push_str("    DestackRustStringRef source,\n");
+    output.push_str("    DestackRustStringRef action,\n");
+    output.push_str("    bool has_url,\n");
+    output.push_str("    DestackRustStringRef url,\n");
+    output.push_str("    DestackRustStringSlice paths,\n");
+    output.push_str("    bool has_text,\n");
+    output.push_str("    DestackRustStringRef text,\n");
+    output.push_str("    bool has_content_type,\n");
+    output.push_str("    DestackRustStringRef content_type\n");
+    output.push_str(") {\n");
+    output.push_str("    return send_intent_custom_action(\n");
+    output.push_str("        session_handle,\n");
+    output.push_str("        has_source,\n");
+    output.push_str("        native_string_ref(source),\n");
+    output.push_str("        native_string_ref(action),\n");
+    output.push_str("        has_url,\n");
+    output.push_str("        native_string_ref(url),\n");
+    output.push_str("        native_string_slice(paths),\n");
+    output.push_str("        has_text,\n");
+    output.push_str("        native_string_ref(text),\n");
+    output.push_str("        has_content_type,\n");
+    output.push_str("        native_string_ref(content_type)\n");
+    output.push_str("    );\n");
+    output.push_str("}\n");
+    output
+}
+
+/// Render one generated Apple BridgeC intent runtime header.
+fn render_intent_runtime_header() -> String {
+    let mut output = String::new();
+    output.push_str("// generated by generate-bindings: do not edit\n\n");
+    output.push_str("#ifndef RUNTIME_HOST_APPLE_BRIDGE_INTENT_RUNTIME_H\n");
+    output.push_str("#define RUNTIME_HOST_APPLE_BRIDGE_INTENT_RUNTIME_H\n\n");
+    output.push_str("#include \"../Types.h\"\n\n");
+
+    output.push_str("/// Send one intent open-url event into the runtime ingress path.\n");
+    output.push_str("DestackRustRuntimeStatus send_intent_open_url(\n");
+    output.push_str("    uint64_t session_handle,\n");
+    output.push_str("    bool has_source,\n");
+    output.push_str("    NativeStringRef source,\n");
+    output.push_str("    NativeStringRef url\n");
+    output.push_str(");\n");
+    output.push_str("/// Send one intent open-file event into the runtime ingress path.\n");
+    output.push_str("DestackRustRuntimeStatus send_intent_open_file(\n");
+    output.push_str("    uint64_t session_handle,\n");
+    output.push_str("    bool has_source,\n");
+    output.push_str("    NativeStringRef source,\n");
+    output.push_str("    NativeStringRef path,\n");
+    output.push_str("    bool has_mime_type,\n");
+    output.push_str("    NativeStringRef mime_type\n");
+    output.push_str(");\n");
+    output.push_str("/// Send one intent share-text event into the runtime ingress path.\n");
+    output.push_str("DestackRustRuntimeStatus send_intent_share_text(\n");
+    output.push_str("    uint64_t session_handle,\n");
+    output.push_str("    bool has_source,\n");
+    output.push_str("    NativeStringRef source,\n");
+    output.push_str("    NativeStringRef text,\n");
+    output.push_str("    bool has_mime_type,\n");
+    output.push_str("    NativeStringRef mime_type\n");
+    output.push_str(");\n");
+    output.push_str("/// Send one intent share-files event into the runtime ingress path.\n");
+    output.push_str("DestackRustRuntimeStatus send_intent_share_files(\n");
+    output.push_str("    uint64_t session_handle,\n");
+    output.push_str("    bool has_source,\n");
+    output.push_str("    NativeStringRef source,\n");
+    output.push_str("    NativeStringSlice paths,\n");
+    output.push_str("    bool has_mime_type,\n");
+    output.push_str("    NativeStringRef mime_type\n");
+    output.push_str(");\n");
+    output.push_str("/// Send one intent custom-action event into the runtime ingress path.\n");
+    output.push_str("DestackRustRuntimeStatus send_intent_custom_action(\n");
+    output.push_str("    uint64_t session_handle,\n");
+    output.push_str("    bool has_source,\n");
+    output.push_str("    NativeStringRef source,\n");
+    output.push_str("    NativeStringRef action,\n");
+    output.push_str("    bool has_url,\n");
+    output.push_str("    NativeStringRef url,\n");
+    output.push_str("    NativeStringSlice paths,\n");
+    output.push_str("    bool has_text,\n");
+    output.push_str("    NativeStringRef text,\n");
+    output.push_str("    bool has_mime_type,\n");
+    output.push_str("    NativeStringRef mime_type\n");
+    output.push_str(");\n\n");
+    output.push_str("#endif // RUNTIME_HOST_APPLE_BRIDGE_INTENT_RUNTIME_H\n");
+    output
+}
+
+/// Render one generated Apple BridgeC intent runtime source.
+fn render_intent_runtime_source() -> String {
+    let mut output = String::new();
+    output.push_str("// generated by generate-bindings: do not edit\n\n");
+    output.push_str("#include \"Bridge/Types.h\"\n");
+    output.push_str("#include \"Bridge/Intent/Runtime.generated.h\"\n");
+    output.push_str("#include \"Bridge/Loader.h\"\n\n");
+    output.push_str("/// Convert one host status code into one runtime status.\n");
+    output.push_str("static DestackRustRuntimeStatus runtime_status_from_code(uint32_t code) {\n");
+    output.push_str("    DestackRustRuntimeStatus status = {\n");
+    output.push_str("        .code = code,\n");
+    output.push_str("        .error_id = 0,\n");
+    output.push_str("    };\n\n");
+    output.push_str("    return status;\n");
+    output.push_str("}\n\n");
+
+    output.push_str("/// Send one intent open-url event into the runtime ingress path.\n");
+    output.push_str("DestackRustRuntimeStatus send_intent_open_url(\n");
+    output.push_str("    uint64_t session_handle,\n");
+    output.push_str("    bool has_source,\n");
+    output.push_str("    NativeStringRef source,\n");
+    output.push_str("    NativeStringRef url\n");
+    output.push_str(") {\n");
+    output.push_str("    RuntimeBindings bindings = {0};\n");
+    output.push_str("    DestackRustRuntimeStatus status = runtime_status_from_code(resolve_runtime_bindings(&bindings));\n");
+    output.push_str("    if (status.code != 0) {\n");
+    output.push_str("        return status;\n");
+    output.push_str("    }\n\n");
+    output.push_str(
+        "    return bindings.notify_intent_open_url(session_handle, has_source, source, url);\n",
+    );
+    output.push_str("}\n\n");
+
+    output.push_str("/// Send one intent open-file event into the runtime ingress path.\n");
+    output.push_str("DestackRustRuntimeStatus send_intent_open_file(\n");
+    output.push_str("    uint64_t session_handle,\n");
+    output.push_str("    bool has_source,\n");
+    output.push_str("    NativeStringRef source,\n");
+    output.push_str("    NativeStringRef path,\n");
+    output.push_str("    bool has_mime_type,\n");
+    output.push_str("    NativeStringRef mime_type\n");
+    output.push_str(") {\n");
+    output.push_str("    RuntimeBindings bindings = {0};\n");
+    output.push_str("    DestackRustRuntimeStatus status = runtime_status_from_code(resolve_runtime_bindings(&bindings));\n");
+    output.push_str("    if (status.code != 0) {\n");
+    output.push_str("        return status;\n");
+    output.push_str("    }\n\n");
+    output.push_str("    return bindings.notify_intent_open_file(\n");
+    output.push_str("        session_handle,\n");
+    output.push_str("        has_source,\n");
+    output.push_str("        source,\n");
+    output.push_str("        path,\n");
+    output.push_str("        has_mime_type,\n");
+    output.push_str("        mime_type\n");
+    output.push_str("    );\n");
+    output.push_str("}\n\n");
+
+    output.push_str("/// Send one intent share-text event into the runtime ingress path.\n");
+    output.push_str("DestackRustRuntimeStatus send_intent_share_text(\n");
+    output.push_str("    uint64_t session_handle,\n");
+    output.push_str("    bool has_source,\n");
+    output.push_str("    NativeStringRef source,\n");
+    output.push_str("    NativeStringRef text,\n");
+    output.push_str("    bool has_mime_type,\n");
+    output.push_str("    NativeStringRef mime_type\n");
+    output.push_str(") {\n");
+    output.push_str("    RuntimeBindings bindings = {0};\n");
+    output.push_str("    DestackRustRuntimeStatus status = runtime_status_from_code(resolve_runtime_bindings(&bindings));\n");
+    output.push_str("    if (status.code != 0) {\n");
+    output.push_str("        return status;\n");
+    output.push_str("    }\n\n");
+    output.push_str("    return bindings.notify_intent_share_text(\n");
+    output.push_str("        session_handle,\n");
+    output.push_str("        has_source,\n");
+    output.push_str("        source,\n");
+    output.push_str("        text,\n");
+    output.push_str("        has_mime_type,\n");
+    output.push_str("        mime_type\n");
+    output.push_str("    );\n");
+    output.push_str("}\n\n");
+
+    output.push_str("/// Send one intent share-files event into the runtime ingress path.\n");
+    output.push_str("DestackRustRuntimeStatus send_intent_share_files(\n");
+    output.push_str("    uint64_t session_handle,\n");
+    output.push_str("    bool has_source,\n");
+    output.push_str("    NativeStringRef source,\n");
+    output.push_str("    NativeStringSlice paths,\n");
+    output.push_str("    bool has_mime_type,\n");
+    output.push_str("    NativeStringRef mime_type\n");
+    output.push_str(") {\n");
+    output.push_str("    RuntimeBindings bindings = {0};\n");
+    output.push_str("    DestackRustRuntimeStatus status = runtime_status_from_code(resolve_runtime_bindings(&bindings));\n");
+    output.push_str("    if (status.code != 0) {\n");
+    output.push_str("        return status;\n");
+    output.push_str("    }\n\n");
+    output.push_str("    return bindings.notify_intent_share_files(\n");
+    output.push_str("        session_handle,\n");
+    output.push_str("        has_source,\n");
+    output.push_str("        source,\n");
+    output.push_str("        paths,\n");
+    output.push_str("        has_mime_type,\n");
+    output.push_str("        mime_type\n");
+    output.push_str("    );\n");
+    output.push_str("}\n\n");
+
+    output.push_str("/// Send one intent custom-action event into the runtime ingress path.\n");
+    output.push_str("DestackRustRuntimeStatus send_intent_custom_action(\n");
+    output.push_str("    uint64_t session_handle,\n");
+    output.push_str("    bool has_source,\n");
+    output.push_str("    NativeStringRef source,\n");
+    output.push_str("    NativeStringRef action,\n");
+    output.push_str("    bool has_url,\n");
+    output.push_str("    NativeStringRef url,\n");
+    output.push_str("    NativeStringSlice paths,\n");
+    output.push_str("    bool has_text,\n");
+    output.push_str("    NativeStringRef text,\n");
+    output.push_str("    bool has_mime_type,\n");
+    output.push_str("    NativeStringRef mime_type\n");
+    output.push_str(") {\n");
+    output.push_str("    RuntimeBindings bindings = {0};\n");
+    output.push_str("    DestackRustRuntimeStatus status = runtime_status_from_code(resolve_runtime_bindings(&bindings));\n");
+    output.push_str("    if (status.code != 0) {\n");
+    output.push_str("        return status;\n");
+    output.push_str("    }\n\n");
+    output.push_str("    return bindings.notify_intent_custom_action(\n");
+    output.push_str("        session_handle,\n");
+    output.push_str("        has_source,\n");
+    output.push_str("        source,\n");
+    output.push_str("        action,\n");
+    output.push_str("        has_url,\n");
+    output.push_str("        url,\n");
+    output.push_str("        paths,\n");
+    output.push_str("        has_text,\n");
+    output.push_str("        text,\n");
+    output.push_str("        has_mime_type,\n");
+    output.push_str("        mime_type\n");
+    output.push_str("    );\n");
+    output.push_str("}\n");
+    output
+}
+
 /// Render one generated Apple Swift ABI file.
 /// Return the single ingress function for one module.
 fn single_ingress(module: &HostAbiModule) -> &HostAbiFunction {
@@ -1346,6 +1575,11 @@ fn single_ingress(module: &HostAbiModule) -> &HostAbiFunction {
         .ingress
         .first()
         .unwrap_or_else(|| panic!("missing ingress function for {}", module.name))
+}
+
+/// Return whether one module emits generated Apple ingress shims.
+fn module_has_generated_ingress(module: &HostAbiModule) -> bool {
+    !module.ingress.is_empty() || matches!(module.name, "intent")
 }
 
 /// Return the Apple module path segment for one module.
@@ -1365,6 +1599,7 @@ fn apple_runtime_header_guard(module: &HostAbiModule) -> String {
 fn render_c_type(ty: &HostAbiType) -> String {
     match ty {
         HostAbiType::U8 => "uint8_t".to_string(),
+        HostAbiType::U16 => "uint16_t".to_string(),
         HostAbiType::I8 => "int8_t".to_string(),
         HostAbiType::I16 => "int16_t".to_string(),
         HostAbiType::U32 => "uint32_t".to_string(),
@@ -1612,6 +1847,7 @@ fn render_apple_enum_repr(repr: HostAbiEnumRepresentation) -> &'static str {
 fn render_apple_public_type(ty: &HostAbiType) -> String {
     match ty {
         HostAbiType::U8 => "uint8_t".to_string(),
+        HostAbiType::U16 => "uint16_t".to_string(),
         HostAbiType::I8 => "int8_t".to_string(),
         HostAbiType::I16 => "int16_t".to_string(),
         HostAbiType::U32 => "uint32_t".to_string(),

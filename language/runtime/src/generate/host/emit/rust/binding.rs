@@ -11,7 +11,7 @@ pub(crate) fn render_ios_binding_files(
         HostArtifact {
             path: layout
                 .language_root
-                .join("runtime/src/host/ios/abi/generated/bindings.generated.rs"),
+                .join("runtime/src/host/ios/abi/bindings.generated.rs"),
             contents: render_bindings_file(
                 HostPlatform::Ios,
                 catalog.binding_lanes(HostPlatform::Ios),
@@ -20,7 +20,7 @@ pub(crate) fn render_ios_binding_files(
         HostArtifact {
             path: layout
                 .language_root
-                .join("runtime/src/host/ios/abi/generated/bridge.generated.rs"),
+                .join("runtime/src/host/ios/abi/bridge.generated.rs"),
             contents: render_bridge_file(
                 HostPlatform::Ios,
                 catalog.bridge_lanes(HostPlatform::Ios),
@@ -38,7 +38,7 @@ pub(crate) fn render_android_binding_files(
         HostArtifact {
             path: layout
                 .language_root
-                .join("runtime/src/host/android/abi/generated/bindings.generated.rs"),
+                .join("runtime/src/host/android/abi/bindings.generated.rs"),
             contents: render_bindings_file(
                 HostPlatform::Android,
                 catalog.binding_lanes(HostPlatform::Android),
@@ -47,7 +47,7 @@ pub(crate) fn render_android_binding_files(
         HostArtifact {
             path: layout
                 .language_root
-                .join("runtime/src/host/android/abi/generated/bridge.generated.rs"),
+                .join("runtime/src/host/android/abi/bridge.generated.rs"),
             contents: render_bridge_file(
                 HostPlatform::Android,
                 catalog.bridge_lanes(HostPlatform::Android),

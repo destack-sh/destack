@@ -7,8 +7,8 @@ pub(crate) struct HostRequest {
     abi: HostAbiFunction,
     /// The ordered input parameters.
     input_parameters: Vec<HostAbiParameter>,
-    /// The optional output parameter.
-    output_parameter: Option<HostAbiParameter>,
+    /// The ordered output parameters.
+    output_parameters: Vec<HostAbiParameter>,
 }
 
 impl HostRequest {
@@ -39,22 +39,17 @@ impl HostRequest {
             .cloned()
             .collect();
 
-        let mut output_parameters = abi
+        let output_parameters = abi
             .parameters
             .iter()
-            .filter(|parameter| matches!(parameter.ty, HostAbiType::OutputPointer(_)));
-        let output_parameter = output_parameters.next().cloned();
-
-        assert!(
-            output_parameters.next().is_none(),
-            "unsupported host request outputs for {}",
-            abi.name
-        );
+            .filter(|parameter| matches!(parameter.ty, HostAbiType::OutputPointer(_)))
+            .cloned()
+            .collect();
 
         Self {
             abi,
             input_parameters,
-            output_parameter,
+            output_parameters,
         }
     }
 
@@ -83,13 +78,8 @@ impl HostRequest {
         &self.input_parameters
     }
 
-    /// Return the optional output parameter.
+    /// Return the optional first output parameter.
     pub(crate) fn output_parameter(&self) -> Option<&HostAbiParameter> {
-        self.output_parameter.as_ref()
-    }
-
-    /// Return whether this request produces one response payload.
-    pub(crate) fn produces_response(&self) -> bool {
-        self.output_parameter.is_some()
+        self.output_parameters.first()
     }
 }
