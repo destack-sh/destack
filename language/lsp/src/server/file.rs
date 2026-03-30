@@ -5,7 +5,9 @@ use std::sync::Arc;
 use destack_ast::{Expression, LocalNodeId, NodeParentIndex};
 use destack_compiler::CompilerOptions;
 use destack_fir::format as fir_format;
-use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
+use destack_formatter::{
+    DestackFormatContext, DestackFormatOptions, format_file_source, statement_list,
+};
 use destack_parser::Parser;
 use destack_service::{FileSnapshot, LanguageService as LspLanguageService, LanguageServiceError};
 use destack_source::{
@@ -188,6 +190,11 @@ pub(super) fn format_file(
     file: &Arc<File>,
     formatter: FormatterOptions,
 ) -> Option<String> {
+    // dispatch non destack languages through the shared source formatter
+    if matches!(file.ty, FileType::Css | FileType::Html) {
+        return format_file_source(file.as_ref(), file.text(), formatter).ok();
+    }
+
     let language_type = LanguageType::from(file.ty);
     let format_options = DestackFormatOptions {
         language_type,
