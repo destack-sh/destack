@@ -11,9 +11,9 @@ use crate::platform::input::{
     InputAxisMetadata, InputButtonMetadata, InputCapabilityMetadataFidelity,
     InputCapabilityMetadataOrigin, InputCompositionEventPayload, InputDeviceCapabilities,
     InputDeviceCapabilityKind, InputDeviceDescriptor, InputDeviceEventPayload, InputDeviceKind,
-    InputEvent, InputEventAction, InputEventKind, InputGamepadBatteryState,
-    InputGamepadBatteryStatus, InputGamepadButtonState, InputGamepadConnectionType,
-    InputGamepadEventPayload, InputGamepadMappingType, InputGamepadState, InputGamepadTouchState,
+    InputEvent, InputEventAction, InputGamepadBatteryState, InputGamepadBatteryStatus,
+    InputGamepadButtonState, InputGamepadConnectionType, InputGamepadEventPayload,
+    InputGamepadMappingType, InputGamepadState, InputGamepadTouchState,
     InputHapticEffectParameters, InputHapticEffectType, InputKeyEventPayload, InputKeyboardState,
     InputPenState, InputPointerButtonEventPayload, InputPointerMotionEventPayload,
     InputPointerState, InputScrollEventPayload, InputSensorDescriptor, InputSensorEventPayload,
@@ -1781,43 +1781,47 @@ fn bit_is_set(bits: &[u8], index: usize) -> bool {
 }
 
 /// Classify one raw Linux event into one runtime event kind.
-fn input_event_kind(raw_kind: u16, code: u16, device_kind: InputDeviceKind) -> InputEventKind {
+fn input_event_kind(
+    raw_kind: u16,
+    code: u16,
+    device_kind: InputDeviceKind,
+) -> input_core::UnixInputEventKind {
     match raw_kind {
         EV_KEY => {
             if code as usize == BTN_TOUCH {
-                InputEventKind::Touch
+                input_core::UnixInputEventKind::Touch
             } else if (BTN_MOUSE_LEFT..=(BTN_MOUSE_LEFT + 4)).contains(&(code as usize)) {
-                InputEventKind::PointerButton
+                input_core::UnixInputEventKind::PointerButton
             } else if is_gamepad_button_code(code as usize)
                 || (device_kind == InputDeviceKind::Gamepad && is_button_code(code as usize))
             {
-                InputEventKind::Gamepad
+                input_core::UnixInputEventKind::Gamepad
             } else {
-                InputEventKind::Key
+                input_core::UnixInputEventKind::Key
             }
         }
         EV_REL => {
             if code == REL_WHEEL || code == REL_HWHEEL {
-                InputEventKind::Scroll
+                input_core::UnixInputEventKind::Scroll
             } else {
-                InputEventKind::PointerMotion
+                input_core::UnixInputEventKind::PointerMotion
             }
         }
         EV_ABS => {
             if is_touch_absolute_code(code) {
-                InputEventKind::Touch
+                input_core::UnixInputEventKind::Touch
             } else if device_kind == InputDeviceKind::Raw && is_sensor_absolute_code(code) {
-                InputEventKind::Sensor
+                input_core::UnixInputEventKind::Sensor
             } else if is_gamepad_absolute_code(code) || device_kind == InputDeviceKind::Gamepad {
-                InputEventKind::Gamepad
+                input_core::UnixInputEventKind::Gamepad
             } else if code == ABS_X || code == ABS_Y {
-                InputEventKind::PointerMotion
+                input_core::UnixInputEventKind::PointerMotion
             } else {
-                InputEventKind::Touch
+                input_core::UnixInputEventKind::Touch
             }
         }
-        EV_SYN => InputEventKind::Device,
-        _ => InputEventKind::Device,
+        EV_SYN => input_core::UnixInputEventKind::Device,
+        _ => input_core::UnixInputEventKind::Device,
     }
 }
 
@@ -1901,7 +1905,9 @@ fn map_linux_event(
             }
         }
         EV_ABS => {
-            if kind == InputEventKind::Gamepad || kind == InputEventKind::Sensor {
+            if kind == input_core::UnixInputEventKind::Gamepad
+                || kind == input_core::UnixInputEventKind::Sensor
+            {
                 InputEventAction::Axis
             } else {
                 InputEventAction::Move
@@ -1923,7 +1929,7 @@ fn map_linux_event(
 
     let mut payload = input_core::empty_unix_event_payload(binding);
     match kind {
-        InputEventKind::Key => {
+        input_core::UnixInputEventKind::Key => {
             payload.key = InputKeyEventPayload {
                 action,
                 backend_code: raw.code as u32,
@@ -1933,7 +1939,7 @@ fn map_linux_event(
                 repeat: raw.value == 2,
             };
         }
-        InputEventKind::PointerMotion => {
+        input_core::UnixInputEventKind::PointerMotion => {
             payload.pointer_motion = InputPointerMotionEventPayload {
                 x,
                 y,
@@ -1941,7 +1947,7 @@ fn map_linux_event(
                 modifiers,
             };
         }
-        InputEventKind::PointerButton => {
+        input_core::UnixInputEventKind::PointerButton => {
             payload.pointer_button = InputPointerButtonEventPayload {
                 action,
                 backend_code: raw.code as u32,
@@ -1951,7 +1957,7 @@ fn map_linux_event(
                 modifiers,
             };
         }
-        InputEventKind::Scroll => {
+        input_core::UnixInputEventKind::Scroll => {
             payload.scroll = InputScrollEventPayload {
                 wheel_x,
                 wheel_y,
@@ -1960,7 +1966,7 @@ fn map_linux_event(
                 modifiers,
             };
         }
-        InputEventKind::Touch => {
+        input_core::UnixInputEventKind::Touch => {
             payload.touch = InputTouchEventPayload {
                 action,
                 contact_id: raw.code as u32,
@@ -1969,26 +1975,26 @@ fn map_linux_event(
                 pressure: raw.value as f64,
             };
         }
-        InputEventKind::Gamepad => {
+        input_core::UnixInputEventKind::Gamepad => {
             payload.gamepad = InputGamepadEventPayload {
                 action,
                 backend_code: raw.code as u32,
                 backend_value: raw.value as i64,
             };
         }
-        InputEventKind::Text => {
+        input_core::UnixInputEventKind::Text => {
             payload.text = InputTextEventPayload {
                 text: binding.store_string(input_core::UNIX_INPUT_EMPTY_TEXT),
             };
         }
-        InputEventKind::Device => {
+        input_core::UnixInputEventKind::Device => {
             payload.device = InputDeviceEventPayload {
                 action,
                 backend_code: raw.code as u32,
                 backend_value: raw.value as i64,
             };
         }
-        InputEventKind::Sensor => {
+        input_core::UnixInputEventKind::Sensor => {
             let sensor_x = if raw.code == ABS_X || raw.code == ABS_RX {
                 raw.value as f64
             } else {
@@ -2013,7 +2019,7 @@ fn map_linux_event(
                 z: sensor_z,
             };
         }
-        InputEventKind::Composition => {
+        input_core::UnixInputEventKind::Composition => {
             payload.composition = InputCompositionEventPayload {
                 action,
                 text: binding.store_string(input_core::UNIX_INPUT_EMPTY_TEXT),
@@ -2827,7 +2833,7 @@ mod tests {
         MODIFIER_SHIFT, REL_WHEEL, input_event_kind, is_button_code, map_linux_event,
         should_skip_linux_event, update_linux_modifiers,
     };
-    use crate::platform::input::{InputDeviceKind, InputEvent, InputEventAction, InputEventKind};
+    use crate::platform::input::{InputDeviceKind, InputEvent, InputEventAction};
     use crate::tests::runtime::TestRuntime;
 
     /// Map Linux wheel events with scroll action semantics.
@@ -2965,11 +2971,11 @@ mod tests {
     fn test_input_event_kind_maps_raw_sensor_axes_to_sensor_kind() {
         assert_eq!(
             input_event_kind(EV_ABS, ABS_Z, InputDeviceKind::Raw),
-            InputEventKind::Sensor
+            input_core::UnixInputEventKind::Sensor
         );
         assert_eq!(
             input_event_kind(EV_ABS, ABS_RY, InputDeviceKind::Raw),
-            InputEventKind::Sensor
+            input_core::UnixInputEventKind::Sensor
         );
     }
 

@@ -52,14 +52,14 @@ use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
     InputAxisMetadata, InputButtonMetadata, InputCapabilityMetadataFidelity,
     InputCapabilityMetadataOrigin, InputDeviceCapabilities, InputDeviceCapabilityKind,
-    InputDeviceEventPayload, InputDeviceKind, InputEvent, InputEventAction, InputEventKind,
+    InputDeviceEventPayload, InputDeviceKind, InputEvent, InputEventAction,
     InputGamepadBatteryState, InputGamepadBatteryStatus, InputGamepadButtonState,
     InputGamepadConnectionType, InputGamepadMappingType, InputGamepadState, InputKeyEventPayload,
     InputMonitorChangeEvent, InputMonitorConnectEvent, InputMonitorDisconnectEvent,
-    InputMonitorEvent, InputMonitorEventKind, InputMonitorEventMetadata,
-    InputPointerButtonEventPayload, InputPointerMotionEventPayload, InputRawHidReport,
-    InputScrollEventPayload, InputSensorDescriptor, InputSensorKind, InputSensorSample,
-    InputTouchContactPhase, InputTouchContactState, InputTouchState,
+    InputMonitorEvent, InputMonitorEventMetadata, InputPointerButtonEventPayload,
+    InputPointerMotionEventPayload, InputRawHidReport, InputScrollEventPayload,
+    InputSensorDescriptor, InputSensorKind, InputSensorSample, InputTouchContactPhase,
+    InputTouchContactState, InputTouchState,
 };
 use crate::platform::{PlatformError, core as core_platform};
 use crate::runtime::process::service::GlobalService;
@@ -325,7 +325,7 @@ struct RawInputPacket {
     /// Stable runtime source device identifier.
     device_id: String,
     /// Runtime event kind.
-    kind: InputEventKind,
+    kind: windows_core::WindowsInputEventKind,
     /// Runtime event action.
     action: InputEventAction,
     /// Backend event code.
@@ -2101,7 +2101,7 @@ fn push_input_packet(
 
         // coalesce one overflow marker in the queue tail when drops occur
         if let Some(overflow) = queue.back_mut()
-            && overflow.kind == InputEventKind::Device
+            && overflow.kind == windows_core::WindowsInputEventKind::Device
             && overflow.action == InputEventAction::Cancel
             && overflow.code == RAW_INPUT_OVERFLOW_CODE
         {
@@ -2113,7 +2113,7 @@ fn push_input_packet(
         queue.push_back(RawInputPacket {
             timestamp_ns: packet.timestamp_ns,
             device_id: packet.device_id.clone(),
-            kind: InputEventKind::Device,
+            kind: windows_core::WindowsInputEventKind::Device,
             action: InputEventAction::Cancel,
             code: RAW_INPUT_OVERFLOW_CODE,
             scan_code: RAW_INPUT_OVERFLOW_CODE,
@@ -2734,7 +2734,7 @@ fn handle_raw_input_message(service: &WindowsRawInputService, raw_input_handle: 
                 RawInputPacket {
                     timestamp_ns: timestamp,
                     device_id: source_device_id.clone(),
-                    kind: InputEventKind::Key,
+                    kind: windows_core::WindowsInputEventKind::Key,
                     action,
                     code: keyboard.VKey as u32,
                     scan_code: keyboard.MakeCode as u32,
@@ -2777,7 +2777,7 @@ fn handle_raw_input_message(service: &WindowsRawInputService, raw_input_handle: 
                     RawInputPacket {
                         timestamp_ns: timestamp,
                         device_id: source_device_id.clone(),
-                        kind: InputEventKind::PointerMotion,
+                        kind: windows_core::WindowsInputEventKind::PointerMotion,
                         action: InputEventAction::Move,
                         code,
                         scan_code: code,
@@ -2801,7 +2801,7 @@ fn handle_raw_input_message(service: &WindowsRawInputService, raw_input_handle: 
                     RawInputPacket {
                         timestamp_ns: timestamp,
                         device_id: source_device_id.clone(),
-                        kind: InputEventKind::Scroll,
+                        kind: windows_core::WindowsInputEventKind::Scroll,
                         action: InputEventAction::Scroll,
                         code: RI_MOUSE_WHEEL,
                         scan_code: RI_MOUSE_WHEEL,
@@ -2825,7 +2825,7 @@ fn handle_raw_input_message(service: &WindowsRawInputService, raw_input_handle: 
                     RawInputPacket {
                         timestamp_ns: timestamp,
                         device_id: source_device_id.clone(),
-                        kind: InputEventKind::Scroll,
+                        kind: windows_core::WindowsInputEventKind::Scroll,
                         action: InputEventAction::Scroll,
                         code: RI_MOUSE_HWHEEL,
                         scan_code: RI_MOUSE_HWHEEL,
@@ -2946,7 +2946,7 @@ fn push_mouse_button_events(
                 RawInputPacket {
                     timestamp_ns: timestamp,
                     device_id: device_id.to_string(),
-                    kind: InputEventKind::PointerButton,
+                    kind: windows_core::WindowsInputEventKind::PointerButton,
                     action: InputEventAction::Press,
                     code,
                     scan_code: code,
@@ -2972,7 +2972,7 @@ fn push_mouse_button_events(
                 RawInputPacket {
                     timestamp_ns: timestamp,
                     device_id: device_id.to_string(),
-                    kind: InputEventKind::PointerButton,
+                    kind: windows_core::WindowsInputEventKind::PointerButton,
                     action: InputEventAction::Release,
                     code,
                     scan_code: code,
@@ -3312,7 +3312,7 @@ pub(super) fn read_device_event(
             pop_input_event_for_device(binding, queue_kind, &device.id, nonblocking, operation)?;
         let mut payload = windows_core::empty_event_payload(binding);
         match event.kind {
-            InputEventKind::Key => {
+            windows_core::WindowsInputEventKind::Key => {
                 payload.key = InputKeyEventPayload {
                     action: event.action,
                     backend_code: event.code,
@@ -3322,7 +3322,7 @@ pub(super) fn read_device_event(
                     repeat: event.repeat,
                 };
             }
-            InputEventKind::PointerMotion => {
+            windows_core::WindowsInputEventKind::PointerMotion => {
                 payload.pointer_motion = InputPointerMotionEventPayload {
                     x: event.x,
                     y: event.y,
@@ -3330,7 +3330,7 @@ pub(super) fn read_device_event(
                     modifiers: event.modifiers,
                 };
             }
-            InputEventKind::PointerButton => {
+            windows_core::WindowsInputEventKind::PointerButton => {
                 payload.pointer_button = InputPointerButtonEventPayload {
                     action: event.action,
                     backend_code: event.code,
@@ -3340,7 +3340,7 @@ pub(super) fn read_device_event(
                     modifiers: event.modifiers,
                 };
             }
-            InputEventKind::Scroll => {
+            windows_core::WindowsInputEventKind::Scroll => {
                 payload.scroll = InputScrollEventPayload {
                     wheel_x: event.wheel_x,
                     wheel_y: event.wheel_y,
@@ -3349,7 +3349,7 @@ pub(super) fn read_device_event(
                     modifiers: event.modifiers,
                 };
             }
-            InputEventKind::Device => {
+            windows_core::WindowsInputEventKind::Device => {
                 payload.device = InputDeviceEventPayload {
                     action: event.action,
                     backend_code: event.code,
@@ -3394,7 +3394,7 @@ pub(super) fn read_device_event(
 
         return Ok(windows_core::build_input_event(
             binding,
-            InputEventKind::Touch,
+            windows_core::WindowsInputEventKind::Touch,
             touch.timestamp_ns,
             0,
             &touch.device_id,
@@ -3414,7 +3414,7 @@ pub(super) fn read_device_event(
         payload.sensor.z = sample.z;
         return Ok(windows_core::build_input_event(
             binding,
-            InputEventKind::Sensor,
+            windows_core::WindowsInputEventKind::Sensor,
             sample.timestamp_ns,
             0,
             &device.id,
@@ -3430,7 +3430,7 @@ pub(super) fn read_device_event(
     payload.device.backend_value = packet.data.len() as i64;
     Ok(windows_core::build_input_event(
         binding,
-        InputEventKind::Device,
+        windows_core::WindowsInputEventKind::Device,
         packet.timestamp_ns,
         0,
         &packet.device_id,
@@ -3439,14 +3439,6 @@ pub(super) fn read_device_event(
 }
 
 /// Map one action to one monitor event kind.
-fn monitor_kind_from_action(action: InputEventAction) -> InputMonitorEventKind {
-    match action {
-        InputEventAction::Connect => InputMonitorEventKind::Connect,
-        InputEventAction::Disconnect => InputMonitorEventKind::Disconnect,
-        _ => InputMonitorEventKind::Change,
-    }
-}
-
 /// Build one monitor event payload for raw-input monitor deltas.
 fn build_raw_monitor_event(
     binding: &BindingCallContext,
@@ -3456,8 +3448,7 @@ fn build_raw_monitor_event(
     device_kind: InputDeviceKind,
     action: InputEventAction,
 ) -> InputMonitorEvent {
-    let kind = monitor_kind_from_action(action);
-    let connected = !matches!(kind, InputMonitorEventKind::Disconnect);
+    let connected = !matches!(action, InputEventAction::Disconnect);
     let metadata = InputMonitorEventMetadata {
         timestamp_ns,
         sequence,
@@ -3466,25 +3457,23 @@ fn build_raw_monitor_event(
         connected,
     };
 
-    match kind {
-        InputMonitorEventKind::Connect => {
+    match action {
+        InputEventAction::Connect => {
             InputMonitorEvent::InputMonitorConnectEvent(InputMonitorConnectEvent {
                 kind: binding.store_string("connect"),
                 metadata,
             })
         }
-        InputMonitorEventKind::Disconnect => {
+        InputEventAction::Disconnect => {
             InputMonitorEvent::InputMonitorDisconnectEvent(InputMonitorDisconnectEvent {
                 kind: binding.store_string("disconnect"),
                 metadata,
             })
         }
-        InputMonitorEventKind::Change => {
-            InputMonitorEvent::InputMonitorChangeEvent(InputMonitorChangeEvent {
-                kind: binding.store_string("change"),
-                metadata,
-            })
-        }
+        _ => InputMonitorEvent::InputMonitorChangeEvent(InputMonitorChangeEvent {
+            kind: binding.store_string("change"),
+            metadata,
+        }),
     }
 }
 
@@ -4566,7 +4555,7 @@ mod tests {
         standard_button_index_for_hid_usage, update_lock_key_state,
     };
     use crate::platform::input::{
-        InputDeviceKind, InputEventAction, InputEventKind, InputGamepadMappingType, InputSensorKind,
+        InputDeviceKind, InputEventAction, InputGamepadMappingType, InputSensorKind,
     };
 
     /// Drop the oldest keyboard packet when the queue reaches its bounded capacity.
@@ -4581,7 +4570,7 @@ mod tests {
                 RawInputPacket {
                     timestamp_ns: index as u64,
                     device_id: "raw:device:test".to_string(),
-                    kind: InputEventKind::Key,
+                    kind: windows_core::WindowsInputEventKind::Key,
                     action: InputEventAction::Press,
                     code: index as u32,
                     scan_code: index as u32,
@@ -4599,7 +4588,7 @@ mod tests {
 
         assert_eq!(queue.len(), RAW_INPUT_QUEUE_LIMIT);
         let overflow_event = queue.iter().find(|event| {
-            event.kind == InputEventKind::Device
+            event.kind == windows_core::WindowsInputEventKind::Device
                 && event.action == InputEventAction::Cancel
                 && event.code == RAW_INPUT_OVERFLOW_CODE
         });
@@ -4694,7 +4683,10 @@ mod tests {
 
         assert_eq!(queue.len(), 1, "one packet should be queued");
         let packet = queue.pop_front().expect("one packet should exist");
-        assert_eq!(packet.kind, InputEventKind::PointerButton);
+        assert_eq!(
+            packet.kind,
+            windows_core::WindowsInputEventKind::PointerButton
+        );
         assert_eq!(packet.x, 123.0);
         assert_eq!(packet.y, 456.0);
     }

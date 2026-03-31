@@ -8,27 +8,105 @@ use crate::platform::input::{
 use crate::platform::{NativeAbiCodec, core as core_platform};
 use crate::runtime::BindingCallContext;
 
+#[cfg(unix)]
+use super::super::unix::clipboard as clipboard_backend;
+#[cfg(windows)]
+use super::super::windows::clipboard as clipboard_backend;
+
 /// Clipboard read-text binding name.
-pub(super) const CLIPBOARD_READ_TEXT_OPERATION: &str = "destack.input.clipboard.readText";
+pub(crate) const CLIPBOARD_READ_TEXT_OPERATION: &str = "destack.input.clipboard.readText";
 /// Clipboard write-text binding name.
-pub(super) const CLIPBOARD_WRITE_TEXT_OPERATION: &str = "destack.input.clipboard.writeText";
+pub(crate) const CLIPBOARD_WRITE_TEXT_OPERATION: &str = "destack.input.clipboard.writeText";
 /// Clipboard read-item-bytes binding name.
-pub(super) const CLIPBOARD_READ_ITEM_BYTES_OPERATION: &str =
+pub(crate) const CLIPBOARD_READ_ITEM_BYTES_OPERATION: &str =
     "destack.input.clipboard.readItemBytes";
 /// Clipboard write-items binding name.
-pub(super) const CLIPBOARD_WRITE_ITEMS_OPERATION: &str = "destack.input.clipboard.writeItems";
+pub(crate) const CLIPBOARD_WRITE_ITEMS_OPERATION: &str = "destack.input.clipboard.writeItems";
 /// Clipboard has-text binding name.
-#[cfg(all(not(windows), not(target_os = "macos")))]
-pub(super) const CLIPBOARD_HAS_TEXT_OPERATION: &str = "destack.input.clipboard.hasText";
+#[allow(dead_code)]
+pub(crate) const CLIPBOARD_HAS_TEXT_OPERATION: &str = "destack.input.clipboard.hasText";
 /// Clipboard sequence binding name.
-#[cfg(not(windows))]
-pub(super) const CLIPBOARD_SEQUENCE_OPERATION: &str = "destack.input.clipboard.sequence";
+pub(crate) const CLIPBOARD_SEQUENCE_OPERATION: &str = "destack.input.clipboard.sequence";
 /// Clipboard clear binding name.
-#[cfg(not(target_os = "macos"))]
-pub(super) const CLIPBOARD_CLEAR_OPERATION: &str = "destack.input.clipboard.clear";
+#[allow(dead_code)]
+pub(crate) const CLIPBOARD_CLEAR_OPERATION: &str = "destack.input.clipboard.clear";
 
 const TEXT_MIME_TYPE: &str = "text/plain";
 const HTML_MIME_TYPE: &str = "text/html";
+
+#[cfg(any(unix, windows))]
+fn backend_has_text() -> RuntimeResult<bool> {
+    clipboard_backend::has_text()
+}
+
+#[cfg(not(any(unix, windows)))]
+fn backend_has_text() -> RuntimeResult<bool> {
+    Err(core_platform::not_supported(CLIPBOARD_HAS_TEXT_OPERATION))
+}
+
+#[cfg(any(unix, windows))]
+fn backend_read_text() -> RuntimeResult<String> {
+    clipboard_backend::read_text()
+}
+
+#[cfg(not(any(unix, windows)))]
+fn backend_read_text() -> RuntimeResult<String> {
+    Err(core_platform::not_supported(CLIPBOARD_READ_TEXT_OPERATION))
+}
+
+#[cfg(any(unix, windows))]
+fn backend_write_text(text: &str) -> RuntimeResult<()> {
+    clipboard_backend::write_text(text)
+}
+
+#[cfg(not(any(unix, windows)))]
+fn backend_write_text(_text: &str) -> RuntimeResult<()> {
+    Err(core_platform::not_supported(CLIPBOARD_WRITE_TEXT_OPERATION))
+}
+
+#[cfg(any(unix, windows))]
+fn backend_read_html_bytes() -> RuntimeResult<Vec<u8>> {
+    clipboard_backend::read_html_bytes()
+}
+
+#[cfg(not(any(unix, windows)))]
+fn backend_read_html_bytes() -> RuntimeResult<Vec<u8>> {
+    Err(core_platform::not_supported(
+        CLIPBOARD_READ_ITEM_BYTES_OPERATION,
+    ))
+}
+
+#[cfg(any(unix, windows))]
+fn backend_write_html_bytes(bytes: &[u8]) -> RuntimeResult<()> {
+    clipboard_backend::write_html_bytes(bytes)
+}
+
+#[cfg(not(any(unix, windows)))]
+fn backend_write_html_bytes(_bytes: &[u8]) -> RuntimeResult<()> {
+    Err(core_platform::not_supported(
+        CLIPBOARD_WRITE_ITEMS_OPERATION,
+    ))
+}
+
+#[cfg(any(unix, windows))]
+fn backend_sequence() -> RuntimeResult<u64> {
+    clipboard_backend::sequence()
+}
+
+#[cfg(not(any(unix, windows)))]
+fn backend_sequence() -> RuntimeResult<u64> {
+    Err(core_platform::not_supported(CLIPBOARD_SEQUENCE_OPERATION))
+}
+
+#[cfg(any(unix, windows))]
+fn backend_clear() -> RuntimeResult<()> {
+    clipboard_backend::clear()
+}
+
+#[cfg(not(any(unix, windows)))]
+fn backend_clear() -> RuntimeResult<()> {
+    Err(core_platform::not_supported(CLIPBOARD_CLEAR_OPERATION))
+}
 
 /// One readable clipboard representation from the current host snapshot.
 enum ClipboardRepresentation {
@@ -40,12 +118,12 @@ enum ClipboardRepresentation {
 
 /// Query whether one text payload exists.
 pub(crate) fn has_text() -> RuntimeResult<bool> {
-    super::target::has_text()
+    backend_has_text()
 }
 
 /// Read one text payload.
 pub(crate) fn read_text() -> RuntimeResult<String> {
-    super::target::read_text()
+    backend_read_text()
 }
 
 /// Write one text payload.
@@ -58,17 +136,17 @@ pub(crate) fn write_text(text: &str) -> RuntimeResult<()> {
         ));
     }
 
-    super::target::write_text(text)
+    backend_write_text(text)
 }
 
 /// Read one monotonic clipboard sequence.
 pub(crate) fn sequence() -> RuntimeResult<u64> {
-    super::target::sequence()
+    backend_sequence()
 }
 
 /// Clear the current clipboard payload.
 pub(crate) fn clear() -> RuntimeResult<()> {
-    super::target::clear()
+    backend_clear()
 }
 
 /// Read the current host clipboard as one single logical item.
@@ -86,7 +164,7 @@ fn clipboard_representations() -> RuntimeResult<Vec<ClipboardRepresentation>> {
     }
 
     // add html when the backend exposes it
-    if let Ok(html) = super::target::read_html_bytes() {
+    if let Ok(html) = backend_read_html_bytes() {
         representations.push(ClipboardRepresentation::Html(html));
     }
 
@@ -357,7 +435,7 @@ pub(crate) unsafe fn destack_input_clipboard_write_items(
             && let Some(bytes) = representation.bytes
         {
             let bytes = unsafe { bytes.as_slice()? };
-            return super::target::write_html_bytes(bytes);
+            return backend_write_html_bytes(bytes);
         }
     }
 

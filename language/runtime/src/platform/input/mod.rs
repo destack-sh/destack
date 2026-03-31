@@ -8,19 +8,22 @@ mod bindings_generated;
 pub(crate) use abi_generated::*;
 pub(crate) use bindings_generated::*;
 
-pub(crate) mod clipboard;
-
 mod core;
 pub(crate) mod host;
-#[cfg(any(test, target_os = "android", target_os = "ios"))]
-pub(crate) mod mobile_text;
 pub mod native;
 pub(crate) mod simulation;
 mod state;
 #[cfg(any(test, feature = "execution"))]
-mod tests;
+pub(crate) mod tests;
 pub(crate) mod validation;
 pub mod vm;
+
+#[cfg(unix)]
+mod unix;
+#[cfg(not(any(unix, windows)))]
+mod unsupported;
+#[cfg(windows)]
+mod windows;
 
 pub(crate) use core::*;
 pub(crate) use state::*;

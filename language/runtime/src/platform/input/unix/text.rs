@@ -1,9 +1,28 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 
+#[cfg(any(target_os = "android", target_os = "ios"))]
+use super::super::PlatformInputState;
 use super::core as input_core;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+#[cfg(any(target_os = "android", target_os = "ios"))]
+use crate::host::abi::text::{
+    HostTextGeometryRequestPayload, HostTextInputCloseRequest, HostTextInputOpenRequest,
+    HostTextInputStateRequest, HostTextOpenRequestPayload, HostTextStateRequestPayload,
+};
+#[cfg(target_os = "android")]
+use crate::host::api::android::text::ffi::{
+    destack_host_android_text_close, destack_host_android_text_open,
+    destack_host_android_text_set_geometry, destack_host_android_text_set_state,
+};
+#[cfg(target_os = "ios")]
+use crate::host::api::ios::text::ffi::{
+    destack_host_ios_text_close, destack_host_ios_text_open, destack_host_ios_text_set_geometry,
+    destack_host_ios_text_set_state,
+};
+#[cfg(any(target_os = "android", target_os = "ios"))]
+use crate::host::core::HOST_STATUS_FAILED;
 use crate::platform::diagnostic::PlatformErrorCode;
 #[cfg(target_os = "macos")]
 use crate::platform::display::appkit;
@@ -22,10 +41,15 @@ use crate::platform::input::{
 use crate::platform::input::{
     InputCompositionEventPayloadValue, InputCompositionEventValue, InputEventAction,
 };
+#[cfg(any(target_os = "android", target_os = "ios"))]
+use crate::platform::resource::ResourceBacking;
 use crate::platform::resource::{ResourceEntry, ResourceKind};
 use crate::platform::{NativeAbiCodec, PlatformError, resource};
 use crate::runtime::BindingCallContext;
 use parking_lot::{Condvar, Mutex};
+
+#[cfg(any(target_os = "android", target_os = "ios"))]
+use super::super::core::text::host_status_result;
 
 /// Resource-table label for active text-session entries.
 const TEXT_SESSION_RESOURCE_LABEL: &str = "input.text.session";
@@ -1246,6 +1270,105 @@ fn read_text_session_event(
     }
 }
 
+/// Return the shared `platform.input` state for this binding.
+#[cfg(any(target_os = "android", target_os = "ios"))]
+fn input_state(binding: &BindingCallContext) -> RuntimeResult<&PlatformInputState> {
+    let state = &binding.agent().platform_state.input;
+    state.bootstrap_host_text_state(binding)?;
+
+    Ok(state)
+}
+
+/// Validate one attached-host text-open request.
+#[cfg(any(target_os = "android", target_os = "ios"))]
+fn validate_host_text_open(
+    config: InputTextSessionConfig,
+    state: &InputTextSessionStateValue,
+) -> RuntimeResult<()> {
+    // host-backed mobile text follows one focused host target
+    if input_validation::has_explicit_window_target(config.target) {
+        return Err(
+            RuntimeError::from(PlatformError::not_supported("destack.input.text.open")).boxed(),
+        );
+    }
+
+    validate_text_session_state(state)
+}
+
+/// Call the target host text-open callback.
+#[cfg(any(target_os = "android", target_os = "ios"))]
+unsafe fn host_text_open(session_handle: u64, request: HostTextInputOpenRequest) -> u32 {
+    #[cfg(target_os = "android")]
+    {
+        return unsafe { destack_host_android_text_open(session_handle, request) };
+    }
+
+    #[cfg(target_os = "ios")]
+    {
+        return unsafe { destack_host_ios_text_open(session_handle, request) };
+    }
+
+    #[allow(unreachable_code)]
+    HOST_STATUS_FAILED
+}
+
+/// Call the target host text-close callback.
+#[cfg(any(target_os = "android", target_os = "ios"))]
+pub(crate) unsafe fn host_text_close(
+    session_handle: u64,
+    request: HostTextInputCloseRequest,
+) -> u32 {
+    #[cfg(target_os = "android")]
+    {
+        return unsafe { destack_host_android_text_close(session_handle, request) };
+    }
+
+    #[cfg(target_os = "ios")]
+    {
+        return unsafe { destack_host_ios_text_close(session_handle, request) };
+    }
+
+    #[allow(unreachable_code)]
+    HOST_STATUS_FAILED
+}
+
+/// Call the target host text-geometry callback.
+#[cfg(any(target_os = "android", target_os = "ios"))]
+unsafe fn host_text_set_geometry(
+    session_handle: u64,
+    request: crate::host::abi::text::HostTextInputGeometryRequest,
+) -> u32 {
+    #[cfg(target_os = "android")]
+    {
+        return unsafe { destack_host_android_text_set_geometry(session_handle, request) };
+    }
+
+    #[cfg(target_os = "ios")]
+    {
+        return unsafe { destack_host_ios_text_set_geometry(session_handle, request) };
+    }
+
+    #[allow(unreachable_code)]
+    HOST_STATUS_FAILED
+}
+
+/// Call the target host text-state callback.
+#[cfg(any(target_os = "android", target_os = "ios"))]
+unsafe fn host_text_set_state(session_handle: u64, request: HostTextInputStateRequest) -> u32 {
+    #[cfg(target_os = "android")]
+    {
+        return unsafe { destack_host_android_text_set_state(session_handle, request) };
+    }
+
+    #[cfg(target_os = "ios")]
+    {
+        return unsafe { destack_host_ios_text_set_state(session_handle, request) };
+    }
+
+    #[allow(unreachable_code)]
+    HOST_STATUS_FAILED
+}
+
 /// Open one text input session.
 ///
 /// Open one focused text input session for the active renderer editor and initial text state.
@@ -1265,6 +1388,7 @@ fn read_text_session_event(
 ///
 /// # Replay
 /// External, recordable.
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 pub(crate) unsafe fn destack_input_text_open(
     binding: &BindingCallContext,
     out: *mut resource::InputTextSessionHandle,
@@ -1571,6 +1695,7 @@ pub(crate) unsafe fn destack_input_text_open(
 ///
 /// # Replay
 /// External, recordable.
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 pub(crate) unsafe fn destack_input_text_close(
     binding: &BindingCallContext,
     session: resource::InputTextSessionHandle,
@@ -1633,6 +1758,7 @@ pub(crate) unsafe fn destack_input_text_close(
 ///
 /// # Replay
 /// External, recordable.
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 pub(crate) unsafe fn destack_input_text_get_geometry(
     binding: &BindingCallContext,
     out: *mut InputTextGeometry,
@@ -1661,6 +1787,7 @@ pub(crate) unsafe fn destack_input_text_get_geometry(
 
 /// Read one pending text session event for one active text input session.
 /// Unix terminal backends currently emit committed insert intents from cooked text input.
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 pub(crate) unsafe fn destack_input_text_read_event(
     binding: &BindingCallContext,
     out: *mut InputTextSessionEvent,
@@ -1682,6 +1809,7 @@ pub(crate) unsafe fn destack_input_text_read_event(
 }
 
 /// Set one text input area and cursor position hint for one active text input session.
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 pub(crate) unsafe fn destack_input_text_set_geometry(
     binding: &BindingCallContext,
     session: resource::InputTextSessionHandle,
@@ -1738,6 +1866,7 @@ pub(crate) unsafe fn destack_input_text_set_geometry(
 }
 
 /// Update one active text input session with renderer-owned state.
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 pub(crate) unsafe fn destack_input_text_set_state(
     binding: &BindingCallContext,
     session: resource::InputTextSessionHandle,
@@ -1797,6 +1926,7 @@ pub(crate) unsafe fn destack_input_text_set_state(
 
 /// Poll one pending text session event for one active text input session.
 /// Unix terminal backends currently emit committed insert intents from cooked text input.
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 pub(crate) unsafe fn destack_input_text_try_read_event(
     binding: &BindingCallContext,
     out: *mut InputTextSessionEvent,
@@ -1810,6 +1940,266 @@ pub(crate) unsafe fn destack_input_text_try_read_event(
     let event = read_text_session_event(binding, session, true, "destack.input.text.tryReadEvent")?;
 
     // output
+    unsafe {
+        *out = event;
+    }
+
+    Ok(())
+}
+
+/// Open one text input session.
+#[cfg(any(target_os = "android", target_os = "ios"))]
+pub(crate) unsafe fn destack_input_text_open(
+    binding: &BindingCallContext,
+    out: *mut resource::InputTextSessionHandle,
+    config: InputTextSessionConfig,
+    state: InputTextSessionState,
+) -> RuntimeResult<()> {
+    // output
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // state
+    let state = unsafe { state.into_value()? };
+    validate_host_text_open(config, &state)?;
+
+    let state_store = input_state(binding)?;
+    let host_session_id = binding.host().host_session_id().0;
+
+    // resource
+    let entry = ResourceEntry::new(ResourceKind::InputTextSession)
+        .with_label(TEXT_SESSION_RESOURCE_LABEL)
+        .with_backing(ResourceBacking::Host);
+    let resource_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), entry, Some(binding.engine()));
+    let session = resource::InputTextSessionHandle(resource_id);
+    let session_id = resource_id.0;
+
+    // runtime state
+    state_store.insert_host_text_session(session_id, config.target.window, state.clone());
+
+    // cleanup
+    binding
+        .agent()
+        .resources
+        .with_entry_mut(resource_id, |entry| {
+            entry.finalizer =
+                Some(state_store.host_text_session_finalizer(host_session_id, session_id));
+        });
+
+    // host open
+    let request = HostTextOpenRequestPayload::new(session_id, config, &state);
+    let status = unsafe { host_text_open(host_session_id, request.abi()) };
+    if let Err(error) = host_status_result(status, "destack.input.text.open", "open") {
+        state_store.remove_host_text_session(session_id);
+        let _ =
+            binding
+                .agent()
+                .resources
+                .remove(binding.world(), resource_id, Some(binding.engine()));
+        return Err(error);
+    }
+
+    unsafe {
+        *out = session;
+    }
+
+    Ok(())
+}
+
+/// Close one text input session.
+#[cfg(any(target_os = "android", target_os = "ios"))]
+pub(crate) unsafe fn destack_input_text_close(
+    binding: &BindingCallContext,
+    session: resource::InputTextSessionHandle,
+) -> RuntimeResult<()> {
+    let exists = binding.agent().resources.with_entry(session.0, |entry| {
+        entry.kind == ResourceKind::InputTextSession
+            && entry.label.as_deref() == Some(TEXT_SESSION_RESOURCE_LABEL)
+    });
+    if exists != Some(true) {
+        return Err(text_session_not_found("destack.input.text.close", session));
+    }
+
+    let state_store = input_state(binding)?;
+    let host_session_id = binding.host().host_session_id().0;
+    let request = HostTextInputCloseRequest {
+        session_id: session.0.0,
+    };
+    let status = unsafe { host_text_close(host_session_id, request) };
+    host_status_result(status, "destack.input.text.close", "close")?;
+
+    if let Some(queue) = state_store.remove_host_text_session(session.0.0) {
+        queue.close();
+    }
+
+    let _ = binding
+        .agent()
+        .resources
+        .remove(binding.world(), session.0, Some(binding.engine()));
+
+    Ok(())
+}
+
+/// Get text input area.
+#[cfg(any(target_os = "android", target_os = "ios"))]
+pub(crate) unsafe fn destack_input_text_get_geometry(
+    binding: &BindingCallContext,
+    out: *mut InputTextGeometry,
+    session: resource::InputTextSessionHandle,
+) -> RuntimeResult<()> {
+    // validate output pointer
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    let state = input_state(binding)?;
+    let Some(geometry) = state.host_text_session_geometry(session.0.0) else {
+        return Err(RuntimeError::from(PlatformError::io_with(
+            Some(PlatformErrorCode::IoWouldBlock),
+            None,
+            Some(libc::EWOULDBLOCK),
+            Some("destack.input.text.getGeometry".to_string()),
+            None,
+            "text geometry is not available yet".to_string(),
+        ))
+        .boxed());
+    };
+
+    unsafe {
+        *out = geometry;
+    }
+
+    Ok(())
+}
+
+/// Read one pending text session event for one active text input session.
+#[cfg(any(target_os = "android", target_os = "ios"))]
+pub(crate) unsafe fn destack_input_text_read_event(
+    binding: &BindingCallContext,
+    out: *mut InputTextSessionEvent,
+    session: resource::InputTextSessionHandle,
+) -> RuntimeResult<()> {
+    // validate output pointer
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    binding.service_runtime_ingress()?;
+
+    let state_store = input_state(binding)?;
+    let Some(queue) = state_store.host_text_session_queue(session.0.0) else {
+        return Err(text_session_not_found(
+            "destack.input.text.readEvent",
+            session,
+        ));
+    };
+
+    let event = binding.wait_for_binding_result(
+        "destack.input.text.readEvent",
+        "timed out waiting for text-session event",
+        u64::MAX,
+        1_000_000,
+        || {
+            if queue.is_closed() {
+                return Err(text_session_not_found(
+                    "destack.input.text.readEvent",
+                    session,
+                ));
+            }
+
+            Ok(queue.try_take())
+        },
+        |duration| queue.wait_once(duration),
+    )?;
+    let event = InputTextSessionEvent::from_value(binding, event)?;
+
+    unsafe {
+        *out = event;
+    }
+
+    Ok(())
+}
+
+/// Set one text input area and cursor position hint for one active text input session.
+#[cfg(any(target_os = "android", target_os = "ios"))]
+pub(crate) unsafe fn destack_input_text_set_geometry(
+    binding: &BindingCallContext,
+    session: resource::InputTextSessionHandle,
+    area: InputTextGeometry,
+) -> RuntimeResult<()> {
+    let state_store = input_state(binding)?;
+    let host_session_id = binding.host().host_session_id().0;
+
+    let request = HostTextGeometryRequestPayload::new(
+        session.0.0,
+        area.local_to_target_transform,
+        area.editor_rectangle,
+        area.caret_rectangle,
+        area.composing_rectangle,
+    );
+    let status = unsafe { host_text_set_geometry(host_session_id, request.abi()) };
+    host_status_result(status, "destack.input.text.setGeometry", "set geometry")?;
+
+    state_store.set_host_text_session_geometry(session.0.0, area)?;
+
+    Ok(())
+}
+
+/// Update one active text input session with renderer-owned state.
+#[cfg(any(target_os = "android", target_os = "ios"))]
+pub(crate) unsafe fn destack_input_text_set_state(
+    binding: &BindingCallContext,
+    session: resource::InputTextSessionHandle,
+    state: InputTextSessionState,
+) -> RuntimeResult<()> {
+    let state_store = input_state(binding)?;
+    let host_session_id = binding.host().host_session_id().0;
+    let state = unsafe { state.into_value()? };
+    validate_text_session_state(&state)?;
+
+    let request = HostTextStateRequestPayload::new(session.0.0, &state);
+    let status = unsafe { host_text_set_state(host_session_id, request.abi()) };
+    host_status_result(status, "destack.input.text.setState", "set state")?;
+
+    state_store.set_host_text_session_state(session.0.0, state)?;
+
+    Ok(())
+}
+
+/// Poll one pending text session event for one active text input session.
+#[cfg(any(target_os = "android", target_os = "ios"))]
+pub(crate) unsafe fn destack_input_text_try_read_event(
+    binding: &BindingCallContext,
+    out: *mut InputTextSessionEvent,
+    session: resource::InputTextSessionHandle,
+) -> RuntimeResult<()> {
+    // validate output pointer
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    binding.service_runtime_ingress()?;
+
+    let state_store = input_state(binding)?;
+    let Some(queue) = state_store.host_text_session_queue(session.0.0) else {
+        return Err(text_session_not_found(
+            "destack.input.text.tryReadEvent",
+            session,
+        ));
+    };
+    let Some(event) = queue.try_take() else {
+        return Err(text_would_block(
+            "destack.input.text.tryReadEvent",
+            "no pending text-session event is available",
+        ));
+    };
+    let event = InputTextSessionEvent::from_value(binding, event)?;
+
     unsafe {
         *out = event;
     }

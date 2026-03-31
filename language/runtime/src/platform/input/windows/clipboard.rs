@@ -12,9 +12,9 @@ use windows_sys::Win32::System::Ole::CF_UNICODETEXT;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core::{io_not_found, io_operation_error, io_would_block};
-use crate::platform::input::clipboard::core::{
-    CLIPBOARD_CLEAR_OPERATION, CLIPBOARD_READ_BYTES_OPERATION, CLIPBOARD_READ_TEXT_OPERATION,
-    CLIPBOARD_WRITE_BYTES_OPERATION, CLIPBOARD_WRITE_TEXT_OPERATION,
+use crate::platform::input::core::{
+    CLIPBOARD_CLEAR_OPERATION, CLIPBOARD_READ_ITEM_BYTES_OPERATION, CLIPBOARD_READ_TEXT_OPERATION,
+    CLIPBOARD_WRITE_ITEMS_OPERATION, CLIPBOARD_WRITE_TEXT_OPERATION,
 };
 
 /// Query whether one text payload exists on the windows backend.
@@ -80,42 +80,42 @@ pub(crate) fn read_html_bytes() -> RuntimeResult<Vec<u8>> {
     let format = windows_html_format()?;
     if unsafe { IsClipboardFormatAvailable(format) } == 0 {
         return Err(io_not_found(
-            CLIPBOARD_READ_BYTES_OPERATION,
+            CLIPBOARD_READ_ITEM_BYTES_OPERATION,
             "clipboard html was not found",
         ));
     }
 
-    let _guard = open_windows_clipboard(CLIPBOARD_READ_BYTES_OPERATION)?;
+    let _guard = open_windows_clipboard(CLIPBOARD_READ_ITEM_BYTES_OPERATION)?;
     let handle = unsafe { GetClipboardData(format) as HGLOBAL };
 
-    windows_bytes_from_global(CLIPBOARD_READ_BYTES_OPERATION, handle)
+    windows_bytes_from_global(CLIPBOARD_READ_ITEM_BYTES_OPERATION, handle)
 }
 
 /// Write one HTML payload through the windows backend.
 pub(crate) fn write_html_bytes(bytes: &[u8]) -> RuntimeResult<()> {
     let format = windows_html_format()?;
-    let _guard = open_windows_clipboard(CLIPBOARD_WRITE_BYTES_OPERATION)?;
+    let _guard = open_windows_clipboard(CLIPBOARD_WRITE_ITEMS_OPERATION)?;
     if unsafe { EmptyClipboard() } == 0 {
         let error_code = unsafe { GetLastError() };
 
         return Err(io_operation_error(
-            CLIPBOARD_WRITE_BYTES_OPERATION,
+            CLIPBOARD_WRITE_ITEMS_OPERATION,
             None,
             format!("EmptyClipboard failed with code {error_code}"),
         ));
     }
 
-    let handle = windows_global_from_bytes(CLIPBOARD_WRITE_BYTES_OPERATION, bytes)?;
+    let handle = windows_global_from_bytes(CLIPBOARD_WRITE_ITEMS_OPERATION, bytes)?;
     let published = unsafe { SetClipboardData(format, handle as isize) };
     if published == 0 {
         let error_code = unsafe { GetLastError() };
-        let cleanup_error = windows_global_free(CLIPBOARD_WRITE_BYTES_OPERATION, handle).err();
+        let cleanup_error = windows_global_free(CLIPBOARD_WRITE_ITEMS_OPERATION, handle).err();
         let cleanup_detail = cleanup_error
             .map(|error| format!(", cleanup also failed: {error}"))
             .unwrap_or_default();
 
         return Err(io_operation_error(
-            CLIPBOARD_WRITE_BYTES_OPERATION,
+            CLIPBOARD_WRITE_ITEMS_OPERATION,
             None,
             format!("SetClipboardData failed with code {error_code}{cleanup_detail}"),
         ));
@@ -155,7 +155,7 @@ fn windows_html_format() -> RuntimeResult<u32> {
 
     let error_code = unsafe { GetLastError() };
     Err(io_operation_error(
-        CLIPBOARD_READ_BYTES_OPERATION,
+        CLIPBOARD_READ_ITEM_BYTES_OPERATION,
         None,
         format!("RegisterClipboardFormatW failed with code {error_code}"),
     ))

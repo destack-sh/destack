@@ -1,4 +1,4 @@
-use super::tests::{
+use super::clipboard::{
     decode_clipboard_bytes, decode_clipboard_item_descriptors, decode_clipboard_text,
     html_clipboard_items_value, restore_clipboard, snapshot_clipboard, string_harness_value,
 };
@@ -28,7 +28,7 @@ fn should_skip_clipboard_roundtrip(test_name: &str) -> bool {
 #[cfg_attr(test, test)]
 pub(crate) fn test_clipboard_text_roundtrip() {
     if should_skip_clipboard_roundtrip(concat!(
-        "destack_runtime::platform::input::clipboard::tests::",
+        "destack_runtime::platform::input::tests::clipboard_content::",
         stringify!(test_clipboard_text_roundtrip)
     )) {
         return;
@@ -74,7 +74,7 @@ pub(crate) fn test_clipboard_text_roundtrip() {
 #[cfg_attr(test, test)]
 pub(crate) fn test_clipboard_html_roundtrip() {
     if should_skip_clipboard_roundtrip(concat!(
-        "destack_runtime::platform::input::clipboard::tests::",
+        "destack_runtime::platform::input::tests::clipboard_content::",
         stringify!(test_clipboard_html_roundtrip)
     )) {
         return;
@@ -113,7 +113,7 @@ pub(crate) fn test_clipboard_html_roundtrip() {
 #[cfg_attr(test, test)]
 pub(crate) fn test_clipboard_clear_resets_text_payload() {
     if should_skip_clipboard_roundtrip(concat!(
-        "destack_runtime::platform::input::clipboard::tests::",
+        "destack_runtime::platform::input::tests::clipboard_content::",
         stringify!(test_clipboard_clear_resets_text_payload)
     )) {
         return;

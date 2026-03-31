@@ -5,9 +5,10 @@ use super::InputKeyboardStateRecord;
 #[cfg(any(windows, target_os = "macos"))]
 use super::assert_not_supported_result;
 use super::{
-    InputDeviceRecord, InputEventRecord, InputHarnessContext, InputMonitorEventRecord,
-    assert_ok_or_expected_error, assert_platform_error_code, error_code_from_runtime_error,
-    is_not_supported_code, with_harness_context,
+    InputDeviceRecord, InputEventRecord, InputEventRecordKind, InputHarnessContext,
+    InputMonitorEventRecord, InputMonitorEventRecordKind, assert_ok_or_expected_error,
+    assert_platform_error_code, error_code_from_runtime_error, is_not_supported_code,
+    with_harness_context,
 };
 use crate::diagnostic::RuntimeResult;
 use crate::platform::diagnostic::PlatformErrorCode;
@@ -15,9 +16,8 @@ use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::InputTextRange;
 use crate::platform::input::validation::{MAX_RAW_HID_BYTES, MAX_READ_BATCH_EVENTS};
 use crate::platform::input::{
-    InputDeviceCapabilityKind, InputDeviceKind, InputEventAction, InputEventKind,
-    InputMonitorEventKind, InputReadMode, InputTextGeometry, InputTextRectangle,
-    InputTextTransform2D, InputWindowTarget,
+    InputDeviceCapabilityKind, InputDeviceKind, InputEventAction, InputReadMode, InputTextGeometry,
+    InputTextRectangle, InputTextTransform2D, InputWindowTarget,
 };
 #[cfg(windows)]
 use crate::platform::input::{
@@ -403,7 +403,7 @@ fn assert_event_record_semantics(event: &InputEventRecord) {
     assert_event_record_shape(event);
 
     match event.kind {
-        InputEventKind::Key => {
+        InputEventRecordKind::Key => {
             assert!(
                 matches!(
                     event.action,
@@ -415,14 +415,14 @@ fn assert_event_record_semantics(event: &InputEventRecord) {
                 "key events should use key actions"
             );
         }
-        InputEventKind::PointerMotion => {
+        InputEventRecordKind::PointerMotion => {
             assert_eq!(
                 event.action,
                 InputEventAction::Move,
                 "pointer motion should use move action"
             );
         }
-        InputEventKind::PointerButton => {
+        InputEventRecordKind::PointerButton => {
             assert!(
                 matches!(
                     event.action,
@@ -434,14 +434,14 @@ fn assert_event_record_semantics(event: &InputEventRecord) {
                 "pointer button events should use button actions"
             );
         }
-        InputEventKind::Scroll => {
+        InputEventRecordKind::Scroll => {
             assert_eq!(
                 event.action,
                 InputEventAction::Scroll,
                 "scroll events should use scroll action"
             );
         }
-        InputEventKind::Touch => {
+        InputEventRecordKind::Touch => {
             assert!(
                 matches!(
                     event.action,
@@ -455,15 +455,15 @@ fn assert_event_record_semantics(event: &InputEventRecord) {
                 "touch events should use touch-like actions"
             );
         }
-        InputEventKind::Gamepad | InputEventKind::Sensor => {}
-        InputEventKind::Text => {
+        InputEventRecordKind::Gamepad | InputEventRecordKind::Sensor => {}
+        InputEventRecordKind::Text => {
             assert_eq!(
                 event.action,
                 InputEventAction::Text,
                 "text events should use text action"
             );
         }
-        InputEventKind::Device => {
+        InputEventRecordKind::Device => {
             assert!(
                 matches!(
                     event.action,
@@ -475,7 +475,7 @@ fn assert_event_record_semantics(event: &InputEventRecord) {
                 "device events should use monitor actions"
             );
         }
-        InputEventKind::Composition => {
+        InputEventRecordKind::Composition => {
             assert!(
                 matches!(
                     event.action,
@@ -508,9 +508,9 @@ fn assert_monitor_event_record_semantics(event: &InputMonitorEventRecord) {
     assert!(
         matches!(
             event.kind,
-            InputMonitorEventKind::Connect
-                | InputMonitorEventKind::Disconnect
-                | InputMonitorEventKind::Change
+            InputMonitorEventRecordKind::Connect
+                | InputMonitorEventRecordKind::Disconnect
+                | InputMonitorEventRecordKind::Change
         ),
         "monitor events should use monitor event kinds"
     );

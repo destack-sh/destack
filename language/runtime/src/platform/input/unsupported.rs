@@ -9,22 +9,20 @@ use crate::platform::{NativeArray, PlatformError};
 use crate::runtime::BindingCallContext;
 use bindings::*;
 
-#[cfg(any(target_os = "android", target_os = "ios"))]
-use crate::platform::input::mobile_text;
 use crate::platform::input::{
     InputAxisMetadata, InputButtonMetadata, InputCompositionEventPayload, InputDeviceCapabilities,
     InputDeviceCapabilityKind, InputDeviceDescriptor, InputDeviceEventPayload, InputDeviceKind,
-    InputEvent, InputEventAction, InputEventKind, InputEventPayload, InputGamepadBatteryState,
-    InputGamepadBatteryStatus, InputGamepadButtonState, InputGamepadConnectionType,
-    InputGamepadEventPayload, InputGamepadMappingType, InputGamepadState, InputGamepadTouchState,
+    InputEvent, InputEventAction, InputGamepadBatteryState, InputGamepadBatteryStatus,
+    InputGamepadButtonState, InputGamepadConnectionType, InputGamepadEventPayload,
+    InputGamepadMappingType, InputGamepadState, InputGamepadTouchState,
     InputHapticEffectParameters, InputHapticEffectType, InputHapticsResult, InputKeyEventPayload,
-    InputKeyboardLayoutInfo, InputKeyboardState, InputMonitorEvent, InputMonitorEventKind,
-    InputPointerButtonEventPayload, InputPointerGrabMode, InputPointerMotionEventPayload,
-    InputPointerState, InputRawHidReport, InputReadMode, InputScrollEventPayload,
-    InputSensorConfig, InputSensorDescriptor, InputSensorEffectiveConfig, InputSensorEventPayload,
-    InputSensorKind, InputSensorSample, InputTextEventPayload, InputTextGeometry,
-    InputTextSessionConfig, InputTextSessionEvent, InputTextSessionState, InputTouchContactPhase,
-    InputTouchContactState, InputTouchEventPayload, InputTouchState,
+    InputKeyboardLayoutInfo, InputKeyboardState, InputMonitorEvent, InputPointerButtonEventPayload,
+    InputPointerGrabMode, InputPointerMotionEventPayload, InputPointerState, InputRawHidReport,
+    InputReadMode, InputScrollEventPayload, InputSensorConfig, InputSensorDescriptor,
+    InputSensorEffectiveConfig, InputSensorEventPayload, InputSensorKind, InputSensorSample,
+    InputTextEventPayload, InputTextGeometry, InputTextSessionConfig, InputTextSessionEvent,
+    InputTextSessionState, InputTouchContactPhase, InputTouchContactState, InputTouchEventPayload,
+    InputTouchState,
 };
 use crate::platform::resource;
 
@@ -1173,203 +1171,6 @@ pub(crate) unsafe fn destack_input_sensor_try_read(
     let _ = (binding, out, handle, kind);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.input.sensor.tryRead")).boxed())
-}
-
-/// Get text input area.
-///
-/// Return the currently configured text input area and cursor position hint.
-/// Resolve state for one opened input device and one optional window target.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` where one window scope is unavailable.
-/// Uses backend-specific text-area hint state tracking for global or window-scoped paths.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `input.text`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_input_text_get_geometry(
-    binding: &BindingCallContext,
-    out: *mut InputTextGeometry,
-    session: resource::InputTextSessionHandle,
-) -> RuntimeResult<()> {
-    #[cfg(any(target_os = "android", target_os = "ios"))]
-    {
-        return unsafe { mobile_text::destack_input_text_get_geometry(binding, out, session) };
-    }
-
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (binding, out, session);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.input.text.getGeometry",
-    ))
-    .boxed())
-}
-
-/// Open one text input session.
-pub(crate) unsafe fn destack_input_text_open(
-    binding: &BindingCallContext,
-    out: *mut resource::InputTextSessionHandle,
-    config: InputTextSessionConfig,
-    state: InputTextSessionState,
-) -> RuntimeResult<()> {
-    #[cfg(any(target_os = "android", target_os = "ios"))]
-    {
-        return unsafe { mobile_text::destack_input_text_open(binding, out, config, state) };
-    }
-
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (binding, out, config, state);
-
-    Err(RuntimeError::from(PlatformError::not_supported("destack.input.text.open")).boxed())
-}
-
-/// Close one text input session.
-pub(crate) unsafe fn destack_input_text_close(
-    binding: &BindingCallContext,
-    session: resource::InputTextSessionHandle,
-) -> RuntimeResult<()> {
-    #[cfg(any(target_os = "android", target_os = "ios"))]
-    {
-        return unsafe { mobile_text::destack_input_text_close(binding, session) };
-    }
-
-    let _ = (binding, session);
-
-    Err(RuntimeError::from(PlatformError::not_supported("destack.input.text.close")).boxed())
-}
-
-/// Read one composition event.
-///
-/// Read one pending composition lifecycle event for one opened input device.
-/// Composition events represent begin, update, commit, end, and cancel transitions.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` where composition events are unavailable.
-/// Uses backend-specific IME composition queues.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `input.text`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_input_text_read_event(
-    binding: &BindingCallContext,
-    out: *mut InputTextSessionEvent,
-    session: resource::InputTextSessionHandle,
-) -> RuntimeResult<()> {
-    #[cfg(any(target_os = "android", target_os = "ios"))]
-    {
-        return unsafe { mobile_text::destack_input_text_read_event(binding, out, session) };
-    }
-
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (binding, out, session);
-
-    Err(RuntimeError::from(PlatformError::not_supported("destack.input.text.readEvent")).boxed())
-}
-
-/// Set text input area.
-///
-/// Set one text input area and cursor position hint for one opened input device and one optional window target.
-/// Area hints are used by host IME placement when supported for the selected target scope.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` where text-area hints or one window scope are unavailable.
-/// Uses backend-specific IME candidate window placement hints for global or window-scoped paths.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `input.text`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_input_text_set_geometry(
-    binding: &BindingCallContext,
-    session: resource::InputTextSessionHandle,
-    area: InputTextGeometry,
-) -> RuntimeResult<()> {
-    #[cfg(any(target_os = "android", target_os = "ios"))]
-    {
-        return unsafe { mobile_text::destack_input_text_set_geometry(binding, session, area) };
-    }
-
-    let _ = (binding, session, area);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.input.text.setGeometry",
-    ))
-    .boxed())
-}
-
-/// Set text input state.
-pub(crate) unsafe fn destack_input_text_set_state(
-    binding: &BindingCallContext,
-    session: resource::InputTextSessionHandle,
-    state: InputTextSessionState,
-) -> RuntimeResult<()> {
-    #[cfg(any(target_os = "android", target_os = "ios"))]
-    {
-        return unsafe { mobile_text::destack_input_text_set_state(binding, session, state) };
-    }
-
-    let _ = (binding, session, state);
-
-    Err(RuntimeError::from(PlatformError::not_supported("destack.input.text.setState")).boxed())
-}
-
-/// Poll one composition event without blocking.
-///
-/// Poll one pending composition lifecycle event and return immediately when no event is queued.
-/// Empty queue state is reported through ioWouldBlock.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` where composition events are unavailable.
-/// Uses backend-specific nonblocking IME composition queue reads.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `input.text`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_input_text_try_read_event(
-    binding: &BindingCallContext,
-    out: *mut InputTextSessionEvent,
-    session: resource::InputTextSessionHandle,
-) -> RuntimeResult<()> {
-    #[cfg(any(target_os = "android", target_os = "ios"))]
-    {
-        return unsafe { mobile_text::destack_input_text_try_read_event(binding, out, session) };
-    }
-
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (binding, out, session);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.input.text.tryReadEvent",
-    ))
-    .boxed())
 }
 
 /// Read one touch state snapshot.

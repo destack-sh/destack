@@ -31,8 +31,7 @@ use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
     InputDeviceKind, InputEvent, InputEventAction, InputMonitorChangeEvent,
     InputMonitorConnectEvent, InputMonitorDisconnectEvent, InputMonitorEvent,
-    InputMonitorEventKind, InputMonitorEventMetadata, InputReadMode,
-    validation as input_validation,
+    InputMonitorEventMetadata, InputReadMode, validation as input_validation,
 };
 use crate::platform::resource::{ResourceEntry, ResourceKind};
 use crate::platform::{NativeArray, PlatformError, resource};
@@ -1075,15 +1074,6 @@ fn list_monitor_devices_snapshot() -> RuntimeResult<Vec<MonitorDeviceSnapshot>> 
     Ok(tty_device.into_iter().collect())
 }
 
-/// Convert one monitor packet into one runtime monitor event.
-fn monitor_kind_from_action(action: InputEventAction) -> InputMonitorEventKind {
-    match action {
-        InputEventAction::Connect => InputMonitorEventKind::Connect,
-        InputEventAction::Disconnect => InputMonitorEventKind::Disconnect,
-        _ => InputMonitorEventKind::Change,
-    }
-}
-
 /// Build one monitor event payload from one topology delta.
 fn build_unix_monitor_event(
     binding: &BindingCallContext,
@@ -1093,8 +1083,7 @@ fn build_unix_monitor_event(
     device_kind: InputDeviceKind,
     action: InputEventAction,
 ) -> InputMonitorEvent {
-    let kind = monitor_kind_from_action(action);
-    let connected = !matches!(kind, InputMonitorEventKind::Disconnect);
+    let connected = !matches!(action, InputEventAction::Disconnect);
     let metadata = InputMonitorEventMetadata {
         timestamp_ns,
         sequence,
@@ -1104,25 +1093,23 @@ fn build_unix_monitor_event(
         connected,
     };
 
-    match kind {
-        InputMonitorEventKind::Connect => {
+    match action {
+        InputEventAction::Connect => {
             InputMonitorEvent::InputMonitorConnectEvent(InputMonitorConnectEvent {
                 kind: binding.store_string("connect"),
                 metadata,
             })
         }
-        InputMonitorEventKind::Disconnect => {
+        InputEventAction::Disconnect => {
             InputMonitorEvent::InputMonitorDisconnectEvent(InputMonitorDisconnectEvent {
                 kind: binding.store_string("disconnect"),
                 metadata,
             })
         }
-        InputMonitorEventKind::Change => {
-            InputMonitorEvent::InputMonitorChangeEvent(InputMonitorChangeEvent {
-                kind: binding.store_string("change"),
-                metadata,
-            })
-        }
+        _ => InputMonitorEvent::InputMonitorChangeEvent(InputMonitorChangeEvent {
+            kind: binding.store_string("change"),
+            metadata,
+        }),
     }
 }
 
