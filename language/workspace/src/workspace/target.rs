@@ -1,8 +1,6 @@
 use std::path::PathBuf;
 
-use destack_source::PackageId;
-
-use destack_source::TargetId;
+use destack_source::{PackageId, TargetId};
 
 /// Select the source of entry points for entry discovery.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -36,6 +34,7 @@ pub struct TargetDiscoveryOptions<'a> {
 }
 
 impl<'a> Default for TargetDiscoveryOptions<'a> {
+    /// Return the default target discovery options.
     fn default() -> Self {
         Self {
             entry_source: EntrySource::Target,

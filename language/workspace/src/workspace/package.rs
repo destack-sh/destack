@@ -3,7 +3,8 @@ use std::path::PathBuf;
 use destack_source::{FileId, PackageId, TargetId, Uri};
 use indexmap::IndexMap;
 
-use crate::{config::Destack, config::Target, workspace::PackageManifest};
+use crate::config::{Destack, Target};
+use crate::workspace::PackageManifest;
 
 /// The discovery kind for a package.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

@@ -4,9 +4,11 @@
 #![feature(thread_id_value)]
 
 pub mod config;
-pub mod target;
+pub mod repository;
+pub mod revision;
 pub mod workspace;
 
 pub use config::*;
-pub use target::*;
+pub use repository::*;
+pub use revision::*;
 pub use workspace::*;
