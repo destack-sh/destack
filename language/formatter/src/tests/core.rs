@@ -89,7 +89,15 @@ impl TestFormatter {
     where
         N: Format<DestackFormatContext<'a>>,
     {
-        let context = DestackFormatContext::new(
+        let context = self.context(options);
+        let formatted = format!(context, [n]).unwrap();
+        let printed = formatted.print();
+        printed.unwrap().as_str().to_string()
+    }
+
+    /// Build one formatter context for direct test inspection.
+    pub(crate) fn context(&self, options: DestackFormatOptions) -> DestackFormatContext<'_> {
+        DestackFormatContext::new(
             options,
             &self.file,
             &self.tree,
@@ -98,10 +106,7 @@ impl TestFormatter {
             &self.side_span,
             &self.strings,
             NodeParentIndex::from_tree(&self.tree),
-        );
-        let formatted = format!(context, [n]).unwrap();
-        let printed = formatted.print();
-        printed.unwrap().as_str().to_string()
+        )
     }
 }
 
@@ -159,6 +164,19 @@ pub(crate) fn assert_format_program_roundtrip_with_file_type(
             .expect("parse second-pass source");
     let second_output = second_formatter.format(&statement_list(&second_roots), options);
     assert_format_output_eq(&first_output, &second_output);
+}
+
+/// Assert one whole-program output across reference line widths.
+pub(crate) fn assert_format_program_reference_widths(
+    input: &str,
+    file_type: FileType,
+    cases: &[(u16, &str)],
+) {
+    for (line_width, expected) in cases {
+        let options =
+            DestackFormatOptions::default_with_line_width(*line_width).with_indent_width(2);
+        assert_format_program_roundtrip_with_file_type(input, expected, file_type, options);
+    }
 }
 
 /// Assert whole-program formatter idempotence.
