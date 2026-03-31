@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum NodeType {
-    StyleSheet,
+    Stylesheet,
     Rule,
     PageMarginRule,
     DeclarationBlock,
@@ -40,7 +40,7 @@ impl NodeType {
     /// Return the human readable node type name.
     pub fn name(&self) -> &'static str {
         match self {
-            NodeType::StyleSheet => "stylesheet",
+            NodeType::Stylesheet => "stylesheet",
             NodeType::Rule => "rule",
             NodeType::PageMarginRule => "page margin rule",
             NodeType::DeclarationBlock => "declaration block",

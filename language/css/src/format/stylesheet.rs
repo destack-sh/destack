@@ -7,25 +7,24 @@ use super::CssFormatOptions;
 use crate::print::Printer;
 use crate::{
     AnySelector, BlockKind, Combinator, ComponentValue, ComponentValueList, ConditionOperator,
-    ContainerCondition, ContainerConditionKind, ContainerRule, ContainerScrollStateQuery,
-    ContainerStyleQuery, CustomMediaRule, DeclarationBlock, EnvironmentVariable,
-    EnvironmentVariableName, FeatureComparison, FeatureName, FeatureValue, FontFeatureSubruleKind,
-    FontFeatureValuesRule, Function, ImportLayer, ImportRule, KeyframeRule, KeyframeSelector,
-    KeyframeSelectorList, KeyframesRule, LayerBlockRule, LayerNameList, LayerStatementRule,
-    LocalNodeId, MediaCondition, MediaQualifier, MediaQuery, MediaQueryList, MediaType,
-    NamespaceRule, NamespaceUrl, NodeTree, NthOfSelector, NthSelector, NthSelectorKind, Number,
-    PageMarginBox, PageMarginRule, PagePseudoClass, PageRule, PageSelector, PageSelectorList,
-    PropertyName, PropertyRule, PropertySyntax, PropertySyntaxComponent,
-    PropertySyntaxComponentKind, PropertySyntaxMultiplier, PseudoArgument, PseudoClass,
-    PseudoElement, QueryFeature, RatioValue, Rule, ScopeRule, Selector, SelectorComponent,
-    SelectorList, SimpleBlock, SimpleSelector, StyleSheet, SupportsCondition, TimelineRangeName,
-    Token, UnknownRule, VendorPrefix,
+    ContainerCondition, ContainerRule, ContainerScrollStateQuery, ContainerStyleQuery,
+    CustomMediaRule, DeclarationBlock, EnvironmentVariable, EnvironmentVariableName,
+    FeatureComparison, FeatureName, FeatureValue, FontFeatureSubruleKind, FontFeatureValuesRule,
+    Function, ImportLayer, ImportRule, KeyframeRule, KeyframeSelector, KeyframeSelectorList,
+    KeyframesRule, LayerBlockRule, LayerNameList, LayerStatementRule, LocalNodeId, MediaCondition,
+    MediaQualifier, MediaQuery, MediaQueryList, MediaType, NamespaceRule, NamespaceUrl, NodeTree,
+    NthOfSelector, NthSelector, NthSelectorKind, Number, PageMarginBox, PageMarginRule,
+    PagePseudoClass, PageRule, PageSelector, PageSelectorList, PropertyName, PropertyRule,
+    PropertySyntax, PropertySyntaxComponent, PropertySyntaxComponentKind, PropertySyntaxMultiplier,
+    PseudoArgument, PseudoClass, PseudoElement, QueryFeature, RatioValue, Rule, ScopeRule,
+    Selector, SelectorComponent, SelectorList, SimpleBlock, SimpleSelector, Stylesheet,
+    SupportsCondition, TimelineRangeName, Token, UnknownRule, VendorPrefix,
 };
 
 /// Format one stylesheet as pretty CSS.
 pub fn format_stylesheet(
     tree: &NodeTree,
-    stylesheet: LocalNodeId<StyleSheet>,
+    stylesheet: LocalNodeId<Stylesheet>,
     options: CssFormatOptions,
 ) -> FormatResult<String> {
     let context = CssFormatContext::new(options);
@@ -87,7 +86,7 @@ impl FormatContext for CssFormatContext {
 /// Write one stylesheet.
 fn write_stylesheet(
     tree: &NodeTree,
-    stylesheet_id: LocalNodeId<StyleSheet>,
+    stylesheet_id: LocalNodeId<Stylesheet>,
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {
     let stylesheet = tree.get(stylesheet_id);
@@ -876,24 +875,13 @@ fn write_container_condition(
     condition: LocalNodeId<ContainerCondition>,
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {
-    let condition = tree.get(condition);
-
-    write_container_condition_kind(tree, &condition.kind, f)
-}
-
-/// Write one container condition kind.
-fn write_container_condition_kind(
-    tree: &NodeTree,
-    condition: &ContainerConditionKind,
-    f: &mut Formatter<'_, CssFormatContext>,
-) -> FormatResult<()> {
-    match condition {
-        ContainerConditionKind::Feature(feature) => write_query_feature(tree, *feature, f),
-        ContainerConditionKind::Not(condition) => {
+    match tree.get(condition) {
+        ContainerCondition::Feature(feature) => write_query_feature(tree, *feature, f),
+        ContainerCondition::Not(condition) => {
             write!(f, [text("not"), space()])?;
             write_parenthesized_container(tree, *condition, f)
         }
-        ContainerConditionKind::Operation {
+        ContainerCondition::Operation {
             operator,
             conditions,
         } => write_condition_sequence(
@@ -905,17 +893,17 @@ fn write_container_condition_kind(
             f,
             |condition, f| write_parenthesized_container(tree, *condition, f),
         ),
-        ContainerConditionKind::Style(query) => {
+        ContainerCondition::Style(query) => {
             write!(f, [text("style(")])?;
             write_container_style_query(tree, *query, f)?;
             write!(f, [token(")")])
         }
-        ContainerConditionKind::ScrollState(query) => {
+        ContainerCondition::ScrollState(query) => {
             write!(f, [text("scroll-state(")])?;
             write_container_scroll_state_query(tree, *query, f)?;
             write!(f, [token(")")])
         }
-        ContainerConditionKind::Unknown(condition) => {
+        ContainerCondition::Unknown(condition) => {
             write_component_value_list(&condition.components, f)
         }
     }
@@ -927,18 +915,14 @@ fn write_parenthesized_container(
     condition: LocalNodeId<ContainerCondition>,
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {
-    let condition = tree.get(condition);
-
-    match &condition.kind {
-        ContainerConditionKind::Feature(_)
-        | ContainerConditionKind::Style(_)
-        | ContainerConditionKind::ScrollState(_)
-        | ContainerConditionKind::Unknown(_) => {
-            write_container_condition_kind(tree, &condition.kind, f)
-        }
-        ContainerConditionKind::Not(_) | ContainerConditionKind::Operation { .. } => {
+    match tree.get(condition) {
+        ContainerCondition::Feature(_)
+        | ContainerCondition::Style(_)
+        | ContainerCondition::ScrollState(_)
+        | ContainerCondition::Unknown(_) => write_container_condition(tree, condition, f),
+        ContainerCondition::Not(_) | ContainerCondition::Operation { .. } => {
             write!(f, [token("(")])?;
-            write_container_condition_kind(tree, &condition.kind, f)?;
+            write_container_condition(tree, condition, f)?;
             write!(f, [token(")")])
         }
     }
@@ -1023,7 +1007,11 @@ fn write_feature_name(
     name: LocalNodeId<FeatureName>,
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {
-    write!(f, [text(&tree.get(name).name)])
+    match tree.get(name) {
+        FeatureName::Standard(name) | FeatureName::Custom(name) | FeatureName::Unknown(name) => {
+            write!(f, [text(name)])
+        }
+    }
 }
 
 /// Write one feature comparison.

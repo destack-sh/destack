@@ -1,11 +1,11 @@
 use crate::{
-    AnySelector, AttributeSelector, ContainerCondition, ContainerConditionKind,
-    ContainerScrollStateQuery, ContainerStyleQuery, Declaration, DeclarationBlock,
-    EnvironmentVariable, FeatureName, FeatureValue, KeyframeRule, LocalNodeId, LocalNodeIdAny,
-    MediaCondition, MediaQuery, MediaQueryList, NestedDeclarationsRule, NodeTree, NodeType,
-    NodeVisitor, NthOfSelector, NthSelector, PageMarginRule, PageRule, PseudoArgument, PseudoClass,
-    PseudoElement, QueryFeature, RatioValue, Rule, Selector, SelectorComponent, SelectorList,
-    SimpleSelector, StyleSheet, SupportsCondition,
+    AnySelector, AttributeSelector, ContainerCondition, ContainerScrollStateQuery,
+    ContainerStyleQuery, Declaration, DeclarationBlock, EnvironmentVariable, FeatureName,
+    FeatureValue, KeyframeRule, LocalNodeId, LocalNodeIdAny, MediaCondition, MediaQuery,
+    MediaQueryList, NestedDeclarationsRule, NodeTree, NodeType, NodeVisitor, NthOfSelector,
+    NthSelector, PageMarginRule, PageRule, PseudoArgument, PseudoClass, PseudoElement,
+    QueryFeature, RatioValue, Rule, Selector, SelectorComponent, SelectorList, SimpleSelector,
+    Stylesheet, SupportsCondition,
 };
 
 /// Walk one arbitrary CSS node id.
@@ -18,7 +18,7 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
     let local_idx = tree.local_id_by_node_id[node_id as usize];
 
     match node_type {
-        NodeType::StyleSheet => {
+        NodeType::Stylesheet => {
             let stylesheet = tree.stylesheets.get(local_idx);
             walk_stylesheet(visitor, tree, LocalNodeId::new(node_id), stylesheet);
         }
@@ -132,8 +132,8 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
 /// Walk one CSS root node.
 pub fn walk_root<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, root: &LocalNodeIdAny) {
     match root.ty {
-        NodeType::StyleSheet => {
-            let stylesheet_id = LocalNodeId::<StyleSheet>::new(root.id);
+        NodeType::Stylesheet => {
+            let stylesheet_id = LocalNodeId::<Stylesheet>::new(root.id);
             let stylesheet = tree.get(stylesheet_id);
             visitor.visit_stylesheet(tree, stylesheet_id, stylesheet);
         }
@@ -285,10 +285,10 @@ pub fn walk_roots<V: NodeVisitor + ?Sized>(
 pub fn walk_stylesheet<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
-    id: LocalNodeId<StyleSheet>,
-    stylesheet: &StyleSheet,
+    id: LocalNodeId<Stylesheet>,
+    stylesheet: &Stylesheet,
 ) {
-    visitor.visit_any(tree, NodeType::StyleSheet, id.id);
+    visitor.visit_any(tree, NodeType::Stylesheet, id.id);
 
     for rule in &stylesheet.rules {
         let rule_node = tree.get(*rule);
@@ -896,27 +896,27 @@ pub fn walk_container_condition<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::ContainerCondition, id.id);
 
-    match &condition.kind {
-        ContainerConditionKind::Feature(feature_id) => {
+    match condition {
+        ContainerCondition::Feature(feature_id) => {
             let feature = tree.get(*feature_id);
             visitor.visit_query_feature(tree, *feature_id, feature);
         }
-        ContainerConditionKind::Unknown(_) => {}
-        ContainerConditionKind::Not(condition_id) => {
+        ContainerCondition::Unknown(_) => {}
+        ContainerCondition::Not(condition_id) => {
             let condition_node = tree.get(*condition_id);
             visitor.visit_container_condition(tree, *condition_id, condition_node);
         }
-        ContainerConditionKind::Operation { conditions, .. } => {
+        ContainerCondition::Operation { conditions, .. } => {
             for condition_id in conditions {
                 let condition_node = tree.get(*condition_id);
                 visitor.visit_container_condition(tree, *condition_id, condition_node);
             }
         }
-        ContainerConditionKind::Style(query_id) => {
+        ContainerCondition::Style(query_id) => {
             let query = tree.get(*query_id);
             visitor.visit_container_style_query(tree, *query_id, query);
         }
-        ContainerConditionKind::ScrollState(query_id) => {
+        ContainerCondition::ScrollState(query_id) => {
             let query = tree.get(*query_id);
             visitor.visit_container_scroll_state_query(tree, *query_id, query);
         }
@@ -981,7 +981,7 @@ mod tests {
         DeclarationBlock, DeclarationValue, LocalNodeId, MediaQuery, MediaQueryList, MediaRule,
         MediaType, NodeTree, NodeType, NodeVisitor, NodeVisitorOptions, PageMarginBox,
         PageMarginRule, PageRule, PageSelectorList, PropertyName, Rule, Selector,
-        SelectorComponent, SelectorList, StyleRule, StyleSheet, Token, walk_root,
+        SelectorComponent, SelectorList, StyleRule, Stylesheet, Token, walk_root,
     };
     use destack_source::{FileId, Span};
 
@@ -1098,7 +1098,7 @@ mod tests {
             Span::new(FileId::new(1), 0, 40),
         );
         let stylesheet = tree.insert(
-            StyleSheet {
+            Stylesheet {
                 sources: vec!["test.css".to_string()],
                 license_comments: Vec::new(),
                 rules: vec![container_rule],
@@ -1147,7 +1147,7 @@ mod tests {
             Span::new(FileId::new(1), 0, 21),
         );
         let stylesheet = tree.insert(
-            StyleSheet {
+            Stylesheet {
                 sources: vec!["test.css".to_string()],
                 license_comments: Vec::new(),
                 rules: vec![rule],

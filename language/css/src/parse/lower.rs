@@ -12,15 +12,12 @@ use crate::{
     PageSelector, PageSelectorList, PropertyName, PropertyRule, PropertySyntax,
     PropertySyntaxComponent, PropertySyntaxComponentKind, PropertySyntaxMultiplier, PseudoArgument,
     PseudoClass, PseudoElement, Rule, ScopeRule, Selector, SelectorComponent, SelectorList,
-    SimpleSelector, StartingStyleRule, StyleRule, StyleSheet, SupportsRule, Symbol,
+    SimpleSelector, StartingStyleRule, StyleRule, Stylesheet, SupportsRule, Symbol,
     TimelineRangeName, TimelineRangePercentage, Token, UnknownRule, VendorPrefix,
     ViewTransitionRule, ViewportRule,
 };
 use destack_source::{File, Span};
 
-use super::core::{
-    import_url_span_for_rule, prelude_span_for_rule, serialize_rule, serialize_value, span_for_rule,
-};
 use super::parse::Parser;
 use super::{lightning, parcel};
 
@@ -47,8 +44,8 @@ impl<'a> Lowerer<'a> {
     /// Lower one parsed Lightning stylesheet into the Destack CSS tree.
     pub(crate) fn lower_stylesheet<'o>(
         mut self,
-        stylesheet: lightning::StyleSheet<'a, 'o>,
-    ) -> (NodeTree, LocalNodeId<StyleSheet>) {
+        stylesheet: lightning::LightningStylesheet<'a, 'o>,
+    ) -> (NodeTree, LocalNodeId<Stylesheet>) {
         let root_span = Span::new(self.file.id, 0, self.source.len() as u32);
         let rules = stylesheet
             .rules
@@ -57,7 +54,7 @@ impl<'a> Lowerer<'a> {
             .map(|rule| self.lower_rule(rule))
             .collect();
         let stylesheet = self.tree.insert(
-            StyleSheet {
+            Stylesheet {
                 sources: stylesheet.sources,
                 license_comments: stylesheet
                     .license_comments
@@ -138,17 +135,24 @@ impl<'a> Lowerer<'a> {
             }),
             lightning::CssRule::Page(rule) => Rule::Page(PageRule {
                 selectors: self.lower_page_selector_list(&rule.selectors),
-                declarations: self.lower_declaration_block(&rule.declarations, span),
+                declarations: self
+                    .lower_authored_declaration_count(rule.declarations.len(), span)
+                    .or_else(|| self.lower_declaration_block(&rule.declarations, span)),
                 page_margin_rules: self.lower_page_margin_rules(rule.rules, span),
             }),
             lightning::CssRule::FontFace(rule) => Rule::FontFace(FontFaceRule {
-                declarations: self.lower_font_face_declaration_block(&rule.properties, span),
+                declarations: self
+                    .lower_authored_declaration_count(rule.properties.len(), span)
+                    .or_else(|| self.lower_font_face_declaration_block(&rule.properties, span)),
             }),
             lightning::CssRule::FontPaletteValues(rule) => {
                 Rule::FontPaletteValues(FontPaletteValuesRule {
                     name: self.lower_font_palette_name(rule.name.as_ref()),
                     declarations: self
-                        .lower_font_palette_values_declaration_block(&rule.properties, span),
+                        .lower_authored_declaration_count(rule.properties.len(), span)
+                        .or_else(|| {
+                            self.lower_font_palette_values_declaration_block(&rule.properties, span)
+                        }),
                 })
             }
             lightning::CssRule::FontFeatureValues(rule) => {
@@ -199,7 +203,9 @@ impl<'a> Lowerer<'a> {
             }
             lightning::CssRule::CounterStyle(rule) => Rule::CounterStyle(CounterStyleRule {
                 name: self.lower_counter_style_name(rule.name.as_ref()),
-                declarations: self.lower_declaration_block(&rule.declarations, span),
+                declarations: self
+                    .lower_authored_declaration_block(&rule.declarations, span)
+                    .or_else(|| self.lower_declaration_block(&rule.declarations, span)),
             }),
             lightning::CssRule::Namespace(rule) => Rule::Namespace(NamespaceRule {
                 prefix: rule
@@ -215,12 +221,16 @@ impl<'a> Lowerer<'a> {
             }),
             lightning::CssRule::NestedDeclarations(rule) => {
                 Rule::NestedDeclarations(NestedDeclarationsRule {
-                    declarations: self.lower_declaration_block(&rule.declarations, span),
+                    declarations: self
+                        .lower_authored_declaration_block(&rule.declarations, span)
+                        .or_else(|| self.lower_declaration_block(&rule.declarations, span)),
                 })
             }
             lightning::CssRule::Viewport(rule) => Rule::Viewport(ViewportRule {
                 vendor_prefix: self.lower_vendor_prefix(rule.vendor_prefix),
-                declarations: self.lower_declaration_block(&rule.declarations, span),
+                declarations: self
+                    .lower_authored_declaration_block(&rule.declarations, span)
+                    .or_else(|| self.lower_declaration_block(&rule.declarations, span)),
             }),
             lightning::CssRule::CustomMedia(rule) => Rule::CustomMedia(CustomMediaRule {
                 name: self.lower_custom_media_name(rule.name.as_ref()),
@@ -248,7 +258,11 @@ impl<'a> Lowerer<'a> {
                 rules: self.lower_keyframe_rules(rule.keyframes, span),
             }),
             lightning::CssRule::ViewTransition(rule) => Rule::ViewTransition(ViewTransitionRule {
-                declarations: self.lower_view_transition_declaration_block(&rule.properties, span),
+                declarations: self
+                    .lower_authored_declaration_count(rule.properties.len(), span)
+                    .or_else(|| {
+                        self.lower_view_transition_declaration_block(&rule.properties, span)
+                    }),
             }),
             lightning::CssRule::Unknown(rule) => Rule::Unknown(UnknownRule {
                 name: rule.name.to_string(),
@@ -265,11 +279,9 @@ impl<'a> Lowerer<'a> {
             }),
             lightning::CssRule::Ignored => Rule::Ignored(IgnoredRule {}),
         };
-        let prelude_span = prelude_span_for_rule(self.source, span);
+        let prelude_span = self.prelude_span_for_rule(span);
         let import_url_span = match &node {
-            Rule::Import(import_rule) => {
-                import_url_span_for_rule(self.source, span, &import_rule.url)
-            }
+            Rule::Import(import_rule) => self.import_url_span_for_rule(span, &import_rule.url),
             Rule::Style(_)
             | Rule::Media(_)
             | Rule::Supports(_)
@@ -346,12 +358,15 @@ impl<'a> Lowerer<'a> {
     fn lower_page_margin_rules(
         &mut self,
         rules: Vec<lightning::PageMarginRule<'a>>,
-        span: Span,
+        fallback_span: Span,
     ) -> Vec<LocalNodeId<PageMarginRule>> {
         rules
             .into_iter()
             .map(|rule| {
-                let declarations = self.lower_declaration_block(&rule.declarations, span);
+                let span = self.span_for_location(rule.loc);
+                let declarations = self
+                    .lower_authored_declaration_count(rule.declarations.len(), span)
+                    .or_else(|| self.lower_declaration_block(&rule.declarations, fallback_span));
 
                 self.tree.insert(
                     PageMarginRule {
@@ -408,12 +423,84 @@ impl<'a> Lowerer<'a> {
             value_range.end.line as usize,
             value_range.end.column as usize,
         );
+        let name = self.source_slice(name_span).to_string();
+        let value = self.source_slice(value_span).to_string();
+        let declaration_id =
+            self.lower_declaration_from_source(name_span, &name, value_span, &value, fallback_span);
+
+        Some(declaration_id)
+    }
+
+    /// Lower one authored declaration block from one braced rule span.
+    fn lower_authored_declaration_block(
+        &mut self,
+        declarations: &lightning::DeclarationBlock<'a>,
+        rule_span: Span,
+    ) -> Option<LocalNodeId<DeclarationBlock>> {
+        self.lower_authored_declaration_count(declarations.len(), rule_span)
+    }
+
+    /// Lower one authored declaration block from one declaration count and one rule span.
+    fn lower_authored_declaration_count(
+        &mut self,
+        declaration_count: usize,
+        rule_span: Span,
+    ) -> Option<LocalNodeId<DeclarationBlock>> {
+        let (body_start, body_end) = self.rule_block_body_range(rule_span)?;
+        let body_source = &self.source[body_start..body_end];
+        let authored_declarations = Parser::parse_declaration_block(body_source);
+
+        if authored_declarations.len() != declaration_count {
+            return None;
+        }
+
+        let declarations = authored_declarations
+            .into_iter()
+            .map(|declaration| {
+                let name_span = Span::new(
+                    self.file.id,
+                    (body_start + declaration.name_start) as u32,
+                    (body_start + declaration.name_end) as u32,
+                );
+                let value_span = Span::new(
+                    self.file.id,
+                    (body_start + declaration.value_start) as u32,
+                    (body_start + declaration.value_end) as u32,
+                );
+
+                self.lower_declaration_from_source(
+                    name_span,
+                    declaration.name,
+                    value_span,
+                    declaration.value,
+                    rule_span,
+                )
+            })
+            .collect::<Vec<_>>();
+
+        if declarations.is_empty() {
+            return None;
+        }
+
+        Some(
+            self.tree
+                .insert(DeclarationBlock { declarations }, rule_span),
+        )
+    }
+
+    /// Lower one declaration from authored source spans.
+    fn lower_declaration_from_source(
+        &mut self,
+        name_span: Span,
+        name_source: &str,
+        value_span: Span,
+        value_source: &str,
+        fallback_span: Span,
+    ) -> LocalNodeId<Declaration> {
         let declaration_span = name_span.merge(value_span);
-        let name = self.source_slice(name_span);
-        let value = self.source_slice(value_span);
-        let (value, is_important) = self.lower_declaration_value_authored_source(value);
+        let (value, is_important) = self.lower_declaration_value_authored_source(value_source);
         let declaration = Declaration {
-            name: self.lower_property_name_source(name),
+            name: self.lower_property_name_source(name_source),
             value,
             is_important,
         };
@@ -431,7 +518,7 @@ impl<'a> Lowerer<'a> {
         self.tree
             .set_side_span(declaration_id, NodeSpanType::Segment(1), value_span);
 
-        Some(declaration_id)
+        declaration_id
     }
 
     /// Lower one declaration block into the CSS tree.
@@ -1637,17 +1724,246 @@ impl<'a> Lowerer<'a> {
 
     /// Return the serialized form of one CSS value.
     pub(crate) fn serialize_value<T: lightning::ToCss>(&self, value: &T) -> String {
-        serialize_value(value)
+        value
+            .to_css_string(lightning::PrinterOptions::default())
+            .unwrap_or_default()
     }
 
     /// Return the serialized form of one CSS rule.
     fn serialize_rule(&self, rule: &lightning::CssRule<'a>) -> String {
-        serialize_rule(rule)
+        self.serialize_value(rule)
     }
 
     /// Return the source span for one CSS rule.
     fn span_for_rule(&self, rule: &lightning::CssRule<'a>) -> Span {
-        span_for_rule(self.source, self.file, rule)
+        let location = match rule {
+            lightning::CssRule::Media(rule) => Some(rule.loc),
+            lightning::CssRule::Import(rule) => Some(rule.loc),
+            lightning::CssRule::Style(rule) => Some(rule.loc),
+            lightning::CssRule::Keyframes(rule) => Some(rule.loc),
+            lightning::CssRule::FontFace(rule) => Some(rule.loc),
+            lightning::CssRule::FontPaletteValues(rule) => Some(rule.loc),
+            lightning::CssRule::FontFeatureValues(rule) => Some(rule.loc),
+            lightning::CssRule::Page(rule) => Some(rule.loc),
+            lightning::CssRule::Supports(rule) => Some(rule.loc),
+            lightning::CssRule::CounterStyle(rule) => Some(rule.loc),
+            lightning::CssRule::Namespace(rule) => Some(rule.loc),
+            lightning::CssRule::MozDocument(rule) => Some(rule.loc),
+            lightning::CssRule::Nesting(rule) => Some(rule.loc),
+            lightning::CssRule::NestedDeclarations(rule) => Some(rule.loc),
+            lightning::CssRule::Viewport(rule) => Some(rule.loc),
+            lightning::CssRule::CustomMedia(rule) => Some(rule.loc),
+            lightning::CssRule::LayerStatement(rule) => Some(rule.loc),
+            lightning::CssRule::LayerBlock(rule) => Some(rule.loc),
+            lightning::CssRule::Property(rule) => Some(rule.loc),
+            lightning::CssRule::Container(rule) => Some(rule.loc),
+            lightning::CssRule::Scope(rule) => Some(rule.loc),
+            lightning::CssRule::StartingStyle(rule) => Some(rule.loc),
+            lightning::CssRule::ViewTransition(rule) => Some(rule.loc),
+            lightning::CssRule::Unknown(rule) => Some(rule.loc),
+            lightning::CssRule::Custom(_) | lightning::CssRule::Ignored => None,
+        };
+
+        let Some(location) = location else {
+            return Span::empty(self.file.id);
+        };
+
+        self.span_for_location(location)
+    }
+
+    /// Return the source span for one CSS rule that starts at one Lightning location.
+    fn span_for_location(&self, location: lightning::Location) -> Span {
+        let start = self.location_to_offset(location.line as usize, location.column as usize);
+        let end = self.rule_end_offset(start as usize) as u32;
+
+        Span::new(self.file.id, start, end)
+    }
+
+    /// Return the prelude span for one CSS rule when it has one.
+    fn prelude_span_for_rule(&self, rule_span: Span) -> Option<Span> {
+        if rule_span.is_empty() {
+            return None;
+        }
+
+        let bytes = self.source.as_bytes();
+        let start = rule_span.start as usize;
+        let end = rule_span.end as usize;
+        let mut index = start;
+        let mut state = ScanState::default();
+
+        while index < end {
+            let next = state.skip(bytes, index);
+
+            if next != index {
+                index = next;
+                continue;
+            }
+
+            // top level prelude boundary
+            if state.is_top_level() {
+                match bytes[index] {
+                    b'{' | b';' => {
+                        let prelude_end = Self::trim_ascii_whitespace_end(bytes, start, index);
+
+                        return Some(Span::new(
+                            rule_span.file,
+                            rule_span.start,
+                            prelude_end as u32,
+                        ));
+                    }
+                    _ => {}
+                }
+            }
+
+            state.advance(bytes[index]);
+            index += 1;
+        }
+
+        let prelude_end = Self::trim_ascii_whitespace_end(bytes, start, end);
+
+        Some(Span::new(
+            rule_span.file,
+            rule_span.start,
+            prelude_end as u32,
+        ))
+    }
+
+    /// Return the authored span for one import url within one rule.
+    fn import_url_span_for_rule(&self, rule_span: Span, url: &str) -> Option<Span> {
+        if rule_span.is_empty() || url.is_empty() {
+            return None;
+        }
+
+        let start = rule_span.start as usize;
+        let end = rule_span.end as usize;
+        let rule_source = self.source.get(start..end)?;
+        let offset = rule_source.find(url)?;
+
+        Some(Span::new(
+            rule_span.file,
+            (start + offset) as u32,
+            (start + offset + url.len()) as u32,
+        ))
+    }
+
+    /// Return the authored block body byte range for one braced rule.
+    fn rule_block_body_range(&self, rule_span: Span) -> Option<(usize, usize)> {
+        if rule_span.is_empty() {
+            return None;
+        }
+
+        let bytes = self.source.as_bytes();
+        let start = rule_span.start as usize;
+        let end = rule_span.end as usize;
+        let mut index = start;
+        let mut state = ScanState::default();
+
+        while index < end {
+            let next = state.skip(bytes, index);
+
+            if next != index {
+                index = next;
+                continue;
+            }
+
+            // top level block start
+            if state.is_top_level() && bytes[index] == b'{' {
+                let body_start = index + 1;
+                state.brace_depth = 1;
+                index += 1;
+
+                while index < end {
+                    let next = state.skip(bytes, index);
+
+                    if next != index {
+                        index = next;
+                        continue;
+                    }
+
+                    // matching block end
+                    if bytes[index] == b'}' && state.brace_depth == 1 {
+                        let body_end = Self::trim_ascii_whitespace_end(bytes, body_start, index);
+
+                        return Some((body_start, body_end));
+                    }
+
+                    state.advance(bytes[index]);
+                    index += 1;
+                }
+
+                return None;
+            }
+
+            state.advance(bytes[index]);
+            index += 1;
+        }
+
+        None
+    }
+
+    /// Convert one Lightning line and column pair into one byte offset.
+    fn location_to_offset(&self, line: usize, column: usize) -> u32 {
+        File::byte_offset_from_position(self.source, line + 1, column)
+    }
+
+    /// Return the exclusive byte end offset for one rule that starts at `start`.
+    fn rule_end_offset(&self, start: usize) -> usize {
+        let bytes = self.source.as_bytes();
+        let mut index = start;
+        let mut state = ScanState::default();
+
+        while index < bytes.len() {
+            let next = state.skip(bytes, index);
+
+            if next != index {
+                index = next;
+                continue;
+            }
+
+            // top level rule boundary
+            if state.is_top_level() {
+                if bytes[index] == b';' {
+                    return index + 1;
+                }
+
+                if bytes[index] == b'{' {
+                    state.brace_depth += 1;
+                    index += 1;
+
+                    break;
+                }
+            }
+
+            state.advance(bytes[index]);
+            index += 1;
+        }
+
+        while index < bytes.len() {
+            let next = state.skip(bytes, index);
+
+            if next != index {
+                index = next;
+                continue;
+            }
+
+            if bytes[index] == b'}' && state.brace_depth == 1 {
+                return index + 1;
+            }
+
+            state.advance(bytes[index]);
+            index += 1;
+        }
+
+        bytes.len()
+    }
+
+    /// Trim one trailing ASCII whitespace run.
+    fn trim_ascii_whitespace_end(bytes: &[u8], start: usize, mut end: usize) -> usize {
+        while end > start && bytes[end - 1].is_ascii_whitespace() {
+            end -= 1;
+        }
+
+        end
     }
 
     /// Lower one Lightning property syntax definition into owned CSS syntax.
@@ -1717,5 +2033,78 @@ impl<'a> Lowerer<'a> {
             lightning::SyntaxMultiplier::Space => PropertySyntaxMultiplier::Space,
             lightning::SyntaxMultiplier::Comma => PropertySyntaxMultiplier::Comma,
         }
+    }
+}
+
+/// One scan state for authored CSS source ranges.
+#[derive(Debug, Default, Clone, Copy)]
+struct ScanState {
+    /// The parenthesis nesting depth.
+    parenthesis_depth: usize,
+    /// The bracket nesting depth.
+    bracket_depth: usize,
+    /// The brace nesting depth.
+    brace_depth: usize,
+    /// The current string delimiter.
+    string_delimiter: Option<u8>,
+}
+
+impl ScanState {
+    /// Return whether the scanner is at top level.
+    fn is_top_level(&self) -> bool {
+        self.parenthesis_depth == 0 && self.bracket_depth == 0 && self.brace_depth == 0
+    }
+
+    /// Advance this state by one ordinary byte.
+    fn advance(&mut self, byte: u8) {
+        match byte {
+            b'(' => self.parenthesis_depth += 1,
+            b')' => self.parenthesis_depth = self.parenthesis_depth.saturating_sub(1),
+            b'[' => self.bracket_depth += 1,
+            b']' => self.bracket_depth = self.bracket_depth.saturating_sub(1),
+            b'{' => self.brace_depth += 1,
+            b'}' => self.brace_depth = self.brace_depth.saturating_sub(1),
+            b'\'' | b'"' => self.string_delimiter = Some(byte),
+            _ => {}
+        }
+    }
+
+    /// Skip comments and string bodies.
+    fn skip(&mut self, bytes: &[u8], index: usize) -> usize {
+        if let Some(delimiter) = self.string_delimiter {
+            let mut index = index;
+
+            while index < bytes.len() {
+                if bytes[index] == b'\\' {
+                    index += 2;
+                    continue;
+                }
+
+                index += 1;
+
+                if bytes[index - 1] == delimiter {
+                    self.string_delimiter = None;
+                    break;
+                }
+            }
+
+            return index;
+        }
+
+        if bytes.get(index) == Some(&b'/') && bytes.get(index + 1) == Some(&b'*') {
+            let mut index = index + 2;
+
+            while index + 1 < bytes.len() {
+                if bytes[index] == b'*' && bytes[index + 1] == b'/' {
+                    return index + 2;
+                }
+
+                index += 1;
+            }
+
+            return bytes.len();
+        }
+
+        index
     }
 }

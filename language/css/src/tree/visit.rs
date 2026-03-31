@@ -14,7 +14,7 @@ use crate::{
     ContainerStyleQuery, Declaration, DeclarationBlock, EnvironmentVariable, FeatureName,
     FeatureValue, LocalNodeId, MediaCondition, MediaQuery, MediaQueryList, NodeTree, NodeType,
     NthOfSelector, NthSelector, PageMarginRule, PseudoClass, PseudoElement, QueryFeature,
-    RatioValue, Rule, Selector, SelectorComponent, SelectorList, SimpleSelector, StyleSheet,
+    RatioValue, Rule, Selector, SelectorComponent, SelectorList, SimpleSelector, Stylesheet,
     SupportsCondition,
 };
 
@@ -35,8 +35,8 @@ pub trait NodeVisitor {
     fn visit_stylesheet(
         &mut self,
         tree: &NodeTree,
-        id: LocalNodeId<StyleSheet>,
-        stylesheet: &StyleSheet,
+        id: LocalNodeId<Stylesheet>,
+        stylesheet: &Stylesheet,
     ) {
         destack_core::ensure_sufficient_stack(|| walk_stylesheet(self, tree, id, stylesheet));
     }
@@ -334,10 +334,10 @@ impl NodeVisitor for CapturingNodeVisitor {
     fn visit_stylesheet(
         &mut self,
         tree: &NodeTree,
-        id: LocalNodeId<StyleSheet>,
-        _stylesheet: &StyleSheet,
+        id: LocalNodeId<Stylesheet>,
+        _stylesheet: &Stylesheet,
     ) {
-        self.visit_any(tree, NodeType::StyleSheet, id.id);
+        self.visit_any(tree, NodeType::Stylesheet, id.id);
     }
 
     fn visit_rule(&mut self, tree: &NodeTree, id: LocalNodeId<Rule>, _rule: &Rule) {

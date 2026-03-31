@@ -1,12 +1,12 @@
 use super::lightning;
 use super::lower::Lowerer;
 use crate::{
-    ComponentValueList, ConditionOperator, ContainerCondition, ContainerConditionKind,
-    ContainerScrollStateQuery, ContainerStyleQuery, ContainerUnknownCondition, DeclarationValue,
-    EnvironmentVariable, EnvironmentVariableName, FeatureComparison, FeatureName, FeatureNameKind,
-    FeatureValue, LocalNodeId, MediaCondition, MediaQualifier, MediaQuery, MediaQueryList,
-    MediaType, MediaUnknownCondition, Number, QueryFeature, RatioValue, SupportsCondition,
-    SupportsSelectorCondition, SupportsUnknownCondition,
+    ComponentValueList, ConditionOperator, ContainerCondition, ContainerScrollStateQuery,
+    ContainerStyleQuery, ContainerUnknownCondition, DeclarationValue, EnvironmentVariable,
+    EnvironmentVariableName, FeatureComparison, FeatureName, FeatureValue, LocalNodeId,
+    MediaCondition, MediaQualifier, MediaQuery, MediaQueryList, MediaType, MediaUnknownCondition,
+    Number, QueryFeature, RatioValue, SupportsCondition, SupportsSelectorCondition,
+    SupportsUnknownCondition,
 };
 
 impl<'a> Lowerer<'a> {
@@ -139,27 +139,17 @@ impl<'a> Lowerer<'a> {
         &mut self,
         condition: &lightning::ContainerCondition<'_>,
     ) -> LocalNodeId<ContainerCondition> {
-        let kind = self.lower_container_condition_kind(condition);
-
-        self.insert_inner(ContainerCondition { kind })
-    }
-
-    /// Lower one Lightning container condition kind.
-    pub(crate) fn lower_container_condition_kind(
-        &mut self,
-        condition: &lightning::ContainerCondition<'_>,
-    ) -> ContainerConditionKind {
-        match condition {
+        let condition = match condition {
             lightning::ContainerCondition::Feature(feature) => {
-                ContainerConditionKind::Feature(self.lower_container_feature(feature))
+                ContainerCondition::Feature(self.lower_container_feature(feature))
             }
             lightning::ContainerCondition::Not(condition) => {
-                ContainerConditionKind::Not(self.lower_container_condition(condition))
+                ContainerCondition::Not(self.lower_container_condition(condition))
             }
             lightning::ContainerCondition::Operation {
                 operator,
                 conditions,
-            } => ContainerConditionKind::Operation {
+            } => ContainerCondition::Operation {
                 operator: self.lower_condition_operator(*operator),
                 conditions: conditions
                     .iter()
@@ -167,17 +157,19 @@ impl<'a> Lowerer<'a> {
                     .collect(),
             },
             lightning::ContainerCondition::Style(query) => {
-                ContainerConditionKind::Style(self.lower_container_style_query(query))
+                ContainerCondition::Style(self.lower_container_style_query(query))
             }
             lightning::ContainerCondition::ScrollState(query) => {
-                ContainerConditionKind::ScrollState(self.lower_container_scroll_state_query(query))
+                ContainerCondition::ScrollState(self.lower_container_scroll_state_query(query))
             }
             lightning::ContainerCondition::Unknown(tokens) => {
-                ContainerConditionKind::Unknown(ContainerUnknownCondition {
+                ContainerCondition::Unknown(ContainerUnknownCondition {
                     components: self.lower_component_value_token_list(tokens),
                 })
             }
-        }
+        };
+
+        self.insert_inner(condition)
     }
 
     /// Lower one Lightning condition operator.
@@ -216,18 +208,15 @@ impl<'a> Lowerer<'a> {
         FeatureId: lightning::ToCss,
     {
         let name = match name {
-            lightning::MediaFeatureName::Standard(value) => FeatureName {
-                kind: FeatureNameKind::Standard,
-                name: self.serialize_value(value),
-            },
-            lightning::MediaFeatureName::Custom(value) => FeatureName {
-                kind: FeatureNameKind::Custom,
-                name: value.as_ref().to_string(),
-            },
-            lightning::MediaFeatureName::Unknown(value) => FeatureName {
-                kind: FeatureNameKind::Unknown,
-                name: value.as_ref().to_string(),
-            },
+            lightning::MediaFeatureName::Standard(value) => {
+                FeatureName::Standard(self.serialize_value(value))
+            }
+            lightning::MediaFeatureName::Custom(value) => {
+                FeatureName::Custom(value.as_ref().to_string())
+            }
+            lightning::MediaFeatureName::Unknown(value) => {
+                FeatureName::Unknown(value.as_ref().to_string())
+            }
         };
 
         self.insert_inner(name)

@@ -1,4 +1,4 @@
-use crate::{LocalNodeId, NodeTree, Rule, StyleSheet};
+use crate::{LocalNodeId, NodeTree, Rule, Stylesheet};
 
 /// One CSS source rendering mode.
 #[derive(Debug, Clone, Copy, Default)]
@@ -8,14 +8,14 @@ pub struct RenderOptions {
 }
 
 /// Print one stylesheet subtree as canonical CSS source.
-pub fn print_stylesheet(tree: &NodeTree, stylesheet: LocalNodeId<StyleSheet>) -> String {
+pub fn print_stylesheet(tree: &NodeTree, stylesheet: LocalNodeId<Stylesheet>) -> String {
     print_stylesheet_with_options(tree, stylesheet, RenderOptions::default())
 }
 
 /// Print one stylesheet subtree as canonical CSS source with options.
 pub fn print_stylesheet_with_options(
     tree: &NodeTree,
-    stylesheet: LocalNodeId<StyleSheet>,
+    stylesheet: LocalNodeId<Stylesheet>,
     options: RenderOptions,
 ) -> String {
     let mut printer = Printer::new(tree, options);
@@ -61,7 +61,7 @@ impl<'a> Printer<'a> {
     }
 
     /// Print one stylesheet node.
-    pub(crate) fn print_stylesheet_id(&mut self, stylesheet_id: LocalNodeId<StyleSheet>) {
+    pub(crate) fn print_stylesheet_id(&mut self, stylesheet_id: LocalNodeId<Stylesheet>) {
         let stylesheet = self.tree.get(stylesheet_id);
 
         // top level rules
