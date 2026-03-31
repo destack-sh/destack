@@ -1,0 +1,4 @@
+.dashboard-shell {
+    display: grid;
+    gap: 1rem;
+}

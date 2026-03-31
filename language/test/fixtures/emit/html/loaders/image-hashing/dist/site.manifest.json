@@ -1,0 +1,17 @@
+{
+  "index": "index.html",
+  "files": [
+    {
+      "path": "assets/image.jpg",
+      "type": "asset",
+      "loader": "asset"
+    },
+    {
+      "path": "index.html",
+      "type": "asset",
+      "loader": "html",
+      "isEntry": true,
+      "isDynamicEntry": false
+    }
+  ]
+}

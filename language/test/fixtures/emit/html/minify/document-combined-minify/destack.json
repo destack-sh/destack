@@ -1,0 +1,19 @@
+{
+    "name": "html-minify-document-combined-minify",
+    "targets": {
+        "site": {
+            "emit": "html",
+            "runtime": "browser",
+            "entry": [
+                "src/index.html"
+            ],
+            "outFile": "dist/index.html",
+            "bundle": {
+                "minify": true,
+                "output": {
+                    "manifest": true
+                }
+            }
+        }
+    }
+}

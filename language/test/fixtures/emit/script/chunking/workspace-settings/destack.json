@@ -1,0 +1,20 @@
+{
+    "name": "script-chunked-workspace-settings",
+    "targets": {
+        "site": {
+            "emit": "js",
+            "runtime": "browser",
+            "entry": [
+                "src/app.ts"
+            ],
+            "outDir": "dist/site",
+            "bundle": {
+                "mode": "chunked",
+                "output": {
+                    "sourcemap": "external",
+                    "manifest": true
+                }
+            }
+        }
+    }
+}

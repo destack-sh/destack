@@ -1,0 +1,34 @@
+{
+  "files": [
+    {
+      "path": "assets/panel.css",
+      "type": "asset",
+      "loader": "css",
+      "input": "src/panel.css",
+      "isEntry": true,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "assets/site.css",
+      "type": "asset",
+      "loader": "css",
+      "input": "src/site.css",
+      "isEntry": true,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "preview/app.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "preview",
+      "input": "src/app.ts",
+      "isEntry": true,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "preview/app.js.map",
+      "type": "asset",
+      "loader": "map"
+    }
+  ]
+}

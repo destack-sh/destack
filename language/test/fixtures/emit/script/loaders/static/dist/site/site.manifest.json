@@ -1,0 +1,18 @@
+{
+  "files": [
+    {
+      "path": "site/index.ts",
+      "type": "chunk",
+      "loader": "js",
+      "name": "site",
+      "input": "src/index.ts",
+      "isEntry": true,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "site/index.ts.map",
+      "type": "asset",
+      "loader": "map"
+    }
+  ]
+}

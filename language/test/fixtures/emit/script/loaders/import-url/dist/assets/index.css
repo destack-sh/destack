@@ -1,0 +1,4 @@
+@layer new{h2{color:rgb(0, 0, 255)}}
+
+@layer default, new;
+@layer default{h2{color:rgb(255, 0, 0)}}

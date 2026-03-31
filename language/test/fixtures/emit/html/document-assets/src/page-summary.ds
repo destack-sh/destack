@@ -1,9 +1,0 @@
-/** The authored title for the asset shell. */
-export const pageTitle = "Workspace Assets";
-
-/** The highlight labels rendered by the asset shell. */
-export const pageHighlights = [
-    "Stylesheet Links",
-    "Inline SVG References",
-    "Responsive Image Sources",
-];

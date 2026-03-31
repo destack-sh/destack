@@ -1,0 +1,9 @@
+@import "https://example.com/stylesheet1.css";
+@import "https://example.com/withquote".css";
+.foo{background-color:red}
+
+@import "https://example.com/stylesheet1.css";
+.bar{background-color:green}
+
+@import "https://example.com/stylesheet2.css";
+body{background-color:blue}
