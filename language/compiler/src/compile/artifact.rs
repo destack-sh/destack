@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactKey, ArtifactStore, ArtifactVersion, Ast, DirAnalyzed, DirBase, DirDeclared,
+    ArtifactKey, ArtifactStore, ArtifactVersion, Ast, Data, DirAnalyzed, DirBase, DirDeclared,
     DirElaborated, DirInterface, DirPatched, DirPrepared, DirResolved, IntrinsicEnvironment,
     LanguageEnvironment, LibraryEnvironment, MirBase, MirOptimized, ModuleGraph, ModuleOutput,
     PackageOutput,
@@ -72,6 +72,13 @@ impl Compiler {
     pub(crate) fn ast(&self, module: ModuleId) -> Option<Arc<Ast>> {
         self.current_artifact(ArtifactKey::ast(module), |artifacts, version| {
             artifacts.ast(version)
+        })
+    }
+
+    /// Return the current parsed data payload for one module.
+    pub(crate) fn data(&self, module: ModuleId) -> Option<Arc<Data>> {
+        self.current_artifact(ArtifactKey::data(module), |artifacts, version| {
+            artifacts.data(version)
         })
     }
 
@@ -345,6 +352,13 @@ impl CompilerContext<'_> {
     pub(crate) fn ast(&self, module: ModuleId) -> Option<Arc<Ast>> {
         self.current_artifact(ArtifactKey::ast(module), |artifacts, version| {
             artifacts.ast(version)
+        })
+    }
+
+    /// Return the current parsed data payload for one module.
+    pub(crate) fn data(&self, module: ModuleId) -> Option<Arc<Data>> {
+        self.current_artifact(ArtifactKey::data(module), |artifacts, version| {
+            artifacts.data(version)
         })
     }
 

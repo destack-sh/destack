@@ -6,10 +6,12 @@ use destack_codegen_lib::CodegenBackend;
 use destack_core::{StringId, StringPool};
 use destack_js::{
     self as js, DependencyKind, Expression, LocalNodeId, NodeTree, NodeVisitor, NodeVisitorOptions,
-    Path as ScriptPath, ScalarLiteral, ScriptModule, Statement,
+    Path as ScriptPath, ScalarLiteral, Statement,
 };
 use destack_source::ModuleId;
 use destack_workspace::Target;
+
+use crate::ScriptModule;
 
 /// JavaScript/TypeScript codegen backend.
 #[derive(Debug, Default)]
@@ -53,9 +55,7 @@ impl ScriptLinkageCollector {
         };
 
         // walk each root through the visitor entry points
-        for root in &module.roots {
-            destack_js::walk_root(&mut collector, &module.tree, root);
-        }
+        destack_js::walk_roots(&mut collector, &module.tree, &module.roots);
 
         collector.into_linkage()
     }

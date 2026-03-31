@@ -29,11 +29,13 @@ members = [
 	"language/compiler/generate/js",
 	"language/compiler/macros",
 	"language/core",
+	"language/css",
 	"language/dir",
 	"language/engine",
 	"language/fir",
 	"language/formatter",
 	"language/heap",
+	"language/html",
 	"language/json",
 	"language/js",
 	"language/linter",
@@ -87,11 +89,13 @@ destack_codegen_native = { path = "language/compiler/generate/native" }
 destack_compiler = { path = "language/compiler" }
 destack_compiler_macros = { path = "language/compiler/macros" }
 destack_core = { path = "language/core" }
+destack_css = { path = "language/css" }
 destack_dir = { path = "language/dir" }
 destack_engine = { path = "language/engine" }
 destack_fir = { path = "language/fir" }
 destack_formatter = { path = "language/formatter" }
 destack_heap = { path = "language/heap" }
+destack_html = { path = "language/html" }
 destack_json = { path = "language/json" }
 destack_js = { path = "language/js" }
 destack_linter = { path = "language/linter" }
@@ -171,6 +175,7 @@ base64 = "0.22"
 blake3 = "1.8.2"
 bytes = "1.11.1"
 bitflags = "2.11.0"
+cssparser = "0.33.0"
 cfg-if = "1.0.4"
 clap_complete = "4.6.0"
 console = "0.16.3"
@@ -206,11 +211,13 @@ fs2 = "0.4.3"
 indexmap = "2.13.0"
 interprocess = "2.2.1"
 jiff = "0.2.23"
+lightningcss = "1.0.0-alpha.71"
 memchr = "2.7"
 notify = "8.2.0"
 proc-macro2 = "1.0"
 papaya = "0.2.3"
 parking_lot = "0.12.5"
+parcel_selectors = "0.28.2"
 pulldown-cmark = "0.13.1"
 quote = "1.0"
 rayon = "1.11.0"

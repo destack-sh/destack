@@ -11,12 +11,12 @@ impl ModuleLowerer<'_> {
         parameter_id: dir::LocalNodeId<dir::Parameter>,
     ) -> CodegenJsResult<LocalNodeId<Parameter>> {
         let parameter = self.dir_tree.get(parameter_id);
-        let parameter = match parameter {
+        match parameter {
             dir::Parameter::Named {
                 modifiers,
                 name,
                 default,
-                symbol: _,
+                symbol,
             } => {
                 let modifiers = modifiers
                     .map(|modifiers| self.lower_binding_modifier(modifiers))
@@ -35,18 +35,23 @@ impl ModuleLowerer<'_> {
                         )
                     })
                     .transpose()?;
-                Parameter::Named {
+                let parameter = Parameter::Named {
                     modifiers,
                     name,
                     ty,
                     default,
-                }
+                };
+                let parameter_id =
+                    self.tree
+                        .insert_from_source(parameter, self.module.id, parameter_id);
+                self.set_source_node_symbol(parameter_id, *symbol);
+                Ok(parameter_id)
             }
             dir::Parameter::Pattern {
                 modifiers,
                 pattern,
                 default,
-                symbol: _,
+                symbol,
             } => {
                 let modifiers = modifiers
                     .map(|modifiers| self.lower_binding_modifier(modifiers))
@@ -65,17 +70,22 @@ impl ModuleLowerer<'_> {
                         )
                     })
                     .transpose()?;
-                Parameter::Pattern {
+                let parameter = Parameter::Pattern {
                     modifiers,
                     pattern,
                     ty,
                     default,
-                }
+                };
+                let parameter_id =
+                    self.tree
+                        .insert_from_source(parameter, self.module.id, parameter_id);
+                self.set_source_node_symbol(parameter_id, *symbol);
+                Ok(parameter_id)
             }
             dir::Parameter::VariadicNamed {
                 modifiers,
                 name,
-                symbol: _,
+                symbol,
             } => {
                 let modifiers = modifiers
                     .map(|modifiers| self.lower_binding_modifier(modifiers))
@@ -86,16 +96,21 @@ impl ModuleLowerer<'_> {
                     .get_declared_type_id(parameter_id.into_global_any(self.module.id))
                     .map(|ty| self.lower_type(ty))
                     .transpose()?;
-                Parameter::VariadicNamed {
+                let parameter = Parameter::VariadicNamed {
                     modifiers,
                     name,
                     ty,
-                }
+                };
+                let parameter_id =
+                    self.tree
+                        .insert_from_source(parameter, self.module.id, parameter_id);
+                self.set_source_node_symbol(parameter_id, *symbol);
+                Ok(parameter_id)
             }
             dir::Parameter::VariadicPattern {
                 modifiers,
                 pattern,
-                symbol: _,
+                symbol,
             } => {
                 let modifiers = modifiers
                     .map(|modifiers| self.lower_binding_modifier(modifiers))
@@ -106,23 +121,22 @@ impl ModuleLowerer<'_> {
                     .get_declared_type_id(parameter_id.into_global_any(self.module.id))
                     .map(|ty| self.lower_type(ty))
                     .transpose()?;
-                Parameter::VariadicPattern {
+                let parameter = Parameter::VariadicPattern {
                     modifiers,
                     pattern,
                     ty,
-                }
+                };
+                let parameter_id =
+                    self.tree
+                        .insert_from_source(parameter, self.module.id, parameter_id);
+                self.set_source_node_symbol(parameter_id, *symbol);
+                Ok(parameter_id)
             }
-            dir::Parameter::Error { .. } => {
-                return Err(CodegenJsError::UnsupportedConstruct {
-                    node: parameter_id.into_global_any(self.module.id),
-                    message: Some("parameter error slots are not lowered to js".to_string()),
-                });
-            }
-        };
-        let parameter_id = self
-            .tree
-            .insert_from_source(parameter, self.module.id, parameter_id);
-        Ok(parameter_id)
+            dir::Parameter::Error { .. } => Err(CodegenJsError::UnsupportedConstruct {
+                node: parameter_id.into_global_any(self.module.id),
+                message: Some("parameter error slots are not lowered to js".to_string()),
+            }),
+        }
     }
 
     /// Lower a argument from DIR into JS AST.

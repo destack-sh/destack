@@ -6,11 +6,12 @@
 use destack_artifact::{Ast, DirPatched};
 use destack_core::StringPool;
 use destack_dir as dir;
-use destack_dir::{SymbolTable, TypeTable};
+use destack_dir::{GlobalSymbolId, SymbolTable, TypeTable};
 use destack_workspace::{Module, Target};
 
 use crate::{
-    CodegenJsError, CodegenJsResult, CodegenJsWarning, LocalNodeIdAny, NodeTree as JsTree,
+    CodegenJsError, CodegenJsResult, CodegenJsWarning, LocalNodeId, LocalNodeIdAny, Node as JsNode,
+    NodeTree as JsTree, ScriptSymbolId,
 };
 
 /// Context for lowering a DIR module to JS AST.
@@ -48,6 +49,44 @@ pub struct ModuleLowerer<'a> {
 }
 
 impl<'a> ModuleLowerer<'a> {
+    /// Build one lowered script symbol id from one local DIR symbol.
+    pub(crate) fn source_symbol_id(&self, symbol_id: dir::LocalSymbolId) -> ScriptSymbolId {
+        ScriptSymbolId::Source(symbol_id.into_global(self.module.id))
+    }
+
+    /// Store one lowered script symbol id on one JS AST node.
+    pub(crate) fn set_node_symbol<T>(&mut self, node_id: LocalNodeId<T>, symbol_id: ScriptSymbolId)
+    where
+        T: JsNode,
+        JsTree: crate::NodeTreeImpl<T>,
+    {
+        self.tree.set_symbol(node_id, symbol_id);
+    }
+
+    /// Store one source-backed symbol id on one JS AST node.
+    pub(crate) fn set_source_node_symbol<T>(
+        &mut self,
+        node_id: LocalNodeId<T>,
+        symbol_id: dir::LocalSymbolId,
+    ) where
+        T: JsNode,
+        JsTree: crate::NodeTreeImpl<T>,
+    {
+        self.set_node_symbol(node_id, self.source_symbol_id(symbol_id));
+    }
+
+    /// Store one global source-backed symbol id on one JS AST node.
+    pub(crate) fn set_global_node_symbol<T>(
+        &mut self,
+        node_id: LocalNodeId<T>,
+        symbol_id: GlobalSymbolId,
+    ) where
+        T: JsNode,
+        JsTree: crate::NodeTreeImpl<T>,
+    {
+        self.set_node_symbol(node_id, ScriptSymbolId::Source(symbol_id));
+    }
+
     /// Return whether one specifier is package-like instead of local.
     pub(crate) fn is_package_dependency_specifier(specifier: &str) -> bool {
         !specifier.starts_with('.') && !specifier.starts_with('/') && !specifier.contains(':')

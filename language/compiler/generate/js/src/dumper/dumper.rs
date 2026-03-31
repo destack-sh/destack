@@ -721,6 +721,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("mutability", mutability)
                     .end();
             }
+            Statement::Var {
+                descriptor,
+                declarators: _,
+            } => {
+                self.node("Statement::Var", id.id)
+                    .field("descriptor", descriptor)
+                    .end();
+            }
             Statement::Using {
                 asynchrony,
                 descriptor,
@@ -756,6 +764,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
             } => {
                 self.node("Statement::While", id.id).end();
             }
+            Statement::DoWhile {
+                body: _,
+                condition: _,
+            } => {
+                self.node("Statement::DoWhile", id.id).end();
+            }
             Statement::For {
                 initialization: _,
                 increment: _,
@@ -764,31 +778,29 @@ impl<'a> NodeVisitor for Dumper<'a> {
             } => {
                 self.node("Statement::For", id.id).end();
             }
-            Statement::ForIn { name, .. } => {
-                self.node("Statement::ForIn", id.id)
-                    .field("name", name)
-                    .end();
+            Statement::ForIn { pattern: _, .. } => {
+                self.node("Statement::ForIn", id.id).end();
             }
             Statement::ForOf {
+                asynchrony,
                 pattern: _,
                 iterator: _,
                 body: _,
+                declaration_kind: _,
             } => {
-                self.node("Statement::ForOf", id.id).end();
+                self.node("Statement::ForOf", id.id)
+                    .field("asynchrony", asynchrony)
+                    .end();
+            }
+            Statement::Switch { value: _, cases: _ } => {
+                self.node("Statement::Switch", id.id).end();
             }
             Statement::Try {
-                catch_pattern: _,
-                finally_block: _,
                 try_block: _,
-                catch_block: _,
+                catch_clause: _,
+                finally_block: _,
             } => {
                 self.node("Statement::Try", id.id).end();
-            }
-            Statement::Await { value: _ } => {
-                self.node("Statement::Await", id.id).end();
-            }
-            Statement::Yield { value: _ } => {
-                self.node("Statement::Yield", id.id).end();
             }
             Statement::Throw { value: _ } => {
                 self.node("Statement::Throw", id.id).end();
@@ -838,6 +850,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("path", path)
                     .end();
             }
+            Expression::ImportMeta => {
+                self.node("Expression::ImportMeta", id.id).end();
+            }
+            Expression::NewTarget => {
+                self.node("Expression::NewTarget", id.id).end();
+            }
             Expression::PrivateIdentifier { name } => {
                 self.node("Expression::PrivateIdentifier", id.id)
                     .field("name", name)
@@ -879,6 +897,17 @@ impl<'a> NodeVisitor for Dumper<'a> {
             } => {
                 self.node("Expression::TypeBinary", id.id)
                     .field("operator", operator)
+                    .end();
+            }
+            Expression::Await { value: _ } => {
+                self.node("Expression::Await", id.id).end();
+            }
+            Expression::Yield {
+                is_delegate,
+                value: _,
+            } => {
+                self.node("Expression::Yield", id.id)
+                    .field("is_delegate", is_delegate)
                     .end();
             }
             Expression::Unary { operator, right: _ } => {
@@ -1004,6 +1033,18 @@ impl<'a> NodeVisitor for Dumper<'a> {
         self.node("SwitchCase", id.id).end();
         self.with_depth(|dumper| {
             walk_switch_case(dumper, tree, id, switch_case);
+        });
+    }
+
+    fn visit_catch_clause(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<CatchClause>,
+        catch_clause: &CatchClause,
+    ) {
+        self.node("CatchClause", id.id).end();
+        self.with_depth(|dumper| {
+            walk_catch_clause(dumper, tree, id, catch_clause);
         });
     }
 
@@ -1266,6 +1307,28 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
+    fn visit_array_element(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<ArrayElement>,
+        array_element: &ArrayElement,
+    ) {
+        match array_element {
+            ArrayElement::Expression { value: _ } => {
+                self.node("ArrayElement::Expression", id.id).end();
+            }
+            ArrayElement::Spread { value: _ } => {
+                self.node("ArrayElement::Spread", id.id).end();
+            }
+            ArrayElement::Elision => {
+                self.node("ArrayElement::Elision", id.id).end();
+            }
+        }
+        self.with_depth(|dumper| {
+            walk_array_element(dumper, tree, id, array_element);
+        });
+    }
+
     fn visit_pattern(&mut self, tree: &NodeTree, id: LocalNodeId<Pattern>, pattern: &Pattern) {
         match pattern {
             Pattern::Binding { mutability, name } => {
@@ -1274,7 +1337,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("name", name)
                     .end();
             }
-            Pattern::Array { elements: _ } => {
+            Pattern::Array { fields: _ } => {
                 self.node("Pattern::Array", id.id).end();
             }
             Pattern::Object { fields: _ } => {

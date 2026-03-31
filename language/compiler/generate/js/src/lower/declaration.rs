@@ -81,6 +81,17 @@ impl ModuleLowerer<'_> {
         declaration_id: dir::LocalNodeId<dir::Declaration>,
     ) -> CodegenJsResult<LocalNodeId<Declaration>> {
         let declaration = self.dir_tree.get(declaration_id);
+        let declaration_symbol = match declaration {
+            dir::Declaration::Global { descriptor, .. }
+            | dir::Declaration::Namespace { descriptor, .. }
+            | dir::Declaration::Type { descriptor, .. }
+            | dir::Declaration::Struct { descriptor, .. }
+            | dir::Declaration::Class { descriptor, .. }
+            | dir::Declaration::Interface { descriptor, .. }
+            | dir::Declaration::Enum { descriptor, .. }
+            | dir::Declaration::Function { descriptor, .. } => Some(descriptor.symbol),
+            _ => None,
+        };
         let declaration = match declaration {
             dir::Declaration::Global {
                 descriptor,
@@ -256,6 +267,11 @@ impl ModuleLowerer<'_> {
         let declaration_id =
             self.tree
                 .insert_from_source(declaration, self.module.id, declaration_id);
+
+        if let Some(declaration_symbol) = declaration_symbol {
+            self.set_source_node_symbol(declaration_id, declaration_symbol);
+        }
+
         Ok(declaration_id)
     }
 

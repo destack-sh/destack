@@ -47,6 +47,7 @@ impl Compiler {
                 self.library_environment_image_header(revision, profile_id)
             }
             ArtifactImageKey::Ast { module } => self.current_ast_image_header(revision, *module),
+            ArtifactImageKey::Data { module } => self.current_data_image_header(revision, *module),
             ArtifactImageKey::DirBase { module } => self.dir_base_image_header(
                 revision,
                 *module,

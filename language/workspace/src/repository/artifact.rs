@@ -174,6 +174,7 @@ impl Repository {
         let mut diagnostics = DiagnosticCollection::new();
         let artifact_keys = [
             ArtifactKey::ast(module_id),
+            ArtifactKey::data(module_id),
             ArtifactKey::dir_base(module_id),
             ArtifactKey::dir_prepared(module_id, profile_id),
             ArtifactKey::dir_resolved(module_id, profile_id),
@@ -238,7 +239,9 @@ impl Repository {
             | ArtifactKey::LibraryEnvironment { profile } => {
                 self.profile_artifact_stamp(artifact_key, *profile)
             }
-            ArtifactKey::Ast { module } | ArtifactKey::DirBase { module } => {
+            ArtifactKey::Ast { module }
+            | ArtifactKey::Data { module }
+            | ArtifactKey::DirBase { module } => {
                 self.module_source_artifact_stamp(revision, artifact_key, *module)
             }
             ArtifactKey::DirPrepared { module, profile }

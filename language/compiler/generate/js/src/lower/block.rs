@@ -31,7 +31,10 @@ impl ModuleLowerer<'_> {
             _ => {
                 return Err(CodegenJsError::UnsupportedConstruct {
                     node: source_expression_id.into_global_any(self.module.id),
-                    message: None,
+                    message: Some(format!(
+                        "statement lowering expected expression, statement, or block, got {}",
+                        lowered_id.ty.name()
+                    )),
                 });
             }
         };
@@ -73,7 +76,10 @@ impl ModuleLowerer<'_> {
             _ => {
                 return Err(CodegenJsError::UnsupportedConstruct {
                     node: source_expression_id.into_global_any(self.module.id),
-                    message: None,
+                    message: Some(format!(
+                        "block lowering expected expression, statement, or block, got {}",
+                        lowered_id.ty.name()
+                    )),
                 });
             }
         };
@@ -102,7 +108,10 @@ impl ModuleLowerer<'_> {
             _ => {
                 return Err(CodegenJsError::UnsupportedConstruct {
                     node: source_expression_id.into_global_any(self.module.id),
-                    message: None,
+                    message: Some(format!(
+                        "type lowering expected expression or type, got {}",
+                        lowered_id.ty.name()
+                    )),
                 });
             }
         };

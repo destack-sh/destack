@@ -25,50 +25,24 @@ impl ModuleLowerer<'_> {
                 mutability,
                 name,
                 pattern: _,
-                symbol: _,
+                symbol,
             } => {
                 let mutability = mutability.map(|m| self.lower_mutability(m));
                 let name = self.strings.intern_from(self.source_strings, *name);
                 let pattern = Pattern::Binding { mutability, name };
-                self.tree
-                    .insert_from_source(pattern, self.module.id, pattern_id)
+                let pattern_id = self
+                    .tree
+                    .insert_from_source(pattern, self.module.id, pattern_id);
+                self.set_source_node_symbol(pattern_id, *symbol);
+                pattern_id
             }
             dir::Pattern::Array { fields } => {
-                let mut elements = Vec::with_capacity(fields.len());
-                for field_id in fields {
-                    let field = self.dir_tree.get(*field_id);
-                    let element = match field {
-                        dir::PatternField::Positional { pattern, default } => {
-                            if default.is_some() {
-                                return Err(CodegenJsError::UnsupportedConstruct {
-                                    node: pattern_id.into_global_any(self.module.id),
-                                    message: Some(
-                                        "array pattern defaults are not lowered to js".to_string(),
-                                    ),
-                                });
-                            }
+                let fields = fields
+                    .iter()
+                    .map(|field_id| self.lower_array_pattern_field(*field_id))
+                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
 
-                            self.lower_pattern(*pattern)?
-                        }
-                        dir::PatternField::Elision => {
-                            let pattern = Pattern::Hole;
-                            self.tree
-                                .insert_from_source(pattern, self.module.id, *field_id)
-                        }
-                        _ => {
-                            return Err(CodegenJsError::UnsupportedConstruct {
-                                node: pattern_id.into_global_any(self.module.id),
-                                message: Some(
-                                    "complex array patterns are not lowered to js".to_string(),
-                                ),
-                            });
-                        }
-                    };
-
-                    elements.push(element);
-                }
-
-                let pattern = Pattern::Array { elements };
+                let pattern = Pattern::Array { fields };
                 self.tree
                     .insert_from_source(pattern, self.module.id, pattern_id)
             }
@@ -84,11 +58,89 @@ impl ModuleLowerer<'_> {
             _ => {
                 return Err(CodegenJsError::UnsupportedConstruct {
                     node: pattern_id.into_global_any(self.module.id),
-                    message: None,
+                    message: Some(format!("unsupported pattern kind: {pattern:?}")),
                 });
             }
         };
         Ok(pattern_id)
+    }
+
+    /// Lower one array or tuple pattern field into JS pattern syntax.
+    pub fn lower_array_pattern_field(
+        &mut self,
+        pattern_field_id: dir::LocalNodeId<dir::PatternField>,
+    ) -> CodegenJsResult<LocalNodeId<PatternField>> {
+        let pattern_field = self.dir_tree.get(pattern_field_id);
+        match pattern_field {
+            dir::PatternField::Named {
+                mutability,
+                name,
+                pattern,
+                default,
+            } => {
+                let pattern = match pattern {
+                    Some(pattern_id) => self.lower_pattern(*pattern_id)?,
+                    None => {
+                        let mutability =
+                            mutability.map(|mutability| self.lower_mutability(mutability));
+                        let name = self.strings.intern_from(self.source_strings, *name);
+                        let pattern = Pattern::Binding { mutability, name };
+                        self.tree
+                            .insert_from_source(pattern, self.module.id, pattern_field_id)
+                    }
+                };
+                let default = default
+                    .map(|default| {
+                        self.lower_expression(default).expect_node::<Expression>(
+                            default.into_global_any(self.module.id),
+                            self,
+                        )
+                    })
+                    .transpose()?;
+                let pattern_field = PatternField::Positional { pattern, default };
+                Ok(self
+                    .tree
+                    .insert_from_source(pattern_field, self.module.id, pattern_field_id))
+            }
+            dir::PatternField::Alias {
+                mutability,
+                alias,
+                default,
+                symbol,
+                ..
+            } => {
+                let mutability = mutability.map(|mutability| self.lower_mutability(mutability));
+                let name = self.strings.intern_from(self.source_strings, *alias);
+                let pattern = Pattern::Binding { mutability, name };
+                let pattern_id =
+                    self.tree
+                        .insert_from_source(pattern, self.module.id, pattern_field_id);
+                self.set_source_node_symbol(pattern_id, *symbol);
+
+                let default = default
+                    .map(|default| {
+                        self.lower_expression(default).expect_node::<Expression>(
+                            default.into_global_any(self.module.id),
+                            self,
+                        )
+                    })
+                    .transpose()?;
+                let pattern_field = PatternField::Positional {
+                    pattern: pattern_id,
+                    default,
+                };
+                Ok(self
+                    .tree
+                    .insert_from_source(pattern_field, self.module.id, pattern_field_id))
+            }
+            dir::PatternField::Computed { .. } => Err(CodegenJsError::UnsupportedConstruct {
+                node: pattern_field_id.into_global_any(self.module.id),
+                message: Some(
+                    "computed array or tuple pattern fields are not lowered to js".to_string(),
+                ),
+            }),
+            _ => self.lower_pattern_field(pattern_field_id),
+        }
     }
 
     /// Lower a pattern field from DIR into JS AST.
@@ -161,7 +213,7 @@ impl ModuleLowerer<'_> {
                 name,
                 alias,
                 default,
-                symbol: _,
+                symbol,
             } => {
                 let mutability = mutability.map(|mutability| self.lower_mutability(mutability));
                 let name = self.strings.intern_from(self.source_strings, *name);
@@ -180,8 +232,11 @@ impl ModuleLowerer<'_> {
                     alias,
                     default,
                 };
-                self.tree
-                    .insert_from_source(pattern_field, self.module.id, pattern_field_id)
+                let pattern_field_id =
+                    self.tree
+                        .insert_from_source(pattern_field, self.module.id, pattern_field_id);
+                self.set_source_node_symbol(pattern_field_id, *symbol);
+                pattern_field_id
             }
             dir::PatternField::Positional { pattern, default } => {
                 let pattern = self.lower_pattern(*pattern)?;

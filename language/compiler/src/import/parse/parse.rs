@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::timing::tags;
 use crate::{Compiler, CompilerContext, ImportError, ImportResult};
 
-use destack_artifact::{ArtifactKey, ArtifactStamp, Ast, Loader};
+use destack_artifact::{ArtifactKey, ArtifactStamp, Ast, Data, Loader};
 use destack_core::StringPool;
 use destack_parser::{Parser, ParserSettings};
 use destack_source::{File, FileContent, FileType, LanguageType, ModuleId, Span};
@@ -73,25 +73,70 @@ impl Compiler {
             | Loader::Binary
             | Loader::File => None,
         };
-        if self
-            .restore_cached_artifact(
-                revision,
-                artifact_key,
-                |compiler| {
-                    compiler.load_ast_image(
-                        revision,
-                        module_id,
-                        artifact_stamp,
-                        file.as_ref(),
-                        language_type,
-                    )
-                },
-                |store, version, payload| store.publish_ast(version, payload),
-            )
-            .is_some()
+        // restore code and plain source modules from the cached AST image
+        if !matches!(loader, Loader::Json | Loader::Toml | Loader::Yaml)
+            && self
+                .restore_cached_artifact(
+                    revision,
+                    artifact_key,
+                    |compiler| {
+                        compiler.load_ast_image(
+                            revision,
+                            module_id,
+                            artifact_stamp,
+                            file.as_ref(),
+                            language_type,
+                        )
+                    },
+                    |store, version, payload| store.publish_ast(version, payload),
+                )
+                .is_some()
         {
             tracing::trace!(?module_id, "import.module.parse.cache_hit");
             return Ok(());
+        }
+
+        // restore data modules only when both the anchor AST and parsed data exist
+        if matches!(loader, Loader::Json | Loader::Toml | Loader::Yaml) {
+            let data_artifact_key = ArtifactKey::data(module_id);
+            let data_artifact_stamp = context.artifact_stamp(&data_artifact_key);
+            let restored_ast = self
+                .restore_cached_artifact(
+                    revision,
+                    artifact_key,
+                    |compiler| {
+                        compiler.load_ast_image(
+                            revision,
+                            module_id,
+                            artifact_stamp,
+                            file.as_ref(),
+                            language_type,
+                        )
+                    },
+                    |store, version, payload| store.publish_ast(version, payload),
+                )
+                .is_some();
+            let restored_data = self
+                .restore_cached_artifact(
+                    revision,
+                    data_artifact_key,
+                    |compiler| {
+                        compiler.load_data_image(
+                            revision,
+                            module_id,
+                            data_artifact_stamp,
+                            file.as_ref(),
+                            loader,
+                        )
+                    },
+                    |store, version, payload| store.publish_data(version, payload),
+                )
+                .is_some();
+
+            if restored_ast && restored_data {
+                tracing::trace!(?module_id, "import.module.parse.cache_hit");
+                return Ok(());
+            }
         }
 
         // dispatch to appropriate loader
@@ -201,6 +246,27 @@ impl Compiler {
         // persist the canonical image when possible
         context.store_artifact(&artifact_key, &ast, |compiler, _artifact_stamp, ast| {
             compiler.store_ast_image(context.revision(), file, language_type, ast)
+        });
+    }
+
+    /// Publish one data artifact and persist its canonical image when enabled.
+    fn commit_data(
+        &self,
+        module_id: ModuleId,
+        file: &File,
+        loader: Loader,
+        data: Data,
+        context: &CompilerContext<'_>,
+    ) {
+        // publish the live artifact
+        let artifact_key = ArtifactKey::data(module_id);
+        context.publish_artifact(artifact_key, data.clone(), |store, version, payload| {
+            store.publish_data(version, payload)
+        });
+
+        // persist the canonical image when possible
+        context.store_artifact(&artifact_key, &data, |compiler, _artifact_stamp, data| {
+            compiler.store_data_image(context.revision(), module_id, file, loader, data)
         });
     }
 
@@ -315,10 +381,8 @@ impl Compiler {
         let mut ast = Ast::new(module_id);
         ast.ensure_anchor_expression(file.id);
 
-        // attach parsed data to the parse artifact
-        ast.data_value = Some(value);
-
         self.commit_ast(module_id, file.as_ref(), None, ast, context);
+        self.commit_data(module_id, file.as_ref(), Loader::Json, Data::Json(value), context);
 
         tracing::trace!(?module_id, "import.module.parse.json");
         Ok(())
@@ -341,10 +405,8 @@ impl Compiler {
         let mut ast = Ast::new(module_id);
         ast.ensure_anchor_expression(file.id);
 
-        // attach parsed data to the parse artifact
-        ast.data_value = Some(value);
-
         self.commit_ast(module_id, file.as_ref(), None, ast, context);
+        self.commit_data(module_id, file.as_ref(), Loader::Toml, Data::Json(value), context);
 
         tracing::trace!(?module_id, "import.module.parse.toml");
         Ok(())
@@ -367,10 +429,8 @@ impl Compiler {
         let mut ast = Ast::new(module_id);
         ast.ensure_anchor_expression(file.id);
 
-        // attach parsed data to the parse artifact
-        ast.data_value = Some(value);
-
         self.commit_ast(module_id, file.as_ref(), None, ast, context);
+        self.commit_data(module_id, file.as_ref(), Loader::Yaml, Data::Json(value), context);
 
         tracing::trace!(?module_id, "import.module.parse.yaml");
         Ok(())
