@@ -10,7 +10,7 @@ use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
     InputAxisMetadata, InputButtonMetadata, InputCapabilityMetadataFidelity,
     InputCapabilityMetadataOrigin, InputCoordinateSpace, InputDeviceCapabilities,
-    InputDeviceCapabilityKind, InputEvent, InputEventAction, InputEventKind, InputKeyEventPayload,
+    InputDeviceCapabilityKind, InputEvent, InputEventAction, InputKeyEventPayload,
     InputKeyLocation, InputKeyboardState, InputModifierState, InputPointerButtonEventPayload,
     InputPointerMotionEventPayload, InputPointerState, InputPointerType, InputReadMode,
     InputScrollEventPayload, InputWheelDeltaMode,
@@ -218,7 +218,7 @@ struct MacosTapPacket {
     /// Event timestamp in monotonic nanoseconds.
     timestamp_ns: u64,
     /// Event kind selector.
-    kind: InputEventKind,
+    kind: input_core::UnixInputEventKind,
     /// Event action selector.
     action: InputEventAction,
     /// Backend event code.
@@ -528,7 +528,7 @@ fn wait_pop_subscription_event(subscription_id: u64) -> RuntimeResult<Option<Mac
 fn packet_to_input_event(binding: &BindingCallContext, packet: MacosTapPacket) -> InputEvent {
     let mut payload = input_core::empty_unix_event_payload(binding);
     match packet.kind {
-        InputEventKind::Key => {
+        input_core::UnixInputEventKind::Key => {
             payload.key = InputKeyEventPayload {
                 action: packet.action,
                 key: None,
@@ -543,7 +543,7 @@ fn packet_to_input_event(binding: &BindingCallContext, packet: MacosTapPacket) -
                 is_composing: false,
             };
         }
-        InputEventKind::PointerMotion => {
+        input_core::UnixInputEventKind::PointerMotion => {
             payload.pointer_motion = InputPointerMotionEventPayload {
                 pointer_id: 0,
                 pointer_type: InputPointerType::Mouse,
@@ -562,7 +562,7 @@ fn packet_to_input_event(binding: &BindingCallContext, packet: MacosTapPacket) -
                 predicted_samples: binding.store_slice(Vec::new()),
             };
         }
-        InputEventKind::PointerButton => {
+        input_core::UnixInputEventKind::PointerButton => {
             payload.pointer_button = InputPointerButtonEventPayload {
                 action: packet.action,
                 pointer_id: 0,
@@ -580,7 +580,7 @@ fn packet_to_input_event(binding: &BindingCallContext, packet: MacosTapPacket) -
                 pen: None,
             };
         }
-        InputEventKind::Scroll => {
+        input_core::UnixInputEventKind::Scroll => {
             payload.scroll = InputScrollEventPayload {
                 pointer_id: Some(0),
                 pointer_type: Some(InputPointerType::Mouse),
@@ -1107,7 +1107,7 @@ fn pointer_button_mask(code: u32) -> u32 {
 /// Update and stamp pointer-button state for one queued packet.
 fn stamp_pointer_button_state(queues: &mut MacosTapQueues, packet: &mut MacosTapPacket) {
     // update persistent pressed state from pointer-button transitions
-    if packet.kind == InputEventKind::PointerButton {
+    if packet.kind == input_core::UnixInputEventKind::PointerButton {
         let mask = pointer_button_mask(packet.code);
         if packet.action == InputEventAction::Press {
             queues.pointer_buttons |= mask;
@@ -1120,7 +1120,9 @@ fn stamp_pointer_button_state(queues: &mut MacosTapQueues, packet: &mut MacosTap
     }
 
     // stamp current pressed-state context onto pointer motion and scroll packets
-    if packet.kind == InputEventKind::PointerMotion || packet.kind == InputEventKind::Scroll {
+    if packet.kind == input_core::UnixInputEventKind::PointerMotion
+        || packet.kind == input_core::UnixInputEventKind::Scroll
+    {
         // keep packet button state synchronized with host state snapshots
         let buttons = pointer_buttons_from_event_source_state();
         queues.pointer_buttons = buttons;
@@ -1164,7 +1166,7 @@ fn map_tap_event(event_type: u32, event: CGEventRef) -> Option<MacosTapPacket> {
 
             Some(MacosTapPacket {
                 timestamp_ns,
-                kind: InputEventKind::Key,
+                kind: input_core::UnixInputEventKind::Key,
                 action,
                 code: key_code as u32,
                 scan_code: key_code as u32,
@@ -1206,7 +1208,7 @@ fn map_tap_event(event_type: u32, event: CGEventRef) -> Option<MacosTapPacket> {
 
             Some(MacosTapPacket {
                 timestamp_ns,
-                kind: InputEventKind::PointerButton,
+                kind: input_core::UnixInputEventKind::PointerButton,
                 action,
                 code: button,
                 scan_code: button,
@@ -1229,7 +1231,7 @@ fn map_tap_event(event_type: u32, event: CGEventRef) -> Option<MacosTapPacket> {
         | KCG_EVENT_RIGHT_MOUSE_DRAGGED
         | KCG_EVENT_OTHER_MOUSE_DRAGGED => Some(MacosTapPacket {
             timestamp_ns,
-            kind: InputEventKind::PointerMotion,
+            kind: input_core::UnixInputEventKind::PointerMotion,
             action: InputEventAction::Move,
             code: event_type,
             scan_code: event_type,
@@ -1251,7 +1253,7 @@ fn map_tap_event(event_type: u32, event: CGEventRef) -> Option<MacosTapPacket> {
 
             Some(MacosTapPacket {
                 timestamp_ns,
-                kind: InputEventKind::Scroll,
+                kind: input_core::UnixInputEventKind::Scroll,
                 action: InputEventAction::Scroll,
                 code: event_type,
                 scan_code: event_type,
@@ -1277,7 +1279,7 @@ fn map_tap_event(event_type: u32, event: CGEventRef) -> Option<MacosTapPacket> {
 
             Some(MacosTapPacket {
                 timestamp_ns,
-                kind: InputEventKind::Key,
+                kind: input_core::UnixInputEventKind::Key,
                 action,
                 code: key_code,
                 scan_code: key_code,

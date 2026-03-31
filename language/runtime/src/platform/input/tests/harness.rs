@@ -8,16 +8,15 @@ use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::input::{
     InputDeviceCapabilities, InputDeviceCapabilitiesVm, InputDeviceCapabilityKind,
     InputDeviceDescriptor, InputDeviceDescriptorVm, InputDeviceKind, InputEvent, InputEventAction,
-    InputEventKind, InputEventVm, InputGamepadState, InputGamepadStateVm,
-    InputHapticEffectParameters, InputHapticEffectParametersVm, InputHapticEffectType,
-    InputKeyboardState, InputKeyboardStateVm, InputMonitorEvent, InputMonitorEventKind,
-    InputMonitorEventVm, InputPointerState, InputPointerStateVm, InputRawHidReport,
-    InputRawHidReportVm, InputSensorConfig, InputSensorConfigVm, InputSensorDescriptor,
-    InputSensorDescriptorVm, InputSensorEffectiveConfig, InputSensorEffectiveConfigVm,
-    InputSensorSample, InputSensorSampleVm, InputTextGeometry, InputTextGeometryVm,
-    InputTextInputType, InputTextRange, InputTextSessionConfig, InputTextSessionConfigVm,
-    InputTextSessionState, InputTextSessionStateVm, InputTouchState, InputTouchStateVm,
-    InputWindowTarget, InputWindowTargetVm,
+    InputEventVm, InputGamepadState, InputGamepadStateVm, InputHapticEffectParameters,
+    InputHapticEffectParametersVm, InputHapticEffectType, InputKeyboardState, InputKeyboardStateVm,
+    InputMonitorEvent, InputMonitorEventVm, InputPointerState, InputPointerStateVm,
+    InputRawHidReport, InputRawHidReportVm, InputSensorConfig, InputSensorConfigVm,
+    InputSensorDescriptor, InputSensorDescriptorVm, InputSensorEffectiveConfig,
+    InputSensorEffectiveConfigVm, InputSensorSample, InputSensorSampleVm, InputTextGeometry,
+    InputTextGeometryVm, InputTextInputType, InputTextRange, InputTextSessionConfig,
+    InputTextSessionConfigVm, InputTextSessionState, InputTextSessionStateVm, InputTouchState,
+    InputTouchStateVm, InputWindowTarget, InputWindowTargetVm,
 };
 use crate::platform::{NativeAbiCodec, NativeArray, PlatformError, VmAbiCodec, VmArray, VmSlice};
 use crate::tests::platform::vm_test_string;
@@ -27,6 +26,42 @@ mod generated;
 
 #[allow(unused_imports)]
 pub(crate) use generated::*;
+
+/// Decoded input event lane used by tests.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum InputEventRecordKind {
+    /// Key event lane.
+    Key,
+    /// Pointer-motion event lane.
+    PointerMotion,
+    /// Pointer-button event lane.
+    PointerButton,
+    /// Scroll event lane.
+    Scroll,
+    /// Touch event lane.
+    Touch,
+    /// Gamepad event lane.
+    Gamepad,
+    /// Text event lane.
+    Text,
+    /// Device event lane.
+    Device,
+    /// Sensor event lane.
+    Sensor,
+    /// Composition event lane.
+    Composition,
+}
+
+/// Decoded monitor event lane used by tests.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum InputMonitorEventRecordKind {
+    /// Device connected.
+    Connect,
+    /// Device disconnected.
+    Disconnect,
+    /// Device metadata changed.
+    Change,
+}
 
 /// Decoded input device metadata used by tests.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -67,7 +102,7 @@ pub(crate) struct InputEventRecord {
     /// Monotonic event timestamp in nanoseconds.
     pub timestamp_ns: u64,
     /// Event kind selector.
-    pub kind: InputEventKind,
+    pub kind: InputEventRecordKind,
     /// Event action selector.
     pub action: InputEventAction,
     /// Event code value.
@@ -86,7 +121,7 @@ pub(crate) struct InputMonitorEventRecord {
     /// Monotonic monitor timestamp in nanoseconds.
     pub timestamp_ns: u64,
     /// Monitor event kind selector.
-    pub kind: InputMonitorEventKind,
+    pub kind: InputMonitorEventRecordKind,
     /// Connected state after this monitor event.
     pub connected: bool,
     /// Monotonic monitor sequence number.
@@ -180,7 +215,7 @@ fn decode_native_event(value: InputEvent) -> RuntimeResult<InputEventRecord> {
         InputEvent::InputKeyEvent(value) => Ok(InputEventRecord {
             device_id: unsafe { value.metadata.device_id.as_str()? }.to_string(),
             timestamp_ns: value.metadata.timestamp_ns,
-            kind: InputEventKind::Key,
+            kind: InputEventRecordKind::Key,
             action: value.payload.action,
             code: value.payload.backend_code,
             value: value.payload.backend_value,
@@ -189,7 +224,7 @@ fn decode_native_event(value: InputEvent) -> RuntimeResult<InputEventRecord> {
         InputEvent::InputPointerMotionEvent(value) => Ok(InputEventRecord {
             device_id: unsafe { value.metadata.device_id.as_str()? }.to_string(),
             timestamp_ns: value.metadata.timestamp_ns,
-            kind: InputEventKind::PointerMotion,
+            kind: InputEventRecordKind::PointerMotion,
             action: InputEventAction::Move,
             code: 0,
             value: 0,
@@ -198,7 +233,7 @@ fn decode_native_event(value: InputEvent) -> RuntimeResult<InputEventRecord> {
         InputEvent::InputPointerButtonEvent(value) => Ok(InputEventRecord {
             device_id: unsafe { value.metadata.device_id.as_str()? }.to_string(),
             timestamp_ns: value.metadata.timestamp_ns,
-            kind: InputEventKind::PointerButton,
+            kind: InputEventRecordKind::PointerButton,
             action: value.payload.action,
             code: value.payload.backend_code,
             value: value.payload.backend_value,
@@ -207,7 +242,7 @@ fn decode_native_event(value: InputEvent) -> RuntimeResult<InputEventRecord> {
         InputEvent::InputScrollEvent(value) => Ok(InputEventRecord {
             device_id: unsafe { value.metadata.device_id.as_str()? }.to_string(),
             timestamp_ns: value.metadata.timestamp_ns,
-            kind: InputEventKind::Scroll,
+            kind: InputEventRecordKind::Scroll,
             action: InputEventAction::Scroll,
             code: 0,
             value: value.payload.delta_y as i64,
@@ -216,7 +251,7 @@ fn decode_native_event(value: InputEvent) -> RuntimeResult<InputEventRecord> {
         InputEvent::InputTouchEvent(value) => Ok(InputEventRecord {
             device_id: unsafe { value.metadata.device_id.as_str()? }.to_string(),
             timestamp_ns: value.metadata.timestamp_ns,
-            kind: InputEventKind::Touch,
+            kind: InputEventRecordKind::Touch,
             action: value.payload.action,
             code: value.payload.pointer_id as u32,
             value: value.payload.pressure as i64,
@@ -225,7 +260,7 @@ fn decode_native_event(value: InputEvent) -> RuntimeResult<InputEventRecord> {
         InputEvent::InputGamepadEvent(value) => Ok(InputEventRecord {
             device_id: unsafe { value.metadata.device_id.as_str()? }.to_string(),
             timestamp_ns: value.metadata.timestamp_ns,
-            kind: InputEventKind::Gamepad,
+            kind: InputEventRecordKind::Gamepad,
             action: value.payload.action,
             code: value.payload.backend_code,
             value: value.payload.backend_value,
@@ -234,7 +269,7 @@ fn decode_native_event(value: InputEvent) -> RuntimeResult<InputEventRecord> {
         InputEvent::InputTextEvent(value) => Ok(InputEventRecord {
             device_id: unsafe { value.metadata.device_id.as_str()? }.to_string(),
             timestamp_ns: value.metadata.timestamp_ns,
-            kind: InputEventKind::Text,
+            kind: InputEventRecordKind::Text,
             action: InputEventAction::Text,
             code: 0,
             value: 0,
@@ -243,7 +278,7 @@ fn decode_native_event(value: InputEvent) -> RuntimeResult<InputEventRecord> {
         InputEvent::InputDeviceEvent(value) => Ok(InputEventRecord {
             device_id: unsafe { value.metadata.device_id.as_str()? }.to_string(),
             timestamp_ns: value.metadata.timestamp_ns,
-            kind: InputEventKind::Device,
+            kind: InputEventRecordKind::Device,
             action: value.payload.action,
             code: value.payload.backend_code,
             value: value.payload.backend_value,
@@ -252,7 +287,7 @@ fn decode_native_event(value: InputEvent) -> RuntimeResult<InputEventRecord> {
         InputEvent::InputSensorEvent(value) => Ok(InputEventRecord {
             device_id: unsafe { value.metadata.device_id.as_str()? }.to_string(),
             timestamp_ns: value.metadata.timestamp_ns,
-            kind: InputEventKind::Sensor,
+            kind: InputEventRecordKind::Sensor,
             action: value.payload.action,
             code: value.payload.backend_code,
             value: value.payload.backend_value,
@@ -261,7 +296,7 @@ fn decode_native_event(value: InputEvent) -> RuntimeResult<InputEventRecord> {
         InputEvent::InputCompositionEvent(value) => Ok(InputEventRecord {
             device_id: unsafe { value.metadata.device_id.as_str()? }.to_string(),
             timestamp_ns: value.metadata.timestamp_ns,
-            kind: InputEventKind::Composition,
+            kind: InputEventRecordKind::Composition,
             action: value.payload.action,
             code: 0,
             value: 0,
@@ -283,7 +318,7 @@ fn decode_vm_event(
                 .as_str()
                 .to_string(),
             timestamp_ns: value.metadata.timestamp_ns,
-            kind: InputEventKind::Key,
+            kind: InputEventRecordKind::Key,
             action: value.payload.action,
             code: value.payload.backend_code,
             value: value.payload.backend_value,
@@ -296,7 +331,7 @@ fn decode_vm_event(
                 .as_str()
                 .to_string(),
             timestamp_ns: value.metadata.timestamp_ns,
-            kind: InputEventKind::PointerMotion,
+            kind: InputEventRecordKind::PointerMotion,
             action: InputEventAction::Move,
             code: 0,
             value: 0,
@@ -309,7 +344,7 @@ fn decode_vm_event(
                 .as_str()
                 .to_string(),
             timestamp_ns: value.metadata.timestamp_ns,
-            kind: InputEventKind::PointerButton,
+            kind: InputEventRecordKind::PointerButton,
             action: value.payload.action,
             code: value.payload.backend_code,
             value: value.payload.backend_value,
@@ -322,7 +357,7 @@ fn decode_vm_event(
                 .as_str()
                 .to_string(),
             timestamp_ns: value.metadata.timestamp_ns,
-            kind: InputEventKind::Scroll,
+            kind: InputEventRecordKind::Scroll,
             action: InputEventAction::Scroll,
             code: 0,
             value: value.payload.delta_y as i64,
@@ -335,7 +370,7 @@ fn decode_vm_event(
                 .as_str()
                 .to_string(),
             timestamp_ns: value.metadata.timestamp_ns,
-            kind: InputEventKind::Touch,
+            kind: InputEventRecordKind::Touch,
             action: value.payload.action,
             code: value.payload.pointer_id as u32,
             value: value.payload.pressure as i64,
@@ -348,7 +383,7 @@ fn decode_vm_event(
                 .as_str()
                 .to_string(),
             timestamp_ns: value.metadata.timestamp_ns,
-            kind: InputEventKind::Gamepad,
+            kind: InputEventRecordKind::Gamepad,
             action: value.payload.action,
             code: value.payload.backend_code,
             value: value.payload.backend_value,
@@ -361,7 +396,7 @@ fn decode_vm_event(
                 .as_str()
                 .to_string(),
             timestamp_ns: value.metadata.timestamp_ns,
-            kind: InputEventKind::Text,
+            kind: InputEventRecordKind::Text,
             action: InputEventAction::Text,
             code: 0,
             value: 0,
@@ -374,7 +409,7 @@ fn decode_vm_event(
                 .as_str()
                 .to_string(),
             timestamp_ns: value.metadata.timestamp_ns,
-            kind: InputEventKind::Device,
+            kind: InputEventRecordKind::Device,
             action: value.payload.action,
             code: value.payload.backend_code,
             value: value.payload.backend_value,
@@ -387,7 +422,7 @@ fn decode_vm_event(
                 .as_str()
                 .to_string(),
             timestamp_ns: value.metadata.timestamp_ns,
-            kind: InputEventKind::Sensor,
+            kind: InputEventRecordKind::Sensor,
             action: value.payload.action,
             code: value.payload.backend_code,
             value: value.payload.backend_value,
@@ -400,7 +435,7 @@ fn decode_vm_event(
                 .as_str()
                 .to_string(),
             timestamp_ns: value.metadata.timestamp_ns,
-            kind: InputEventKind::Composition,
+            kind: InputEventRecordKind::Composition,
             action: value.payload.action,
             code: 0,
             value: 0,
@@ -681,14 +716,14 @@ impl<'call> InputHarnessContext<'call> {
                 InputMonitorEvent::InputMonitorChangeEvent(value) => Ok(InputMonitorEventRecord {
                     device_id: unsafe { value.metadata.device_id.as_str()? }.to_string(),
                     timestamp_ns: value.metadata.timestamp_ns,
-                    kind: InputMonitorEventKind::Change,
+                    kind: InputMonitorEventRecordKind::Change,
                     connected: value.metadata.connected,
                     sequence: value.metadata.sequence,
                 }),
                 InputMonitorEvent::InputMonitorConnectEvent(value) => Ok(InputMonitorEventRecord {
                     device_id: unsafe { value.metadata.device_id.as_str()? }.to_string(),
                     timestamp_ns: value.metadata.timestamp_ns,
-                    kind: InputMonitorEventKind::Connect,
+                    kind: InputMonitorEventRecordKind::Connect,
                     connected: value.metadata.connected,
                     sequence: value.metadata.sequence,
                 }),
@@ -696,7 +731,7 @@ impl<'call> InputHarnessContext<'call> {
                     Ok(InputMonitorEventRecord {
                         device_id: unsafe { value.metadata.device_id.as_str()? }.to_string(),
                         timestamp_ns: value.metadata.timestamp_ns,
-                        kind: InputMonitorEventKind::Disconnect,
+                        kind: InputMonitorEventRecordKind::Disconnect,
                         connected: value.metadata.connected,
                         sequence: value.metadata.sequence,
                     })
@@ -720,7 +755,7 @@ impl<'call> InputHarnessContext<'call> {
                         Ok(InputMonitorEventRecord {
                             device_id,
                             timestamp_ns: value.metadata.timestamp_ns,
-                            kind: InputMonitorEventKind::Change,
+                            kind: InputMonitorEventRecordKind::Change,
                             connected: value.metadata.connected,
                             sequence: value.metadata.sequence,
                         })
@@ -734,7 +769,7 @@ impl<'call> InputHarnessContext<'call> {
                         Ok(InputMonitorEventRecord {
                             device_id,
                             timestamp_ns: value.metadata.timestamp_ns,
-                            kind: InputMonitorEventKind::Connect,
+                            kind: InputMonitorEventRecordKind::Connect,
                             connected: value.metadata.connected,
                             sequence: value.metadata.sequence,
                         })
@@ -748,7 +783,7 @@ impl<'call> InputHarnessContext<'call> {
                         Ok(InputMonitorEventRecord {
                             device_id,
                             timestamp_ns: value.metadata.timestamp_ns,
-                            kind: InputMonitorEventKind::Disconnect,
+                            kind: InputMonitorEventRecordKind::Disconnect,
                             connected: value.metadata.connected,
                             sequence: value.metadata.sequence,
                         })

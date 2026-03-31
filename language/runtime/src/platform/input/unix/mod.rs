@@ -1,3 +1,4 @@
+pub(crate) mod clipboard;
 mod core;
 mod device;
 mod event;

@@ -24,13 +24,12 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
     InputCompositionEvent, InputCompositionEventPayload, InputDeviceEvent, InputDeviceEventPayload,
-    InputEvent, InputEventAction, InputEventKind, InputEventMetadata, InputEventPayload,
-    InputGamepadEvent, InputGamepadEventPayload, InputKeyEvent, InputKeyEventPayload,
-    InputPointerButtonEvent, InputPointerButtonEventPayload, InputPointerMotionEvent,
-    InputPointerMotionEventPayload, InputReadMode, InputScrollEvent, InputScrollEventPayload,
-    InputSensorEffectiveConfig, InputSensorEvent, InputSensorEventPayload, InputSensorKind,
-    InputTextEvent, InputTextEventPayload, InputTextGeometry, InputTextInputType, InputTouchEvent,
-    InputTouchEventPayload, InputWindowTarget,
+    InputEvent, InputEventAction, InputEventMetadata, InputGamepadEvent, InputGamepadEventPayload,
+    InputKeyEvent, InputKeyEventPayload, InputPointerButtonEvent, InputPointerButtonEventPayload,
+    InputPointerMotionEvent, InputPointerMotionEventPayload, InputReadMode, InputScrollEvent,
+    InputScrollEventPayload, InputSensorEffectiveConfig, InputSensorEvent, InputSensorEventPayload,
+    InputSensorKind, InputTextEvent, InputTextEventPayload, InputTextGeometry, InputTextInputType,
+    InputTouchEvent, InputTouchEventPayload, InputWindowTarget,
 };
 use crate::platform::resource::{ResourceFinalizer, ResourceId, ResourceKind, WindowHandle};
 use crate::platform::{PlatformError, core as core_platform, resource};
@@ -85,10 +84,60 @@ const XINPUT_PLAYER_INDEX_MAX: u8 = 4;
 /// Number of active console input streams.
 pub(super) static WINDOWS_CONSOLE_STREAMS: AtomicUsize = AtomicUsize::new(0);
 
+/// Backend-local input event lane selector for Windows input sources.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum WindowsInputEventKind {
+    /// Key event lane.
+    Key,
+    /// Pointer-motion event lane.
+    PointerMotion,
+    /// Pointer-button event lane.
+    PointerButton,
+    /// Scroll event lane.
+    Scroll,
+    /// Touch event lane.
+    Touch,
+    /// Gamepad event lane.
+    Gamepad,
+    /// Text event lane.
+    Text,
+    /// Device event lane.
+    Device,
+    /// Sensor event lane.
+    Sensor,
+    /// Composition event lane.
+    Composition,
+}
+
+/// Backend-local payload shell for Windows event projection.
+#[derive(Debug, Clone, Copy)]
+pub(super) struct WindowsInputEventPayload {
+    /// Key payload.
+    pub(super) key: InputKeyEventPayload,
+    /// Pointer-motion payload.
+    pub(super) pointer_motion: InputPointerMotionEventPayload,
+    /// Pointer-button payload.
+    pub(super) pointer_button: InputPointerButtonEventPayload,
+    /// Scroll payload.
+    pub(super) scroll: InputScrollEventPayload,
+    /// Touch payload.
+    pub(super) touch: InputTouchEventPayload,
+    /// Gamepad payload.
+    pub(super) gamepad: InputGamepadEventPayload,
+    /// Text payload.
+    pub(super) text: InputTextEventPayload,
+    /// Device payload.
+    pub(super) device: InputDeviceEventPayload,
+    /// Sensor payload.
+    pub(super) sensor: InputSensorEventPayload,
+    /// Composition payload.
+    pub(super) composition: InputCompositionEventPayload,
+}
+
 /// Build one zeroed payload shell for event-kind projection.
-pub(super) fn empty_event_payload(binding: &BindingCallContext) -> InputEventPayload {
+pub(super) fn empty_event_payload(binding: &BindingCallContext) -> WindowsInputEventPayload {
     let empty_text = binding.store_string("");
-    InputEventPayload {
+    WindowsInputEventPayload {
         key: InputKeyEventPayload {
             action: InputEventAction::Cancel,
             backend_code: 0,
@@ -159,11 +208,11 @@ pub(super) fn empty_event_payload(binding: &BindingCallContext) -> InputEventPay
 /// Build one typed input event from one prepared payload.
 pub(super) fn build_input_event(
     binding: &BindingCallContext,
-    kind: InputEventKind,
+    kind: WindowsInputEventKind,
     timestamp_ns: u64,
     sequence: u64,
     device_id: &str,
-    payload: InputEventPayload,
+    payload: WindowsInputEventPayload,
 ) -> InputEvent {
     let metadata = InputEventMetadata {
         timestamp_ns,
@@ -172,60 +221,62 @@ pub(super) fn build_input_event(
     };
 
     match kind {
-        InputEventKind::Key => InputEvent::InputKeyEvent(InputKeyEvent {
+        WindowsInputEventKind::Key => InputEvent::InputKeyEvent(InputKeyEvent {
             kind: binding.store_string("key"),
             metadata,
             payload: payload.key,
         }),
-        InputEventKind::PointerMotion => {
+        WindowsInputEventKind::PointerMotion => {
             InputEvent::InputPointerMotionEvent(InputPointerMotionEvent {
                 kind: binding.store_string("pointerMotion"),
                 metadata,
                 payload: payload.pointer_motion,
             })
         }
-        InputEventKind::PointerButton => {
+        WindowsInputEventKind::PointerButton => {
             InputEvent::InputPointerButtonEvent(InputPointerButtonEvent {
                 kind: binding.store_string("pointerButton"),
                 metadata,
                 payload: payload.pointer_button,
             })
         }
-        InputEventKind::Scroll => InputEvent::InputScrollEvent(InputScrollEvent {
+        WindowsInputEventKind::Scroll => InputEvent::InputScrollEvent(InputScrollEvent {
             kind: binding.store_string("scroll"),
             metadata,
             payload: payload.scroll,
         }),
-        InputEventKind::Touch => InputEvent::InputTouchEvent(InputTouchEvent {
+        WindowsInputEventKind::Touch => InputEvent::InputTouchEvent(InputTouchEvent {
             kind: binding.store_string("touch"),
             metadata,
             payload: payload.touch,
         }),
-        InputEventKind::Gamepad => InputEvent::InputGamepadEvent(InputGamepadEvent {
+        WindowsInputEventKind::Gamepad => InputEvent::InputGamepadEvent(InputGamepadEvent {
             kind: binding.store_string("gamepad"),
             metadata,
             payload: payload.gamepad,
         }),
-        InputEventKind::Text => InputEvent::InputTextEvent(InputTextEvent {
+        WindowsInputEventKind::Text => InputEvent::InputTextEvent(InputTextEvent {
             kind: binding.store_string("text"),
             metadata,
             payload: payload.text,
         }),
-        InputEventKind::Device => InputEvent::InputDeviceEvent(InputDeviceEvent {
+        WindowsInputEventKind::Device => InputEvent::InputDeviceEvent(InputDeviceEvent {
             kind: binding.store_string("device"),
             metadata,
             payload: payload.device,
         }),
-        InputEventKind::Sensor => InputEvent::InputSensorEvent(InputSensorEvent {
+        WindowsInputEventKind::Sensor => InputEvent::InputSensorEvent(InputSensorEvent {
             kind: binding.store_string("sensor"),
             metadata,
             payload: payload.sensor,
         }),
-        InputEventKind::Composition => InputEvent::InputCompositionEvent(InputCompositionEvent {
-            kind: binding.store_string("composition"),
-            metadata,
-            payload: payload.composition,
-        }),
+        WindowsInputEventKind::Composition => {
+            InputEvent::InputCompositionEvent(InputCompositionEvent {
+                kind: binding.store_string("composition"),
+                metadata,
+                payload: payload.composition,
+            })
+        }
     }
 }
 

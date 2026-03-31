@@ -16,10 +16,10 @@ use windows_sys::Win32::System::Console::{
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
-    InputDeviceEventPayload, InputEvent, InputEventAction, InputEventKind,
-    InputGamepadEventPayload, InputKeyEventPayload, InputMonitorEvent,
-    InputPointerButtonEventPayload, InputPointerMotionEventPayload, InputReadMode,
-    InputScrollEventPayload, InputTextEventPayload, validation as input_validation,
+    InputDeviceEventPayload, InputEvent, InputEventAction, InputGamepadEventPayload,
+    InputKeyEventPayload, InputMonitorEvent, InputPointerButtonEventPayload,
+    InputPointerMotionEventPayload, InputReadMode, InputScrollEventPayload, InputTextEventPayload,
+    validation as input_validation,
 };
 use crate::platform::resource::{ResourceFinalizer, ResourceId, ResourceKind};
 use crate::platform::{NativeArray, PlatformError, core as core_platform, resource};
@@ -275,9 +275,9 @@ fn map_console_record(
             let key_down = key.bKeyDown != 0;
             let is_text = key_down && unicode != 0 && read_mode == InputReadMode::Cooked;
             let kind = if is_text {
-                InputEventKind::Text
+                input_core::WindowsInputEventKind::Text
             } else {
-                InputEventKind::Key
+                input_core::WindowsInputEventKind::Key
             };
             let value = if is_text {
                 unicode as i64
@@ -335,11 +335,11 @@ fn map_console_record(
 
             let kind =
                 if mouse.dwEventFlags == MOUSE_WHEELED || mouse.dwEventFlags == MOUSE_HWHEELED {
-                    InputEventKind::Scroll
+                    input_core::WindowsInputEventKind::Scroll
                 } else if mouse.dwEventFlags == MOUSE_MOVED {
-                    InputEventKind::PointerMotion
+                    input_core::WindowsInputEventKind::PointerMotion
                 } else {
-                    InputEventKind::PointerButton
+                    input_core::WindowsInputEventKind::PointerButton
                 };
             let wheel_x = if mouse.dwEventFlags == MOUSE_HWHEELED {
                 f64::from(mouse_wheel_delta(mouse.dwButtonState))
@@ -352,19 +352,20 @@ fn map_console_record(
                 0.0
             };
 
-            let transitions = if kind == InputEventKind::PointerButton {
+            let transitions = if kind == input_core::WindowsInputEventKind::PointerButton {
                 decode_console_button_transition(previous_button_state, current_button_state)
             } else {
                 Vec::new()
             };
-            if kind == InputEventKind::PointerButton && transitions.is_empty() {
+            if kind == input_core::WindowsInputEventKind::PointerButton && transitions.is_empty() {
                 return None;
             }
 
-            let (code, action, value) = if kind == InputEventKind::PointerButton {
+            let (code, action, value) = if kind == input_core::WindowsInputEventKind::PointerButton
+            {
                 let (code, action, value) = transitions[0];
                 (code, action, value)
-            } else if kind == InputEventKind::Scroll {
+            } else if kind == input_core::WindowsInputEventKind::Scroll {
                 (
                     mouse.dwEventFlags,
                     InputEventAction::Scroll,
@@ -375,7 +376,7 @@ fn map_console_record(
             };
 
             let mut payload = input_core::empty_event_payload(binding);
-            if kind == InputEventKind::PointerButton {
+            if kind == input_core::WindowsInputEventKind::PointerButton {
                 payload.pointer_button = InputPointerButtonEventPayload {
                     action,
                     backend_code: code,
@@ -384,7 +385,7 @@ fn map_console_record(
                     y: mouse.dwMousePosition.Y as f64,
                     modifiers: mouse.dwControlKeyState,
                 };
-            } else if kind == InputEventKind::Scroll {
+            } else if kind == input_core::WindowsInputEventKind::Scroll {
                 payload.scroll = InputScrollEventPayload {
                     wheel_x,
                     wheel_y,
@@ -404,7 +405,7 @@ fn map_console_record(
                 input_core::build_input_event(binding, kind, timestamp_ns, 0, device_id, payload);
 
             let mut pending_button_transitions = Vec::new();
-            if kind == InputEventKind::PointerButton && transitions.len() > 1 {
+            if kind == input_core::WindowsInputEventKind::PointerButton && transitions.len() > 1 {
                 for (code, action, value) in transitions.into_iter().skip(1) {
                     pending_button_transitions.push(input_core::PendingConsoleButtonTransition {
                         timestamp_ns,
@@ -434,7 +435,7 @@ fn map_console_record(
             };
             let event = input_core::build_input_event(
                 binding,
-                InputEventKind::Device,
+                input_core::WindowsInputEventKind::Device,
                 timestamp_ns,
                 0,
                 device_id,
@@ -458,7 +459,7 @@ fn map_console_record(
                 };
                 input_core::build_input_event(
                     binding,
-                    InputEventKind::Device,
+                    input_core::WindowsInputEventKind::Device,
                     timestamp_ns,
                     0,
                     device_id,
@@ -479,7 +480,7 @@ fn map_console_record(
                 };
                 input_core::build_input_event(
                     binding,
-                    InputEventKind::Device,
+                    input_core::WindowsInputEventKind::Device,
                     timestamp_ns,
                     0,
                     device_id,
@@ -499,7 +500,7 @@ fn map_console_record(
                 };
                 input_core::build_input_event(
                     binding,
-                    InputEventKind::Device,
+                    input_core::WindowsInputEventKind::Device,
                     timestamp_ns,
                     0,
                     device_id,
@@ -870,7 +871,7 @@ pub(super) fn read_event(
         };
         let mut event = input_core::build_input_event(
             binding,
-            InputEventKind::PointerButton,
+            input_core::WindowsInputEventKind::PointerButton,
             transition.timestamp_ns,
             0,
             input_core::WINDOWS_INPUT_DEVICE_ID,
@@ -964,7 +965,7 @@ pub(super) fn read_event(
                 };
                 let event = input_core::build_input_event(
                     binding,
-                    InputEventKind::Gamepad,
+                    input_core::WindowsInputEventKind::Gamepad,
                     input_core::now_timestamp_ns(),
                     0,
                     &xinput_input::xinput_device_id(user_index),

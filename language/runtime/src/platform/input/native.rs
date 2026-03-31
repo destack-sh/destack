@@ -1,2 +1,10 @@
-pub(crate) use super::clipboard::*;
-pub(crate) use super::host::*;
+pub(crate) use super::core::clipboard::*;
+
+#[cfg(unix)]
+pub(crate) use super::unix::*;
+
+#[cfg(windows)]
+pub(crate) use super::windows::*;
+
+#[cfg(not(any(unix, windows)))]
+pub(crate) use super::unsupported::*;

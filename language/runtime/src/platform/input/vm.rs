@@ -18,11 +18,13 @@ use crate::platform::input::{
     InputSensorConfigVm, InputSensorDescriptorVm, InputSensorEffectiveConfigVm, InputSensorKind,
     InputSensorSampleVm, InputTextGeometry, InputTextGeometryVm, InputTextSessionConfig,
     InputTextSessionConfigVm, InputTextSessionEventVm, InputTextSessionState,
-    InputTextSessionStateVm, InputTouchState, InputTouchStateVm, InputWindowTargetVm, clipboard,
-    host as host_input,
+    InputTextSessionStateVm, InputTouchState, InputTouchStateVm, InputWindowTargetVm,
+    native as host_input,
 };
 use crate::platform::{NativeAbiCodec, VmArray, VmSlice, resource};
 use crate::runtime::BindingCallContext;
+
+use super::core::clipboard;
 
 /// Convert one native device-info payload into its VM shape.
 fn device_info_to_vm(
