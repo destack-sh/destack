@@ -3,40 +3,40 @@ import RuntimeHostAppleCore
 /// One no-op contact request handler for iOS tests.
 @MainActor
 final class IOSNoopContactRequestHandler: ContactRequests {
-  func listContacts(
+  func list(
     _ query: RuntimeHostContactQuery
   ) -> RuntimeHostContactPageResponse {
     RuntimeHostContactPageResponse(status: hostStatusNotSupported)
   }
 
-  func searchContacts(
+  func search(
     _ queryText: String,
     query: RuntimeHostContactQuery
   ) -> RuntimeHostContactPageResponse {
     RuntimeHostContactPageResponse(status: hostStatusNotSupported)
   }
 
-  func readContact(
-    id: String
+  func read(
+    _ id: String
   ) -> RuntimeHostContactResponse {
     RuntimeHostContactResponse(status: hostStatusNotSupported)
   }
 
-  func createContact(
+  func create(
     _ draft: RuntimeHostContactDraft
   ) -> RuntimeHostContactCreateResponse {
     RuntimeHostContactCreateResponse(status: hostStatusNotSupported)
   }
 
-  func updateContact(
-    id: String,
+  func update(
+    _ id: String,
     draft: RuntimeHostContactDraft
   ) -> UInt32 {
     hostStatusNotSupported
   }
 
   func deleteContact(
-    id: String
+    _ id: String
   ) -> UInt32 {
     hostStatusNotSupported
   }
@@ -47,7 +47,7 @@ final class IOSNoopContactRequestHandler: ContactRequests {
 final class IOSRecordingContactRequestHandler: ContactRequests {
   var listQueries: [RuntimeHostContactQuery] = []
 
-  func listContacts(
+  func list(
     _ query: RuntimeHostContactQuery
   ) -> RuntimeHostContactPageResponse {
     listQueries.append(query)
@@ -55,34 +55,34 @@ final class IOSRecordingContactRequestHandler: ContactRequests {
     return RuntimeHostContactPageResponse(status: hostStatusOk)
   }
 
-  func searchContacts(
+  func search(
     _ queryText: String,
     query: RuntimeHostContactQuery
   ) -> RuntimeHostContactPageResponse {
     RuntimeHostContactPageResponse(status: hostStatusOk)
   }
 
-  func readContact(
-    id: String
+  func read(
+    _ id: String
   ) -> RuntimeHostContactResponse {
     RuntimeHostContactResponse(status: hostStatusOk)
   }
 
-  func createContact(
+  func create(
     _ draft: RuntimeHostContactDraft
   ) -> RuntimeHostContactCreateResponse {
     RuntimeHostContactCreateResponse(status: hostStatusOk)
   }
 
-  func updateContact(
-    id: String,
+  func update(
+    _ id: String,
     draft: RuntimeHostContactDraft
   ) -> UInt32 {
     hostStatusOk
   }
 
   func deleteContact(
-    id: String
+    _ id: String
   ) -> UInt32 {
     hostStatusOk
   }

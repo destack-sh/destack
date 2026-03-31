@@ -9,7 +9,7 @@ import dev.destack.runtime.android.module.calendar.RuntimeHostCalendarEventCreat
 import dev.destack.runtime.android.module.calendar.RuntimeHostCalendarEventDraft
 import dev.destack.runtime.android.module.calendar.RuntimeHostCalendarEventListResponse
 import dev.destack.runtime.android.module.calendar.RuntimeHostCalendarEventQuery
-import dev.destack.runtime.android.module.calendar.RuntimeHostCalendarEventResponse
+import dev.destack.runtime.android.module.calendar.RuntimeHostCalendarEventReadResponse
 import dev.destack.runtime.android.module.calendar.RuntimeHostCalendarListResponse
 
 import org.junit.Assert.assertEquals
@@ -25,8 +25,8 @@ class CalendarBridgeTest {
     @Test
     fun testCalendarRequestsRouteThroughRuntimeHost() {
         val sessionHandle = HostSessionHandle(rawValue = 7)
-        val bindings = RuntimeAbiSpy()
-        val bridge = RuntimeBridge(sessionHandle, bindings)
+        val runtimeApi = RuntimeIngressSpy()
+        val bridge = RuntimeBridge(sessionHandle, runtimeApi)
         val calendarRequests = CalendarRequestRecorder().also {
             it.listResponse = RuntimeHostCalendarListResponse(
                 status = 0,
@@ -36,7 +36,7 @@ class CalendarBridgeTest {
                 status = 0,
                 events = listOf(sampleCalendarEvent("event-1")),
             )
-            it.readResponse = RuntimeHostCalendarEventResponse(
+            it.readResponse = RuntimeHostCalendarEventReadResponse(
                 status = 0,
                 event = sampleCalendarEvent("event-2"),
             )
@@ -58,8 +58,8 @@ class CalendarBridgeTest {
 
         bridge.attach(runtimeHost)
 
-        val listResponse = bridge.listCalendars()
-        val eventListResponse = bridge.listCalendarEvents(
+        val listResponse = bridge.calendarList()
+        val eventListResponse = bridge.calendarEventList(
             RuntimeHostCalendarEventQuery(
                 calendarIds = listOf("calendar-1"),
                 startUnixNs = 1_700_000_000_000_000_000L,
@@ -70,13 +70,13 @@ class CalendarBridgeTest {
                 includeRecurrenceInstances = true,
             ),
         )
-        val readResponse = bridge.readCalendarEvent("event-2")
-        val createResponse = bridge.createCalendarEvent(sampleCalendarDraft("calendar-1"))
-        val updateStatus = bridge.updateCalendarEvent(
+        val readResponse = bridge.calendarEventRead("event-2")
+        val createResponse = bridge.calendarEventCreate(sampleCalendarDraft("calendar-1"))
+        val updateStatus = bridge.calendarEventUpdate(
             "event-3",
             sampleCalendarDraft("calendar-2"),
         )
-        val deleteStatus = bridge.deleteCalendarEvent("event-3")
+        val deleteStatus = bridge.calendarEventDelete("event-3")
 
         assertEquals(0, listResponse.status)
         assertEquals(0, eventListResponse.status)

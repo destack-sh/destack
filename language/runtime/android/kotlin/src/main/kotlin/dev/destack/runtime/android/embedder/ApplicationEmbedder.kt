@@ -16,16 +16,16 @@ public class ApplicationEmbedder private constructor(
     public val runtimeHost: RuntimeHost,
 
     /**
-     * The background request surface attached to this application.
+     * The background surface attached to this application.
      */
-    public val backgroundRequests: BackgroundRequests,
+    public val background: BackgroundRequests,
 ) {
     /**
      * Detach the process-level background sink from this runtime host.
      */
     public fun detach() {
         // detach the process-level background sink
-        (backgroundRequests as? ProcessBackgroundHost)?.detach()
+        (background as? ProcessBackgroundHost)?.detach()
     }
 
     public companion object {
@@ -37,17 +37,17 @@ public class ApplicationEmbedder private constructor(
             runtimeHost: RuntimeHost,
         ): ApplicationEmbedder {
             // attach the process-level background host to the application context
-            val backgroundRequests = ProcessBackgroundHost.attach(
+            val background = ProcessBackgroundHost.attach(
                 context = context?.applicationContext,
-                events = runtimeHost.backgroundEvents,
+                events = runtimeHost.background,
             )
 
             // bind the application-backed background surface into the runtime host
-            runtimeHost.backgroundRequests = backgroundRequests
+            runtimeHost.updateBackgroundRequests(background)
 
             return ApplicationEmbedder(
                 runtimeHost = runtimeHost,
-                backgroundRequests = backgroundRequests,
+                background = background,
             )
         }
     }

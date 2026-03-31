@@ -50,7 +50,7 @@ class ActivityEmbedderTest {
         owner.handleEvent(Lifecycle.Event.ON_START)
         owner.handleEvent(Lifecycle.Event.ON_RESUME)
 
-        embedder.permissionRequests.submitPermissionRequest(
+        embedder.permission.request(
             RuntimeHostPermissionRequest(
                 requestId = HostRequestId(rawValue = 1),
                 permission = "android.permission.CAMERA",
@@ -58,7 +58,7 @@ class ActivityEmbedderTest {
         )
         registry.completeLastLaunch(true)
 
-        embedder.documentRequests.submitDocumentRequest(
+        embedder.document.pick(
             RuntimeHostDocumentRequest(
                 requestId = HostRequestId(rawValue = 2),
                 allowsMultipleSelection = true,
@@ -66,7 +66,7 @@ class ActivityEmbedderTest {
             ),
         )
         registry.completeLastLaunch(emptyList<Uri>())
-        runtimeHost.contactRequests.listContacts(
+        runtimeHost.contact.list(
             RuntimeHostContactQuery(
                 includeEmails = true,
             ),
@@ -139,7 +139,7 @@ class ActivityEmbedderTest {
 
         owner.handleEvent(Lifecycle.Event.ON_CREATE)
         owner.handleEvent(Lifecycle.Event.ON_START)
-        embedder.permissionRequests.submitPermissionRequest(request)
+        embedder.permission.request(request)
 
         embedder.detach()
 

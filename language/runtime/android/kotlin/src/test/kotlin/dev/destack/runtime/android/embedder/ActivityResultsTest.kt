@@ -6,12 +6,21 @@ import androidx.activity.result.ActivityResultRegistry
 import androidx.activity.result.contract.ActivityResultContract
 import androidx.core.app.ActivityOptionsCompat
 
-import dev.destack.runtime.android.core.RuntimeHost
-import dev.destack.runtime.android.core.HostRequestId
+import dev.destack.runtime.android.core.CalendarHost
+import dev.destack.runtime.android.core.ContactHost
 import dev.destack.runtime.android.core.HostEmbedderId
+import dev.destack.runtime.android.core.HostRequestId
 import dev.destack.runtime.android.core.HostSessionHandle
+import dev.destack.runtime.android.core.DocumentHost
+import dev.destack.runtime.android.core.IntentHost
+import dev.destack.runtime.android.core.LifecycleHost
+import dev.destack.runtime.android.core.LocationHost
+import dev.destack.runtime.android.core.MediaHost
+import dev.destack.runtime.android.core.NotificationHost
+import dev.destack.runtime.android.core.PermissionHost
 import dev.destack.runtime.android.core.RendererSurface
 import dev.destack.runtime.android.core.RendererSurfaceKind
+import dev.destack.runtime.android.core.RuntimeHost
 import dev.destack.runtime.android.module.document.DocumentActivityResults
 import dev.destack.runtime.android.module.document.RuntimeHostDocumentDescriptor
 import dev.destack.runtime.android.module.document.RuntimeHostDocumentRequest
@@ -22,7 +31,6 @@ import dev.destack.runtime.android.module.calendar.UnsupportedCalendarRequests
 import dev.destack.runtime.android.module.contact.UnsupportedContactRequests
 import dev.destack.runtime.android.module.intent.IntentEvents
 import dev.destack.runtime.android.module.intent.IntentRequests
-import dev.destack.runtime.android.module.intent.RuntimeHostIntentEvent
 import dev.destack.runtime.android.module.lifecycle.RuntimeHostLifecycleEvent
 import dev.destack.runtime.android.module.location.LocationEvents
 import dev.destack.runtime.android.module.location.RuntimeHostLocationSample
@@ -57,17 +65,17 @@ private class RecordingActivityResultLifecycleSink : LifecycleEvents {
 }
 
 private class NoopDocumentRequestHandler : DocumentRequests {
-    override fun submitDocumentRequest(
+    override fun pick(
         request: RuntimeHostDocumentRequest,
-    ) {}
+    ): Int = 0
 }
 
 private class NoopPermissionRequestHandler : PermissionRequests {
-    override fun submitPermissionRequest(
+    override fun request(
         request: RuntimeHostPermissionRequest,
-    ) {}
+    ): Int = 0
 
-    override fun openPermissionSettings(): Int {
+    override fun openSettings(): Int {
         return 1
     }
 }
@@ -75,7 +83,7 @@ private class NoopPermissionRequestHandler : PermissionRequests {
 private class RecordingActivityResultPermissionEventSink : PermissionEvents {
     val events: MutableList<RuntimeHostPermissionEvent> = mutableListOf()
 
-    override fun sendPermissionEvent(
+    override fun notifyPermissionResult(
         event: RuntimeHostPermissionEvent,
     ) {
         events += event
@@ -85,15 +93,19 @@ private class RecordingActivityResultPermissionEventSink : PermissionEvents {
 private class RecordingActivityResultDocumentEventSink : DocumentEvents {
     val results: MutableList<RuntimeHostDocumentResult> = mutableListOf()
 
-    override fun sendDocumentResult(
-        result: RuntimeHostDocumentResult,
+    override fun notifyDocumentResult(
+        requestId: HostRequestId,
+        documents: List<RuntimeHostDocumentDescriptor>,
     ) {
-        results += result
+        results += RuntimeHostDocumentResult(
+            requestId = requestId,
+            documents = documents,
+        )
     }
 }
 
 private class NoopLocationEventSink : LocationEvents {
-    override fun sendLocationSample(
+    override fun notifyLocationSample(
         watchId: String,
         sample: RuntimeHostLocationSample,
     ) {}
@@ -147,14 +159,12 @@ private fun createActivityResultRuntimeHost(
     return RuntimeHost(
         sessionHandle = HostSessionHandle(rawValue = 7),
         embedderId = HostEmbedderId(rawValue = 11),
-        lifecycleEvents = lifecycleEvents,
-        permissionRequests = permissionRequests,
-        permissionEvents = permissionEvents,
-        documentRequests = documentRequests,
-        documentEvents = documentEvents,
-        contactRequests = UnsupportedContactRequests,
-        calendarRequests = UnsupportedCalendarRequests,
-        intentRequests = object : IntentRequests {
+        lifecycle = LifecycleHost(lifecycleEvents),
+        permission = PermissionHost(permissionRequests, permissionEvents),
+        document = DocumentHost(documentRequests, documentEvents),
+        contact = ContactHost(UnsupportedContactRequests),
+        calendar = CalendarHost(UnsupportedCalendarRequests),
+        intent = IntentHost(object : IntentRequests {
             override fun canOpenUrl(
                 url: String,
             ): Boolean = false
@@ -169,38 +179,31 @@ private fun createActivityResultRuntimeHost(
 
             override fun shareText(
                 text: String,
-                contentType: String?,
+                mimeType: String?,
             ): Int = 0
 
             override fun sharePaths(
                 paths: List<String>,
-                contentType: String?,
+                mimeType: String?,
             ): Int = 0
-        },
-        intentEvents = object : IntentEvents {
-            override fun sendIntentEvent(
-                event: RuntimeHostIntentEvent,
-            ) {}
-        },
-        locationRequests = UnsupportedLocationRequests,
-        locationEvents = NoopLocationEventSink(),
-        mediaRequests = UnsupportedMediaRequests,
-        notificationRequests = object : NotificationRequests {
-            override fun postNotification(
+        }, IntentEvents { _ -> }),
+        location = LocationHost(UnsupportedLocationRequests, NoopLocationEventSink()),
+        media = MediaHost(UnsupportedMediaRequests),
+        notification = NotificationHost(object : NotificationRequests {
+            override fun post(
                 request: RuntimeHostNotificationRequest,
             ): Int = 0
 
-            override fun cancelNotification(
+            override fun cancel(
                 identifier: String,
             ): Int = 0
 
-            override fun cancelAllNotifications(): Int = 0
-        },
-        notificationEvents = object : NotificationEvents {
-            override fun sendNotificationEvent(
+            override fun cancelAll(): Int = 0
+        }, object : NotificationEvents {
+            override fun notifyNotificationEvent(
                 event: RuntimeHostNotificationEvent,
             ) {}
-        },
+        }),
         rendererSurface = RendererSurface(
             kind = RendererSurfaceKind.SurfaceView,
             identifier = "main-surface",
@@ -237,7 +240,7 @@ class ActivityResultsTest {
 
         owner.handleEvent(Lifecycle.Event.ON_CREATE)
         owner.handleEvent(Lifecycle.Event.ON_START)
-        documentActivityResults.submitDocumentRequest(request)
+        documentActivityResults.pick(request)
         val requestCode = registry.launchedRequestCodes.last()
 
         assertEquals(
@@ -295,7 +298,7 @@ class ActivityResultsTest {
 
         owner.handleEvent(Lifecycle.Event.ON_CREATE)
         owner.handleEvent(Lifecycle.Event.ON_START)
-        permissionActivityResults.submitPermissionRequest(request)
+        permissionActivityResults.request(request)
         val requestCode = registry.launchedRequestCodes.last()
 
         assertEquals(

@@ -28,20 +28,30 @@ func testCreateHostWithPrimarySurface() {
   let host = RuntimeHost(
     sessionHandle: sessionHandle,
     embedderID: embedderID,
-    lifecycleEvents: lifecycleEvents,
-    permissionRequests: permissionRequests,
-    permissionEvents: permissionEvents,
-    documentRequests: documentRequests,
-    documentEvents: documentEvents,
-    contactRequests: contactRequests,
-    calendarRequests: calendarRequests,
-    intentRequests: intentRequests,
-    intentEvents: intentEvents,
-    locationRequests: locationRequests,
-    locationEvents: locationEvents,
-    mediaRequests: mediaRequests,
-    notificationRequests: notificationRequests,
-    notificationEvents: notificationEvents,
+    lifecycle: LifecycleHost(events: lifecycleEvents),
+    permission: PermissionHost(
+      requests: permissionRequests,
+      events: permissionEvents
+    ),
+    document: DocumentHost(
+      requests: documentRequests,
+      events: documentEvents
+    ),
+    contact: ContactHost(requests: contactRequests),
+    calendar: CalendarHost(requests: calendarRequests),
+    intent: IntentHost(
+      requests: intentRequests,
+      events: intentEvents
+    ),
+    location: LocationHost(
+      requests: locationRequests,
+      events: locationEvents
+    ),
+    media: MediaHost(requests: mediaRequests),
+    notification: NotificationHost(
+      requests: notificationRequests,
+      events: notificationEvents
+    ),
     rendererSurface: rendererSurface
   )
 
@@ -57,7 +67,7 @@ func testSendLifecycleEvent() {
   let host = createRuntimeHost(lifecycleEvents: lifecycleEvents)
   let event = lifecycleEvent(.application, .running)
 
-  host.lifecycleEvents.sendLifecycleEvent(event)
+  host.lifecycle.sendLifecycleEvent(event)
 
   #expect(lifecycleEvents.events == [event])
 }
@@ -74,7 +84,7 @@ func testSubmitPermissionRequest() {
     permission: "location"
   )
 
-  host.permissionRequests.submitPermissionRequest(request)
+  host.permission.request(request)
 
   #expect(permissionRequests.requests == [request])
 }
@@ -87,7 +97,7 @@ func testOpenPermissionSettings() {
     permissionRequests: permissionRequests
   )
 
-  let status = host.permissionRequests.openPermissionSettings()
+  let status = host.permission.openSettings()
 
   #expect(status == hostStatusOk)
   #expect(permissionRequests.openSettingsCalls == 1)
@@ -106,7 +116,7 @@ func testSendPermissionEvent() {
     isGranted: true
   )
 
-  host.permissionEvents.sendPermissionEvent(event)
+  host.permission.notifyPermissionResult(event)
 
   #expect(permissionEvents.events == [event])
 }
@@ -137,8 +147,11 @@ func testSubmitDocumentRequest() {
     ]
   )
 
-  host.documentRequests.submitDocumentRequest(request)
-  host.documentEvents.sendDocumentResult(result)
+  host.document.pick(request)
+  host.document.notifyDocumentResult(
+    result.requestID,
+    documents: result.documents
+  )
 
   #expect(documentRequests.requests == [request])
   #expect(documentEvents.results.first?.documents.first?.displayName == "example.png")

@@ -138,6 +138,79 @@ public enum RuntimeHostCalendarReminder: Sendable, Hashable, Codable {
   case absolute(RuntimeHostCalendarAbsoluteReminder)
   /// One relative reminder.
   case relative(RuntimeHostCalendarRelativeReminder)
+
+  /// Create one calendar reminder payload from one bridge shape.
+  public init(
+    kind: RuntimeHostCalendarReminderKind,
+    absoluteUnixNs: UInt64 = 0,
+    minutesBeforeStart: Int32 = 0
+  ) {
+    switch kind {
+    case .absolute:
+      self = .absolute(
+        RuntimeHostCalendarAbsoluteReminder(
+          absoluteUnixNs: absoluteUnixNs
+        )
+      )
+    case .relative:
+      self = .relative(
+        RuntimeHostCalendarRelativeReminder(
+          minutesBeforeStart: minutesBeforeStart
+        )
+      )
+    }
+  }
+
+  /// The bridge-facing reminder kind.
+  public var kind: RuntimeHostCalendarReminderKind {
+    switch self {
+    case .absolute:
+      return .absolute
+    case .relative:
+      return .relative
+    }
+  }
+
+  /// The bridge-facing absolute timestamp.
+  public var absoluteUnixNs: UInt64 {
+    switch self {
+    case .absolute(let value):
+      return value.absoluteUnixNs
+    case .relative:
+      return 0
+    }
+  }
+
+  /// The bridge-facing relative offset.
+  public var minutesBeforeStart: Int32 {
+    switch self {
+    case .absolute:
+      return 0
+    case .relative(let value):
+      return value.minutesBeforeStart
+    }
+  }
+
+  /// Create one calendar reminder payload from one bridge shape.
+  public init(
+    kind: RuntimeHostCalendarReminderKind,
+    absoluteUnixNs: UInt64 = 0,
+    minutesBeforeStart: Int = 0
+  ) {
+    self.init(
+      kind: kind,
+      absoluteUnixNs: absoluteUnixNs,
+      minutesBeforeStart: Int32(minutesBeforeStart)
+    )
+  }
+}
+
+/// The calendar reminder kind for one bridge payload.
+public enum RuntimeHostCalendarReminderKind: UInt32, Sendable, Hashable, Codable {
+  /// One absolute reminder.
+  case absolute = 1
+  /// One relative reminder.
+  case relative = 2
 }
 
 /// One recurrence rule payload.
@@ -317,6 +390,68 @@ public struct RuntimeHostCalendarEvent: Sendable, Hashable, Codable {
     self.attendees = attendees
     self.reminders = reminders
   }
+
+  /// The bridge-facing calendar identifier.
+  public var calendarID: String {
+    calendarId
+  }
+
+  /// The bridge-facing recurrence master identifier.
+  public var recurrenceMasterID: String? {
+    recurrenceMasterId
+  }
+
+  /// The bridge-facing recurrence instance timestamp.
+  public var recurrenceIDUnixNs: UInt64? {
+    recurrenceIdUnixNs
+  }
+
+  /// Create one calendar event payload from one bridge shape.
+  public init(
+    id: String,
+    calendarID: String,
+    title: String,
+    notes: String? = nil,
+    location: String? = nil,
+    startUnixNs: UInt64,
+    endUnixNs: UInt64,
+    allDay: Bool = false,
+    canceled: Bool = false,
+    timeZone: String? = nil,
+    availability: RuntimeHostCalendarAvailability = .unknown,
+    url: String? = nil,
+    organizerName: String? = nil,
+    organizerEmail: String? = nil,
+    recurring: Bool = false,
+    recurrenceMasterID: String? = nil,
+    recurrenceIDUnixNs: UInt64? = nil,
+    recurrenceRule: RuntimeHostCalendarRecurrenceRule? = nil,
+    attendees: [RuntimeHostCalendarAttendee]? = nil,
+    reminders: [RuntimeHostCalendarReminder]? = nil
+  ) {
+    self.init(
+      id: id,
+      calendarId: calendarID,
+      title: title,
+      notes: notes,
+      location: location,
+      startUnixNs: startUnixNs,
+      endUnixNs: endUnixNs,
+      allDay: allDay,
+      canceled: canceled,
+      timeZone: timeZone,
+      availability: availability,
+      url: url,
+      organizerName: organizerName,
+      organizerEmail: organizerEmail,
+      recurring: recurring,
+      recurrenceMasterId: recurrenceMasterID,
+      recurrenceIdUnixNs: recurrenceIDUnixNs,
+      recurrenceRule: recurrenceRule,
+      attendees: attendees,
+      reminders: reminders
+    )
+  }
 }
 
 /// One calendar event draft payload.
@@ -377,6 +512,112 @@ public struct RuntimeHostCalendarEventDraft: Sendable, Hashable, Codable {
     self.recurrenceRule = recurrenceRule
     self.attendees = attendees
     self.reminders = reminders
+  }
+
+  /// The bridge-facing calendar identifier.
+  public var calendarID: String {
+    calendarId
+  }
+
+  /// Create one calendar event draft payload from one bridge shape.
+  public init(
+    calendarID: String,
+    title: String,
+    notes: String? = nil,
+    location: String? = nil,
+    startUnixNs: UInt64,
+    endUnixNs: UInt64,
+    allDay: Bool = false,
+    timeZone: String? = nil,
+    availability: RuntimeHostCalendarAvailability = .unknown,
+    url: String? = nil,
+    recurrenceRule: RuntimeHostCalendarRecurrenceRule? = nil,
+    attendees: [RuntimeHostCalendarAttendee]? = nil,
+    reminders: [RuntimeHostCalendarReminder]? = nil
+  ) {
+    self.init(
+      calendarId: calendarID,
+      title: title,
+      notes: notes,
+      location: location,
+      startUnixNs: startUnixNs,
+      endUnixNs: endUnixNs,
+      allDay: allDay,
+      timeZone: timeZone,
+      availability: availability,
+      url: url,
+      recurrenceRule: recurrenceRule,
+      attendees: attendees,
+      reminders: reminders
+    )
+  }
+}
+
+/// One calendar-list response.
+public struct RuntimeHostCalendarListResponse: Sendable, Hashable, Codable {
+  /// The host status code.
+  public let status: UInt32
+  /// The listed calendars.
+  public let calendars: [RuntimeHostCalendarDescriptor]
+
+  /// Create one calendar-list response.
+  public init(
+    status: UInt32,
+    calendars: [RuntimeHostCalendarDescriptor] = []
+  ) {
+    self.status = status
+    self.calendars = calendars
+  }
+}
+
+/// One calendar event-list response.
+public struct RuntimeHostCalendarEventListResponse: Sendable, Hashable, Codable {
+  /// The host status code.
+  public let status: UInt32
+  /// The listed events.
+  public let events: [RuntimeHostCalendarEvent]
+
+  /// Create one calendar event-list response.
+  public init(
+    status: UInt32,
+    events: [RuntimeHostCalendarEvent] = []
+  ) {
+    self.status = status
+    self.events = events
+  }
+}
+
+/// One calendar event-read response.
+public struct RuntimeHostCalendarEventReadResponse: Sendable, Hashable, Codable {
+  /// The host status code.
+  public let status: UInt32
+  /// The returned event when available.
+  public let event: RuntimeHostCalendarEvent?
+
+  /// Create one calendar event-read response.
+  public init(
+    status: UInt32,
+    event: RuntimeHostCalendarEvent? = nil
+  ) {
+    self.status = status
+    self.event = event
+  }
+}
+
+/// One calendar event-create response.
+public struct RuntimeHostCalendarEventCreateResponse: Sendable, Hashable, Codable {
+  /// The host status code.
+  public let status: UInt32
+  /// The created event identifier when available.
+  public let id: String?
+
+  /// Create one calendar event-create response.
+  public init(
+    status: UInt32,
+    id: String? = nil
+  ) {
+    self.status = status
+    self.id = id
   }
 }
 

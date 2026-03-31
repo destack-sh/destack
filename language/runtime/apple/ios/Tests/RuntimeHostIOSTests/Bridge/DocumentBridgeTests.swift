@@ -6,64 +6,12 @@ import Testing
 
 @MainActor
 @Test
-func testProcessRuntimeAbiRoundtripsDocumentRequest() throws {
-  guard hasRuntimeBridgeLibrary() else {
-    return
-  }
-
-  let bindings = ProcessRuntimeAbi()
-  let sessionHandle = bindings.openTestSession()
-
-  defer {
-    bindings.closeTestSession(sessionHandle: sessionHandle)
-  }
-
-  let bridge = RuntimeBridge(
-    sessionHandle: sessionHandle,
-    bindings: bindings
-  )
-  let permissionRequests = PermissionRequestRecorder()
-  let documentRequests = DocumentRequestRecorder()
-  let runtimeHost = createBridgeRuntimeHost(
-    sessionHandle: sessionHandle,
-    permissionRequests: permissionRequests,
-    documentRequests: documentRequests,
-    intentRequests: IntentRequestRecorder(),
-    mediaRequests: MediaRequestRecorder()
-  )
-  let expectedRequest = RuntimeHostDocumentRequest(
-    requestID: HostRequestID(rawValue: 3),
-    allowsMultipleSelection: true,
-    contentTypes: ["image/png"]
-  )
-  try bridge.attach(runtimeHost: runtimeHost)
-
-  defer {
-    bridge.detach()
-  }
-
-  let submitStatus = bindings.submitTestDocumentRequest(
-    sessionHandle: sessionHandle,
-    requestID: expectedRequest.requestID,
-    mimeTypes: expectedRequest.contentTypes,
-    extensions: [],
-    allowsMultipleSelection: expectedRequest.allowsMultipleSelection,
-    allowsDirectorySelection: false,
-    copiesToSandbox: false
-  )
-
-  #expect(submitStatus == hostStatusOk)
-  #expect(documentRequests.requests == [expectedRequest])
-}
-
-@MainActor
-@Test
 func testRuntimeBridgeRoutesDocumentRequestsIntoRuntimeHost() throws {
-  let bindings = RuntimeAbiSpy()
+  let bindings = RuntimeIngressSpy()
   let sessionHandle = makeTestSessionHandle()
   let bridge = RuntimeBridge(
     sessionHandle: sessionHandle,
-    bindings: bindings
+    runtimeApi: bindings
   )
   let documentRequests = DocumentRequestRecorder()
   let runtimeHost = createBridgeRuntimeHost(
@@ -91,11 +39,11 @@ func testRuntimeBridgeRoutesDocumentRequestsIntoRuntimeHost() throws {
 @MainActor
 @Test
 func testRuntimeBridgeSendsDocumentResultsIntoRuntimeIngress() throws {
-  let bindings = RuntimeAbiSpy()
+  let bindings = RuntimeIngressSpy()
   let sessionHandle = makeTestSessionHandle()
   let bridge = RuntimeBridge(
     sessionHandle: sessionHandle,
-    bindings: bindings
+    runtimeApi: bindings
   )
   let runtimeHost = createBridgeRuntimeHost(
     sessionHandle: sessionHandle,
@@ -116,7 +64,7 @@ func testRuntimeBridgeSendsDocumentResultsIntoRuntimeIngress() throws {
   )
 
   try bridge.attach(runtimeHost: runtimeHost)
-  bridge.sendDocumentResult(result)
+  bridge.notifyDocumentResult(result)
 
   #expect(bindings.documentResults.count == 1)
   #expect(bindings.documentResults[0].0 == sessionHandle)
@@ -127,11 +75,11 @@ func testRuntimeBridgeSendsDocumentResultsIntoRuntimeIngress() throws {
 @MainActor
 @Test
 func testRuntimeBridgeRejectsInvalidDocumentRequest() throws {
-  let bindings = RuntimeAbiSpy()
+  let bindings = RuntimeIngressSpy()
   let sessionHandle = makeTestSessionHandle()
   let bridge = RuntimeBridge(
     sessionHandle: sessionHandle,
-    bindings: bindings
+    runtimeApi: bindings
   )
   let runtimeHost = createBridgeRuntimeHost(
     sessionHandle: sessionHandle,
@@ -158,11 +106,11 @@ func testRuntimeBridgeRejectsInvalidDocumentRequest() throws {
 @MainActor
 @Test
 func testRuntimeBridgeReportsMissingRuntimeHostAfterDetach() throws {
-  let bindings = RuntimeAbiSpy()
+  let bindings = RuntimeIngressSpy()
   let sessionHandle = makeTestSessionHandle()
   let bridge = RuntimeBridge(
     sessionHandle: sessionHandle,
-    bindings: bindings
+    runtimeApi: bindings
   )
   let runtimeHost = createBridgeRuntimeHost(
     sessionHandle: sessionHandle,

@@ -23,8 +23,9 @@ class DocumentActivityResultsTest {
     fun testDocumentActivityResultsRegisterStableLaunchersAndCompleteRequests() {
         val registry = RecordingActivityResultRegistry()
         val owner = TestLifecycleOwner()
+        val documentEvents = RecordingDocumentEventSink()
         val runtimeHost = createRuntimeHost(
-            documentEvents = RecordingDocumentEventSink(),
+            documentEvents = documentEvents,
         )
         val activityResults = ActivityResults(
             embedderId = HostEmbedderId(rawValue = 11),
@@ -35,8 +36,6 @@ class DocumentActivityResultsTest {
             runtimeHost = runtimeHost,
             activityResults = activityResults,
         )
-        val documentEvents =
-            runtimeHost.documentEvents as RecordingDocumentEventSink
         val request = RuntimeHostDocumentRequest(
             requestId = HostRequestId(rawValue = 1),
             allowsMultipleSelection = true,
@@ -45,7 +44,7 @@ class DocumentActivityResultsTest {
 
         owner.handleEvent(Lifecycle.Event.ON_CREATE)
         owner.handleEvent(Lifecycle.Event.ON_START)
-        documentActivityResults.submitDocumentRequest(request)
+        documentActivityResults.pick(request)
         val requestCode = registry.launchedRequestCodes.last()
 
         assertEquals(

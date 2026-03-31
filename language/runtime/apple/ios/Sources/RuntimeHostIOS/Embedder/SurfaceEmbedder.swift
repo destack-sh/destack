@@ -9,25 +9,25 @@ public final class SurfaceEmbedder {
 
   /// The scene delegate adapter installed for this embedder.
   public let sceneDelegate: SceneDelegate
-  /// The location request surface attached to this scene.
-  public let locationRequests: any LocationRequests
-  /// The text-input request surface attached to this scene.
-  public let textInputRequests: any TextInputRequests
+  /// The location surface attached to this scene.
+  public let location: any LocationRequests
+  /// The text surface attached to this scene.
+  public let text: any TextRequests
 
   /// Create one iOS surface embedder.
   public init(
     runtimeHost: RuntimeHost
   ) {
-    let textInputRequests = UIKitTextInputRequests(
-      events: runtimeHost.textInputEvents
+    let text = UIKitTextRequests(
+      events: runtimeHost.text
     )
 
     self.runtimeHost = runtimeHost
     self.sceneDelegate = SceneDelegate(runtimeHost: runtimeHost)
-    self.locationRequests = CoreLocationRequests(
-      events: runtimeHost.locationEvents
+    self.location = CoreLocationRequests(
+      events: runtimeHost.location
     )
-    self.textInputRequests = textInputRequests
-    runtimeHost.textInputRequests = textInputRequests
+    self.text = text
+    runtimeHost.updateTextRequests(text)
   }
 }

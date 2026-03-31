@@ -11,14 +11,14 @@ final class MacOSNoopIntentRequestHandler: IntentRequests {
 
   func shareText(
     _ text: String,
-    contentType: String?
+    mimeType: String?
   ) -> UInt32 {
     hostStatusNotSupported
   }
 
   func sharePaths(
     _ paths: [String],
-    contentType: String?
+    mimeType: String?
   ) -> UInt32 {
     hostStatusNotSupported
   }
@@ -51,14 +51,14 @@ final class MacOSRecordingIntentRequestHandler: IntentRequests {
 
   func shareText(
     _ text: String,
-    contentType: String?
+    mimeType: String?
   ) -> UInt32 {
     hostStatusNotSupported
   }
 
   func sharePaths(
     _ paths: [String],
-    contentType: String?
+    mimeType: String?
   ) -> UInt32 {
     hostStatusNotSupported
   }
@@ -69,7 +69,7 @@ final class MacOSRecordingIntentRequestHandler: IntentRequests {
 final class MacOSRecordingIntentEventSink: IntentEvents {
   var events: [RuntimeHostIntentEvent] = []
 
-  func sendIntentEvent(_ event: RuntimeHostIntentEvent) {
+  func notifyIntentEvent(_ event: RuntimeHostIntentEvent) {
     events.append(event)
   }
 }

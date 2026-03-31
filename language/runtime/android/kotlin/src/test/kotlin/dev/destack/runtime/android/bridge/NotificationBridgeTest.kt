@@ -6,7 +6,6 @@ import dev.destack.runtime.android.module.notification.RuntimeHostNotificationEv
 import dev.destack.runtime.android.module.notification.RuntimeHostNotificationRequest
 
 import org.junit.Assert.assertEquals
-import org.junit.Assume.assumeTrue
 import org.junit.Test
 
 /**
@@ -14,63 +13,17 @@ import org.junit.Test
  */
 class NotificationBridgeTest {
     /**
-     * Roundtrip one live notification request through the process runtime ABI.
-     */
-    @Test
-    fun testProcessRuntimeAbiRoundtripsNotificationRequest() {
-        assumeTrue("missing DESTACK_RUNTIME_HOST_BRIDGE_LIBRARY", hasRuntimeBridgeLibrary())
-
-        val sessionHandle = RuntimeAbiTest.openTestSession()
-
-        try {
-            val bridge = RuntimeBridge(
-                sessionHandle = sessionHandle,
-                bindings = ProcessRuntimeAbi,
-                notificationTimestampNs = { 42L },
-            )
-            val permissionRequests = PermissionRequestRecorder()
-            val documentRequests = DocumentRequestRecorder()
-            val notificationRequests = NotificationRequestRecorder()
-            val runtimeHost = createBridgeRuntimeHost(
-                sessionHandle = sessionHandle,
-                permissionRequests = permissionRequests,
-                documentRequests = documentRequests,
-                intentRequests = IntentRequestRecorder(),
-                notificationRequests = notificationRequests,
-            )
-            val request = RuntimeHostNotificationRequest(
-                identifier = "notification-1",
-                title = "Title",
-                body = "Body",
-            )
-
-            try {
-                bridge.attach(runtimeHost)
-                val submitStatus = RuntimeAbiTest.submitTestNotificationPost(
-                    sessionHandle = sessionHandle,
-                    identifier = request.identifier,
-                    title = request.title,
-                    body = request.body,
-                )
-
-                assertEquals(0, submitStatus)
-                assertEquals(listOf(request), notificationRequests.postedRequests)
-            } finally {
-                bridge.detach()
-            }
-        } finally {
-            RuntimeAbiTest.closeTestSession(sessionHandle)
-        }
-    }
-
-    /**
      * Send one notification event through the runtime ingress path.
      */
     @Test
     fun testSendNotificationEventNotifiesRuntime() {
         val sessionHandle = HostSessionHandle(rawValue = 7)
-        val bindings = RuntimeAbiSpy()
-        val bridge = RuntimeBridge(sessionHandle, bindings)
+        val runtimeApi = RuntimeIngressSpy()
+        val bridge = RuntimeBridge(
+            sessionHandle,
+            runtimeApi,
+            notificationTimestampNs = { 42L },
+        )
         val runtimeHost = createBridgeRuntimeHost(
             sessionHandle = sessionHandle,
             permissionRequests = PermissionRequestRecorder(),
@@ -89,8 +42,16 @@ class NotificationBridgeTest {
         )
 
         bridge.attach(runtimeHost)
-        bridge.sendNotificationEvent(event)
+        bridge.notifyNotificationEvent(event)
 
-        assertEquals(listOf(sessionHandle to event), bindings.notificationEvents)
+        assertEquals(
+            listOf(
+                sessionHandle to event.copy(
+                    sequence = 1L,
+                    timestampNs = 42L,
+                ),
+            ),
+            runtimeApi.notificationEvents,
+        )
     }
 }

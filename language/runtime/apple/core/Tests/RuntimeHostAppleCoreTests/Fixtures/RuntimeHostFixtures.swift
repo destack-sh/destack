@@ -23,20 +23,30 @@ func createRuntimeHost(
   RuntimeHost(
     sessionHandle: HostSessionHandle(rawValue: 7),
     embedderID: HostEmbedderID(rawValue: 11),
-    lifecycleEvents: lifecycleEvents,
-    permissionRequests: permissionRequests,
-    permissionEvents: permissionEvents,
-    documentRequests: documentRequests,
-    documentEvents: documentEvents,
-    contactRequests: contactRequests,
-    calendarRequests: calendarRequests,
-    intentRequests: intentRequests,
-    intentEvents: intentEvents,
-    locationRequests: locationRequests,
-    locationEvents: locationEvents,
-    mediaRequests: mediaRequests,
-    notificationRequests: notificationRequests,
-    notificationEvents: notificationEvents,
+    lifecycle: LifecycleHost(events: lifecycleEvents),
+    permission: PermissionHost(
+      requests: permissionRequests,
+      events: permissionEvents
+    ),
+    document: DocumentHost(
+      requests: documentRequests,
+      events: documentEvents
+    ),
+    contact: ContactHost(requests: contactRequests),
+    calendar: CalendarHost(requests: calendarRequests),
+    intent: IntentHost(
+      requests: intentRequests,
+      events: intentEvents
+    ),
+    location: LocationHost(
+      requests: locationRequests,
+      events: locationEvents
+    ),
+    media: MediaHost(requests: mediaRequests),
+    notification: NotificationHost(
+      requests: notificationRequests,
+      events: notificationEvents
+    ),
     rendererSurface: RendererSurface(
       kind: surfaceKind,
       identifier: rendererSurfaceIdentifier

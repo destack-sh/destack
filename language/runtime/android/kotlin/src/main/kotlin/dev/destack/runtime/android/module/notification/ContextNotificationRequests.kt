@@ -19,7 +19,7 @@ private const val defaultNotificationChannelName: String = "Destack"
 public class ContextNotificationRequests(
     private val context: Context,
 ) : NotificationRequests {
-    override fun postNotification(
+    override fun post(
         request: RuntimeHostNotificationRequest,
     ): Int {
         // validate the notification identifier before posting
@@ -62,7 +62,7 @@ public class ContextNotificationRequests(
         }
     }
 
-    override fun cancelNotification(
+    override fun cancel(
         identifier: String,
     ): Int {
         // validate the notification identifier before canceling
@@ -82,7 +82,7 @@ public class ContextNotificationRequests(
         }
     }
 
-    override fun cancelAllNotifications(): Int {
+    override fun cancelAll(): Int {
         val manager = context.getSystemService(NotificationManager::class.java)
             ?: return hostStatusNotSupported
 

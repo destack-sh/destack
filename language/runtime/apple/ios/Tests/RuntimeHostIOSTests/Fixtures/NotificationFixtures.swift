@@ -3,19 +3,19 @@ import RuntimeHostAppleCore
 /// One no-op notification request handler for iOS tests.
 @MainActor
 final class IOSNoopNotificationRequestHandler: NotificationRequests {
-  func postNotification(
+  func post(
     _ request: RuntimeHostNotificationRequest
   ) -> UInt32 {
     hostStatusNotSupported
   }
 
-  func cancelNotification(
-    identifier: String
+  func cancel(
+    _ identifier: String
   ) -> UInt32 {
     hostStatusNotSupported
   }
 
-  func cancelAllNotifications() -> UInt32 {
+  func cancelAll() -> UInt32 {
     hostStatusNotSupported
   }
 }
@@ -28,7 +28,7 @@ final class IOSRecordingNotificationRequestHandler: NotificationRequests {
   var cancelAllCalls: Int = 0
   var status: UInt32 = hostStatusOk
 
-  func postNotification(
+  func post(
     _ request: RuntimeHostNotificationRequest
   ) -> UInt32 {
     postedRequests.append(request)
@@ -36,15 +36,15 @@ final class IOSRecordingNotificationRequestHandler: NotificationRequests {
     return status
   }
 
-  func cancelNotification(
-    identifier: String
+  func cancel(
+    _ identifier: String
   ) -> UInt32 {
     cancelledIdentifiers.append(identifier)
 
     return status
   }
 
-  func cancelAllNotifications() -> UInt32 {
+  func cancelAll() -> UInt32 {
     cancelAllCalls += 1
 
     return status
@@ -56,7 +56,7 @@ final class IOSRecordingNotificationRequestHandler: NotificationRequests {
 final class IOSRecordingNotificationEventSink: NotificationEvents {
   var events: [RuntimeHostNotificationEvent] = []
 
-  func sendNotificationEvent(_ event: RuntimeHostNotificationEvent) {
+  func notifyNotificationEvent(_ event: RuntimeHostNotificationEvent) {
     events.append(event)
   }
 }

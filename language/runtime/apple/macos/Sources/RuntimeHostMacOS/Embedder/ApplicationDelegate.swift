@@ -44,7 +44,7 @@ public final class ApplicationDelegate: NSObject {
     _ sourceKind: RuntimeHostLifecycleSourceKind,
     _ state: RuntimeHostLifecycleState
   ) {
-    runtimeHost.lifecycleEvents.sendLifecycleEvent(
+    runtimeHost.lifecycle.sendLifecycleEvent(
       RuntimeHostLifecycleEvent(
         sourceKind: sourceKind,
         state: state

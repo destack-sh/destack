@@ -41,11 +41,14 @@ func testApplicationEmbedderSmokePath() {
 
   applicationEmbedder.applicationDelegate.applicationDidFinishLaunching()
   applicationEmbedder.applicationDelegate.applicationDidBecomeActive()
-  runtimeHost.permissionRequests.submitPermissionRequest(permissionRequest)
-  runtimeHost.permissionEvents.sendPermissionEvent(permissionEvent)
-  runtimeHost.documentRequests.submitDocumentRequest(documentRequest)
-  runtimeHost.documentEvents.sendDocumentResult(documentResult)
-  _ = runtimeHost.contactRequests.listContacts(
+  _ = runtimeHost.permission.request(permissionRequest)
+  runtimeHost.permission.notifyPermissionResult(permissionEvent)
+  _ = runtimeHost.document.pick(documentRequest)
+  runtimeHost.document.notifyDocumentResult(
+    documentResult.requestID,
+    documents: documentResult.documents
+  )
+  _ = runtimeHost.contact.list(
     RuntimeHostContactQuery(includeEmails: true)
   )
 

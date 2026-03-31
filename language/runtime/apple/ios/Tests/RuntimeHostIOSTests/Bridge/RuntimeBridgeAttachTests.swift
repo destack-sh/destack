@@ -9,11 +9,11 @@ func
   testRuntimeBridgeRegistersDocumentPermissionBackgroundCalendarContactIntentLocationMediaAndNotificationLanes()
   throws
 {
-  let bindings = RuntimeAbiSpy()
+  let bindings = RuntimeIngressSpy()
   let sessionHandle = makeTestSessionHandle()
   let bridge = RuntimeBridge(
     sessionHandle: sessionHandle,
-    bindings: bindings,
+    runtimeApi: bindings,
     notificationTimestampNs: { 42 }
   )
   let runtimeHost = createBridgeRuntimeHost(
@@ -74,11 +74,11 @@ func
   testRuntimeBridgeDetachUnregistersDocumentPermissionBackgroundCalendarContactIntentLocationMediaAndNotificationLanesForReattach()
   throws
 {
-  let bindings = RuntimeAbiSpy()
+  let bindings = RuntimeIngressSpy()
   let sessionHandle = makeTestSessionHandle()
   let bridge = RuntimeBridge(
     sessionHandle: sessionHandle,
-    bindings: bindings
+    runtimeApi: bindings
   )
   let runtimeHost = createBridgeRuntimeHost(
     sessionHandle: sessionHandle,
@@ -101,12 +101,12 @@ func
 @MainActor
 @Test
 func testRuntimeBridgeRejectsMismatchedRuntimeHostSessionHandle() {
-  let bindings = RuntimeAbiSpy()
+  let bindings = RuntimeIngressSpy()
   let bridgeSessionHandle = makeTestSessionHandle()
   let hostSessionHandle = makeTestSessionHandle()
   let bridge = RuntimeBridge(
     sessionHandle: bridgeSessionHandle,
-    bindings: bindings
+    runtimeApi: bindings
   )
   let runtimeHost = createBridgeRuntimeHost(
     sessionHandle: hostSessionHandle,
@@ -133,12 +133,12 @@ func testRuntimeBridgeRejectsMismatchedRuntimeHostSessionHandle() {
 @MainActor
 @Test
 func testRuntimeBridgeClearsRuntimeHostAfterFailedRegistration() throws {
-  let bindings = RuntimeAbiSpy()
+  let bindings = RuntimeIngressSpy()
   bindings.attachStatus = 6
   let sessionHandle = makeTestSessionHandle()
   let bridge = RuntimeBridge(
     sessionHandle: sessionHandle,
-    bindings: bindings
+    runtimeApi: bindings
   )
   let runtimeHost = createBridgeRuntimeHost(
     sessionHandle: sessionHandle,
@@ -155,7 +155,7 @@ func testRuntimeBridgeClearsRuntimeHostAfterFailedRegistration() throws {
     try bridge.attach(runtimeHost: runtimeHost)
     #expect(Bool(false))
   } catch let error as BridgeError {
-    #expect(error.message == "runtime bridge could not attach runtime abi bindings: 6")
+    #expect(error.message == "runtime bridge could not attach runtime session api: 6")
   } catch {
     #expect(Bool(false))
   }

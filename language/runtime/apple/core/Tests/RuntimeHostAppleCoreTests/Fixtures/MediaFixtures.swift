@@ -12,7 +12,7 @@ final class RecordingMediaRequestHandler: MediaRequests {
   var importResponse = RuntimeHostMediaImportPathResponse(status: hostStatusNotSupported)
   var deleteResponse = RuntimeHostMediaDeleteResponse(status: hostStatusNotSupported)
 
-  func listMedia(
+  func list(
     _ request: RuntimeHostMediaListRequest
   ) -> RuntimeHostMediaListResponse {
     listRequests.append(request)
@@ -20,15 +20,15 @@ final class RecordingMediaRequestHandler: MediaRequests {
     return listResponse
   }
 
-  func readMedia(
-    identifier: String
+  func read(
+    _ identifier: String
   ) -> RuntimeHostMediaReadResponse {
     readIdentifiers.append(identifier)
 
     return readResponse
   }
 
-  func importMediaPath(
+  func importPath(
     _ request: RuntimeHostMediaImportPathRequest
   ) -> RuntimeHostMediaImportPathResponse {
     importRequests.append(request)
@@ -36,7 +36,7 @@ final class RecordingMediaRequestHandler: MediaRequests {
     return importResponse
   }
 
-  func deleteMedia(
+  func delete(
     _ request: RuntimeHostMediaDeleteRequest
   ) -> RuntimeHostMediaDeleteResponse {
     deleteRequests.append(request)

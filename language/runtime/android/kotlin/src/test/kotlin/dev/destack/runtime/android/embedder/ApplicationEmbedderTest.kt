@@ -4,8 +4,9 @@ import androidx.lifecycle.Lifecycle
 
 import dev.destack.runtime.android.embedder.ActivityEmbedder
 import dev.destack.runtime.android.embedder.ApplicationEmbedder
-import dev.destack.runtime.android.module.background.UnsupportedBackgroundRequests
+import dev.destack.runtime.android.core.hostStatusNotSupported
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
 import org.junit.Test
 
@@ -25,8 +26,8 @@ class ApplicationEmbedderTest {
         )
 
         // bind the application-owned surface into the runtime host
-        assertSame(embedder.backgroundRequests, runtimeHost.backgroundRequests)
-        assertSame(UnsupportedBackgroundRequests, runtimeHost.backgroundRequests)
+        assertSame(runtimeHost, embedder.runtimeHost)
+        assertEquals(hostStatusNotSupported, runtimeHost.background.status().status)
 
         embedder.detach()
     }
@@ -56,7 +57,10 @@ class ApplicationEmbedderTest {
         activityEmbedder.detach()
 
         // keep the application-owned surface after activity teardown
-        assertSame(applicationEmbedder.backgroundRequests, runtimeHost.backgroundRequests)
+        assertEquals(
+            applicationEmbedder.background.status().status,
+            runtimeHost.background.status().status,
+        )
 
         applicationEmbedder.detach()
     }

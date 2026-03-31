@@ -9,6 +9,10 @@ android {
 
     defaultConfig {
         minSdk = 24
+
+        ndk {
+            abiFilters += "arm64-v8a"
+        }
     }
 
     externalNativeBuild {

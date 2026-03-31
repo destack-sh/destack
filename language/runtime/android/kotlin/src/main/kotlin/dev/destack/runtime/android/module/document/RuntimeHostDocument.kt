@@ -37,15 +37,47 @@ public data class RuntimeHostDocumentRequest(
     val requestId: HostRequestId,
 
     /**
+     * The accepted content types for the picker.
+     */
+    val contentTypes: List<String> = emptyList(),
+
+    /**
+     * The accepted MIME types for the picker.
+     */
+    val mimeTypes: List<String> = contentTypes,
+
+    /**
+     * The accepted file extensions for the picker.
+     */
+    val extensions: List<String> = emptyList(),
+
+    /**
      * Whether multiple documents may be selected.
      */
     val allowsMultipleSelection: Boolean = false,
 
     /**
-     * The accepted content types for the picker.
+     * Whether directory selection is allowed.
      */
-    val contentTypes: List<String> = emptyList(),
-)
+    val allowsDirectorySelection: Boolean = false,
+
+    /**
+     * Whether selected files should be copied into one runtime sandbox when possible.
+     */
+    val copiesToSandbox: Boolean = false,
+) {
+    /**
+     * The normalized content filters for the picker.
+     */
+    public val normalizedContentTypes: List<String>
+        get() {
+            if (mimeTypes.isNotEmpty()) {
+                return mimeTypes
+            }
+
+            return contentTypes
+        }
+}
 
 /**
  * One Android document result returned to one runtime session.

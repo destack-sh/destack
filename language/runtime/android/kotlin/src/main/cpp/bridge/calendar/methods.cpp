@@ -344,7 +344,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
     if (list_calendars_method == nullptr) {
         list_calendars_method = env->GetMethodID(
             bridge_class,
-            "listCalendars",
+            "calendarList",
             "()Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarListResponse;"
         );
     }
@@ -352,7 +352,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
     if (list_calendar_events_method == nullptr) {
         list_calendar_events_method = env->GetMethodID(
             bridge_class,
-            "listCalendarEvents",
+            "calendarEventList",
             "(Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarEventQuery;)Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarEventListResponse;"
         );
     }
@@ -360,15 +360,15 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
     if (read_calendar_event_method == nullptr) {
         read_calendar_event_method = env->GetMethodID(
             bridge_class,
-            "readCalendarEvent",
-            "(Ljava/lang/String;)Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarEventResponse;"
+            "calendarEventRead",
+            "(Ljava/lang/String;)Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarEventReadResponse;"
         );
     }
 
     if (create_calendar_event_method == nullptr) {
         create_calendar_event_method = env->GetMethodID(
             bridge_class,
-            "createCalendarEvent",
+            "calendarEventCreate",
             "(Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarEventDraft;)Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarEventCreateResponse;"
         );
     }
@@ -376,7 +376,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
     if (update_calendar_event_method == nullptr) {
         update_calendar_event_method = env->GetMethodID(
             bridge_class,
-            "updateCalendarEvent",
+            "calendarEventUpdate",
             "(Ljava/lang/String;Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarEventDraft;)I"
         );
     }
@@ -384,7 +384,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
     if (delete_calendar_event_method == nullptr) {
         delete_calendar_event_method = env->GetMethodID(
             bridge_class,
-            "deleteCalendarEvent",
+            "calendarEventDelete",
             "(Ljava/lang/String;)I"
         );
     }
@@ -432,7 +432,7 @@ bool resolve_calendar_types(JNIEnv *env) {
 
     if (calendar_event_response_class == nullptr) {
         jclass local_class = env->FindClass(
-            "dev/destack/runtime/android/module/calendar/RuntimeHostCalendarEventResponse"
+            "dev/destack/runtime/android/module/calendar/RuntimeHostCalendarEventReadResponse"
         );
         if (local_class == nullptr) {
             return false;

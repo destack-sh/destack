@@ -9,6 +9,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import dev.destack.runtime.android.embedder.ActivityResults
 import dev.destack.runtime.android.embedder.ActivityResultLauncherKey
 import dev.destack.runtime.android.core.RuntimeHost
+import dev.destack.runtime.android.core.hostStatusOk
 
 /**
  * The document activity-result bridge for one Android runtime host.
@@ -34,9 +35,9 @@ internal class DocumentActivityResults(
     /**
      * Submit one document request through the Android activity-result registry.
      */
-    override fun submitDocumentRequest(
+    override fun pick(
         request: RuntimeHostDocumentRequest,
-    ) {
+    ): Int {
         runtimeHost.beginDocumentRequest(request.requestId)
         val requestedContentTypes = request.contentTypes.toTypedArray()
         val contentTypes = if (requestedContentTypes.isEmpty()) arrayOf("*/*") else requestedContentTypes
@@ -48,6 +49,8 @@ internal class DocumentActivityResults(
         else {
             singleDocumentLauncher.launch(contentTypes)
         }
+
+        return hostStatusOk
     }
 
     /**
@@ -94,7 +97,10 @@ internal class DocumentActivityResults(
     private fun completeDocumentPick(
         result: RuntimeHostDocumentResult,
     ) {
-        runtimeHost.documentEvents.sendDocumentResult(result)
+        runtimeHost.document.notifyDocumentResult(
+            result.requestId,
+            result.documents,
+        )
     }
 
     /**

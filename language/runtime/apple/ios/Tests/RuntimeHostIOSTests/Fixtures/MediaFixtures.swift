@@ -3,25 +3,25 @@ import RuntimeHostAppleCore
 /// One no-op media request handler for iOS tests.
 @MainActor
 final class IOSNoopMediaRequestHandler: MediaRequests {
-  func listMedia(
+  func list(
     _ request: RuntimeHostMediaListRequest
   ) -> RuntimeHostMediaListResponse {
     RuntimeHostMediaListResponse(status: hostStatusNotSupported)
   }
 
-  func readMedia(
-    identifier: String
+  func read(
+    _ identifier: String
   ) -> RuntimeHostMediaReadResponse {
     RuntimeHostMediaReadResponse(status: hostStatusNotSupported)
   }
 
-  func importMediaPath(
+  func importPath(
     _ request: RuntimeHostMediaImportPathRequest
   ) -> RuntimeHostMediaImportPathResponse {
     RuntimeHostMediaImportPathResponse(status: hostStatusNotSupported)
   }
 
-  func deleteMedia(
+  func delete(
     _ request: RuntimeHostMediaDeleteRequest
   ) -> RuntimeHostMediaDeleteResponse {
     RuntimeHostMediaDeleteResponse(status: hostStatusNotSupported)
@@ -40,7 +40,7 @@ final class IOSRecordingMediaRequestHandler: MediaRequests {
   var importResponse = RuntimeHostMediaImportPathResponse(status: hostStatusNotSupported)
   var deleteResponse = RuntimeHostMediaDeleteResponse(status: hostStatusNotSupported)
 
-  func listMedia(
+  func list(
     _ request: RuntimeHostMediaListRequest
   ) -> RuntimeHostMediaListResponse {
     listRequests.append(request)
@@ -48,15 +48,15 @@ final class IOSRecordingMediaRequestHandler: MediaRequests {
     return listResponse
   }
 
-  func readMedia(
-    identifier: String
+  func read(
+    _ identifier: String
   ) -> RuntimeHostMediaReadResponse {
     readIdentifiers.append(identifier)
 
     return readResponse
   }
 
-  func importMediaPath(
+  func importPath(
     _ request: RuntimeHostMediaImportPathRequest
   ) -> RuntimeHostMediaImportPathResponse {
     importRequests.append(request)
@@ -64,7 +64,7 @@ final class IOSRecordingMediaRequestHandler: MediaRequests {
     return importResponse
   }
 
-  func deleteMedia(
+  func delete(
     _ request: RuntimeHostMediaDeleteRequest
   ) -> RuntimeHostMediaDeleteResponse {
     deleteRequests.append(request)

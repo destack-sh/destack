@@ -10,16 +10,16 @@ final class RecordingLocationRequestHandler: LocationRequests {
   var watchOpenStatus: UInt32 = 0
   var watchCloseStatus: UInt32 = 0
 
-  func locationServicesEnabled() -> RuntimeHostLocationServicesResponse {
+  func servicesEnabled() -> RuntimeHostLocationServicesResponse {
     servicesEnabledResponse
   }
 
-  func locationLastKnown() -> RuntimeHostLocationLastKnownResponse {
+  func lastKnown() -> RuntimeHostLocationLastKnownResponse {
     lastKnownResponse
   }
 
-  func locationWatchOpen(
-    watchID: String,
+  func watchOpen(
+    _ watchID: String,
     options: RuntimeHostLocationWatchOptions
   ) -> UInt32 {
     watchOpenCalls.append((watchID, options))
@@ -27,8 +27,8 @@ final class RecordingLocationRequestHandler: LocationRequests {
     return watchOpenStatus
   }
 
-  func locationWatchClose(
-    watchID: String
+  func watchClose(
+    _ watchID: String
   ) -> UInt32 {
     watchCloseCalls.append(watchID)
 
@@ -40,8 +40,8 @@ final class RecordingLocationRequestHandler: LocationRequests {
 final class RecordingLocationEventSink: LocationEvents {
   var samples: [(String, RuntimeHostLocationSample)] = []
 
-  func sendLocationSample(
-    watchID: String,
+  func notifyLocationSample(
+    _ watchID: String,
     sample: RuntimeHostLocationSample
   ) {
     samples.append((watchID, sample))

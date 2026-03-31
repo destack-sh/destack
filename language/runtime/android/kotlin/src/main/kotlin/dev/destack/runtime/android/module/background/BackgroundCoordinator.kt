@@ -83,7 +83,7 @@ internal class BackgroundCoordinator(
 
         // flush queued events outside the lock
         for (event in queuedEvents) {
-            events.sendBackgroundEvent(event)
+            events.notifyBackgroundEvent(event)
         }
     }
 
@@ -100,7 +100,7 @@ internal class BackgroundCoordinator(
     /**
      * Return the scheduler status for this process.
      */
-    fun backgroundStatus(): RuntimeHostBackgroundStatusResponse {
+    fun status(): RuntimeHostBackgroundStatusResponse {
         // expose unsupported status when no scheduler backend exists
         val schedulerStatus = scheduler.schedulerStatus()
             ?: return RuntimeHostBackgroundStatusResponse(status = hostStatusNotSupported)
@@ -114,13 +114,13 @@ internal class BackgroundCoordinator(
     /**
      * Return every registered background task descriptor.
      */
-    fun listBackgroundTasks(): RuntimeHostBackgroundTaskListResponse {
+    fun list(): RuntimeHostBackgroundListResponse {
         // snapshot the descriptors under the coordinator lock
         val descriptors = synchronized(lock) {
             registrations.listDescriptors()
         }
 
-        return RuntimeHostBackgroundTaskListResponse(
+        return RuntimeHostBackgroundListResponse(
             status = hostStatusOk,
             descriptors = descriptors,
         )
@@ -129,11 +129,11 @@ internal class BackgroundCoordinator(
     /**
      * Register one background task and schedule its next execution.
      */
-    fun registerBackgroundTask(
-        options: RuntimeHostBackgroundTaskOptions,
+    fun registerTask(
+        request: RuntimeHostBackgroundTaskOptions,
     ): Int {
         // reject invalid registrations before mutating host state
-        val validationStatus = validateOptions(options)
+        val validationStatus = validateOptions(request)
         if (validationStatus != hostStatusOk) {
             return validationStatus
         }
@@ -142,8 +142,8 @@ internal class BackgroundCoordinator(
         val nowUnixNs = wallClockNowNs()
         val storedRegistration = synchronized(lock) {
             registrations.putRegistration(
-                options = options,
-                nextRegularRunUnixNs = initialRegularRunUnixNs(options.schedule, nowUnixNs),
+                options = request,
+                nextRegularRunUnixNs = initialRegularRunUnixNs(request.schedule, nowUnixNs),
             )
         }
 
@@ -158,9 +158,11 @@ internal class BackgroundCoordinator(
     /**
      * Unregister one background task and remove any active scheduler state.
      */
-    fun unregisterBackgroundTask(
-        identifier: String,
+    fun unregister(
+        request: RuntimeHostBackgroundUnregisterRequest,
     ): Int {
+        val identifier = request.identifier
+
         // reject blank task identifiers
         if (identifier.isBlank()) {
             return hostStatusInvalidArgument
@@ -192,18 +194,20 @@ internal class BackgroundCoordinator(
     /**
      * Trigger one synthetic background execution for testing.
      */
-    fun triggerBackgroundTask(
-        identifier: String,
-    ): RuntimeHostBackgroundTriggerResponse {
+    fun triggerTest(
+        request: RuntimeHostBackgroundTriggerTestRequest,
+    ): RuntimeHostBackgroundTriggerTestResponse {
+        val identifier = request.identifier
+
         // reject blank task identifiers
         if (identifier.isBlank()) {
-            return RuntimeHostBackgroundTriggerResponse(status = hostStatusInvalidArgument)
+            return RuntimeHostBackgroundTriggerTestResponse(status = hostStatusInvalidArgument)
         }
 
         // create one synthetic execution for the registered task
         val execution = synchronized(lock) {
             val record = registrations.resolveRecord(identifier)
-                ?: return RuntimeHostBackgroundTriggerResponse(status = hostStatusNotFound)
+                ?: return RuntimeHostBackgroundTriggerTestResponse(status = hostStatusNotFound)
 
             executions.create(
                 identifier = record.descriptor.identifier,
@@ -214,7 +218,7 @@ internal class BackgroundCoordinator(
         // publish the ready event immediately
         publishReadyEvent(execution)
 
-        return RuntimeHostBackgroundTriggerResponse(
+        return RuntimeHostBackgroundTriggerTestResponse(
             status = hostStatusOk,
             isTriggered = true,
         )
@@ -223,10 +227,12 @@ internal class BackgroundCoordinator(
     /**
      * Complete one active background execution and schedule the next run.
      */
-    fun completeBackgroundTask(
-        executionId: String,
-        result: RuntimeHostBackgroundTaskResult,
+    fun complete(
+        request: RuntimeHostBackgroundCompleteRequest,
     ): Int {
+        val executionId = request.executionId
+        val result = request.result
+
         // remove the active execution first
         val execution = synchronized(lock) {
             executions.removeExecution(executionId)
@@ -441,7 +447,7 @@ internal class BackgroundCoordinator(
         }
 
         // deliver immediately when one sink is attached
-        events?.sendBackgroundEvent(event)
+        events?.notifyBackgroundEvent(event)
     }
 
     /**

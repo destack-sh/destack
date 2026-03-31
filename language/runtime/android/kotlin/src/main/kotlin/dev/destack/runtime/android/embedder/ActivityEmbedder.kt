@@ -10,14 +10,14 @@ import androidx.savedstate.SavedStateRegistryOwner
 import dev.destack.runtime.android.core.HostEmbedderId
 import dev.destack.runtime.android.core.HostRequestId
 import dev.destack.runtime.android.core.RuntimeHost
-import dev.destack.runtime.android.input.text.ActivityTextInputRequests
-import dev.destack.runtime.android.input.text.TextInputRequests
 import dev.destack.runtime.android.module.document.DocumentActivityResults
 import dev.destack.runtime.android.module.document.DocumentRequests
 import dev.destack.runtime.android.module.location.ActivityLocationRequests
 import dev.destack.runtime.android.module.location.LocationRequests
 import dev.destack.runtime.android.module.permission.PermissionActivityResults
 import dev.destack.runtime.android.module.permission.PermissionRequests
+import dev.destack.runtime.android.module.text.ActivityTextRequests
+import dev.destack.runtime.android.module.text.TextRequests
 
 private const val documentRequestIdKey: String = "documentRequestId"
 private const val permissionRequestIdKey: String = "permissionRequestId"
@@ -48,24 +48,24 @@ public class ActivityEmbedder private constructor(
     private val activityResults: ActivityResults,
 
     /**
-     * The permission request surface attached to this activity.
+     * The permission surface attached to this activity.
      */
-    public val permissionRequests: PermissionRequests,
+    public val permission: PermissionRequests,
 
     /**
-     * The document request surface attached to this activity.
+     * The document surface attached to this activity.
      */
-    public val documentRequests: DocumentRequests,
+    public val document: DocumentRequests,
 
     /**
-     * The location request surface attached to this activity.
+     * The location surface attached to this activity.
      */
-    public val locationRequests: LocationRequests,
+    public val location: LocationRequests,
 
     /**
-     * The text-input request surface attached to this activity.
+     * The text surface attached to this activity.
      */
-    public val textInputRequests: TextInputRequests,
+    public val text: TextRequests,
 
     /**
      * The optional state store that owns interactive-flow persistence.
@@ -83,7 +83,7 @@ public class ActivityEmbedder private constructor(
         activityResults.unregisterAll()
 
         // detach the hidden text editor
-        (textInputRequests as? ActivityTextInputRequests)?.detach()
+        (text as? ActivityTextRequests)?.detach()
 
         // remove lifecycle ingress
         lifecycleOwner.lifecycle.removeObserver(lifecycleObserver)
@@ -150,28 +150,28 @@ public class ActivityEmbedder private constructor(
                 registry = activityResultRegistry,
                 lifecycleOwner = lifecycleOwner,
             )
-            val permissionRequests = PermissionActivityResults(
+            val permission = PermissionActivityResults(
                 runtimeHost = runtimeHost,
                 activity = lifecycleOwner as? ComponentActivity,
                 activityResults = activityResults,
-                permissionEvents = runtimeHost.permissionEvents,
+                permissionEvents = runtimeHost.permission,
             )
-            val documentRequests = DocumentActivityResults(
+            val document = DocumentActivityResults(
                 runtimeHost = runtimeHost,
                 activityResults = activityResults,
             )
-            val locationRequests = ActivityLocationRequests(
+            val location = ActivityLocationRequests(
                 activity = lifecycleOwner as? ComponentActivity,
-                events = runtimeHost.locationEvents,
+                events = runtimeHost.location,
             )
-            val textInputRequests = ActivityTextInputRequests(
+            val text = ActivityTextRequests(
                 activity = lifecycleOwner as? ComponentActivity,
-                events = runtimeHost.textInputEvents,
+                events = runtimeHost.text,
             )
             val lifecycleObserver = ActivityObserver(runtimeHost)
 
             // bind the activity-backed text surface into the runtime host
-            runtimeHost.textInputRequests = textInputRequests
+            runtimeHost.updateTextRequests(text)
 
             // persist in-flight interactive flows for recreation
             savedInteractiveState?.attach(runtimeHost)
@@ -184,10 +184,10 @@ public class ActivityEmbedder private constructor(
                 runtimeHost = runtimeHost,
                 lifecycleObserver = lifecycleObserver,
                 activityResults = activityResults,
-                permissionRequests = permissionRequests,
-                documentRequests = documentRequests,
-                locationRequests = locationRequests,
-                textInputRequests = textInputRequests,
+                permission = permission,
+                document = document,
+                location = location,
+                text = text,
                 savedInteractiveState = savedInteractiveState,
             )
         }

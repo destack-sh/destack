@@ -25,8 +25,8 @@ class MediaBridgeTest {
     @Test
     fun testMediaRequestsRouteIntoRuntimeHost() {
         val sessionHandle = HostSessionHandle(rawValue = 7)
-        val bindings = RuntimeAbiSpy()
-        val bridge = RuntimeBridge(sessionHandle, bindings)
+        val runtimeApi = RuntimeIngressSpy()
+        val bridge = RuntimeBridge(sessionHandle, runtimeApi)
         val mediaRequests = MediaRequestRecorder().also {
             it.listResponse = RuntimeHostMediaListResponse(
                 status = 0,
@@ -73,16 +73,19 @@ class MediaBridgeTest {
 
         bridge.attach(runtimeHost)
 
-        val listResponse = bridge.listMedia(
+        val listResponse = bridge.mediaList(
             cursor = "1",
             hasLimit = true,
             limit = 10,
-            kinds = intArrayOf(1, 2),
+            kinds = arrayOf(
+                RuntimeHostMediaAssetKind.Image,
+                RuntimeHostMediaAssetKind.Video,
+            ),
             includeHidden = true,
         )
-        val readResponse = bridge.readMedia("asset-1")
-        val importResponse = bridge.importMediaPath("/tmp/example.png", 1)
-        val deleteResponse = bridge.deleteMedia(arrayOf("asset-1", "asset-2"))
+        val readResponse = bridge.mediaRead("asset-1")
+        val importResponse = bridge.mediaImportPath("/tmp/example.png", 1)
+        val deleteResponse = bridge.mediaDelete(arrayOf("asset-1", "asset-2"))
 
         assertEquals(
             listOf(
@@ -128,8 +131,8 @@ class MediaBridgeTest {
     @Test
     fun testMediaBridgeRejectsInvalidKinds() {
         val sessionHandle = HostSessionHandle(rawValue = 7)
-        val bindings = RuntimeAbiSpy()
-        val bridge = RuntimeBridge(sessionHandle, bindings)
+        val runtimeApi = RuntimeIngressSpy()
+        val bridge = RuntimeBridge(sessionHandle, runtimeApi)
         val mediaRequests = MediaRequestRecorder()
         val runtimeHost = createBridgeRuntimeHost(
             sessionHandle = sessionHandle,
@@ -141,18 +144,28 @@ class MediaBridgeTest {
 
         bridge.attach(runtimeHost)
 
-        val listResponse = bridge.listMedia(
+        val listResponse = bridge.mediaList(
             cursor = null,
             hasLimit = false,
             limit = 0,
-            kinds = intArrayOf(9),
+            kinds = arrayOf(),
             includeHidden = false,
         )
-        val importResponse = bridge.importMediaPath("/tmp/example.png", 9)
+        val importResponse = bridge.mediaImportPath("/tmp/example.png", 9)
 
-        assertEquals(2, listResponse.status)
+        assertEquals(0, listResponse.status)
         assertEquals(2, importResponse.status)
-        assertEquals(emptyList<RuntimeHostMediaListRequest>(), mediaRequests.listRequests)
+        assertEquals(
+            listOf(
+                RuntimeHostMediaListRequest(
+                    cursor = null,
+                    limit = null,
+                    kinds = emptyList(),
+                    includeHidden = false,
+                ),
+            ),
+            mediaRequests.listRequests,
+        )
         assertEquals(
             emptyList<RuntimeHostMediaImportPathRequest>(),
             mediaRequests.importRequests,

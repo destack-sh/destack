@@ -35,20 +35,22 @@ internal class PermissionActivityResults(
     /**
      * Submit one permission request through the Android activity-result registry.
      */
-    override fun submitPermissionRequest(
+    override fun request(
         request: RuntimeHostPermissionRequest,
-    ) {
+    ): Int {
         runtimeHost.beginPermissionRequest(
             requestId = request.requestId,
             permission = request.permission,
         )
         permissionLauncher.launch(request.permission)
+
+        return hostStatusOk
     }
 
     /**
      * Open the Android application settings surface for this runtime host.
      */
-    override fun openPermissionSettings(): Int {
+    override fun openSettings(): Int {
         val activity = activity
             ?: return hostStatusNotSupported
 
@@ -73,7 +75,7 @@ internal class PermissionActivityResults(
     ) {
         val (requestId, permission) = runtimeHost.finishPermissionRequest()
 
-        permissionEvents.sendPermissionEvent(
+        permissionEvents.notifyPermissionResult(
             RuntimeHostPermissionEvent(
                 requestId = requestId,
                 permission = permission,

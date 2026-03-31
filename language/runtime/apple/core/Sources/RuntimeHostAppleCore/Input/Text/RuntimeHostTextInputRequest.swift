@@ -15,6 +15,17 @@ public struct RuntimeHostTextInputRange: Sendable, Hashable, Codable {
     self.startOffset = startOffset
     self.endOffset = endOffset
   }
+
+  /// Create one text-selection range from one bridge payload.
+  public init(
+    startOffset: UInt32,
+    endOffset: UInt32
+  ) {
+    self.init(
+      startOffset: Int(startOffset),
+      endOffset: Int(endOffset)
+    )
+  }
 }
 
 /// One host text-input rectangle in local logical units.

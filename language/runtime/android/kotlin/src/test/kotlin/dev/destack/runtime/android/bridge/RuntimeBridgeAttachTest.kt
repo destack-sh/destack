@@ -14,9 +14,9 @@ class RuntimeBridgeAttachTest {
      */
     @Test
     fun testAttachRegistersBridge() {
-        val bindings = RuntimeAbiSpy()
+        val runtimeApi = RuntimeIngressSpy()
         val sessionHandle = HostSessionHandle(rawValue = 7)
-        val bridge = RuntimeBridge(sessionHandle, bindings)
+        val bridge = RuntimeBridge(sessionHandle, runtimeApi)
         val runtimeHost = createBridgeRuntimeHost(
             sessionHandle = sessionHandle,
             permissionRequests = PermissionRequestRecorder(),
@@ -27,7 +27,7 @@ class RuntimeBridgeAttachTest {
 
         bridge.attach(runtimeHost)
 
-        assertEquals(listOf(sessionHandle), bindings.attachedSessionHandles)
+        assertEquals(listOf(sessionHandle), runtimeApi.attachedSessionHandles)
     }
 
     /**
@@ -35,9 +35,9 @@ class RuntimeBridgeAttachTest {
      */
     @Test
     fun testDetachUnregistersBridgeForReattach() {
-        val bindings = RuntimeAbiSpy()
+        val runtimeApi = RuntimeIngressSpy()
         val sessionHandle = HostSessionHandle(rawValue = 7)
-        val bridge = RuntimeBridge(sessionHandle, bindings)
+        val bridge = RuntimeBridge(sessionHandle, runtimeApi)
         val runtimeHost = createBridgeRuntimeHost(
             sessionHandle = sessionHandle,
             permissionRequests = PermissionRequestRecorder(),
@@ -50,8 +50,8 @@ class RuntimeBridgeAttachTest {
         bridge.detach()
         bridge.attach(runtimeHost)
 
-        assertEquals(listOf(sessionHandle, sessionHandle), bindings.attachedSessionHandles)
-        assertEquals(listOf(sessionHandle), bindings.detachedSessionHandles)
+        assertEquals(listOf(sessionHandle, sessionHandle), runtimeApi.attachedSessionHandles)
+        assertEquals(listOf(sessionHandle), runtimeApi.detachedSessionHandles)
     }
 
     /**
@@ -59,7 +59,7 @@ class RuntimeBridgeAttachTest {
      */
     @Test
     fun testAttachRejectsMismatchedRuntimeHostSessionHandle() {
-        val bridge = RuntimeBridge(HostSessionHandle(rawValue = 7), RuntimeAbiSpy())
+        val bridge = RuntimeBridge(HostSessionHandle(rawValue = 7), RuntimeIngressSpy())
         val runtimeHost = createBridgeRuntimeHost(
             sessionHandle = HostSessionHandle(rawValue = 9),
             permissionRequests = PermissionRequestRecorder(),
@@ -84,10 +84,10 @@ class RuntimeBridgeAttachTest {
     @Test
     fun testAttachDetachesBridgeAfterFailedRegistration() {
         val sessionHandle = HostSessionHandle(rawValue = 7)
-        val bindings = RuntimeAbiSpy().also {
+        val runtimeApi = RuntimeIngressSpy().also {
             it.attachStatus = 6
         }
-        val bridge = RuntimeBridge(sessionHandle, bindings)
+        val bridge = RuntimeBridge(sessionHandle, runtimeApi)
         val runtimeHost = createBridgeRuntimeHost(
             sessionHandle = sessionHandle,
             permissionRequests = PermissionRequestRecorder(),
@@ -101,23 +101,23 @@ class RuntimeBridgeAttachTest {
         }
 
         assertEquals(
-            "runtime bridge could not attach runtime abi bindings: 6",
+            "runtime bridge could not attach runtime session api: 6",
             error.message,
         )
-        assertEquals(listOf(sessionHandle), bindings.attachedSessionHandles)
-        assertEquals(emptyList<HostSessionHandle>(), bindings.detachedSessionHandles)
+        assertEquals(listOf(sessionHandle), runtimeApi.attachedSessionHandles)
+        assertEquals(emptyList<HostSessionHandle>(), runtimeApi.detachedSessionHandles)
     }
 
     /**
-     * Reject one bridge attachment when the runtime ABI seam cannot attach.
+     * Reject one bridge attachment when the runtime session API seam cannot attach.
      */
     @Test
     fun testAttachRejectsRuntimeAbiAttachFailure() {
         val sessionHandle = HostSessionHandle(rawValue = 7)
-        val bindings = RuntimeAbiSpy().also {
+        val runtimeApi = RuntimeIngressSpy().also {
             it.attachStatus = 6
         }
-        val bridge = RuntimeBridge(sessionHandle, bindings)
+        val bridge = RuntimeBridge(sessionHandle, runtimeApi)
         val runtimeHost = createBridgeRuntimeHost(
             sessionHandle = sessionHandle,
             permissionRequests = PermissionRequestRecorder(),
@@ -131,10 +131,10 @@ class RuntimeBridgeAttachTest {
         }
 
         assertEquals(
-            "runtime bridge could not attach runtime abi bindings: 6",
+            "runtime bridge could not attach runtime session api: 6",
             error.message,
         )
-        assertEquals(listOf(sessionHandle), bindings.attachedSessionHandles)
-        assertEquals(emptyList<HostSessionHandle>(), bindings.detachedSessionHandles)
+        assertEquals(listOf(sessionHandle), runtimeApi.attachedSessionHandles)
+        assertEquals(emptyList<HostSessionHandle>(), runtimeApi.detachedSessionHandles)
     }
 }

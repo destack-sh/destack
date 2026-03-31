@@ -31,23 +31,23 @@ public class ActivityLocationRequests(
     private val locationManager: LocationManager? = activity?.getSystemService(LocationManager::class.java)
     private val watchListeners: MutableMap<String, LocationListener> = mutableMapOf()
 
-    override fun locationServicesEnabled(): RuntimeHostLocationServicesResponse {
+    override fun servicesEnabled(): RuntimeHostLocationServicesResponse {
         val locationManager = locationManager
             ?: return RuntimeHostLocationServicesResponse(status = hostStatusNotSupported)
 
-        return locationServicesEnabled(locationManager)
+        return servicesEnabled(locationManager)
     }
 
-    override fun locationLastKnown(): RuntimeHostLocationLastKnownResponse {
+    override fun lastKnown(): RuntimeHostLocationLastKnownResponse {
         val activity = activity
             ?: return RuntimeHostLocationLastKnownResponse(status = hostStatusNotSupported)
         val locationManager = locationManager
             ?: return RuntimeHostLocationLastKnownResponse(status = hostStatusNotSupported)
 
-        return locationLastKnown(activity, locationManager)
+        return lastKnown(activity, locationManager)
     }
 
-    override fun locationWatchOpen(
+    override fun watchOpen(
         watchId: String,
         options: RuntimeHostLocationWatchOptions,
     ): Int {
@@ -56,7 +56,7 @@ public class ActivityLocationRequests(
         val locationManager = locationManager
             ?: return hostStatusNotSupported
 
-        return locationWatchOpen(
+        return watchOpen(
             context = activity,
             locationManager = locationManager,
             watchListeners = watchListeners,
@@ -66,13 +66,13 @@ public class ActivityLocationRequests(
         )
     }
 
-    override fun locationWatchClose(
+    override fun watchClose(
         watchId: String,
     ): Int {
         val locationManager = locationManager
             ?: return hostStatusNotSupported
 
-        return locationWatchClose(
+        return watchClose(
             locationManager = locationManager,
             watchListeners = watchListeners,
             watchId = watchId,
@@ -80,7 +80,7 @@ public class ActivityLocationRequests(
     }
 }
 
-private fun locationServicesEnabled(
+private fun servicesEnabled(
     locationManager: LocationManager,
 ): RuntimeHostLocationServicesResponse {
     // query the platform location-service state without requiring one active watch
@@ -103,7 +103,7 @@ private fun locationServicesEnabled(
 }
 
 @SuppressLint("MissingPermission")
-private fun locationLastKnown(
+private fun lastKnown(
     context: Context,
     locationManager: LocationManager,
 ): RuntimeHostLocationLastKnownResponse {
@@ -149,7 +149,7 @@ private fun locationLastKnown(
 }
 
 @SuppressLint("MissingPermission")
-private fun locationWatchOpen(
+private fun watchOpen(
     context: Context,
     locationManager: LocationManager,
     watchListeners: MutableMap<String, LocationListener>,
@@ -179,7 +179,7 @@ private fun locationWatchOpen(
 
     // register one live listener and stream samples into the runtime ingress surface
     val listener = LocationListener { location ->
-        events.sendLocationSample(
+        events.notifyLocationSample(
             watchId,
             runtimeHostLocationSample(location),
         )
@@ -209,7 +209,7 @@ private fun locationWatchOpen(
     }
 }
 
-private fun locationWatchClose(
+private fun watchClose(
     locationManager: LocationManager,
     watchListeners: MutableMap<String, LocationListener>,
     watchId: String,

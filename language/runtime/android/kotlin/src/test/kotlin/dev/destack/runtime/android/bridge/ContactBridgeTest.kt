@@ -24,8 +24,8 @@ class ContactBridgeTest {
     @Test
     fun testContactRequestsRouteThroughRuntimeHost() {
         val sessionHandle = HostSessionHandle(rawValue = 7)
-        val bindings = RuntimeAbiSpy()
-        val bridge = RuntimeBridge(sessionHandle, bindings)
+        val runtimeApi = RuntimeIngressSpy()
+        val bridge = RuntimeBridge(sessionHandle, runtimeApi)
         val contactRequests = ContactRequestRecorder().also {
             it.listResponse = RuntimeHostContactPageResponse(
                 status = 0,
@@ -62,7 +62,7 @@ class ContactBridgeTest {
 
         bridge.attach(runtimeHost)
 
-        val listResponse = bridge.listContacts(
+        val listResponse = bridge.contactList(
             cursor = "cursor-1",
             hasLimit = true,
             limit = 25,
@@ -72,7 +72,7 @@ class ContactBridgeTest {
             includeOrganization = false,
             includeNotes = true,
         )
-        val searchResponse = bridge.searchContacts(
+        val searchResponse = bridge.contactSearch(
             queryText = "alice",
             cursor = null,
             hasLimit = false,
@@ -83,8 +83,8 @@ class ContactBridgeTest {
             includeOrganization = true,
             includeNotes = false,
         )
-        val readResponse = bridge.readContact("contact-3")
-        val createResponse = bridge.createContact(
+        val readResponse = bridge.contactRead("contact-3")
+        val createResponse = bridge.contactCreate(
             givenName = "Alice",
             middleName = "",
             familyName = "Example",
@@ -101,7 +101,7 @@ class ContactBridgeTest {
             title = "Engineer",
             note = "note",
         )
-        val updateStatus = bridge.updateContact(
+        val updateStatus = bridge.contactUpdate(
             id = "contact-4",
             givenName = "Bob",
             middleName = "",
@@ -119,7 +119,7 @@ class ContactBridgeTest {
             title = "",
             note = "",
         )
-        val deleteStatus = bridge.deleteContact("contact-4")
+        val deleteStatus = bridge.contactDeleteContact("contact-4")
 
         assertEquals(
             listOf(

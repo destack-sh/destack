@@ -33,49 +33,49 @@ public class ContactsProviderRequests(
 ) : ContactRequests {
     private val context: Context = context.applicationContext
 
-    override fun listContacts(
+    override fun list(
         query: RuntimeHostContactQuery,
     ): RuntimeHostContactPageResponse {
-        return listContacts(
+        return list(
             context = context,
             query = query,
         )
     }
 
-    override fun searchContacts(
+    override fun search(
         queryText: String,
         query: RuntimeHostContactQuery,
     ): RuntimeHostContactPageResponse {
-        return searchContacts(
+        return search(
             context = context,
             queryText = queryText,
             query = query,
         )
     }
 
-    override fun readContact(
+    override fun read(
         id: String,
     ): RuntimeHostContactResponse {
-        return readContact(
+        return read(
             context = context,
             id = id,
         )
     }
 
-    override fun createContact(
+    override fun create(
         draft: RuntimeHostContactDraft,
     ): RuntimeHostContactCreateResponse {
-        return createContact(
+        return create(
             context = context,
             draft = draft,
         )
     }
 
-    override fun updateContact(
+    override fun update(
         id: String,
         draft: RuntimeHostContactDraft,
     ): Int {
-        return updateContact(
+        return update(
             context = context,
             id = id,
             draft = draft,
@@ -95,7 +95,7 @@ public class ContactsProviderRequests(
 /**
  * List one page of contacts through the Android contacts provider.
  */
-private fun listContacts(
+private fun list(
     context: Context,
     query: RuntimeHostContactQuery,
 ): RuntimeHostContactPageResponse {
@@ -148,7 +148,7 @@ private fun listContacts(
 /**
  * Search contacts through the Android contacts provider.
  */
-private fun searchContacts(
+private fun search(
     context: Context,
     queryText: String,
     query: RuntimeHostContactQuery,
@@ -207,7 +207,7 @@ private fun searchContacts(
 /**
  * Read one contact by stable identifier through the Android contacts provider.
  */
-private fun readContact(
+private fun read(
     context: Context,
     id: String,
 ): RuntimeHostContactResponse {
@@ -235,7 +235,7 @@ private fun readContact(
 /**
  * Create one contact through the Android contacts provider.
  */
-private fun createContact(
+private fun create(
     context: Context,
     draft: RuntimeHostContactDraft,
 ): RuntimeHostContactCreateResponse {
@@ -283,7 +283,7 @@ private fun createContact(
 /**
  * Update one contact through the Android contacts provider.
  */
-private fun updateContact(
+private fun update(
     context: Context,
     id: String,
     draft: RuntimeHostContactDraft,

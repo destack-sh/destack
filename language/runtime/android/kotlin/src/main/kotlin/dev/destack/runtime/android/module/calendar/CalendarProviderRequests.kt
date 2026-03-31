@@ -36,46 +36,46 @@ public class CalendarProviderRequests(
 ) : CalendarRequests {
     private val context: Context = context.applicationContext
 
-    override fun listCalendars(): RuntimeHostCalendarListResponse {
-        return listCalendars(context)
+    override fun list(): RuntimeHostCalendarListResponse {
+        return list(context)
     }
 
-    override fun listCalendarEvents(
+    override fun eventList(
         query: RuntimeHostCalendarEventQuery,
     ): RuntimeHostCalendarEventListResponse {
-        return listCalendarEvents(context, query)
+        return eventList(context, query)
     }
 
-    override fun readCalendarEvent(
+    override fun eventRead(
         id: String,
-    ): RuntimeHostCalendarEventResponse {
-        return readCalendarEvent(context, id)
+    ): RuntimeHostCalendarEventReadResponse {
+        return eventRead(context, id)
     }
 
-    override fun createCalendarEvent(
+    override fun eventCreate(
         draft: RuntimeHostCalendarEventDraft,
     ): RuntimeHostCalendarEventCreateResponse {
-        return createCalendarEvent(context, draft)
+        return eventCreate(context, draft)
     }
 
-    override fun updateCalendarEvent(
+    override fun eventUpdate(
         id: String,
         draft: RuntimeHostCalendarEventDraft,
     ): Int {
-        return updateCalendarEvent(context, id, draft)
+        return eventUpdate(context, id, draft)
     }
 
-    override fun deleteCalendarEvent(
+    override fun eventDelete(
         id: String,
     ): Int {
-        return deleteCalendarEvent(context, id)
+        return eventDelete(context, id)
     }
 }
 
 /**
  * List readable calendars through the Android calendar provider.
  */
-private fun listCalendars(
+private fun list(
     context: Context,
 ): RuntimeHostCalendarListResponse {
     // require read access before touching the provider
@@ -125,7 +125,7 @@ private fun listCalendars(
 /**
  * List calendar events through the Android calendar provider.
  */
-private fun listCalendarEvents(
+private fun eventList(
     context: Context,
     query: RuntimeHostCalendarEventQuery,
 ): RuntimeHostCalendarEventListResponse {
@@ -170,18 +170,18 @@ private fun listCalendarEvents(
 /**
  * Read one calendar event by stable identifier through the Android calendar provider.
  */
-private fun readCalendarEvent(
+private fun eventRead(
     context: Context,
     id: String,
-): RuntimeHostCalendarEventResponse {
+): RuntimeHostCalendarEventReadResponse {
     // require read access before touching the provider
     if (!hasReadCalendarPermission(context)) {
-        return RuntimeHostCalendarEventResponse(status = hostStatusPermissionDenied)
+        return RuntimeHostCalendarEventReadResponse(status = hostStatusPermissionDenied)
     }
 
     // decode one stable event identifier
     val eventId = id.toLongOrNull()
-        ?: return RuntimeHostCalendarEventResponse(status = hostStatusInvalidArgument)
+        ?: return RuntimeHostCalendarEventReadResponse(status = hostStatusInvalidArgument)
     val projection = eventProjection()
 
     return try {
@@ -213,26 +213,26 @@ private fun readCalendarEvent(
         }
 
         if (event == null) {
-            RuntimeHostCalendarEventResponse(status = hostStatusNotFound)
+            RuntimeHostCalendarEventReadResponse(status = hostStatusNotFound)
         } else {
-            RuntimeHostCalendarEventResponse(
+            RuntimeHostCalendarEventReadResponse(
                 status = hostStatusOk,
                 event = event,
             )
         }
     }
     catch (_: SecurityException) {
-        RuntimeHostCalendarEventResponse(status = hostStatusPermissionDenied)
+        RuntimeHostCalendarEventReadResponse(status = hostStatusPermissionDenied)
     }
     catch (_: Exception) {
-        RuntimeHostCalendarEventResponse(status = hostStatusFailed)
+        RuntimeHostCalendarEventReadResponse(status = hostStatusFailed)
     }
 }
 
 /**
  * Create one calendar event through the Android calendar provider.
  */
-private fun createCalendarEvent(
+private fun eventCreate(
     context: Context,
     draft: RuntimeHostCalendarEventDraft,
 ): RuntimeHostCalendarEventCreateResponse {
@@ -279,7 +279,7 @@ private fun createCalendarEvent(
 /**
  * Update one calendar event through the Android calendar provider.
  */
-private fun updateCalendarEvent(
+private fun eventUpdate(
     context: Context,
     id: String,
     draft: RuntimeHostCalendarEventDraft,
@@ -326,7 +326,7 @@ private fun updateCalendarEvent(
 /**
  * Delete one calendar event through the Android calendar provider.
  */
-private fun deleteCalendarEvent(
+private fun eventDelete(
     context: Context,
     id: String,
 ): Int {

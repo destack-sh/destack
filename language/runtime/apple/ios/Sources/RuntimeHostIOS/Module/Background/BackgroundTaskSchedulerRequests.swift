@@ -212,7 +212,7 @@ public final class BackgroundTaskSchedulerRequests: BackgroundRequests {
   }
 
   /// Read the Apple background scheduler status.
-  public func backgroundStatus() -> RuntimeHostBackgroundStatusResponse {
+  public func status() -> RuntimeHostBackgroundStatusResponse {
     RuntimeHostBackgroundStatusResponse(
       status: hostStatusOk,
       schedulerStatus: scheduler.schedulerStatus()
@@ -220,32 +220,32 @@ public final class BackgroundTaskSchedulerRequests: BackgroundRequests {
   }
 
   /// List registered Apple background tasks.
-  public func listBackgroundTasks() -> RuntimeHostBackgroundTaskListResponse {
-    RuntimeHostBackgroundTaskListResponse(
+  public func list() -> RuntimeHostBackgroundListResponse {
+    RuntimeHostBackgroundListResponse(
       status: hostStatusOk,
       descriptors: registrations.listDescriptors()
     )
   }
 
   /// Register one Apple background task.
-  public func registerBackgroundTask(
-    _ options: RuntimeHostBackgroundTaskOptions
+  public func registerTask(
+    _ request: RuntimeHostBackgroundTaskOptions
   ) -> UInt32 {
     // reject invalid registration payloads before mutating host state
-    let validationStatus = validateOptions(options)
+    let validationStatus = validateOptions(request)
     guard validationStatus == hostStatusOk else {
       return validationStatus
     }
 
     // build the stable descriptor view
     let descriptor = RuntimeHostBackgroundTaskDescriptor(
-      identifier: options.identifier,
-      trigger: options.trigger,
-      schedule: options.schedule,
-      network: options.network,
-      requiresCharging: options.requiresCharging,
-      requiresIdle: options.requiresIdle,
-      conflictPolicy: options.conflictPolicy
+      identifier: request.identifier,
+      trigger: request.trigger,
+      schedule: request.schedule,
+      network: request.network,
+      requiresCharging: request.requiresCharging,
+      requiresIdle: request.requiresIdle,
+      conflictPolicy: request.conflictPolicy
     )
 
     // ensure the launch handler exists before storing the registration
@@ -270,9 +270,10 @@ public final class BackgroundTaskSchedulerRequests: BackgroundRequests {
   }
 
   /// Unregister one Apple background task.
-  public func unregisterBackgroundTask(
-    _ identifier: String
+  public func unregister(
+    _ request: RuntimeHostBackgroundUnregisterRequest
   ) -> UInt32 {
+    let identifier = request.identifier
     // reject blank task identifiers
     guard !identifier.isEmpty else {
       return hostStatusInvalidArgument
@@ -296,17 +297,18 @@ public final class BackgroundTaskSchedulerRequests: BackgroundRequests {
   }
 
   /// Trigger one Apple background task for testing.
-  public func triggerBackgroundTask(
-    _ identifier: String
-  ) -> RuntimeHostBackgroundTriggerResponse {
+  public func triggerTest(
+    _ request: RuntimeHostBackgroundTriggerTestRequest
+  ) -> RuntimeHostBackgroundTriggerTestResponse {
+    let identifier = request.identifier
     // reject blank task identifiers
     guard !identifier.isEmpty else {
-      return RuntimeHostBackgroundTriggerResponse(status: hostStatusInvalidArgument)
+      return RuntimeHostBackgroundTriggerTestResponse(status: hostStatusInvalidArgument)
     }
 
     // require one registered descriptor
     guard registrations.resolveDescriptor(identifier) != nil else {
-      return RuntimeHostBackgroundTriggerResponse(status: hostStatusNotFound)
+      return RuntimeHostBackgroundTriggerTestResponse(status: hostStatusNotFound)
     }
 
     // create one synthetic execution
@@ -321,17 +323,18 @@ public final class BackgroundTaskSchedulerRequests: BackgroundRequests {
       execution: execution
     )
 
-    return RuntimeHostBackgroundTriggerResponse(
+    return RuntimeHostBackgroundTriggerTestResponse(
       status: hostStatusOk,
       isTriggered: true
     )
   }
 
   /// Complete one Apple background task execution.
-  public func completeBackgroundTask(
-    executionID: String,
-    result: RuntimeHostBackgroundTaskResult
+  public func complete(
+    _ request: RuntimeHostBackgroundCompleteRequest
   ) -> UInt32 {
+    let executionID = request.executionID
+    let result = request.result
     // remove the active execution first
     guard let execution = executions.removeExecution(executionID) else {
       return hostStatusNotFound
@@ -469,7 +472,7 @@ public final class BackgroundTaskSchedulerRequests: BackgroundRequests {
     )
 
     // deliver the event into the ingress surface
-    events.sendBackgroundEvent(event)
+    events.notifyBackgroundEvent(event)
   }
 
   /// Schedule one descriptor through the system scheduler.

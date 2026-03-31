@@ -72,7 +72,7 @@ class RuntimeHostTest {
             state = RuntimeHostLifecycleState.Running,
         )
 
-        host.lifecycleEvents.sendLifecycleEvent(event)
+        host.lifecycle.sendLifecycleEvent(event)
 
         assertEquals(listOf(event), lifecycleEvents.events)
     }
@@ -91,7 +91,7 @@ class RuntimeHostTest {
             permission = "location",
         )
 
-        host.permissionRequests.submitPermissionRequest(request)
+        host.permission.request(request)
 
         assertEquals(listOf(request), permissionRequests.requests)
     }
@@ -106,7 +106,7 @@ class RuntimeHostTest {
             permissionRequests = permissionRequests,
         )
 
-        val status = host.permissionRequests.openPermissionSettings()
+        val status = host.permission.openSettings()
 
         assertEquals(0, status)
         assertEquals(1, permissionRequests.openSettingsCalls)
@@ -127,7 +127,7 @@ class RuntimeHostTest {
             isGranted = true,
         )
 
-        host.permissionEvents.sendPermissionEvent(event)
+        host.permission.notifyPermissionResult(event)
 
         assertEquals(listOf(event), permissionEvents.events)
     }
@@ -149,8 +149,12 @@ class RuntimeHostTest {
             contentTypes = listOf("image/png"),
         )
 
-        host.documentRequests.submitDocumentRequest(request)
-        host.documentEvents.sendDocumentResult(sampleDocumentResult(request.requestId))
+        host.document.pick(request)
+        val result = sampleDocumentResult(request.requestId)
+        host.document.notifyDocumentResult(
+            result.requestId,
+            result.documents,
+        )
 
         assertEquals(listOf(request), documentRequests.requests)
         assertEquals("example.png", documentEvents.results.first().documents.first().displayName)
@@ -215,10 +219,10 @@ class RuntimeHostTest {
             identifiers = listOf("asset-1", "asset-2", "asset-3"),
         )
 
-        val listResponse = host.mediaRequests.listMedia(listRequest)
-        val readResponse = host.mediaRequests.readMedia("asset-1")
-        val importResponse = host.mediaRequests.importMediaPath(importRequest)
-        val deleteResponse = host.mediaRequests.deleteMedia(deleteRequest)
+        val listResponse = host.media.list(listRequest)
+        val readResponse = host.media.read("asset-1")
+        val importResponse = host.media.importPath(importRequest)
+        val deleteResponse = host.media.delete(deleteRequest)
 
         assertEquals(listOf(listRequest), mediaRequests.listRequests)
         assertEquals(listOf("asset-1"), mediaRequests.readIdentifiers)
@@ -237,15 +241,15 @@ class RuntimeHostTest {
     fun testReportUnsupportedMediaWithoutRequests() {
         val host = createRuntimeHost()
 
-        val listResponse = host.mediaRequests.listMedia(RuntimeHostMediaListRequest())
-        val readResponse = host.mediaRequests.readMedia("asset-1")
-        val importResponse = host.mediaRequests.importMediaPath(
+        val listResponse = host.media.list(RuntimeHostMediaListRequest())
+        val readResponse = host.media.read("asset-1")
+        val importResponse = host.media.importPath(
             RuntimeHostMediaImportPathRequest(
                 path = "/tmp/example.png",
                 kind = RuntimeHostMediaAssetKind.Image,
             ),
         )
-        val deleteResponse = host.mediaRequests.deleteMedia(
+        val deleteResponse = host.media.delete(
             RuntimeHostMediaDeleteRequest(
                 identifiers = listOf("asset-1"),
             ),

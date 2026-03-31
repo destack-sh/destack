@@ -9,11 +9,13 @@ final class PermissionRequestRecorder: PermissionRequests {
   var openSettingsCalls: Int = 0
   var openSettingsStatus: UInt32 = hostStatusOk
 
-  func submitPermissionRequest(_ request: RuntimeHostPermissionRequest) {
+  func request(_ request: RuntimeHostPermissionRequest) -> UInt32 {
     requests.append(request)
+
+    return hostStatusOk
   }
 
-  func openPermissionSettings() -> UInt32 {
+  func openSettings() -> UInt32 {
     openSettingsCalls += 1
 
     return openSettingsStatus
@@ -25,8 +27,10 @@ final class PermissionRequestRecorder: PermissionRequests {
 final class DocumentRequestRecorder: DocumentRequests {
   var requests: [RuntimeHostDocumentRequest] = []
 
-  func submitDocumentRequest(_ request: RuntimeHostDocumentRequest) {
+  func pick(_ request: RuntimeHostDocumentRequest) -> UInt32 {
     requests.append(request)
+
+    return hostStatusOk
   }
 }
 
@@ -46,7 +50,7 @@ final class ContactRequestRecorder: ContactRequests {
   var updateStatus: UInt32 = hostStatusNotSupported
   var deleteStatus: UInt32 = hostStatusNotSupported
 
-  func listContacts(
+  func list(
     _ query: RuntimeHostContactQuery
   ) -> RuntimeHostContactPageResponse {
     listQueries.append(query)
@@ -54,7 +58,7 @@ final class ContactRequestRecorder: ContactRequests {
     return listResponse
   }
 
-  func searchContacts(
+  func search(
     _ queryText: String,
     query: RuntimeHostContactQuery
   ) -> RuntimeHostContactPageResponse {
@@ -63,15 +67,15 @@ final class ContactRequestRecorder: ContactRequests {
     return searchResponse
   }
 
-  func readContact(
-    id: String
+  func read(
+    _ id: String
   ) -> RuntimeHostContactResponse {
     readIdentifiers.append(id)
 
     return readResponse
   }
 
-  func createContact(
+  func create(
     _ draft: RuntimeHostContactDraft
   ) -> RuntimeHostContactCreateResponse {
     createDrafts.append(draft)
@@ -79,8 +83,8 @@ final class ContactRequestRecorder: ContactRequests {
     return createResponse
   }
 
-  func updateContact(
-    id: String,
+  func update(
+    _ id: String,
     draft: RuntimeHostContactDraft
   ) -> UInt32 {
     updateCalls.append((id, draft))
@@ -89,7 +93,7 @@ final class ContactRequestRecorder: ContactRequests {
   }
 
   func deleteContact(
-    id: String
+    _ id: String
   ) -> UInt32 {
     deleteIdentifiers.append(id)
 
@@ -100,51 +104,48 @@ final class ContactRequestRecorder: ContactRequests {
 /// One bridge calendar request recorder for iOS bridge tests.
 @MainActor
 final class CalendarRequestRecorder: CalendarRequests {
-  var listResponse: (status: UInt32, calendars: [RuntimeHostCalendarDescriptor]?) =
-    (hostStatusNotSupported, nil)
+  var listResponse = RuntimeHostCalendarListResponse(status: hostStatusNotSupported)
   var eventQueries: [RuntimeHostCalendarEventQuery] = []
-  var eventListResponse: (status: UInt32, events: [RuntimeHostCalendarEvent]?) =
-    (hostStatusNotSupported, nil)
+  var eventListResponse = RuntimeHostCalendarEventListResponse(status: hostStatusNotSupported)
   var readIdentifiers: [String] = []
-  var readResponse: (status: UInt32, event: RuntimeHostCalendarEvent?) =
-    (hostStatusNotSupported, nil)
+  var readResponse = RuntimeHostCalendarEventReadResponse(status: hostStatusNotSupported)
   var createDrafts: [RuntimeHostCalendarEventDraft] = []
-  var createResponse: (status: UInt32, id: String?) = (hostStatusNotSupported, nil)
+  var createResponse = RuntimeHostCalendarEventCreateResponse(status: hostStatusNotSupported)
   var updateCalls: [(String, RuntimeHostCalendarEventDraft)] = []
   var updateStatus: UInt32 = hostStatusNotSupported
   var deleteIdentifiers: [String] = []
   var deleteStatus: UInt32 = hostStatusNotSupported
 
-  func listCalendars() -> (status: UInt32, calendars: [RuntimeHostCalendarDescriptor]?) {
+  func list() -> RuntimeHostCalendarListResponse {
     listResponse
   }
 
-  func listCalendarEvents(
+  func eventList(
     _ query: RuntimeHostCalendarEventQuery
-  ) -> (status: UInt32, events: [RuntimeHostCalendarEvent]?) {
+  ) -> RuntimeHostCalendarEventListResponse {
     eventQueries.append(query)
 
     return eventListResponse
   }
 
-  func readCalendarEvent(
-    id: String
-  ) -> (status: UInt32, event: RuntimeHostCalendarEvent?) {
+  func eventRead(
+    _ id: String
+  ) -> RuntimeHostCalendarEventReadResponse {
     readIdentifiers.append(id)
 
     return readResponse
   }
 
-  func createCalendarEvent(
+  func eventCreate(
     _ draft: RuntimeHostCalendarEventDraft
-  ) -> (status: UInt32, id: String?) {
+  ) -> RuntimeHostCalendarEventCreateResponse {
     createDrafts.append(draft)
 
     return createResponse
   }
 
-  func updateCalendarEvent(
-    id: String,
+  func eventUpdate(
+    _ id: String,
     draft: RuntimeHostCalendarEventDraft
   ) -> UInt32 {
     updateCalls.append((id, draft))
@@ -152,8 +153,8 @@ final class CalendarRequestRecorder: CalendarRequests {
     return updateStatus
   }
 
-  func deleteCalendarEvent(
-    id: String
+  func eventDelete(
+    _ id: String
   ) -> UInt32 {
     deleteIdentifiers.append(id)
 
@@ -192,18 +193,18 @@ final class IntentRequestRecorder: IntentRequests {
 
   func shareText(
     _ text: String,
-    contentType: String?
+    mimeType: String?
   ) -> UInt32 {
-    shareTextCalls.append((text, contentType))
+    shareTextCalls.append((text, mimeType))
 
     return status
   }
 
   func sharePaths(
     _ paths: [String],
-    contentType: String?
+    mimeType: String?
   ) -> UInt32 {
-    sharePathCalls.append((paths, contentType))
+    sharePathCalls.append((paths, mimeType))
 
     return status
   }
@@ -219,16 +220,16 @@ final class LocationRequestRecorder: LocationRequests {
   var watchOpenStatus: UInt32 = hostStatusOk
   var watchCloseStatus: UInt32 = hostStatusOk
 
-  func locationServicesEnabled() -> RuntimeHostLocationServicesResponse {
+  func servicesEnabled() -> RuntimeHostLocationServicesResponse {
     servicesEnabledResponse
   }
 
-  func locationLastKnown() -> RuntimeHostLocationLastKnownResponse {
+  func lastKnown() -> RuntimeHostLocationLastKnownResponse {
     lastKnownResponse
   }
 
-  func locationWatchOpen(
-    watchID: String,
+  func watchOpen(
+    _ watchID: String,
     options: RuntimeHostLocationWatchOptions
   ) -> UInt32 {
     watchOpenCalls.append((watchID, options))
@@ -236,8 +237,8 @@ final class LocationRequestRecorder: LocationRequests {
     return watchOpenStatus
   }
 
-  func locationWatchClose(
-    watchID: String
+  func watchClose(
+    _ watchID: String
   ) -> UInt32 {
     watchCloseCalls.append(watchID)
 
@@ -257,7 +258,7 @@ final class MediaRequestRecorder: MediaRequests {
   var importResponse = RuntimeHostMediaImportPathResponse(status: hostStatusNotSupported)
   var deleteResponse = RuntimeHostMediaDeleteResponse(status: hostStatusNotSupported)
 
-  func listMedia(
+  func list(
     _ request: RuntimeHostMediaListRequest
   ) -> RuntimeHostMediaListResponse {
     listRequests.append(request)
@@ -265,15 +266,15 @@ final class MediaRequestRecorder: MediaRequests {
     return listResponse
   }
 
-  func readMedia(
-    identifier: String
+  func read(
+    _ identifier: String
   ) -> RuntimeHostMediaReadResponse {
     readIdentifiers.append(identifier)
 
     return readResponse
   }
 
-  func importMediaPath(
+  func importPath(
     _ request: RuntimeHostMediaImportPathRequest
   ) -> RuntimeHostMediaImportPathResponse {
     importRequests.append(request)
@@ -281,7 +282,7 @@ final class MediaRequestRecorder: MediaRequests {
     return importResponse
   }
 
-  func deleteMedia(
+  func delete(
     _ request: RuntimeHostMediaDeleteRequest
   ) -> RuntimeHostMediaDeleteResponse {
     deleteRequests.append(request)
@@ -297,56 +298,55 @@ final class BackgroundRequestRecorder: BackgroundRequests {
     status: hostStatusOk,
     schedulerStatus: .available
   )
-  var listResponse = RuntimeHostBackgroundTaskListResponse(status: hostStatusOk)
+  var listResponse = RuntimeHostBackgroundListResponse(status: hostStatusOk)
   var registerCalls: [RuntimeHostBackgroundTaskOptions] = []
   var unregisterCalls: [String] = []
   var triggerCalls: [String] = []
   var completeCalls: [(String, RuntimeHostBackgroundTaskResult)] = []
   var registerStatus: UInt32 = hostStatusOk
   var unregisterStatus: UInt32 = hostStatusOk
-  var triggerResponse = RuntimeHostBackgroundTriggerResponse(
+  var triggerResponse = RuntimeHostBackgroundTriggerTestResponse(
     status: hostStatusOk,
     isTriggered: true
   )
   var completeStatus: UInt32 = hostStatusOk
 
-  func backgroundStatus() -> RuntimeHostBackgroundStatusResponse {
+  func status() -> RuntimeHostBackgroundStatusResponse {
     statusResponse
   }
 
-  func listBackgroundTasks() -> RuntimeHostBackgroundTaskListResponse {
+  func list() -> RuntimeHostBackgroundListResponse {
     listResponse
   }
 
-  func registerBackgroundTask(
-    _ options: RuntimeHostBackgroundTaskOptions
+  func registerTask(
+    _ request: RuntimeHostBackgroundTaskOptions
   ) -> UInt32 {
-    registerCalls.append(options)
+    registerCalls.append(request)
 
     return registerStatus
   }
 
-  func unregisterBackgroundTask(
-    _ identifier: String
+  func unregister(
+    _ request: RuntimeHostBackgroundUnregisterRequest
   ) -> UInt32 {
-    unregisterCalls.append(identifier)
+    unregisterCalls.append(request.identifier)
 
     return unregisterStatus
   }
 
-  func triggerBackgroundTask(
-    _ identifier: String
-  ) -> RuntimeHostBackgroundTriggerResponse {
-    triggerCalls.append(identifier)
+  func triggerTest(
+    _ request: RuntimeHostBackgroundTriggerTestRequest
+  ) -> RuntimeHostBackgroundTriggerTestResponse {
+    triggerCalls.append(request.identifier)
 
     return triggerResponse
   }
 
-  func completeBackgroundTask(
-    executionID: String,
-    result: RuntimeHostBackgroundTaskResult
+  func complete(
+    _ request: RuntimeHostBackgroundCompleteRequest
   ) -> UInt32 {
-    completeCalls.append((executionID, result))
+    completeCalls.append((request.executionID, request.result))
 
     return completeStatus
   }
@@ -360,7 +360,7 @@ final class NotificationRequestRecorder: NotificationRequests {
   var cancelAllCalls: Int = 0
   var status: UInt32 = hostStatusOk
 
-  func postNotification(
+  func post(
     _ request: RuntimeHostNotificationRequest
   ) -> UInt32 {
     postedRequests.append(request)
@@ -368,15 +368,15 @@ final class NotificationRequestRecorder: NotificationRequests {
     return status
   }
 
-  func cancelNotification(
-    identifier: String
+  func cancel(
+    _ identifier: String
   ) -> UInt32 {
     cancelledIdentifiers.append(identifier)
 
     return status
   }
 
-  func cancelAllNotifications() -> UInt32 {
+  func cancelAll() -> UInt32 {
     cancelAllCalls += 1
 
     return status
@@ -400,27 +400,37 @@ func createBridgeRuntimeHost(
   let runtimeHost = RuntimeHost(
     sessionHandle: sessionHandle,
     embedderID: makeTestEmbedderID(),
-    lifecycleEvents: IOSRecordingLifecycleSink(),
-    permissionRequests: permissionRequests,
-    permissionEvents: IOSRecordingPermissionEventSink(),
-    documentRequests: documentRequests,
-    documentEvents: IOSRecordingDocumentEventSink(),
-    contactRequests: contactRequests,
-    calendarRequests: calendarRequests,
-    intentRequests: intentRequests,
-    intentEvents: IOSRecordingIntentEventSink(),
-    locationRequests: locationRequests,
-    locationEvents: IOSNoopLocationEventSink(),
-    mediaRequests: mediaRequests,
-    notificationRequests: notificationRequests,
-    notificationEvents: IOSRecordingNotificationEventSink(),
+    lifecycle: LifecycleHost(events: IOSRecordingLifecycleSink()),
+    permission: PermissionHost(
+      requests: permissionRequests,
+      events: IOSRecordingPermissionEventSink()
+    ),
+    document: DocumentHost(
+      requests: documentRequests,
+      events: IOSRecordingDocumentEventSink()
+    ),
+    contact: ContactHost(requests: contactRequests),
+    calendar: CalendarHost(requests: calendarRequests),
+    intent: IntentHost(
+      requests: intentRequests,
+      events: IOSRecordingIntentEventSink()
+    ),
+    location: LocationHost(
+      requests: locationRequests,
+      events: IOSNoopLocationEventSink()
+    ),
+    media: MediaHost(requests: mediaRequests),
+    notification: NotificationHost(
+      requests: notificationRequests,
+      events: IOSRecordingNotificationEventSink()
+    ),
     rendererSurface: RendererSurface(
       kind: .metalLayer,
       identifier: "main-surface"
     )
   )
 
-  runtimeHost.backgroundRequests = backgroundRequests
+  runtimeHost.updateBackgroundRequests(backgroundRequests)
 
   return runtimeHost
 }

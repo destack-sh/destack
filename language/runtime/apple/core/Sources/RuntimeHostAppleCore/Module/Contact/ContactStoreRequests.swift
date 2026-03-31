@@ -14,7 +14,7 @@ public final class ContactStoreRequests: ContactRequests {
     self.contactStore = contactStore
   }
 
-  public func listContacts(
+  public func list(
     _ query: RuntimeHostContactQuery
   ) -> RuntimeHostContactPageResponse {
     performListContacts(
@@ -23,7 +23,7 @@ public final class ContactStoreRequests: ContactRequests {
     )
   }
 
-  public func searchContacts(
+  public func search(
     _ queryText: String,
     query: RuntimeHostContactQuery
   ) -> RuntimeHostContactPageResponse {
@@ -34,8 +34,8 @@ public final class ContactStoreRequests: ContactRequests {
     )
   }
 
-  public func readContact(
-    id: String
+  public func read(
+    _ id: String
   ) -> RuntimeHostContactResponse {
     performReadContact(
       contactStore: contactStore,
@@ -43,7 +43,7 @@ public final class ContactStoreRequests: ContactRequests {
     )
   }
 
-  public func createContact(
+  public func create(
     _ draft: RuntimeHostContactDraft
   ) -> RuntimeHostContactCreateResponse {
     performCreateContact(
@@ -52,8 +52,8 @@ public final class ContactStoreRequests: ContactRequests {
     )
   }
 
-  public func updateContact(
-    id: String,
+  public func update(
+    _ id: String,
     draft: RuntimeHostContactDraft
   ) -> UInt32 {
     performUpdateContact(
@@ -64,7 +64,7 @@ public final class ContactStoreRequests: ContactRequests {
   }
 
   public func deleteContact(
-    id: String
+    _ id: String
   ) -> UInt32 {
     performDeleteContact(
       contactStore: contactStore,

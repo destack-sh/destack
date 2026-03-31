@@ -3,25 +3,25 @@ import RuntimeHostAppleCore
 /// One no-op media request handler for macOS tests.
 @MainActor
 final class MacOSNoopMediaRequestHandler: MediaRequests {
-  func listMedia(
+  func list(
     _ request: RuntimeHostMediaListRequest
   ) -> RuntimeHostMediaListResponse {
     RuntimeHostMediaListResponse(status: hostStatusNotSupported)
   }
 
-  func readMedia(
-    identifier: String
+  func read(
+    _ identifier: String
   ) -> RuntimeHostMediaReadResponse {
     RuntimeHostMediaReadResponse(status: hostStatusNotSupported)
   }
 
-  func importMediaPath(
+  func importPath(
     _ request: RuntimeHostMediaImportPathRequest
   ) -> RuntimeHostMediaImportPathResponse {
     RuntimeHostMediaImportPathResponse(status: hostStatusNotSupported)
   }
 
-  func deleteMedia(
+  func delete(
     _ request: RuntimeHostMediaDeleteRequest
   ) -> RuntimeHostMediaDeleteResponse {
     RuntimeHostMediaDeleteResponse(status: hostStatusNotSupported)

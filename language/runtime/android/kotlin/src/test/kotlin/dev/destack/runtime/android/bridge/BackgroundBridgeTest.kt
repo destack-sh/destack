@@ -5,14 +5,17 @@ import dev.destack.runtime.android.module.background.RuntimeHostBackgroundEvent
 import dev.destack.runtime.android.module.background.RuntimeHostBackgroundEventKind
 import dev.destack.runtime.android.module.background.RuntimeHostBackgroundEventMetadata
 import dev.destack.runtime.android.module.background.RuntimeHostBackgroundConflictPolicy
+import dev.destack.runtime.android.module.background.RuntimeHostBackgroundCompleteRequest
 import dev.destack.runtime.android.module.background.RuntimeHostBackgroundNetworkRequirement
 import dev.destack.runtime.android.module.background.RuntimeHostBackgroundTaskDescriptor
-import dev.destack.runtime.android.module.background.RuntimeHostBackgroundTaskListResponse
 import dev.destack.runtime.android.module.background.RuntimeHostBackgroundTaskOptions
 import dev.destack.runtime.android.module.background.RuntimeHostBackgroundTaskResult
 import dev.destack.runtime.android.module.background.RuntimeHostBackgroundTaskScheduleKind
 import dev.destack.runtime.android.module.background.RuntimeHostBackgroundTaskSchedule
 import dev.destack.runtime.android.module.background.RuntimeHostBackgroundTriggerKind
+import dev.destack.runtime.android.module.background.RuntimeHostBackgroundTriggerTestRequest
+import dev.destack.runtime.android.module.background.RuntimeHostBackgroundUnregisterRequest
+import dev.destack.runtime.android.module.background.RuntimeHostBackgroundListResponse
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -28,10 +31,10 @@ class BackgroundBridgeTest {
     @Test
     fun testBackgroundRequestsAndIngressRouteThroughRuntimeHost() {
         val sessionHandle = HostSessionHandle(rawValue = 7)
-        val bindings = RuntimeAbiSpy()
-        val bridge = RuntimeBridge(sessionHandle, bindings)
+        val runtimeApi = RuntimeIngressSpy()
+        val bridge = RuntimeBridge(sessionHandle, runtimeApi)
         val backgroundRequests = BackgroundRequestRecorder().also {
-            it.listResponse = RuntimeHostBackgroundTaskListResponse(
+            it.listResponse = RuntimeHostBackgroundListResponse(
                 status = 0,
                 descriptors = listOf(
                     RuntimeHostBackgroundTaskDescriptor(
@@ -71,8 +74,8 @@ class BackgroundBridgeTest {
         bridge.attach(runtimeHost)
 
         val statusResponse = bridge.backgroundStatus()
-        val listResponse = bridge.listBackgroundTasks()
-        val registerStatus = bridge.registerBackgroundTask(
+        val listResponse = bridge.backgroundList()
+        val registerStatus = bridge.backgroundRegisterTask(
             identifier = "sync",
             trigger = 2,
             scheduleKind = 2,
@@ -85,14 +88,18 @@ class BackgroundBridgeTest {
             requiresIdle = false,
             conflictPolicy = 1,
         )
-        val unregisterStatus = bridge.unregisterBackgroundTask("sync")
-        val triggerResponse = bridge.triggerBackgroundTask("sync")
-        val completeStatus = bridge.completeBackgroundTask(
+        val unregisterStatus = bridge.backgroundUnregister(
+            identifier = "sync",
+        )
+        val triggerResponse = bridge.backgroundTriggerTest(
+            identifier = "sync",
+        )
+        val completeStatus = bridge.backgroundComplete(
             executionId = "execution-1",
-            result = 1,
+            result = RuntimeHostBackgroundTaskResult.Success.rawValue,
         )
 
-        bridge.sendBackgroundEvent(event)
+        bridge.notifyBackgroundEvent(event)
 
         assertEquals(listOf("sync"), listResponse.descriptors.map { descriptor -> descriptor.identifier })
         assertEquals(
@@ -124,6 +131,6 @@ class BackgroundBridgeTest {
         assertEquals(0, unregisterStatus)
         assertTrue(triggerResponse.isTriggered)
         assertEquals(0, completeStatus)
-        assertEquals(listOf(sessionHandle to event), bindings.backgroundEvents)
+        assertEquals(listOf(sessionHandle to event), runtimeApi.backgroundEvents)
     }
 }

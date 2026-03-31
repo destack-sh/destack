@@ -156,7 +156,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
     if (list_contacts_method == nullptr) {
         list_contacts_method = env->GetMethodID(
             bridge_class,
-            "listContacts",
+            "contactList",
             "(Ljava/lang/String;ZIZZZZZ)Ldev/destack/runtime/android/module/contact/RuntimeHostContactPageResponse;"
         );
     }
@@ -164,7 +164,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
     if (search_contacts_method == nullptr) {
         search_contacts_method = env->GetMethodID(
             bridge_class,
-            "searchContacts",
+            "contactSearch",
             "(Ljava/lang/String;Ljava/lang/String;ZIZZZZZ)Ldev/destack/runtime/android/module/contact/RuntimeHostContactPageResponse;"
         );
     }
@@ -172,7 +172,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
     if (read_contact_method == nullptr) {
         read_contact_method = env->GetMethodID(
             bridge_class,
-            "readContact",
+            "contactRead",
             "(Ljava/lang/String;)Ldev/destack/runtime/android/module/contact/RuntimeHostContactResponse;"
         );
     }
@@ -180,7 +180,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
     if (create_contact_method == nullptr) {
         create_contact_method = env->GetMethodID(
             bridge_class,
-            "createContact",
+            "contactCreate",
             "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;[Ldev/destack/runtime/android/module/contact/RuntimeHostContactPhone;[Ldev/destack/runtime/android/module/contact/RuntimeHostContactEmail;[Ldev/destack/runtime/android/module/contact/RuntimeHostContactAddress;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ldev/destack/runtime/android/module/contact/RuntimeHostContactCreateResponse;"
         );
     }
@@ -188,7 +188,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
     if (update_contact_method == nullptr) {
         update_contact_method = env->GetMethodID(
             bridge_class,
-            "updateContact",
+            "contactUpdate",
             "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;[Ldev/destack/runtime/android/module/contact/RuntimeHostContactPhone;[Ldev/destack/runtime/android/module/contact/RuntimeHostContactEmail;[Ldev/destack/runtime/android/module/contact/RuntimeHostContactAddress;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)I"
         );
     }
@@ -196,7 +196,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
     if (delete_contact_method == nullptr) {
         delete_contact_method = env->GetMethodID(
             bridge_class,
-            "deleteContact",
+            "contactDeleteContact",
             "(Ljava/lang/String;)I"
         );
     }

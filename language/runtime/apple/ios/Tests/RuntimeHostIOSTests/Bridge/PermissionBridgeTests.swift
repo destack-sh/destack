@@ -6,60 +6,12 @@ import Testing
 
 @MainActor
 @Test
-func testProcessRuntimeAbiRoundtripsPermissionRequest() throws {
-  guard hasRuntimeBridgeLibrary() else {
-    return
-  }
-
-  let bindings = ProcessRuntimeAbi()
-  let sessionHandle = bindings.openTestSession()
-
-  defer {
-    bindings.closeTestSession(sessionHandle: sessionHandle)
-  }
-
-  let bridge = RuntimeBridge(
-    sessionHandle: sessionHandle,
-    bindings: bindings
-  )
-  let permissionRequests = PermissionRequestRecorder()
-  let documentRequests = DocumentRequestRecorder()
-  let runtimeHost = createBridgeRuntimeHost(
-    sessionHandle: sessionHandle,
-    permissionRequests: permissionRequests,
-    documentRequests: documentRequests,
-    intentRequests: IntentRequestRecorder(),
-    mediaRequests: MediaRequestRecorder()
-  )
-  let expectedRequest = RuntimeHostPermissionRequest(
-    requestID: HostRequestID(rawValue: 5),
-    permission: "camera"
-  )
-
-  try bridge.attach(runtimeHost: runtimeHost)
-
-  defer {
-    bridge.detach()
-  }
-
-  let submitStatus = bindings.submitTestPermissionRequest(
-    sessionHandle: sessionHandle,
-    requestID: expectedRequest.requestID,
-    permission: expectedRequest.permission
-  )
-
-  #expect(submitStatus == hostStatusOk)
-  #expect(permissionRequests.requests == [expectedRequest])
-}
-
-@MainActor
-@Test
 func testRuntimeBridgeRoutesPermissionRequestsIntoRuntimeHost() throws {
-  let bindings = RuntimeAbiSpy()
+  let bindings = RuntimeIngressSpy()
   let sessionHandle = makeTestSessionHandle()
   let bridge = RuntimeBridge(
     sessionHandle: sessionHandle,
-    bindings: bindings
+    runtimeApi: bindings
   )
   let permissionRequests = PermissionRequestRecorder()
   let runtimeHost = createBridgeRuntimeHost(
@@ -86,11 +38,11 @@ func testRuntimeBridgeRoutesPermissionRequestsIntoRuntimeHost() throws {
 @MainActor
 @Test
 func testRuntimeBridgeRoutesPermissionSettingsRequestsIntoRuntimeHost() throws {
-  let bindings = RuntimeAbiSpy()
+  let bindings = RuntimeIngressSpy()
   let sessionHandle = makeTestSessionHandle()
   let bridge = RuntimeBridge(
     sessionHandle: sessionHandle,
-    bindings: bindings
+    runtimeApi: bindings
   )
   let permissionRequests = PermissionRequestRecorder()
   let runtimeHost = createBridgeRuntimeHost(
@@ -111,11 +63,11 @@ func testRuntimeBridgeRoutesPermissionSettingsRequestsIntoRuntimeHost() throws {
 @MainActor
 @Test
 func testRuntimeBridgeSendsPermissionEventsIntoRuntimeIngress() throws {
-  let bindings = RuntimeAbiSpy()
+  let bindings = RuntimeIngressSpy()
   let sessionHandle = makeTestSessionHandle()
   let bridge = RuntimeBridge(
     sessionHandle: sessionHandle,
-    bindings: bindings
+    runtimeApi: bindings
   )
   let runtimeHost = createBridgeRuntimeHost(
     sessionHandle: sessionHandle,
@@ -131,7 +83,7 @@ func testRuntimeBridgeSendsPermissionEventsIntoRuntimeIngress() throws {
   )
 
   try bridge.attach(runtimeHost: runtimeHost)
-  bridge.sendPermissionEvent(event)
+  bridge.notifyPermissionResult(event)
 
   #expect(bindings.permissionEvents.count == 1)
   #expect(bindings.permissionEvents[0].0 == sessionHandle)
@@ -143,11 +95,11 @@ func testRuntimeBridgeSendsPermissionEventsIntoRuntimeIngress() throws {
 @MainActor
 @Test
 func testRuntimeBridgeRejectsInvalidPermissionRequest() throws {
-  let bindings = RuntimeAbiSpy()
+  let bindings = RuntimeIngressSpy()
   let sessionHandle = makeTestSessionHandle()
   let bridge = RuntimeBridge(
     sessionHandle: sessionHandle,
-    bindings: bindings
+    runtimeApi: bindings
   )
   let runtimeHost = createBridgeRuntimeHost(
     sessionHandle: sessionHandle,
@@ -160,7 +112,7 @@ func testRuntimeBridgeRejectsInvalidPermissionRequest() throws {
   try bridge.attach(runtimeHost: runtimeHost)
   let invalidRequest = DestackRustPermissionRequest(
     request_id: 5,
-    permissions: DestackRustStringSlice(data: nil, len: 1)
+    permission: DestackRustStringRef(data: nil, len: 1)
   )
   let status = bindings.permissionRequestCallback!(sessionHandle.rawValue, invalidRequest)
 

@@ -3,106 +3,136 @@ package dev.destack.runtime.android.module.background
 /**
  * The Android background scheduler availability state.
  */
-public enum class RuntimeHostBackgroundStatus {
+public enum class RuntimeHostBackgroundStatus(
+    /**
+     * The raw bridge value for this enum case.
+     */
+    val rawValue: Int,
+) {
     /**
      * The scheduler is unavailable on this host.
      */
-    Unavailable,
+    Unavailable(1),
 
     /**
      * The scheduler is available but restricted.
      */
-    Restricted,
+    Restricted(2),
 
     /**
      * The scheduler is available.
      */
-    Available,
+    Available(3),
 }
 
 /**
  * The Android background trigger class.
  */
-public enum class RuntimeHostBackgroundTriggerKind {
+public enum class RuntimeHostBackgroundTriggerKind(
+    /**
+     * The raw bridge value for this enum case.
+     */
+    val rawValue: Int,
+) {
     /**
      * One opportunistic refresh task.
      */
-    AppRefresh,
+    AppRefresh(1),
 
     /**
      * One longer processing task.
      */
-    Processing,
+    Processing(2),
 }
 
 /**
  * The Android background completion class.
  */
-public enum class RuntimeHostBackgroundTaskResult {
+public enum class RuntimeHostBackgroundTaskResult(
+    /**
+     * The raw bridge value for this enum case.
+     */
+    val rawValue: Int,
+) {
     /**
      * The task completed successfully.
      */
-    Success,
+    Success(1),
 
     /**
      * The task should be retried.
      */
-    Retry,
+    Retry(2),
 
     /**
      * The task failed permanently.
      */
-    Failure,
+    Failure(3),
 }
 
 /**
  * The Android background network requirement.
  */
-public enum class RuntimeHostBackgroundNetworkRequirement {
+public enum class RuntimeHostBackgroundNetworkRequirement(
+    /**
+     * The raw bridge value for this enum case.
+     */
+    val rawValue: Int,
+) {
     /**
      * No network route is required.
      */
-    None,
+    None(1),
 
     /**
      * One network route is required.
      */
-    Connected,
+    Connected(2),
 
     /**
      * One unmetered network route is required.
      */
-    Unmetered,
+    Unmetered(3),
 }
 
 /**
  * The Android background conflict policy.
  */
-public enum class RuntimeHostBackgroundConflictPolicy {
+public enum class RuntimeHostBackgroundConflictPolicy(
+    /**
+     * The raw bridge value for this enum case.
+     */
+    val rawValue: Int,
+) {
     /**
      * Replace one existing registration.
      */
-    Replace,
+    Replace(1),
 
     /**
      * Keep one existing registration.
      */
-    Keep,
+    Keep(2),
 }
 
 /**
  * The Android background schedule class.
  */
-public enum class RuntimeHostBackgroundTaskScheduleKind {
+public enum class RuntimeHostBackgroundTaskScheduleKind(
+    /**
+     * The raw bridge value for this enum case.
+     */
+    val rawValue: Int,
+) {
     /**
      * One single future execution.
      */
-    Once,
+    Once(1),
 
     /**
      * One recurring execution stream.
      */
-    Recurring,
+    Recurring(2),
 }
 
 /**
@@ -163,6 +193,86 @@ public data class RuntimeHostBackgroundTaskOptions(
      * The conflict policy for one existing registration.
      */
     val conflictPolicy: RuntimeHostBackgroundConflictPolicy,
+)
+
+/**
+ * One Android background status response.
+ */
+public data class RuntimeHostBackgroundStatusResponse(
+    /**
+     * The host status code.
+     */
+    val status: Int,
+
+    /**
+     * The scheduler status when available.
+     */
+    val schedulerStatus: RuntimeHostBackgroundStatus? = null,
+)
+
+/**
+ * One Android background task-list response.
+ */
+public data class RuntimeHostBackgroundListResponse(
+    /**
+     * The host status code.
+     */
+    val status: Int,
+
+    /**
+     * The returned task descriptors.
+     */
+    val descriptors: List<RuntimeHostBackgroundTaskDescriptor> = emptyList(),
+)
+
+/**
+ * One Android background unregister request.
+ */
+public data class RuntimeHostBackgroundUnregisterRequest(
+    /**
+     * The stable task identifier.
+     */
+    val identifier: String,
+)
+
+/**
+ * One Android background trigger-test request.
+ */
+public data class RuntimeHostBackgroundTriggerTestRequest(
+    /**
+     * The stable task identifier.
+     */
+    val identifier: String,
+)
+
+/**
+ * One Android background trigger-test response.
+ */
+public data class RuntimeHostBackgroundTriggerTestResponse(
+    /**
+     * The host status code.
+     */
+    val status: Int,
+
+    /**
+     * Whether the host triggered one task execution.
+     */
+    val isTriggered: Boolean = false,
+)
+
+/**
+ * One Android background complete request.
+ */
+public data class RuntimeHostBackgroundCompleteRequest(
+    /**
+     * The stable execution identifier.
+     */
+    val executionId: String,
+
+    /**
+     * The completion result.
+     */
+    val result: RuntimeHostBackgroundTaskResult,
 )
 
 /**
@@ -274,16 +384,21 @@ public data class RuntimeHostBackgroundEventMetadata(
 /**
  * The Android background event kind.
  */
-public enum class RuntimeHostBackgroundEventKind {
+public enum class RuntimeHostBackgroundEventKind(
+    /**
+     * The raw bridge value for this enum case.
+     */
+    val rawValue: Int,
+) {
     /**
      * One task became ready to execute.
      */
-    TaskReady,
+    TaskReady(1),
 
     /**
      * One task execution expired.
      */
-    TaskExpired,
+    TaskExpired(2),
 }
 
 /**

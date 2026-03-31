@@ -11,6 +11,13 @@ void detach_jni_thread(bool did_attach_thread);
 jstring new_java_string(JNIEnv *env, NativeStringRef value);
 /// Build one Java string array from one native string slice.
 jobjectArray new_java_string_array(JNIEnv *env, NativeStringSlice values);
+/// Register one native method table on one JVM class.
+bool register_native_methods(
+    JNIEnv *env,
+    const char *class_name,
+    JNINativeMethod *methods,
+    jint count
+);
 /// Call one bridge method with one byte payload.
 uint32_t call_bridge_bytes(
     JNIEnv *env,

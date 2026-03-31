@@ -8,7 +8,7 @@ final class RecordingNotificationRequestHandler: NotificationRequests {
   var cancelAllCalls: Int = 0
   var status: UInt32 = hostStatusOk
 
-  func postNotification(
+  func post(
     _ request: RuntimeHostNotificationRequest
   ) -> UInt32 {
     postedRequests.append(request)
@@ -16,15 +16,15 @@ final class RecordingNotificationRequestHandler: NotificationRequests {
     return status
   }
 
-  func cancelNotification(
-    identifier: String
+  func cancel(
+    _ identifier: String
   ) -> UInt32 {
     cancelledIdentifiers.append(identifier)
 
     return status
   }
 
-  func cancelAllNotifications() -> UInt32 {
+  func cancelAll() -> UInt32 {
     cancelAllCalls += 1
 
     return status
@@ -36,7 +36,7 @@ final class RecordingNotificationRequestHandler: NotificationRequests {
 final class RecordingNotificationEventSink: NotificationEvents {
   var events: [RuntimeHostNotificationEvent] = []
 
-  func sendNotificationEvent(_ event: RuntimeHostNotificationEvent) {
+  func notifyNotificationEvent(_ event: RuntimeHostNotificationEvent) {
     events.append(event)
   }
 }

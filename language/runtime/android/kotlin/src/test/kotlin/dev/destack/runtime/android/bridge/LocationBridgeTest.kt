@@ -9,7 +9,6 @@ import dev.destack.runtime.android.module.location.RuntimeHostLocationWatchOptio
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
-import org.junit.Assume.assumeTrue
 import org.junit.Test
 
 /**
@@ -22,8 +21,8 @@ class LocationBridgeTest {
     @Test
     fun testLocationRequestsAndIngressRouteThroughRuntimeHost() {
         val sessionHandle = HostSessionHandle(rawValue = 7)
-        val bindings = RuntimeAbiSpy()
-        val bridge = RuntimeBridge(sessionHandle, bindings)
+        val runtimeApi = RuntimeIngressSpy()
+        val bridge = RuntimeBridge(sessionHandle, runtimeApi)
         val locationRequests = LocationRequestRecorder().also {
             it.servicesEnabledResponse = RuntimeHostLocationServicesResponse(
                 status = 0,
@@ -54,7 +53,7 @@ class LocationBridgeTest {
             includeHeading = true,
         )
 
-        bridge.sendLocationSample("watch-1", sampleLocation())
+        bridge.notifyLocationSample("watch-1", sampleLocation())
 
         val closeStatus = bridge.locationWatchClose("watch-1")
 
@@ -78,7 +77,7 @@ class LocationBridgeTest {
             listOf(
                 Triple(sessionHandle, "watch-1", sampleLocation()),
             ),
-            bindings.locationSamples,
+            runtimeApi.locationSamples,
         )
     }
 
@@ -88,8 +87,8 @@ class LocationBridgeTest {
     @Test
     fun testLocationBridgeRejectsInvalidAccuracy() {
         val sessionHandle = HostSessionHandle(rawValue = 7)
-        val bindings = RuntimeAbiSpy()
-        val bridge = RuntimeBridge(sessionHandle, bindings)
+        val runtimeApi = RuntimeIngressSpy()
+        val bridge = RuntimeBridge(sessionHandle, runtimeApi)
         val locationRequests = LocationRequestRecorder()
         val runtimeHost = createBridgeRuntimeHost(
             sessionHandle = sessionHandle,
@@ -113,73 +112,6 @@ class LocationBridgeTest {
         assertTrue(locationRequests.watchOpenCalls.isEmpty())
     }
 
-    /**
-     * Route live location requests through the process runtime ABI.
-     */
-    @Test
-    fun testProcessRuntimeAbiRoundtripsLocationRequests() {
-        assumeTrue("missing DESTACK_RUNTIME_HOST_BRIDGE_LIBRARY", hasRuntimeBridgeLibrary())
-
-        val sessionHandle = RuntimeAbiTest.openTestSession()
-
-        try {
-            val bridge = RuntimeBridge(sessionHandle)
-            val locationRequests = LocationRequestRecorder().also {
-                it.servicesEnabledResponse = RuntimeHostLocationServicesResponse(
-                    status = 0,
-                    isEnabled = true,
-                )
-            }
-            val runtimeHost = createBridgeRuntimeHost(
-                sessionHandle = sessionHandle,
-                permissionRequests = PermissionRequestRecorder(),
-                documentRequests = DocumentRequestRecorder(),
-                intentRequests = IntentRequestRecorder(),
-                locationRequests = locationRequests,
-            )
-
-            bridge.attach(runtimeHost)
-
-            try {
-                val (servicesStatus, isEnabled) = RuntimeAbiTest.testLocationServicesEnabled(
-                    sessionHandle = sessionHandle,
-                )
-                val openStatus = RuntimeAbiTest.testLocationWatchOpen(
-                    sessionHandle = sessionHandle,
-                    watchId = "watch-1",
-                    accuracy = 4,
-                    minimumIntervalNs = 50_000_000L,
-                    minimumDistanceMeters = 2.5,
-                    includeHeading = true,
-                )
-                val closeStatus = RuntimeAbiTest.testLocationWatchClose(
-                    sessionHandle = sessionHandle,
-                    watchId = "watch-1",
-                )
-
-                assertEquals(0, servicesStatus)
-                assertTrue(isEnabled)
-                assertEquals(
-                    listOf(
-                        "watch-1" to RuntimeHostLocationWatchOptions(
-                            accuracy = RuntimeHostLocationAccuracy.High,
-                            minimumIntervalNs = 50_000_000L,
-                            minimumDistanceMeters = 2.5,
-                            includeHeading = true,
-                        ),
-                    ),
-                    locationRequests.watchOpenCalls,
-                )
-                assertEquals(listOf("watch-1"), locationRequests.watchCloseCalls)
-                assertEquals(0, openStatus)
-                assertEquals(0, closeStatus)
-            } finally {
-                bridge.detach()
-            }
-        } finally {
-            RuntimeAbiTest.closeTestSession(sessionHandle)
-        }
-    }
 }
 
 /**

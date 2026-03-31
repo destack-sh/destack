@@ -1,15 +1,15 @@
 import Foundation
 
 /// The Apple media asset kind returned by one host surface.
-public enum RuntimeHostMediaAssetKind: Sendable, Hashable, Codable {
+public enum RuntimeHostMediaAssetKind: UInt32, Sendable, Hashable, Codable {
   /// One image asset.
-  case image
+  case image = 1
   /// One video asset.
-  case video
+  case video = 2
   /// One audio asset.
-  case audio
+  case audio = 3
   /// One non-standard asset.
-  case other
+  case other = 4
 }
 
 /// One media-asset descriptor returned by the Apple host.

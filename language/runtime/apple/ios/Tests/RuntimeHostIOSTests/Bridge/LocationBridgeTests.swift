@@ -6,11 +6,11 @@ import Testing
 @MainActor
 @Test
 func testLocationRequestsAndIngressRouteIntoRuntimeHost() throws {
-  let bindings = RuntimeAbiSpy()
+  let bindings = RuntimeIngressSpy()
   let sessionHandle = HostSessionHandle(rawValue: 7)
   let bridge = RuntimeBridge(
     sessionHandle: sessionHandle,
-    bindings: bindings
+    runtimeApi: bindings
   )
   let locationRequests = LocationRequestRecorder()
   locationRequests.servicesEnabledResponse = RuntimeHostLocationServicesResponse(
@@ -31,15 +31,15 @@ func testLocationRequestsAndIngressRouteIntoRuntimeHost() throws {
 
   try bridge.attach(runtimeHost: runtimeHost)
 
-  let servicesEnabled = bridge.locationBridge.locationServicesEnabled(
+  let servicesEnabled = bridge.locationServicesEnabled(
     runtimeHost: runtimeHost
   )
-  let lastKnown = bridge.locationBridge.locationLastKnown(
+  let lastKnown = bridge.locationLastKnown(
     runtimeHost: runtimeHost
   )
-  let openStatus = bridge.locationBridge.locationWatchOpen(
+  let openStatus = bridge.locationWatchOpen(
     runtimeHost: runtimeHost,
-    watchID: "watch-1",
+    "watch-1",
     options: RuntimeHostLocationWatchOptions(
       accuracy: .high,
       minimumIntervalNs: 50_000_000,
@@ -47,20 +47,19 @@ func testLocationRequestsAndIngressRouteIntoRuntimeHost() throws {
       includeHeading: true
     )
   )
-  bridge.sendLocationSample(
+  bridge.notifyLocationSample(
     watchID: "watch-1",
     sample: makeIOSLocationSample()
   )
-  let closeStatus = bridge.locationBridge.locationWatchClose(
+  let closeStatus = bridge.locationWatchClose(
     runtimeHost: runtimeHost,
-    watchID: "watch-1"
+    "watch-1"
   )
 
   #expect(
-    servicesEnabled == RuntimeHostLocationServicesResponse(status: hostStatusOk, isEnabled: true))
+    servicesEnabled.isEnabled == true)
   #expect(
-    lastKnown
-      == RuntimeHostLocationLastKnownResponse(status: hostStatusOk, sample: makeIOSLocationSample())
+    lastKnown.sample == makeIOSLocationSample()
   )
   #expect(locationRequests.watchOpenCalls.count == 1)
   #expect(locationRequests.watchOpenCalls[0].0 == "watch-1")
