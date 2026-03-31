@@ -3,14 +3,10 @@
 #![feature(str_as_str)]
 #![feature(thread_id_value)]
 
-mod cache;
 pub mod config;
-pub mod program;
-pub mod session;
+pub mod target;
 pub mod workspace;
 
-pub use cache::*;
 pub use config::*;
-pub use program::*;
-pub use session::*;
+pub use target::*;
 pub use workspace::*;

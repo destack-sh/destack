@@ -1,6 +1,11 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
+
+use super::resolve_global_cache_root;
+
+const DEFAULT_CACHE_DIR: &str = ".destack";
+const DEFAULT_GLOBAL_CACHE_DIR: &str = "destack";
 
 /// Cache configuration options.
 #[derive(Debug, Clone, Default)]
@@ -174,4 +179,35 @@ impl From<CacheScopeJson> for CacheScope {
             CacheScopeJson::Global => CacheScope::Global,
         }
     }
+}
+
+/// Resolve a cache root for the provided scope and cache dir.
+pub fn resolve_cache_root_for_scope(
+    base_dir: &Path,
+    cache_dir: Option<&Path>,
+    scope: CacheScope,
+) -> PathBuf {
+    // honor explicit cache directory paths first
+    if let Some(cache_dir) = cache_dir {
+        if cache_dir.is_absolute() {
+            return cache_dir.to_path_buf();
+        }
+
+        if scope == CacheScope::Global
+            && let Some(global_root) = resolve_global_cache_root(DEFAULT_GLOBAL_CACHE_DIR)
+        {
+            return global_root.join(cache_dir);
+        }
+
+        return base_dir.join(cache_dir);
+    }
+
+    // resolve global cache roots when requested
+    if scope == CacheScope::Global
+        && let Some(global_root) = resolve_global_cache_root(DEFAULT_GLOBAL_CACHE_DIR)
+    {
+        return global_root;
+    }
+
+    base_dir.join(DEFAULT_CACHE_DIR)
 }

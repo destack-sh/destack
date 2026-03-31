@@ -7,7 +7,7 @@ use super::common::{
     StackProviderJson, StackProviderOptions, merge_metadata,
 };
 use super::workloads::{StackPlacementJson, StackPlacementOptions};
-use crate::{FeatureRefsJson, TelemetryRefsJson};
+use crate::config::{FeatureRefsJson, TelemetryRefsJson};
 
 /// Destack service configuration options.
 #[derive(Debug, Clone, Default)]

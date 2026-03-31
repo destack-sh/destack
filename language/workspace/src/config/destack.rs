@@ -7,7 +7,9 @@ use serde_json::Value;
 
 use destack_source::{File, FileContent, FileId};
 
-use crate::{FormatterOptions, LinterOptions, ProfileConfig, ProfileConfigJson, RuntimeOptions};
+use crate::config::{
+    FormatterOptions, LinterOptions, ProfileConfig, ProfileConfigJson, RuntimeOptions,
+};
 
 use super::account::{
     AccountJson, AccountOptions, account_options_from_json, extend_account_options,

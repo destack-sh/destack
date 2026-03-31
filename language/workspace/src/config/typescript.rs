@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use destack_builtin::{builtin_library, builtin_library_name_for_types_package};
 use destack_source::{FileSystem, PathExt};
 
-use crate::TsConfigOptions;
+use crate::config::TsConfigOptions;
 
 const TYPESCRIPT_LIB_PREFIX: &str = "lib.";
 const TYPESCRIPT_LIB_SUFFIX: &str = ".d.ts";

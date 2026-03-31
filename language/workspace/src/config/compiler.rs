@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use indexmap::IndexMap;
 use serde::Deserialize;
 
-use crate::{BorrowMode, EsTarget, ModuleDetection, ModuleResolution, ModuleTarget};
+use crate::config::{BorrowMode, EsTarget, ModuleDetection, ModuleResolution, ModuleTarget};
 
 /// Path alias mapping (resolved from Destack config paths).
 pub type DsPathAliases = IndexMap<String, Vec<String>>;

@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use crate::{DiagnosticPolicy, DiagnosticPolicyJson};
+use crate::config::{DiagnosticPolicy, DiagnosticPolicyJson};
 
 use super::{
     BitwiseOperator, BitwiseOperatorJson, LinterOptions, WarningCommentLocation,

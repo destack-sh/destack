@@ -4,7 +4,7 @@ use destack_artifact::{EmitFormat, Platform, Runtime};
 use destack_source::Uri;
 use serde::{Deserialize, Serialize};
 
-use crate::ProfileEnv;
+use crate::workspace::ProfileEnv;
 
 /// Structured target metadata exposed to `import.meta.target`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -38,7 +38,7 @@ pub struct ImportMeta {
     pub dirname: Option<PathBuf>,
     /// The emit format being compiled.
     pub emit: EmitFormat,
-    /// The target platform (OS) being compiled for.
+    /// The target platform being compiled for.
     pub platform: Platform,
     /// The runtime environment that will execute the code.
     pub runtime: Runtime,
