@@ -22,6 +22,8 @@ pub enum FrameSlotKind {
 pub enum FrameSlotSource {
     /// One SSA value slot.
     Value(mir::Value),
+    /// One disaggregated hidden slot owned by one semantic value.
+    DisaggregatedValue(mir::Value),
     /// One mutable local slot.
     Local(mir::LocalNodeId<mir::Local>),
     /// The function environment slot.
@@ -35,8 +37,6 @@ pub enum FrameSlotValueClass {
     Plain,
     /// One managed heap reference.
     ManagedReference,
-    /// One managed object handle.
-    ManagedObject,
     /// One raw heap pointer.
     RawPointer,
     /// One shared byte-space pointer.
@@ -56,7 +56,7 @@ pub enum FrameSlotValueClass {
 impl FrameSlotValueClass {
     /// Return whether this slot class may hold one managed GC root.
     pub fn contains_managed_references(self) -> bool {
-        matches!(self, Self::ManagedReference | Self::ManagedObject)
+        matches!(self, Self::ManagedReference)
     }
 }
 
@@ -96,12 +96,27 @@ impl FrameLayout {
         self.slots.get(slot as usize)
     }
 
+    /// Return the value slot at the given value index.
+    pub fn value_slot(&self, value: mir::Value) -> Option<&FrameSlot> {
+        let slot = self.value_slots.start.checked_add(value.0)?;
+        self.slot(slot)
+    }
+
     /// Return whether the given layout slot may hold one managed root.
     pub fn contains_managed_references(&self, slot: u32) -> bool {
         self.slot(slot)
             .map(|slot| slot.value_class.contains_managed_references())
             .unwrap_or(false)
     }
+}
+
+/// One captured frame-local stack allocation.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct FrameStackAllocation {
+    /// The raw byte storage for this allocation.
+    pub bytes: Vec<u8>,
+    /// The stored raw storage type.
+    pub storage_type: mir::LocalNodeId<mir::Type>,
 }
 
 /// One durable logical frame image.
@@ -115,4 +130,6 @@ pub struct FrameImage {
     pub transfer: Option<FrameTransfer>,
     /// The logical slot payloads in layout order.
     pub slots: Vec<FrameValue>,
+    /// The captured frame-local stack allocations.
+    pub stack_allocations: Vec<Option<FrameStackAllocation>>,
 }

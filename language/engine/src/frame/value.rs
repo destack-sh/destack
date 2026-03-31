@@ -1,4 +1,6 @@
-use destack_heap::{ManagedReference, RawPointer, ReferenceMeta, SharedPointer};
+use destack_heap::{
+    LocalPointer, ManagedReference, RawPointer, ReferenceMeta, SharedPointer, StackPointer,
+};
 use destack_mir as mir;
 
 /// One pointer into one global value.
@@ -66,6 +68,20 @@ pub enum FrameValue {
         /// The reference metadata for this value.
         meta: ReferenceMeta,
     },
+    /// One frame-local stack pointer.
+    StackPointer {
+        /// The stack pointer payload.
+        pointer: StackPointer,
+        /// The reference metadata for this value.
+        meta: ReferenceMeta,
+    },
+    /// One frame-local local-slot pointer.
+    LocalPointer {
+        /// The local pointer payload.
+        pointer: LocalPointer,
+        /// The reference metadata for this value.
+        meta: ReferenceMeta,
+    },
     /// One pointer into one global value.
     GlobalPointer {
         /// The global pointer payload.
@@ -75,8 +91,4 @@ pub enum FrameValue {
     },
     /// One MIR function reference.
     Function(mir::LocalNodeId<mir::Function>),
-    /// One managed aggregate handle.
-    Aggregate(ManagedReference),
-    /// One interned string handle.
-    String(ManagedReference),
 }
