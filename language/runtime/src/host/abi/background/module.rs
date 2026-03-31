@@ -3,6 +3,7 @@ use crate::host::abi::describe::host_abi_module;
 host_abi_module! {
     fn host_abi_module() -> "background" {
         platforms: [ios, android];
+        runtime_host: manual [ios, android];
         types: super::types::host_abi_types();
         requests {
             /// Read one host background scheduler status.

@@ -3,126 +3,126 @@
 pub mod background;
 #[allow(dead_code)]
 #[cfg(not(feature = "generator"))]
-pub(crate) mod background;
+pub mod background;
 
 #[cfg_attr(feature = "generator", allow(dead_code))]
 #[cfg(feature = "generator")]
 pub mod bluetooth;
 #[allow(dead_code)]
 #[cfg(all(not(feature = "generator"), any(test, target_os = "android")))]
-pub(crate) mod bluetooth;
+pub mod bluetooth;
 
 #[cfg_attr(feature = "generator", allow(dead_code))]
 #[cfg(feature = "generator")]
 pub mod calendar;
 #[allow(dead_code)]
 #[cfg(not(feature = "generator"))]
-pub(crate) mod calendar;
+pub mod calendar;
 
 #[cfg_attr(feature = "generator", allow(dead_code))]
 #[cfg(feature = "generator")]
 pub mod camera;
 #[allow(dead_code)]
 #[cfg(all(not(feature = "generator"), any(test, target_os = "android")))]
-pub(crate) mod camera;
+pub mod camera;
 
 #[cfg_attr(feature = "generator", allow(dead_code))]
 #[cfg(feature = "generator")]
 pub mod contact;
 #[allow(dead_code)]
 #[cfg(not(feature = "generator"))]
-pub(crate) mod contact;
+pub mod contact;
 
 #[cfg_attr(feature = "generator", allow(dead_code))]
 #[cfg(feature = "generator")]
 pub mod credentials;
 #[allow(dead_code)]
 #[cfg(all(not(feature = "generator"), any(test, target_os = "android")))]
-pub(crate) mod credentials;
+pub mod credentials;
 
 #[cfg_attr(feature = "generator", allow(dead_code))]
 #[cfg(feature = "generator")]
 pub mod crypto;
 #[allow(dead_code)]
 #[cfg(all(not(feature = "generator"), any(test, target_os = "android")))]
-pub(crate) mod crypto;
+pub mod crypto;
 
 #[cfg_attr(feature = "generator", allow(dead_code))]
 #[cfg(feature = "generator")]
 pub mod core;
 #[allow(dead_code)]
 #[cfg(not(feature = "generator"))]
-pub(crate) mod core;
+pub mod core;
 
 #[cfg_attr(feature = "generator", allow(dead_code))]
 #[cfg(feature = "generator")]
 pub mod describe;
 #[allow(dead_code)]
 #[cfg(not(feature = "generator"))]
-pub(crate) mod describe;
+pub mod describe;
 
 #[cfg_attr(feature = "generator", allow(dead_code))]
 #[cfg(feature = "generator")]
 pub mod document;
 #[allow(dead_code)]
 #[cfg(not(feature = "generator"))]
-pub(crate) mod document;
+pub mod document;
 
 #[cfg_attr(feature = "generator", allow(dead_code))]
 #[cfg(feature = "generator")]
 pub mod intent;
 #[allow(dead_code)]
 #[cfg(not(feature = "generator"))]
-pub(crate) mod intent;
+pub mod intent;
 
 #[cfg_attr(feature = "generator", allow(dead_code))]
 #[cfg(feature = "generator")]
 pub mod location;
 #[allow(dead_code)]
 #[cfg(not(feature = "generator"))]
-pub(crate) mod location;
+pub mod location;
 
 #[cfg_attr(feature = "generator", allow(dead_code))]
 #[cfg(feature = "generator")]
 pub mod media;
 #[allow(dead_code)]
 #[cfg(not(feature = "generator"))]
-pub(crate) mod media;
+pub mod media;
 
 #[cfg_attr(feature = "generator", allow(dead_code))]
 #[cfg(feature = "generator")]
 pub mod midi;
 #[allow(dead_code)]
 #[cfg(all(not(feature = "generator"), any(test, target_os = "android")))]
-pub(crate) mod midi;
+pub mod midi;
 
 #[cfg_attr(feature = "generator", allow(dead_code))]
 #[cfg(feature = "generator")]
 pub mod notification;
 #[allow(dead_code)]
 #[cfg(not(feature = "generator"))]
-pub(crate) mod notification;
+pub mod notification;
 
 #[cfg_attr(feature = "generator", allow(dead_code))]
 #[cfg(feature = "generator")]
 pub mod permission;
 #[allow(dead_code)]
 #[cfg(not(feature = "generator"))]
-pub(crate) mod permission;
+pub mod permission;
 
 #[cfg_attr(feature = "generator", allow(dead_code))]
 #[cfg(feature = "generator")]
 pub mod text;
 #[allow(dead_code)]
 #[cfg(not(feature = "generator"))]
-pub(crate) mod text;
+pub mod text;
 
 #[cfg_attr(feature = "generator", allow(dead_code))]
 #[cfg(feature = "generator")]
 pub mod usb;
 #[allow(dead_code)]
 #[cfg(all(not(feature = "generator"), any(test, target_os = "android")))]
-pub(crate) mod usb;
+pub mod usb;
 
 #[cfg(feature = "generator")]
 use crate::host::abi::describe::HostAbiModule;

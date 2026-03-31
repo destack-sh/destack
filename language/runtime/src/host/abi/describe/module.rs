@@ -52,6 +52,12 @@ pub struct HostAbiModule {
     pub requests: Vec<HostAbiFunction>,
     /// The module ingress surface.
     pub ingress: Vec<HostAbiFunction>,
+    /// The generated aggregate runtime-ingress surface when authored separately.
+    pub runtime_ingress: Option<HostAbiRuntimeIngress>,
+    /// The platforms that expose this module on `RuntimeHost`.
+    pub runtime_host_platforms: Vec<HostAbiModulePlatform>,
+    /// The wrapper ownership for the `RuntimeHost` surface.
+    pub runtime_host_wrapper_kind: HostAbiRuntimeHostWrapperKind,
     /// Selector-backed control exports for this module.
     pub selector_controls: Vec<HostAbiSelectorControl>,
     /// Additional generated Rust capability probes for this module.
@@ -65,6 +71,103 @@ pub enum HostAbiModulePlatform {
     Ios,
     /// The Android host surface.
     Android,
+}
+
+/// One `RuntimeHost` wrapper ownership mode.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum HostAbiRuntimeHostWrapperKind {
+    /// The wrapper is emitted by the generator.
+    Generated,
+    /// The wrapper remains handwritten.
+    Manual,
+}
+
+/// One authored aggregate runtime-ingress surface.
+#[derive(Clone, Debug)]
+pub struct HostAbiRuntimeIngress {
+    /// The generated method name.
+    pub method_name: &'static str,
+    /// The generated method documentation.
+    pub documentation: &'static str,
+    /// The public method parameters.
+    pub parameters: Vec<HostAbiRuntimeIngressParameter>,
+    /// The aggregate lowering shape.
+    pub lowering: HostAbiRuntimeIngressLowering,
+}
+
+/// One authored aggregate runtime-ingress parameter.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct HostAbiRuntimeIngressParameter {
+    /// The parameter name.
+    pub name: &'static str,
+    /// The parameter type.
+    pub ty: HostAbiRuntimeIngressParameterType,
+}
+
+/// One authored aggregate runtime-ingress parameter type.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum HostAbiRuntimeIngressParameterType {
+    /// One host session handle.
+    SessionHandle,
+    /// One intent event payload.
+    IntentEvent,
+}
+
+/// One authored aggregate runtime-ingress expression.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum HostAbiRuntimeIngressExpr {
+    /// One direct parameter.
+    Parameter(&'static str),
+    /// Whether one optional parameter is present.
+    ParameterIsSome(&'static str),
+    /// One field projected from one parameter.
+    Field {
+        /// The parameter name.
+        base: &'static str,
+        /// The field name.
+        field: &'static str,
+    },
+    /// Whether one optional field is present.
+    OptionalIsSome {
+        /// The parameter name.
+        base: &'static str,
+        /// The field name.
+        field: &'static str,
+    },
+}
+
+/// One authored aggregate runtime-ingress binding call.
+#[derive(Clone, Debug)]
+pub struct HostAbiRuntimeIngressBindingCall {
+    /// The resolved runtime binding field name.
+    pub binding_field_name: &'static str,
+    /// The lowered binding arguments, excluding the implicit session handle.
+    pub arguments: Vec<HostAbiRuntimeIngressExpr>,
+}
+
+/// One authored aggregate runtime-ingress dispatch case.
+#[derive(Clone, Debug)]
+pub struct HostAbiRuntimeIngressDispatchCase {
+    /// The stable variant name.
+    pub variant_name: &'static str,
+    /// The bound payload locals for this case.
+    pub bindings: Vec<&'static str>,
+    /// The lowered binding call for this case.
+    pub call: HostAbiRuntimeIngressBindingCall,
+}
+
+/// One authored aggregate runtime-ingress lowering.
+#[derive(Clone, Debug)]
+pub enum HostAbiRuntimeIngressLowering {
+    /// One runtime binding dispatch over one payload enum.
+    EnumDispatch {
+        /// The enum parameter name.
+        enum_parameter: &'static str,
+        /// The enum field name.
+        enum_field: &'static str,
+        /// The ordered dispatch cases.
+        cases: Vec<HostAbiRuntimeIngressDispatchCase>,
+    },
 }
 
 /// One named host ABI payload type.
@@ -485,7 +588,7 @@ macro_rules! host_abi_types {
         #[derive(Clone, Copy, Debug)]
         $(#[derive($($derive)*)])*
         #[repr(C)]
-        pub(crate) struct $name {
+        pub struct $name {
             $(
                 $(#[doc = $field_doc])*
                 pub $field_name: $crate::host::abi::describe::host_abi_rust_type!(
@@ -509,7 +612,7 @@ macro_rules! host_abi_types {
         $(#[doc = $doc])*
         #[derive(Clone, Copy, Debug)]
         #[repr($repr)]
-        pub(crate) enum $name {
+        pub enum $name {
             $(
                 $(#[doc = $variant_doc])*
                 $variant_name = $discriminant,
@@ -585,6 +688,8 @@ macro_rules! host_abi_module {
     (
         fn $function_name:ident() -> $module_name:literal {
             platforms: [$($platform:ident),* $(,)?];
+            $(runtime_ingress: $runtime_ingress:expr;)?
+            $(runtime_host: $runtime_host_wrapper:ident [$($runtime_host_platform:ident),* $(,)?];)?
             types: $types:expr;
             requests {
                 $($requests:tt)*
@@ -609,6 +714,15 @@ macro_rules! host_abi_module {
                 types: $types,
                 requests,
                 ingress,
+                runtime_ingress: $crate::host::abi::describe::host_abi_module!(
+                    @runtime_ingress $($runtime_ingress)?
+                ),
+                runtime_host_platforms: $crate::host::abi::describe::host_abi_module!(
+                    @runtime_host_platforms $($($runtime_host_platform),*)?
+                ),
+                runtime_host_wrapper_kind: $crate::host::abi::describe::host_abi_module!(
+                    @runtime_host_wrapper_kind $($runtime_host_wrapper)?
+                ),
                 selector_controls: Vec::new(),
                 rust_capability_probes: Vec::new(),
             }
@@ -619,6 +733,31 @@ macro_rules! host_abi_module {
     };
     (@platform android) => {
         $crate::host::abi::describe::HostAbiModulePlatform::Android
+    };
+    (@runtime_host_platforms) => {
+        Vec::new()
+    };
+    (@runtime_ingress) => {
+        None
+    };
+    (@runtime_ingress $runtime_ingress:expr) => {
+        $runtime_ingress
+    };
+    (@runtime_host_platforms $($platform:ident),+ $(,)?) => {
+        vec![
+            $(
+                $crate::host::abi::describe::host_abi_module!(@platform $platform)
+            ),*
+        ]
+    };
+    (@runtime_host_wrapper_kind) => {
+        $crate::host::abi::describe::HostAbiRuntimeHostWrapperKind::Generated
+    };
+    (@runtime_host_wrapper_kind generated) => {
+        $crate::host::abi::describe::HostAbiRuntimeHostWrapperKind::Generated
+    };
+    (@runtime_host_wrapper_kind manual) => {
+        $crate::host::abi::describe::HostAbiRuntimeHostWrapperKind::Manual
     };
     (@functions $($items:tt)*) => {{
         #[allow(unused_mut)]
