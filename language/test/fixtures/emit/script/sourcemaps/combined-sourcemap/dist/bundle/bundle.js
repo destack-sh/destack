@@ -1,6 +1,16 @@
-export const foo = function() {
-    return 42;
-};
+export function renderStatusCard(status, widgetCountLabel) {
+    return `${status}:${widgetCountLabel}`;
+}
 
-console.info(`the answer is ${foo()}`);
+export function formatWidgetCount(widgetCount) {
+    return `widgets:${widgetCount}`;
+}
+
+export function getWidgetCountLabel(widgetCount) {
+    return formatWidgetCount(widgetCount);
+}
+
+const widgetCountLabel = getWidgetCountLabel(42);
+const statusCard = renderStatusCard("ready", widgetCountLabel);
+console.info(`the answer is ${statusCard}`);
 //# sourceMappingURL=./bundle.js.map

@@ -1,0 +1,23 @@
+{
+    "name": "script-minify-symbol-for-production",
+    "targets": {
+        "preview": {
+            "emit": "js",
+            "runtime": "browser",
+            "entry": [
+                "src/app.ts"
+            ],
+            "outFile": "dist/preview/app.js",
+            "bundle": {
+                "minify": {
+                    "syntax": true,
+                    "whitespace": true,
+                    "identifiers": true
+                },
+                "output": {
+                    "manifest": true
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,1 @@
+console.log("side-effect import");declare function require(identifier);;const inlined=3,message=getMessage(),hasRequire=typeof require,sideEffectLabel=getSideEffectLabel();console.log("Hello,"+" world!",inlined,message,hasRequire,sideEffectLabel);console.log(message,hasRequire);function getMessage(){return"Hello";};function getSideEffectLabel(){return"side-effect";}

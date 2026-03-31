@@ -1,0 +1,21 @@
+{
+    "name": "script-minify-template-string-folding",
+    "targets": {
+        "preview": {
+            "emit": "js",
+            "runtime": "browser",
+            "entry": [
+                "src/app.ts"
+            ],
+            "outFile": "dist/preview/app.js",
+            "bundle": {
+                "minify": {
+                    "syntax": true
+                },
+                "output": {
+                    "manifest": true
+                }
+            }
+        }
+    }
+}

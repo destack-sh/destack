@@ -1,0 +1,21 @@
+{
+    "name": "html-minify-document-shared-graph-whitespace",
+    "targets": {
+        "site": {
+            "emit": "html",
+            "runtime": "browser",
+            "entry": [
+                "src/index.html"
+            ],
+            "outFile": "dist/index.html",
+            "bundle": {
+                "minify": {
+                    "whitespace": true
+                },
+                "output": {
+                    "manifest": true
+                }
+            }
+        }
+    }
+}

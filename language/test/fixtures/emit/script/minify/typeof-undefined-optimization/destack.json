@@ -1,0 +1,22 @@
+{
+    "name": "script-minify-typeof-undefined-optimization",
+    "targets": {
+        "preview": {
+            "emit": "js",
+            "runtime": "browser",
+            "entry": [
+                "src/app.ts"
+            ],
+            "outFile": "dist/preview/app.js",
+            "bundle": {
+                "minify": {
+                    "syntax": true,
+                    "whitespace": true
+                },
+                "output": {
+                    "manifest": true
+                }
+            }
+        }
+    }
+}

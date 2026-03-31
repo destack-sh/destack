@@ -1,0 +1,21 @@
+{
+    "name": "script-minify-symbol-for-no-minify-syntax",
+    "targets": {
+        "preview": {
+            "emit": "js",
+            "runtime": "browser",
+            "entry": [
+                "src/app.ts"
+            ],
+            "outFile": "dist/preview/app.js",
+            "bundle": {
+                "minify": {
+                    "syntax": false
+                },
+                "output": {
+                    "manifest": true
+                }
+            }
+        }
+    }
+}

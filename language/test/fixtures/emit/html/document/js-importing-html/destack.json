@@ -1,0 +1,19 @@
+{
+    "name": "html-document-js-importing-html",
+    "targets": {
+        "preview": {
+            "emit": "js",
+            "runtime": "browser",
+            "entry": [
+                "src/entry.ts"
+            ],
+            "outFile": "dist/preview/app.js",
+            "bundle": {
+                "output": {
+                    "assetFileNames": "assets/[name].[ext]",
+                    "manifest": true
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,56 @@
+{
+    "name": "html-chunking-shared-chunks",
+    "targets": {
+        "page1": {
+            "emit": "html",
+            "runtime": "browser",
+            "entry": [
+                "src/pages/page1.html"
+            ],
+            "outFile": "dist/page1.html",
+            "bundle": {
+                "minify": {
+                    "whitespace": true
+                },
+                "output": {
+                    "sourcemap": "external",
+                    "manifest": true
+                }
+            }
+        },
+        "page2": {
+            "emit": "html",
+            "runtime": "browser",
+            "entry": [
+                "src/pages/page2.html"
+            ],
+            "outFile": "dist/page2.html",
+            "bundle": {
+                "minify": {
+                    "whitespace": true
+                },
+                "output": {
+                    "sourcemap": "external",
+                    "manifest": true
+                }
+            }
+        },
+        "page3": {
+            "emit": "html",
+            "runtime": "browser",
+            "entry": [
+                "src/pages/page3.html"
+            ],
+            "outFile": "dist/page3.html",
+            "bundle": {
+                "minify": {
+                    "whitespace": true
+                },
+                "output": {
+                    "sourcemap": "external",
+                    "manifest": true
+                }
+            }
+        }
+    }
+}

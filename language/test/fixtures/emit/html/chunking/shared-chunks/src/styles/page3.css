@@ -1,0 +1,6 @@
+@import "./shared.css";
+@import "./reset.css";
+
+body {
+  color: #0f172a;
+}

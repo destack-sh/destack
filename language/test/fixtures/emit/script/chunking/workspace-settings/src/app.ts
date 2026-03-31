@@ -1,5 +1,6 @@
 import { getPaginationLabel, getPageNumber, getPageSize } from "./pagination";
 import { getPanelSummary } from "./panel-summary";
+import { settingsPanelState } from "./settings-panel";
 import { getClipDurationLabel } from "./time-code";
 import {
     getWorkspacePath,
@@ -21,5 +22,9 @@ export const appWorkspaceState = {
     panelSummary: getPanelSummary("sharing", 240, "50"),
 };
 
-/** The lazy settings panel import for the app entry. */
-export const settingsPanelPromise = import("./settings-panel");
+/** The settings panel preview state for the app entry. */
+export const settingsPanelPreview = {
+    title: settingsPanelState.settingsPanelTitle,
+    sectionTitle: settingsPanelState.sectionTitle,
+    panelSummary: settingsPanelState.panelSummary,
+};

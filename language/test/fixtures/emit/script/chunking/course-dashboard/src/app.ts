@@ -5,6 +5,11 @@ import {
     getReportsLessonTitle,
 } from "./lesson-titles.ts";
 import { getPanelCard } from "./panel-links.ts";
+import {
+    panelHeading,
+    panelImagePath,
+    panelPageDescription,
+} from "./report-panel.ts";
 
 const appRoute = getOverviewRoute();
 const appLessonTitle = getOverviewLessonTitle();
@@ -32,6 +37,11 @@ export const appReportsPageState = {
     imagePath: appReportsPanel.imagePath,
 };
 
-/** The lazy reports panel import for the app entry. */
-export const reportPanelPromise = import("./report-panel");
+/** The reports panel state for the app entry. */
+export const reportPanelState = {
+    heading: panelHeading,
+    description: panelPageDescription,
+    imagePath: panelImagePath,
+};
+
 export { useState as reactState } from "react";

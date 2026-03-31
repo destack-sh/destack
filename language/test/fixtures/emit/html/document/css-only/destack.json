@@ -1,0 +1,20 @@
+{
+    "name": "html-document-css-only",
+    "targets": {
+        "site": {
+            "emit": "html",
+            "runtime": "browser",
+            "entry": [
+                "src/page.html"
+            ],
+            "outFile": "dist/page.html",
+            "bundle": {
+                "output": {
+                    "assetFileNames": "assets/[name].[ext]",
+                    "sourcemap": "external",
+                    "manifest": true
+                }
+            }
+        }
+    }
+}

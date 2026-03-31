@@ -1,0 +1,10 @@
+capture(+"1.0");
+capture(+"-123.567");
+capture(+"8.325");
+capture(+"100000000");
+capture(+"\u0030\u002e\u0031");
+capture(+"\x30\x2e\x31");
+capture(+"\u0031\u0032\u0033");
+capture(+"\x31\x32\x33");
+capture(+"NotANumber");
+capture(+"æ");
