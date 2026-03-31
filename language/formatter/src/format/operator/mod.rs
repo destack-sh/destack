@@ -1,18 +1,33 @@
 mod assign;
 mod binary;
-mod context;
 mod expression;
+mod postfix;
+mod tokens;
+mod r#type;
+mod types;
+mod union;
 
+pub(crate) use self::assign::assignment_drops_parenthesized_operand_wrapper;
 pub(crate) use self::binary::{
-    format_leading_pipe_union_with_external_prefix, union_owns_prefix_annotations,
+    binary_keeps_unary_left_parenthesized_wrapper, flattened_binary_operand_count,
+    format_binary_expression,
 };
-pub(crate) use self::context::{
-    expression_is_trivial_inline_without_annotations, expression_static_arguments,
-    flatten_binary_expression, flatten_type_binary_expression, flattened_binary_operand_count,
-    format_binary_operand_with_grouping_parentheses, is_chain_expression,
-    is_object_like_type_expression, is_parameter_type_annotation,
-    is_simple_type_binary_left_expression, is_static_type_argument_context, is_type_context,
-    needs_parens_in_postfix_position, type_binary_operand_needs_grouping_parentheses,
-    write_postfix_base_expression,
+pub(crate) use self::expression::{
+    format_operator_expression, write_operator_expression_trailing_annotations,
 };
-pub(crate) use self::expression::format_operator_expression;
+pub(crate) use self::postfix::{
+    is_chain_expression, needs_parens_in_postfix_position, write_postfix_base_expression,
+};
+pub(crate) use self::r#type::{
+    expression_has_static_type_arguments, expression_has_type_grouping_semantics,
+    expression_is_type_position, expression_static_arguments, format_static_argument_list,
+    format_static_argument_list_with_relational_spacing,
+    normalize_parenthesized_type_grouping_inner_expression,
+    parenthesized_type_expression_prefers_soft_block_layout,
+    should_drop_parenthesized_type_expression, write_expression_with_inline_prefix_annotations,
+};
+pub(crate) use self::union::{
+    binary_like_is_type_intersection, binary_like_is_type_union, flatten_binary_like_operands,
+    format_type_intersection_binary_layout, format_type_union_binary_layout,
+    operator_expression_owns_prefix_annotations, type_binary_operand_needs_grouping_parentheses,
+};

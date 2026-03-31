@@ -1,9 +1,8 @@
 use crate::format::chain::transparent_inner_expression;
 use crate::format::tree::tree_argument_is_wrapped_in_braces;
-use crate::{Annotation, DestackFormatContext, DestackFormatter};
+use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    AnnotationPosition, Argument, Expression, IfCondition, IfKind, LocalNodeId, NodeTree, NodeType,
-    TypeLiteral,
+    Argument, Expression, IfCondition, IfKind, LocalNodeId, NodeTree, NodeType, TypeLiteral,
 };
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{
@@ -113,36 +112,22 @@ fn ternary_chain_has_tree_branch(
         .is_some_and(|_| ternary_chain_has_tree_branch(context, else_expression))
 }
 
-/// Return whether one expression has a line slash comment annotation.
-fn expression_has_line_slash_comment_annotation(
+/// Return whether one expression has a line slash comment.
+fn expression_has_line_comment(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    let Some(annotation_ids) = context.annotations(expression_id) else {
-        return false;
-    };
+    let expression_span = context.span(expression_id);
 
-    annotation_ids.into_iter().any(|annotation_id| {
-        let Annotation::Comment { node, position } = context.annotation(annotation_id) else {
-            return false;
-        };
-        let is_line_position = matches!(
-            position,
-            AnnotationPosition::LinePrefix
-                | AnnotationPosition::LinePostfix
-                | AnnotationPosition::LinePostfixBoundary
-        );
-        if !is_line_position {
-            return false;
-        }
-
-        let comment = context.tree.get::<destack_ast::Comment>(node);
-        comment.style == destack_ast::CommentStyle::Slash
-    })
+    context
+        .comments_in_range(expression_span.start, expression_span.end)
+        .iter()
+        .copied()
+        .any(|comment| context.comment_is_line(comment))
 }
 
 /// Return whether one ternary chain has line slash comments on any condition or branch.
-fn ternary_chain_has_line_comment_annotation(
+fn ternary_chain_has_line_comment(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -152,18 +137,16 @@ fn ternary_chain_has_line_comment_annotation(
         return false;
     };
 
-    if expression_has_line_slash_comment_annotation(context, condition_expression)
-        || expression_has_line_slash_comment_annotation(context, then_expression)
-        || else_expression.is_some_and(|expression_id| {
-            expression_has_line_slash_comment_annotation(context, expression_id)
-        })
+    if expression_has_line_comment(context, condition_expression)
+        || expression_has_line_comment(context, then_expression)
+        || else_expression
+            .is_some_and(|expression_id| expression_has_line_comment(context, expression_id))
     {
         return true;
     }
 
-    else_expression.is_some_and(|expression_id| {
-        ternary_chain_has_line_comment_annotation(context, expression_id)
-    })
+    else_expression
+        .is_some_and(|expression_id| ternary_chain_has_line_comment(context, expression_id))
 }
 
 /// Return whether one ternary chain has parenthesized then or else branches.
@@ -463,7 +446,7 @@ fn format_jsx_chain_ternary<'ast>(
         return Ok(());
     };
 
-    let should_expand = ternary_chain_has_line_comment_annotation(f.context(), node_id)
+    let should_expand = ternary_chain_has_line_comment(f.context(), node_id)
         || f.context().node_has_newline(node_id)
         || ternary_chain_has_parenthesized_branch(f.context(), node_id);
     let ternary_is_in_braced_tree_child_argument =

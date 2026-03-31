@@ -2,8 +2,7 @@ use std::borrow::Cow;
 
 use destack_fir::format::FormatResult;
 
-use crate::format::annotation::annotation_render_items_matching;
-use crate::format::collection::list_like;
+use crate::format::collection::{TrailingSeparator, separated_entries};
 use crate::{Annotation, DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
     AnnotationPosition, Expression, LocalNodeId, Mutability, NodeTree, NodeType, Pattern,
@@ -274,14 +273,25 @@ fn format_pattern_field_list<'ast>(
         return Ok(());
     }
 
-    let mut list = list_like(open, close, ",", fields);
-    list.as_collection().should_expand(should_expand);
+    let allow_trailing_separator =
+        !pattern_fields_disallow_trailing_separator(f.context().tree, fields);
+    let trailing_separator = if !allow_trailing_separator
+        || f.context().options.trailing_comma == destack_workspace::TrailingComma::None
+    {
+        TrailingSeparator::Omit
+    } else {
+        TrailingSeparator::Allowed
+    };
 
-    if pattern_fields_disallow_trailing_separator(f.context().tree, fields) {
-        list.disallow_trailing_separator();
-    }
-
-    write!(f, [list])?;
+    write!(
+        f,
+        [group(&format_args![
+            token(open),
+            soft_block_indent(&separated_entries(",", fields, trailing_separator, None)),
+            token(close)
+        ])
+        .should_expand(should_expand)]
+    )?;
 
     Ok(())
 }
@@ -293,9 +303,12 @@ fn format_empty_pattern_delimiter_with_interior_annotations<'ast>(
     open: &'static str,
     close: &'static str,
 ) -> FormatResult<()> {
-    let interior_items = annotation_render_items_matching(f.context(), node_id, |position| {
-        position == AnnotationPosition::BlockInfix
-    });
+    let mut interior_items = Vec::new();
+    for annotation_id in f.context().annotation_ids(node_id).iter().copied() {
+        if f.context().annotation(annotation_id).position() == AnnotationPosition::BlockInfix {
+            interior_items.push(annotation_id);
+        }
+    }
     if interior_items.is_empty() {
         write!(f, [token(open), token(close)])?;
         return Ok(());
@@ -305,7 +318,10 @@ fn format_empty_pattern_delimiter_with_interior_annotations<'ast>(
         f,
         [group(&format_args![
             token(open),
-            soft_block_indent(&f.context().block_infix_annotations(node_id)),
+            soft_block_indent(&crate::format::annotation::block_infix_annotations(
+                f.context(),
+                node_id
+            )),
             token(close)
         ])]
     )?;
@@ -320,16 +336,15 @@ fn pattern_fields_have_inline_spread_comment_seams(
     let mut has_inline_spread_comment = false;
 
     for field_id in fields {
-        let Some(annotation_ids) = context.annotations(*field_id) else {
+        let annotation_ids = context.annotation_ids(*field_id);
+        if annotation_ids.is_empty() {
             continue;
-        };
+        }
         let field_is_spread = matches!(context.tree.get(*field_id), PatternField::Spread { .. });
 
-        for annotation_id in annotation_ids {
+        for annotation_id in annotation_ids.iter().copied() {
             let is_inline_comment = match context.annotation(annotation_id) {
-                Annotation::Comment { .. } | Annotation::Doc { .. } => {
-                    !context.annotation_starts_on_own_line(annotation_id)
-                }
+                Annotation::Doc { .. } => !context.annotation_starts_on_own_line(annotation_id),
                 _ => false,
             };
             if !is_inline_comment {
@@ -409,18 +424,17 @@ fn pattern_fields_have_layout_forcing_annotations(
     fields: &[LocalNodeId<PatternField>],
 ) -> bool {
     fields.iter().any(|field_id| {
-        let Some(annotation_ids) = context.annotations(*field_id) else {
+        let annotation_ids = context.annotation_ids(*field_id);
+        if annotation_ids.is_empty() {
             return false;
-        };
+        }
 
-        annotation_ids
-            .into_iter()
-            .any(|annotation_id| match context.annotation(annotation_id) {
-                Annotation::Blank { .. }
-                | Annotation::Doc { .. }
-                | Annotation::Decorator { .. } => true,
-                Annotation::Comment { .. } => context.annotation_starts_on_own_line(annotation_id),
-            })
+        annotation_ids.iter().copied().any(|annotation_id| {
+            matches!(
+                context.annotation(annotation_id),
+                Annotation::Doc { .. } | Annotation::Decorator { .. }
+            )
+        })
     })
 }
 
@@ -431,14 +445,11 @@ fn pattern_fields_have_comment_annotations(
 ) -> bool {
     fields.iter().any(|field_id| {
         context
-            .annotations(*field_id)
-            .is_some_and(|annotation_ids| {
-                annotation_ids.into_iter().any(|annotation_id| {
-                    match context.annotation(annotation_id) {
-                        Annotation::Comment { .. } | Annotation::Doc { .. } => true,
-                        Annotation::Blank { .. } | Annotation::Decorator { .. } => false,
-                    }
-                })
+            .annotation_ids(*field_id)
+            .iter()
+            .copied()
+            .any(|annotation_id| {
+                matches!(context.annotation(annotation_id), Annotation::Doc { .. })
             })
     })
 }
@@ -482,16 +493,45 @@ fn format_object_pattern_like<'ast>(
         return Ok(());
     }
 
-    let mut list = list_like("{", "}", ",", render_fields.as_ref());
-    list.as_collection()
-        .include_space()
-        .should_expand(should_expand);
+    let allow_trailing_separator =
+        !pattern_fields_disallow_trailing_separator(f.context().tree, render_fields.as_ref());
+    let trailing_separator = if !allow_trailing_separator
+        || f.context().options.trailing_comma == destack_workspace::TrailingComma::None
+    {
+        TrailingSeparator::Omit
+    } else {
+        TrailingSeparator::Allowed
+    };
 
-    if pattern_fields_disallow_trailing_separator(f.context().tree, render_fields.as_ref()) {
-        list.disallow_trailing_separator();
-    }
+    write!(
+        f,
+        [group(&format_args![
+            token("{"),
+            soft_block_indent(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                if f.context().options.bracket_spacing {
+                    write!(f, [if_group_fits_on_line(&space())])?;
+                }
 
-    write!(f, [list])?;
+                write!(
+                    f,
+                    [separated_entries(
+                        ",",
+                        render_fields.as_ref(),
+                        trailing_separator,
+                        None,
+                    )]
+                )?;
+
+                if f.context().options.bracket_spacing {
+                    write!(f, [if_group_fits_on_line(&space())])?;
+                }
+
+                Ok(())
+            })),
+            token("}")
+        ])
+        .should_expand(should_expand)]
+    )?;
 
     Ok(())
 }
@@ -502,7 +542,13 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
         node_id: LocalNodeId<Pattern>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+        write!(
+            f,
+            [crate::format::annotation::prefix_annotations(
+                f.context(),
+                node_id
+            )]
+        )?;
 
         match self {
             Pattern::Wildcard => write!(f, [token("_")])?,
@@ -555,7 +601,13 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
             )?,
         }
 
-        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
+        write!(
+            f,
+            [crate::format::annotation::infix_or_postfix_annotations(
+                f.context(),
+                node_id
+            )]
+        )?;
 
         Ok(())
     }
@@ -567,7 +619,13 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
         node_id: LocalNodeId<PatternField>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+        write!(
+            f,
+            [crate::format::annotation::prefix_annotations(
+                f.context(),
+                node_id
+            )]
+        )?;
 
         match self {
             PatternField::Named {
@@ -698,7 +756,13 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
             }
         }
 
-        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
+        write!(
+            f,
+            [crate::format::annotation::infix_or_postfix_annotations(
+                f.context(),
+                node_id
+            )]
+        )?;
 
         Ok(())
     }

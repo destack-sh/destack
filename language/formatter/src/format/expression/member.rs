@@ -1,8 +1,12 @@
-use super::format_static_argument_list;
-use super::parentheses::should_unwrap_parenthesized_member_object;
+use super::{
+    format_static_argument_list, parenthesized_has_leading_inner_comments,
+    parenthesized_has_leading_inner_line_comment, parenthesized_has_leading_inner_trivia,
+    parenthesized_has_leading_type_cast_comment,
+};
 use crate::DestackFormatter;
-use crate::format::chain::{receiver_is_await_wrapped, should_parenthesize_index_expression};
-use crate::format::operator::write_postfix_base_expression;
+use crate::format::chain::{receiver_is_await_wrapped, transparent_inner_expression};
+use crate::format::declaration::expression_is_decorated_class_declaration;
+use crate::format::operator::{expression_is_type_position, write_postfix_base_expression};
 use destack_ast::{Expression, LocalNodeId, NodeTree, PostfixPosition};
 use destack_core::StringId;
 use destack_fir::format::{Buffer, FormatResult};
@@ -37,6 +41,173 @@ fn expression_has_trailing_static_instantiation(
         }
         _ => false,
     }
+}
+
+/// Return whether one member chain contains any optional chaining segment.
+pub(crate) fn member_expression_has_optional_chain(
+    context: &crate::DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let mut current_id = expression_id;
+
+    loop {
+        match context.tree.get(current_id) {
+            Expression::Maybe { .. } => return true,
+            Expression::Member { left, .. }
+            | Expression::PrivateMember { left, .. }
+            | Expression::Index { left, .. }
+            | Expression::Call { left, .. }
+            | Expression::Must { left, .. }
+            | Expression::Instantiation { left, .. } => current_id = *left,
+            Expression::Parenthesized { expression } | Expression::Statement(expression) => {
+                current_id = *expression;
+            }
+            _ => return false,
+        }
+    }
+}
+
+/// Return whether one expression is a function or class declaration expression.
+fn expression_is_function_or_class_declaration(
+    context: &crate::DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Expression::Declaration(declaration_id) = context.tree.get(expression_id) else {
+        return false;
+    };
+
+    matches!(
+        context.tree.get(*declaration_id),
+        destack_ast::Declaration::Function { .. } | destack_ast::Declaration::Class { .. }
+    )
+}
+
+/// Return whether one parent expression uses a parenthesized object directly as its postfix base.
+fn parent_expression_uses_parenthesized_object_directly(
+    parenthesized_id: LocalNodeId<Expression>,
+    parent_expression: &Expression,
+) -> bool {
+    match parent_expression {
+        Expression::Member { left, .. }
+        | Expression::PrivateMember { left, .. }
+        | Expression::Instantiation { left, .. }
+        | Expression::Must { left, .. }
+        | Expression::New { left, .. } => *left == parenthesized_id,
+        Expression::Call { left, position, .. } | Expression::Index { left, position, .. } => {
+            *left == parenthesized_id && *position == PostfixPosition::Direct
+        }
+        _ => false,
+    }
+}
+
+/// Return whether a postfix continuation requires one explicit parenthesized object wrapper.
+pub(crate) fn postfix_continuation_requires_parenthesized_object_wrapper(
+    context: &crate::DestackFormatContext<'_>,
+    parenthesized_id: LocalNodeId<Expression>,
+    parent_expression: &Expression,
+    inner_expression_id: LocalNodeId<Expression>,
+) -> bool {
+    if !parent_expression_uses_parenthesized_object_directly(parenthesized_id, parent_expression) {
+        return false;
+    }
+
+    member_expression_has_optional_chain(context, inner_expression_id)
+        || expression_is_function_or_class_declaration(context, inner_expression_id)
+}
+
+/// Decide whether a parenthesized expression can be unwrapped in member object position.
+pub(crate) fn should_unwrap_parenthesized_member_object(
+    context: &crate::DestackFormatContext<'_>,
+    parenthesized_id: LocalNodeId<Expression>,
+    inner_expression_id: LocalNodeId<Expression>,
+) -> bool {
+    // closure style casts bind to the parenthesized wrapper
+    if parenthesized_has_leading_type_cast_comment(context, parenthesized_id) {
+        return false;
+    }
+
+    // prefix comments and docs on the wrapper itself carry grouping ownership semantics
+    if super::expression_has_only_prefix_comment_or_doc_annotations(context, parenthesized_id) {
+        return false;
+    }
+
+    // object members require explicit grouping: `({}).x`
+    if matches!(
+        context.tree.get(inner_expression_id),
+        Expression::ObjectExpression { .. }
+    ) {
+        return false;
+    }
+
+    // keep nested type slot grouping stable across repeated formatting
+    if expression_is_type_position(context, parenthesized_id) {
+        return false;
+    }
+
+    // function and class declarations require grouping before postfix continuations
+    if expression_is_function_or_class_declaration(context, inner_expression_id) {
+        return false;
+    }
+
+    // decorated class expressions require explicit grouping before member access
+    if expression_is_decorated_class_declaration(context, inner_expression_id) {
+        return false;
+    }
+
+    if context.has_annotation(parenthesized_id) || context.has_annotation(inner_expression_id) {
+        // allow unwrapping only when inner annotations are prefix comments or docs
+        if !super::expression_has_only_prefix_comment_or_doc_annotations(
+            context,
+            inner_expression_id,
+        ) {
+            return false;
+        }
+    }
+
+    // preserve wrappers with leading line comments to stabilize member object comment seams
+    if parenthesized_has_leading_inner_line_comment(context, parenthesized_id, inner_expression_id)
+    {
+        return false;
+    }
+
+    if parenthesized_has_leading_inner_comments(context, parenthesized_id, inner_expression_id)
+        && !super::expression_has_only_prefix_comment_or_doc_annotations(
+            context,
+            inner_expression_id,
+        )
+    {
+        return false;
+    }
+
+    // optional chains require explicit grouping in non optional member continuations
+    if member_expression_has_optional_chain(context, inner_expression_id) {
+        return false;
+    }
+
+    !crate::format::operator::needs_parens_in_postfix_position(context.tree, inner_expression_id)
+}
+
+/// Return whether a member object should keep parentheses as a `new` callee.
+pub(crate) fn member_object_prefers_new_callee_parentheses(
+    context: &crate::DestackFormatContext<'_>,
+    object_id: LocalNodeId<Expression>,
+) -> bool {
+    let mut current_id = object_id;
+
+    while let Expression::Parenthesized { expression } = context.tree.get(current_id) {
+        if context.has_annotation(current_id)
+            || parenthesized_has_leading_inner_trivia(context, current_id, *expression)
+        {
+            return false;
+        }
+
+        current_id = *expression;
+    }
+
+    matches!(
+        context.tree.get(current_id),
+        Expression::Call { .. } | Expression::Instantiation { .. }
+    )
 }
 
 /// Format one member receiver, adding wrapper parentheses when static instantiation tails need grouping.
@@ -205,21 +376,25 @@ pub(crate) fn format_type_template_literal<'ast>(
         write!(f, [*first_segment])?;
     }
 
-    for (span, segment) in spans.iter().zip(string_segments) {
-        let span_has_comment_annotation = f.context().has_comment(f.context().span(*span));
-        let span_has_source_newline = f.context().node_has_newline(*span);
+    for (span_expression_id, segment) in spans.iter().zip(string_segments) {
+        let span = f.context().span(*span_expression_id);
+        let span_has_comments = !f
+            .context()
+            .comments_in_range(span.start, span.end)
+            .is_empty();
+        let span_has_source_newline = f.context().node_has_newline(*span_expression_id);
         let span_is_type_conditional = matches!(
-            f.context().tree.get(*span),
+            f.context().tree.get(*span_expression_id),
             Expression::TypeConditional { .. }
         );
         let should_expand_span =
-            span_has_comment_annotation || span_has_source_newline || span_is_type_conditional;
+            span_has_comments || span_has_source_newline || span_is_type_conditional;
 
         write!(
             f,
             [
                 token("${"),
-                group(span).should_expand(should_expand_span),
+                group(span_expression_id).should_expand(should_expand_span),
                 line_postfix_boundary(),
                 token("}"),
                 *segment,
@@ -278,7 +453,18 @@ pub(crate) fn format_index_expression<'ast>(
             write!(f, [token(".")])?;
         }
         if let Some(index) = index {
-            let should_parenthesize = should_parenthesize_index_expression(f.context(), *index);
+            let should_parenthesize = if matches!(
+                f.context().tree.get(*index),
+                Expression::Parenthesized { .. }
+            ) {
+                false
+            } else {
+                let inner_index_id = transparent_inner_expression(f.context(), *index);
+                matches!(
+                    f.context().tree.get(inner_index_id),
+                    Expression::Assign { .. }
+                )
+            };
             let left_span = f.context().span(*left);
             let index_span = f.context().span(*index);
             let has_break_after_open = left_span.file == index_span.file

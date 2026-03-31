@@ -259,9 +259,9 @@ pub(super) fn format_file(
 }
 
 /// Format expressions and return the result string.
-fn format_expressions(
-    context: &DestackFormatContext<'_>,
-    expressions: &[LocalNodeId<Expression>],
+fn format_expressions<'ast>(
+    context: &DestackFormatContext<'ast>,
+    expressions: &'ast [LocalNodeId<Expression>],
 ) -> Option<String> {
     let mut result = if expressions.is_empty() {
         String::new()

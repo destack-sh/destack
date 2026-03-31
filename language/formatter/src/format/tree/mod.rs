@@ -1,13 +1,19 @@
 mod argument;
+mod attribute;
+mod child;
 mod literal;
+mod whitespace;
 
-#[cfg(test)]
-pub(crate) use self::argument::expression_has_complex_callback;
 pub(crate) use self::argument::{
-    argument_is_array_literal, argument_is_block_callback, argument_is_object_literal,
-    argument_is_template_literal, has_multiline_jsx_argument, property_has_complex_type_value,
-    property_has_complex_value, tree_argument_is_wrapped_in_braces,
+    argument_drops_parenthesized_value_wrapper, has_multiline_jsx_argument,
+    tree_argument_is_wrapped_in_braces, write_tree_expression_argument,
 };
+pub(crate) use self::attribute::should_force_break_tree_attributes;
+pub(crate) use self::child::tree_child_breaks_element;
 pub(crate) use self::literal::{
-    format_tree_literal_expression, tree_literal_should_break, tree_literal_should_expand,
+    format_parenthesized_tree_expression, format_tree_literal_expression,
+    tree_literal_should_break, tree_literal_should_expand,
+};
+pub(crate) use self::whitespace::{
+    is_jsx_whitespace_char, tree_children_have_blank_line_between, tree_text_is_whitespace_only,
 };

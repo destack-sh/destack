@@ -1,36 +1,31 @@
-use crate::format::analysis::{
-    argument_has_line_comment_annotation, argument_is_collection_literal,
-    argument_is_compact_inline_callback, argument_is_inline_closure_cast_object,
-    argument_is_interpolated_template_literal, argument_is_trivial_unannotated_non_lambda_value,
-    call_has_static_arguments, next_non_whitespace_token_after_annotation,
-    previous_non_whitespace_token_before_annotation, previous_non_whitespace_token_before_span,
-};
 use crate::format::call::layout::{
-    argument_has_callback_blocking_comment_annotation, call_argument_layout_facts,
+    argument_has_callback_blocking_comment, argument_has_line_comment,
+    argument_has_prefix_line_comment, argument_is_block_callback, argument_is_collection_literal,
+    argument_is_compact_inline_callback, argument_is_inline_closure_cast_object,
+    argument_is_interpolated_template_literal, argument_is_template_literal,
+    argument_is_trivial_unannotated_non_lambda_value, call_argument_layout_facts,
     call_force_expand_single_collection_for_type_binary_callee,
-    call_force_expand_single_multiline_with_static_arguments, chain_call_argument_force_expand,
-    single_argument_requires_expanded_list,
+    call_force_expand_single_multiline_with_static_arguments, call_has_static_arguments,
+    chain_call_argument_force_expand, single_argument_requires_expanded_list,
 };
 use crate::format::chain::{argument_value_id_if_present, transparent_inner_expression};
-use crate::format::collection::list_like;
-use crate::format::collection::property::{
+use crate::format::collection::{TrailingSeparator, separated_entries};
+use crate::format::declaration::{
     format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
 };
 use crate::format::directive::{any_ignore_range_for_nodes, node_has_ignore_directive};
 use crate::format::expression::{
     format_expression, format_static_argument_list, is_trivial_expression,
 };
-use crate::format::tree::{
-    argument_is_block_callback, argument_is_template_literal, has_multiline_jsx_argument,
-};
+use crate::format::tree::has_multiline_jsx_argument;
 use crate::{Annotation, DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    AnnotationPosition, Argument, Comment, CommentStyle, Declaration, Expression, FunctionKind,
-    LocalNodeId, NodeType, PostfixPosition, TokenType, TypeBinaryOperator,
+    AnnotationPosition, Argument, Declaration, Expression, FunctionKind, LocalNodeId, NodeType,
+    PostfixPosition,
 };
 use destack_fir::format::{Buffer, FormatResult, GroupId};
-use destack_fir::prelude::{block_indent, hard_line_break, space, token};
-use destack_fir::write;
+use destack_fir::prelude::{block_indent, group, hard_line_break, soft_block_indent, space, token};
+use destack_fir::{format_args, write};
 
 /// Return whether an argument can be emitted directly without argument-node formatting.
 pub(crate) fn argument_is_plain_call_argument(
@@ -61,7 +56,13 @@ pub(crate) fn write_plain_call_argument<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     argument_id: LocalNodeId<Argument>,
 ) -> FormatResult<()> {
-    write!(f, [f.context().any_prefix_annotations(argument_id)])?;
+    write!(
+        f,
+        [crate::format::annotation::prefix_annotations(
+            f.context(),
+            argument_id
+        )]
+    )?;
 
     match f.context().tree.get(argument_id) {
         Argument::Named { name, value, .. } => {
@@ -122,7 +123,7 @@ pub(crate) fn call_arguments_force_expand_for_chain(
         _has_any_argument_annotation,
         _all_single_line_and_unannotated,
         all_compact_simple_unannotated,
-        _has_line_comment_annotations,
+        _has_line_comments,
         _arrow_argument_count,
         _function_argument_count,
         _has_complex_non_callback_argument,
@@ -154,7 +155,7 @@ pub(crate) fn format_single_call_argument_with_group<'ast>(
         has_any_argument_annotation,
         all_single_line_and_unannotated,
         all_compact_simple_unannotated,
-        has_line_comment_annotations,
+        has_line_comments,
         arrow_argument_count,
         function_argument_count,
         has_complex_non_callback_argument,
@@ -218,7 +219,7 @@ pub(crate) fn format_single_call_argument_with_group<'ast>(
         has_call_infix_annotations,
         has_any_argument_annotation,
         all_compact_simple_unannotated,
-        has_line_comment_annotations,
+        has_line_comments,
         arrow_argument_count,
         function_argument_count,
         has_complex_non_callback_argument,
@@ -248,7 +249,10 @@ pub(crate) fn format_call_arguments_with_group<'ast>(
                     f,
                     [
                         token("("),
-                        block_indent(&f.context().block_infix_annotations(call_node_id)),
+                        block_indent(&crate::format::annotation::block_infix_annotations(
+                            f.context(),
+                            call_node_id
+                        )),
                         token(")")
                     ]
                 )?;
@@ -257,7 +261,10 @@ pub(crate) fn format_call_arguments_with_group<'ast>(
                     f,
                     [
                         token("("),
-                        f.context().block_infix_annotations(call_node_id),
+                        crate::format::annotation::block_infix_annotations(
+                            f.context(),
+                            call_node_id
+                        ),
                         token(")")
                     ]
                 )?;
@@ -269,15 +276,27 @@ pub(crate) fn format_call_arguments_with_group<'ast>(
         return Ok(());
     }
 
-    // ignore ranges: route through list_like so raw span preservation stays consistent
+    // ignore ranges: route through separated entries so raw span preservation stays consistent
     if f.context().has_ignore_directive_markers() {
         let comment_tokens = f.context().comment_tokens();
         let has_ignore_ranges =
             any_ignore_range_for_nodes(f.context(), dynamic_arguments, comment_tokens);
         if has_ignore_ranges {
-            let mut list = list_like("(", ")", ",", dynamic_arguments);
-            list.with_group_id(Some(group_id)).force_expand();
-            write!(f, [list])?;
+            write!(
+                f,
+                [group(&format_args![
+                    token("("),
+                    soft_block_indent(&separated_entries(
+                        ",",
+                        dynamic_arguments,
+                        TrailingSeparator::Omit,
+                        Some(group_id),
+                    )),
+                    token(")")
+                ])
+                .with_id(Some(group_id))
+                .should_expand(true)]
+            )?;
             return Ok(());
         }
     }
@@ -299,7 +318,7 @@ pub(crate) fn format_call_arguments_with_group<'ast>(
         has_any_argument_annotation,
         _all_single_line_and_unannotated,
         all_compact_simple_unannotated,
-        has_line_comment_annotations,
+        has_line_comments,
         arrow_argument_count,
         function_argument_count,
         has_complex_non_callback_argument,
@@ -313,7 +332,7 @@ pub(crate) fn format_call_arguments_with_group<'ast>(
         has_call_infix_annotations,
         has_any_argument_annotation,
         all_compact_simple_unannotated,
-        has_line_comment_annotations,
+        has_line_comments,
         arrow_argument_count,
         function_argument_count,
         has_complex_non_callback_argument,
@@ -330,8 +349,9 @@ fn empty_call_infix_requires_multiline(
     ctx: &DestackFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
 ) -> bool {
-    ctx.visit_annotations(call_node_id, |annotations| {
-        annotations.iter().any(|annotation_id| {
+    ctx.annotation_ids(call_node_id)
+        .iter()
+        .any(|annotation_id| {
             let annotation = ctx.annotation(*annotation_id);
             if annotation.position() != AnnotationPosition::BlockInfix {
                 return false;
@@ -343,16 +363,10 @@ fn empty_call_infix_requires_multiline(
             }
 
             match annotation {
-                Annotation::Comment { node, .. } => {
-                    let comment = ctx.tree.get::<Comment>(node);
-                    comment.style == CommentStyle::Slash
-                }
-                Annotation::Blank { .. } | Annotation::Doc { .. } => true,
+                Annotation::Doc { .. } => true,
                 Annotation::Decorator { .. } => false,
             }
         })
-    })
-    .unwrap_or(false)
 }
 
 /// Format call arguments with list-group awareness.
@@ -449,15 +463,32 @@ fn format_default_call_argument_list<'ast>(
     force_expand: bool,
     disallow_trailing_separator: bool,
 ) -> FormatResult<()> {
-    let mut list = list_like("(", ")", ",", dynamic_arguments);
-    list.with_group_id(Some(group_id))
-        .should_expand(force_expand);
+    let trailing_separator = if disallow_trailing_separator {
+        TrailingSeparator::Omit
+    } else {
+        match f.context().options.trailing_comma {
+            destack_workspace::TrailingComma::All => TrailingSeparator::Allowed,
+            destack_workspace::TrailingComma::Es5 | destack_workspace::TrailingComma::None => {
+                TrailingSeparator::Omit
+            }
+        }
+    };
 
-    if disallow_trailing_separator {
-        list.disallow_trailing_separator();
-    }
-
-    write!(f, [list])
+    write!(
+        f,
+        [group(&format_args![
+            token("("),
+            soft_block_indent(&separated_entries(
+                ",",
+                dynamic_arguments,
+                trailing_separator,
+                Some(group_id),
+            )),
+            token(")")
+        ])
+        .with_id(Some(group_id))
+        .should_expand(force_expand)]
+    )
 }
 
 /// Decide and render one call argument list directly.
@@ -469,7 +500,7 @@ pub(crate) fn format_decided_call_argument_list<'ast>(
     has_call_infix_annotations: bool,
     has_any_argument_annotation: bool,
     all_compact_simple_unannotated: bool,
-    has_line_comment_annotations: bool,
+    has_line_comments: bool,
     arrow_argument_count: usize,
     function_argument_count: usize,
     has_complex_non_callback_argument: bool,
@@ -505,27 +536,27 @@ pub(crate) fn format_decided_call_argument_list<'ast>(
         (false, false)
     } else if dynamic_arguments.len() == 1 {
         let argument_id = dynamic_arguments[0];
-        let has_line_comment_annotations = f
-            .context()
-            .argument_has_line_comment_annotation(argument_id);
+        let has_line_comments = argument_has_line_comment(f.context(), argument_id);
         let trailing_collection_argument = argument_is_collection_literal(f.context(), argument_id);
-        let has_collection_source_comment =
-            trailing_collection_argument && f.context().has_comment(f.context().span(argument_id));
-        let has_line_comment_annotations =
-            has_line_comment_annotations || has_collection_source_comment;
+        let has_collection_source_comment = trailing_collection_argument && {
+            let argument_span = f.context().span(argument_id);
+            !f.context()
+                .comments_in_range(argument_span.start, argument_span.end)
+                .is_empty()
+        };
+        let has_line_comments = has_line_comments || has_collection_source_comment;
 
-        let force_expand_jsx = has_multiline_jsx_argument(f.context().tree, dynamic_arguments);
+        let force_expand_jsx = has_multiline_jsx_argument(f.context(), dynamic_arguments);
         let force_expand_single_commented_callback =
             argument_is_block_callback(f.context(), argument_id)
-                && (argument_has_callback_blocking_comment_annotation(f.context(), argument_id)
+                && (argument_has_callback_blocking_comment(f.context(), argument_id)
                     || has_call_infix_annotations);
-        let force_expand_single_prefix_line_commented_argument = f
-            .context()
-            .argument_has_prefix_line_comment_annotation(argument_id);
+        let force_expand_single_prefix_line_commented_argument =
+            argument_has_prefix_line_comment(f.context(), argument_id);
 
         (
             force_expand_jsx
-                || has_line_comment_annotations
+                || has_line_comments
                 || force_expand_single_commented_callback
                 || force_expand_single_multiline_with_static_arguments
                 || single_argument_force_expand
@@ -537,7 +568,7 @@ pub(crate) fn format_decided_call_argument_list<'ast>(
     } else if !has_call_infix_annotations && all_compact_simple_unannotated {
         (false, trailing_collection_argument)
     } else {
-        let force_expand_jsx = has_multiline_jsx_argument(f.context().tree, dynamic_arguments);
+        let force_expand_jsx = has_multiline_jsx_argument(f.context(), dynamic_arguments);
         let force_expand_callback_with_collection_tail = trailing_collection_argument
             && dynamic_arguments[..dynamic_arguments.len().saturating_sub(1)]
                 .iter()
@@ -552,7 +583,7 @@ pub(crate) fn format_decided_call_argument_list<'ast>(
             (
                 force_expand_jsx
                     || has_complex_non_callback_argument
-                    || has_line_comment_annotations
+                    || has_line_comments
                     || force_expand_callback_with_collection_tail
                     || has_multiple_function_arguments
                     || has_call_infix_annotations,
@@ -566,11 +597,15 @@ pub(crate) fn format_decided_call_argument_list<'ast>(
             .last()
             .copied()
             .is_some_and(|last_argument_id| {
-                let has_last_line_comment_annotation = has_line_comment_annotations
-                    && argument_has_line_comment_annotation(f.context(), last_argument_id);
-                let has_last_source_comment =
-                    f.context().has_comment(f.context().span(last_argument_id));
-                has_last_line_comment_annotation || has_last_source_comment
+                let has_last_line_comment =
+                    has_line_comments && argument_has_line_comment(f.context(), last_argument_id);
+                let has_last_source_comment = {
+                    let argument_span = f.context().span(last_argument_id);
+                    !f.context()
+                        .comments_in_range(argument_span.start, argument_span.end)
+                        .is_empty()
+                };
+                has_last_line_comment || has_last_source_comment
             });
     let force_expand =
         force_expand_regular || has_boundary_comments || trailing_collection_comment_force_expand;
@@ -589,249 +624,20 @@ pub(crate) fn format_decided_call_argument_list<'ast>(
     )
 }
 
-/// Return whether an argument should emit its prefix annotations.
-pub(crate) fn argument_should_emit_prefix_annotations(
+/// Return whether an argument has a prefix annotation.
+fn argument_has_prefix_annotation(
     ctx: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    let call_or_new_parent = ctx
-        .parent(argument_id)
-        .and_then(|(parent_id, parent_type)| {
-            if parent_type != NodeType::Expression {
-                return None;
-            }
-
-            let expression_id = LocalNodeId::<Expression>::new(parent_id);
-            match ctx.tree.get(expression_id) {
-                Expression::Call {
-                    dynamic_arguments, ..
-                }
-                | Expression::New {
-                    dynamic_arguments, ..
-                } => Some((
-                    expression_id,
-                    dynamic_arguments
-                        .first()
-                        .is_some_and(|first| *first == argument_id),
-                )),
-                _ => None,
-            }
-        });
-    let is_in_call_or_new = call_or_new_parent.is_some();
-    let is_first_in_call_or_new = call_or_new_parent.is_some_and(|(_, is_first)| is_first);
-
-    if argument_satisfies_static_seam_comment_annotation_id(ctx, argument_id).is_some() {
-        return false;
-    }
-
-    if is_in_call_or_new
-        && argument_has_only_separator_prefix_comment_cluster(ctx, argument_id)
-        && !is_first_in_call_or_new
-    {
-        return false;
-    }
-
-    if !is_in_call_or_new {
-        return true;
-    }
-
-    if argument_has_non_blank_prefix_annotation(ctx, argument_id) {
-        return true;
-    }
-
-    if argument_has_blank_prefix_annotation_before_separator(ctx, argument_id) {
-        return false;
-    }
-
-    if !is_first_in_call_or_new {
-        return true;
-    }
-
-    !argument_has_blank_prefix_annotation(ctx, argument_id)
-}
-
-/// Return one satisfies static seam line comment annotation id for this argument when present.
-pub(crate) fn argument_satisfies_static_seam_comment_annotation_id(
-    ctx: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> Option<LocalNodeId<Annotation>> {
-    if !argument_is_first_static_argument_of_satisfies_right_path(ctx, argument_id) {
-        return None;
-    }
-
-    ctx.find_annotation_id(argument_id, |annotation_id| {
-        let Annotation::Comment {
-            node,
-            position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
-        } = ctx.annotation(annotation_id)
-        else {
-            return None;
-        };
-
-        let comment = ctx.tree.get::<Comment>(node);
-        (comment.style == CommentStyle::Slash).then_some(annotation_id)
-    })
-}
-
-/// Return whether one argument is the first static argument in a satisfies rhs path with multiple arguments.
-fn argument_is_first_static_argument_of_satisfies_right_path(
-    ctx: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> bool {
-    let Some((path_expression_id, path_parent_type)) = ctx.parent(argument_id) else {
-        return false;
-    };
-    if path_parent_type != NodeType::Expression {
-        return false;
-    }
-
-    let path_expression_id = LocalNodeId::<Expression>::new(path_expression_id);
-    let Expression::Path {
-        path,
-        static_arguments,
-    } = ctx.tree.get(path_expression_id)
-    else {
-        return false;
-    };
-    if path.segments.len() != 1 {
-        return false;
-    }
-
-    let Some(static_arguments) = static_arguments.as_ref() else {
-        return false;
-    };
-    if static_arguments.len() <= 1
-        || !static_arguments
-            .first()
-            .is_some_and(|first| *first == argument_id)
-    {
-        return false;
-    }
-
-    let Some((type_binary_id, type_binary_parent_type)) = ctx.parent(path_expression_id) else {
-        return false;
-    };
-    if type_binary_parent_type != NodeType::Expression {
-        return false;
-    }
-
-    let type_binary_id = LocalNodeId::<Expression>::new(type_binary_id);
-    let Expression::TypeBinary {
-        operator: TypeBinaryOperator::Satisfies,
-        right,
-        ..
-    } = ctx.tree.get(type_binary_id)
-    else {
-        return false;
-    };
-
-    let right_expression_id = match ctx.tree.get(*right) {
-        Expression::Parenthesized { expression } | Expression::Statement(expression) => *expression,
-        _ => *right,
-    };
-
-    right_expression_id == path_expression_id
-}
-/// Return whether an argument has a non-blank prefix annotation.
-fn argument_has_non_blank_prefix_annotation(
-    ctx: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> bool {
-    ctx.any_annotation_id(argument_id, |annotation_id| {
-        match ctx.annotation(annotation_id) {
-            Annotation::Blank { .. } => false,
-            Annotation::Doc { position, .. }
-            | Annotation::Comment { position, .. }
-            | Annotation::Decorator { position, .. } => matches!(
+    ctx.annotation_ids(argument_id)
+        .iter()
+        .copied()
+        .any(|annotation_id| match ctx.annotation(annotation_id) {
+            Annotation::Doc { position, .. } | Annotation::Decorator { position, .. } => matches!(
                 position,
                 AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
             ),
-        }
-    })
-}
-
-/// Return whether one argument has only separator comment prefix annotations.
-fn argument_has_only_separator_prefix_comment_cluster(
-    ctx: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> bool {
-    ctx.visit_annotations(argument_id, |annotations| {
-        let mut has_separator_comment = false;
-
-        for annotation_id in annotations.iter().copied() {
-            let annotation = ctx.annotation(annotation_id);
-            if !matches!(
-                annotation.position(),
-                AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
-            ) {
-                continue;
-            }
-
-            match annotation {
-                Annotation::Blank { .. } => {}
-                Annotation::Comment { node, .. } => {
-                    let comment = ctx.tree.get::<Comment>(node);
-                    if comment.style != CommentStyle::Slash {
-                        return false;
-                    }
-
-                    let annotation_span = ctx.annotation_span(annotation_id);
-                    let Some(preceding_token) =
-                        previous_non_whitespace_token_before_span(ctx, annotation_span)
-                    else {
-                        return false;
-                    };
-                    if !matches!(
-                        preceding_token.token.ty,
-                        TokenType::Comma | TokenType::LineComment | TokenType::DocLineComment
-                    ) {
-                        return false;
-                    }
-
-                    has_separator_comment = true;
-                }
-                Annotation::Doc { .. } | Annotation::Decorator { .. } => return false,
-            }
-        }
-
-        has_separator_comment
-    })
-    .unwrap_or(false)
-}
-
-/// Return whether an argument has a blank prefix annotation.
-fn argument_has_blank_prefix_annotation(
-    ctx: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> bool {
-    ctx.any_annotation_id(argument_id, |annotation_id| {
-        matches!(
-            ctx.annotation(annotation_id),
-            Annotation::Blank {
-                position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
-                ..
-            }
-        )
-    })
-}
-
-/// Return whether an argument has a blank prefix annotation before a separator.
-fn argument_has_blank_prefix_annotation_before_separator(
-    ctx: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> bool {
-    ctx.any_annotation_id(argument_id, |annotation_id| {
-        let Annotation::Blank {
-            position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
-            ..
-        } = ctx.annotation(annotation_id)
-        else {
-            return false;
-        };
-
-        next_non_whitespace_token_after_annotation(ctx, annotation_id)
-            .is_some_and(|token| token.token.ty == TokenType::Comma)
-    })
+        })
 }
 
 impl<'ast> FormatNode<'ast, Argument> for Argument {
@@ -845,54 +651,30 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
             return Ok(());
         }
 
-        let should_emit_prefix_annotations =
-            argument_should_emit_prefix_annotations(f.context(), node_id);
         let has_lambda_value = argument_contains_lambda_value(f.context(), self);
-        let force_break_after_lambda_prefix_comment = has_lambda_value
-            && argument_prefix_lambda_comment_needs_forced_break(f.context(), node_id);
 
-        if has_lambda_value || should_emit_prefix_annotations {
-            write!(f, [f.context().any_prefix_annotations(node_id)])?;
+        if has_lambda_value || argument_has_prefix_annotation(f.context(), node_id) {
+            write!(
+                f,
+                [crate::format::annotation::prefix_annotations(
+                    f.context(),
+                    node_id
+                )]
+            )?;
         }
 
-        write_argument_with_modifiers_and_value(self, force_break_after_lambda_prefix_comment, f)?;
+        write_argument_with_modifiers_and_value(self, false, f)?;
 
-        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
+        write!(
+            f,
+            [crate::format::annotation::infix_or_postfix_annotations(
+                f.context(),
+                node_id
+            )]
+        )?;
 
         Ok(())
     }
-}
-
-/// Return whether a lambda argument has an inline prefix comment that must break.
-fn argument_prefix_lambda_comment_needs_forced_break(
-    ctx: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> bool {
-    ctx.any_annotation_id(argument_id, |annotation_id| {
-        let Annotation::Comment { node, position } = ctx.annotation(annotation_id) else {
-            return false;
-        };
-        if position != AnnotationPosition::BlockPrefix {
-            return false;
-        }
-
-        let comment = ctx.tree.get::<Comment>(node);
-        if comment.style != CommentStyle::Star {
-            return false;
-        }
-
-        let previous_token = previous_non_whitespace_token_before_annotation(ctx, annotation_id);
-        let next_token = next_non_whitespace_token_after_annotation(ctx, annotation_id);
-        previous_token.is_some_and(|token| {
-            matches!(
-                token.token.ty,
-                TokenType::OpenParenthesis
-                    | TokenType::OpenBracket
-                    | TokenType::OpenBrace
-                    | TokenType::LessThan
-            )
-        }) && next_token.is_some_and(|token| token.token.ty == TokenType::OpenParenthesis)
-    })
 }
 
 /// Return whether this argument wraps a lambda declaration expression.

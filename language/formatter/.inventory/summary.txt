@@ -1,8 +1,0 @@
-root: language/formatter/src/format
-files: 108
-lines: 44151
-types: 111
-impls: 74
-functions_total: 1117
-methods: 101
-free_functions: 1016

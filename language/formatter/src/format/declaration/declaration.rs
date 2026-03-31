@@ -1,25 +1,18 @@
-use crate::format::chain::transparent_inner_expression;
-use crate::format::collection::list_like;
-use crate::format::collection::property::{format_block_of_members, format_key_with_quotes};
+use crate::format::collection::member::format_block_of_members;
+use crate::format::collection::property::format_key_with_quotes;
+use crate::format::declaration::assignment::format_type_alias_assignment_like;
+use crate::format::declaration::sequence::format_block_statement_sequence;
 use crate::format::declaration::signature::format_where_clause_with_break;
-use crate::format::declaration::statement_list::format_block_of_statements;
-use crate::format::expression::{
-    expression_has_static_type_arguments, should_drop_parenthesized_expression_wrapper,
-    type_index_left_requires_parentheses,
-};
-use crate::format::operator::{
-    flatten_type_binary_expression, format_leading_pipe_union_with_external_prefix,
-    is_type_context, needs_parens_in_postfix_position,
-};
+use crate::format::expression::{expression_has_static_type_arguments, format_declarator};
 use crate::{
-    Annotation, DestackFormatContext, DestackFormatter, FormatNode,
+    DestackFormatContext, DestackFormatter, FormatNode as AstFormatNode,
     empty_block_with_infix_annotations,
 };
 use destack_ast::{
-    AnnotationPosition, BinaryOperator, Declaration, DeclarationDescriptor, DeclarationKind,
-    DependencyKind, DependencyMode, Expression, FunctionKind, Generics, Heritage, IfKind,
-    ImportAliasTarget, Key, Keyword, LocalNodeId, Member, Mutability, Name, NamespaceKind,
-    NodeType, Parameter, TokenType, TypeKind, Visibility,
+    AnnotationPosition, Asynchrony, Declaration, DeclarationDescriptor, DeclarationKind,
+    Declarator, DependencyKind, DependencyMode, Expression, FunctionKind, Generics, Heritage,
+    ImportAliasTarget, Key, Keyword, LetKind, LocalNodeId, Member, Mutability, Name, NamespaceKind,
+    NodeType, Parameter, TypeKind, Visibility,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -30,240 +23,6 @@ use crate::format::declaration::r#type::{
     format_enum_declaration, format_interface_declaration, format_struct_or_class_declaration,
 };
 
-const TEMPLATE_LITERAL_TYPE_EQUALS_BREAK_WIDTH: u16 = 80;
-
-/// Normalize one TypeScript type-alias value through transparent grouping wrappers.
-///
-/// This mirrors oxc and Prettier single-member union transparency in TS fixtures.
-fn normalize_typescript_type_alias_value_expression(
-    context: &DestackFormatContext<'_>,
-    value_id: LocalNodeId<Expression>,
-) -> (LocalNodeId<Expression>, Vec<LocalNodeId<Expression>>) {
-    if context.options.language_type.is_destack() {
-        return (value_id, Vec::new());
-    }
-
-    let mut current_id = value_id;
-    let mut transparent_wrapper_prefix_annotation_owner_ids = Vec::new();
-    loop {
-        match context.tree.get(current_id) {
-            Expression::Statement(inner_expression_id) => {
-                if context.has_prefix_annotation(current_id) {
-                    transparent_wrapper_prefix_annotation_owner_ids.push(current_id);
-                }
-                current_id = *inner_expression_id;
-                continue;
-            }
-            Expression::Parenthesized {
-                expression: inner_expression_id,
-            } => {
-                if context.has_prefix_annotation(current_id) {
-                    transparent_wrapper_prefix_annotation_owner_ids.push(current_id);
-                }
-                current_id = *inner_expression_id;
-                continue;
-            }
-            Expression::Binary { operator, .. }
-                if is_type_context(context, current_id)
-                    && matches!(
-                        operator,
-                        BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd
-                    ) =>
-            {
-                let operands = flatten_type_binary_expression(context, current_id, *operator);
-                if operands.len() == 1 {
-                    if context.has_prefix_annotation(current_id) {
-                        transparent_wrapper_prefix_annotation_owner_ids.push(current_id);
-                    }
-                    current_id = operands[0].1;
-                    continue;
-                }
-            }
-            _ => {}
-        }
-
-        break;
-    }
-
-    (current_id, transparent_wrapper_prefix_annotation_owner_ids)
-}
-
-/// Return whether one union value ends with an own-line doc prefix annotation.
-fn union_has_trailing_own_line_doc_prefix_annotation(
-    context: &DestackFormatContext<'_>,
-    value_id: LocalNodeId<Expression>,
-) -> bool {
-    let Some(annotation_ids) = context.annotations(value_id) else {
-        return false;
-    };
-
-    annotation_ids
-        .into_iter()
-        .rev()
-        .find(|annotation_id| {
-            matches!(
-                context.annotation(*annotation_id).position(),
-                AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
-            )
-        })
-        .is_some_and(|annotation_id| {
-            matches!(context.annotation(annotation_id), Annotation::Doc { .. })
-                && context.annotation_starts_on_own_line(annotation_id)
-                && !context.annotation_next_token_is_on_same_line(annotation_id)
-        })
-}
-
-/// Return whether one expression has an own-line prefix annotation.
-fn expression_has_own_line_prefix_annotation(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    let expression_has_own_line_prefix_annotation = context
-        .visit_annotations(expression_id, |annotations| {
-            annotations.iter().copied().any(|annotation_id| {
-                matches!(
-                    context.annotation(annotation_id).position(),
-                    AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
-                ) && context.annotation_starts_on_own_line(annotation_id)
-            })
-        })
-        .unwrap_or(false);
-    if expression_has_own_line_prefix_annotation {
-        return true;
-    }
-
-    let expression_id = transparent_inner_expression(context, expression_id);
-    let Expression::Declaration(declaration_id) = context.tree.get(expression_id) else {
-        return false;
-    };
-
-    context
-        .visit_annotations(*declaration_id, |annotations| {
-            annotations.iter().copied().any(|annotation_id| {
-                matches!(
-                    context.annotation(annotation_id).position(),
-                    AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
-                ) && context.annotation_starts_on_own_line(annotation_id)
-            })
-        })
-        .unwrap_or(false)
-}
-
-/// Return whether one type-alias value is a union or intersection through transparent wrappers.
-fn type_alias_value_is_type_binary_expression(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    let mut current_id = expression_id;
-    loop {
-        match context.tree.get(current_id) {
-            Expression::Statement(inner_expression_id) => {
-                current_id = *inner_expression_id;
-            }
-            Expression::Parenthesized {
-                expression: inner_expression_id,
-            } => {
-                current_id = *inner_expression_id;
-            }
-            Expression::Binary { operator, .. } => {
-                return is_type_context(context, current_id)
-                    && matches!(
-                        operator,
-                        BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd
-                    );
-            }
-            _ => return false,
-        }
-    }
-}
-
-/// Build annotation facts for one transparent wrapper owner.
-fn transparent_wrapper_annotation_facts_for_expression(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> (bool, bool, bool) {
-    let mut has_block_prefix_annotation = false;
-    let mut has_own_line_prefix_annotation = false;
-    let mut has_own_line_pipe_prefix_annotation = false;
-
-    context
-        .visit_annotations(expression_id, |annotations| {
-            for annotation_id in annotations.iter().copied() {
-                let position = context.annotation(annotation_id).position();
-                let starts_on_own_line = context.annotation_starts_on_own_line(annotation_id);
-
-                if position == AnnotationPosition::BlockPrefix {
-                    has_block_prefix_annotation = true;
-                }
-
-                if matches!(
-                    position,
-                    AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
-                ) && starts_on_own_line
-                {
-                    has_own_line_prefix_annotation = true;
-                }
-
-                if position == AnnotationPosition::LinePrefix
-                    && starts_on_own_line
-                    && context.annotation_next_token_is_on_same_line(annotation_id)
-                    && context.annotation_next_non_whitespace_token_type(annotation_id)
-                        == Some(TokenType::ElementwiseOr)
-                {
-                    has_own_line_pipe_prefix_annotation = true;
-                }
-
-                if has_block_prefix_annotation
-                    && has_own_line_prefix_annotation
-                    && has_own_line_pipe_prefix_annotation
-                {
-                    break;
-                }
-            }
-        })
-        .unwrap_or(());
-
-    (
-        has_block_prefix_annotation,
-        has_own_line_prefix_annotation,
-        has_own_line_pipe_prefix_annotation,
-    )
-}
-
-/// Build annotation facts for transparent wrapper owners around one type-alias value.
-fn collect_transparent_wrapper_annotation_facts(
-    context: &DestackFormatContext<'_>,
-    expression_ids: &[LocalNodeId<Expression>],
-) -> (bool, bool, bool) {
-    let mut has_block_prefix_annotation = false;
-    let mut has_own_line_prefix_annotation = false;
-    let mut has_own_line_pipe_prefix_annotation = false;
-
-    for expression_id in expression_ids.iter().copied() {
-        let (
-            expression_has_block_prefix_annotation,
-            expression_has_own_line_prefix_annotation,
-            expression_has_own_line_pipe_prefix_annotation,
-        ) = transparent_wrapper_annotation_facts_for_expression(context, expression_id);
-        has_block_prefix_annotation |= expression_has_block_prefix_annotation;
-        has_own_line_prefix_annotation |= expression_has_own_line_prefix_annotation;
-        has_own_line_pipe_prefix_annotation |= expression_has_own_line_pipe_prefix_annotation;
-
-        if has_block_prefix_annotation
-            && has_own_line_prefix_annotation
-            && has_own_line_pipe_prefix_annotation
-        {
-            break;
-        }
-    }
-
-    (
-        has_block_prefix_annotation,
-        has_own_line_prefix_annotation,
-        has_own_line_pipe_prefix_annotation,
-    )
-}
-
 /// Format one declaration export modifier and export-head seam comments.
 pub(crate) fn format_declaration_export_modifier<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -273,7 +32,11 @@ pub(crate) fn format_declaration_export_modifier<'ast>(
     if let Some(export) = descriptor.export {
         write!(
             f,
-            [export, space(), f.context().any_prefix_annotations(node_id)]
+            [
+                export,
+                space(),
+                crate::format::annotation::prefix_annotations(f.context(), node_id)
+            ]
         )?;
     }
 
@@ -445,6 +208,89 @@ fn super_type_has_invalid_unparenthesized_head(
     )
 }
 
+/// Format one variable-like `let` statement expression.
+pub(crate) fn format_let_statement_expression<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    kind: LetKind,
+    descriptor: &DeclarationDescriptor,
+    declarators: &[LocalNodeId<Declarator>],
+) -> FormatResult<()> {
+    let tree = f.context().tree;
+
+    // export import equals
+    let handled_export_import_equals =
+        crate::format::declaration::dependency::format_export_import_equals_statement(
+            f,
+            tree,
+            descriptor,
+            declarators,
+        )?;
+
+    // keyword header
+    if !handled_export_import_equals {
+        if let Some(export) = descriptor.export {
+            write!(f, [export, space()])?;
+        }
+
+        if descriptor.kind == DeclarationKind::Declaration {
+            write!(f, [Keyword::Declare, space()])?;
+        }
+
+        match kind {
+            LetKind::Let => write!(f, [Keyword::Let])?,
+            LetKind::Var => write!(f, [Keyword::Var])?,
+            LetKind::Const => write!(f, [Keyword::Const])?,
+        }
+
+        for (index, declarator_id) in declarators.iter().enumerate() {
+            if index > 0 {
+                write!(f, [token(",")])?;
+            }
+
+            write!(f, [space()])?;
+            format_declarator(f, tree, *declarator_id)?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Format one `using` statement expression.
+pub(crate) fn format_using_statement_expression<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    asynchrony: Asynchrony,
+    descriptor: &DeclarationDescriptor,
+    declarators: &[LocalNodeId<Declarator>],
+) -> FormatResult<()> {
+    let tree = f.context().tree;
+
+    // keyword header
+    if let Some(export) = descriptor.export {
+        write!(f, [export, space()])?;
+    }
+
+    if descriptor.kind == DeclarationKind::Declaration {
+        write!(f, [Keyword::Declare, space()])?;
+    }
+
+    if asynchrony == Asynchrony::Async {
+        write!(f, [Keyword::Await, space()])?;
+    }
+
+    write!(f, [Keyword::Using])?;
+
+    for (index, declarator_id) in declarators.iter().enumerate() {
+        if index > 0 {
+            write!(f, [token(",")])?;
+        }
+
+        write!(f, [space()])?;
+        format_declarator(f, tree, *declarator_id)?;
+    }
+
+    Ok(())
+}
+
 /// Format a global augmentation declaration.
 pub(crate) fn format_global_declaration<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -467,18 +313,28 @@ pub(crate) fn format_global_declaration<'ast>(
     write!(f, [space()])?;
     if expressions.is_empty() {
         write!(f, [empty_block_with_infix_annotations(node_id)])?;
-        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+        write!(
+            f,
+            [crate::format::annotation::postfix_annotations(
+                f.context(),
+                node_id
+            )]
+        )?;
     } else {
+        let expressions = expressions.to_vec();
         write!(f, [token("{"), hard_line_break()])?;
         write!(
             f,
-            [group(&block_indent(&format_with(|f| {
-                format_block_of_statements(f, expressions, false)
+            [group(&block_indent(&format_with(move |_f| {
+                format_block_statement_sequence(_f, &expressions, false)
             })))]
         )?;
         write!(
             f,
-            [f.context().block_infix_annotations(node_id), token("}")]
+            [
+                crate::format::annotation::block_infix_annotations(f.context(), node_id),
+                token("}")
+            ]
         )?;
     }
 
@@ -530,20 +386,27 @@ pub(crate) fn format_namespace_declaration<'ast>(
     write!(f, [space()])?;
     if expressions.is_empty() {
         write!(f, [empty_block_with_infix_annotations(node_id)])?;
-        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+        write!(
+            f,
+            [crate::format::annotation::postfix_annotations(
+                f.context(),
+                node_id
+            )]
+        )?;
     } else {
+        let expressions = expressions.to_vec();
         write!(f, [token("{"), hard_line_break()])?;
         write!(
             f,
-            [group(&block_indent(&format_with(|f| {
-                format_block_of_statements(f, expressions, false)
+            [group(&block_indent(&format_with(move |_f| {
+                format_block_statement_sequence(_f, &expressions, false)
             })))]
         )?;
         write!(
             f,
             [
                 hard_line_break(),
-                f.context().block_infix_annotations(node_id),
+                crate::format::annotation::block_infix_annotations(f.context(), node_id),
                 token("}")
             ]
         )?;
@@ -596,7 +459,10 @@ pub(crate) fn format_import_alias_declaration<'ast>(
     }
 
     write!(f, [token(";")])?;
-    write!(f, [f.context().line_postfix_boundary_annotations(node_id)])?;
+    write!(
+        f,
+        [crate::format::annotation::line_postfix_boundary_annotations(f.context(), node_id)]
+    )?;
     Ok(())
 }
 
@@ -709,192 +575,22 @@ pub(crate) fn format_type_alias_declaration<'ast>(
     static_parameters: &Option<Vec<LocalNodeId<Parameter>>>,
     value_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    let (value_id, transparent_wrapper_prefix_annotation_owner_ids) =
-        normalize_typescript_type_alias_value_expression(f.context(), value_id);
-    let (
-        transparent_wrapper_has_block_prefix_annotation,
-        transparent_wrapper_has_own_line_prefix_annotation,
-        transparent_wrapper_has_own_line_pipe_prefix_annotation,
-    ) = collect_transparent_wrapper_annotation_facts(
-        f.context(),
-        transparent_wrapper_prefix_annotation_owner_ids.as_slice(),
-    );
-    let value_expression = f.context().tree.get(value_id);
-    let value_is_type_binary = type_alias_value_is_type_binary_expression(f.context(), value_id);
-    let value_is_type_union = matches!(
-        value_expression,
-        Expression::Binary {
-            operator: BinaryOperator::ElementwiseOr,
-            ..
-        }
-    ) && is_type_context(f.context(), value_id);
-    let transparent_wrapper_has_own_line_pipe_prefix_annotation = value_is_type_union
-        && transparent_wrapper_has_block_prefix_annotation
-        && transparent_wrapper_has_own_line_pipe_prefix_annotation;
-
-    let header = format_with(|f| {
-        // export
-        format_declaration_export_modifier(f, node_id, descriptor)?;
-
-        // kind
-        if descriptor.kind == DeclarationKind::Declaration {
-            write!(f, [Keyword::Declare, space()])?;
-        }
-
-        // keyword
-        if mutability == Some(Mutability::Immutable) {
-            // for readonly type expression
-            write!(f, [Keyword::Readonly])?;
-        } else if kind == TypeKind::Structural {
-            write!(f, [Keyword::Type])?;
-        } else {
-            write!(f, [Keyword::Newtype])?;
-        }
-
-        // name
-        if let Some(name) = descriptor.name {
-            write!(f, [space(), name])?;
-        }
-
-        // static parameters
-        if let Some(static_parameters) = static_parameters {
-            write!(f, [list_like("<", ">", ",", static_parameters)])?;
-            write!(f, [f.context().any_prefix_annotations(node_id)])?;
-        }
-
-        Ok(())
-    });
-
-    let tree = f.context().tree;
-    let format_value = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        if !transparent_wrapper_prefix_annotation_owner_ids.is_empty() {
-            let format_transparent_wrapper_prefix =
-                format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                    for expression_id in transparent_wrapper_prefix_annotation_owner_ids
-                        .iter()
-                        .copied()
-                    {
-                        write!(f, [f.context().any_prefix_annotations(expression_id)])?;
-                    }
-
-                    Ok(())
-                });
-
-            if value_is_type_binary {
-                write!(f, [indent(&format_transparent_wrapper_prefix)])?;
-            } else {
-                write!(f, [format_transparent_wrapper_prefix])?;
-            }
-        }
-
-        if transparent_wrapper_has_own_line_pipe_prefix_annotation {
-            let operands = flatten_type_binary_expression(
-                f.context(),
-                value_id,
-                BinaryOperator::ElementwiseOr,
-            );
-            return format_leading_pipe_union_with_external_prefix(
-                f, value_id, &operands, false, true,
-            );
-        }
-
-        write!(f, [value_id])
-    });
-
-    // prefer keeping the value on a single line
-    let format_inline = format_with(|f| {
-        write!(f, [header, space(), token("=")])?;
-        write!(f, [space()])?;
-        write!(f, [format_value])?;
-        Ok(())
-    });
-
-    let format_soft_break = format_with(|f| {
-        if value_is_type_binary {
-            write!(
-                f,
-                [group(&format_args![
-                    header,
-                    space(),
-                    token("="),
-                    soft_line_break_or_space(),
-                    format_value
-                ])]
-            )
-        } else {
-            write!(
-                f,
-                [group(&format_args![
-                    header,
-                    space(),
-                    token("="),
-                    indent(&format_args![soft_line_break_or_space(), format_value])
-                ])]
-            )
-        }
-    });
-    let line_width = f.context().options.line_width;
-    let should_break_template_literal_type_after_equals = match value_expression {
-        Expression::TypeTemplateLiteral { spans, .. } => {
-            line_width <= TEMPLATE_LITERAL_TYPE_EQUALS_BREAK_WIDTH
-                && spans.iter().any(|span_id| {
-                    matches!(
-                        tree.get(*span_id),
-                        Expression::TypeConditional { .. }
-                            | Expression::If {
-                                kind: IfKind::Ternary,
-                                ..
-                            }
-                    )
-                })
-        }
-        _ => false,
-    };
-    let should_break_after_equals = match value_expression {
-        Expression::TypeConditional { left, .. } => {
-            !matches!(tree.get(*left), Expression::Parenthesized { .. })
-        }
-        _ => false,
-    };
-    let value_has_own_line_prefix_annotation =
-        expression_has_own_line_prefix_annotation(f.context(), value_id)
-            || transparent_wrapper_has_own_line_prefix_annotation;
-    let should_break_for_prefix_annotation = if value_is_type_binary {
-        transparent_wrapper_has_own_line_pipe_prefix_annotation
-    } else {
-        value_has_own_line_prefix_annotation
-    };
-    let should_break_for_union_trailing_doc_prefix_annotation = value_is_type_union
-        && union_has_trailing_own_line_doc_prefix_annotation(f.context(), value_id);
-    let value_prefers_inline_after_equals = match value_expression {
-        Expression::Parenthesized { expression } => {
-            !should_drop_parenthesized_expression_wrapper(f.context(), value_id, *expression)
-        }
-        Expression::Index { left, .. } => {
-            matches!(tree.get(*left), Expression::Parenthesized { .. })
-                || needs_parens_in_postfix_position(tree, *left)
-        }
-        Expression::TypeIndex { left, .. } => {
-            matches!(tree.get(*left), Expression::Parenthesized { .. })
-                || type_index_left_requires_parentheses(tree.get(*left))
-        }
-        _ => true,
-    };
-    if should_break_after_equals
-        || should_break_template_literal_type_after_equals
-        || should_break_for_prefix_annotation
-        || should_break_for_union_trailing_doc_prefix_annotation
-    {
-        format_soft_break.format(f)?;
-    } else if value_prefers_inline_after_equals {
-        format_inline.format(f)?;
-    } else {
-        format_soft_break.format(f)?;
-    }
+    format_type_alias_assignment_like(
+        f,
+        node_id,
+        descriptor,
+        kind,
+        mutability,
+        static_parameters,
+        value_id,
+    )?;
 
     // type alias declarations need trailing semicolon (like const/let)
     write!(f, [token(";")])?;
-    write!(f, [f.context().line_postfix_boundary_annotations(node_id)])?;
+    write!(
+        f,
+        [crate::format::annotation::line_postfix_boundary_annotations(f.context(), node_id)]
+    )?;
 
     Ok(())
 }
@@ -919,7 +615,7 @@ impl<'ast> Format<DestackFormatContext<'ast>> for DependencyMode {
     }
 }
 
-impl<'ast> FormatNode<'ast, Declaration> for Declaration {
+impl<'ast> AstFormatNode<'ast, Declaration> for Declaration {
     fn format_node(
         &self,
         node_id: LocalNodeId<Declaration>,
@@ -947,7 +643,13 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
             } else {
                 None
             };
-        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+        write!(
+            f,
+            [crate::format::annotation::prefix_annotations(
+                f.context(),
+                node_id
+            )]
+        )?;
         let mut declaration_emits_boundary_before_terminator = false;
 
         match self {
@@ -1012,6 +714,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 heritage,
                 members,
             } => {
+                declaration_emits_boundary_before_terminator = true;
                 let is_class = matches!(self, Declaration::Class { .. });
                 if format_struct_or_class_declaration(
                     f,
@@ -1036,6 +739,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 fields,
                 members,
             } => {
+                declaration_emits_boundary_before_terminator = true;
                 if format_enum_declaration(
                     f, node_id, descriptor, *kind, generics, heritage, fields, members,
                 )? {
@@ -1051,6 +755,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 heritage,
                 members,
             } => {
+                declaration_emits_boundary_before_terminator = true;
                 if format_interface_declaration(
                     f, node_id, descriptor, *kind, generics, heritage, members,
                 )? {
@@ -1089,32 +794,42 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
         }
 
         if !declaration_emits_boundary_before_terminator {
-            write!(f, [f.context().line_postfix_boundary_annotations(node_id)])?;
+            write!(
+                f,
+                [
+                    crate::format::annotation::line_postfix_boundary_annotations(
+                        f.context(),
+                        node_id
+                    )
+                ]
+            )?;
         }
 
         let should_skip_blank_postfix_annotations =
             is_lambda_declaration && declaration_expression_id.is_some();
         if should_skip_blank_postfix_annotations {
-            if let Some(annotation_ids) = f.context().annotations(node_id) {
-                for annotation_id in annotation_ids {
-                    let annotation = f.context().annotation(annotation_id);
-                    if matches!(annotation, Annotation::Blank { .. }) {
-                        continue;
-                    }
-                    if !matches!(
-                        annotation.position(),
-                        AnnotationPosition::BlockPostfix | AnnotationPosition::LinePostfix
-                    ) {
-                        continue;
-                    }
-                    annotation.format_node(annotation_id, f)?;
+            let annotation_count = f.context().annotation_ids(node_id).len();
+            for annotation_index in 0..annotation_count {
+                let annotation_id = f.context().annotation_ids(node_id)[annotation_index];
+                let annotation = f.context().annotation(annotation_id);
+                if !matches!(
+                    annotation.position(),
+                    AnnotationPosition::BlockPostfix | AnnotationPosition::LinePostfix
+                ) {
+                    continue;
                 }
+
+                annotation.format_node(annotation_id, f)?;
             }
         } else {
             write!(
                 f,
-                [f.context()
-                    .any_postfix_except_line_postfix_boundary_annotations(node_id)]
+                [
+                    crate::format::annotation::postfix_annotations_without_line_postfix_boundary(
+                        f.context(),
+                        node_id
+                    )
+                ]
             )?;
         }
 

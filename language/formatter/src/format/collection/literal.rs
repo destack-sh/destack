@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 
 use crate::format::expression::{is_expression_breakable, is_trivial_expression};
+use crate::format::tree::is_jsx_whitespace_char;
 use crate::{DestackFormatContext, DestackFormatter};
 
 use destack_ast::{
@@ -525,12 +526,6 @@ fn normalize_jsx_text_multiline_lines(text: &str) -> Option<Vec<String>> {
 
     Some(lines)
 }
-/// Return whether one character is JSX whitespace.
-#[inline]
-fn is_jsx_whitespace_char(character: char) -> bool {
-    matches!(character, ' ' | '\n' | '\r' | '\t')
-}
-
 /// Collapse JSX whitespace runs to single spaces and drop outer whitespace.
 fn collapse_jsx_whitespace_to_single_spaces(text: &str) -> Option<String> {
     let mut collapsed = String::new();

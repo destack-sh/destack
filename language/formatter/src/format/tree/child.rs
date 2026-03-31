@@ -1,0 +1,315 @@
+use super::attribute::argument_transparent_value_id;
+use crate::format::call::{expression_has_complex_callback, lambda_body_is_complex_for_tree};
+use crate::format::chain::{
+    chain_nodes, has_comment_between_expressions, member_has_intervening_comment,
+};
+use crate::{DestackFormatContext, DestackFormatter};
+use destack_ast::{
+    Argument, Declaration, Expression, FunctionKind, IfCondition, IfKind, LocalNodeId, NodeTree,
+    ScalarLiteral, TokenType,
+};
+use destack_fir::format::{Buffer, FormatResult};
+use destack_source::Span;
+
+/// Return whether one node span contains a line comment.
+pub(crate) fn node_has_line_comment<T>(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<T>,
+) -> bool
+where
+    T: destack_ast::Node,
+    NodeTree: destack_ast::NodeTreeImpl<T>,
+{
+    let span = context.span(node_id);
+
+    context
+        .comments_in_range(span.start, span.end)
+        .iter()
+        .copied()
+        .any(|comment| context.comment_is_line(comment))
+}
+
+/// Check whether a tree child expression should stay inline inside `{ ... }`.
+pub(crate) fn tree_child_should_inline_braced_expression(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let Some(value_id) = argument_transparent_value_id(context, argument_id) else {
+        return false;
+    };
+    let value_expression = context.tree.get(value_id);
+    let argument_span = context.span(argument_id);
+    let value_span = context.span(value_id);
+
+    if argument_span.file == value_span.file {
+        if argument_span.start < value_span.start
+            && !context
+                .comments_in_range(argument_span.start, value_span.start)
+                .is_empty()
+        {
+            return false;
+        }
+
+        if value_span.end < argument_span.end
+            && !context
+                .comments_in_range(value_span.end, argument_span.end)
+                .is_empty()
+        {
+            return false;
+        }
+    }
+
+    if node_has_line_comment(context, argument_id) {
+        return false;
+    }
+
+    match value_expression {
+        Expression::ScalarLiteral(ScalarLiteral::String(_))
+        | Expression::ScalarLiteral(ScalarLiteral::Character(_)) => true,
+        Expression::ArrayExpression { .. }
+        | Expression::ObjectExpression { .. }
+        | Expression::Call { .. }
+        | Expression::TemplateExpression { .. }
+        | Expression::TaggedTemplateExpression { .. }
+        | Expression::Await { .. }
+        | Expression::AwaitMaybe { .. }
+        | Expression::Binary { .. }
+        | Expression::Member { .. }
+        | Expression::PrivateMember { .. }
+        | Expression::Index { .. }
+        | Expression::Maybe { .. }
+        | Expression::Must { .. } => {
+            !node_has_line_comment(context, value_id)
+                && !expression_has_chain_seam_comment(context, value_id)
+        }
+        Expression::If {
+            kind: IfKind::Ternary,
+            condition,
+            then_expression,
+            else_expression,
+            ..
+        } => {
+            let has_parenthesized_branch = matches!(
+                context.tree.get(*then_expression),
+                Expression::Parenthesized { .. }
+            ) || else_expression.is_some_and(|else_id| {
+                matches!(context.tree.get(else_id), Expression::Parenthesized { .. })
+            });
+            let has_branch_prefix_star_comment =
+                expression_chain_has_prefix_star_comment(context, *then_expression)
+                    || else_expression.is_some_and(|else_id| {
+                        expression_chain_has_prefix_star_comment(context, else_id)
+                    });
+            if has_parenthesized_branch && has_branch_prefix_star_comment {
+                return false;
+            }
+
+            let condition_id = match condition {
+                IfCondition::Expression { condition } => *condition,
+                IfCondition::Let { .. } => return false,
+            };
+            if node_has_line_comment(context, value_id)
+                || node_has_line_comment(context, condition_id)
+                || node_has_line_comment(context, *then_expression)
+                || else_expression.is_some_and(|else_id| node_has_line_comment(context, else_id))
+            {
+                return false;
+            }
+
+            true
+        }
+        Expression::Declaration(declaration_id) => matches!(
+            context.tree.get(*declaration_id),
+            Declaration::Function { signature, .. } if signature.kind == FunctionKind::Lambda
+        ),
+        _ => false,
+    }
+}
+
+/// Return whether one expression chain has comments on member or operator seams.
+pub(crate) fn expression_has_chain_seam_comment(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let chain = chain_nodes(context.tree, expression_id);
+    if chain.len() <= 1 {
+        return false;
+    }
+
+    if chain
+        .windows(2)
+        .any(|adjacent| has_comment_between_expressions(context, adjacent[0], adjacent[1]))
+    {
+        return true;
+    }
+
+    chain
+        .iter()
+        .copied()
+        .any(|chain_node_id| member_has_intervening_comment(context, chain_node_id))
+}
+
+/// Return whether one expression has one prefix block-star comment.
+fn expression_has_prefix_star_comment(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let expression_span = context.span(expression_id);
+    let Some(previous_token) = context.previous_non_whitespace_token_before_span(expression_span)
+    else {
+        return false;
+    };
+    if previous_token.span.end >= expression_span.start {
+        return false;
+    }
+
+    context
+        .comment_tokens_in_range(previous_token.span.end, expression_span.start)
+        .iter()
+        .any(|token| {
+            matches!(
+                token.token.ty,
+                TokenType::BlockComment | TokenType::DocBlockComment
+            )
+        })
+}
+
+/// Return whether one expression or its parenthesized inner chain has one prefix block-star comment.
+fn expression_chain_has_prefix_star_comment(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let mut current_expression_id = expression_id;
+    loop {
+        if expression_has_prefix_star_comment(context, current_expression_id) {
+            return true;
+        }
+
+        let Expression::Parenthesized { expression } = context.tree.get(current_expression_id)
+        else {
+            return false;
+        };
+        current_expression_id = *expression;
+    }
+}
+
+/// Check whether a tree child forces the element to break.
+pub(crate) fn tree_child_breaks_element(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let Some(value_id) = argument_transparent_value_id(context, argument_id) else {
+        return false;
+    };
+    let value_expression = context.tree.get(value_id);
+    let is_text_node = matches!(
+        value_expression,
+        Expression::ScalarLiteral(ScalarLiteral::String(_))
+    );
+    let has_line_comment =
+        node_has_line_comment(context, argument_id) || node_has_line_comment(context, value_id);
+    if has_line_comment {
+        return true;
+    }
+
+    // ternary branch comments and wrappers
+    let ternary_has_comment_or_parenthesized_branch = match value_expression {
+        Expression::If {
+            kind: IfKind::Ternary,
+            condition,
+            then_expression,
+            else_expression,
+            ..
+        } => {
+            let condition_has_line_comment = match condition {
+                IfCondition::Expression { condition } => node_has_line_comment(context, *condition),
+                IfCondition::Let { .. } => true,
+            };
+
+            let branch_has_line_comment = node_has_line_comment(context, value_id)
+                || condition_has_line_comment
+                || node_has_line_comment(context, *then_expression)
+                || else_expression.is_some_and(|else_id| node_has_line_comment(context, else_id));
+
+            let branch_has_parenthesized_expression = matches!(
+                context.tree.get(*then_expression),
+                Expression::Parenthesized { .. }
+            ) || else_expression.is_some_and(|else_id| {
+                matches!(context.tree.get(else_id), Expression::Parenthesized { .. })
+            });
+
+            branch_has_line_comment || branch_has_parenthesized_expression
+        }
+        _ => false,
+    };
+
+    if (context.has_annotation(argument_id) || context.has_annotation(value_id))
+        && !is_text_node
+        && !matches!(value_expression, Expression::Stub)
+    {
+        if matches!(
+            value_expression,
+            Expression::If {
+                kind: IfKind::Ternary,
+                ..
+            }
+        ) {
+            return ternary_has_comment_or_parenthesized_branch;
+        }
+
+        return true;
+    }
+
+    match value_expression {
+        Expression::Stub => context.options.language_type.is_destack(),
+        Expression::If {
+            kind: IfKind::Ternary,
+            ..
+        } => ternary_has_comment_or_parenthesized_branch,
+        Expression::Block(_) | Expression::Match { .. } => true,
+        Expression::Declaration(declaration_id) => {
+            lambda_body_is_complex_for_tree(context, *declaration_id)
+        }
+        Expression::TreeExpression { .. } => false,
+        _ => expression_has_complex_callback(context, value_id),
+    }
+}
+
+/// Format one multiline stub comment list.
+pub(crate) fn format_multiline_stub_comment_nodes<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    comment_nodes: &[LocalNodeId<destack_ast::Comment>],
+) -> FormatResult<()> {
+    use destack_fir::prelude::hard_line_break;
+    use destack_fir::write;
+
+    for (index, comment_id) in comment_nodes.iter().enumerate() {
+        if index > 0 {
+            write!(f, [hard_line_break()])?;
+        }
+        write!(f, [*comment_id])?;
+    }
+
+    Ok(())
+}
+
+/// Format inline stub comments from one source span.
+pub(crate) fn format_inline_stub_comments<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    span: Span,
+) -> FormatResult<bool> {
+    use destack_fir::prelude::space;
+    use destack_fir::write;
+
+    let comment_nodes = f.context().comment_nodes_in_range(span.start, span.end);
+
+    for (index, comment_id) in comment_nodes.iter().enumerate() {
+        if index > 0 {
+            write!(f, [space()])?;
+        }
+
+        write!(f, [*comment_id])?;
+    }
+
+    Ok(!comment_nodes.is_empty())
+}
