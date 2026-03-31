@@ -1,0 +1,77 @@
+{
+    "name": "html-chunking-shared-asset-grid",
+    "targets": {
+        "landing": {
+            "emit": "html",
+            "runtime": "browser",
+            "entry": [
+                "src/pages/landing.html"
+            ],
+            "outFile": "dist/landing.html",
+            "bundle": {
+                "assets": {
+                    "mode": "emit"
+                },
+                "output": {
+                    "assetFileNames": "assets/[name]-[hash].[ext]",
+                    "sourcemap": "external",
+                    "manifest": true
+                }
+            }
+        },
+        "docs": {
+            "emit": "html",
+            "runtime": "browser",
+            "entry": [
+                "src/pages/docs.html"
+            ],
+            "outFile": "dist/docs.html",
+            "bundle": {
+                "assets": {
+                    "mode": "emit"
+                },
+                "output": {
+                    "assetFileNames": "assets/[name]-[hash].[ext]",
+                    "sourcemap": "external",
+                    "manifest": true
+                }
+            }
+        },
+        "pricing": {
+            "emit": "html",
+            "runtime": "browser",
+            "entry": [
+                "src/pages/pricing.html"
+            ],
+            "outFile": "dist/pricing.html",
+            "bundle": {
+                "assets": {
+                    "mode": "emit"
+                },
+                "output": {
+                    "assetFileNames": "assets/[name]-[hash].[ext]",
+                    "sourcemap": "external",
+                    "manifest": true
+                }
+            }
+        },
+        "status": {
+            "emit": "html",
+            "runtime": "browser",
+            "entry": [
+                "src/pages/status.html"
+            ],
+            "outFile": "dist/status.html",
+            "bundle": {
+                "assets": {
+                    "mode": "emit"
+                },
+                "output": {
+                    "assetFileNames": "assets/[name]-[hash].[ext]",
+                    "sourcemap": "external",
+                    "manifest": true
+                }
+            }
+        }
+    }
+}

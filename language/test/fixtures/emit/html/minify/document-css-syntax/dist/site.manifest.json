@@ -1,0 +1,20 @@
+{
+  "index": "index.html",
+  "files": [
+    {
+      "path": "index.html",
+      "type": "asset",
+      "loader": "html",
+      "isEntry": true,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "site.css",
+      "type": "asset",
+      "loader": "css",
+      "input": "src/site.css",
+      "isEntry": true,
+      "isDynamicEntry": false
+    }
+  ]
+}

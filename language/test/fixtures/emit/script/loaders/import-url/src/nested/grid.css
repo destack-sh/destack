@@ -1,0 +1,5 @@
+@layer layout {
+  h2 {
+    display: grid;
+  }
+}

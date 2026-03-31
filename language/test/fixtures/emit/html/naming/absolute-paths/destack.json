@@ -1,5 +1,8 @@
 {
     "name": "html-naming-absolute-paths",
+    "compiler": {
+        "rootDir": "src"
+    },
     "targets": {
         "site": {
             "emit": "html",

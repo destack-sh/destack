@@ -1,0 +1,33 @@
+{
+  "index": "page3.html",
+  "files": [
+    {
+      "path": "hero.svg",
+      "type": "asset",
+      "loader": "asset"
+    },
+    {
+      "path": "page3.css",
+      "type": "asset",
+      "loader": "css",
+      "input": "src/styles/page3.css",
+      "isEntry": true,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "page3.html",
+      "type": "asset",
+      "loader": "html",
+      "isEntry": true,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "shared.css",
+      "type": "asset",
+      "loader": "css",
+      "input": "src/styles/shared.css",
+      "isEntry": true,
+      "isDynamicEntry": false
+    }
+  ]
+}

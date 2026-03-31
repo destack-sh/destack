@@ -2,6 +2,60 @@
   "index": "index.html",
   "files": [
     {
+      "path": "app.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "app",
+      "input": "src/scripts/app.ts",
+      "isEntry": true,
+      "isDynamicEntry": false,
+      "imports": [
+        "./chunk.js"
+      ]
+    },
+    {
+      "path": "app.js.map",
+      "type": "asset",
+      "loader": "map"
+    },
+    {
+      "path": "assets/logo-large.png",
+      "type": "asset",
+      "loader": "asset"
+    },
+    {
+      "path": "assets/logo-small.png",
+      "type": "asset",
+      "loader": "asset"
+    },
+    {
+      "path": "assets/logo.png",
+      "type": "asset",
+      "loader": "asset"
+    },
+    {
+      "path": "assets/main.css",
+      "type": "asset",
+      "loader": "css",
+      "input": "src/styles/main.css",
+      "isEntry": true,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "chunk.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "chunk",
+      "input": "src/scripts/chunk.ts",
+      "isEntry": true,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "chunk.js.map",
+      "type": "asset",
+      "loader": "map"
+    },
+    {
       "path": "index.html",
       "type": "asset",
       "loader": "html",
