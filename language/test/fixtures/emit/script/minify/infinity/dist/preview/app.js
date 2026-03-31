@@ -1,0 +1,16 @@
+export const infinitySamples = [
+    1 / 0,
+    -inf,
+    inf,
+    -inf,
+    inf,
+    -inf,
+    NaN,
+    NaN,
+    NaN,
+    NaN,
+    inf,
+    -inf,
+    -1,
+    -1,
+];

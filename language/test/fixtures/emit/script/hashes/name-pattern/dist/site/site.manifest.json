@@ -1,0 +1,37 @@
+{
+  "files": [
+    {
+      "path": "chunks/navigation-.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "navigation",
+      "input": "src/shared/navigation.ts",
+      "isEntry": false,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "entries/home-.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "home",
+      "input": "src/pages/home.ts",
+      "isEntry": true,
+      "isDynamicEntry": false,
+      "imports": [
+        "../chunks/navigation-.js"
+      ]
+    },
+    {
+      "path": "entries/settings-.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "settings",
+      "input": "src/pages/settings.ts",
+      "isEntry": true,
+      "isDynamicEntry": false,
+      "imports": [
+        "../chunks/navigation-.js"
+      ]
+    }
+  ]
+}

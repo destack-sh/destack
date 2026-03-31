@@ -1,1 +1,3 @@
-console.log("App loaded");
+import { getAppLabel } from "./chunk.ts";
+
+console.log("App loaded", getAppLabel("absolute-paths"));

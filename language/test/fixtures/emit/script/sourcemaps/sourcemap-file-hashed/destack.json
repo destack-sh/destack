@@ -1,0 +1,20 @@
+{
+    "name": "script-sourcemaps-sourcemap-file-hashed",
+    "targets": {
+        "preview": {
+            "emit": "js",
+            "runtime": "browser",
+            "entry": [
+                "src/main.ts"
+            ],
+            "outDir": "dist/preview",
+            "bundle": {
+                "output": {
+                    "entryFileNames": "[name]-[hash].js",
+                    "sourcemap": "external",
+                    "manifest": true
+                }
+            }
+        }
+    }
+}

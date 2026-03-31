@@ -1,0 +1,53 @@
+{
+  "index": "index.html",
+  "files": [
+    {
+      "path": "dashboard.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "dashboard",
+      "input": "src/dashboard.ts",
+      "isEntry": true,
+      "isDynamicEntry": false,
+      "imports": [
+        "./large-module.js"
+      ]
+    },
+    {
+      "path": "hero.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "hero",
+      "input": "src/hero.ts",
+      "isEntry": true,
+      "isDynamicEntry": false,
+      "imports": [
+        "./large-module.js"
+      ]
+    },
+    {
+      "path": "index.html",
+      "type": "asset",
+      "loader": "html",
+      "isEntry": true,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "large-module.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "large-module",
+      "input": "src/large-module.ts",
+      "isEntry": false,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "site.css",
+      "type": "asset",
+      "loader": "css",
+      "input": "src/site.css",
+      "isEntry": true,
+      "isDynamicEntry": false
+    }
+  ]
+}

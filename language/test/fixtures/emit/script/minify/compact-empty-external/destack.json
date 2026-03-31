@@ -1,0 +1,21 @@
+{
+    "name": "script-minify-compact-empty-external",
+    "targets": {
+        "preview": {
+            "emit": "js",
+            "runtime": "browser",
+            "entry": [
+                "src/main.ts"
+            ],
+            "outFile": "dist/preview/app.js",
+            "bundle": {
+                "minify": {
+                    "whitespace": true
+                },
+                "output": {
+                    "manifest": true
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,11 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: "Iosevka", monospace;
+}
+
+.hero-summary {
+    margin: 0;
+}

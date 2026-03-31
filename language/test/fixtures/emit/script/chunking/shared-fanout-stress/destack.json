@@ -1,0 +1,23 @@
+{
+    "name": "script-chunking-shared-fanout-stress",
+    "targets": {
+        "site": {
+            "emit": "js",
+            "runtime": "browser",
+            "entry": [
+                "src/app.ts",
+                "src/admin.ts",
+                "src/docs.ts",
+                "src/reports.ts"
+            ],
+            "outDir": "dist/site",
+            "bundle": {
+                "mode": "chunked",
+                "output": {
+                    "sourcemap": "external",
+                    "manifest": true
+                }
+            }
+        }
+    }
+}

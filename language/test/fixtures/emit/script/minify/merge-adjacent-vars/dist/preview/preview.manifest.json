@@ -1,0 +1,13 @@
+{
+  "files": [
+    {
+      "path": "preview/app.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "preview",
+      "input": "src/app.ts",
+      "isEntry": true,
+      "isDynamicEntry": false
+    }
+  ]
+}

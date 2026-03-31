@@ -1,0 +1,20 @@
+{
+  "files": [
+    {
+      "path": "assets/template.html",
+      "type": "asset",
+      "loader": "html",
+      "isEntry": true,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "preview/app.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "preview",
+      "input": "src/entry.ts",
+      "isEntry": true,
+      "isDynamicEntry": false
+    }
+  ]
+}

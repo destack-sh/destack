@@ -1,3 +1,7 @@
-import { foo } from './foo';
+import { getWidgetCountLabel } from "./foo.ts";
+import { renderStatusCard } from "./ui/card.ts";
 
-console.info( `the answer is ${foo()}` );
+const widgetCountLabel = getWidgetCountLabel(42);
+const statusCard = renderStatusCard("ready", widgetCountLabel);
+
+console.info(`the answer is ${statusCard}`);

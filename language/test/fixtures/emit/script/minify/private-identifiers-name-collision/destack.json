@@ -1,0 +1,21 @@
+{
+    "name": "script-minify-private-identifiers-name-collision",
+    "targets": {
+        "preview": {
+            "emit": "js",
+            "runtime": "browser",
+            "entry": [
+                "src/app.ts"
+            ],
+            "outFile": "dist/preview/app.js",
+            "bundle": {
+                "minify": {
+                    "identifiers": true
+                },
+                "output": {
+                    "manifest": true
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,29 @@
+{
+  "index": "index.html",
+  "files": [
+    {
+      "path": "index.html",
+      "type": "asset",
+      "loader": "html",
+      "isEntry": true,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "site.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "site",
+      "input": "src/page.ts",
+      "isEntry": true,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "style.css",
+      "type": "asset",
+      "loader": "css",
+      "input": "src/style.css",
+      "isEntry": true,
+      "isDynamicEntry": false
+    }
+  ]
+}

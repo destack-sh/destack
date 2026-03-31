@@ -2,6 +2,10 @@
 <html>
   <body>
     <img src="./assets/image.jpg" alt="Local image">
+    <picture>
+      <source srcset="./assets/image.jpg 1x, https://example.com/image@2x.jpg 2x">
+      <img src="./assets/image.jpg" alt="Responsive local image">
+    </picture>
     <img src="https://example.com/image.jpg" alt="External image">
   </body>
 </html>

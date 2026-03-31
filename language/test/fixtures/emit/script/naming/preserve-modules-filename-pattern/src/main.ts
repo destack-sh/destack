@@ -1,9 +1,0 @@
-export { default as a } from './nested/a.ts';
-export { default as b } from './b.str';
-export { default as c } from './c.mts';
-export { default as d } from './d.cts';
-export { default as e } from './e.tsx';
-export { default as f } from './f.mts';
-export { default as g } from './g.cts';
-export { default as h } from './h.tsx';
-export { default as x } from './no-ext';

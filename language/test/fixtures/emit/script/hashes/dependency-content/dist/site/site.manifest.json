@@ -1,0 +1,37 @@
+{
+  "files": [
+    {
+      "path": "chunks/metadata-.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "metadata",
+      "input": "src/shared/metadata.ts",
+      "isEntry": false,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "entries/docs-.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "docs",
+      "input": "src/docs.ts",
+      "isEntry": true,
+      "isDynamicEntry": false,
+      "imports": [
+        "../chunks/metadata-.js"
+      ]
+    },
+    {
+      "path": "entries/marketing-.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "marketing",
+      "input": "src/marketing.ts",
+      "isEntry": true,
+      "isDynamicEntry": false,
+      "imports": [
+        "../chunks/metadata-.js"
+      ]
+    }
+  ]
+}

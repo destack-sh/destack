@@ -1,0 +1,24 @@
+{
+    "name": "script-minify-multiple-declaration-tree-shaking",
+    "targets": {
+        "preview": {
+            "emit": "js",
+            "runtime": "browser",
+            "entry": [
+                "src/var2.ts",
+                "src/var3.ts",
+                "src/function2.ts",
+                "src/function3.ts"
+            ],
+            "outDir": "dist/preview",
+            "bundle": {
+                "minify": {
+                    "syntax": true
+                },
+                "output": {
+                    "manifest": true
+                }
+            }
+        }
+    }
+}

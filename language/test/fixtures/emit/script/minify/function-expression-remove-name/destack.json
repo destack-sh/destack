@@ -1,0 +1,22 @@
+{
+    "name": "script-minify-function-expression-remove-name",
+    "targets": {
+        "preview": {
+            "emit": "js",
+            "runtime": "browser",
+            "entry": [
+                "src/app.ts"
+            ],
+            "outFile": "dist/preview/app.js",
+            "bundle": {
+                "minify": {
+                    "syntax": true,
+                    "identifiers": true
+                },
+                "output": {
+                    "manifest": true
+                }
+            }
+        }
+    }
+}

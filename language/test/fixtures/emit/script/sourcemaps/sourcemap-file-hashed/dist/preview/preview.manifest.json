@@ -1,0 +1,18 @@
+{
+  "files": [
+    {
+      "path": "preview-.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "preview",
+      "input": "src/main.ts",
+      "isEntry": true,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "preview-.js.map",
+      "type": "asset",
+      "loader": "map"
+    }
+  ]
+}

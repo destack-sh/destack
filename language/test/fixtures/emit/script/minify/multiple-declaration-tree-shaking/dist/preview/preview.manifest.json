@@ -1,0 +1,40 @@
+{
+  "files": [
+    {
+      "path": "function2.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "function2",
+      "input": "src/function2.ts",
+      "isEntry": true,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "function3.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "function3",
+      "input": "src/function3.ts",
+      "isEntry": true,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "var2.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "var2",
+      "input": "src/var2.ts",
+      "isEntry": true,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "var3.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "var3",
+      "input": "src/var3.ts",
+      "isEntry": true,
+      "isDynamicEntry": false
+    }
+  ]
+}
