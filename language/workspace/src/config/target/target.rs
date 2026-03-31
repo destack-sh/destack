@@ -59,6 +59,8 @@ pub struct Target {
     pub types: Option<Vec<String>>,
     /// Explicit profile name for this target.
     pub profile: Option<String>,
+    /// Explicit mode name for this target.
+    pub mode: Option<String>,
     /// Bundling options for assembled JavaScript and HTML outputs.
     pub bundle: TargetBundle,
     /// App declaration for packaging and runtime capability planning.
@@ -404,7 +406,7 @@ impl Target {
     /// Return whether this target assembles one target level output shape.
     pub fn emits_assembled_output(&self) -> bool {
         is_assembled_target(
-            Some(self.bundle.mode),
+            Some(self.bundle.assembly),
             self.discovery,
             self.entry.len(),
             &self.app,
@@ -562,6 +564,12 @@ impl Target {
     /// Set an explicit profile name for this target.
     pub fn with_profile(mut self, profile: impl Into<String>) -> Self {
         self.profile = Some(profile.into());
+        self
+    }
+
+    /// Set an explicit mode name for this target.
+    pub fn with_mode(mut self, mode: impl Into<String>) -> Self {
+        self.mode = Some(mode.into());
         self
     }
 
@@ -1014,6 +1022,8 @@ pub struct TargetOptions {
     pub types: Option<Vec<String>>,
     /// Explicit profile name for this target.
     pub profile: Option<String>,
+    /// Explicit mode name for this target.
+    pub mode: Option<String>,
     /// Bundling options for assembled JavaScript and HTML outputs.
     pub bundle: TargetBundle,
     /// App declaration for packaging and runtime capability planning.
@@ -1208,6 +1218,7 @@ impl Default for TargetOptions {
             lib: None,
             types: None,
             profile: None,
+            mode: None,
             bundle: TargetBundle::default(),
             app: TargetAppDeclaration::default(),
             features: Vec::new(),
@@ -1297,6 +1308,7 @@ impl TargetOptions {
             lib: self.lib.clone(),
             types: self.types.clone(),
             profile: self.profile.clone(),
+            mode: self.mode.clone(),
             bundle: self.bundle.clone(),
             app: self.app.clone(),
             features: self.features.clone(),
@@ -1379,8 +1391,8 @@ impl TargetOptions {
             .map(TargetNative::from)
             .unwrap_or_default();
         let source_map_mode = bundle.output.sourcemap;
-        bundle.mode = resolved_bundle_mode(
-            json.bundle.as_ref().and_then(|bundle| bundle.mode),
+        bundle.assembly = resolved_bundle_mode(
+            json.bundle.as_ref().and_then(|bundle| bundle.assembly),
             discovery,
             entry.len(),
             emit,
@@ -1389,7 +1401,7 @@ impl TargetOptions {
         );
         bundle.output.sourcemap = source_map_mode;
         let is_assembled = is_assembled_target(
-            json.bundle.as_ref().and_then(|bundle| bundle.mode),
+            json.bundle.as_ref().and_then(|bundle| bundle.assembly),
             discovery,
             entry.len(),
             &app,
@@ -1471,6 +1483,7 @@ impl TargetOptions {
             lib: json.lib.clone(),
             types: json.types.clone(),
             profile: json.profile.clone(),
+            mode: json.mode.clone(),
             bundle,
             app,
             features: json
@@ -1630,6 +1643,8 @@ pub struct TargetJson {
     pub types: Option<Vec<String>>,
     /// Explicit profile name for this target.
     pub profile: Option<String>,
+    /// Explicit mode name for this target.
+    pub mode: Option<String>,
     /// Bundling options for assembled JavaScript and HTML outputs.
     pub bundle: Option<TargetBundleJson>,
     /// App declaration for packaging and runtime capability planning.

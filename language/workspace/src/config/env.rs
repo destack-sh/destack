@@ -12,8 +12,12 @@ pub const DESTACK_WORKERS: &str = "DESTACK_WORKERS";
 pub const DESTACK_SLOW_TASK_MS: &str = "DESTACK_SLOW_TASK_MS";
 /// Environment key used to override the default target selection.
 pub const DESTACK_TARGET: &str = "DESTACK_TARGET";
+/// Environment key used to override the default environment selection.
+pub const DESTACK_ENVIRONMENT: &str = "DESTACK_ENVIRONMENT";
 /// Environment key used to override the default profile selection.
 pub const DESTACK_PROFILE: &str = "DESTACK_PROFILE";
+/// Environment key used to override the default mode selection.
+pub const DESTACK_MODE: &str = "DESTACK_MODE";
 /// Environment key used to override the output directory for targets.
 pub const DESTACK_OUT_DIR: &str = "DESTACK_OUT_DIR";
 /// Environment key used to override the output file for single file targets.

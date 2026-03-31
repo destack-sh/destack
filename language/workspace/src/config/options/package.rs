@@ -3,9 +3,9 @@ use serde_json::Value;
 
 use crate::config::{
     AccountOptions, AssetOptions, CompilerOptions, ConfigOptions, DaemonOptions, DestackJson,
-    EnvironmentOptions, FeatureOptions, FormatterOptions, LinterOptions, ProfileConfig,
-    RuntimeOptions, StackOptions, TargetOptions, TaskOptions, TelemetryOptions, WatchOptions,
-    account_options_from_json, asset_options_from_json, config_options_from_json,
+    EnvironmentOptions, FeatureOptions, FormatterOptions, LinterOptions, ModeOptions,
+    ProfileConfig, RuntimeOptions, StackOptions, TargetOptions, TaskOptions, TelemetryOptions,
+    WatchOptions, account_options_from_json, asset_options_from_json, config_options_from_json,
     environment_options_from_json, feature_options_from_json, runtime_options_from_json,
     telemetry_options_from_json,
 };
@@ -87,6 +87,8 @@ pub struct PackageOptions {
     pub telemetry: IndexMap<String, TelemetryOptions>,
     /// Named profiles for semantic configuration.
     pub profiles: IndexMap<String, ProfileConfig>,
+    /// Named modes for emitted output policy.
+    pub modes: IndexMap<String, ModeOptions>,
     /// Default target for the package.
     pub default_target: Option<String>,
 }
@@ -185,6 +187,16 @@ impl From<&DestackJson> for PackageOptions {
                         .map(|(name, profile_json)| {
                             (name.clone(), ProfileConfig::from_json(profile_json))
                         })
+                        .collect()
+                })
+                .unwrap_or_default(),
+            modes: json
+                .modes
+                .as_ref()
+                .map(|mode_map| {
+                    mode_map
+                        .iter()
+                        .map(|(name, mode_json)| (name.clone(), ModeOptions::from_json(mode_json)))
                         .collect()
                 })
                 .unwrap_or_default(),

@@ -201,8 +201,14 @@ impl DestackDeclaration {
         if compiler.types.is_empty() {
             compiler.types = parent_compiler.types.clone();
         }
+        if compiler.environment.is_none() {
+            compiler.environment = parent_compiler.environment.clone();
+        }
         if compiler.profile.is_none() {
             compiler.profile = parent_compiler.profile.clone();
+        }
+        if compiler.mode.is_none() {
+            compiler.mode = parent_compiler.mode.clone();
         }
         if compiler.comptime_env.is_none() {
             compiler.comptime_env = parent_compiler.comptime_env.clone();
@@ -698,6 +704,13 @@ impl DestackDeclaration {
                 self.package_options
                     .profiles
                     .insert(name.clone(), profile.clone());
+            }
+        }
+        for (name, mode) in &parent_package.modes {
+            if !self.package_options.modes.contains_key(name) {
+                self.package_options
+                    .modes
+                    .insert(name.clone(), mode.clone());
             }
         }
         if self.package_options.default_target.is_none() {

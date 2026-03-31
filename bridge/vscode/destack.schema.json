@@ -362,6 +362,16 @@
         "$ref": "#/$defs/ProfileConfigJson"
       }
     },
+    "modes": {
+      "description": "Named modes for emitted output policy.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "$ref": "#/$defs/ModeJson"
+      }
+    },
     "defaultTarget": {
       "description": "Default target for the package.",
       "type": [
@@ -572,8 +582,22 @@
             "type": "string"
           }
         },
+        "environment": {
+          "description": "Default environment for IDEs and CLI usage.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "profile": {
           "description": "Default profile for IDEs and CLI usage.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "mode": {
+          "description": "Default mode for IDEs and CLI usage.",
           "type": [
             "string",
             "null"
@@ -5506,6 +5530,13 @@
             "null"
           ]
         },
+        "mode": {
+          "description": "Explicit mode name for this target.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "bundle": {
           "description": "Bundling options for assembled JavaScript and HTML outputs.",
           "anyOf": [
@@ -6270,8 +6301,8 @@
       "description": "Target scoped bundling options in `destack.json`.",
       "type": "object",
       "properties": {
-        "mode": {
-          "description": "Assembly mode for this script target.",
+        "assembly": {
+          "description": "Assembly topology for this script target.",
           "anyOf": [
             {
               "$ref": "#/$defs/BundleMode"
@@ -10865,6 +10896,20 @@
             "null"
           ]
         },
+        "profile": {
+          "description": "Default profile selection for this environment.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "mode": {
+          "description": "Default mode selection for this environment.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "features": {
           "description": "Referenced runtime feature definitions.",
           "anyOf": [
@@ -12096,6 +12141,130 @@
           "items": {
             "type": "string"
           }
+        }
+      }
+    },
+    "ModeJson": {
+      "description": "Build mode JSON (from destack.json).",
+      "type": "object",
+      "properties": {
+        "sourceMapMode": {
+          "description": "Source map emission mode for this build mode.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceMapMode"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sourceMapExcludeSources": {
+          "description": "Whether to omit source contents from emitted source maps.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "sourceMapDebugIds": {
+          "description": "Whether to include debug ids in emitted source maps.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "legalComments": {
+          "description": "Legal comment handling policy for bundled output.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BundleLegalComment"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "treeshake": {
+          "description": "Bundled output tree shaking policy for this build mode.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TargetBundleTreeshakeJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "minify": {
+          "description": "Bundled output minification policy for this build mode.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TargetBundleMinifyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "optimize": {
+          "description": "Whether this mode enables optimized code generation.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "optimizeLevel": {
+          "description": "Optimization level (0-4).",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint8",
+          "minimum": 0,
+          "maximum": 4
+        },
+        "ltoMode": {
+          "description": "Link time optimization mode.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LtoModeJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "shrinkLevel": {
+          "description": "Shrink level (0-3).",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint8",
+          "minimum": 0,
+          "maximum": 3
+        },
+        "debugInfo": {
+          "description": "Debug info emission policy for this mode.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DebugInfoLevelJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "strip": {
+          "description": "Symbol stripping policy for this mode.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StripLevelJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       }
     }
