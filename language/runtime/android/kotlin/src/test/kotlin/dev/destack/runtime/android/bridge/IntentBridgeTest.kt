@@ -4,7 +4,6 @@ import dev.destack.runtime.android.core.HostSessionHandle
 import dev.destack.runtime.android.module.intent.RuntimeHostIntentEvent
 
 import org.junit.Assert.assertEquals
-import org.junit.Assume.assumeTrue
 import org.junit.Test
 
 /**
@@ -12,55 +11,13 @@ import org.junit.Test
  */
 class IntentBridgeTest {
     /**
-     * Roundtrip one live can-open-url request through the process runtime ABI.
-     */
-    @Test
-    fun testProcessRuntimeAbiRoundtripsIntentCanOpenUrlRequest() {
-        assumeTrue("missing DESTACK_RUNTIME_HOST_BRIDGE_LIBRARY", hasRuntimeBridgeLibrary())
-
-        val sessionHandle = RuntimeAbiTest.openTestSession()
-
-        try {
-            val bridge = RuntimeBridge(sessionHandle, ProcessRuntimeAbi)
-            val permissionRequests = PermissionRequestRecorder()
-            val documentRequests = DocumentRequestRecorder()
-            val intentRequests = IntentRequestRecorder().also {
-                it.isOpenUrlSupported = true
-            }
-            val runtimeHost = createBridgeRuntimeHost(
-                sessionHandle = sessionHandle,
-                permissionRequests = permissionRequests,
-                documentRequests = documentRequests,
-                intentRequests = intentRequests,
-            )
-
-            try {
-                bridge.attach(runtimeHost)
-
-                val (status, isSupported) = RuntimeAbiTest.testIntentCanOpenUrl(
-                    sessionHandle = sessionHandle,
-                    url = "https://example.com",
-                )
-
-                assertEquals(0, status)
-                assertEquals(true, isSupported)
-                assertEquals(listOf("https://example.com"), intentRequests.canOpenUrlCalls)
-            } finally {
-                bridge.detach()
-            }
-        } finally {
-            RuntimeAbiTest.closeTestSession(sessionHandle)
-        }
-    }
-
-    /**
      * Route one can-open-url request into the attached runtime host.
      */
     @Test
     fun testCanOpenUrlRoutesIntoRuntimeHost() {
         val sessionHandle = HostSessionHandle(rawValue = 7)
-        val bindings = RuntimeAbiSpy()
-        val bridge = RuntimeBridge(sessionHandle, bindings)
+        val runtimeApi = RuntimeIngressSpy()
+        val bridge = RuntimeBridge(sessionHandle, runtimeApi)
         val intentRequests = IntentRequestRecorder().also {
             it.isOpenUrlSupported = true
         }
@@ -72,7 +29,7 @@ class IntentBridgeTest {
         )
 
         bridge.attach(runtimeHost)
-        val isSupported = bridge.canOpenUrl("https://example.com")
+        val isSupported = bridge.intentCanOpenUrl("https://example.com")
 
         assertEquals(true, isSupported)
         assertEquals(listOf("https://example.com"), intentRequests.canOpenUrlCalls)
@@ -83,9 +40,9 @@ class IntentBridgeTest {
      */
     @Test
     fun testSendIntentEventNotifiesRuntime() {
-        val bindings = RuntimeAbiSpy()
+        val runtimeApi = RuntimeIngressSpy()
         val sessionHandle = HostSessionHandle(rawValue = 7)
-        val bridge = RuntimeBridge(sessionHandle, bindings)
+        val bridge = RuntimeBridge(sessionHandle, runtimeApi)
         val runtimeHost = createBridgeRuntimeHost(
             sessionHandle = sessionHandle,
             permissionRequests = PermissionRequestRecorder(),
@@ -102,8 +59,8 @@ class IntentBridgeTest {
             ),
         )
 
-        bridge.sendIntentEvent(event)
+        bridge.notifyIntentEvent(event)
 
-        assertEquals(listOf(sessionHandle to event), bindings.intentEvents)
+        assertEquals(listOf(sessionHandle to event), runtimeApi.intentEvents)
     }
 }

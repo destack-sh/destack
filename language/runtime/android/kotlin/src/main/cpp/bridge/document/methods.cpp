@@ -28,7 +28,7 @@ bool resolve_document_methods(JNIEnv *env, jobject bridge) {
     if (submit_document_request_method == nullptr) {
         submit_document_request_method = env->GetMethodID(
             bridge_class,
-            "submitDocumentRequest",
+            "documentPick",
             "(J[Ljava/lang/String;[Ljava/lang/String;ZZZ)I"
         );
     }

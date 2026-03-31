@@ -7,11 +7,13 @@ final class RecordingPermissionRequestHandler: PermissionRequests {
   var openSettingsCalls: Int = 0
   var openSettingsStatus: UInt32 = hostStatusOk
 
-  func submitPermissionRequest(_ request: RuntimeHostPermissionRequest) {
+  func request(_ request: RuntimeHostPermissionRequest) -> UInt32 {
     requests.append(request)
+
+    return hostStatusOk
   }
 
-  func openPermissionSettings() -> UInt32 {
+  func openSettings() -> UInt32 {
     openSettingsCalls += 1
 
     return openSettingsStatus
@@ -23,7 +25,7 @@ final class RecordingPermissionRequestHandler: PermissionRequests {
 final class RecordingPermissionEventSink: PermissionEvents {
   var events: [RuntimeHostPermissionEvent] = []
 
-  func sendPermissionEvent(_ event: RuntimeHostPermissionEvent) {
+  func notifyPermissionResult(_ event: RuntimeHostPermissionEvent) {
     events.append(event)
   }
 }

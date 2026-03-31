@@ -149,7 +149,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
     if (list_media_method == nullptr) {
         list_media_method = env->GetMethodID(
             bridge_class,
-            "listMedia",
+            "mediaList",
             "(Ljava/lang/String;ZI[IZ)Ldev/destack/runtime/android/module/media/RuntimeHostMediaListResponse;"
         );
     }
@@ -157,7 +157,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
     if (read_media_method == nullptr) {
         read_media_method = env->GetMethodID(
             bridge_class,
-            "readMedia",
+            "mediaRead",
             "(Ljava/lang/String;)Ldev/destack/runtime/android/module/media/RuntimeHostMediaReadResponse;"
         );
     }
@@ -165,7 +165,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
     if (import_media_path_method == nullptr) {
         import_media_path_method = env->GetMethodID(
             bridge_class,
-            "importMediaPath",
+            "mediaImportPath",
             "(Ljava/lang/String;I)Ldev/destack/runtime/android/module/media/RuntimeHostMediaImportPathResponse;"
         );
     }
@@ -173,7 +173,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
     if (delete_media_method == nullptr) {
         delete_media_method = env->GetMethodID(
             bridge_class,
-            "deleteMedia",
+            "mediaDelete",
             "([Ljava/lang/String;)Ldev/destack/runtime/android/module/media/RuntimeHostMediaDeleteResponse;"
         );
     }

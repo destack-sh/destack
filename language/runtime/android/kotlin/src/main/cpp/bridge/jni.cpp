@@ -232,6 +232,24 @@ jobjectArray new_java_string_array(JNIEnv *env, NativeStringSlice values) {
     return array;
 }
 
+/// Register one native method table on one JVM class.
+bool register_native_methods(
+    JNIEnv *env,
+    const char *class_name,
+    JNINativeMethod *methods,
+    jint count
+) {
+    jclass local_class = env->FindClass(class_name);
+    if (local_class == nullptr) {
+        return false;
+    }
+
+    jint status = env->RegisterNatives(local_class, methods, count);
+    env->DeleteLocalRef(local_class);
+
+    return status == JNI_OK;
+}
+
 /// Call one bridge method with one byte payload.
 uint32_t call_bridge_bytes(
     JNIEnv *env,
@@ -290,6 +308,19 @@ jlongArray runtime_status_array(JNIEnv *env, RuntimeStatus status) {
 /// Capture the Java VM for later runtime callback trampolines.
 extern "C" JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void * /* reserved */) {
     java_vm = vm;
+
+    JNIEnv *env = nullptr;
+    if (vm->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_6) != JNI_OK || env == nullptr) {
+        return JNI_ERR;
+    }
+
+    if (!register_runtime_ingress_natives(env)) {
+        return JNI_ERR;
+    }
+
+    if (!register_runtime_session_natives(env)) {
+        return JNI_ERR;
+    }
 
     return JNI_VERSION_1_6;
 }

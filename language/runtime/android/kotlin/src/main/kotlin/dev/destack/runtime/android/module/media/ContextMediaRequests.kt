@@ -33,32 +33,32 @@ public class ContextMediaRequests(
 ) : MediaRequests {
     private val contentResolver: ContentResolver = context.contentResolver
 
-    override fun listMedia(
+    override fun list(
         request: RuntimeHostMediaListRequest,
     ): RuntimeHostMediaListResponse {
-        return listMedia(contentResolver, request)
+        return list(contentResolver, request)
     }
 
-    override fun readMedia(
+    override fun read(
         identifier: String,
     ): RuntimeHostMediaReadResponse {
-        return readMedia(contentResolver, identifier)
+        return read(contentResolver, identifier)
     }
 
-    override fun importMediaPath(
+    override fun importPath(
         request: RuntimeHostMediaImportPathRequest,
     ): RuntimeHostMediaImportPathResponse {
-        return importMediaPath(contentResolver, request)
+        return importPath(contentResolver, request)
     }
 
-    override fun deleteMedia(
+    override fun delete(
         request: RuntimeHostMediaDeleteRequest,
     ): RuntimeHostMediaDeleteResponse {
-        return deleteMedia(contentResolver, request)
+        return delete(contentResolver, request)
     }
 }
 
-private fun listMedia(
+private fun list(
     contentResolver: ContentResolver,
     request: RuntimeHostMediaListRequest,
 ): RuntimeHostMediaListResponse {
@@ -122,7 +122,7 @@ private fun listMedia(
     }
 }
 
-private fun readMedia(
+private fun read(
     contentResolver: ContentResolver,
     identifier: String,
 ): RuntimeHostMediaReadResponse {
@@ -157,7 +157,7 @@ private fun readMedia(
     }
 }
 
-private fun importMediaPath(
+private fun importPath(
     contentResolver: ContentResolver,
     request: RuntimeHostMediaImportPathRequest,
 ): RuntimeHostMediaImportPathResponse {
@@ -208,7 +208,7 @@ private fun importMediaPath(
     }
 }
 
-private fun deleteMedia(
+private fun delete(
     contentResolver: ContentResolver,
     request: RuntimeHostMediaDeleteRequest,
 ): RuntimeHostMediaDeleteResponse {

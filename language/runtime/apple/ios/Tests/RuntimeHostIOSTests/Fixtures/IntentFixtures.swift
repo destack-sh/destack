@@ -11,14 +11,14 @@ final class IOSNoopIntentRequestHandler: IntentRequests {
 
   func shareText(
     _ text: String,
-    contentType: String?
+    mimeType: String?
   ) -> UInt32 {
     hostStatusNotSupported
   }
 
   func sharePaths(
     _ paths: [String],
-    contentType: String?
+    mimeType: String?
   ) -> UInt32 {
     hostStatusNotSupported
   }
@@ -55,18 +55,18 @@ final class IOSRecordingIntentRequestHandler: IntentRequests {
 
   func shareText(
     _ text: String,
-    contentType: String?
+    mimeType: String?
   ) -> UInt32 {
-    shareTextCalls.append((text, contentType))
+    shareTextCalls.append((text, mimeType))
 
     return status
   }
 
   func sharePaths(
     _ paths: [String],
-    contentType: String?
+    mimeType: String?
   ) -> UInt32 {
-    sharePathCalls.append((paths, contentType))
+    sharePathCalls.append((paths, mimeType))
 
     return status
   }
@@ -77,7 +77,7 @@ final class IOSRecordingIntentRequestHandler: IntentRequests {
 final class IOSRecordingIntentEventSink: IntentEvents {
   var events: [RuntimeHostIntentEvent] = []
 
-  func sendIntentEvent(_ event: RuntimeHostIntentEvent) {
+  func notifyIntentEvent(_ event: RuntimeHostIntentEvent) {
     events.append(event)
   }
 }

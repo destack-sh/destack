@@ -152,15 +152,15 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
     if (list_background_tasks_method == nullptr) {
         list_background_tasks_method = env->GetMethodID(
             bridge_class,
-            "listBackgroundTasks",
-            "()Ldev/destack/runtime/android/module/background/RuntimeHostBackgroundTaskListResponse;"
+            "backgroundList",
+            "()Ldev/destack/runtime/android/module/background/RuntimeHostBackgroundListResponse;"
         );
     }
 
     if (register_background_task_method == nullptr) {
         register_background_task_method = env->GetMethodID(
             bridge_class,
-            "registerBackgroundTask",
+            "backgroundRegisterTask",
             "(Ljava/lang/String;IIZJZJIZZI)I"
         );
     }
@@ -168,7 +168,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
     if (unregister_background_task_method == nullptr) {
         unregister_background_task_method = env->GetMethodID(
             bridge_class,
-            "unregisterBackgroundTask",
+            "backgroundUnregister",
             "(Ljava/lang/String;)I"
         );
     }
@@ -176,15 +176,15 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
     if (trigger_background_task_method == nullptr) {
         trigger_background_task_method = env->GetMethodID(
             bridge_class,
-            "triggerBackgroundTask",
-            "(Ljava/lang/String;)Ldev/destack/runtime/android/module/background/RuntimeHostBackgroundTriggerResponse;"
+            "backgroundTriggerTest",
+            "(Ljava/lang/String;)Ldev/destack/runtime/android/module/background/RuntimeHostBackgroundTriggerTestResponse;"
         );
     }
 
     if (complete_background_task_method == nullptr) {
         complete_background_task_method = env->GetMethodID(
             bridge_class,
-            "completeBackgroundTask",
+            "backgroundComplete",
             "(Ljava/lang/String;I)I"
         );
     }
@@ -217,7 +217,7 @@ bool resolve_background_types(JNIEnv *env) {
 
     if (task_list_response_class == nullptr) {
         jclass local_class = env->FindClass(
-            "dev/destack/runtime/android/module/background/RuntimeHostBackgroundTaskListResponse"
+            "dev/destack/runtime/android/module/background/RuntimeHostBackgroundListResponse"
         );
         if (local_class == nullptr) {
             return false;
@@ -232,7 +232,7 @@ bool resolve_background_types(JNIEnv *env) {
 
     if (trigger_response_class == nullptr) {
         jclass local_class = env->FindClass(
-            "dev/destack/runtime/android/module/background/RuntimeHostBackgroundTriggerResponse"
+            "dev/destack/runtime/android/module/background/RuntimeHostBackgroundTriggerTestResponse"
         );
         if (local_class == nullptr) {
             return false;

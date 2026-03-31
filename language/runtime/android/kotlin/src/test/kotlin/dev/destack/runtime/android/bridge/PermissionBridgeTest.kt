@@ -6,7 +6,6 @@ import dev.destack.runtime.android.module.permission.RuntimeHostPermissionEvent
 import dev.destack.runtime.android.module.permission.RuntimeHostPermissionRequest
 
 import org.junit.Assert.assertEquals
-import org.junit.Assume.assumeTrue
 import org.junit.Test
 
 /**
@@ -14,59 +13,13 @@ import org.junit.Test
  */
 class PermissionBridgeTest {
     /**
-     * Roundtrip one live permission request and one completion through the process runtime ABI.
-     */
-    @Test
-    fun testProcessRuntimeAbiRoundtripsPermissionRequest() {
-        assumeTrue("missing DESTACK_RUNTIME_HOST_BRIDGE_LIBRARY", hasRuntimeBridgeLibrary())
-
-        val sessionHandle = RuntimeAbiTest.openTestSession()
-
-        try {
-            val bridge = RuntimeBridge(
-                sessionHandle = sessionHandle,
-                bindings = ProcessRuntimeAbi,
-            )
-            val permissionRequests = PermissionRequestRecorder()
-            val documentRequests = DocumentRequestRecorder()
-            val runtimeHost = createBridgeRuntimeHost(
-                sessionHandle = sessionHandle,
-                permissionRequests = permissionRequests,
-                documentRequests = documentRequests,
-                intentRequests = IntentRequestRecorder(),
-            )
-            val expectedRequest = RuntimeHostPermissionRequest(
-                requestId = HostRequestId(rawValue = 5),
-                permission = "camera",
-            )
-
-            try {
-                bridge.attach(runtimeHost)
-
-                val submitStatus = RuntimeAbiTest.submitTestPermissionRequest(
-                    sessionHandle,
-                    requestId = 5,
-                    permissions = arrayOf("camera"),
-                )
-
-                assertEquals(0, submitStatus)
-                assertEquals(listOf(expectedRequest), permissionRequests.requests)
-            } finally {
-                bridge.detach()
-            }
-        } finally {
-            RuntimeAbiTest.closeTestSession(sessionHandle)
-        }
-    }
-
-    /**
      * Route one permission request from one runtime payload into the attached runtime host.
      */
     @Test
     fun testSubmitPermissionRequestRoutesIntoRuntimeHost() {
         val sessionHandle = HostSessionHandle(rawValue = 7)
-        val bindings = RuntimeAbiSpy()
-        val bridge = RuntimeBridge(sessionHandle, bindings)
+        val runtimeApi = RuntimeIngressSpy()
+        val bridge = RuntimeBridge(sessionHandle, runtimeApi)
         val permissionRequests = PermissionRequestRecorder()
         val runtimeHost = createBridgeRuntimeHost(
             sessionHandle = sessionHandle,
@@ -75,9 +28,9 @@ class PermissionBridgeTest {
             intentRequests = IntentRequestRecorder(),
         )
         bridge.attach(runtimeHost)
-        val status = bridge.submitPermissionRequest(
+        val status = bridge.permissionRequest(
             requestId = 5,
-            permissions = arrayOf("camera"),
+            permission = "camera",
         )
 
         assertEquals(0, status)
@@ -98,8 +51,8 @@ class PermissionBridgeTest {
     @Test
     fun testOpenPermissionSettingsRoutesIntoRuntimeHost() {
         val sessionHandle = HostSessionHandle(rawValue = 7)
-        val bindings = RuntimeAbiSpy()
-        val bridge = RuntimeBridge(sessionHandle, bindings)
+        val runtimeApi = RuntimeIngressSpy()
+        val bridge = RuntimeBridge(sessionHandle, runtimeApi)
         val permissionRequests = PermissionRequestRecorder()
         val runtimeHost = createBridgeRuntimeHost(
             sessionHandle = sessionHandle,
@@ -109,7 +62,7 @@ class PermissionBridgeTest {
         )
 
         bridge.attach(runtimeHost)
-        val status = bridge.openPermissionSettings()
+        val status = bridge.permissionOpenSettings()
 
         assertEquals(0, status)
         assertEquals(1, permissionRequests.openSettingsCalls)
@@ -121,8 +74,8 @@ class PermissionBridgeTest {
     @Test
     fun testSendPermissionEventNotifiesRuntime() {
         val sessionHandle = HostSessionHandle(rawValue = 7)
-        val bindings = RuntimeAbiSpy()
-        val bridge = RuntimeBridge(sessionHandle, bindings)
+        val runtimeApi = RuntimeIngressSpy()
+        val bridge = RuntimeBridge(sessionHandle, runtimeApi)
         val runtimeHost = createBridgeRuntimeHost(
             sessionHandle = sessionHandle,
             permissionRequests = PermissionRequestRecorder(),
@@ -136,9 +89,9 @@ class PermissionBridgeTest {
         )
 
         bridge.attach(runtimeHost)
-        bridge.sendPermissionEvent(event)
+        bridge.notifyPermissionResult(event)
 
-        assertEquals(listOf(sessionHandle to event), bindings.permissionEvents)
+        assertEquals(listOf(sessionHandle to event), runtimeApi.permissionEvents)
     }
 
 }

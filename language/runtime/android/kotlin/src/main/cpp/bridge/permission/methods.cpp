@@ -29,7 +29,7 @@ bool resolve_permission_methods(JNIEnv *env, jobject bridge) {
     if (submit_permission_request_method == nullptr) {
         submit_permission_request_method = env->GetMethodID(
             bridge_class,
-            "submitPermissionRequest",
+            "permissionRequest",
             "(J[Ljava/lang/String;)I"
         );
     }
@@ -37,7 +37,7 @@ bool resolve_permission_methods(JNIEnv *env, jobject bridge) {
     if (open_permission_settings_method == nullptr) {
         open_permission_settings_method = env->GetMethodID(
             bridge_class,
-            "openPermissionSettings",
+            "permissionOpenSettings",
             "()I"
         );
     }

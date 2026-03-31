@@ -569,7 +569,7 @@ public data class RuntimeHostCalendarEventListResponse(
 /**
  * One Android calendar event-read response returned by the host.
  */
-public data class RuntimeHostCalendarEventResponse(
+public data class RuntimeHostCalendarEventReadResponse(
     /**
      * The host status code.
      */

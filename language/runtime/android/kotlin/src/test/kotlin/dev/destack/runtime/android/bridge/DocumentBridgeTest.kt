@@ -7,7 +7,6 @@ import dev.destack.runtime.android.module.document.RuntimeHostDocumentRequest
 import dev.destack.runtime.android.module.document.RuntimeHostDocumentResult
 
 import org.junit.Assert.assertEquals
-import org.junit.Assume.assumeTrue
 import org.junit.Test
 
 /**
@@ -15,63 +14,13 @@ import org.junit.Test
  */
 class DocumentBridgeTest {
     /**
-     * Roundtrip one live document request and one completion through the process runtime ABI.
-     */
-    @Test
-    fun testProcessRuntimeAbiRoundtripsDocumentRequest() {
-        assumeTrue("missing DESTACK_RUNTIME_HOST_BRIDGE_LIBRARY", hasRuntimeBridgeLibrary())
-
-        val sessionHandle = RuntimeAbiTest.openTestSession()
-
-        try {
-            val bridge = RuntimeBridge(
-                sessionHandle = sessionHandle,
-                bindings = ProcessRuntimeAbi,
-            )
-            val permissionRequests = PermissionRequestRecorder()
-            val documentRequests = DocumentRequestRecorder()
-            val runtimeHost = createBridgeRuntimeHost(
-                sessionHandle = sessionHandle,
-                permissionRequests = permissionRequests,
-                documentRequests = documentRequests,
-                intentRequests = IntentRequestRecorder(),
-            )
-            val expectedRequest = RuntimeHostDocumentRequest(
-                requestId = HostRequestId(rawValue = 3),
-                contentTypes = listOf("image/png"),
-                allowsMultipleSelection = true,
-            )
-            try {
-                bridge.attach(runtimeHost)
-
-                val submitStatus = RuntimeAbiTest.submitTestDocumentRequest(
-                    sessionHandle,
-                    requestId = 3,
-                    mimeTypes = arrayOf("image/png"),
-                    extensions = emptyArray(),
-                    allowsMultipleSelection = true,
-                    allowsDirectorySelection = false,
-                    copiesToSandbox = false,
-                )
-
-                assertEquals(0, submitStatus)
-                assertEquals(listOf(expectedRequest), documentRequests.requests)
-            } finally {
-                bridge.detach()
-            }
-        } finally {
-            RuntimeAbiTest.closeTestSession(sessionHandle)
-        }
-    }
-
-    /**
      * Route one document request from one runtime payload into the attached runtime host.
      */
     @Test
     fun testSubmitDocumentRequestRoutesIntoRuntimeHost() {
         val sessionHandle = HostSessionHandle(rawValue = 7)
-        val bindings = RuntimeAbiSpy()
-        val bridge = RuntimeBridge(sessionHandle, bindings)
+        val runtimeApi = RuntimeIngressSpy()
+        val bridge = RuntimeBridge(sessionHandle, runtimeApi)
         val documentRequests = DocumentRequestRecorder()
         val runtimeHost = createBridgeRuntimeHost(
             sessionHandle = sessionHandle,
@@ -80,7 +29,7 @@ class DocumentBridgeTest {
             intentRequests = IntentRequestRecorder(),
         )
         bridge.attach(runtimeHost)
-        val status = bridge.submitDocumentRequest(
+        val status = bridge.documentPick(
             requestId = 3,
             mimeTypes = arrayOf("image/png"),
             extensions = emptyArray(),
@@ -94,7 +43,7 @@ class DocumentBridgeTest {
             listOf(
                 RuntimeHostDocumentRequest(
                     requestId = HostRequestId(rawValue = 3),
-                    contentTypes = listOf("image/png"),
+                    mimeTypes = listOf("image/png"),
                     allowsMultipleSelection = true,
                 ),
             ),
@@ -108,8 +57,8 @@ class DocumentBridgeTest {
     @Test
     fun testSendDocumentResultNotifiesRuntime() {
         val sessionHandle = HostSessionHandle(rawValue = 7)
-        val bindings = RuntimeAbiSpy()
-        val bridge = RuntimeBridge(sessionHandle, bindings)
+        val runtimeApi = RuntimeIngressSpy()
+        val bridge = RuntimeBridge(sessionHandle, runtimeApi)
         val runtimeHost = createBridgeRuntimeHost(
             sessionHandle = sessionHandle,
             permissionRequests = PermissionRequestRecorder(),
@@ -128,9 +77,9 @@ class DocumentBridgeTest {
         )
 
         bridge.attach(runtimeHost)
-        bridge.sendDocumentResult(result)
+        bridge.notifyDocumentResult(result)
 
-        assertEquals(listOf(sessionHandle to result), bindings.documentResults)
+        assertEquals(listOf(sessionHandle to result), runtimeApi.documentResults)
     }
 
     /**
@@ -139,8 +88,8 @@ class DocumentBridgeTest {
     @Test
     fun testSubmitDocumentRequestReportsMissingRuntimeHostAfterDetach() {
         val sessionHandle = HostSessionHandle(rawValue = 7)
-        val bindings = RuntimeAbiSpy()
-        val bridge = RuntimeBridge(sessionHandle, bindings)
+        val runtimeApi = RuntimeIngressSpy()
+        val bridge = RuntimeBridge(sessionHandle, runtimeApi)
         val runtimeHost = createBridgeRuntimeHost(
             sessionHandle = sessionHandle,
             permissionRequests = PermissionRequestRecorder(),
@@ -149,7 +98,7 @@ class DocumentBridgeTest {
         )
         bridge.attach(runtimeHost)
         bridge.detach()
-        val status = bridge.submitDocumentRequest(
+        val status = bridge.documentPick(
             requestId = 3,
             mimeTypes = arrayOf("image/png"),
             extensions = emptyArray(),

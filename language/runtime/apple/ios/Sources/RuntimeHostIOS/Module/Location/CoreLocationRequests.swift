@@ -34,7 +34,8 @@ private final class LocationWatchRegistration {
 }
 
 /// One delegate adapter for one live iOS location watch.
-private final class LocationWatchDelegate: NSObject, CLLocationManagerDelegate {
+@MainActor
+private final class LocationWatchDelegate: NSObject, @preconcurrency CLLocationManagerDelegate {
   /// The watch registration that owns this delegate.
   weak var registration: LocationWatchRegistration?
   /// The last sample timestamp delivered for this watch.
@@ -47,7 +48,7 @@ private final class LocationWatchDelegate: NSObject, CLLocationManagerDelegate {
     self.registration = registration
   }
 
-  nonisolated func locationManager(
+  func locationManager(
     _ manager: CLLocationManager,
     didUpdateLocations locations: [CLLocation]
   ) {
@@ -75,8 +76,8 @@ private final class LocationWatchDelegate: NSObject, CLLocationManagerDelegate {
     let watchID = registration.watchID
     let events = registration.events
 
-    events.sendLocationSample(
-      watchID: watchID,
+    events.notifyLocationSample(
+      watchID,
       sample: sample
     )
   }
@@ -95,16 +96,16 @@ public final class CoreLocationRequests: LocationRequests {
     self.events = events
   }
 
-  public func locationServicesEnabled() -> RuntimeHostLocationServicesResponse {
+  public func servicesEnabled() -> RuntimeHostLocationServicesResponse {
     readLocationServicesEnabled()
   }
 
-  public func locationLastKnown() -> RuntimeHostLocationLastKnownResponse {
+  public func lastKnown() -> RuntimeHostLocationLastKnownResponse {
     readLocationLastKnown()
   }
 
-  public func locationWatchOpen(
-    watchID: String,
+  public func watchOpen(
+    _ watchID: String,
     options: RuntimeHostLocationWatchOptions
   ) -> UInt32 {
     openLocationWatch(
@@ -115,8 +116,8 @@ public final class CoreLocationRequests: LocationRequests {
     )
   }
 
-  public func locationWatchClose(
-    watchID: String
+  public func watchClose(
+    _ watchID: String
   ) -> UInt32 {
     closeLocationWatch(
       watchID: watchID,

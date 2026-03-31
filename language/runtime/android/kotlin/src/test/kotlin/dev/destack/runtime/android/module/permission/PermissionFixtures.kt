@@ -12,14 +12,17 @@ internal class RecordingPermissionRequestHandler : PermissionRequests {
     val requests: MutableList<RuntimeHostPermissionRequest> = mutableListOf()
     var openSettingsCalls: Int = 0
     var openSettingsStatus: Int = 0
+    var requestStatus: Int = 0
 
-    override fun submitPermissionRequest(
+    override fun request(
         request: RuntimeHostPermissionRequest,
-    ) {
+    ): Int {
         requests += request
+
+        return requestStatus
     }
 
-    override fun openPermissionSettings(): Int {
+    override fun openSettings(): Int {
         openSettingsCalls += 1
 
         return openSettingsStatus
@@ -31,8 +34,9 @@ internal class RecordingPermissionRequestHandler : PermissionRequests {
  */
 internal class RecordingPermissionEventSink : PermissionEvents {
     val events: MutableList<RuntimeHostPermissionEvent> = mutableListOf()
+    val callback: PermissionEvents = this
 
-    override fun sendPermissionEvent(
+    override fun notifyPermissionResult(
         event: RuntimeHostPermissionEvent,
     ) {
         events += event
@@ -43,11 +47,11 @@ internal class RecordingPermissionEventSink : PermissionEvents {
  * One no-op permission request handler for Android host tests.
  */
 internal class NoopPermissionRequestHandler : PermissionRequests {
-    override fun submitPermissionRequest(
+    override fun request(
         request: RuntimeHostPermissionRequest,
-    ) {}
+    ): Int = 0
 
-    override fun openPermissionSettings(): Int {
+    override fun openSettings(): Int {
         return 1
     }
 }

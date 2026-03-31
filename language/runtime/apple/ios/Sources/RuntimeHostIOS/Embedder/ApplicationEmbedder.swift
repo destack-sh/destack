@@ -9,20 +9,20 @@ public final class ApplicationEmbedder {
 
   /// The application delegate adapter installed for this embedder.
   public let applicationDelegate: ApplicationDelegate
-  /// The background request surface attached to this application.
-  public let backgroundRequests: any BackgroundRequests
+  /// The background surface attached to this application.
+  public let background: any BackgroundRequests
 
   /// Create one iOS application embedder.
   public init(
     runtimeHost: RuntimeHost
   ) {
-    let backgroundRequests = BackgroundTaskSchedulerRequests(
-      events: runtimeHost.backgroundEvents
+    let background = BackgroundTaskSchedulerRequests(
+      events: runtimeHost.background
     )
 
     self.runtimeHost = runtimeHost
     self.applicationDelegate = ApplicationDelegate(runtimeHost: runtimeHost)
-    self.backgroundRequests = backgroundRequests
-    runtimeHost.backgroundRequests = backgroundRequests
+    self.background = background
+    runtimeHost.updateBackgroundRequests(background)
   }
 }

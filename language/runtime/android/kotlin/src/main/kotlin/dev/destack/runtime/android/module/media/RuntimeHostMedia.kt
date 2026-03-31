@@ -8,26 +8,31 @@ internal const val runtimeHostMediaDefaultPageLimit: Int = 50
 /**
  * The Android media asset kind returned by one host surface.
  */
-public enum class RuntimeHostMediaAssetKind {
+public enum class RuntimeHostMediaAssetKind(
+    /**
+     * The stable ABI discriminant.
+     */
+    val rawValue: Int,
+) {
     /**
      * One image asset.
      */
-    Image,
+    Image(1),
 
     /**
      * One video asset.
      */
-    Video,
+    Video(2),
 
     /**
      * One audio asset.
      */
-    Audio,
+    Audio(3),
 
     /**
      * One non-standard asset.
      */
-    Other,
+    Other(4),
 }
 
 /**

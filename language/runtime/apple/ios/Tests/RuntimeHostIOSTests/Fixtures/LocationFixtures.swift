@@ -10,16 +10,16 @@ final class IOSRecordingLocationRequestHandler: LocationRequests {
   var watchOpenStatus: UInt32 = hostStatusOk
   var watchCloseStatus: UInt32 = hostStatusOk
 
-  func locationServicesEnabled() -> RuntimeHostLocationServicesResponse {
+  func servicesEnabled() -> RuntimeHostLocationServicesResponse {
     servicesEnabledResponse
   }
 
-  func locationLastKnown() -> RuntimeHostLocationLastKnownResponse {
+  func lastKnown() -> RuntimeHostLocationLastKnownResponse {
     lastKnownResponse
   }
 
-  func locationWatchOpen(
-    watchID: String,
+  func watchOpen(
+    _ watchID: String,
     options: RuntimeHostLocationWatchOptions
   ) -> UInt32 {
     watchOpenCalls.append((watchID, options))
@@ -27,8 +27,8 @@ final class IOSRecordingLocationRequestHandler: LocationRequests {
     return watchOpenStatus
   }
 
-  func locationWatchClose(
-    watchID: String
+  func watchClose(
+    _ watchID: String
   ) -> UInt32 {
     watchCloseCalls.append(watchID)
 
@@ -40,8 +40,8 @@ final class IOSRecordingLocationRequestHandler: LocationRequests {
 final class IOSNoopLocationEventSink: LocationEvents {
   var samples: [(String, RuntimeHostLocationSample)] = []
 
-  func sendLocationSample(
-    watchID: String,
+  func notifyLocationSample(
+    _ watchID: String,
     sample: RuntimeHostLocationSample
   ) {
     samples.append((watchID, sample))

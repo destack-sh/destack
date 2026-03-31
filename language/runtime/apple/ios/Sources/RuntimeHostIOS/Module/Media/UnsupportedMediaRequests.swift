@@ -5,7 +5,7 @@ import RuntimeHostAppleCore
 @MainActor
 public final class UnsupportedMediaRequests: MediaRequests {
 
-  public func listMedia(
+  public func list(
     _ request: RuntimeHostMediaListRequest
   ) -> RuntimeHostMediaListResponse {
     let _ = request
@@ -13,15 +13,15 @@ public final class UnsupportedMediaRequests: MediaRequests {
     return RuntimeHostMediaListResponse(status: hostStatusNotSupported)
   }
 
-  public func readMedia(
-    identifier: String
+  public func read(
+    _ identifier: String
   ) -> RuntimeHostMediaReadResponse {
     let _ = identifier
 
     return RuntimeHostMediaReadResponse(status: hostStatusNotSupported)
   }
 
-  public func importMediaPath(
+  public func importPath(
     _ request: RuntimeHostMediaImportPathRequest
   ) -> RuntimeHostMediaImportPathResponse {
     let _ = request
@@ -29,7 +29,7 @@ public final class UnsupportedMediaRequests: MediaRequests {
     return RuntimeHostMediaImportPathResponse(status: hostStatusNotSupported)
   }
 
-  public func deleteMedia(
+  public func delete(
     _ request: RuntimeHostMediaDeleteRequest
   ) -> RuntimeHostMediaDeleteResponse {
     let _ = request

@@ -7,42 +7,28 @@ public final class RuntimeHost {
   public let sessionHandle: HostSessionHandle
   /// The stable embedder identifier for this embedder.
   public let embedderID: HostEmbedderID
-  /// The lifecycle ingress surface for this embedder.
-  public let lifecycleEvents: any LifecycleEvents
-  /// The permission request surface for this embedder.
-  public let permissionRequests: any PermissionRequests
-  /// The permission ingress surface for this embedder.
-  public let permissionEvents: any PermissionEvents
-  /// The document request surface for this embedder.
-  public let documentRequests: any DocumentRequests
-  /// The document result surface for this embedder.
-  public let documentEvents: any DocumentEvents
-  /// The text-input ingress surface for this embedder.
-  public let textInputEvents: any TextInputEvents
-  /// The background ingress surface for this embedder.
-  public let backgroundEvents: any BackgroundEvents
-  /// The contact request surface for this embedder.
-  public let contactRequests: any ContactRequests
-  /// The calendar request surface for this embedder.
-  public let calendarRequests: any CalendarRequests
-  /// The intent request surface for this embedder.
-  public let intentRequests: any IntentRequests
-  /// The intent ingress surface for this embedder.
-  public let intentEvents: any IntentEvents
-  /// The location request surface for this embedder.
-  public let locationRequests: any LocationRequests
-  /// The location ingress surface for this embedder.
-  public let locationEvents: any LocationEvents
-  /// The media request surface for this embedder.
-  public let mediaRequests: any MediaRequests
-  /// The notification request surface for this embedder.
-  public let notificationRequests: any NotificationRequests
-  /// The notification ingress surface for this embedder.
-  public let notificationEvents: any NotificationEvents
-  /// The text-input request surface for this embedder.
-  public var textInputRequests: any TextInputRequests
-  /// The background request surface for this embedder.
-  public var backgroundRequests: any BackgroundRequests
+  /// The lifecycle host surface for this embedder.
+  public let lifecycle: LifecycleHost
+  /// The permission host surface for this embedder.
+  public let permission: PermissionHost
+  /// The document host surface for this embedder.
+  public let document: DocumentHost
+  /// The text host surface for this embedder.
+  public let text: TextHost
+  /// The background host surface for this embedder.
+  public let background: BackgroundHost
+  /// The contact host surface for this embedder.
+  public let contact: ContactHost
+  /// The calendar host surface for this embedder.
+  public let calendar: CalendarHost
+  /// The intent host surface for this embedder.
+  public let intent: IntentHost
+  /// The location host surface for this embedder.
+  public let location: LocationHost
+  /// The media host surface for this embedder.
+  public let media: MediaHost
+  /// The notification host surface for this embedder.
+  public let notification: NotificationHost
   /// The primary renderer surface for this embedder.
   public private(set) var rendererSurface: RendererSurface
 
@@ -50,44 +36,38 @@ public final class RuntimeHost {
   public init(
     sessionHandle: HostSessionHandle,
     embedderID: HostEmbedderID,
-    lifecycleEvents: any LifecycleEvents,
-    permissionRequests: any PermissionRequests,
-    permissionEvents: any PermissionEvents,
-    documentRequests: any DocumentRequests,
-    documentEvents: any DocumentEvents,
-    textInputEvents: any TextInputEvents = NoopTextInputEvents(),
-    backgroundEvents: any BackgroundEvents = NoopBackgroundEvents(),
-    contactRequests: any ContactRequests,
-    calendarRequests: any CalendarRequests,
-    intentRequests: any IntentRequests,
-    intentEvents: any IntentEvents,
-    locationRequests: any LocationRequests,
-    locationEvents: any LocationEvents,
-    mediaRequests: any MediaRequests,
-    notificationRequests: any NotificationRequests,
-    notificationEvents: any NotificationEvents,
+    lifecycle: LifecycleHost,
+    permission: PermissionHost,
+    document: DocumentHost,
+    text: TextHost = TextHost(
+      requests: UnsupportedTextRequests(),
+      events: NoopTextEvents()
+    ),
+    background: BackgroundHost = BackgroundHost(
+      requests: UnsupportedBackgroundRequests(),
+      events: NoopBackgroundEvents()
+    ),
+    contact: ContactHost,
+    calendar: CalendarHost,
+    intent: IntentHost,
+    location: LocationHost,
+    media: MediaHost,
+    notification: NotificationHost,
     rendererSurface: RendererSurface
   ) {
     self.sessionHandle = sessionHandle
     self.embedderID = embedderID
-    self.lifecycleEvents = lifecycleEvents
-    self.permissionRequests = permissionRequests
-    self.permissionEvents = permissionEvents
-    self.documentRequests = documentRequests
-    self.documentEvents = documentEvents
-    self.textInputEvents = textInputEvents
-    self.backgroundEvents = backgroundEvents
-    self.textInputRequests = UnsupportedTextInputRequests()
-    self.backgroundRequests = UnsupportedBackgroundRequests()
-    self.contactRequests = contactRequests
-    self.calendarRequests = calendarRequests
-    self.intentRequests = intentRequests
-    self.intentEvents = intentEvents
-    self.locationRequests = locationRequests
-    self.locationEvents = locationEvents
-    self.mediaRequests = mediaRequests
-    self.notificationRequests = notificationRequests
-    self.notificationEvents = notificationEvents
+    self.lifecycle = lifecycle
+    self.permission = permission
+    self.document = document
+    self.text = text
+    self.background = background
+    self.contact = contact
+    self.calendar = calendar
+    self.intent = intent
+    self.location = location
+    self.media = media
+    self.notification = notification
     self.rendererSurface = rendererSurface
   }
 
@@ -96,5 +76,19 @@ public final class RuntimeHost {
     _ rendererSurface: RendererSurface
   ) {
     self.rendererSurface = rendererSurface
+  }
+
+  /// Replace the text request surface for this host.
+  public func updateTextRequests(
+    _ requests: any TextRequests
+  ) {
+    text.updateRequests(requests)
+  }
+
+  /// Replace the background request surface for this host.
+  public func updateBackgroundRequests(
+    _ requests: any BackgroundRequests
+  ) {
+    background.updateRequests(requests)
   }
 }

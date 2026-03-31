@@ -77,7 +77,7 @@ internal class ActivityObserver(
     private fun sendLifecycleState(
         state: RuntimeHostLifecycleState,
     ) {
-        runtimeHost.lifecycleEvents.sendLifecycleEvent(
+        runtimeHost.lifecycle.sendLifecycleEvent(
             RuntimeHostLifecycleEvent(
                 sourceKind = RuntimeHostLifecycleSourceKind.Activity,
                 state = state,

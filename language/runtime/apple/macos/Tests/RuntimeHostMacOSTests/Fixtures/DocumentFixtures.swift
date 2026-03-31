@@ -3,7 +3,7 @@ import RuntimeHostAppleCore
 /// One no-op document request handler for macOS tests.
 @MainActor
 final class MacOSNoopDocumentRequestHandler: DocumentRequests {
-  func submitDocumentRequest(_ request: RuntimeHostDocumentRequest) {}
+  func pick(_ request: RuntimeHostDocumentRequest) -> UInt32 { hostStatusOk }
 }
 
 /// One recording document request handler for macOS tests.
@@ -11,8 +11,10 @@ final class MacOSNoopDocumentRequestHandler: DocumentRequests {
 final class MacOSRecordingDocumentRequestHandler: DocumentRequests {
   var requests: [RuntimeHostDocumentRequest] = []
 
-  func submitDocumentRequest(_ request: RuntimeHostDocumentRequest) {
+  func pick(_ request: RuntimeHostDocumentRequest) -> UInt32 {
     requests.append(request)
+
+    return hostStatusOk
   }
 }
 
@@ -21,7 +23,15 @@ final class MacOSRecordingDocumentRequestHandler: DocumentRequests {
 final class MacOSRecordingDocumentEventSink: DocumentEvents {
   var results: [RuntimeHostDocumentResult] = []
 
-  func sendDocumentResult(_ result: RuntimeHostDocumentResult) {
-    results.append(result)
+  func notifyDocumentResult(
+    _ requestID: HostRequestID,
+    documents: [RuntimeHostDocumentDescriptor]
+  ) {
+    results.append(
+      RuntimeHostDocumentResult(
+        requestID: requestID,
+        documents: documents
+      )
+    )
   }
 }

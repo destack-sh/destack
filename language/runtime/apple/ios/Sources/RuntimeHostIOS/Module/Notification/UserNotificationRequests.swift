@@ -9,7 +9,7 @@ import RuntimeHostAppleCore
 @MainActor
 public final class UserNotificationRequests: NotificationRequests {
 
-  public func postNotification(
+  public func post(
     _ request: RuntimeHostNotificationRequest
   ) -> UInt32 {
     #if canImport(UserNotifications)
@@ -41,8 +41,8 @@ public final class UserNotificationRequests: NotificationRequests {
     #endif
   }
 
-  public func cancelNotification(
-    identifier: String
+  public func cancel(
+    _ identifier: String
   ) -> UInt32 {
     #if canImport(UserNotifications)
       guard !identifier.isEmpty else {
@@ -61,7 +61,7 @@ public final class UserNotificationRequests: NotificationRequests {
     #endif
   }
 
-  public func cancelAllNotifications() -> UInt32 {
+  public func cancelAll() -> UInt32 {
     #if canImport(UserNotifications)
       let center = UNUserNotificationCenter.current()
       center.removeAllDeliveredNotifications()

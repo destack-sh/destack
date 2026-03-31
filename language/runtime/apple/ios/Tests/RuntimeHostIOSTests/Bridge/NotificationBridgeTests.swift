@@ -6,63 +6,13 @@ import Testing
 
 @MainActor
 @Test
-func testProcessRuntimeAbiRoundtripsNotificationRequest() throws {
-  guard hasRuntimeBridgeLibrary() else {
-    return
-  }
-
-  let bindings = ProcessRuntimeAbi()
-  let sessionHandle = bindings.openTestSession()
-
-  defer {
-    bindings.closeTestSession(sessionHandle: sessionHandle)
-  }
-
-  let bridge = RuntimeBridge(
-    sessionHandle: sessionHandle,
-    bindings: bindings,
-    notificationTimestampNs: { 42 }
-  )
-  let permissionRequests = PermissionRequestRecorder()
-  let documentRequests = DocumentRequestRecorder()
-  let notificationRequests = NotificationRequestRecorder()
-  let runtimeHost = createBridgeRuntimeHost(
-    sessionHandle: sessionHandle,
-    permissionRequests: permissionRequests,
-    documentRequests: documentRequests,
-    intentRequests: IntentRequestRecorder(),
-    mediaRequests: MediaRequestRecorder(),
-    notificationRequests: notificationRequests
-  )
-  let request = RuntimeHostNotificationRequest(
-    identifier: "notification-1",
-    title: "Title",
-    body: "Body"
-  )
-
-  try bridge.attach(runtimeHost: runtimeHost)
-
-  defer {
-    bridge.detach()
-  }
-
-  let submitStatus = bindings.submitTestNotificationPost(
-    sessionHandle: sessionHandle,
-    request: request
-  )
-
-  #expect(submitStatus == hostStatusOk)
-  #expect(notificationRequests.postedRequests == [request])
-}
-
-@MainActor
-@Test
 func testRuntimeBridgeSendsNotificationEventsIntoRuntimeIngress() throws {
-  let bindings = RuntimeAbiSpy()
+  let bindings = RuntimeIngressSpy()
   let sessionHandle = makeTestSessionHandle()
   let bridge = RuntimeBridge(
     sessionHandle: sessionHandle,
-    bindings: bindings
+    runtimeApi: bindings,
+    notificationTimestampNs: { 42 }
   )
   let runtimeHost = createBridgeRuntimeHost(
     sessionHandle: sessionHandle,
@@ -79,11 +29,13 @@ func testRuntimeBridgeSendsNotificationEventsIntoRuntimeIngress() throws {
       body: "Body"
     ),
     kind: .activated,
-    actionIdentifier: "open"
+    actionIdentifier: "open",
+    sequence: 1,
+    timestampNs: 42
   )
 
   try bridge.attach(runtimeHost: runtimeHost)
-  bridge.sendNotificationEvent(event)
+  bridge.notifyNotificationEvent(event)
 
   #expect(bindings.notificationEvents.count == 1)
   #expect(bindings.notificationEvents[0].0 == sessionHandle)

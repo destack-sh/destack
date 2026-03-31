@@ -20,52 +20,51 @@ public class ProcessBackgroundHost private constructor(
     /**
      * Read the Android background scheduler status.
      */
-    override fun backgroundStatus(): RuntimeHostBackgroundStatusResponse {
-        return coordinator.backgroundStatus()
+    override fun status(): RuntimeHostBackgroundStatusResponse {
+        return coordinator.status()
     }
 
     /**
      * List registered Android background tasks.
      */
-    override fun listBackgroundTasks(): RuntimeHostBackgroundTaskListResponse {
-        return coordinator.listBackgroundTasks()
+    override fun list(): RuntimeHostBackgroundListResponse {
+        return coordinator.list()
     }
 
     /**
      * Register one Android background task.
      */
-    override fun registerBackgroundTask(
-        options: RuntimeHostBackgroundTaskOptions,
+    override fun registerTask(
+        request: RuntimeHostBackgroundTaskOptions,
     ): Int {
-        return coordinator.registerBackgroundTask(options)
+        return coordinator.registerTask(request)
     }
 
     /**
      * Unregister one Android background task.
      */
-    override fun unregisterBackgroundTask(
-        identifier: String,
+    override fun unregister(
+        request: RuntimeHostBackgroundUnregisterRequest,
     ): Int {
-        return coordinator.unregisterBackgroundTask(identifier)
+        return coordinator.unregister(request)
     }
 
     /**
      * Trigger one Android background task for testing.
      */
-    override fun triggerBackgroundTask(
-        identifier: String,
-    ): RuntimeHostBackgroundTriggerResponse {
-        return coordinator.triggerBackgroundTask(identifier)
+    override fun triggerTest(
+        request: RuntimeHostBackgroundTriggerTestRequest,
+    ): RuntimeHostBackgroundTriggerTestResponse {
+        return coordinator.triggerTest(request)
     }
 
     /**
      * Complete one Android background task execution.
      */
-    override fun completeBackgroundTask(
-        executionId: String,
-        result: RuntimeHostBackgroundTaskResult,
+    override fun complete(
+        request: RuntimeHostBackgroundCompleteRequest,
     ): Int {
-        return coordinator.completeBackgroundTask(executionId, result)
+        return coordinator.complete(request)
     }
 
     public companion object {

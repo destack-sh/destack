@@ -23,21 +23,26 @@ public data class RuntimeHostNotificationRequest(
 /**
  * The Android notification interaction delivered into one runtime session.
  */
-public enum class RuntimeHostNotificationEventKind {
+public enum class RuntimeHostNotificationEventKind(
+    /**
+     * The stable ABI discriminant.
+     */
+    val rawValue: Int,
+) {
     /**
      * The notification was delivered to the Android host surface.
      */
-    Delivered,
+    Delivered(1),
 
     /**
      * The notification was activated by the user.
      */
-    Activated,
+    Activated(2),
 
     /**
      * The notification was dismissed by the user or host.
      */
-    Dismissed,
+    Dismissed(3),
 }
 
 /**
@@ -63,4 +68,14 @@ public data class RuntimeHostNotificationEvent(
      * The optional action identifier for interactive notifications.
      */
     val actionIdentifier: String? = null,
+
+    /**
+     * The host event sequence for this notification stream.
+     */
+    val sequence: Long = 0,
+
+    /**
+     * The host event timestamp in nanoseconds.
+     */
+    val timestampNs: Long = 0,
 )

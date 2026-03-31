@@ -42,7 +42,7 @@ class PermissionActivityResultsTest {
 
         owner.handleEvent(Lifecycle.Event.ON_CREATE)
         owner.handleEvent(Lifecycle.Event.ON_START)
-        permissionActivityResults.submitPermissionRequest(request)
+        permissionActivityResults.request(request)
         val requestCode = registry.launchedRequestCodes.last()
 
         assertEquals(

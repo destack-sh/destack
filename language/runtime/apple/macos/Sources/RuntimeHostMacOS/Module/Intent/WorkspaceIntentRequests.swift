@@ -49,10 +49,10 @@ public final class WorkspaceIntentRequests: IntentRequests {
   /// Share one outbound text payload through the Apple host.
   public func shareText(
     _ text: String,
-    contentType: String?
+    mimeType: String?
   ) -> UInt32 {
     let _ = text
-    let _ = contentType
+    let _ = mimeType
 
     return hostStatusNotSupported
   }
@@ -60,10 +60,10 @@ public final class WorkspaceIntentRequests: IntentRequests {
   /// Share one outbound file path list through the Apple host.
   public func sharePaths(
     _ paths: [String],
-    contentType: String?
+    mimeType: String?
   ) -> UInt32 {
     let _ = paths
-    let _ = contentType
+    let _ = mimeType
 
     return hostStatusNotSupported
   }

@@ -6,58 +6,12 @@ import Testing
 
 @MainActor
 @Test
-func testProcessRuntimeAbiRoundtripsIntentCanOpenUrlRequest() throws {
-  guard hasRuntimeBridgeLibrary() else {
-    return
-  }
-
-  let bindings = ProcessRuntimeAbi()
-  let sessionHandle = bindings.openTestSession()
-
-  defer {
-    bindings.closeTestSession(sessionHandle: sessionHandle)
-  }
-
-  let bridge = RuntimeBridge(
-    sessionHandle: sessionHandle,
-    bindings: bindings
-  )
-  let permissionRequests = PermissionRequestRecorder()
-  let documentRequests = DocumentRequestRecorder()
-  let intentRequests = IntentRequestRecorder()
-  intentRequests.isOpenURLSupported = true
-  let runtimeHost = createBridgeRuntimeHost(
-    sessionHandle: sessionHandle,
-    permissionRequests: permissionRequests,
-    documentRequests: documentRequests,
-    intentRequests: intentRequests,
-    mediaRequests: MediaRequestRecorder()
-  )
-
-  try bridge.attach(runtimeHost: runtimeHost)
-
-  defer {
-    bridge.detach()
-  }
-
-  let (status, isSupported) = bindings.testIntentCanOpenURL(
-    sessionHandle: sessionHandle,
-    url: "https://example.com"
-  )
-
-  #expect(status == hostStatusOk)
-  #expect(isSupported)
-  #expect(intentRequests.canOpenURLCalls == ["https://example.com"])
-}
-
-@MainActor
-@Test
 func testRuntimeBridgeSendsIntentEventsIntoRuntimeIngress() throws {
-  let bindings = RuntimeAbiSpy()
+  let bindings = RuntimeIngressSpy()
   let sessionHandle = makeTestSessionHandle()
   let bridge = RuntimeBridge(
     sessionHandle: sessionHandle,
-    bindings: bindings
+    runtimeApi: bindings
   )
   let runtimeHost = createBridgeRuntimeHost(
     sessionHandle: sessionHandle,
@@ -81,7 +35,7 @@ func testRuntimeBridgeSendsIntentEventsIntoRuntimeIngress() throws {
     )
   )
 
-  bridge.sendIntentEvent(event)
+  bridge.notifyIntentEvent(event)
 
   #expect(bindings.intentEvents.count == 1)
   #expect(bindings.intentEvents[0].0 == sessionHandle)

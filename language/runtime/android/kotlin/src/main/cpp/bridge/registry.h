@@ -9,5 +9,9 @@ jobject resolve_bridge(JNIEnv *env, uint64_t session_handle);
 bool attach_bridge(JNIEnv *env, uint64_t session_handle, jobject bridge);
 /// Detach one bridge instance from one runtime session.
 void detach_bridge(JNIEnv *env, uint64_t session_handle);
+/// Register the runtime ingress JNI methods.
+bool register_runtime_ingress_natives(JNIEnv *env);
+/// Register the runtime session JNI methods.
+bool register_runtime_session_natives(JNIEnv *env);
 
 #endif

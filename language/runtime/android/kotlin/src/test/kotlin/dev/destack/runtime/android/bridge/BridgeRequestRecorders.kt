@@ -5,7 +5,7 @@ import dev.destack.runtime.android.module.calendar.RuntimeHostCalendarEventCreat
 import dev.destack.runtime.android.module.calendar.RuntimeHostCalendarEventDraft
 import dev.destack.runtime.android.module.calendar.RuntimeHostCalendarEventListResponse
 import dev.destack.runtime.android.module.calendar.RuntimeHostCalendarEventQuery
-import dev.destack.runtime.android.module.calendar.RuntimeHostCalendarEventResponse
+import dev.destack.runtime.android.module.calendar.RuntimeHostCalendarEventReadResponse
 import dev.destack.runtime.android.module.calendar.RuntimeHostCalendarListResponse
 import dev.destack.runtime.android.module.contact.ContactRequests
 import dev.destack.runtime.android.module.contact.RuntimeHostContactCreateResponse
@@ -34,27 +34,23 @@ import dev.destack.runtime.android.module.permission.PermissionRequests
 import dev.destack.runtime.android.module.permission.RuntimeHostPermissionRequest
 
 /**
- * Return whether one live runtime bridge library path is available for tests.
- */
-fun hasRuntimeBridgeLibrary(): Boolean {
-    return !System.getenv("DESTACK_RUNTIME_HOST_BRIDGE_LIBRARY").isNullOrBlank()
-}
-
-/**
  * Record permission requests for bridge tests.
  */
 class PermissionRequestRecorder : PermissionRequests {
     val requests: MutableList<RuntimeHostPermissionRequest> = mutableListOf()
     var openSettingsCalls: Int = 0
     var openSettingsStatus: Int = 0
+    var requestStatus: Int = 0
 
-    override fun submitPermissionRequest(
+    override fun request(
         request: RuntimeHostPermissionRequest,
-    ) {
+    ): Int {
         requests += request
+
+        return requestStatus
     }
 
-    override fun openPermissionSettings(): Int {
+    override fun openSettings(): Int {
         openSettingsCalls += 1
 
         return openSettingsStatus
@@ -66,11 +62,14 @@ class PermissionRequestRecorder : PermissionRequests {
  */
 class DocumentRequestRecorder : DocumentRequests {
     val requests: MutableList<RuntimeHostDocumentRequest> = mutableListOf()
+    var pickStatus: Int = 0
 
-    override fun submitDocumentRequest(
+    override fun pick(
         request: RuntimeHostDocumentRequest,
-    ) {
+    ): Int {
         requests += request
+
+        return pickStatus
     }
 }
 
@@ -84,8 +83,8 @@ class CalendarRequestRecorder : CalendarRequests {
     var eventListResponse: RuntimeHostCalendarEventListResponse =
         RuntimeHostCalendarEventListResponse(status = 1)
     val readIdentifiers: MutableList<String> = mutableListOf()
-    var readResponse: RuntimeHostCalendarEventResponse =
-        RuntimeHostCalendarEventResponse(status = 1)
+    var readResponse: RuntimeHostCalendarEventReadResponse =
+        RuntimeHostCalendarEventReadResponse(status = 1)
     val createDrafts: MutableList<RuntimeHostCalendarEventDraft> = mutableListOf()
     var createResponse: RuntimeHostCalendarEventCreateResponse =
         RuntimeHostCalendarEventCreateResponse(status = 1)
@@ -94,11 +93,11 @@ class CalendarRequestRecorder : CalendarRequests {
     val deleteIdentifiers: MutableList<String> = mutableListOf()
     var deleteStatus: Int = 1
 
-    override fun listCalendars(): RuntimeHostCalendarListResponse {
+    override fun list(): RuntimeHostCalendarListResponse {
         return listResponse
     }
 
-    override fun listCalendarEvents(
+    override fun eventList(
         query: RuntimeHostCalendarEventQuery,
     ): RuntimeHostCalendarEventListResponse {
         eventQueries += query
@@ -106,15 +105,15 @@ class CalendarRequestRecorder : CalendarRequests {
         return eventListResponse
     }
 
-    override fun readCalendarEvent(
+    override fun eventRead(
         id: String,
-    ): RuntimeHostCalendarEventResponse {
+    ): RuntimeHostCalendarEventReadResponse {
         readIdentifiers += id
 
         return readResponse
     }
 
-    override fun createCalendarEvent(
+    override fun eventCreate(
         draft: RuntimeHostCalendarEventDraft,
     ): RuntimeHostCalendarEventCreateResponse {
         createDrafts += draft
@@ -122,7 +121,7 @@ class CalendarRequestRecorder : CalendarRequests {
         return createResponse
     }
 
-    override fun updateCalendarEvent(
+    override fun eventUpdate(
         id: String,
         draft: RuntimeHostCalendarEventDraft,
     ): Int {
@@ -131,7 +130,7 @@ class CalendarRequestRecorder : CalendarRequests {
         return updateStatus
     }
 
-    override fun deleteCalendarEvent(
+    override fun eventDelete(
         id: String,
     ): Int {
         deleteIdentifiers += id
@@ -159,7 +158,7 @@ class ContactRequestRecorder : ContactRequests {
     var updateStatus: Int = 1
     var deleteStatus: Int = 1
 
-    override fun listContacts(
+    override fun list(
         query: RuntimeHostContactQuery,
     ): RuntimeHostContactPageResponse {
         listQueries += query
@@ -167,7 +166,7 @@ class ContactRequestRecorder : ContactRequests {
         return listResponse
     }
 
-    override fun searchContacts(
+    override fun search(
         queryText: String,
         query: RuntimeHostContactQuery,
     ): RuntimeHostContactPageResponse {
@@ -176,7 +175,7 @@ class ContactRequestRecorder : ContactRequests {
         return searchResponse
     }
 
-    override fun readContact(
+    override fun read(
         id: String,
     ): RuntimeHostContactResponse {
         readIdentifiers += id
@@ -184,7 +183,7 @@ class ContactRequestRecorder : ContactRequests {
         return readResponse
     }
 
-    override fun createContact(
+    override fun create(
         draft: RuntimeHostContactDraft,
     ): RuntimeHostContactCreateResponse {
         createDrafts += draft
@@ -192,7 +191,7 @@ class ContactRequestRecorder : ContactRequests {
         return createResponse
     }
 
-    override fun updateContact(
+    override fun update(
         id: String,
         draft: RuntimeHostContactDraft,
     ): Int {
@@ -248,18 +247,18 @@ class IntentRequestRecorder : IntentRequests {
 
     override fun shareText(
         text: String,
-        contentType: String?,
+        mimeType: String?,
     ): Int {
-        shareTextCalls += text to contentType
+        shareTextCalls += text to mimeType
 
         return status
     }
 
     override fun sharePaths(
         paths: List<String>,
-        contentType: String?,
+        mimeType: String?,
     ): Int {
-        sharePathCalls += paths to contentType
+        sharePathCalls += paths to mimeType
 
         return status
     }
@@ -278,15 +277,15 @@ class LocationRequestRecorder : LocationRequests {
     var watchOpenStatus: Int = 0
     var watchCloseStatus: Int = 0
 
-    override fun locationServicesEnabled(): RuntimeHostLocationServicesResponse {
+    override fun servicesEnabled(): RuntimeHostLocationServicesResponse {
         return servicesEnabledResponse
     }
 
-    override fun locationLastKnown(): RuntimeHostLocationLastKnownResponse {
+    override fun lastKnown(): RuntimeHostLocationLastKnownResponse {
         return lastKnownResponse
     }
 
-    override fun locationWatchOpen(
+    override fun watchOpen(
         watchId: String,
         options: RuntimeHostLocationWatchOptions,
     ): Int {
@@ -295,7 +294,7 @@ class LocationRequestRecorder : LocationRequests {
         return watchOpenStatus
     }
 
-    override fun locationWatchClose(
+    override fun watchClose(
         watchId: String,
     ): Int {
         watchCloseCalls += watchId
@@ -319,7 +318,7 @@ class MediaRequestRecorder : MediaRequests {
     var deleteResponse: RuntimeHostMediaDeleteResponse =
         RuntimeHostMediaDeleteResponse(status = 0)
 
-    override fun listMedia(
+    override fun list(
         request: RuntimeHostMediaListRequest,
     ): RuntimeHostMediaListResponse {
         listRequests += request
@@ -327,7 +326,7 @@ class MediaRequestRecorder : MediaRequests {
         return listResponse
     }
 
-    override fun readMedia(
+    override fun read(
         identifier: String,
     ): RuntimeHostMediaReadResponse {
         readIdentifiers += identifier
@@ -335,7 +334,7 @@ class MediaRequestRecorder : MediaRequests {
         return readResponse
     }
 
-    override fun importMediaPath(
+    override fun importPath(
         request: RuntimeHostMediaImportPathRequest,
     ): RuntimeHostMediaImportPathResponse {
         importRequests += request
@@ -343,7 +342,7 @@ class MediaRequestRecorder : MediaRequests {
         return importResponse
     }
 
-    override fun deleteMedia(
+    override fun delete(
         request: RuntimeHostMediaDeleteRequest,
     ): RuntimeHostMediaDeleteResponse {
         deleteRequests += request
@@ -361,7 +360,7 @@ class NotificationRequestRecorder : NotificationRequests {
     var cancelAllCalls: Int = 0
     var status: Int = 0
 
-    override fun postNotification(
+    override fun post(
         request: RuntimeHostNotificationRequest,
     ): Int {
         postedRequests += request
@@ -369,7 +368,7 @@ class NotificationRequestRecorder : NotificationRequests {
         return status
     }
 
-    override fun cancelNotification(
+    override fun cancel(
         identifier: String,
     ): Int {
         cancelledIdentifiers += identifier
@@ -377,7 +376,7 @@ class NotificationRequestRecorder : NotificationRequests {
         return status
     }
 
-    override fun cancelAllNotifications(): Int {
+    override fun cancelAll(): Int {
         cancelAllCalls += 1
 
         return status

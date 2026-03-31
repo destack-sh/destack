@@ -3,31 +3,36 @@ package dev.destack.runtime.android.module.location
 /**
  * The Android location accuracy preference.
  */
-public enum class RuntimeHostLocationAccuracy {
+public enum class RuntimeHostLocationAccuracy(
+    /**
+     * The stable ABI discriminant.
+     */
+    val rawValue: Int,
+) {
     /**
      * Passive updates with minimal power use.
      */
-    Passive,
+    Passive(1),
 
     /**
      * Coarse accuracy.
      */
-    Low,
+    Low(2),
 
     /**
      * Balanced power and accuracy.
      */
-    Balanced,
+    Balanced(3),
 
     /**
      * Fine accuracy.
      */
-    High,
+    High(4),
 
     /**
      * Best available accuracy.
      */
-    Best,
+    Best(5),
 }
 
 /**

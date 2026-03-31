@@ -1,7 +1,16 @@
 package dev.destack.runtime.android
 
+import dev.destack.runtime.android.core.CalendarHost
+import dev.destack.runtime.android.core.ContactHost
+import dev.destack.runtime.android.core.DocumentHost
 import dev.destack.runtime.android.core.HostEmbedderId
 import dev.destack.runtime.android.core.HostSessionHandle
+import dev.destack.runtime.android.core.IntentHost
+import dev.destack.runtime.android.core.LifecycleHost
+import dev.destack.runtime.android.core.LocationHost
+import dev.destack.runtime.android.core.MediaHost
+import dev.destack.runtime.android.core.NotificationHost
+import dev.destack.runtime.android.core.PermissionHost
 import dev.destack.runtime.android.core.RendererSurface
 import dev.destack.runtime.android.core.RendererSurfaceKind
 import dev.destack.runtime.android.core.RuntimeHost
@@ -17,8 +26,8 @@ import dev.destack.runtime.android.module.contact.UnsupportedContactRequests
 import dev.destack.runtime.android.module.document.DocumentEvents
 import dev.destack.runtime.android.module.document.DocumentRequests
 import dev.destack.runtime.android.module.intent.IntentEvents
-import dev.destack.runtime.android.module.intent.IntentRequests
 import dev.destack.runtime.android.module.intent.RuntimeHostIntentEvent
+import dev.destack.runtime.android.module.intent.IntentRequests
 import dev.destack.runtime.android.module.lifecycle.LifecycleEvents
 import dev.destack.runtime.android.module.location.LocationEvents
 import dev.destack.runtime.android.module.location.LocationRequests
@@ -61,7 +70,7 @@ internal class RecordingContactRequestHandler : ContactRequests {
     var updateStatus: Int = 0
     var deleteStatus: Int = 0
 
-    override fun listContacts(
+    override fun list(
         query: RuntimeHostContactQuery,
     ): RuntimeHostContactPageResponse {
         listQueries += query
@@ -69,7 +78,7 @@ internal class RecordingContactRequestHandler : ContactRequests {
         return listResponse
     }
 
-    override fun searchContacts(
+    override fun search(
         queryText: String,
         query: RuntimeHostContactQuery,
     ): RuntimeHostContactPageResponse {
@@ -78,7 +87,7 @@ internal class RecordingContactRequestHandler : ContactRequests {
         return searchResponse
     }
 
-    override fun readContact(
+    override fun read(
         id: String,
     ): RuntimeHostContactResponse {
         readIdentifiers += id
@@ -86,7 +95,7 @@ internal class RecordingContactRequestHandler : ContactRequests {
         return readResponse
     }
 
-    override fun createContact(
+    override fun create(
         draft: RuntimeHostContactDraft,
     ): RuntimeHostContactCreateResponse {
         createDrafts += draft
@@ -94,7 +103,7 @@ internal class RecordingContactRequestHandler : ContactRequests {
         return createResponse
     }
 
-    override fun updateContact(
+    override fun update(
         id: String,
         draft: RuntimeHostContactDraft,
     ): Int {
@@ -150,30 +159,30 @@ internal class RecordingIntentRequestHandler : IntentRequests {
 
     override fun shareText(
         text: String,
-        contentType: String?,
+        mimeType: String?,
     ): Int {
-        shareTextCalls += text to contentType
+        shareTextCalls += text to mimeType
 
         return status
     }
 
     override fun sharePaths(
         paths: List<String>,
-        contentType: String?,
+        mimeType: String?,
     ): Int {
-        sharePathCalls += paths to contentType
+        sharePathCalls += paths to mimeType
 
         return status
     }
 }
 
 /**
- * Record intent events sent through one Android runtime host.
+ * Record intent events submitted through one Android runtime host.
  */
 internal class RecordingIntentEventSink : IntentEvents {
     val events: MutableList<RuntimeHostIntentEvent> = mutableListOf()
 
-    override fun sendIntentEvent(
+    override fun notifyIntentEvent(
         event: RuntimeHostIntentEvent,
     ) {
         events += event
@@ -193,15 +202,15 @@ internal class RecordingLocationRequestHandler : LocationRequests {
     var watchOpenStatus: Int = 0
     var watchCloseStatus: Int = 0
 
-    override fun locationServicesEnabled(): RuntimeHostLocationServicesResponse {
+    override fun servicesEnabled(): RuntimeHostLocationServicesResponse {
         return servicesEnabledResponse
     }
 
-    override fun locationLastKnown(): RuntimeHostLocationLastKnownResponse {
+    override fun lastKnown(): RuntimeHostLocationLastKnownResponse {
         return lastKnownResponse
     }
 
-    override fun locationWatchOpen(
+    override fun watchOpen(
         watchId: String,
         options: RuntimeHostLocationWatchOptions,
     ): Int {
@@ -210,7 +219,7 @@ internal class RecordingLocationRequestHandler : LocationRequests {
         return watchOpenStatus
     }
 
-    override fun locationWatchClose(
+    override fun watchClose(
         watchId: String,
     ): Int {
         watchCloseCalls += watchId
@@ -225,7 +234,7 @@ internal class RecordingLocationRequestHandler : LocationRequests {
 internal class RecordingLocationEventSink : LocationEvents {
     val samples: MutableList<Pair<String, RuntimeHostLocationSample>> = mutableListOf()
 
-    override fun sendLocationSample(
+    override fun notifyLocationSample(
         watchId: String,
         sample: RuntimeHostLocationSample,
     ) {
@@ -248,7 +257,7 @@ internal class RecordingMediaRequestHandler : MediaRequests {
     var deleteResponse: RuntimeHostMediaDeleteResponse =
         RuntimeHostMediaDeleteResponse(status = 0)
 
-    override fun listMedia(
+    override fun list(
         request: RuntimeHostMediaListRequest,
     ): RuntimeHostMediaListResponse {
         listRequests += request
@@ -256,7 +265,7 @@ internal class RecordingMediaRequestHandler : MediaRequests {
         return listResponse
     }
 
-    override fun readMedia(
+    override fun read(
         identifier: String,
     ): RuntimeHostMediaReadResponse {
         readIdentifiers += identifier
@@ -264,7 +273,7 @@ internal class RecordingMediaRequestHandler : MediaRequests {
         return readResponse
     }
 
-    override fun importMediaPath(
+    override fun importPath(
         request: RuntimeHostMediaImportPathRequest,
     ): RuntimeHostMediaImportPathResponse {
         importRequests += request
@@ -272,7 +281,7 @@ internal class RecordingMediaRequestHandler : MediaRequests {
         return importResponse
     }
 
-    override fun deleteMedia(
+    override fun delete(
         request: RuntimeHostMediaDeleteRequest,
     ): RuntimeHostMediaDeleteResponse {
         deleteRequests += request
@@ -290,7 +299,7 @@ internal class RecordingNotificationRequestHandler : NotificationRequests {
     var cancelAllCalls: Int = 0
     var status: Int = 0
 
-    override fun postNotification(
+    override fun post(
         request: RuntimeHostNotificationRequest,
     ): Int {
         postedRequests += request
@@ -298,7 +307,7 @@ internal class RecordingNotificationRequestHandler : NotificationRequests {
         return status
     }
 
-    override fun cancelNotification(
+    override fun cancel(
         identifier: String,
     ): Int {
         cancelledIdentifiers += identifier
@@ -306,7 +315,7 @@ internal class RecordingNotificationRequestHandler : NotificationRequests {
         return status
     }
 
-    override fun cancelAllNotifications(): Int {
+    override fun cancelAll(): Int {
         cancelAllCalls += 1
 
         return status
@@ -319,7 +328,7 @@ internal class RecordingNotificationRequestHandler : NotificationRequests {
 internal class RecordingNotificationEventSink : NotificationEvents {
     val events: MutableList<RuntimeHostNotificationEvent> = mutableListOf()
 
-    override fun sendNotificationEvent(
+    override fun notifyNotificationEvent(
         event: RuntimeHostNotificationEvent,
     ) {
         events += event
@@ -350,20 +359,15 @@ internal fun createRuntimeHost(
     return RuntimeHost(
         sessionHandle = HostSessionHandle(rawValue = 7),
         embedderId = HostEmbedderId(rawValue = 11),
-        lifecycleEvents = lifecycleEvents,
-        permissionRequests = permissionRequests,
-        permissionEvents = permissionEvents,
-        documentRequests = documentRequests,
-        documentEvents = documentEvents,
-        contactRequests = contactRequests,
-        calendarRequests = calendarRequests,
-        intentRequests = intentRequests,
-        intentEvents = intentEvents,
-        locationRequests = locationRequests,
-        locationEvents = locationEvents,
-        mediaRequests = mediaRequests,
-        notificationRequests = notificationRequests,
-        notificationEvents = notificationEvents,
+        lifecycle = LifecycleHost(lifecycleEvents),
+        permission = PermissionHost(permissionRequests, permissionEvents),
+        document = DocumentHost(documentRequests, documentEvents),
+        contact = ContactHost(contactRequests),
+        calendar = CalendarHost(calendarRequests),
+        intent = IntentHost(intentRequests, intentEvents),
+        location = LocationHost(locationRequests, locationEvents),
+        media = MediaHost(mediaRequests),
+        notification = NotificationHost(notificationRequests, notificationEvents),
         rendererSurface = RendererSurface(
             kind = surfaceKind,
             identifier = rendererSurfaceIdentifier,

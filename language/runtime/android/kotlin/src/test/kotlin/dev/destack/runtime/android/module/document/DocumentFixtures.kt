@@ -12,11 +12,14 @@ import dev.destack.runtime.android.module.document.RuntimeHostDocumentResult
  */
 internal class RecordingDocumentRequestHandler : DocumentRequests {
     val requests: MutableList<RuntimeHostDocumentRequest> = mutableListOf()
+    var pickStatus: Int = 0
 
-    override fun submitDocumentRequest(
+    override fun pick(
         request: RuntimeHostDocumentRequest,
-    ) {
+    ): Int {
         requests += request
+
+        return pickStatus
     }
 }
 
@@ -25,11 +28,16 @@ internal class RecordingDocumentRequestHandler : DocumentRequests {
  */
 internal class RecordingDocumentEventSink : DocumentEvents {
     val results: MutableList<RuntimeHostDocumentResult> = mutableListOf()
+    val callback: DocumentEvents = this
 
-    override fun sendDocumentResult(
-        result: RuntimeHostDocumentResult,
+    override fun notifyDocumentResult(
+        requestId: HostRequestId,
+        documents: List<RuntimeHostDocumentDescriptor>,
     ) {
-        results += result
+        results += RuntimeHostDocumentResult(
+            requestId = requestId,
+            documents = documents,
+        )
     }
 }
 
@@ -37,9 +45,9 @@ internal class RecordingDocumentEventSink : DocumentEvents {
  * One no-op document request handler for Android host tests.
  */
 internal class NoopDocumentRequestHandler : DocumentRequests {
-    override fun submitDocumentRequest(
+    override fun pick(
         request: RuntimeHostDocumentRequest,
-    ) {}
+    ): Int = 0
 }
 
 /**

@@ -6,14 +6,14 @@ import Testing
 @MainActor
 @Test
 func testRuntimeBridgeRoutesBackgroundRequestsIntoRuntimeHost() throws {
-  let bindings = RuntimeAbiSpy()
+  let bindings = RuntimeIngressSpy()
   let sessionHandle = makeTestSessionHandle()
   let bridge = RuntimeBridge(
     sessionHandle: sessionHandle,
-    bindings: bindings
+    runtimeApi: bindings
   )
   let backgroundRequests = BackgroundRequestRecorder()
-  backgroundRequests.listResponse = RuntimeHostBackgroundTaskListResponse(
+  backgroundRequests.listResponse = RuntimeHostBackgroundListResponse(
     status: hostStatusOk,
     descriptors: [
       RuntimeHostBackgroundTaskDescriptor(
@@ -55,24 +55,23 @@ func testRuntimeBridgeRoutesBackgroundRequestsIntoRuntimeHost() throws {
 
   try bridge.attach(runtimeHost: runtimeHost)
 
-  let backgroundStatus = bridge.backgroundBridge.backgroundStatus(runtimeHost: runtimeHost)
-  let listResponse = bridge.backgroundBridge.listBackgroundTasks(runtimeHost: runtimeHost)
-  let registerStatus = bridge.backgroundBridge.registerBackgroundTask(
+  let backgroundStatus = bridge.backgroundStatus(runtimeHost: runtimeHost)
+  let listResponse = bridge.backgroundList(runtimeHost: runtimeHost)
+  let registerStatus = bridge.backgroundRegisterTask(runtimeHost: runtimeHost, options)
+  let unregisterStatus = bridge.backgroundUnregister(
     runtimeHost: runtimeHost,
-    options
+    RuntimeHostBackgroundUnregisterRequest(identifier: "sync")
   )
-  let unregisterStatus = bridge.backgroundBridge.unregisterBackgroundTask(
+  let triggerResponse = bridge.backgroundTriggerTest(
     runtimeHost: runtimeHost,
-    "sync"
+    RuntimeHostBackgroundTriggerTestRequest(identifier: "sync")
   )
-  let triggerResponse = bridge.backgroundBridge.triggerBackgroundTask(
+  let completeStatus = bridge.backgroundComplete(
     runtimeHost: runtimeHost,
-    "sync"
-  )
-  let completeStatus = bridge.backgroundBridge.completeBackgroundTask(
-    runtimeHost: runtimeHost,
-    executionID: "execution-1",
-    result: .success
+    RuntimeHostBackgroundCompleteRequest(
+      executionID: "execution-1",
+      result: .success
+    )
   )
 
   #expect(backgroundStatus.status == hostStatusOk)
@@ -95,11 +94,11 @@ func testRuntimeBridgeRoutesBackgroundRequestsIntoRuntimeHost() throws {
 @MainActor
 @Test
 func testRuntimeBridgeSendsBackgroundEventsIntoRuntimeIngress() throws {
-  let bindings = RuntimeAbiSpy()
+  let bindings = RuntimeIngressSpy()
   let sessionHandle = makeTestSessionHandle()
   let bridge = RuntimeBridge(
     sessionHandle: sessionHandle,
-    bindings: bindings
+    runtimeApi: bindings
   )
   let runtimeHost = createBridgeRuntimeHost(
     sessionHandle: sessionHandle,
@@ -121,7 +120,7 @@ func testRuntimeBridgeSendsBackgroundEventsIntoRuntimeIngress() throws {
   )
 
   try bridge.attach(runtimeHost: runtimeHost)
-  bridge.sendBackgroundEvent(event)
+  bridge.notifyBackgroundEvent(event)
 
   #expect(bindings.backgroundEvents.count == 1)
   #expect(bindings.backgroundEvents[0].0 == sessionHandle)

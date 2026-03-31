@@ -1,25 +1,10 @@
 package dev.destack.runtime.android.core
 
-import dev.destack.runtime.android.input.text.TextInputEvents
-import dev.destack.runtime.android.input.text.TextInputRequests
-import dev.destack.runtime.android.input.text.UnsupportedTextInputRequests
+import dev.destack.runtime.android.module.text.TextRequests
+import dev.destack.runtime.android.module.text.UnsupportedTextRequests
 import dev.destack.runtime.android.module.background.BackgroundEvents
 import dev.destack.runtime.android.module.background.BackgroundRequests
 import dev.destack.runtime.android.module.background.UnsupportedBackgroundRequests
-import dev.destack.runtime.android.module.calendar.CalendarRequests
-import dev.destack.runtime.android.module.document.DocumentEvents
-import dev.destack.runtime.android.module.document.DocumentRequests
-import dev.destack.runtime.android.module.contact.ContactRequests
-import dev.destack.runtime.android.module.intent.IntentEvents
-import dev.destack.runtime.android.module.intent.IntentRequests
-import dev.destack.runtime.android.module.lifecycle.LifecycleEvents
-import dev.destack.runtime.android.module.location.LocationEvents
-import dev.destack.runtime.android.module.location.LocationRequests
-import dev.destack.runtime.android.module.media.MediaRequests
-import dev.destack.runtime.android.module.notification.NotificationEvents
-import dev.destack.runtime.android.module.notification.NotificationRequests
-import dev.destack.runtime.android.module.permission.PermissionEvents
-import dev.destack.runtime.android.module.permission.PermissionRequests
 
 /**
  * The Android runtime host for one attached Destack runtime session.
@@ -36,84 +21,65 @@ public class RuntimeHost(
     public val embedderId: HostEmbedderId,
 
     /**
-     * The lifecycle ingress surface for this embedder.
+     * The lifecycle host surface for this embedder.
      */
-    public val lifecycleEvents: LifecycleEvents,
+    public val lifecycle: LifecycleHost,
 
     /**
-     * The permission request surface for this embedder.
+     * The permission host surface for this embedder.
      */
-    public val permissionRequests: PermissionRequests,
+    public val permission: PermissionHost,
 
     /**
-     * The permission ingress surface for this embedder.
+     * The document host surface for this embedder.
      */
-    public val permissionEvents: PermissionEvents,
+    public val document: DocumentHost,
 
     /**
-     * The document request surface for this embedder.
+     * The text host surface for this embedder.
      */
-    public val documentRequests: DocumentRequests,
+    public val text: TextHost = TextHost(
+        UnsupportedTextRequests,
+        dev.destack.runtime.android.module.text.NoopTextEvents,
+    ),
 
     /**
-     * The document result surface for this embedder.
+     * The background host surface for this embedder.
      */
-    public val documentEvents: DocumentEvents,
+    public val background: BackgroundHost = BackgroundHost(
+        UnsupportedBackgroundRequests,
+        BackgroundEvents { },
+    ),
 
     /**
-     * The text-input ingress surface for this embedder.
+     * The contact host surface for this embedder.
      */
-    public val textInputEvents: TextInputEvents = TextInputEvents { },
+    public val contact: ContactHost,
 
     /**
-     * The background ingress surface for this embedder.
+     * The calendar host surface for this embedder.
      */
-    public val backgroundEvents: BackgroundEvents = BackgroundEvents { },
+    public val calendar: CalendarHost,
 
     /**
-     * The contact request surface for this embedder.
+     * The intent host surface for this embedder.
      */
-    public val contactRequests: ContactRequests,
+    public val intent: IntentHost,
 
     /**
-     * The calendar request surface for this embedder.
+     * The location host surface for this embedder.
      */
-    public val calendarRequests: CalendarRequests,
+    public val location: LocationHost,
 
     /**
-     * The intent request surface for this embedder.
+     * The media host surface for this embedder.
      */
-    public val intentRequests: IntentRequests,
+    public val media: MediaHost,
 
     /**
-     * The intent ingress surface for this embedder.
+     * The notification host surface for this embedder.
      */
-    public val intentEvents: IntentEvents,
-
-    /**
-     * The location request surface for this embedder.
-     */
-    public val locationRequests: LocationRequests,
-
-    /**
-     * The location ingress surface for this embedder.
-     */
-    public val locationEvents: LocationEvents,
-
-    /**
-     * The media request surface for this embedder.
-     */
-    public val mediaRequests: MediaRequests,
-
-    /**
-     * The notification request surface for this embedder.
-     */
-    public val notificationRequests: NotificationRequests,
-
-    /**
-     * The notification ingress surface for this embedder.
-     */
-    public val notificationEvents: NotificationEvents,
+    public val notification: NotificationHost,
 
     /**
      * The primary renderer surface for this embedder.
@@ -129,18 +95,6 @@ public class RuntimeHost(
     private var pendingPermissionRequest: PendingPermissionRequest? = null
 
     /**
-     * The text-input request surface for this embedder.
-     */
-    public var textInputRequests: TextInputRequests = UnsupportedTextInputRequests
-        internal set
-
-    /**
-     * The background request surface for this embedder.
-     */
-    public var backgroundRequests: BackgroundRequests = UnsupportedBackgroundRequests
-        internal set
-
-    /**
      * The current primary renderer surface for this embedder.
      */
     public var rendererSurface: RendererSurface = rendererSurface
@@ -153,6 +107,24 @@ public class RuntimeHost(
         rendererSurface: RendererSurface,
     ) {
         this.rendererSurface = rendererSurface
+    }
+
+    /**
+     * Replace the text request surface for this host.
+     */
+    internal fun updateTextRequests(
+        requests: TextRequests,
+    ) {
+        text.updateRequests(requests)
+    }
+
+    /**
+     * Replace the background request surface for this host.
+     */
+    internal fun updateBackgroundRequests(
+        requests: BackgroundRequests,
+    ) {
+        background.updateRequests(requests)
     }
 
     /**

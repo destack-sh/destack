@@ -49,18 +49,18 @@ public final class ApplicationIntentRequests: IntentRequests {
 
   public func shareText(
     _ text: String,
-    contentType: String?
+    mimeType: String?
   ) -> UInt32 {
-    let _ = contentType
+    let _ = mimeType
 
     return presentShareSheet(items: [text])
   }
 
   public func sharePaths(
     _ paths: [String],
-    contentType: String?
+    mimeType: String?
   ) -> UInt32 {
-    let _ = contentType
+    let _ = mimeType
     let urls = paths.map { URL(fileURLWithPath: $0) }
 
     return presentShareSheet(items: urls)

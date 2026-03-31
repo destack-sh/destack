@@ -1,6 +1,34 @@
 // swift-tools-version: 6.0
 import PackageDescription
 
+let rustLinkerSettings: [LinkerSetting] = [
+  .unsafeFlags([
+    "-L",
+    ".build/rust",
+    "-ldestack_runtime_abi",
+  ])
+]
+
+let appleFrameworkLinkerSettings: [LinkerSetting] = [
+  .linkedFramework("AVFoundation"),
+  .linkedFramework("AudioToolbox"),
+  .linkedFramework("Contacts"),
+  .linkedFramework("CoreAudio"),
+  .linkedFramework("CoreBluetooth"),
+  .linkedFramework("CoreFoundation"),
+  .linkedFramework("CoreGraphics"),
+  .linkedFramework("CoreLocation"),
+  .linkedFramework("CoreMedia"),
+  .linkedFramework("CoreMIDI"),
+  .linkedFramework("CoreVideo"),
+  .linkedFramework("EventKit"),
+  .linkedFramework("MediaToolbox"),
+  .linkedFramework("UniformTypeIdentifiers"),
+  .linkedFramework("UserNotifications"),
+]
+
+let runtimeAppleLinkerSettings = rustLinkerSettings + appleFrameworkLinkerSettings
+
 let package = Package(
   name: "RuntimeHostApple",
   platforms: [
@@ -25,45 +53,46 @@ let package = Package(
     .target(
       name: "RuntimeHostAppleBridgeC",
       path: "bridge/BridgeC",
-      publicHeadersPath: "include"
-    ),
-    .target(
-      name: "RuntimeHostAppleBridgeTest",
-      dependencies: ["RuntimeHostAppleBridgeC"],
-      path: "bridge/BridgeCTest",
-      publicHeadersPath: "include"
+      publicHeadersPath: "include",
+      linkerSettings: rustLinkerSettings
     ),
     .target(
       name: "RuntimeHostAppleCore",
-      path: "core/Sources/RuntimeHostAppleCore"
+      path: "core/Sources/RuntimeHostAppleCore",
+      linkerSettings: appleFrameworkLinkerSettings
     ),
     .target(
       name: "RuntimeHostIOS",
       dependencies: ["RuntimeHostAppleBridgeC", "RuntimeHostAppleCore"],
-      path: "ios/Sources/RuntimeHostIOS"
+      path: "ios/Sources/RuntimeHostIOS",
+      linkerSettings: runtimeAppleLinkerSettings
     ),
     .target(
       name: "RuntimeHostMacOS",
       dependencies: ["RuntimeHostAppleCore"],
-      path: "macos/Sources/RuntimeHostMacOS"
+      path: "macos/Sources/RuntimeHostMacOS",
+      linkerSettings: appleFrameworkLinkerSettings
     ),
     .testTarget(
       name: "RuntimeHostAppleCoreTests",
       dependencies: ["RuntimeHostAppleCore"],
-      path: "core/Tests/RuntimeHostAppleCoreTests"
+      path: "core/Tests/RuntimeHostAppleCoreTests",
+      linkerSettings: appleFrameworkLinkerSettings
     ),
     .testTarget(
       name: "RuntimeHostIOSTests",
       dependencies: [
-        "RuntimeHostAppleBridgeC", "RuntimeHostAppleBridgeTest", "RuntimeHostAppleCore",
+        "RuntimeHostAppleBridgeC", "RuntimeHostAppleCore",
         "RuntimeHostIOS",
       ],
-      path: "ios/Tests/RuntimeHostIOSTests"
+      path: "ios/Tests/RuntimeHostIOSTests",
+      linkerSettings: runtimeAppleLinkerSettings
     ),
     .testTarget(
       name: "RuntimeHostMacOSTests",
       dependencies: ["RuntimeHostAppleCore", "RuntimeHostMacOS"],
-      path: "macos/Tests/RuntimeHostMacOSTests"
+      path: "macos/Tests/RuntimeHostMacOSTests",
+      linkerSettings: appleFrameworkLinkerSettings
     ),
   ],
   swiftLanguageModes: [.v6]
