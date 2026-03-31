@@ -2,6 +2,7 @@
 @import 'https://example.com/withquote".css';
 @import './other.css';
 @import './withduplicateurl.css';
+@import './nested/theme.css';
 @import url('https://example.com/stylesheet2.css');
 
 body {

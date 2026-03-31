@@ -1,0 +1,5 @@
+@import "https://example.com/theme-base.css";
+
+.theme-card {
+  background-image: url("https://example.com/theme-card.png");
+}

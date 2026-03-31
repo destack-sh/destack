@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <link rel="stylesheet" href="/styles/main.css">
-    <script src="/scripts/app.ts"></script>
+    <link rel="stylesheet" href="./assets/main.css">
+    <link rel="modulepreload" href="./chunk.js">
+    <script src="./app.js"></script>
   </head>
   <body>
     <h1>Absolute Paths</h1>
-    <img src="/images/logo.png">
+    <img src="./assets/logo.png">
+    <img srcset="./assets/logo-small.png 1x, ./assets/logo-large.png 2x">
   </body>
 </html>

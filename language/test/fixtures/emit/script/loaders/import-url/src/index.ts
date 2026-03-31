@@ -1,3 +1,4 @@
-import './index.css'
+import "./index.css";
+import { renderImportUrlState } from "./state.ts";
 
-console.log("import-url");
+console.log("import-url", renderImportUrlState("ready"));

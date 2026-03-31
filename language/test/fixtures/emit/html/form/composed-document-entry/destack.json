@@ -1,0 +1,23 @@
+{
+    "name": "html-form-composed-document-entry",
+    "targets": {
+        "site": {
+            "emit": "html",
+            "runtime": "browser",
+            "entry": [
+                "src/index.html"
+            ],
+            "outFile": "dist/index.html",
+            "bundle": {
+                "assets": {
+                    "mode": "emit"
+                },
+                "output": {
+                    "assetFileNames": "assets/[name]-[hash].[ext]",
+                    "sourcemap": "external",
+                    "manifest": true
+                }
+            }
+        }
+    }
+}
