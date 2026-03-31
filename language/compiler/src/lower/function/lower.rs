@@ -319,7 +319,7 @@ impl<'a> FunctionLowerer<'a> {
 
         // resolve the string type for the literal
         let ty = self.context.type_lowerer.string_type().ok_or_else(|| {
-            let message = "missing builtin String layout (load library/native)".to_string();
+            let message = "missing well known String layout (load library/native)".to_string();
             match anchor {
                 Some(anchor) => LowerError::UnsupportedConstruct {
                     node: anchor,

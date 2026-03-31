@@ -80,24 +80,21 @@ impl<'a> Validator<'a> {
                 }
             }
             ManagedReferenceRepresentation::CompressedOffset32
-            | ManagedReferenceRepresentation::Handle32 => {
-                if managed_layout.bytes != 4 {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "32 bit managed reference representations must use 4 byte storage"
-                            .to_string(),
-                        anchor,
-                    });
-                }
+            | ManagedReferenceRepresentation::Handle32
+            | ManagedReferenceRepresentation::Handle64 => {
+                return Err(ValidateError::MetadataInvariantViolation {
+                    message: "managed references must use the native pointer representation"
+                        .to_string(),
+                    anchor,
+                });
             }
-            ManagedReferenceRepresentation::Handle64 => {
-                if managed_layout.bytes != 8 {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "64 bit managed reference representations must use 8 byte storage"
-                            .to_string(),
-                        anchor,
-                    });
-                }
-            }
+        }
+
+        if managed_layout.alignment != self.tree.data_layout.native_pointer_bytes {
+            return Err(ValidateError::MetadataInvariantViolation {
+                message: "managed reference alignment must match native pointer size".to_string(),
+                anchor,
+            });
         }
 
         // per-instruction memory metadata

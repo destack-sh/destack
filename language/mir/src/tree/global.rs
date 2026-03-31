@@ -122,8 +122,7 @@ pub enum GlobalInitializer {
     Zero,
     /// Scalar constant (bool, int, float).
     Scalar(Constant),
-    /// String literal data for the runtime string layout.
-    /// The global type must be a managed reference to the String layout.
+    /// String literal data for the canonical builtin `String` object.
     String(String),
     /// Raw bytes (blobs).
     Bytes(Vec<u8>),

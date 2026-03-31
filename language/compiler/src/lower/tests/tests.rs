@@ -31,7 +31,7 @@ impl TestProgram {
 
     /// Return the canonical string type alias definition.
     pub(crate) fn string_type_alias_definition(&self) -> &'static str {
-        "type @String = { lengthUtf16: u32, lengthBytes: u32, hash: u64, capacity: u32, flags: u32, data: ref<raw readonly u8> }"
+        "type @String = { lengthUtf16: u32, lengthBytes: u32, hash: u64, flags: u32, data: ref<raw readonly u8> }"
     }
 
     /// Collect class dispatch tables from a MIR tree.

@@ -436,13 +436,16 @@ WASM and JS-interop targets use UTF-16 payloads to avoid boundary transcoding.
 | Destack | Rust | Description |
 |---------|-----------------|-------------|
 | `string` | ~`Rc<str>` | GC-managed immutable string (default) |
-| `^string` | `String` | Owned mutable string (manual/RAII) |
+| `^string` | owned `str` value | Owned immutable string value |
 | `&string` | `&str` | Borrowed immutable view |
 
-Most code uses `string` (GC-managed). Use `^string` for performance-critical code with explicit ownership.
+Most code uses `string` (GC-managed).
+Use `StringBuilder` for performance-critical string construction.
 
 #### String Layout
 
+The immutable `String` header stores only semantic payload metadata and caches.
+Growth state belongs to `StringBuilder`, not `String`.
 The header layout is identical across targets, and only the payload encoding changes.
 UTF-8 payloads use `uint8` data and UTF-16 payloads use `uint16` data.
 
@@ -450,9 +453,6 @@ UTF-8 payloads use `uint8` data and UTF-16 payloads use `uint16` data.
 struct String {
     lengthUtf16: uint32;      // utf-16 code unit count for ts compatibility
     lengthBytes: uint32;      // byte length of utf-8 data
-    hash: uint64;             // cached hash valid when HasHash is set
-    capacity: uint32;         // allocated capacity in bytes
-    flags: uint32;            // runtime metadata flags
     data: *uint8;             // utf-8 bytes
 }
 ```
@@ -465,13 +465,18 @@ For TypeScript semantic compatibility:
 On UTF-16 targets, `lengthBytes` caches the UTF-8 byte length and is computed lazily.
 The payload encoding is fixed per target configuration.
 The `string` payload pointer type is `*uint8` on UTF-8 targets and `*uint16` on UTF-16 targets.
-The `string` header uses `capacity` for owned `^string` growth and usually keeps `capacity == lengthBytes` for GC-managed `string`.
-Flags are runtime metadata bits with stable meanings.
-- `HasHash`: `hash` is populated and valid
-- `IsAscii`: payload is ASCII-only
-- `IsStatic`: payload is static read only data
-- `IsInterned`: string content is interned
-- `IsExternal`: payload is owned outside the managed heap
+Owned mutable growth lives in `StringBuilder`, which is a separate nominal type from immutable `String`.
+
+The mutable builder form is:
+
+```ds
+struct StringBuilder {
+    lengthUtf16: uint32;
+    lengthBytes: uint32;
+    capacity: uint32;
+    data: *uint8;
+}
+```
 
 #### String Literals
 
@@ -583,9 +588,11 @@ The safety preset does not modify `checkFailure`.
 
 **Slices:**
 Slices are explicit view types with a pointer and length (`Slice<T>`).
+Strings use `StringSlice` for the same role.
 They are distinct from borrowing the array object itself.
 Functions that accept a slice can take `Slice<T>` or `&Slice<T>`.
 Borrowing an array object does not imply a slice view.
+Borrowing a `string` object does not imply a `StringSlice` view.
 
 ### Structs and Classes
 

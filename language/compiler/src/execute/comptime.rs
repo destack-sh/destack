@@ -348,15 +348,15 @@ impl<'a> ComptimeLowerer<'a> {
             return Ok(());
         }
 
-        // load the builtin string type for literal globals
+        // load the well known string type for literal globals
         let Some(string_type) = self.type_lowerer.string_type() else {
             return Err(ExecuteError::FailedLower {
                 module: self.module.id,
                 error: Box::new(LowerError::Internal {
                     module: self.module.id,
-                    message: "missing builtin String layout (load library/native)".to_string(),
+                    message: "missing well known String layout (load library/native)".to_string(),
                 }),
-                message: "missing builtin String layout".to_string(),
+                message: "missing well known String layout".to_string(),
             });
         };
 

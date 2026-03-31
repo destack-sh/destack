@@ -8,9 +8,10 @@ use serde::{Deserialize, Serialize};
 use crate::{
     AddressSpace, ArgumentSlice, Attribute, Block, CallSite, DataLayout, DebugTable,
     DevirtualizationMetadata, DispatchTable, Field, Function, Global, Instruction,
-    InterfaceDispatchShape, Itab, ItabId, Layout, LayoutId, Local, LocalNodeId, MemoryTable,
-    Mutability, Node, NodeType, ProvenanceId, ProvenanceKind, ProvenanceReason, ProvenanceTable,
-    ReferenceKind, Type, TypeAlias, TypeCache, TypeLineage, TypeTable, Value, Vtable, VtableId,
+    InterfaceDispatchShape, Itab, ItabId, Layout, LayoutId, Local, LocalNodeId,
+    ManagedReferenceRepresentation, MemoryTable, Mutability, Node, NodeType, ProvenanceId,
+    ProvenanceKind, ProvenanceReason, ProvenanceTable, ReferenceKind, Type, TypeAlias, TypeCache,
+    TypeLineage, TypeTable, Value, Vtable, VtableId,
 };
 
 /// MIR node tree for a single module.
@@ -282,6 +283,21 @@ impl NodeTree {
         Some(self.type_table.layout_table.layout(layout_id))
     }
 
+    /// Return the canonical well known string reference type.
+    pub fn string_type(&self) -> Option<LocalNodeId<Type>> {
+        self.type_table.string_type()
+    }
+
+    /// Return the canonical well known string layout id.
+    pub fn string_layout_id(&self) -> Option<LayoutId> {
+        let string_type = self.string_type()?;
+
+        match self.get(string_type) {
+            Type::Reference { pointee, .. } => self.type_layout_id(*pointee),
+            _ => self.type_layout_id(string_type),
+        }
+    }
+
     /// Return the type descriptor global for a type when present.
     pub fn type_descriptor_global(&self, ty: LocalNodeId<Type>) -> Option<LocalNodeId<Global>> {
         self.type_table.descriptor_global(ty)
@@ -464,6 +480,14 @@ impl NodeTree {
         match pointer_bytes {
             4 | 8 => {
                 self.data_layout.native_pointer_bytes = pointer_bytes;
+
+                // keep native-pointer managed references in lockstep
+                if self.data_layout.managed_reference_layout.representation
+                    == ManagedReferenceRepresentation::NativePointer
+                {
+                    self.data_layout.managed_reference_layout.bytes = pointer_bytes;
+                    self.data_layout.managed_reference_layout.alignment = pointer_bytes;
+                }
             }
             _ => {
                 panic!("unsupported pointer size {pointer_bytes} bytes");

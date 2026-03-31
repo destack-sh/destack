@@ -115,6 +115,17 @@ block0(v0: isize, v1: usize, v2: type_descriptor, v3: type_id):
     );
 }
 
+/// Parsing a raw alias named String does not implicitly bless a well known string type.
+#[test]
+fn test_parse_string_alias_does_not_set_well_known_string_type() {
+    let source = r#"type @String = { lengthUtf16: u32, lengthBytes: u32, hash: u64, flags: u32, data: ref<raw u8> }"#;
+    let (tree, _) =
+        Parser::parse(FileId::new(0), source, ParseOptions::default()).expect("parse failed");
+
+    assert_eq!(tree.string_type(), None);
+    assert_eq!(tree.string_layout_id(), None);
+}
+
 #[test]
 fn test_roundtrip_branch() {
     roundtrip(

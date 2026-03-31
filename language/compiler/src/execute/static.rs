@@ -43,10 +43,11 @@ impl Compiler {
             ValueTag::Float32 => dir::ScalarLiteral::Float(value.as_float32()? as f64),
             ValueTag::Float64 => dir::ScalarLiteral::Float(value.as_float64()?),
             ValueTag::Char => dir::ScalarLiteral::Character(value.as_char()?),
-            ValueTag::String => {
-                // resolve the heap-backed UTF8 payload
+            // resolve managed string objects through the isolate helper
+            ValueTag::ManagedReference => {
                 let literal = isolate.string_value(heap, *value).ok()?;
                 let literal_id = self.program.strings.intern(&literal);
+
                 return Some(dir::StaticExpression::ScalarLiteral {
                     value: dir::ScalarLiteral::String(literal_id),
                 });
