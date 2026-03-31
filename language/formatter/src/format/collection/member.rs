@@ -12,9 +12,9 @@ use crate::format::declaration::signature::{
 use crate::format::directive::{node_has_ignore_directive, write_ignored_node};
 use crate::format::operator::write_expression_with_inline_prefix_annotations;
 use crate::{DestackFormatter, FormatNode};
-use destack_ast::{Declaration, Keyword, LocalNodeId, Member};
+use destack_ast::{Comment, Declaration, Expression, Keyword, LocalNodeId, Member};
 use destack_fir::format::{Buffer, FormatResult};
-use destack_fir::prelude::{space, token};
+use destack_fir::prelude::{hard_line_break, space, token};
 use destack_fir::write;
 
 /// Format a block of members with empty-annotation and ignore-range handling.
@@ -48,6 +48,24 @@ fn class_member_should_force_quote_keys<'ast>(
 
     let parent_id = LocalNodeId::<Declaration>::new(parent_id);
     matches!(f.context().tree.get(parent_id), Declaration::Class { .. })
+}
+
+/// Return raw end-of-line comments after one field type and before the member terminator.
+fn field_type_trailing_comment_nodes<'ast>(
+    f: &DestackFormatter<'ast, '_>,
+    value: Option<LocalNodeId<Expression>>,
+    default: Option<LocalNodeId<Expression>>,
+) -> Vec<LocalNodeId<Comment>> {
+    if default.is_some() {
+        return Vec::new();
+    }
+
+    let Some(value_id) = value else {
+        return Vec::new();
+    };
+
+    let value_span = f.context().span(value_id);
+    f.context().end_of_line_comment_nodes_after(value_span.end)
 }
 
 impl<'ast> FormatNode<'ast, Member> for Member {
@@ -253,6 +271,20 @@ impl<'ast> FormatNode<'ast, Member> for Member {
             let needs_semicolon = matches!(self, Member::Field { .. });
             if needs_semicolon {
                 write!(f, [token(";")])?;
+
+                // field type seams
+                if let Member::Field { value, default, .. } = self {
+                    let trailing_comment_nodes =
+                        field_type_trailing_comment_nodes(f, *value, *default);
+                    for comment_id in trailing_comment_nodes {
+                        let comment_span = f.context().span(comment_id);
+                        if f.context().span_starts_on_own_line(comment_span) {
+                            write!(f, [hard_line_break(), comment_id])?;
+                        } else {
+                            write!(f, [space(), comment_id])?;
+                        }
+                    }
+                }
             }
 
             Ok(())

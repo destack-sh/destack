@@ -1,3 +1,4 @@
+use crate::format::annotation::write_annotation_sequence;
 use crate::format::collection::TrailingSeparator;
 use crate::format::collection::member::format_block_of_members;
 use crate::format::declaration::declaration::{
@@ -298,13 +299,51 @@ fn format_declaration_heritage_head_annotations<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
 ) -> FormatResult<()> {
+    let prefix_annotation_ids: Vec<_> = f
+        .context()
+        .annotation_ids(node_id)
+        .iter()
+        .copied()
+        .filter(|annotation_id| {
+            matches!(
+                f.context().annotation(*annotation_id).position(),
+                AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
+            ) && !matches!(
+                f.context().annotation(*annotation_id),
+                Annotation::Decorator { .. }
+            )
+        })
+        .collect();
+
     write!(
         f,
         [
             crate::format::annotation::line_postfix_boundary_annotations(f.context(), node_id),
-            crate::format::annotation::prefix_annotations(f.context(), node_id)
+            format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+                write_annotation_sequence(f, &prefix_annotation_ids)
+            })
         ]
     )
+}
+
+/// Return whether one declaration has non-decorator prefix annotations.
+fn declaration_has_non_decorator_prefix_annotation(
+    f: &DestackFormatter<'_, '_>,
+    node_id: LocalNodeId<Declaration>,
+) -> bool {
+    f.context()
+        .annotation_ids(node_id)
+        .iter()
+        .copied()
+        .any(|annotation_id| {
+            matches!(
+                f.context().annotation(annotation_id).position(),
+                AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
+            ) && !matches!(
+                f.context().annotation(annotation_id),
+                Annotation::Decorator { .. }
+            )
+        })
 }
 
 /// Format declaration extends and optional implements clauses.
@@ -473,8 +512,8 @@ pub(crate) fn format_struct_or_class_declaration<'ast>(
                 Expression::Assign { right, .. } if *right == expression_id
             )
         });
-    let has_generic_head_comment = f.context().has_prefix_annotation(node_id);
-    let has_body_head_comment = f.context().has_prefix_annotation(node_id);
+    let has_generic_head_comment = declaration_has_non_decorator_prefix_annotation(f, node_id);
+    let has_body_head_comment = false;
 
     format_declaration_static_parameters(f, generics)?;
     format_declaration_heritage_head_annotations(f, node_id)?;
@@ -499,14 +538,6 @@ pub(crate) fn format_struct_or_class_declaration<'ast>(
     } else {
         // body-head annotations emit their own boundary separator.
     }
-    write!(
-        f,
-        [crate::format::annotation::prefix_annotations(
-            f.context(),
-            node_id
-        )]
-    )?;
-
     if members.is_empty() {
         write!(f, [empty_block_with_infix_annotations(node_id)])?;
         write!(
@@ -604,7 +635,7 @@ pub(crate) fn format_enum_declaration<'ast>(
     format_declaration_static_parameters(f, generics)?;
     let has_heritage_head_comment =
         declaration_heritage_head_has_line_postfix_boundary_annotation(f, node_id)
-            || f.context().has_prefix_annotation(node_id);
+            || declaration_has_non_decorator_prefix_annotation(f, node_id);
     format_declaration_heritage_head_annotations(f, node_id)?;
     format_declaration_heritage(f, heritage, true, has_heritage_head_comment)?;
     format_declaration_where_clauses(f, generics.where_clauses.as_deref())?;
@@ -681,7 +712,7 @@ pub(crate) fn format_interface_declaration<'ast>(
     format_declaration_static_parameters(f, generics)?;
     let has_heritage_head_comment =
         declaration_heritage_head_has_line_postfix_boundary_annotation(f, node_id)
-            || f.context().has_prefix_annotation(node_id);
+            || declaration_has_non_decorator_prefix_annotation(f, node_id);
     format_declaration_heritage_head_annotations(f, node_id)?;
     format_declaration_heritage(f, heritage, false, has_heritage_head_comment)?;
     format_declaration_where_clauses(f, generics.where_clauses.as_deref())?;

@@ -1,5 +1,5 @@
 use destack_ast::{
-    Block, BlockFormat, Expression, LocalNodeId, Node, NodeTree, NodeTreeImpl, NodeType,
+    Block, BlockFormat, Comment, Expression, LocalNodeId, Node, NodeTree, NodeTreeImpl, NodeType,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -48,6 +48,64 @@ fn statement_list_is_file_root(
         .is_some_and(|expression_id| context.parent(*expression_id).is_none())
 }
 
+/// Return raw own-line comments immediately before one block head.
+pub(crate) fn block_leading_line_comment_nodes(
+    context: &DestackFormatContext<'_>,
+    block_id: LocalNodeId<Block>,
+) -> Vec<LocalNodeId<Comment>> {
+    let block_span = context.span(block_id);
+    let Some(previous_token) = context.previous_non_trivia_token_before_span(block_span) else {
+        return Vec::new();
+    };
+    if previous_token.span.file != block_span.file || previous_token.span.end >= block_span.start {
+        return Vec::new();
+    }
+
+    context
+        .comment_nodes_in_range(previous_token.span.end, block_span.start)
+        .into_iter()
+        .filter(|comment_id| {
+            let comment = context.tree.get(*comment_id);
+            comment.style == destack_ast::CommentStyle::Slash
+                || context.span_starts_on_own_line(context.span(*comment_id))
+        })
+        .collect()
+}
+
+/// Return raw comments immediately before one block close brace.
+pub(crate) fn block_trailing_comment_nodes(
+    context: &DestackFormatContext<'_>,
+    block_id: LocalNodeId<Block>,
+) -> Vec<LocalNodeId<Comment>> {
+    let block = context.tree.get(block_id);
+    let block_span = context.span(block_id);
+    let Some(close_brace_token) = context.last_non_trivia_token_in_span(block_span) else {
+        return Vec::new();
+    };
+
+    let gap_start = if let Some(last_expression_id) = block.expressions.last().copied() {
+        context.span(last_expression_id).end
+    } else if let Some(open_brace_token) = context.first_non_trivia_token_in_span(block_span) {
+        open_brace_token.span.end
+    } else {
+        block_span.start
+    };
+    if gap_start >= close_brace_token.span.start {
+        return Vec::new();
+    }
+
+    context.comment_nodes_in_range(gap_start, close_brace_token.span.start)
+}
+
+/// Return whether one block carries raw comments that force expanded layout.
+pub(crate) fn block_has_raw_internal_comments(
+    context: &DestackFormatContext<'_>,
+    block_id: LocalNodeId<Block>,
+) -> bool {
+    !block_leading_line_comment_nodes(context, block_id).is_empty()
+        || !block_trailing_comment_nodes(context, block_id).is_empty()
+}
+
 /// Format an empty block with infix annotations.
 ///
 /// Example.
@@ -93,7 +151,10 @@ pub(crate) fn should_inline_block<'ast>(
     let span = f.context().span(block_id);
 
     // can only inline if there is at most one expression
-    if block.expressions.len() > 1 || f.context().has_infix_annotation(block_id) {
+    if block.expressions.len() > 1
+        || f.context().has_infix_annotation(block_id)
+        || block_has_raw_internal_comments(f.context(), block_id)
+    {
         return false;
     } else if block.expressions.is_empty() {
         // keep empty control flow blocks expanded

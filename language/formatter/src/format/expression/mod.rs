@@ -27,10 +27,10 @@ pub(crate) use self::member::{
 };
 pub(crate) use self::object::is_assignment_left_target;
 pub(crate) use self::parentheses::{
-    parenthesized_boundary_comments, parenthesized_has_explicit_delimiters,
-    parenthesized_has_leading_inner_comments, parenthesized_has_leading_inner_line_comment,
-    parenthesized_has_leading_inner_newline, parenthesized_has_leading_inner_trivia,
-    parenthesized_has_leading_type_cast_comment, should_drop_parenthesized_expression_wrapper,
+    is_type_cast_comment_node, parenthesized_boundary_comments,
+    parenthesized_has_explicit_delimiters, parenthesized_has_leading_inner_comments,
+    parenthesized_has_leading_inner_line_comment, parenthesized_has_leading_inner_newline,
+    parenthesized_has_leading_inner_trivia, should_drop_parenthesized_expression_wrapper,
 };
 pub(crate) use self::primary::{
     format_primary_expression, write_primary_expression_trailing_annotations,

@@ -1,7 +1,7 @@
 use super::{
-    format_static_argument_list, parenthesized_has_leading_inner_comments,
-    parenthesized_has_leading_inner_line_comment, parenthesized_has_leading_inner_trivia,
-    parenthesized_has_leading_type_cast_comment,
+    format_static_argument_list, is_type_cast_comment_node,
+    parenthesized_has_leading_inner_comments, parenthesized_has_leading_inner_line_comment,
+    parenthesized_has_leading_inner_trivia,
 };
 use crate::DestackFormatter;
 use crate::format::chain::{receiver_is_await_wrapped, transparent_inner_expression};
@@ -122,7 +122,7 @@ pub(crate) fn should_unwrap_parenthesized_member_object(
     inner_expression_id: LocalNodeId<Expression>,
 ) -> bool {
     // closure style casts bind to the parenthesized wrapper
-    if parenthesized_has_leading_type_cast_comment(context, parenthesized_id) {
+    if is_type_cast_comment_node(context, parenthesized_id) {
         return false;
     }
 

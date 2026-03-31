@@ -16,9 +16,9 @@ use crate::format::expression::{
 use crate::format::operator::write_expression_with_inline_prefix_annotations;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    AccessorKind, Argument, BinaryOperator, BindingModifier, Comment, Expression,
-    FunctionSignature, Key, Keyword, LocalNodeId, Name, Node, NodeTree, NodeTreeImpl, Property,
-    is_identifier,
+    AccessorKind, AnnotationPosition, Argument, BinaryOperator, BindingModifier, Comment,
+    CommentStyle, Expression, FunctionSignature, Key, Keyword, LocalNodeId, Name, Node, NodeTree,
+    NodeTreeImpl, Property, is_identifier,
 };
 use destack_core::StringId;
 use destack_fir::format::{FormatResult, text};
@@ -738,20 +738,95 @@ where
 
     // body
     if let Some(body) = body {
-        if signature_return_type_has_line_postfix_boundary_annotation(
-            f.context(),
-            signature.return_type,
-        ) {
+        let wrote_block_seam_comments = write_method_block_seam_comments(f, body)?;
+
+        // signature seam comments
+        write!(
+            f,
+            [
+                crate::format::annotation::postfix_annotations_without_line_postfix_boundary(
+                    f.context(),
+                    node_id
+                )
+            ]
+        )?;
+
+        if let Some(return_type) = signature.return_type {
+            write!(
+                f,
+                [
+                    crate::format::annotation::postfix_annotations_without_line_postfix_boundary::<
+                        Expression,
+                    >(f.context(), return_type)
+                ]
+            )?;
+        }
+
+        let has_signature_line_boundary_annotation = f
+            .context()
+            .annotation_ids(node_id)
+            .iter()
+            .any(|annotation_id| {
+                matches!(
+                    f.context().annotation(*annotation_id).position(),
+                    AnnotationPosition::LinePostfixBoundary
+                )
+            })
+            || signature_return_type_has_line_postfix_boundary_annotation(
+                f.context(),
+                signature.return_type,
+            );
+
+        // boundary seam comments
+        write!(
+            f,
+            [crate::format::annotation::line_postfix_boundary_annotations(f.context(), node_id)]
+        )?;
+
+        if let Some(return_type) = signature.return_type {
+            write!(
+                f,
+                [
+                    crate::format::annotation::line_postfix_boundary_annotations::<Expression>(
+                        f.context(),
+                        return_type
+                    )
+                ]
+            )?;
+        }
+
+        if has_signature_line_boundary_annotation {
             write!(f, [hard_line_break(), body])?;
+        } else if wrote_block_seam_comments {
+            write!(f, [body])?;
         } else if signature_should_elide_space_before_body(f.context(), signature.return_type) {
             write!(f, [body])?;
         } else {
             if expression_body_requires_head_space(f.context(), body) {
                 write!(f, [space()])?;
             }
-            let body_expression = f.context().node::<Expression>(body);
-            if let Expression::Block(block_id) = body_expression {
-                format_block(f, *block_id)?;
+            let body_block_id = {
+                let body_expression = f.context().node::<Expression>(body);
+                match body_expression {
+                    Expression::Block(block_id) => Some(*block_id),
+                    _ => None,
+                }
+            };
+            if let Some(block_id) = body_block_id {
+                write!(
+                    f,
+                    [crate::format::annotation::prefix_annotations::<Expression>(
+                        f.context(),
+                        body
+                    )]
+                )?;
+                format_block(f, block_id)?;
+                write!(
+                    f,
+                    [crate::format::annotation::infix_or_postfix_annotations::<
+                        Expression,
+                    >(f.context(), body)]
+                )?;
             } else {
                 write!(f, [body])?;
             }
@@ -759,6 +834,51 @@ where
     }
 
     Ok(())
+}
+
+/// Write raw block comments between one method signature and its body.
+fn write_method_block_seam_comments<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    body_id: LocalNodeId<Expression>,
+) -> FormatResult<bool> {
+    let body_span = f.context().span(body_id);
+    let Some(previous_token) = f.context().previous_non_trivia_token_before_span(body_span) else {
+        return Ok(false);
+    };
+    if previous_token.span.file != body_span.file || previous_token.span.end >= body_span.start {
+        return Ok(false);
+    }
+
+    let block_comment_nodes: Vec<_> = f
+        .context()
+        .comment_nodes_in_range(previous_token.span.end, body_span.start)
+        .into_iter()
+        .filter(|comment_id| {
+            let comment = f.context().tree.get::<Comment>(*comment_id);
+            comment.style == CommentStyle::Star
+        })
+        .collect();
+    if block_comment_nodes.is_empty() {
+        return Ok(false);
+    }
+
+    write!(f, [space()])?;
+    for (index, comment_id) in block_comment_nodes.iter().copied().enumerate() {
+        let comment_span = f.context().span(comment_id);
+        write!(f, [comment_id])?;
+
+        let is_last = index + 1 == block_comment_nodes.len();
+        if !is_last
+            || f.context()
+                .span_has_newline_before_next_non_whitespace_token(comment_span)
+        {
+            write!(f, [hard_line_break()])?;
+        } else {
+            write!(f, [space()])?;
+        }
+    }
+
+    Ok(true)
 }
 
 /// Format one node with shared directive handling and trailing annotation ownership.
