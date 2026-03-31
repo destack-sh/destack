@@ -7,6 +7,7 @@ use crate::format::context::expression_has_own_line_prefix;
 use crate::format::expression::{
     expression_has_prefix_comment_or_doc_annotation_in_left_spine,
     expression_has_static_type_arguments, is_expression_breakable, is_pattern_breakable,
+    write_expression_without_prefix_annotations,
 };
 use crate::format::operator::{
     flattened_binary_operand_count, write_expression_with_inline_prefix_annotations,
@@ -14,8 +15,9 @@ use crate::format::operator::{
 use crate::format::tree::tree_literal_should_expand;
 use crate::{Annotation, DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    AnnotationPosition, Argument, Declaration, Declarator, Expression, IfKind, LocalNodeId,
-    NodeTree, Pattern, PatternField, ScalarLiteral, TokenType, TypeBinaryOperator,
+    AnnotationPosition, Argument, Comment, CommentStyle, Declaration, Declarator, Expression,
+    IfKind, LocalNodeId, NodeTree, Pattern, PatternField, ScalarLiteral, TokenType,
+    TypeBinaryOperator,
 };
 use destack_fir::format::{Buffer, Format, FormatResult};
 use destack_fir::prelude::{
@@ -212,6 +214,134 @@ pub(crate) fn declarator_value_has_assignment_seam_prefix_comment(
 
             !previous_token_is_assign && next_token_is_assign
         })
+}
+
+/// Return whether one declarator value has raw comment trivia on the `=` seam.
+fn declarator_value_has_assignment_seam_comment_trivia(
+    context: &DestackFormatContext<'_>,
+    value_id: LocalNodeId<Expression>,
+) -> bool {
+    let value_span = context.span(value_id);
+    let Some(previous_token) = context.previous_non_trivia_token_before_span(value_span) else {
+        return false;
+    };
+
+    previous_token.token.ty == TokenType::Assign
+        && previous_token.span.file == value_span.file
+        && previous_token.span.end < value_span.start
+        && !context
+            .comment_nodes_in_range(previous_token.span.end, value_span.start)
+            .is_empty()
+}
+
+/// Write raw comments between one `=` operator and rhs expression.
+fn write_assignment_seam_comments<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    value_id: LocalNodeId<Expression>,
+    omit_leading_separator: bool,
+) -> FormatResult<()> {
+    let value_span = f.context().span(value_id);
+    let Some(previous_token) = f
+        .context()
+        .previous_non_trivia_token_before_span(value_span)
+    else {
+        return Ok(());
+    };
+    if previous_token.token.ty != TokenType::Assign
+        || previous_token.span.file != value_span.file
+        || previous_token.span.end >= value_span.start
+    {
+        return Ok(());
+    }
+
+    let comment_nodes = f
+        .context()
+        .comment_nodes_in_range(previous_token.span.end, value_span.start);
+    if comment_nodes.is_empty() {
+        return Ok(());
+    }
+
+    let first_comment_span = f.context().span(comment_nodes[0]);
+    let leading_gap = Span::new(
+        value_span.file,
+        previous_token.span.end,
+        first_comment_span.start,
+    );
+    if !omit_leading_separator {
+        if f.context().has_newline(leading_gap)
+            || f.context().span_starts_on_own_line(first_comment_span)
+        {
+            write!(f, [hard_line_break()])?;
+        } else {
+            write!(f, [space()])?;
+        }
+    }
+
+    for (index, comment_id) in comment_nodes.iter().copied().enumerate() {
+        let comment = f.context().tree.get::<Comment>(comment_id);
+        let comment_span = f.context().span(comment_id);
+        write!(f, [comment_id])?;
+
+        let is_last = index + 1 == comment_nodes.len();
+        if !is_last
+            || comment.style == CommentStyle::Slash
+            || f.context()
+                .span_has_newline_before_next_non_whitespace_token(comment_span)
+        {
+            write!(f, [hard_line_break()])?;
+        } else {
+            write!(f, [space()])?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Format one declarator rhs while preserving assignment-seam prefix ownership.
+fn format_assignment_value<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    value_id: LocalNodeId<Expression>,
+    value_has_assignment_seam_prefix_annotation: bool,
+) -> FormatResult<()> {
+    let prefix_annotation_ids: Vec<_> = f
+        .context()
+        .annotation_ids(value_id)
+        .iter()
+        .copied()
+        .filter(|annotation_id| {
+            matches!(
+                f.context().annotation(*annotation_id).position(),
+                AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
+            )
+        })
+        .collect();
+
+    if prefix_annotation_ids.is_empty() {
+        return write_expression_with_inline_prefix_annotations(f, value_id);
+    }
+
+    if value_has_assignment_seam_prefix_annotation {
+        crate::format::annotation::write_inline_prefix_annotations(f, &prefix_annotation_ids)?;
+        write!(f, [space()])?;
+        return write_expression_without_prefix_annotations(f, value_id);
+    }
+
+    write!(
+        f,
+        [crate::format::annotation::prefix_annotations(
+            f.context(),
+            value_id
+        )]
+    )?;
+
+    if let Some(last_prefix_annotation_id) = prefix_annotation_ids.last().copied()
+        && f.context()
+            .annotation_next_token_is_on_same_line(last_prefix_annotation_id)
+    {
+        write!(f, [space()])?;
+    }
+
+    write_expression_without_prefix_annotations(f, value_id)
 }
 
 /// Return whether a declaration heritage clause contains static type arguments.
@@ -729,6 +859,8 @@ pub(crate) fn format_declarator<'ast>(
     let value_has_prefix_annotation = f.context().has_prefix_annotation(*value_id);
     let value_has_assignment_seam_prefix_annotation =
         declarator_value_has_assignment_seam_prefix_comment(f.context(), *value_id);
+    let value_has_assignment_seam_comment_trivia =
+        declarator_value_has_assignment_seam_comment_trivia(f.context(), *value_id);
     let value_has_prefix_annotation_that_forces_break = value_has_prefix_annotation
         && !value_is_inline_closure_cast_type_binary
         && !value_has_assignment_seam_prefix_annotation;
@@ -787,10 +919,23 @@ pub(crate) fn format_declarator<'ast>(
     let value_has_block_static_arguments =
         expression_has_block_static_arguments(f.context(), value_inner_id);
     let value_has_class_heritage = expression_has_class_heritage(f.context(), value_inner_id);
+    let format_value = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        write_assignment_seam_comments(f, *value_id, false)?;
+        format_assignment_value(f, *value_id, value_has_assignment_seam_prefix_annotation)
+    });
+
+    let format_value_after_break = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        write_assignment_seam_comments(f, *value_id, true)?;
+        format_assignment_value(f, *value_id, value_has_assignment_seam_prefix_annotation)
+    });
 
     // layout fragments
     let format_inline = format_with(|f| {
-        write!(f, [header, space(), token("="), space(), *value_id])?;
+        if value_has_assignment_seam_comment_trivia {
+            write!(f, [header, space(), token("="), &format_value])?;
+        } else {
+            write!(f, [header, space(), token("="), space(), &format_value])?;
+        }
         Ok(())
     });
 
@@ -804,21 +949,29 @@ pub(crate) fn format_declarator<'ast>(
                 space(),
                 token("="),
                 space(),
-                fits_expanded(&group(value_id).should_expand(should_force_expand_value)),
+                fits_expanded(&group(&format_value).should_expand(should_force_expand_value)),
             ]
         )
     });
 
     // expand the header while keeping value inline
     let format_header_expanded = format_with(|f| {
+        let separator = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            if !value_has_assignment_seam_comment_trivia {
+                write!(f, [space()])?;
+            }
+
+            Ok(())
+        });
+
         write!(
             f,
             [
                 fits_expanded(&group(&header).should_expand(true)),
                 space(),
                 token("="),
-                space(),
-                *value_id,
+                separator,
+                &format_value,
             ]
         )
     });
@@ -829,7 +982,7 @@ pub(crate) fn format_declarator<'ast>(
             header,
             space(),
             token("="),
-            indent(&format_args![hard_line_break(), value_id])
+            indent(&format_args![hard_line_break(), &format_value_after_break])
         ])
         .format(f)
     });
@@ -838,9 +991,10 @@ pub(crate) fn format_declarator<'ast>(
             let format_value_without_chain = format_with(|f: &mut DestackFormatter<'ast, '_>| {
                 let can_format_call_without_chain = !f.context().has_annotation(*value_id)
                     && !f.context().has_annotation(value_inner_id)
+                    && !value_has_assignment_seam_comment_trivia
                     && value_is_chain;
                 if !can_format_call_without_chain {
-                    write!(f, [*value_id])?;
+                    write!(f, [&format_value_after_break])?;
                     return Ok(());
                 }
 
@@ -852,7 +1006,7 @@ pub(crate) fn format_declarator<'ast>(
                         format_instantiation_expression(f, value_inner_id)?;
                     }
                     _ => {
-                        write!(f, [*value_id])?;
+                        write!(f, [&format_value_after_break])?;
                     }
                 }
                 Ok(())

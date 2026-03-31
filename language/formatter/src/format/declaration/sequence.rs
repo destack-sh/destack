@@ -2,6 +2,9 @@ use std::borrow::Cow;
 
 use crate::format::annotation::write_annotation_sequence;
 use crate::format::declaration::expression_needs_statement_terminator;
+use crate::format::declaration::statement::{
+    block_leading_line_comment_nodes, block_trailing_comment_nodes,
+};
 use crate::format::directive::{
     ignore_ranges_for_nodes, node_has_ignore_directive, write_ignored_span,
 };
@@ -74,17 +77,26 @@ fn expression_prefix_start(
 ) -> u32 {
     let mut start = default_start;
 
-    for comment in context.comments_before(default_start).iter().rev().copied() {
-        if comment.span.file != context.span(expression_id).file || comment.span.end > start {
-            continue;
+    // declaration expressions semantically start at their prefix annotations,
+    // even though the expression span begins at the declaration head
+    if let Expression::Declaration(declaration_id) = context.tree.get(expression_id) {
+        for annotation_id in context.annotation_ids(*declaration_id).iter().copied() {
+            if matches!(
+                context.annotation(annotation_id).position(),
+                AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
+            ) {
+                start = start.min(context.annotation_span(annotation_id).start);
+            }
         }
+    }
 
-        let gap_span = Span::new(comment.span.file, comment.span.end, start);
-        if context.has_non_whitespace_content(gap_span) {
-            break;
+    for annotation_id in context.annotation_ids(expression_id).iter().copied() {
+        if matches!(
+            context.annotation(annotation_id).position(),
+            AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
+        ) {
+            start = start.min(context.annotation_span(annotation_id).start);
         }
-
-        start = comment.span.start;
     }
 
     start
@@ -100,6 +112,43 @@ fn expression_postfix_end(
         .end_of_line_comments_after(default_end)
         .iter()
         .fold(default_end, |end, comment| end.max(comment.span.end))
+}
+
+/// Return raw comments between one previous statement boundary and the next expression head.
+fn expression_gap_comment_nodes(
+    context: &DestackFormatContext<'_>,
+    start: u32,
+    expression_id: LocalNodeId<Expression>,
+) -> Vec<LocalNodeId<destack_ast::Comment>> {
+    let expression_span = context.span(expression_id);
+    let expression_start = expression_prefix_start(context, expression_id, expression_span.start);
+    if expression_start <= start {
+        return Vec::new();
+    }
+
+    context.comment_nodes_in_range(start, expression_start)
+}
+
+/// Write raw statement-gap comments before one expression head.
+fn write_expression_gap_comments<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    start: u32,
+    expression_id: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    let comment_nodes = expression_gap_comment_nodes(f.context(), start, expression_id);
+    if comment_nodes.is_empty() {
+        return Ok(());
+    }
+
+    for (index, comment_id) in comment_nodes.iter().copied().enumerate() {
+        if index > 0 {
+            write!(f, [hard_line_break()])?;
+        }
+
+        write!(f, [comment_id])?;
+    }
+
+    write!(f, [hard_line_break()])
 }
 
 /// Write postfix annotations for one block expression.
@@ -193,24 +242,80 @@ pub(crate) fn format_block_body_wide<'ast>(
 ) -> FormatResult<()> {
     let block = f.context().tree.get(block_id);
     let allow_value_tail = block_allows_value_tail(f.context(), block_id);
+    let leading_comment_nodes = block_leading_line_comment_nodes(f.context(), block_id);
+    let trailing_comment_nodes = block_trailing_comment_nodes(f.context(), block_id);
+
     // body
-    write!(
-        f,
-        [
-            token("{"),
-            hard_line_break(),
-            soft_block_indent(&block_statement_sequence(
+    write!(f, [token("{"), hard_line_break()])?;
+
+    if !leading_comment_nodes.is_empty() {
+        write!(
+            f,
+            [block_indent(&format_with(
+                |f: &mut DestackFormatter<'ast, '_>| {
+                    for (index, comment_id) in leading_comment_nodes.iter().copied().enumerate() {
+                        if index > 0 {
+                            write!(f, [hard_line_break()])?;
+                        }
+
+                        write!(f, [comment_id])?;
+                    }
+
+                    Ok(())
+                }
+            ))]
+        )?;
+        if !block.expressions.is_empty()
+            || !trailing_comment_nodes.is_empty()
+            || f.context().has_infix_annotation(block_id)
+        {
+            write!(f, [hard_line_break()])?;
+        }
+    }
+
+    if !block.expressions.is_empty() {
+        write!(
+            f,
+            [soft_block_indent(&block_statement_sequence(
                 &block.expressions,
                 allow_value_tail
-            )),
-            hard_line_break(),
-            block_indent(&crate::format::annotation::block_infix_annotations(
-                f.context(),
-                block_id
-            )),
-            token("}"),
-        ]
-    )
+            ))]
+        )?;
+        if !trailing_comment_nodes.is_empty() || f.context().has_infix_annotation(block_id) {
+            write!(f, [hard_line_break()])?;
+        }
+    }
+
+    if !trailing_comment_nodes.is_empty() {
+        write!(
+            f,
+            [block_indent(&format_with(
+                |f: &mut DestackFormatter<'ast, '_>| {
+                    for (index, comment_id) in trailing_comment_nodes.iter().copied().enumerate() {
+                        if index > 0 {
+                            write!(f, [hard_line_break()])?;
+                        }
+
+                        write!(f, [comment_id])?;
+                    }
+
+                    Ok(())
+                }
+            ))]
+        )?;
+        if f.context().has_infix_annotation(block_id) {
+            write!(f, [hard_line_break()])?;
+        }
+    }
+
+    write!(
+        f,
+        [block_indent(
+            &crate::format::annotation::block_infix_annotations(f.context(), block_id)
+        )]
+    )?;
+
+    write!(f, [hard_line_break(), token("}")])
 }
 
 /// Format one block statement sequence with spacing and ignore handling.
@@ -331,6 +436,17 @@ pub(crate) fn format_block_statement_sequence<'ast>(
             skip_until = Some(range_span.end);
             previous_output_end = Some((range_span.file, range_span.end));
             continue;
+        }
+
+        // raw seam comments
+        if i > 0 {
+            let gap_start = previous_output_end
+                .filter(|(file, _)| *file == expression_span.file)
+                .map_or_else(
+                    || f.context().span(effective_expressions[i - 1]).end,
+                    |(_, previous_end)| previous_end,
+                );
+            write_expression_gap_comments(f, gap_start, expression_id)?;
         }
 
         // expression itself (with prefix annotations)
@@ -543,6 +659,20 @@ fn format_program_statement_sequence<'ast>(
             prev_import_id = None;
             previous_output_end = Some((range_span.file, range_span.end));
             continue;
+        }
+
+        // raw file header comments
+        if i == 0 && previous_output_end.is_none() {
+            write_expression_gap_comments(f, 0, expression_id)?;
+        } else if i > 0 {
+            // raw seam comments
+            let gap_start = previous_output_end
+                .filter(|(file, _)| *file == expression_span.file)
+                .map_or_else(
+                    || f.context().span(effective_expressions[i - 1]).end,
+                    |(_, previous_end)| previous_end,
+                );
+            write_expression_gap_comments(f, gap_start, expression_id)?;
         }
 
         // expression itself (with prefix annotations)

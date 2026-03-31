@@ -5,8 +5,8 @@ use crate::format::operator::{
 };
 use crate::{Annotation, DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    AnnotationPosition, Argument, Declarator, Doc, DocStyle, Expression, LocalNodeId, NodeTree,
-    NodeType, PostfixPosition, ScalarLiteral, TokenType,
+    AnnotationPosition, Argument, Comment, Declarator, Doc, DocStyle, Expression, LocalNodeId,
+    NodeTree, NodeType, PostfixPosition, ScalarLiteral, TokenType,
 };
 use destack_core::StringId;
 use destack_fir::format::{Buffer, FormatError, FormatResult};
@@ -582,6 +582,29 @@ pub(crate) fn member_has_intervening_comment(
 
     let span = Span::new(left_span.file, left_anchor_end, property_span.start);
     !context.comments_in_range(span.start, span.end).is_empty()
+}
+
+/// Return raw comment nodes between one member receiver and the property operator.
+pub(crate) fn member_intervening_comment_nodes(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> Vec<LocalNodeId<Comment>> {
+    let Some((left, property_span)) = (match context.tree.get(node_id) {
+        Expression::Member { left, .. } | Expression::PrivateMember { left, .. } => context
+            .tree
+            .get_main_span(node_id)
+            .map(|property_span| (*left, property_span)),
+        _ => None,
+    }) else {
+        return Vec::new();
+    };
+
+    let left_anchor_end = expression_trivia_anchor_end(context, left);
+    if property_span.start <= left_anchor_end {
+        return Vec::new();
+    }
+
+    context.comment_nodes_in_range(left_anchor_end, property_span.start)
 }
 
 /// Find the first non-trivia parent operator token after one chain node.

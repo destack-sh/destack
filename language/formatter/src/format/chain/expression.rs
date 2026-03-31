@@ -1,3 +1,4 @@
+use super::member::member_intervening_comment_nodes;
 use super::{
     ChainExpression, ChainExpressionBase, ChainExpressionBaseHead, assignment_like_parent,
     build_member_chain_parts, chain_base_trailing_node_id,
@@ -16,7 +17,9 @@ use destack_ast::{
     TokenType, TypeBinaryOperator,
 };
 use destack_fir::format::{BestFittingMode, Buffer, FormatResult};
-use destack_fir::prelude::{expand_parent, format_with, group, hard_line_break, indent, token};
+use destack_fir::prelude::{
+    expand_parent, format_with, group, hard_line_break, indent, space, token,
+};
 use destack_fir::{best_fitting, write};
 use smallvec::SmallVec;
 
@@ -441,7 +444,13 @@ pub(crate) fn format_expression_chain<'ast>(
         )?;
 
         for line in lines {
-            format_chain_expression_line(f, node_id, line, deferred_base_boundary_owner_node_id)?;
+            format_chain_expression_line(
+                f,
+                node_id,
+                line,
+                deferred_base_boundary_owner_node_id,
+                false,
+            )?;
         }
 
         Ok(())
@@ -509,6 +518,10 @@ pub(crate) fn format_expression_chain<'ast>(
                                 })
                         }));
                 if should_insert_break {
+                    if let Some(ChainExpression::Member { node_id, .. }) = line.first() {
+                        write_member_gap_comments(f, *node_id)?;
+                    }
+
                     write!(f, [hard_line_break()])?;
                 }
 
@@ -531,6 +544,7 @@ pub(crate) fn format_expression_chain<'ast>(
                     node_id,
                     line,
                     deferred_base_boundary_owner_node_id,
+                    should_insert_break,
                 )?;
             }
 
@@ -557,6 +571,36 @@ pub(crate) fn format_expression_chain<'ast>(
                 .with_mode(BestFittingMode::AllLines)
         ]
     )
+}
+
+/// Format the unwrapped base segment of a chain.
+fn write_member_gap_comments<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    let comment_nodes = member_intervening_comment_nodes(f.context(), node_id);
+    if comment_nodes.is_empty() {
+        return Ok(());
+    }
+
+    write!(f, [space()])?;
+
+    for (index, comment_id) in comment_nodes.iter().copied().enumerate() {
+        let comment_span = f.context().span(comment_id);
+        write!(f, [comment_id])?;
+
+        let is_last = index + 1 == comment_nodes.len();
+        if !is_last
+            || f.context()
+                .span_has_newline_before_next_non_whitespace_token(comment_span)
+        {
+            write!(f, [hard_line_break()])?;
+        } else {
+            write!(f, [space()])?;
+        }
+    }
+
+    Ok(())
 }
 
 /// Format the unwrapped base segment of a chain.
@@ -635,6 +679,23 @@ fn format_chain_base_content<'ast>(
             // chain normalization can still surface nested chain nodes as a base
             // write the base expression directly instead of panicking in debug mode
             write_postfix_base_expression(f, *node_id)?;
+            if deferred_base_boundary_owner_node_id == Some(*node_id) {
+                write!(
+                    f,
+                    [crate::format::annotation::infix_or_postfix_annotations_without_line_postfix_boundary(
+                        f.context(),
+                        *node_id
+                    )]
+                )?;
+            } else {
+                write!(
+                    f,
+                    [crate::format::annotation::infix_or_postfix_annotations(
+                        f.context(),
+                        *node_id
+                    )]
+                )?;
+            }
         }
     }
 
@@ -878,8 +939,15 @@ fn format_chain_expression_line<'ast>(
     formatted_root_id: LocalNodeId<Expression>,
     ops: &[ChainExpression],
     deferred_base_boundary_owner_node_id: Option<LocalNodeId<Expression>>,
+    skip_first_member_gap_comments: bool,
 ) -> FormatResult<()> {
     for (index, op) in ops.iter().enumerate() {
+        if let ChainExpression::Member { node_id, .. } = op
+            && (!skip_first_member_gap_comments || index > 0)
+        {
+            write_member_gap_comments(f, *node_id)?;
+        }
+
         let next_operation = ops.get(index + 1);
         format_chain_expression(
             f,

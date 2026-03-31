@@ -413,7 +413,9 @@ pub(crate) fn should_drop_parenthesized_type_expression(
         return false;
     }
 
-    if !expression_is_type_position(context, node_id) {
+    let is_parenthesized_type_position = expression_is_type_position(context, node_id)
+        || expression_is_type_position(context, inner_id);
+    if !is_parenthesized_type_position {
         return false;
     }
 
@@ -530,10 +532,6 @@ pub(crate) fn should_drop_parenthesized_type_expression(
         return true;
     }
 
-    if has_non_grouping_inner_annotation {
-        return false;
-    }
-
     let parenthesized_type_grouping_drop_is_safe_in_parent =
         context
             .parent(node_id)
@@ -576,18 +574,47 @@ pub(crate) fn should_drop_parenthesized_type_expression(
         return false;
     }
 
+    let normalized_inner_id = transparent_inner_expression(
+        context,
+        normalize_parenthesized_type_grouping_inner_expression(context, inner_id),
+    );
     let parenthesized_root_associative_type_binary_can_drop = {
-        let inner_id = normalize_parenthesized_type_grouping_inner_expression(context, inner_id);
-
         matches!(
-            context.tree.get(inner_id),
+            context.tree.get(normalized_inner_id),
             Expression::Binary { operator, .. }
                 if is_associative_type_binary_operator(*operator)
-                    && expression_has_type_grouping_semantics(context, inner_id)
+                    && expression_has_type_grouping_semantics(context, normalized_inner_id)
         )
     };
     if parenthesized_root_associative_type_binary_can_drop {
         return true;
+    }
+
+    let parenthesized_type_alias_value_can_drop =
+        context
+            .parent(node_id)
+            .is_some_and(|(parent_id, parent_type)| {
+                if parent_type != NodeType::Declaration {
+                    return false;
+                }
+
+                let declaration_id = LocalNodeId::<destack_ast::Declaration>::new(parent_id);
+                matches!(
+                    context.tree.get(declaration_id),
+                    destack_ast::Declaration::Type { value, .. } if *value == node_id
+                )
+            })
+            && matches!(
+                context.tree.get(normalized_inner_id),
+                Expression::Binary { operator, .. }
+                    if is_associative_type_binary_operator(*operator)
+            );
+    if parenthesized_type_alias_value_can_drop {
+        return true;
+    }
+
+    if has_non_grouping_inner_annotation {
+        return false;
     }
 
     let parent = context.parent(node_id);
@@ -750,6 +777,10 @@ pub(crate) fn expression_is_type_position(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
+    if context.expression_is_under_forced_type_position_root(node_id) {
+        return true;
+    }
+
     let mut current_id = node_id.id;
 
     while let Some((parent_id, parent_type)) = context.parent_by_id(current_id) {
@@ -878,6 +909,14 @@ pub(crate) fn expression_is_type_position(
                             | TypeBinaryOperator::InstanceOf
                             | TypeBinaryOperator::In
                     )
+                {
+                    current_id = parent_id;
+                    continue;
+                }
+
+                if let Expression::Binary { left, right, .. } = parent_expression
+                    && (left.id == current_id || right.id == current_id)
+                    && expression_has_type_grouping_semantics(context, parent_expression_id)
                 {
                     current_id = parent_id;
                     continue;

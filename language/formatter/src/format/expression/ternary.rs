@@ -1,3 +1,4 @@
+use super::control::adjacent_statement_argument_has_leading_comments;
 use crate::format::chain::transparent_inner_expression;
 use crate::format::tree::tree_argument_is_wrapped_in_braces;
 use crate::{DestackFormatContext, DestackFormatter};
@@ -401,6 +402,9 @@ fn format_standard_ternary<'ast>(
     });
 
     let is_nested_alternate = ternary_is_nested_alternate(f.context(), node_id);
+    let should_expand = ternary_chain_has_line_comment(f.context(), node_id)
+        || f.context().node_has_newline(node_id)
+        || adjacent_statement_argument_has_leading_comments(f.context(), node_id);
 
     let format_inner = format_with(|f| {
         write!(f, [condition])?;
@@ -426,7 +430,7 @@ fn format_standard_ternary<'ast>(
             if is_nested_alternate {
                 write!(f, [format_inner])?;
             } else {
-                write!(f, [group(&format_inner)])?;
+                write!(f, [group(&format_inner).should_expand(should_expand)])?;
             }
             Ok(())
         })]
