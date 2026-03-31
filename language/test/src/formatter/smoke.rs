@@ -4,15 +4,17 @@ use std::sync::Arc;
 use crate::core::{Case, CaseResult, format_diagnostics};
 use destack_ast::{NodeParentIndex, TokenSpan};
 use destack_fir::format as fir_format;
-use destack_formatter::{
-    DestackFormatContext, DestackFormatOptions, statement_list,
-};
+use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_parser::{Parser, source_colorizer};
 use destack_source::{
     DiagnosticCollection, DiagnosticSeverity, DiffOptions, File, FileRegistry, FileSystem,
-    FileType, LanguageType, MemoryFileSystem, PrintOptions, Uri, print_diff,
+    FileType, IndentStyle, LanguageType, MemoryFileSystem, PrintOptions, Uri, print_diff,
 };
-use destack_workspace::{FormatterOptions, LinterOptions, Program};
+use destack_workspace::{
+    ArrowParentheses, FormatterOptions, LinterOptions, Program, QuoteProperty, QuoteStyle,
+    TrailingComma,
+};
+use serde::Deserialize;
 
 /// Formatter smoke category prefix.
 pub(super) const SMOKE_CATEGORY: &str = "destack_test::formatter::smoke";
@@ -24,6 +26,8 @@ pub(super) struct FormatterSmokeCase {
     pub input_path: PathBuf,
     /// The expected output file when present.
     pub expected_path: Option<PathBuf>,
+    /// The optional formatter options file.
+    pub options_path: Option<PathBuf>,
 }
 
 /// Discover formatter smoke cases in a fixture directory.
@@ -96,6 +100,12 @@ fn discover_cases_in_dir(
         } else {
             None
         };
+        let options_path = parent.join("formatter.toml");
+        let options_path = if options_path.is_file() {
+            Some(options_path)
+        } else {
+            None
+        };
 
         let is_skipped = relative_parent
             .components()
@@ -104,6 +114,7 @@ fn discover_cases_in_dir(
         let case = FormatterSmokeCase {
             input_path: path,
             expected_path,
+            options_path,
         };
         cases.push((test, case));
     }
@@ -111,6 +122,14 @@ fn discover_cases_in_dir(
 
 /// Run one formatter smoke case.
 pub(super) fn run(test: &Case, case: &FormatterSmokeCase) -> CaseResult {
+    let formatter_options = match load_smoke_formatter_options(case.options_path.as_deref()) {
+        Ok(options) => options,
+        Err(message) => {
+            return CaseResult::Failed {
+                message: format!("invalid formatter options for '{}': {message}", test.name),
+            };
+        }
+    };
     let cwd = case
         .input_path
         .parent()
@@ -119,7 +138,7 @@ pub(super) fn run(test: &Case, case: &FormatterSmokeCase) -> CaseResult {
     let files = Arc::new(FileRegistry::new());
     let fs: Arc<dyn FileSystem> = Arc::new(MemoryFileSystem::new());
     let program = Arc::new(Program::from_options(
-        FormatterOptions::default(),
+        formatter_options,
         LinterOptions::default(),
         cwd,
         fs,
@@ -307,4 +326,113 @@ fn is_smoke_file_type(file_type: FileType) -> bool {
             | FileType::TypeScriptXml
             | FileType::TypeScriptDeclaration
     )
+}
+
+/// Load formatter options for one smoke fixture directory.
+fn load_smoke_formatter_options(path: Option<&Path>) -> Result<FormatterOptions, String> {
+    let Some(path) = path else {
+        return Ok(FormatterOptions::default());
+    };
+
+    let content = std::fs::read_to_string(path)
+        .map_err(|error| format!("failed to read '{}': {error}", path.display()))?;
+    let options_file = toml::from_str::<SmokeFormatterOptionsFile>(&content)
+        .map_err(|error| format!("failed to parse '{}': {error}", path.display()))?;
+    let mut options = FormatterOptions::default();
+
+    if let Some(indent_width) = options_file.indent_width {
+        options = options.with_indent_width(indent_width);
+    }
+
+    if let Some(line_width) = options_file.line_width {
+        options = options.with_line_width(line_width);
+    }
+
+    if let Some(indent_style) = options_file.indent_style {
+        let indent_style = match indent_style.as_str() {
+            "space" => IndentStyle::Space,
+            "tab" => IndentStyle::Tab,
+            _ => {
+                return Err(format!("unsupported indent-style `{indent_style}`"));
+            }
+        };
+        options = options.with_indent_style(indent_style);
+    }
+
+    if let Some(quote_style) = options_file.quote_style {
+        let quote_style = match quote_style.as_str() {
+            "double" => QuoteStyle::Double,
+            "single" => QuoteStyle::Single,
+            "semantic" => QuoteStyle::Semantic,
+            _ => {
+                return Err(format!("unsupported quote-style `{quote_style}`"));
+            }
+        };
+        options = options.with_quote_style(quote_style);
+    }
+
+    if let Some(trailing_comma) = options_file.trailing_comma {
+        let trailing_comma = match trailing_comma.as_str() {
+            "all" => TrailingComma::All,
+            "es5" => TrailingComma::Es5,
+            "none" => TrailingComma::None,
+            _ => {
+                return Err(format!("unsupported trailing-comma `{trailing_comma}`"));
+            }
+        };
+        options = options.with_trailing_comma(trailing_comma);
+    }
+
+    if let Some(bracket_spacing) = options_file.bracket_spacing {
+        options = options.with_bracket_spacing(bracket_spacing);
+    }
+
+    if let Some(arrow_parentheses) = options_file.arrow_parentheses {
+        let arrow_parentheses = match arrow_parentheses.as_str() {
+            "always" => ArrowParentheses::Always,
+            "avoid" => ArrowParentheses::Avoid,
+            _ => {
+                return Err(format!(
+                    "unsupported arrow-parentheses `{arrow_parentheses}`"
+                ));
+            }
+        };
+        options = options.with_arrow_parens(arrow_parentheses);
+    }
+
+    if let Some(quote_property) = options_file.quote_property {
+        let quote_property = match quote_property.as_str() {
+            "as-needed" => QuoteProperty::AsNeeded,
+            "consistent" => QuoteProperty::Consistent,
+            "preserve" => QuoteProperty::Preserve,
+            _ => {
+                return Err(format!("unsupported quote-property `{quote_property}`"));
+            }
+        };
+        options = options.with_quote_props(quote_property);
+    }
+
+    Ok(options)
+}
+
+/// The formatter options supported by smoke fixtures.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "kebab-case")]
+struct SmokeFormatterOptionsFile {
+    /// The optional indent width.
+    indent_width: Option<u8>,
+    /// The optional line width.
+    line_width: Option<u16>,
+    /// The optional indent style string.
+    indent_style: Option<String>,
+    /// The optional quote style string.
+    quote_style: Option<String>,
+    /// The optional trailing comma string.
+    trailing_comma: Option<String>,
+    /// The optional bracket spacing flag.
+    bracket_spacing: Option<bool>,
+    /// The optional arrow parentheses string.
+    arrow_parentheses: Option<String>,
+    /// The optional quote property string.
+    quote_property: Option<String>,
 }

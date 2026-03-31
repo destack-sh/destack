@@ -1688,6 +1688,11 @@ impl Parser {
         self.parse_root_expressions(true)
     }
 
+    /// Return whether the parser finished one full parse pipeline.
+    pub const fn is_finished(&self) -> bool {
+        self.is_finished
+    }
+
     /// Parse everything as an implicit namespace without attaching trivia.
     pub fn parse_without_trivia(&mut self) -> Vec<LocalNodeId<Expression>> {
         self.parse_root_expressions(false)
