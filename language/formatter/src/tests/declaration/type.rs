@@ -1,4 +1,4 @@
-use crate::{DestackFormatOptions, TestFormatter, assert_format};
+use crate::{DestackFormatOptions, assert_format};
 use destack_ast::{DeclarationDescriptor, EnumKind};
 
 #[test]

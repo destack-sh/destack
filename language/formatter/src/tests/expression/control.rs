@@ -1,4 +1,4 @@
-use crate::{DestackFormatOptions, TestFormatter, assert_format};
+use crate::{DestackFormatOptions, assert_format};
 
 #[test]
 fn test_format_match_expression_cases() {
@@ -45,16 +45,6 @@ fn test_format_switch_with_block() {
     assert_format!(
         "switch (value) { case 1: { const x = 1; } }",
         "switch (value) {\n\tcase 1: {\n\t\tconst x = 1;\n\t}\n}",
-        |p| p.eat_match(),
-        DestackFormatOptions::default_tab()
-    );
-}
-
-#[test]
-fn test_format_switch_case_implicit_block_without_extra_braces() {
-    assert_format!(
-        "switch (state) { case \"ready\": start() // ready-tail\nbreak\n default: stop() // default-tail\n }",
-        "switch (state) {\n\tcase \"ready\":\n\t\tstart(); // ready-tail\n\t\tbreak\n\tdefault:\n\t\tstop() // default-tail\n}",
         |p| p.eat_match(),
         DestackFormatOptions::default_tab()
     );

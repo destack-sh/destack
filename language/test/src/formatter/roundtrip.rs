@@ -3,9 +3,7 @@ use std::sync::Arc;
 use crate::core::{Case, CaseResult, check_diagnostics};
 use destack_ast::{NodeParentIndex, TokenSpan};
 use destack_fir::format as fir_format;
-use destack_formatter::{
-    DestackFormatContext, DestackFormatOptions, statement_list,
-};
+use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_parser::Parser;
 use destack_source::{
     DiffOptions, File, FileRegistry, FileSystem, FileType, LanguageType, MemoryFileSystem, Uri,

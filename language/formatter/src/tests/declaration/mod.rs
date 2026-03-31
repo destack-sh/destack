@@ -1,3 +1,4 @@
+mod assignment;
 mod dependency;
 mod signature;
 mod statement;

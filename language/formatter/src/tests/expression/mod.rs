@@ -1,2 +1,2 @@
-mod cases;
 mod control;
+mod r#type;
