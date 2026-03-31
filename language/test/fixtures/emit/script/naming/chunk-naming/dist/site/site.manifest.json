@@ -1,0 +1,100 @@
+{
+  "files": [
+    {
+      "path": "chunks/chunk.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "dep3",
+      "input": "src/dep3.ts",
+      "isEntry": false,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "chunks/chunk.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "dep3",
+      "input": "src/dep3.ts",
+      "isEntry": false,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "chunks/chunk.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "dep3",
+      "input": "src/dep3.ts",
+      "isEntry": false,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "chunks/chunk.js.map",
+      "type": "asset",
+      "loader": "map"
+    },
+    {
+      "path": "chunks/chunk.js.map",
+      "type": "asset",
+      "loader": "map"
+    },
+    {
+      "path": "chunks/chunk.js.map",
+      "type": "asset",
+      "loader": "map"
+    },
+    {
+      "path": "main1.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "main1",
+      "input": "src/main1.ts",
+      "isEntry": true,
+      "isDynamicEntry": false,
+      "imports": [
+        "./chunks/chunk.js",
+        "./chunks/chunk.js"
+      ]
+    },
+    {
+      "path": "main1.js.map",
+      "type": "asset",
+      "loader": "map"
+    },
+    {
+      "path": "main2.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "main2",
+      "input": "src/main2.ts",
+      "isEntry": true,
+      "isDynamicEntry": false,
+      "imports": [
+        "./chunks/chunk.js",
+        "./chunks/chunk.js"
+      ]
+    },
+    {
+      "path": "main2.js.map",
+      "type": "asset",
+      "loader": "map"
+    },
+    {
+      "path": "main3.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "main3",
+      "input": "src/main3.ts",
+      "isEntry": true,
+      "isDynamicEntry": false,
+      "imports": [
+        "./chunks/chunk.js",
+        "./chunks/chunk.js"
+      ]
+    },
+    {
+      "path": "main3.js.map",
+      "type": "asset",
+      "loader": "map"
+    }
+  ]
+}

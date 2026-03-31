@@ -1,0 +1,12 @@
+{
+  "index": "index.html",
+  "files": [
+    {
+      "path": "index.html",
+      "type": "asset",
+      "loader": "html",
+      "isEntry": true,
+      "isDynamicEntry": false
+    }
+  ]
+}

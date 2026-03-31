@@ -1,0 +1,145 @@
+{
+  "files": [
+    {
+      "path": "b.js",
+      "type": "chunk",
+      "loader": "js",
+      "input": "src/b.str",
+      "isEntry": false,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "b.map",
+      "type": "asset",
+      "loader": "map"
+    },
+    {
+      "path": "c.js",
+      "type": "chunk",
+      "loader": "js",
+      "input": "src/c.mts",
+      "isEntry": false,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "c.map",
+      "type": "asset",
+      "loader": "map"
+    },
+    {
+      "path": "d.js",
+      "type": "chunk",
+      "loader": "js",
+      "input": "src/d.cts",
+      "isEntry": false,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "d.map",
+      "type": "asset",
+      "loader": "map"
+    },
+    {
+      "path": "e.js",
+      "type": "chunk",
+      "loader": "js",
+      "input": "src/e.tsx",
+      "isEntry": false,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "e.map",
+      "type": "asset",
+      "loader": "map"
+    },
+    {
+      "path": "f.js",
+      "type": "chunk",
+      "loader": "js",
+      "input": "src/f.mts",
+      "isEntry": false,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "f.map",
+      "type": "asset",
+      "loader": "map"
+    },
+    {
+      "path": "g.js",
+      "type": "chunk",
+      "loader": "js",
+      "input": "src/g.cts",
+      "isEntry": false,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "g.map",
+      "type": "asset",
+      "loader": "map"
+    },
+    {
+      "path": "h.js",
+      "type": "chunk",
+      "loader": "js",
+      "input": "src/h.tsx",
+      "isEntry": false,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "h.map",
+      "type": "asset",
+      "loader": "map"
+    },
+    {
+      "path": "main.js",
+      "type": "chunk",
+      "loader": "js",
+      "input": "src/main.ts",
+      "isEntry": true,
+      "isDynamicEntry": false,
+      "imports": [
+        "./nested/a.js",
+        "./b.js",
+        "./c.js",
+        "./d.js",
+        "./e.js",
+        "./f.js",
+        "./g.js",
+        "./h.js",
+        "./no-ext.js"
+      ]
+    },
+    {
+      "path": "main.map",
+      "type": "asset",
+      "loader": "map"
+    },
+    {
+      "path": "nested/a.js",
+      "type": "chunk",
+      "loader": "js",
+      "input": "src/nested/a.ts",
+      "isEntry": false,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "nested/a.map",
+      "type": "asset",
+      "loader": "map"
+    },
+    {
+      "path": "no-ext.js",
+      "type": "chunk",
+      "loader": "js",
+      "input": "src/no-ext",
+      "isEntry": false,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "no-ext.map",
+      "type": "asset",
+      "loader": "map"
+    }
+  ]
+}

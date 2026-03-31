@@ -1,0 +1,25 @@
+{
+  "files": [
+    {
+      "path": "assets/page.html",
+      "type": "asset",
+      "loader": "html",
+      "isEntry": true,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "entry.ts",
+      "type": "chunk",
+      "loader": "js",
+      "name": "site",
+      "input": "src/entry.ts",
+      "isEntry": true,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "entry.ts.map",
+      "type": "asset",
+      "loader": "map"
+    }
+  ]
+}

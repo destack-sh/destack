@@ -1,0 +1,19 @@
+{
+    "name": "html-document-external-script-preservation",
+    "targets": {
+        "site": {
+            "emit": "html",
+            "runtime": "browser",
+            "entry": [
+                "src/index.html"
+            ],
+            "outFile": "dist/index.html",
+            "bundle": {
+                "output": {
+                    "sourcemap": "external",
+                    "manifest": true
+                }
+            }
+        }
+    }
+}

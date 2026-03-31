@@ -1,0 +1,89 @@
+{
+  "files": [
+    {
+      "path": "assets/b1.css",
+      "type": "asset",
+      "loader": "css",
+      "input": "src/b1.css",
+      "isEntry": true,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "assets/entry.css",
+      "type": "asset",
+      "loader": "css",
+      "input": "src/entry.css",
+      "isEntry": true,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "assets/entry2.css",
+      "type": "asset",
+      "loader": "css",
+      "input": "src/entry2.css",
+      "isEntry": true,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "b1.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "b1",
+      "input": "src/b1.css",
+      "isEntry": false,
+      "isDynamicEntry": true
+    },
+    {
+      "path": "b1.js.map",
+      "type": "asset",
+      "loader": "map"
+    },
+    {
+      "path": "entry.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "entry",
+      "input": "src/entry.css",
+      "isEntry": false,
+      "isDynamicEntry": true
+    },
+    {
+      "path": "entry.js.map",
+      "type": "asset",
+      "loader": "map"
+    },
+    {
+      "path": "entry2.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "entry2",
+      "input": "src/entry2.css",
+      "isEntry": false,
+      "isDynamicEntry": true
+    },
+    {
+      "path": "entry2.js.map",
+      "type": "asset",
+      "loader": "map"
+    },
+    {
+      "path": "index.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "index",
+      "input": "src/index.ts",
+      "isEntry": true,
+      "isDynamicEntry": false,
+      "dynamicImports": [
+        "./entry.js",
+        "./b1.js",
+        "./entry2.js"
+      ]
+    },
+    {
+      "path": "index.js.map",
+      "type": "asset",
+      "loader": "map"
+    }
+  ]
+}

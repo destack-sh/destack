@@ -1,0 +1,23 @@
+{
+    "name": "html-document-circular-js-html",
+    "targets": {
+        "site": {
+            "emit": "js",
+            "runtime": "browser",
+            "entry": [
+                "src/in/main.ts"
+            ],
+            "outFile": "dist/main.js",
+            "bundle": {
+                "assets": {
+                    "mode": "emit"
+                },
+                "output": {
+                    "assetFileNames": "assets/[name].[ext]",
+                    "sourcemap": "external",
+                    "manifest": true
+                }
+            }
+        }
+    }
+}

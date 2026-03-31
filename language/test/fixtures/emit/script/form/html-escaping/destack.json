@@ -1,0 +1,21 @@
+{
+    "name": "script-preserve-modules-html-escaping",
+    "targets": {
+        "library": {
+            "emit": "js",
+            "runtime": "browser",
+            "include": [
+                "src/**/*.ts"
+            ],
+            "outDir": "dist/library",
+            "bundle": {
+                "preserveModules": true,
+                "preserveModulesRoot": "src",
+                "output": {
+                    "sourcemap": "external",
+                    "manifest": true
+                }
+            }
+        }
+    }
+}

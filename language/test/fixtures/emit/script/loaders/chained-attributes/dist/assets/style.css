@@ -1,0 +1,7 @@
+@layer layer{@supports not(display: inline-grid){@media print{@supports font-format(woff2){@layer foo{@media all and (orientation: landscape){.imported{color:red}}}
+
+.imported{color:orange}}
+
+.imported{color:cyan}}}}
+
+.style{color:yellow}
