@@ -200,6 +200,7 @@ impl<'a> Parser<'a> {
         self.tree
             .type_table
             .set_display_name(placeholder_id, name_id);
+
         if ty != placeholder_id {
             let resolved = self.tree.get(ty).clone();
             *self.tree.get_mut(placeholder_id) = resolved;

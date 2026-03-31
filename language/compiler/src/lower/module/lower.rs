@@ -591,8 +591,8 @@ impl<'a> ModuleLowerer<'a> {
 
     /// Declare module-level artifacts before body lowering.
     fn declare(&mut self) -> LowerResult<()> {
-        // initialize builtin layouts
-        self.initialize_string_type()?;
+        // install builtin type identities
+        self.install_builtin_type_identities()?;
 
         // declare runtime string globals and aliases
         self.declare_string_literal_globals()?;
@@ -733,17 +733,17 @@ impl<'a> ModuleLowerer<'a> {
             return Ok(());
         }
 
-        // require the builtin string layout
+        // require the well known string layout
         let Some(string_type) = self.type_lowerer.string_type() else {
             if let Some(anchor) = anchor {
                 return Err(LowerError::UnsupportedConstruct {
                     node: anchor,
-                    message: "missing builtin String layout (load library/native)".to_string(),
+                    message: "missing well known String layout (load library/native)".to_string(),
                 });
             }
             return Err(LowerError::Internal {
                 module: self.module_id,
-                message: "missing builtin String layout (load library/native)".to_string(),
+                message: "missing well known String layout (load library/native)".to_string(),
             });
         };
 
@@ -856,8 +856,13 @@ impl<'a> ModuleLowerer<'a> {
         self.builder.finish_mutable()
     }
 
-    /// Initialize the canonical string type from builtin definitions.
-    fn initialize_string_type(&mut self) -> LowerResult<()> {
+    /// Install canonical builtin type identities in MIR metadata.
+    fn install_builtin_type_identities(&mut self) -> LowerResult<()> {
+        self.install_well_known_string_type_identity()
+    }
+
+    /// Install the canonical well known string type in MIR metadata.
+    fn install_well_known_string_type_identity(&mut self) -> LowerResult<()> {
         // get some anchor for error reporting
         let Some(anchor) = self
             .dir_roots
@@ -876,7 +881,15 @@ impl<'a> ModuleLowerer<'a> {
             &mut self.builder,
             &mut self.type_lowerer,
         );
-        builtin_layouts.string_type_for_builtin(anchor)?;
+        let string_type = builtin_layouts.string_type_for_builtin(anchor)?;
+
+        // persist the canonical well known string identity in MIR metadata
+        if let Some(string_type) = string_type {
+            self.builder
+                .tree_mut()
+                .type_table
+                .set_string_type(string_type);
+        }
 
         Ok(())
     }

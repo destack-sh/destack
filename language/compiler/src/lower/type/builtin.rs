@@ -88,7 +88,7 @@ impl<'a> BuiltinTypeLayouts<'a> {
             return Ok(None);
         };
 
-        // name the builtin string type metadata
+        // name the well known string type metadata
         self.assign_metadata_name_for_symbol(ty_struct, string_symbol);
 
         // cache the managed reference type

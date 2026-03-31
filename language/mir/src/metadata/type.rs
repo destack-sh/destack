@@ -8,6 +8,22 @@ use crate::{
     Field, Function, Global, Layout, LayoutId, LayoutTable, LocalNodeId, Type, UnionLayout,
 };
 
+/// Table of canonical well known MIR types.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct WellKnownTypes {
+    /// Canonical well known string reference type.
+    pub string: Option<LocalNodeId<Type>>,
+}
+
+impl WellKnownTypes {
+    /// Copy one canonical identity when the type id is remapped.
+    pub fn remap_type(&mut self, from: LocalNodeId<Type>, to: LocalNodeId<Type>) {
+        if self.string == Some(from) {
+            self.string = Some(to);
+        }
+    }
+}
+
 /// Lineage metadata for nominal types.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TypeLineage {
@@ -273,6 +289,8 @@ pub struct TypeTable {
     pub descriptor_by_type: HashMap<LocalNodeId<Type>, LocalNodeId<Global>>,
     /// Display names keyed by type id.
     pub display_name_by_type: HashMap<LocalNodeId<Type>, StringId>,
+    /// Canonical well known MIR type identities.
+    pub well_known_types: WellKnownTypes,
 }
 
 impl TypeTable {
@@ -508,6 +526,16 @@ impl TypeTable {
         self.display_name_by_type.insert(ty, name)
     }
 
+    /// Return the canonical well known string type.
+    pub fn string_type(&self) -> Option<LocalNodeId<Type>> {
+        self.well_known_types.string
+    }
+
+    /// Record the canonical well known string type.
+    pub fn set_string_type(&mut self, type_id: LocalNodeId<Type>) -> Option<LocalNodeId<Type>> {
+        self.well_known_types.string.replace(type_id)
+    }
+
     /// Return the existing display name for a type or insert the provided one.
     pub fn ensure_display_name(&mut self, ty: LocalNodeId<Type>, name: StringId) -> StringId {
         *self.display_name_by_type.entry(ty).or_insert(name)
@@ -548,5 +576,8 @@ impl TypeTable {
         if let Some(descriptor) = self.descriptor_global(from) {
             self.set_descriptor_global(to, descriptor);
         }
+
+        // copy builtin type identities
+        self.well_known_types.remap_type(from, to);
     }
 }
