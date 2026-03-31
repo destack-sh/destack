@@ -13,10 +13,10 @@ pub struct ResumeTransferId(pub u32);
 /// One copy edge applied when resuming into one block.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ResumeCopy {
-    /// The source SSA value in the suspended frame.
-    pub source: mir::Value,
-    /// The destination SSA value in the resumed block.
-    pub destination: mir::Value,
+    /// The source value slot in the suspended frame.
+    pub source: u32,
+    /// The destination value slot in the resumed block.
+    pub destination: u32,
 }
 
 /// One transfer recipe applied when resuming into one block.
@@ -27,7 +27,7 @@ pub struct ResumeTransfer {
     /// The block parameter copies applied when resuming here.
     pub copies: Vec<ResumeCopy>,
     /// The destination for the resumed value when present.
-    pub resume_value: Option<mir::Value>,
+    pub resume_value: Option<u32>,
 }
 
 /// One semantic continuation point inside one lowered function.
