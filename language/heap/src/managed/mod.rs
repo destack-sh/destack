@@ -1,14 +1,18 @@
 mod collect;
-mod extent;
 mod heap;
 mod image;
+mod large;
+mod layout;
 mod reference;
-mod run;
+mod span;
 mod state;
+mod young;
 
-pub(crate) use extent::*;
 pub use heap::*;
 pub use image::*;
+pub(crate) use large::*;
+pub(crate) use layout::*;
 pub use reference::*;
-pub(crate) use run::*;
+pub(crate) use span::*;
 pub use state::*;
+pub(crate) use young::*;

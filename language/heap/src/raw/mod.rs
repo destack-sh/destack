@@ -1,9 +1,9 @@
-mod extent;
 mod heap;
 mod image;
-mod run;
+mod large;
+mod span;
 
-pub(crate) use extent::*;
 pub use heap::*;
 pub use image::*;
-pub(crate) use run::*;
+pub(crate) use large::*;
+pub(crate) use span::*;

@@ -2,32 +2,32 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
-use super::{RawExtentImage, RawLocation, RawRunImage, RawSpace};
-use crate::heap::{SizeClassTable, TreeVector};
+use super::{RawHandleEntry, RawLargeAllocationImage, RawSpace, RawSpanImage};
+use crate::alloc::SizeClassTable;
 
 /// One immutable raw-space image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RawImage {
     /// The configured size-class table.
     pub(crate) size_classes: SizeClassTable,
-    /// The configured run width.
-    pub(crate) run_bytes: usize,
-    /// The configured extent chunk width.
-    pub(crate) chunk_bytes: usize,
-    /// The captured raw runs.
-    pub(crate) runs: TreeVector<RawRunImage>,
-    /// The captured raw extents.
-    pub(crate) extents: TreeVector<RawExtentImage>,
-    /// Stable raw locations keyed by allocation id minus one.
-    pub(crate) locations: Arc<[RawLocation]>,
-    /// The captured free raw ids.
-    pub(crate) free_ids: Arc<[u64]>,
-    /// The captured free raw extent ids.
-    pub(crate) free_extent_ids: Arc<[u64]>,
+    /// The configured small-space span width.
+    pub(crate) small_bytes: usize,
+    /// The configured local page width.
+    pub(crate) page_bytes: usize,
+    /// The captured raw spans.
+    pub(crate) spans: Vec<RawSpanImage>,
+    /// The captured raw large allocations.
+    pub(crate) large_allocations: Vec<RawLargeAllocationImage>,
+    /// Dense raw handle metadata keyed by allocation id minus one.
+    pub(crate) handles: Arc<[RawHandleEntry]>,
+    /// The free raw allocation id at the head of the intrusive free list.
+    pub(crate) free_handle_head: u64,
+    /// The captured free raw large-allocation ids.
+    pub(crate) free_large_allocation_ids: Arc<[u64]>,
     /// The next raw allocation id to allocate.
     pub(crate) next_unused_id: u64,
-    /// The next raw extent id to allocate.
-    pub(crate) next_unused_extent_id: u64,
+    /// The next raw large-allocation id to allocate.
+    pub(crate) next_unused_large_allocation_id: u64,
     /// The number of live raw allocations.
     pub(crate) allocated_count: usize,
     /// The number of live raw bytes.
@@ -39,24 +39,24 @@ pub struct RawImage {
 pub struct RawSpaceSnapshot {
     /// The configured size-class table.
     pub size_classes: SizeClassTable,
-    /// The configured run width.
-    pub run_bytes: usize,
-    /// The configured extent chunk width.
-    pub chunk_bytes: usize,
-    /// The flattened raw runs.
-    pub runs: Vec<RawRunImage>,
-    /// The flattened raw extents.
-    pub extents: Vec<RawExtentImage>,
-    /// Stable raw locations keyed by allocation id minus one.
-    pub locations: Vec<RawLocation>,
-    /// The flattened free raw ids.
-    pub free_ids: Vec<u64>,
-    /// The flattened free raw extent ids.
-    pub free_extent_ids: Vec<u64>,
+    /// The configured small-space span width.
+    pub small_bytes: usize,
+    /// The configured local page width.
+    pub page_bytes: usize,
+    /// The flattened raw spans.
+    pub spans: Vec<RawSpanImage>,
+    /// The flattened raw large allocations.
+    pub large_allocations: Vec<RawLargeAllocationImage>,
+    /// Dense raw handle metadata keyed by allocation id minus one.
+    pub handles: Vec<RawHandleEntry>,
+    /// The free raw allocation id at the head of the intrusive free list.
+    pub free_handle_head: u64,
+    /// The flattened free raw large-allocation ids.
+    pub free_large_allocation_ids: Vec<u64>,
     /// The next raw allocation id to allocate.
     pub next_unused_id: u64,
-    /// The next raw extent id to allocate.
-    pub next_unused_extent_id: u64,
+    /// The next raw large-allocation id to allocate.
+    pub next_unused_large_allocation_id: u64,
     /// The number of live raw allocations.
     pub allocated_count: usize,
     /// The number of live raw bytes.
@@ -68,23 +68,15 @@ impl RawImage {
     pub(crate) fn from_snapshot(snapshot: &RawSpaceSnapshot) -> Self {
         Self {
             size_classes: snapshot.size_classes.clone(),
-            run_bytes: snapshot.run_bytes,
-            chunk_bytes: snapshot.chunk_bytes,
-            runs: TreeVector::from_values_by(
-                &snapshot.runs,
-                None,
-                RawRunImage::shares_storage_with,
-            ),
-            extents: TreeVector::from_values_by(
-                &snapshot.extents,
-                None,
-                RawExtentImage::shares_storage_with,
-            ),
-            locations: Arc::from(snapshot.locations.as_slice()),
-            free_ids: Arc::from(snapshot.free_ids.as_slice()),
-            free_extent_ids: Arc::from(snapshot.free_extent_ids.as_slice()),
+            small_bytes: snapshot.small_bytes,
+            page_bytes: snapshot.page_bytes,
+            spans: snapshot.spans.clone(),
+            large_allocations: snapshot.large_allocations.clone(),
+            handles: Arc::from(snapshot.handles.as_slice()),
+            free_handle_head: snapshot.free_handle_head,
+            free_large_allocation_ids: Arc::from(snapshot.free_large_allocation_ids.as_slice()),
             next_unused_id: snapshot.next_unused_id,
-            next_unused_extent_id: snapshot.next_unused_extent_id,
+            next_unused_large_allocation_id: snapshot.next_unused_large_allocation_id,
             allocated_count: snapshot.allocated_count,
             allocated_bytes: snapshot.allocated_bytes,
         }
@@ -94,15 +86,15 @@ impl RawImage {
     pub(crate) fn snapshot(&self) -> RawSpaceSnapshot {
         RawSpaceSnapshot {
             size_classes: self.size_classes.clone(),
-            run_bytes: self.run_bytes,
-            chunk_bytes: self.chunk_bytes,
-            runs: self.runs.iter().cloned().collect(),
-            extents: self.extents.iter().cloned().collect(),
-            locations: self.locations.iter().copied().collect(),
-            free_ids: self.free_ids.iter().copied().collect(),
-            free_extent_ids: self.free_extent_ids.iter().copied().collect(),
+            small_bytes: self.small_bytes,
+            page_bytes: self.page_bytes,
+            spans: self.spans.to_vec(),
+            large_allocations: self.large_allocations.to_vec(),
+            handles: self.handles.iter().copied().collect(),
+            free_handle_head: self.free_handle_head,
+            free_large_allocation_ids: self.free_large_allocation_ids.iter().copied().collect(),
             next_unused_id: self.next_unused_id,
-            next_unused_extent_id: self.next_unused_extent_id,
+            next_unused_large_allocation_id: self.next_unused_large_allocation_id,
             allocated_count: self.allocated_count,
             allocated_bytes: self.allocated_bytes,
         }

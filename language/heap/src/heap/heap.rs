@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::error::Error;
 use std::fmt;
-use std::sync::Arc;
+use std::rc::Rc;
 
 use destack_core::{Capture, CaptureMode, SnapshotCodec};
 
@@ -37,70 +37,6 @@ impl fmt::Display for HeapCaptureError {
 
 impl Error for HeapCaptureError {}
 
-/// One lazy packed-value view over a managed allocation.
-#[derive(Debug, Clone)]
-pub struct PackedValues<'a> {
-    /// The packed allocation bytes.
-    bytes: Cow<'a, [u8]>,
-    /// The decoded slot count.
-    count: usize,
-}
-
-impl<'a> PackedValues<'a> {
-    /// Create one packed-value view from bytes and count.
-    pub fn new(bytes: Cow<'a, [u8]>, count: usize) -> Self {
-        Self { bytes, count }
-    }
-
-    /// Return the slot count.
-    pub fn len(&self) -> usize {
-        self.count
-    }
-
-    /// Report whether the slot list is empty.
-    pub fn is_empty(&self) -> bool {
-        self.count == 0
-    }
-
-    /// Load one packed value by index.
-    pub fn get(&self, index: usize) -> Option<Value> {
-        if index >= self.count {
-            return None;
-        }
-
-        let start = index.checked_mul(Value::BYTE_LEN)?;
-        let end = start.checked_add(Value::BYTE_LEN)?;
-
-        Value::from_byte_slice(self.bytes.get(start..end)?)
-    }
-
-    /// Iterate over the packed values.
-    pub fn iter(&self) -> impl Iterator<Item = Value> + '_ {
-        (0..self.count).map(|index| {
-            self.get(index)
-                .expect("packed values should decode within bounds")
-        })
-    }
-
-    /// Convert the packed values into one owned list.
-    pub fn to_vec(&self) -> Vec<Value> {
-        let mut values = Vec::with_capacity(self.count);
-        for index in 0..self.count {
-            let value = self
-                .get(index)
-                .expect("packed values should decode within bounds");
-            values.push(value);
-        }
-
-        values
-    }
-
-    /// Convert the packed values into one owned list.
-    pub fn into_vec(self) -> Vec<Value> {
-        self.to_vec()
-    }
-}
-
 /// One live local heap with managed and raw spaces.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Heap {
@@ -113,7 +49,7 @@ pub struct Heap {
     /// Exact hard limits for this heap.
     limits: HeapLimits,
     /// The last captured image used to reuse unchanged image leaves.
-    cached_image: Option<Arc<HeapImage>>,
+    cached_image: Option<Rc<HeapImage>>,
 }
 
 /// One agent-local execution memory view across local and shared memory.
@@ -135,6 +71,8 @@ impl Heap {
 
     /// Create one heap with explicit limits and layout options.
     pub fn with_limits_and_layout(limits: HeapLimits, layout: HeapLayoutOptions) -> Self {
+        layout.validate();
+
         let managed = ManagedSpace::with_layout(&layout);
         let raw = RawSpace::with_layout(&layout);
 
@@ -149,21 +87,25 @@ impl Heap {
 
     /// Create one heap from one immutable image.
     pub fn from_image(image: &HeapImage) -> Self {
+        crate::validate_managed_reference_bytes(image.managed.managed_reference_bytes);
+
         let layout = HeapLayoutOptions {
             size_classes: image.managed.size_classes.clone(),
-            managed_run_bytes: image.managed.run_bytes,
-            raw_run_bytes: image.raw.run_bytes,
-            chunk_bytes: image.managed.chunk_bytes,
+            managed_reference_bytes: image.managed.managed_reference_bytes,
+            managed_young_bytes: image.managed.young_bytes,
+            managed_small_bytes: image.managed.small_bytes,
+            raw_small_bytes: image.raw.small_bytes,
+            page_bytes: image.managed.page_bytes,
         };
 
-        debug_assert_eq!(image.managed.chunk_bytes, image.raw.chunk_bytes);
+        debug_assert_eq!(image.managed.page_bytes, image.raw.page_bytes);
 
         Self {
             managed: ManagedSpace::from_image(&image.managed),
             raw: RawSpace::from_image(&image.raw),
             layout,
             limits: HeapLimits::default(),
-            cached_image: Some(Arc::new(image.clone())),
+            cached_image: Some(Rc::new(image.clone())),
         }
     }
 
@@ -217,10 +159,81 @@ impl Heap {
     ) -> Result<ManagedReference, HeapLimitError> {
         self.cached_image = None;
         let budget = self.budget();
-        let old_managed_bytes = self.managed.retained_bytes();
         let handle = self.managed.allocate_bytes(bytes, reference_map, layout_id);
 
-        let managed_delta = retained_delta(old_managed_bytes, self.managed.retained_bytes());
+        let managed_delta =
+            retained_delta(budget.managed.retained_bytes, self.managed.retained_bytes());
+        if let Err(error) = budget.check_delta(managed_delta, 0) {
+            let _ = self.managed.free(handle);
+            return Err(error);
+        }
+
+        Ok(handle)
+    }
+
+    /// Allocate one managed byte allocation using one borrowed reference map.
+    pub fn allocate_managed_bytes_borrowed(
+        &mut self,
+        bytes: &[u8],
+        reference_map: &ReferenceMap,
+        layout_id: Option<LayoutId>,
+    ) -> Result<ManagedReference, HeapLimitError> {
+        self.cached_image = None;
+        let budget = self.budget();
+        let handle = self
+            .managed
+            .allocate_bytes_borrowed(bytes, reference_map, layout_id);
+
+        let managed_delta =
+            retained_delta(budget.managed.retained_bytes, self.managed.retained_bytes());
+        if let Err(error) = budget.check_delta(managed_delta, 0) {
+            let _ = self.managed.free(handle);
+            return Err(error);
+        }
+
+        Ok(handle)
+    }
+
+    /// Allocate one managed byte allocation and stamp one nominal type id.
+    pub fn allocate_managed_bytes_typed(
+        &mut self,
+        bytes: &[u8],
+        reference_map: ReferenceMap,
+        layout_id: Option<LayoutId>,
+        type_id: u32,
+    ) -> Result<ManagedReference, HeapLimitError> {
+        self.cached_image = None;
+        let budget = self.budget();
+        let handle = self
+            .managed
+            .allocate_bytes_typed(bytes, reference_map, layout_id, type_id);
+
+        let managed_delta =
+            retained_delta(budget.managed.retained_bytes, self.managed.retained_bytes());
+        if let Err(error) = budget.check_delta(managed_delta, 0) {
+            let _ = self.managed.free(handle);
+            return Err(error);
+        }
+
+        Ok(handle)
+    }
+
+    /// Allocate one borrowed managed byte allocation and stamp one nominal type id.
+    pub fn allocate_managed_bytes_borrowed_typed(
+        &mut self,
+        bytes: &[u8],
+        reference_map: &ReferenceMap,
+        layout_id: Option<LayoutId>,
+        type_id: u32,
+    ) -> Result<ManagedReference, HeapLimitError> {
+        self.cached_image = None;
+        let budget = self.budget();
+        let handle =
+            self.managed
+                .allocate_bytes_borrowed_typed(bytes, reference_map, layout_id, type_id);
+
+        let managed_delta =
+            retained_delta(budget.managed.retained_bytes, self.managed.retained_bytes());
         if let Err(error) = budget.check_delta(managed_delta, 0) {
             let _ = self.managed.free(handle);
             return Err(error);
@@ -238,12 +251,12 @@ impl Heap {
     ) -> Result<ManagedReference, HeapLimitError> {
         self.cached_image = None;
         let budget = self.budget();
-        let old_managed_bytes = self.managed.retained_bytes();
         let handle = self
             .managed
             .allocate_zeroed(byte_len, reference_map, layout_id);
 
-        let managed_delta = retained_delta(old_managed_bytes, self.managed.retained_bytes());
+        let managed_delta =
+            retained_delta(budget.managed.retained_bytes, self.managed.retained_bytes());
         if let Err(error) = budget.check_delta(managed_delta, 0) {
             let _ = self.managed.free(handle);
             return Err(error);
@@ -252,42 +265,83 @@ impl Heap {
         Ok(handle)
     }
 
-    /// Allocate one packed managed value allocation.
-    pub fn allocate_packed_values(
+    /// Allocate one zeroed managed byte allocation using one borrowed reference map.
+    pub fn allocate_managed_zeroed_borrowed(
         &mut self,
-        values: Vec<Value>,
+        byte_len: usize,
+        reference_map: &ReferenceMap,
+        layout_id: Option<LayoutId>,
     ) -> Result<ManagedReference, HeapLimitError> {
-        let bytes = encode_values(&values);
-        self.allocate_managed_bytes(&bytes, ReferenceMap::value_array(values.len()), None)
+        self.cached_image = None;
+        let budget = self.budget();
+        let handle = self
+            .managed
+            .allocate_zeroed_borrowed(byte_len, reference_map, layout_id);
+
+        let managed_delta =
+            retained_delta(budget.managed.retained_bytes, self.managed.retained_bytes());
+        if let Err(error) = budget.check_delta(managed_delta, 0) {
+            let _ = self.managed.free(handle);
+            return Err(error);
+        }
+
+        Ok(handle)
     }
 
-    /// Allocate one packed managed pair.
-    pub fn allocate_packed_pair(
+    /// Allocate one zeroed borrowed managed byte allocation and stamp one nominal type id.
+    pub fn allocate_managed_zeroed_borrowed_typed(
         &mut self,
-        first: Value,
-        second: Value,
+        byte_len: usize,
+        reference_map: &ReferenceMap,
+        layout_id: Option<LayoutId>,
+        type_id: u32,
     ) -> Result<ManagedReference, HeapLimitError> {
-        self.allocate_packed_values(vec![first, second])
+        self.cached_image = None;
+        let budget = self.budget();
+        let handle = self.managed.allocate_zeroed_borrowed_typed(
+            byte_len,
+            reference_map,
+            layout_id,
+            type_id,
+        );
+
+        let managed_delta =
+            retained_delta(budget.managed.retained_bytes, self.managed.retained_bytes());
+        if let Err(error) = budget.check_delta(managed_delta, 0) {
+            let _ = self.managed.free(handle);
+            return Err(error);
+        }
+
+        Ok(handle)
     }
 
-    /// Allocate one packed managed single.
-    pub fn allocate_packed_single(
+    /// Allocate one zeroed managed byte allocation using borrowed repeated offsets.
+    pub fn allocate_managed_zeroed_repeated_reference_offsets(
         &mut self,
-        value: Value,
+        byte_len: usize,
+        count: u32,
+        element_size: u32,
+        offsets: &[u32],
+        layout_id: Option<LayoutId>,
     ) -> Result<ManagedReference, HeapLimitError> {
-        self.allocate_packed_values(vec![value])
-    }
+        self.cached_image = None;
+        let budget = self.budget();
+        let handle = self.managed.allocate_zeroed_repeated_reference_offsets(
+            byte_len,
+            count,
+            element_size,
+            offsets,
+            layout_id,
+        );
 
-    /// Allocate one empty packed managed value buffer.
-    pub fn allocate_zeroed_packed_values(
-        &mut self,
-        count: usize,
-    ) -> Result<ManagedReference, HeapLimitError> {
-        self.allocate_managed_zeroed(
-            count * Value::BYTE_LEN,
-            ReferenceMap::value_array(count),
-            None,
-        )
+        let managed_delta =
+            retained_delta(budget.managed.retained_bytes, self.managed.retained_bytes());
+        if let Err(error) = budget.check_delta(managed_delta, 0) {
+            let _ = self.managed.free(handle);
+            return Err(error);
+        }
+
+        Ok(handle)
     }
 
     /// Return the managed bytes for this handle.
@@ -305,76 +359,37 @@ impl Heap {
         self.managed.byte_len(handle)
     }
 
-    /// Return one packed value by index.
-    pub fn packed_value_at(&self, handle: ManagedReference, index: usize) -> Option<Value> {
-        self.managed.packed_value_at(handle, index)
-    }
-
-    /// Return the number of packed values in one managed allocation.
-    pub fn packed_value_count(&self, handle: ManagedReference) -> Option<usize> {
-        self.managed.packed_value_count(handle)
-    }
-
-    /// Return one lazy view over the packed values.
-    pub fn packed_values(&self, handle: ManagedReference) -> Option<PackedValues<'_>> {
-        let count = self.packed_value_count(handle)?;
-        let bytes = self.managed_bytes(handle)?;
-
-        Some(PackedValues::new(bytes, count))
-    }
-
-    /// Return one owned copy of the packed values.
-    pub fn packed_values_to_vec(&self, handle: ManagedReference) -> Option<Vec<Value>> {
-        self.packed_values(handle).map(|values| values.into_vec())
-    }
-
-    /// Set one packed value by index.
-    pub fn set_packed_value(
-        &mut self,
-        handle: ManagedReference,
-        index: usize,
-        value: Value,
-    ) -> bool {
-        self.cached_image = None;
-        self.managed.set_packed_value(handle, index, value)
-    }
-
-    /// Resize one packed managed value buffer.
-    pub fn resize_packed_values(
-        &mut self,
-        handle: ManagedReference,
-        len: usize,
-    ) -> Result<bool, HeapLimitError> {
-        self.cached_image = None;
-        let budget = self.budget();
-        let old_values = self.managed.packed_values_to_vec(handle);
-        let old_managed_bytes = self.managed.retained_bytes();
-        let replaced = self.managed.resize_packed_values(handle, len);
-
-        if !replaced {
-            return Ok(false);
-        }
-
-        let managed_delta = retained_delta(old_managed_bytes, self.managed.retained_bytes());
-        if let Err(error) = budget.check_delta(managed_delta, 0) {
-            if let Some(old_values) = old_values {
-                let _ = self.managed.replace_packed_values(handle, &old_values);
-            }
-            return Err(error);
-        }
-
-        Ok(true)
-    }
-
     /// Return the managed reference map for this handle.
     pub fn reference_map(&self, handle: ManagedReference) -> Option<&ReferenceMap> {
         self.managed.reference_map(handle)
+    }
+
+    /// Return the nominal type id for this managed allocation.
+    pub fn managed_type_id(&self, handle: ManagedReference) -> Option<u32> {
+        self.managed.type_id(handle)
     }
 
     /// Set one managed byte.
     pub fn set_managed_byte(&mut self, handle: ManagedReference, index: usize, byte: u8) -> bool {
         self.cached_image = None;
         self.managed.set_byte(handle, index, byte)
+    }
+
+    /// Set one managed byte slice.
+    pub fn set_managed_bytes(
+        &mut self,
+        handle: ManagedReference,
+        start: usize,
+        bytes: &[u8],
+    ) -> bool {
+        self.cached_image = None;
+        self.managed.set_bytes(handle, start, bytes)
+    }
+
+    /// Set the nominal type id for one managed allocation.
+    pub fn set_managed_type_id(&mut self, handle: ManagedReference, type_id: u32) -> bool {
+        self.cached_image = None;
+        self.managed.set_type_id(handle, type_id)
     }
 
     /// Report whether one managed reference is currently allocated.
@@ -406,6 +421,41 @@ impl Heap {
         self.managed.collect_handles(handles)
     }
 
+    /// Run one staged managed GC cycle with a young prepass and one conditional full sweep.
+    pub fn collect_managed_handles_staged<I>(&mut self, handles: I) -> GcStats
+    where
+        I: IntoIterator<Item = ManagedReference>,
+    {
+        self.cached_image = None;
+
+        // root set
+        let handles = handles.into_iter().collect::<Vec<_>>();
+        let min_small_bytes = self.managed.small.size_classes.min_small_allocation_bytes();
+
+        // young prepass
+        let young_stats = self.managed.collect_young_handles(handles.iter().copied());
+
+        // escalate only when minor collection still leaves hard pressure
+        let should_collect_full = !self.managed.young.can_fit(min_small_bytes)
+            || self.budget().check_delta(0, 0).is_err();
+
+        if !should_collect_full {
+            return young_stats;
+        }
+
+        // full sweep
+        self.managed.collect_handles(handles)
+    }
+
+    /// Run one young-generation managed GC cycle.
+    pub fn collect_young_managed_handles<I>(&mut self, handles: I) -> GcStats
+    where
+        I: IntoIterator<Item = ManagedReference>,
+    {
+        self.cached_image = None;
+        self.managed.collect_young_handles(handles)
+    }
+
     /// Allocate one raw packed-value allocation.
     pub fn allocate_raw_values(
         &mut self,
@@ -413,10 +463,9 @@ impl Heap {
     ) -> Result<RawPointer, HeapLimitError> {
         self.cached_image = None;
         let budget = self.budget();
-        let old_raw_bytes = self.raw.retained_bytes();
         let pointer = self.raw.allocate_packed_values(values);
 
-        let raw_delta = retained_delta(old_raw_bytes, self.raw.retained_bytes());
+        let raw_delta = retained_delta(budget.raw.retained_bytes, self.raw.retained_bytes());
         if let Err(error) = budget.check_delta(0, raw_delta) {
             let _ = self.raw.free(pointer);
             return Err(error);
@@ -434,10 +483,9 @@ impl Heap {
     pub fn allocate_raw_slots(&mut self, slot_count: usize) -> Result<RawPointer, HeapLimitError> {
         self.cached_image = None;
         let budget = self.budget();
-        let old_raw_bytes = self.raw.retained_bytes();
         let pointer = self.raw.allocate_packed_value_slots(slot_count);
 
-        let raw_delta = retained_delta(old_raw_bytes, self.raw.retained_bytes());
+        let raw_delta = retained_delta(budget.raw.retained_bytes, self.raw.retained_bytes());
         if let Err(error) = budget.check_delta(0, raw_delta) {
             let _ = self.raw.free(pointer);
             return Err(error);
@@ -450,10 +498,24 @@ impl Heap {
     pub fn allocate_raw_bytes(&mut self, bytes: &[u8]) -> Result<RawPointer, HeapLimitError> {
         self.cached_image = None;
         let budget = self.budget();
-        let old_raw_bytes = self.raw.retained_bytes();
         let pointer = self.raw.allocate_bytes(bytes);
 
-        let raw_delta = retained_delta(old_raw_bytes, self.raw.retained_bytes());
+        let raw_delta = retained_delta(budget.raw.retained_bytes, self.raw.retained_bytes());
+        if let Err(error) = budget.check_delta(0, raw_delta) {
+            let _ = self.raw.free(pointer);
+            return Err(error);
+        }
+
+        Ok(pointer)
+    }
+
+    /// Allocate one zeroed raw byte allocation.
+    pub fn allocate_raw_zeroed(&mut self, byte_len: usize) -> Result<RawPointer, HeapLimitError> {
+        self.cached_image = None;
+        let budget = self.budget();
+        let pointer = self.raw.allocate_zeroed(byte_len);
+
+        let raw_delta = retained_delta(budget.raw.retained_bytes, self.raw.retained_bytes());
         if let Err(error) = budget.check_delta(0, raw_delta) {
             let _ = self.raw.free(pointer);
             return Err(error);
@@ -499,6 +561,12 @@ impl Heap {
         self.raw.set_byte(pointer, index, byte)
     }
 
+    /// Set one raw byte slice.
+    pub fn set_raw_bytes(&mut self, pointer: RawPointer, start: usize, bytes: &[u8]) -> bool {
+        self.cached_image = None;
+        self.raw.set_bytes(pointer, start, bytes)
+    }
+
     /// Resize one raw packed-value payload.
     pub fn resize_raw_values(
         &mut self,
@@ -508,14 +576,13 @@ impl Heap {
         self.cached_image = None;
         let budget = self.budget();
         let old_values = self.raw.values_to_vec(pointer);
-        let old_raw_bytes = self.raw.retained_bytes();
         let replaced = self.raw.resize_values(pointer, len);
 
         if !replaced {
             return Ok(false);
         }
 
-        let raw_delta = retained_delta(old_raw_bytes, self.raw.retained_bytes());
+        let raw_delta = retained_delta(budget.raw.retained_bytes, self.raw.retained_bytes());
         if let Err(error) = budget.check_delta(0, raw_delta) {
             if let Some(old_values) = old_values {
                 let _ = self.raw.replace_bytes(pointer, &encode_values(&old_values));
@@ -556,14 +623,13 @@ impl Heap {
         self.cached_image = None;
         let budget = self.budget();
         let old_bytes = self.raw.bytes_to_vec(pointer);
-        let old_raw_bytes = self.raw.retained_bytes();
         let replaced = self.raw.replace_bytes(pointer, bytes);
 
         if !replaced {
             return Ok(false);
         }
 
-        let raw_delta = retained_delta(old_raw_bytes, self.raw.retained_bytes());
+        let raw_delta = retained_delta(budget.raw.retained_bytes, self.raw.retained_bytes());
         if let Err(error) = budget.check_delta(0, raw_delta) {
             if let Some(old_bytes) = old_bytes {
                 let _ = self.raw.replace_bytes(pointer, &old_bytes);
@@ -611,7 +677,7 @@ impl Heap {
         let managed = self.managed.image(base_managed)?;
         let raw = self.raw.image(base_raw);
         let image = HeapImage { managed, raw };
-        self.cached_image = Some(Arc::new(image.clone()));
+        self.cached_image = Some(Rc::new(image.clone()));
         Ok(image)
     }
 

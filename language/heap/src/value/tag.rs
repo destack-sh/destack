@@ -32,8 +32,4 @@ pub enum ValueTag {
     GlobalPointer = 12,
     /// Function pointer.
     FunctionPointer = 13,
-    /// Heap-allocated aggregate.
-    Aggregate = 14,
-    /// Heap-allocated string.
-    String = 15,
 }
