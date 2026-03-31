@@ -127,7 +127,11 @@ impl CodegenJsResultExt for CodegenJsResult<LocalNodeIdAny> {
                     Err(CodegenJsError::UnexpectedNode {
                         node: source_id,
                         wanted: T::TYPE,
-                        message: None,
+                        message: Some(format!(
+                            "lowered to unexpected {} (wanted {})",
+                            node_id.ty.name(),
+                            T::TYPE.name()
+                        )),
                     })
                 }
             }
@@ -148,7 +152,11 @@ impl CodegenJsResultExt for CodegenJsResult<LocalNodeIdAny> {
                     lowerer.warning(crate::CodegenJsWarning::UnexpectedNode {
                         node: source_id,
                         wanted: T::TYPE,
-                        message: None,
+                        message: Some(format!(
+                            "lowered to unexpected {} (wanted {})",
+                            node_id.ty.name(),
+                            T::TYPE.name()
+                        )),
                     });
                     None
                 }

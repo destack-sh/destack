@@ -46,13 +46,13 @@ impl ModuleLowerer<'_> {
                     alias,
                     target: _,
                     target_module: _,
-                    symbol: _,
+                    symbol,
                 } => {
                     let mode = self.lower_dependency_mode(*mode);
                     let name = name.map(|name| self.lower_name(name));
                     let alias =
                         alias.map(|alias| self.strings.intern_from(self.source_strings, alias));
-                    DependencyItem {
+                    let item = DependencyItem {
                         mode,
                         kind: if *item_kind != kind {
                             Some(self.lower_dependency_kind(*item_kind))
@@ -62,20 +62,26 @@ impl ModuleLowerer<'_> {
                         name,
                         alias,
                         value: None,
+                    };
+                    let item_id = self.tree.insert_from_source(item, self.module.id, *item_id);
+                    if let Some(symbol) = symbol {
+                        self.set_source_node_symbol(item_id, *symbol);
                     }
+                    lowered_item_ids.push(item_id);
+                    continue;
                 }
                 dir::DependencyItem::UnresolvedLocal {
                     mode,
                     kind: item_kind,
                     name,
                     alias,
-                    symbol: _,
+                    symbol,
                 } => {
                     let mode = self.lower_dependency_mode(*mode);
                     let name = name.map(|name| self.lower_name(name));
                     let alias =
                         alias.map(|alias| self.strings.intern_from(self.source_strings, alias));
-                    DependencyItem {
+                    let item = DependencyItem {
                         mode,
                         kind: if *item_kind != kind {
                             Some(self.lower_dependency_kind(*item_kind))
@@ -85,7 +91,13 @@ impl ModuleLowerer<'_> {
                         name,
                         alias,
                         value: None,
+                    };
+                    let item_id = self.tree.insert_from_source(item, self.module.id, *item_id);
+                    if let Some(symbol) = symbol {
+                        self.set_source_node_symbol(item_id, *symbol);
                     }
+                    lowered_item_ids.push(item_id);
+                    continue;
                 }
                 dir::DependencyItem::Value { mode, value } => {
                     let mode = self.lower_dependency_mode(*mode);
@@ -106,13 +118,13 @@ impl ModuleLowerer<'_> {
                     name,
                     alias,
                     symbol: _,
-                    target_symbol: _,
+                    target_symbol,
                 } => {
                     let mode = self.lower_dependency_mode(*mode);
                     let name = name.map(|name| self.lower_name(name));
                     let alias =
                         alias.map(|alias| self.strings.intern_from(self.source_strings, alias));
-                    DependencyItem {
+                    let item = DependencyItem {
                         mode,
                         kind: if *item_kind != kind {
                             Some(self.lower_dependency_kind(*item_kind))
@@ -122,7 +134,11 @@ impl ModuleLowerer<'_> {
                         name,
                         alias,
                         value: None,
-                    }
+                    };
+                    let item_id = self.tree.insert_from_source(item, self.module.id, *item_id);
+                    self.set_global_node_symbol(item_id, *target_symbol);
+                    lowered_item_ids.push(item_id);
+                    continue;
                 }
                 dir::DependencyItem::Remote {
                     mode,
@@ -131,14 +147,14 @@ impl ModuleLowerer<'_> {
                     alias,
                     target: _,
                     target_module: _,
-                    symbol: _,
+                    symbol,
                     target_symbol: _,
                 } => {
                     let mode = self.lower_dependency_mode(*mode);
                     let name = name.map(|name| self.lower_name(name));
                     let alias =
                         alias.map(|alias| self.strings.intern_from(self.source_strings, alias));
-                    DependencyItem {
+                    let item = DependencyItem {
                         mode,
                         kind: if *item_kind != kind {
                             Some(self.lower_dependency_kind(*item_kind))
@@ -148,7 +164,13 @@ impl ModuleLowerer<'_> {
                         name,
                         alias,
                         value: None,
+                    };
+                    let item_id = self.tree.insert_from_source(item, self.module.id, *item_id);
+                    if let Some(symbol) = symbol {
+                        self.set_source_node_symbol(item_id, *symbol);
                     }
+                    lowered_item_ids.push(item_id);
+                    continue;
                 }
             };
             let item_id = self

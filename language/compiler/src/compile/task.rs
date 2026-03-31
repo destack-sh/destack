@@ -128,7 +128,9 @@ impl ArtifactTaskKeyExt for ArtifactKey {
     fn phase(&self) -> TaskPhase {
         match self {
             ArtifactKey::ModuleGraph { .. } => TaskPhase::Resolve,
-            ArtifactKey::Ast { .. } | ArtifactKey::DirBase { .. } => TaskPhase::Import,
+            ArtifactKey::Ast { .. } | ArtifactKey::Data { .. } | ArtifactKey::DirBase { .. } => {
+                TaskPhase::Import
+            }
             ArtifactKey::LanguageEnvironment { .. }
             | ArtifactKey::LibraryEnvironment { .. }
             | ArtifactKey::DirPrepared { .. }
@@ -151,6 +153,7 @@ impl ArtifactTaskKeyExt for ArtifactKey {
         match self {
             ArtifactKey::ModuleGraph { .. } => DiagnosticAnchor::Global,
             ArtifactKey::Ast { module }
+            | ArtifactKey::Data { module }
             | ArtifactKey::DirBase { module }
             | ArtifactKey::DirPrepared { module, .. }
             | ArtifactKey::DirResolved { module, .. }
@@ -174,6 +177,7 @@ impl ArtifactTaskKeyExt for ArtifactKey {
         match self {
             ArtifactKey::ModuleGraph { .. } => "module_graph",
             ArtifactKey::Ast { .. } => "ast",
+            ArtifactKey::Data { .. } => "data",
             ArtifactKey::DirBase { .. } => "dir_base",
             ArtifactKey::LanguageEnvironment { .. } => "language_environment",
             ArtifactKey::IntrinsicEnvironment { .. } => "intrinsic_environment",
@@ -204,7 +208,9 @@ impl ArtifactTaskKeyExt for ArtifactKey {
                 let profile = profile.diagnostic_fmt(revision, repository, artifacts);
                 format!("profile={profile}")
             }
-            ArtifactKey::Ast { module } | ArtifactKey::DirBase { module } => {
+            ArtifactKey::Ast { module }
+            | ArtifactKey::Data { module }
+            | ArtifactKey::DirBase { module } => {
                 let module = module.diagnostic_fmt(revision, repository, artifacts);
                 format!("module={module}")
             }

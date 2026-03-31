@@ -18,7 +18,7 @@ impl<'a> Printer<'a> {
                 kind,
                 target,
                 items,
-                arguments,
+                attributes,
                 ..
             } => {
                 self.write_keyword(Keyword::Import);
@@ -28,12 +28,18 @@ impl<'a> Printer<'a> {
                 }
 
                 let target_span = self.source_part_span(statement_id.id, NodeSpanType::Main);
+                let items = items.as_deref().unwrap_or(&[]);
                 self.print_import_binding(*target, items, target_span)?;
 
-                if let Some(arguments) = arguments {
-                    self.write_keyword(Keyword::With);
+                if let Some(attributes) = attributes {
+                    let keyword = match attributes.kind {
+                        crate::DependencyAttributeClauseKind::With => Keyword::With,
+                        crate::DependencyAttributeClauseKind::Assert => Keyword::Asserts,
+                    };
+
+                    self.write_keyword(keyword);
                     self.write_punct("{");
-                    self.print_argument_list(arguments)?;
+                    self.print_argument_list(&attributes.arguments)?;
                     self.write_punct("}");
                 }
             }
@@ -41,6 +47,7 @@ impl<'a> Printer<'a> {
                 kind,
                 target,
                 items,
+                attributes,
                 ..
             } => {
                 self.write_keyword(Keyword::Export);
@@ -51,6 +58,18 @@ impl<'a> Printer<'a> {
 
                 let target_span = self.source_part_span(statement_id.id, NodeSpanType::Main);
                 self.print_export_binding(*target, items, target_span)?;
+
+                if let Some(attributes) = attributes {
+                    let keyword = match attributes.kind {
+                        crate::DependencyAttributeClauseKind::With => Keyword::With,
+                        crate::DependencyAttributeClauseKind::Assert => Keyword::Asserts,
+                    };
+
+                    self.write_keyword(keyword);
+                    self.write_punct("{");
+                    self.print_argument_list(&attributes.arguments)?;
+                    self.write_punct("}");
+                }
             }
             Statement::ExportValue { value } => {
                 self.write_keyword(Keyword::Export);

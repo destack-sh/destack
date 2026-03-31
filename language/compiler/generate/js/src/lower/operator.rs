@@ -30,7 +30,9 @@ impl ModuleLowerer<'_> {
             dir::TypeUnaryOperator::Newtype => {
                 return Err(CodegenJsError::UnsupportedConstruct {
                     node: expression_id.into_global_any(self.module.id),
-                    message: None,
+                    message: Some(
+                        "type newtype unary expressions are not lowered to js".to_string(),
+                    ),
                 });
             }
             dir::TypeUnaryOperator::Type => unary(TypeUnaryOperator::Type),
@@ -112,7 +114,7 @@ impl ModuleLowerer<'_> {
             dir::UnaryOperator::WrappingNegate => {
                 return Err(CodegenJsError::UnsupportedConstruct {
                     node: expression_id.into_global_any(self.module.id),
-                    message: None,
+                    message: Some("wrapping negate is not lowered to js".to_string()),
                 });
             }
             dir::UnaryOperator::ElementwiseNot => unary(UnaryOperator::ElementwiseNot),
@@ -125,7 +127,7 @@ impl ModuleLowerer<'_> {
             dir::UnaryOperator::Spread => {
                 return Err(CodegenJsError::UnsupportedConstruct {
                     node: expression_id.into_global_any(self.module.id),
-                    message: None,
+                    message: Some("spread unary expressions are not lowered to js".to_string()),
                 });
             }
         };
@@ -201,7 +203,7 @@ impl ModuleLowerer<'_> {
             _ => {
                 return Err(CodegenJsError::UnsupportedConstruct {
                     node: expression_id.into_global_any(self.module.id),
-                    message: None,
+                    message: Some(format!("unsupported binary operator: {operator:?}")),
                 });
             }
         };
@@ -274,7 +276,7 @@ impl ModuleLowerer<'_> {
             _ => {
                 return Err(CodegenJsError::UnsupportedConstruct {
                     node: expression_id.into_global_any(self.module.id),
-                    message: None,
+                    message: Some(format!("unsupported assign operator: {operator:?}")),
                 });
             }
         };

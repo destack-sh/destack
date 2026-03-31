@@ -620,6 +620,7 @@ impl Compiler {
                 self.process_module_graph(*profile, &context).into()
             }
             ArtifactKey::Ast { module } => self.process_ast(*module, &context).into(),
+            ArtifactKey::Data { module } => self.process_ast(*module, &context).into(),
             ArtifactKey::DirBase { module } => self.process_dir_base(*module, &context).into(),
             ArtifactKey::DirPrepared { module, profile } => self
                 .process_dir_prepared(*module, *profile, &context)

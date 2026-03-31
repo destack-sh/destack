@@ -25,6 +25,7 @@ destack_source = { workspace = true }
 destack_workspace = { path = "../../../workspace", default-features = false }
 
 # general
+base64 = { workspace = true }
 dashmap = { workspace = true }
 parking_lot = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }

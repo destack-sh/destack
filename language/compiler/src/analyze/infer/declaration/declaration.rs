@@ -15,6 +15,7 @@ use crate::{
     AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, CanonicalSymbolMode, Compiler,
     CompilerContext, InferState,
 };
+use destack_artifact::Data;
 use destack_core::StringId;
 use destack_dir::{
     AbstractionModifier, Asynchrony, BindingAnchor, BindingKind, Constraint, Declaration,
@@ -3657,22 +3658,21 @@ impl Compiler {
     ) -> AnalyzeResult<LocalTypeId> {
         use crate::analyze::r#type::json_value_to_type;
 
-        let ast = self
-            .ast(target_module.id)
-            .ok_or_else(|| AnalyzeError::Internal {
-                message: format!(
-                    "missing parse artifact for data module {:?}",
-                    target_module.id
-                ),
-            })?;
-        if let Some(value) = &ast.data_value {
+        if target_module.loader.is_data() {
+            let data = self
+                .data(target_module.id)
+                .ok_or_else(|| AnalyzeError::Internal {
+                    message: format!(
+                        "missing data artifact for data module {:?}",
+                        target_module.id
+                    ),
+                })?;
+            let value = match data.as_ref() {
+                Data::Json(value) => value,
+            };
+
             // infer structural type from JSON value
-            Ok(json_value_to_type(
-                value,
-                source_node,
-                types,
-                &self.repository.strings,
-            ))
+            Ok(json_value_to_type(value, source_node, types, &self.repository.strings))
         }
         // otherwise text imports are always string
         else if target_module.loader.is_text() {

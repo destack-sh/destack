@@ -7,6 +7,7 @@ use crate::{
     AnalyzeError, AnalyzeResult, Compiler, CompilerContext, FlowContext, InferRepository,
     RequirementCollector,
 };
+use destack_artifact::Data;
 use destack_dir::{
     Declaration, Declarator, Expression, FlowGraphBuilder, InferTable, IntType, LocalNodeId,
     LocalNodeIdAny, LocalSymbolId, NodeTree, PrimitiveType, SymbolTable, Type, TypeLiteral,
@@ -281,13 +282,12 @@ impl Compiler {
         let module = context.module(module_id);
         let module = module.as_ref();
         if module.loader.is_data() {
-            let ast = match self.ast(module_id) {
-                Some(ast) => ast,
+            let data = match context.data(module_id) {
+                Some(data) => data,
                 None => return Ok(()),
             };
-            let value = match &ast.data_value {
-                Some(value) => value,
-                None => return Ok(()),
+            let value = match data.as_ref() {
+                Data::Json(value) => value,
             };
 
             let inferred_type =

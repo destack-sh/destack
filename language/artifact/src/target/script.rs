@@ -49,6 +49,8 @@ pub struct ScriptSlot {
 pub enum ScriptSlotKind {
     /// One file-loader URL that must be linked later.
     LinkedAssetUrl,
+    /// One stylesheet URL that must be linked later.
+    LinkedStylesheetUrl,
 }
 
 /// One generated script declaration payload.

@@ -1,6 +1,7 @@
 use crate::{
-    CodegenJsError, CodegenJsResult, Generics, Heritage, LocalNodeId, ModuleLowerer, Mutability,
-    PrimitiveType, Type, TypeBinaryOperator, TypeLiteral, TypeUnaryOperator,
+    CodegenJsError, CodegenJsResult, ForEachDeclarationKind, Generics, Heritage, LocalNodeId,
+    ModuleLowerer, Mutability, PrimitiveType, TupleElement, Type, TypeBinaryOperator, TypeLiteral,
+    TypeUnaryOperator,
 };
 use destack_dir as dir;
 
@@ -11,6 +12,41 @@ impl ModuleLowerer<'_> {
             dir::Mutability::Immutable => Mutability::Immutable,
             dir::Mutability::Mutable => Mutability::Mutable,
         }
+    }
+
+    /// Lower one for each declaration kind from DIR into JS AST.
+    pub fn lower_for_each_declaration_kind(
+        &self,
+        declaration_kind: dir::ForEachDeclarationKind,
+    ) -> ForEachDeclarationKind {
+        match declaration_kind {
+            dir::ForEachDeclarationKind::Var => ForEachDeclarationKind::Var,
+            dir::ForEachDeclarationKind::Let => ForEachDeclarationKind::Let,
+            dir::ForEachDeclarationKind::Const => ForEachDeclarationKind::Const,
+        }
+    }
+
+    /// Lower one tuple element from DIR into JS AST.
+    pub fn lower_tuple_element(
+        &mut self,
+        source_id: dir::LocalNodeIdAny,
+        element: &dir::TypeElement,
+    ) -> CodegenJsResult<LocalNodeId<TupleElement>> {
+        let label = element
+            .label
+            .map(|label| self.strings.intern_from(self.source_strings, label));
+        let ty = self.lower_type(element.ty)?;
+        let tuple_element = TupleElement {
+            label,
+            ty,
+            is_optional: element.is_optional,
+            is_readonly: element.is_readonly,
+            is_rest: element.is_rest,
+        };
+
+        Ok(self
+            .tree
+            .insert_from_source_any(tuple_element, self.module.id, source_id))
     }
 
     /// Lower Generics from DIR into JS AST.
@@ -232,19 +268,7 @@ impl ModuleLowerer<'_> {
             } => {
                 let elements = elements
                     .iter()
-                    .map(|element| {
-                        if element.label.is_some()
-                            || element.is_optional
-                            || element.is_readonly
-                            || element.is_rest
-                        {
-                            return Err(CodegenJsError::UnsupportedConstruct {
-                                node: source_id.into_global(self.module.id),
-                                message: None,
-                            });
-                        }
-                        self.lower_type(element.ty)
-                    })
+                    .map(|element| self.lower_tuple_element(source_id, element))
                     .collect::<Result<Vec<_>, CodegenJsError>>()?;
                 let mut tuple_id = self.tree.insert_from_source_any(
                     Type::Tuple { elements },

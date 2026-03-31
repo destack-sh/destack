@@ -1,25 +1,25 @@
-use destack_artifact::{Ast, DirPatched};
-use destack_fir::format as fir_format;
-use destack_fir::format::FileMarker;
-use destack_fir::prelude::format_with;
-use destack_source::{File, FileType};
+use destack_artifact::{Ast, DirPatched, ScriptModule};
+use destack_fir::format::{Document, FormatState, Formatter, VecBuffer};
+use destack_fir::print::Printer as FirPrinter;
+use destack_js::{
+    JsFormatContext, JsFormatOptions, JsSourceMap, NodeTree, PrintedScript, format_roots,
+    print_roots_minified_with_source_map,
+};
+use destack_source::{File, FileType, NodeSpanType, Span};
 use destack_workspace::Target;
 
-use crate::{
-    CodegenJsError, CodegenJsFormatContext, CodegenJsFormatOptions, CodegenJsResult, ScriptModule,
-    format_statements,
-};
+use crate::{CodegenJsError, CodegenJsResult};
 
-/// One printed script module with precise source markers.
+/// One printed script module payload.
 #[derive(Debug, Clone)]
 pub struct PrintedScriptModule {
-    /// The printed module text.
+    /// The printed JS or TS text.
     pub code: String,
-    /// The precise output to source markers.
-    pub markers: Vec<FileMarker>,
+    /// The output to source markers.
+    pub markers: Vec<destack_fir::format::FileMarker>,
 }
 
-/// Print one generated script module to text for a specific file type.
+/// Print one generated script module with the target output policy.
 pub fn print_script_module(
     target: &Target,
     ast: &Ast,
@@ -28,40 +28,139 @@ pub fn print_script_module(
     file_type: FileType,
     module: &ScriptModule,
 ) -> CodegenJsResult<PrintedScriptModule> {
+    if target.should_minify_bundle_script_output() {
+        return print_script_module_minified(ast, dir, source_file, file_type, module);
+    }
+
+    print_script_module_pretty(ast, dir, source_file, file_type, module)
+}
+
+/// Print one generated script module through the direct minified printer.
+pub fn print_script_module_minified(
+    ast: &Ast,
+    dir: &DirPatched,
+    source_file: &File,
+    file_type: FileType,
+    module: &ScriptModule,
+) -> CodegenJsResult<PrintedScriptModule> {
+    let source_map = CodegenJsSourceMap { ast, dir };
     let strings = module.strings.clone().into_immutable();
-    let options = CodegenJsFormatOptions::from_target(target, file_type);
-    let context = CodegenJsFormatContext {
-        options,
+    let printed = print_roots_minified_with_source_map(
+        file_type,
+        &module.tree,
+        &module.roots,
+        &strings,
+        &source_map,
+    )
+    .map_err(|error| match error {})?;
+
+    let _ = source_file;
+
+    Ok(PrintedScriptModule::from_printed_script(printed))
+}
+
+/// One source span provider backed by AST source parts.
+#[derive(Debug)]
+struct CodegenJsSourceMap<'a> {
+    /// The original source AST.
+    ast: &'a Ast,
+    /// The patched DIR artifact.
+    dir: &'a DirPatched,
+}
+
+impl CodegenJsSourceMap<'_> {
+    /// Return the AST source id for one lowered JS node when one exists.
+    fn source_id(&self, tree: &NodeTree, node_id: u32) -> Option<u32> {
+        let (module_id, source_id) = tree.get_source(node_id);
+
+        // skip nodes lowered from another source module
+        if module_id != self.ast.id {
+            return None;
+        }
+
+        // js nodes carry dir ids, so resolve them back to ast ids first
+        if !self.dir.tree.has_node_id(source_id) {
+            return None;
+        }
+
+        Some(self.dir.tree.get_source(source_id))
+    }
+}
+
+impl JsSourceMap for CodegenJsSourceMap<'_> {
+    fn source_span(&self, tree: &NodeTree, node_id: u32) -> Option<Span> {
+        let source_id = self.source_id(tree, node_id)?;
+
+        Some(self.ast.tree.get_span_by_id(source_id))
+    }
+
+    fn source_part_span(
+        &self,
+        tree: &NodeTree,
+        node_id: u32,
+        span_type: NodeSpanType,
+    ) -> Option<Span> {
+        let source_id = self.source_id(tree, node_id)?;
+
+        match span_type {
+            NodeSpanType::Enclosing => Some(self.ast.tree.get_span_by_id(source_id)),
+            NodeSpanType::Main => self.ast.tree.get_main_span_by_id(source_id),
+            other => self.ast.tree.get_side_span_by_id(source_id, other),
+        }
+    }
+}
+
+impl PrintedScriptModule {
+    /// Build one printed script module from one pure JS print result.
+    fn from_printed_script(printed: PrintedScript) -> Self {
+        Self {
+            code: printed.code,
+            markers: printed.markers,
+        }
+    }
+}
+
+/// Print one generated script module through the pure formatter.
+fn print_script_module_pretty(
+    ast: &Ast,
+    dir: &DirPatched,
+    source_file: &File,
+    file_type: FileType,
+    module: &ScriptModule,
+) -> CodegenJsResult<PrintedScriptModule> {
+    let source_map = CodegenJsSourceMap { ast, dir };
+    let strings = module.strings.clone().into_immutable();
+    let roots = module.roots.as_slice();
+    let context = JsFormatContext {
+        options: JsFormatOptions::pretty().with_file_type(file_type),
         file: source_file,
-        ast,
-        dir,
         tree: &module.tree,
-        roots: &module.roots,
+        roots,
         strings: &strings,
+        source_map: &source_map,
     };
-    let formatted = fir_format!(
-        context,
-        [format_with(|f| format_statements(f, &module.roots))]
-    );
-    let formatted = match formatted {
-        Ok(formatted) => formatted,
-        Err(error) => {
-            return Err(CodegenJsError::Internal {
-                message: format!("failed to format roots: {error}"),
-            });
-        }
-    };
-    let printed = match formatted.print() {
-        Ok(printed) => printed,
-        Err(error) => {
-            return Err(CodegenJsError::Internal {
-                message: format!("failed to print formatted: {error}"),
-            });
-        }
-    };
+    let mut state = FormatState::new(context);
+    let mut buffer = VecBuffer::new(&mut state);
+
+    // format the root list through the pure js formatter
+    {
+        let mut formatter = Formatter::new(&mut buffer);
+        format_roots(&mut formatter, roots).map_err(|error| CodegenJsError::Internal {
+            message: format!("failed to format script module: {error}"),
+        })?;
+    }
+
+    // build and print the fir document
+    let document = Document::from(buffer.into_vec());
+
+    let printed = FirPrinter::new(source_file, state.context().options.as_print_options())
+        .print(&document)
+        .map_err(|error| CodegenJsError::Internal {
+            message: format!("failed to print script module: {error}"),
+        })?;
 
     Ok(PrintedScriptModule {
         code: printed.as_str().to_string(),
-        markers: printed.into_sourcemap(),
+        markers: printed.sourcemap().to_vec(),
     })
 }
