@@ -23,6 +23,110 @@ use crate::format::declaration::r#type::{
     format_enum_declaration, format_interface_declaration, format_struct_or_class_declaration,
 };
 
+/// Return the raw comment nodes between `export` and the declaration head.
+fn declaration_export_head_comment_nodes(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Declaration>,
+    export_mode: DependencyMode,
+) -> Vec<LocalNodeId<destack_ast::Comment>> {
+    let declaration_span = context.span(node_id);
+
+    let export_token = context
+        .tokens
+        .iter()
+        .copied()
+        .chain(context.side_tokens.iter().copied())
+        .filter(|token| {
+            token.span.file == declaration_span.file
+                && token.span.start >= declaration_span.start
+                && token.span.end <= declaration_span.end
+                && context.token_keyword(*token) == Some(Keyword::Export)
+        })
+        .min_by_key(|token| token.span.start);
+    let Some(export_token) = export_token else {
+        return Vec::new();
+    };
+
+    let mut comment_ids = Vec::new();
+
+    if let Some(next_token_after_export) =
+        context.next_non_whitespace_token_after_span(export_token.span)
+        && next_token_after_export.span.file == export_token.span.file
+        && next_token_after_export.span.start > export_token.span.end
+    {
+        comment_ids.extend(
+            context
+                .comment_nodes_in_range(export_token.span.end, next_token_after_export.span.start),
+        );
+    }
+
+    if export_mode == DependencyMode::Default {
+        let default_token = context
+            .tokens
+            .iter()
+            .copied()
+            .chain(context.side_tokens.iter().copied())
+            .filter(|token| {
+                token.span.file == declaration_span.file
+                    && token.span.start >= export_token.span.end
+                    && token.span.end <= declaration_span.end
+                    && context.token_keyword(*token) == Some(Keyword::Default)
+            })
+            .min_by_key(|token| token.span.start);
+        if let Some(default_token) = default_token
+            && let Some(next_token_after_default) =
+                context.next_non_whitespace_token_after_span(default_token.span)
+            && next_token_after_default.span.file == default_token.span.file
+            && next_token_after_default.span.start > default_token.span.end
+        {
+            comment_ids.extend(context.comment_nodes_in_range(
+                default_token.span.end,
+                next_token_after_default.span.start,
+            ));
+        }
+    }
+
+    comment_ids.sort_by_key(|comment_id| context.span(*comment_id).start);
+    comment_ids.dedup();
+
+    comment_ids
+}
+
+/// Write raw comment seams between `export` and the declaration head.
+fn write_declaration_export_head_comment_seams<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Declaration>,
+    export_mode: DependencyMode,
+) -> FormatResult<()> {
+    let comment_ids = declaration_export_head_comment_nodes(f.context(), node_id, export_mode);
+    if comment_ids.is_empty() {
+        return Ok(());
+    }
+
+    for comment_id in comment_ids {
+        write!(f, [comment_id])?;
+
+        let comment_span = f.context().span(comment_id);
+        let is_line_comment = f
+            .context()
+            .comment_token_type_at_span(comment_span)
+            .is_some_and(|token_type| {
+                matches!(
+                    token_type,
+                    destack_ast::TokenType::LineComment | destack_ast::TokenType::DocLineComment
+                )
+            });
+
+        if is_line_comment {
+            write!(f, [hard_line_break()])?;
+        } else {
+            write!(f, [space()])?;
+        }
+    }
+
+    Ok(())
+}
+
 /// Format one declaration export modifier and export-head seam comments.
 pub(crate) fn format_declaration_export_modifier<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -30,14 +134,8 @@ pub(crate) fn format_declaration_export_modifier<'ast>(
     descriptor: &destack_ast::DeclarationDescriptor,
 ) -> FormatResult<()> {
     if let Some(export) = descriptor.export {
-        write!(
-            f,
-            [
-                export,
-                space(),
-                crate::format::annotation::prefix_annotations(f.context(), node_id)
-            ]
-        )?;
+        write!(f, [export, space()])?;
+        write_declaration_export_head_comment_seams(f, node_id, export)?;
     }
 
     Ok(())

@@ -532,6 +532,32 @@ impl<'a> DestackFormatContext<'a> {
         None
     }
 
+    /// Return the nearest non-trivia token before one span.
+    pub fn previous_non_trivia_token_before_span(&self, span: Span) -> Option<TokenSpan> {
+        let tokens = self.tokens;
+        let mut index = tokens.partition_point(|token| token.span.end <= span.start);
+
+        while index > 0 {
+            index -= 1;
+            let token = tokens[index];
+            if matches!(
+                token.token.ty,
+                TokenType::Whitespace
+                    | TokenType::Newline
+                    | TokenType::LineComment
+                    | TokenType::BlockComment
+                    | TokenType::DocLineComment
+                    | TokenType::DocBlockComment
+            ) {
+                continue;
+            }
+
+            return Some(token);
+        }
+
+        None
+    }
+
     /// Return the nearest non-whitespace token after one span.
     pub fn next_non_whitespace_token_after_span(&self, span: Span) -> Option<TokenSpan> {
         let tokens = self.tokens;
@@ -997,7 +1023,7 @@ impl<'a> DestackFormatContext<'a> {
 
         for comment_trivia in &comment_trivia[start_index..] {
             if !self.file_range_bytes_match(pos, comment_trivia.span.start, |byte| {
-                matches!(byte, b'\t' | b' ' | b'=' | b':')
+                matches!(byte, b'\t' | b' ' | b'=' | b':' | b';')
             }) {
                 break;
             }
