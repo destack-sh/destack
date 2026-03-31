@@ -1,5 +1,6 @@
 use crate::{
     DestackFormatOptions, assert_format, assert_format_program, assert_format_program_idempotent,
+    assert_format_program_reference_widths,
 };
 use destack_source::FileType;
 
@@ -51,5 +52,42 @@ fn test_format_multiline_jsx_argument_forces_expanded_call_layout() {
 "#,
         FileType::JavaScriptXml,
         DestackFormatOptions::default_with_line_width(80).with_indent_width(2)
+    );
+}
+
+/// Comments before type-argument calls should survive speculative call formatting.
+#[test]
+fn test_format_type_argument_call_comment_seams() {
+    assert_format_program_reference_widths(
+        r#"// Type arguments with speculative formatting should not lose comments
+export const globalRegistry: $ZodRegistry = /*@__PURE__*/ registry();
+
+// Comments before call expressions with type arguments should be preserved
+const r = /* THIS */ f<Type>()
+const s = /* comment */ foo<A | B | C>()
+"#,
+        FileType::TypeScript,
+        &[
+            (
+                80,
+                r#"// Type arguments with speculative formatting should not lose comments
+export const globalRegistry: $ZodRegistry = /*@__PURE__*/ registry();
+
+// Comments before call expressions with type arguments should be preserved
+const r = /* THIS */ f<Type>();
+const s = /* comment */ foo<A | B | C>();
+"#,
+            ),
+            (
+                100,
+                r#"// Type arguments with speculative formatting should not lose comments
+export const globalRegistry: $ZodRegistry = /*@__PURE__*/ registry();
+
+// Comments before call expressions with type arguments should be preserved
+const r = /* THIS */ f<Type>();
+const s = /* comment */ foo<A | B | C>();
+"#,
+            ),
+        ],
     );
 }

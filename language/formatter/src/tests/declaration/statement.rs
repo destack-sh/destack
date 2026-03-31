@@ -2,7 +2,10 @@ use destack_ast::BlockContext;
 use destack_source::FileType;
 use destack_workspace::OrganizeImports;
 
-use crate::{DestackFormatOptions, assert_format, assert_format_program};
+use crate::{
+    DestackFormatOptions, assert_format, assert_format_program,
+    assert_format_program_reference_widths,
+};
 
 /// Return formatter options with import organization enabled.
 fn organize_imports_options() -> DestackFormatOptions {
@@ -120,5 +123,91 @@ import rel from "./rel";
 "#,
         FileType::Destack,
         organize_imports_options()
+    );
+}
+
+/// Decorator comment seams should stay attached to decorated class declarations.
+#[test]
+fn test_format_decorator_comment_seams() {
+    assert_format_program_reference_widths(
+        r#"// test.ts
+import { Component } from "@angular/core";
+
+@Component({
+  selector: "my-component", // test
+})
+export class AppMyComponent {}
+
+@Component({
+  selector: "my-component", // test
+})
+export default class AppMyComponent {}
+"#,
+        FileType::TypeScript,
+        &[
+            (
+                80,
+                r#"// test.ts
+import { Component } from "@angular/core";
+
+@Component({
+  selector: "my-component", // test
+})
+export class AppMyComponent {}
+
+@Component({
+  selector: "my-component", // test
+})
+export default class AppMyComponent {}
+"#,
+            ),
+            (
+                100,
+                r#"// test.ts
+import { Component } from "@angular/core";
+
+@Component({
+  selector: "my-component", // test
+})
+export class AppMyComponent {}
+
+@Component({
+  selector: "my-component", // test
+})
+export default class AppMyComponent {}
+"#,
+            ),
+        ],
+    );
+}
+
+/// Export-head comment seams should stay attached after `export`.
+#[test]
+fn test_format_export_head_comment_seams() {
+    assert_format_program_reference_widths(
+        r#"export /* keep */ class A {}
+export /* keep */ default class B {}
+export /* keep */ function c() {}
+export /* keep */ type T = string
+"#,
+        FileType::TypeScript,
+        &[
+            (
+                80,
+                r#"export /* keep */ class A {}
+export default /* keep */ class B {}
+export /* keep */ function c() {}
+export /* keep */ type T = string;
+"#,
+            ),
+            (
+                100,
+                r#"export /* keep */ class A {}
+export default /* keep */ class B {}
+export /* keep */ function c() {}
+export /* keep */ type T = string;
+"#,
+            ),
+        ],
     );
 }

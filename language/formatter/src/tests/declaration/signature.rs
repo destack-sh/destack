@@ -1,4 +1,7 @@
-use crate::{DestackFormatOptions, assert_format, assert_format_program_idempotent};
+use crate::{
+    DestackFormatOptions, assert_format, assert_format_program_idempotent,
+    assert_format_program_reference_widths,
+};
 use destack_source::FileType;
 
 #[test]
@@ -59,5 +62,76 @@ class X2 {
 }
 "#,
         FileType::TypeScript
+    );
+}
+
+/// Method comment seams should stay attached to the final method shell.
+#[test]
+fn test_format_method_comment_seams() {
+    assert_format_program_reference_widths(
+        r#"class A {
+  m1(element: Element, key: string, undefined: undefined) /* block comment */ {
+    // method body
+  }
+  m2(element: Element, key: string, undefined: undefined): void /* block comment */ {
+    // method body
+  }
+  m3(tagName: string, rect: number[]): void // line comment
+  {
+    // method body
+  }
+  m4(tagName: string, rect: number[]) // line comment
+  {
+    // method body
+  }
+}
+"#,
+        FileType::TypeScript,
+        &[
+            (
+                80,
+                r#"class A {
+  m1(element: Element, key: string, undefined: undefined) /* block comment */ {
+    // method body
+  }
+  m2(
+    element: Element,
+    key: string,
+    undefined: undefined,
+  ): void /* block comment */ {
+    // method body
+  }
+  m3(tagName: string, rect: number[]): void {
+    // line comment
+    // method body
+  }
+  m4(tagName: string, rect: number[]) {
+    // line comment
+    // method body
+  }
+}
+"#,
+            ),
+            (
+                100,
+                r#"class A {
+  m1(element: Element, key: string, undefined: undefined) /* block comment */ {
+    // method body
+  }
+  m2(element: Element, key: string, undefined: undefined): void /* block comment */ {
+    // method body
+  }
+  m3(tagName: string, rect: number[]): void {
+    // line comment
+    // method body
+  }
+  m4(tagName: string, rect: number[]) {
+    // line comment
+    // method body
+  }
+}
+"#,
+            ),
+        ],
     );
 }
