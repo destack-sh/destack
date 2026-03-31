@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
-use crate::host::core::{HostQueue, HostRequestId, HostSessionRegistry};
-use crate::host::ios::ingress::lifecycle::host_lifecycle_state_for_application_lifecycle;
-use crate::host::ios::ingress::{
+use crate::host::apple::ingress::lifecycle::host_lifecycle_state_for_application_lifecycle;
+use crate::host::apple::ingress::{
     IosApplicationLifecycle, ios_notify_background_event, ios_notify_document_result,
     ios_notify_intent_open_url, ios_notify_location_sample, ios_notify_notification_event,
     ios_notify_permission_result,
 };
+use crate::host::core::{HostQueue, HostRequestId, HostSessionRegistry};
 use crate::host::{
     HostBackgroundEvent, HostDocumentEvent, HostEvent, HostIntentEvent, HostIntentPayload,
     HostLifecycleState, HostLocationEvent, HostNotificationEvent, HostPermissionEvent, Platform,

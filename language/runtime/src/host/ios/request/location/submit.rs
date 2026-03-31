@@ -1,12 +1,15 @@
+use std::mem::MaybeUninit;
+
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::callback::decode_callback_host_status;
-use crate::host::core::{HostRequest, HostRequestOutcome, HostRequestResult};
-use crate::host::ios::abi::location::{
+use crate::host::abi::location::{LocationLastKnownResponse, LocationServicesResponse};
+use crate::host::apple::abi::location::{
     destack_host_ios_location_last_known, destack_host_ios_location_services_enabled,
     destack_host_ios_location_watch_close, destack_host_ios_location_watch_open,
 };
+use crate::host::core::callback::decode_callback_host_status;
+use crate::host::core::error::invalid_argument_value;
+use crate::host::core::{HostRequest, HostRequestOutcome, HostRequestResult};
 use crate::platform::abi::NativeStringRef;
-use crate::platform::os::LocationSample;
 
 /// Return one iOS location request outcome when supported.
 pub(crate) fn submit_location_request(
@@ -15,28 +18,34 @@ pub(crate) fn submit_location_request(
 ) -> RuntimeResult<Option<HostRequestOutcome>> {
     match request {
         HostRequest::OsLocationServicesEnabled => {
-            let mut is_enabled = false;
-            let status =
-                unsafe { destack_host_ios_location_services_enabled(runtime_id, &mut is_enabled) };
-            decode_callback_host_status(status, request.operation_name())?;
+            let mut response = MaybeUninit::<LocationServicesResponse>::uninit();
+            let call_status = unsafe {
+                destack_host_ios_location_services_enabled(runtime_id, response.as_mut_ptr())
+            };
+            decode_callback_host_status(call_status, request.operation_name())?;
+            let response = unsafe { response.assume_init() };
+            decode_callback_host_status(response.status, request.operation_name())?;
 
             Ok(Some(HostRequestOutcome::immediate(
-                HostRequestResult::Bool(is_enabled),
+                HostRequestResult::Bool(response.is_enabled),
             )))
         }
         HostRequest::OsLocationLastKnown => {
-            let mut sample = LocationSample {
-                latitude_degrees: 0.0,
-                longitude_degrees: 0.0,
-                altitude_meters: f64::NAN,
-                horizontal_accuracy_meters: f64::NAN,
-                vertical_accuracy_meters: f64::NAN,
-                speed_meters_per_second: f64::NAN,
-                heading_degrees: f64::NAN,
-                timestamp_unix_ns: 0,
+            let mut response = MaybeUninit::<LocationLastKnownResponse>::uninit();
+            let call_status =
+                unsafe { destack_host_ios_location_last_known(runtime_id, response.as_mut_ptr()) };
+            decode_callback_host_status(call_status, request.operation_name())?;
+            let response = unsafe { response.assume_init() };
+            decode_callback_host_status(response.status, request.operation_name())?;
+            let Some(sample) = response.sample else {
+                return Err(invalid_argument_value(
+                    "response.sample",
+                    format!(
+                        "{} returned success without one location sample",
+                        request.operation_name()
+                    ),
+                ));
             };
-            let status = unsafe { destack_host_ios_location_last_known(runtime_id, &mut sample) };
-            decode_callback_host_status(status, request.operation_name())?;
 
             Ok(Some(HostRequestOutcome::immediate(
                 HostRequestResult::LocationSample(sample),

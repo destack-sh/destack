@@ -1,5 +1,5 @@
+use crate::host::apple::abi::registry::resolve_ios_bindings;
 use crate::host::core::HostSessionId;
-use crate::host::ios::abi::registry::resolve_ios_bindings;
 use crate::runtime::capability::{PlatformCapability, PlatformCapabilitySet};
 
 /// Return the static iOS host capabilities.
@@ -153,19 +153,21 @@ mod tests {
     };
     use crate::host::abi::notification::HostNotificationRequest;
     use crate::host::abi::permission::HostPermissionRequest;
+    use crate::host::apple::abi::background::callbacks::IosHostBackgroundCallbacks;
+    use crate::host::apple::abi::bindings::IosHostBindings;
+    use crate::host::apple::abi::calendar::callbacks::IosHostCalendarCallbacks;
+    use crate::host::apple::abi::contact::callbacks::IosHostContactCallbacks;
+    use crate::host::apple::abi::document::callbacks::IosHostDocumentCallbacks;
+    use crate::host::apple::abi::intent::callbacks::IosHostIntentCallbacks;
+    use crate::host::apple::abi::location::callbacks::IosHostLocationCallbacks;
+    use crate::host::apple::abi::media::callbacks::IosHostMediaCallbacks;
+    use crate::host::apple::abi::notification::callbacks::IosHostNotificationCallbacks;
+    use crate::host::apple::abi::permission::callbacks::IosHostPermissionCallbacks;
+    use crate::host::apple::abi::registry::{
+        register_ios_bindings as register_ios_bindings_payload, unregister_ios_bindings,
+    };
     use crate::host::core::registry::HostSessionRegistrationGuard;
     use crate::host::core::{HostQueue, HostSessionId, HostSessionRegistry};
-    use crate::host::ios::abi::background::callbacks::IosHostBackgroundCallbacks;
-    use crate::host::ios::abi::bindings::{IosHostBindings, destack_host_ios_register_bindings};
-    use crate::host::ios::abi::calendar::callbacks::IosHostCalendarCallbacks;
-    use crate::host::ios::abi::contact::callbacks::IosHostContactCallbacks;
-    use crate::host::ios::abi::document::callbacks::IosHostDocumentCallbacks;
-    use crate::host::ios::abi::intent::callbacks::IosHostIntentCallbacks;
-    use crate::host::ios::abi::location::callbacks::IosHostLocationCallbacks;
-    use crate::host::ios::abi::media::callbacks::IosHostMediaCallbacks;
-    use crate::host::ios::abi::notification::callbacks::IosHostNotificationCallbacks;
-    use crate::host::ios::abi::permission::callbacks::IosHostPermissionCallbacks;
-    use crate::host::ios::abi::registry::unregister_ios_bindings;
     use crate::host::{HOST_STATUS_OK, Platform};
     use crate::platform::abi::NativeStringRef;
     use crate::runtime::capability::PlatformCapability;
@@ -196,7 +198,7 @@ mod tests {
 
     /// Register one runtime-scoped iOS host bindings payload.
     fn register_ios_bindings(runtime_id: u64, bindings: IosHostBindings) -> u32 {
-        unsafe { destack_host_ios_register_bindings(runtime_id, bindings) }
+        register_ios_bindings_payload(runtime_id, bindings)
     }
 
     unsafe extern "C" fn test_document_pick_callback(

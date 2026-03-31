@@ -17,8 +17,7 @@ pub(crate) const ANDROID_LIFECYCLE_STOPPED: u32 = 4;
 /// Android lifecycle code for `onDestroy`.
 pub(crate) const ANDROID_LIFECYCLE_DESTROYED: u32 = 5;
 
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn destack_host_android_notify_activity_lifecycle(
+pub unsafe fn destack_host_android_notify_activity_lifecycle(
     runtime_id: u64,
     lifecycle_code: u32,
 ) -> RuntimeStatus {

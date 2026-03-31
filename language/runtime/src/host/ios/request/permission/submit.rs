@@ -1,10 +1,10 @@
 use crate::diagnostic::RuntimeResult;
 use crate::host::abi::permission::HostPermissionRequestPayload;
-use crate::host::core::callback::decode_callback_host_status;
-use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult};
-use crate::host::ios::abi::permission::ffi::{
+use crate::host::apple::abi::permission::ffi::{
     destack_host_ios_permission_open_settings, destack_host_ios_permission_request,
 };
+use crate::host::core::callback::decode_callback_host_status;
+use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult};
 use crate::platform::os::PermissionState;
 
 /// Return one iOS permission request outcome when supported.

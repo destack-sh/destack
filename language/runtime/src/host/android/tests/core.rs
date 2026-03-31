@@ -1,10 +1,10 @@
 use std::sync::{Arc, Mutex, OnceLock};
 
 use crate::host::Platform;
-use crate::host::android::abi::bindings::{
-    AndroidHostBindings, destack_host_android_register_bindings,
+use crate::host::android::abi::bindings::AndroidHostBindings;
+use crate::host::android::abi::registry::{
+    register_android_bindings as register_android_bindings_payload, unregister_android_bindings,
 };
-use crate::host::android::abi::registry::unregister_android_bindings;
 use crate::host::core::registry::HostSessionRegistrationGuard;
 use crate::host::core::{HostQueue, HostSessionId, HostSessionRegistry};
 
@@ -38,5 +38,5 @@ fn unregister_android_bindings_for_runtime(runtime_id: HostSessionId) {
 
 /// Register one runtime-scoped Android host bindings payload.
 pub(crate) fn register_android_bindings(runtime_id: u64, bindings: AndroidHostBindings) -> u32 {
-    unsafe { destack_host_android_register_bindings(runtime_id, bindings) }
+    register_android_bindings_payload(runtime_id, bindings)
 }

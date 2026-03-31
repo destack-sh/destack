@@ -7,7 +7,7 @@ use crate::host::android::abi::notification::{
 use crate::host::core::callback::decode_callback_host_status;
 use crate::host::core::error::not_supported;
 use crate::host::core::{HostRequest, HostRequestOutcome, HostRequestResult};
-use crate::platform::abi::NativeSlice;
+use crate::platform::abi::NativeStringRef;
 use crate::platform::os::abi_generated::NotificationRequestValue;
 use crate::runtime::BindingCallContext;
 
@@ -18,16 +18,9 @@ pub(crate) fn submit_notification_request(
 ) -> RuntimeResult<Option<HostRequestOutcome>> {
     match request {
         HostRequest::OsNotificationCancel { id } => {
-            let id = id.as_bytes();
-            let status = unsafe {
-                destack_host_android_notification_cancel(
-                    runtime_id,
-                    NativeSlice {
-                        data: id.as_ptr() as *mut u8,
-                        len: id.len() as u32,
-                    },
-                )
-            };
+            let identifier = NativeStringRef::from(id.as_str());
+            let status =
+                unsafe { destack_host_android_notification_cancel(runtime_id, identifier) };
             decode_callback_host_status(status, request.operation_name())?;
 
             Ok(Some(HostRequestOutcome::immediate(HostRequestResult::None)))

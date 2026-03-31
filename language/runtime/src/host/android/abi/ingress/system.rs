@@ -28,16 +28,14 @@ pub(crate) const ANDROID_POWER_MODE_NORMAL: u32 = 0;
 /// Android power mode code for low power state.
 pub(crate) const ANDROID_POWER_MODE_LOW_POWER: u32 = 1;
 
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn destack_host_android_notify_interruption_changed(
+pub unsafe fn destack_host_android_notify_interruption_changed(
     runtime_id: u64,
     interrupted: bool,
 ) -> RuntimeStatus {
     runtime_status(android_notify_interruption_changed(runtime_id, interrupted))
 }
 
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn destack_host_android_notify_memory_pressure_changed(
+pub unsafe fn destack_host_android_notify_memory_pressure_changed(
     runtime_id: u64,
     level_code: u32,
 ) -> RuntimeStatus {
@@ -47,8 +45,7 @@ pub(crate) unsafe extern "C" fn destack_host_android_notify_memory_pressure_chan
     runtime_status(result)
 }
 
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn destack_host_android_notify_thermal_state_changed(
+pub unsafe fn destack_host_android_notify_thermal_state_changed(
     runtime_id: u64,
     thermal_code: u32,
 ) -> RuntimeStatus {
@@ -58,8 +55,7 @@ pub(crate) unsafe extern "C" fn destack_host_android_notify_thermal_state_change
     runtime_status(result)
 }
 
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn destack_host_android_notify_power_mode_changed(
+pub unsafe fn destack_host_android_notify_power_mode_changed(
     runtime_id: u64,
     power_mode_code: u32,
 ) -> RuntimeStatus {
@@ -69,15 +65,11 @@ pub(crate) unsafe extern "C" fn destack_host_android_notify_power_mode_changed(
     runtime_status(result)
 }
 
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn destack_host_android_notify_wall_clock_changed(
-    runtime_id: u64,
-) -> RuntimeStatus {
+pub unsafe fn destack_host_android_notify_wall_clock_changed(runtime_id: u64) -> RuntimeStatus {
     runtime_status(android_notify_wall_clock_changed(runtime_id))
 }
 
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn destack_host_android_notify_wake(runtime_id: u64) -> RuntimeStatus {
+pub unsafe fn destack_host_android_notify_wake(runtime_id: u64) -> RuntimeStatus {
     runtime_status(android_notify_wake(runtime_id))
 }
 

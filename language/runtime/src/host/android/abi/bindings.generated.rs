@@ -2,23 +2,23 @@
 
 #![allow(unreachable_pub)]
 
-use crate::host::android::abi::document::callbacks::AndroidHostDocumentCallbacks;
-use crate::host::android::abi::permission::callbacks::AndroidHostPermissionCallbacks;
-use crate::host::android::abi::text::callbacks::AndroidHostTextCallbacks;
 use crate::host::android::abi::background::callbacks::AndroidHostBackgroundCallbacks;
 use crate::host::android::abi::bluetooth::callbacks::AndroidHostBluetoothCallbacks;
 use crate::host::android::abi::calendar::callbacks::AndroidHostCalendarCallbacks;
 use crate::host::android::abi::camera::callbacks::AndroidHostCameraCallbacks;
 use crate::host::android::abi::contact::callbacks::AndroidHostContactCallbacks;
-use crate::host::android::abi::usb::callbacks::AndroidHostUsbCallbacks;
+use crate::host::android::abi::credentials::callbacks::AndroidHostCredentialsCallbacks;
+use crate::host::android::abi::crypto::callbacks::AndroidHostCryptoCallbacks;
+use crate::host::android::abi::document::callbacks::AndroidHostDocumentCallbacks;
 use crate::host::android::abi::intent::callbacks::AndroidHostIntentCallbacks;
 use crate::host::android::abi::location::callbacks::AndroidHostLocationCallbacks;
 use crate::host::android::abi::media::callbacks::AndroidHostMediaCallbacks;
-use crate::host::android::abi::notification::callbacks::AndroidHostNotificationCallbacks;
-use crate::host::android::abi::credentials::callbacks::AndroidHostCredentialsCallbacks;
-use crate::host::android::abi::crypto::callbacks::AndroidHostCryptoCallbacks;
 use crate::host::android::abi::midi::callbacks::AndroidHostMidiCallbacks;
-use crate::host::android::abi::registry::{register_android_bindings, resolve_android_bindings, unregister_android_bindings};
+use crate::host::android::abi::notification::callbacks::AndroidHostNotificationCallbacks;
+use crate::host::android::abi::permission::callbacks::AndroidHostPermissionCallbacks;
+use crate::host::android::abi::registry::resolve_android_bindings;
+use crate::host::android::abi::text::callbacks::AndroidHostTextCallbacks;
+use crate::host::android::abi::usb::callbacks::AndroidHostUsbCallbacks;
 use crate::host::core::{HostSessionHandle, HostStatus};
 
 /// Android host bindings container for callback-backed lanes.
@@ -57,23 +57,6 @@ pub(crate) struct AndroidHostBindings {
     pub crypto: AndroidHostCryptoCallbacks,
     /// Midi host callbacks.
     pub midi: AndroidHostMidiCallbacks,
-}
-
-/// Register one callback table for Android host interop through one C ABI entrypoint.
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn destack_host_android_register_bindings(
-    session_handle: HostSessionHandle,
-    bindings: AndroidHostBindings,
-) -> u32 {
-    register_android_bindings(session_handle, bindings)
-}
-
-/// Remove one callback table for Android host interop through one C ABI entrypoint.
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn destack_host_android_unregister_bindings(
-    session_handle: HostSessionHandle,
-) {
-    unregister_android_bindings(session_handle);
 }
 
 /// Resolve one callback from one Android host bindings lane.

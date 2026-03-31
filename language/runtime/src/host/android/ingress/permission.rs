@@ -1,22 +1,30 @@
 use crate::diagnostic::RuntimeResult;
+use crate::host::abi::permission::HostPermissionEvent as HostAbiPermissionEvent;
 use crate::host::android::ingress::core::android_host_queue;
+use crate::host::core::error::invalid_argument_value;
 use crate::host::core::{HostRequestId, HostSessionHandle};
 use crate::host::{HostEvent, HostPermissionEvent};
 
 /// Submit one Android permission-result callback.
 pub(crate) fn android_notify_permission_result(
     session_handle: HostSessionHandle,
-    request_id: u64,
-    permission: &str,
-    granted: bool,
+    event: HostAbiPermissionEvent,
 ) -> RuntimeResult<()> {
     let queue = android_host_queue(session_handle)?;
+    let permission = unsafe { event.permission.as_str() }.map_err(|_| {
+        invalid_argument_value(
+            "permission",
+            "invalid HostPermissionEvent.permission string",
+        )
+    })?;
 
-    queue.enqueue(HostEvent::Permission(HostPermissionEvent {
-        request_id: Some(HostRequestId(request_id)),
+    let event = HostPermissionEvent {
+        request_id: Some(HostRequestId(event.request_id)),
         permission: permission.to_string(),
-        granted,
-    }));
+        granted: event.is_granted,
+    };
+
+    queue.enqueue(HostEvent::Permission(event));
 
     Ok(())
 }
