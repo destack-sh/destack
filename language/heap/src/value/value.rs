@@ -135,8 +135,6 @@ impl std::fmt::Debug for Value {
                 }
             }
             ValueTag::FunctionPointer => write!(f, "FunctionPointer({})", self.data as u32),
-            ValueTag::Aggregate => write!(f, "Aggregate(ManagedReference({}))", self.data),
-            ValueTag::String => write!(f, "String(ManagedReference({}))", self.data),
         }
     }
 }
@@ -430,24 +428,6 @@ impl Value {
         }
     }
 
-    /// Create an aggregate value.
-    #[inline]
-    pub const fn aggregate(handle: ManagedReference) -> Self {
-        Self {
-            data: handle.0,
-            meta: Self::make_meta(ValueTag::Aggregate, 0),
-        }
-    }
-
-    /// Create a string value.
-    #[inline]
-    pub const fn string(handle: ManagedReference) -> Self {
-        Self {
-            data: handle.0,
-            meta: Self::make_meta(ValueTag::String, 0),
-        }
-    }
-
     /// Check if value is truthy.
     #[inline]
     pub fn is_truthy(&self) -> bool {
@@ -466,8 +446,6 @@ impl Value {
             ValueTag::LocalPointer => true,
             ValueTag::GlobalPointer => true,
             ValueTag::FunctionPointer => true,
-            ValueTag::Aggregate => self.data != 0,
-            ValueTag::String => self.data != 0,
         }
     }
 
@@ -523,19 +501,11 @@ impl Value {
         self.tag() == ValueTag::ManagedReference
     }
 
-    /// Check if value is an aggregate.
-    #[inline]
-    pub fn is_aggregate(&self) -> bool {
-        self.tag() == ValueTag::Aggregate
-    }
-
     /// Try to get this value as a managed reference.
     #[inline]
     pub fn as_managed_reference(&self) -> Option<ManagedReference> {
         match self.tag() {
-            ValueTag::ManagedReference | ValueTag::Aggregate | ValueTag::String => {
-                Some(ManagedReference(self.data))
-            }
+            ValueTag::ManagedReference => Some(ManagedReference(self.data)),
             _ => None,
         }
     }

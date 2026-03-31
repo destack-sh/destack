@@ -40,12 +40,17 @@ impl SizeClassTable {
         })
     }
 
-    /// Return the largest run-allocated payload size in bytes.
+    /// Return the largest span-allocated payload size in bytes.
     pub fn max_small_allocation_bytes(&self) -> usize {
         self.classes
             .last()
             .map(|class| class.bytes)
             .unwrap_or_default()
+    }
+
+    /// Return the smallest span-allocated payload size in bytes.
+    pub fn min_small_allocation_bytes(&self) -> usize {
+        self.classes.first().map(|class| class.bytes).unwrap_or(1)
     }
 
     /// Return one best-fit size class for the given payload size.

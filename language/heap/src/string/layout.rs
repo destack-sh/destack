@@ -3,57 +3,65 @@ use destack_mir as mir;
 use crate::value::{RawPointer, Value};
 
 /// String header byte layout for managed runtime strings.
-#[derive(Debug)]
-pub struct StringLayout;
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct StringLayout {
+    /// The native raw-pointer width in bytes.
+    native_pointer_bytes: u8,
+}
 
 impl StringLayout {
     /// The field index for `lengthUtf16`.
     pub const LENGTH_UTF16_FIELD: usize = 0;
     /// The field index for `lengthBytes`.
     pub const LENGTH_BYTES_FIELD: usize = 1;
-    /// The field index for `hash`.
-    pub const HASH_FIELD: usize = 2;
-    /// The field index for `capacity`.
-    pub const CAPACITY_FIELD: usize = 3;
-    /// The field index for `flags`.
-    pub const FLAGS_FIELD: usize = 4;
     /// The field index for `data`.
-    pub const DATA_FIELD: usize = 5;
+    pub const DATA_FIELD: usize = 2;
 
     /// The total field count for a string header.
-    pub const FIELD_COUNT: usize = 6;
+    pub const FIELD_COUNT: usize = 3;
 
     /// The byte offset for `lengthUtf16`.
     pub const LENGTH_UTF16_OFFSET: usize = 0;
     /// The byte offset for `lengthBytes`.
     pub const LENGTH_BYTES_OFFSET: usize = 4;
-    /// The byte offset for `hash`.
-    pub const HASH_OFFSET: usize = 8;
-    /// The byte offset for `capacity`.
-    pub const CAPACITY_OFFSET: usize = 16;
-    /// The byte offset for `flags`.
-    pub const FLAGS_OFFSET: usize = 20;
-    /// The byte offset for `data`.
-    pub const DATA_OFFSET: usize = 24;
+    /// Create one string layout for the active native pointer width.
+    pub const fn new(native_pointer_bytes: u8) -> Self {
+        Self {
+            native_pointer_bytes,
+        }
+    }
 
-    /// The total byte length for one string header.
-    pub const BYTE_LEN: usize = 32;
+    /// Return the native raw-pointer width in bytes.
+    pub const fn native_pointer_bytes(self) -> u8 {
+        self.native_pointer_bytes
+    }
+
+    /// Return the byte offset for `data`.
+    pub fn data_offset(self) -> usize {
+        align_offset(
+            Self::LENGTH_BYTES_OFFSET + 4,
+            self.native_pointer_bytes as usize,
+        )
+    }
+
+    /// Return the total byte length for one string header.
+    pub fn byte_len(self) -> usize {
+        let data_end = self.data_offset() + self.native_pointer_bytes as usize;
+        align_offset(data_end, 8)
+    }
 
     /// Return one field byte offset.
-    pub fn field_offset(index: u32) -> Option<usize> {
+    pub fn field_offset(self, index: u32) -> Option<usize> {
         match index as usize {
             Self::LENGTH_UTF16_FIELD => Some(Self::LENGTH_UTF16_OFFSET),
             Self::LENGTH_BYTES_FIELD => Some(Self::LENGTH_BYTES_OFFSET),
-            Self::HASH_FIELD => Some(Self::HASH_OFFSET),
-            Self::CAPACITY_FIELD => Some(Self::CAPACITY_OFFSET),
-            Self::FLAGS_FIELD => Some(Self::FLAGS_OFFSET),
-            Self::DATA_FIELD => Some(Self::DATA_OFFSET),
+            Self::DATA_FIELD => Some(self.data_offset()),
             _ => None,
         }
     }
 
     /// Read one field from one string header payload.
-    pub fn read_field(bytes: &[u8], index: u32) -> Option<Value> {
+    pub fn read_field(self, bytes: &[u8], index: u32) -> Option<Value> {
         match index as usize {
             Self::LENGTH_UTF16_FIELD => {
                 let raw = Self::read_u32(bytes, Self::LENGTH_UTF16_OFFSET)?;
@@ -63,20 +71,8 @@ impl StringLayout {
                 let raw = Self::read_u32(bytes, Self::LENGTH_BYTES_OFFSET)?;
                 Some(Value::uint32(raw))
             }
-            Self::HASH_FIELD => {
-                let raw = Self::read_u64(bytes, Self::HASH_OFFSET)?;
-                Some(Value::uint64(raw))
-            }
-            Self::CAPACITY_FIELD => {
-                let raw = Self::read_u32(bytes, Self::CAPACITY_OFFSET)?;
-                Some(Value::uint32(raw))
-            }
-            Self::FLAGS_FIELD => {
-                let raw = Self::read_u32(bytes, Self::FLAGS_OFFSET)?;
-                Some(Value::uint32(raw))
-            }
             Self::DATA_FIELD => {
-                let raw = Self::read_u64(bytes, Self::DATA_OFFSET)?;
+                let raw = self.read_raw_pointer(bytes)?;
                 Some(Value::raw_pointer(RawPointer::from_bits(raw)))
             }
             _ => None,
@@ -84,14 +80,11 @@ impl StringLayout {
     }
 
     /// Write one field in one string header payload.
-    pub fn write_field(bytes: &mut [u8], index: u32, value: Value) -> bool {
+    pub fn write_field(self, bytes: &mut [u8], index: u32, value: Value) -> bool {
         match index as usize {
             Self::LENGTH_UTF16_FIELD => Self::write_u32(bytes, Self::LENGTH_UTF16_OFFSET, value),
             Self::LENGTH_BYTES_FIELD => Self::write_u32(bytes, Self::LENGTH_BYTES_OFFSET, value),
-            Self::HASH_FIELD => Self::write_u64(bytes, Self::HASH_OFFSET, value),
-            Self::CAPACITY_FIELD => Self::write_u32(bytes, Self::CAPACITY_OFFSET, value),
-            Self::FLAGS_FIELD => Self::write_u32(bytes, Self::FLAGS_OFFSET, value),
-            Self::DATA_FIELD => Self::write_raw_pointer(bytes, Self::DATA_OFFSET, value),
+            Self::DATA_FIELD => self.write_raw_pointer(bytes, value),
             _ => false,
         }
     }
@@ -125,44 +118,65 @@ impl StringLayout {
         true
     }
 
-    fn write_u64(bytes: &mut [u8], offset: usize, value: Value) -> bool {
-        let Some(raw) = value.as_uint() else {
-            return false;
-        };
-        let Some(window) = bytes.get_mut(offset..offset + 8) else {
-            return false;
-        };
+    fn read_raw_pointer(self, bytes: &[u8]) -> Option<u64> {
+        let offset = self.data_offset();
 
-        window.copy_from_slice(&raw.to_le_bytes());
-        true
+        match self.native_pointer_bytes {
+            4 => Self::read_u32(bytes, offset).map(u64::from),
+            8 => Self::read_u64(bytes, offset),
+            _ => None,
+        }
     }
 
-    fn write_raw_pointer(bytes: &mut [u8], offset: usize, value: Value) -> bool {
+    fn write_raw_pointer(self, bytes: &mut [u8], value: Value) -> bool {
         let Some(pointer) = value.as_raw_pointer() else {
             return false;
         };
-        let Some(window) = bytes.get_mut(offset..offset + 8) else {
-            return false;
-        };
 
-        window.copy_from_slice(&pointer.bits().to_le_bytes());
-        true
+        let offset = self.data_offset();
+        match self.native_pointer_bytes {
+            4 => {
+                let Ok(raw) = u32::try_from(pointer.bits()) else {
+                    return false;
+                };
+                let Some(window) = bytes.get_mut(offset..offset + 4) else {
+                    return false;
+                };
+
+                window.copy_from_slice(&raw.to_le_bytes());
+                true
+            }
+            8 => {
+                let Some(window) = bytes.get_mut(offset..offset + 8) else {
+                    return false;
+                };
+
+                window.copy_from_slice(&pointer.bits().to_le_bytes());
+                true
+            }
+            _ => false,
+        }
     }
 }
 
-/// Flag indicating the hash field is populated.
-pub const STRING_FLAG_HAS_HASH: u32 = 1 << 0;
-/// Flag indicating the payload is ASCII-only.
-pub const STRING_FLAG_IS_ASCII: u32 = 1 << 1;
-/// Flag indicating the payload is static read-only data.
-pub const STRING_FLAG_IS_STATIC: u32 = 1 << 2;
-/// Flag indicating the string contents are interned.
-pub const STRING_FLAG_IS_INTERNED: u32 = 1 << 3;
-/// Flag indicating the payload is owned externally.
-pub const STRING_FLAG_IS_EXTERNAL: u32 = 1 << 4;
+/// Align one byte offset to one byte alignment.
+fn align_offset(offset: usize, alignment: usize) -> usize {
+    let remainder = offset % alignment;
+    if remainder == 0 {
+        return offset;
+    }
 
-/// MIR type alias for the runtime string layout used by VM tests.
-pub const STRING_TYPE_ALIAS: &str = "type @String = { lengthUtf16: u32, lengthBytes: u32, hash: u64, capacity: u32, flags: u32, data: ref<raw u8> }\n";
+    offset + (alignment - remainder)
+}
+
+/// MIR type alias for the canonical lowered string layout used by VM tests.
+pub const STRING_TYPE_ALIAS: &str =
+    "type @String = { lengthUtf16: u32, lengthBytes: u32, data: ref<raw u8> }\n";
+
+/// Return the canonical runtime string layout id when present.
+pub fn string_layout_id(tree: &mir::NodeTree) -> Option<mir::LayoutId> {
+    tree.string_layout_id()
+}
 
 /// Check whether a MIR type matches the runtime string layout.
 pub fn string_layout_matches(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>) -> bool {
@@ -180,15 +194,6 @@ pub fn string_layout_matches(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Typ
         return false;
     }
     if !unsigned_int_type_matches(tree, field_type(StringLayout::LENGTH_BYTES_FIELD), 32) {
-        return false;
-    }
-    if !unsigned_int_type_matches(tree, field_type(StringLayout::HASH_FIELD), 64) {
-        return false;
-    }
-    if !unsigned_int_type_matches(tree, field_type(StringLayout::CAPACITY_FIELD), 32) {
-        return false;
-    }
-    if !unsigned_int_type_matches(tree, field_type(StringLayout::FLAGS_FIELD), 32) {
         return false;
     }
     if !raw_u8_reference_matches(tree, field_type(StringLayout::DATA_FIELD)) {

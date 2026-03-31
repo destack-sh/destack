@@ -1,43 +1,45 @@
 use std::borrow::Cow;
+use std::cell::Cell;
 use std::mem::size_of;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
-use super::{RawExtent, RawExtentId, RawExtentImage, RawImage, RawRun, RawRunImage};
-use crate::heap::{HeapLayoutOptions, RawSpaceUsage, SizeClassTable, TreeVector};
+use super::{RawImage, RawLargeAllocation, RawLargeAllocationId, RawSpan};
+use crate::alloc::{PageArena, SizeClassTable};
+use crate::heap::{HeapLayoutOptions, RawSpaceUsage};
 use crate::value::{RawPointer, Value};
 
 /// The first non-null raw allocation id.
 const FIRST_ALLOCATED_RAW_ID: u64 = 1;
 
-/// The first non-null raw extent id.
-const FIRST_ALLOCATED_EXTENT_ID: u64 = 1;
+/// The first non-null raw large-allocation id.
+const FIRST_ALLOCATED_LARGE_ALLOCATION_ID: u64 = 1;
 
-/// One stable raw run slot location.
+/// One stable raw span slot location.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RawRunSlot {
-    /// The containing run index.
-    run_index: u32,
-    /// The slot index inside the run.
+pub struct RawSpanSlot {
+    /// The containing span index.
+    span_index: u32,
+    /// The slot index inside the span.
     slot_index: u32,
 }
 
-impl RawRunSlot {
-    /// Create one raw run slot location.
-    pub(crate) const fn new(run_index: usize, slot_index: usize) -> Self {
+impl RawSpanSlot {
+    /// Create one raw span slot location.
+    pub(crate) const fn new(span_index: usize, slot_index: usize) -> Self {
         Self {
-            run_index: run_index as u32,
+            span_index: span_index as u32,
             slot_index: slot_index as u32,
         }
     }
 
-    /// Return the containing run index.
-    pub(crate) const fn run_index(self) -> usize {
-        self.run_index as usize
+    /// Return the containing span index.
+    pub(crate) const fn span_index(self) -> usize {
+        self.span_index as usize
     }
 
-    /// Return the slot index inside the run.
+    /// Return the slot index inside the span.
     pub(crate) const fn slot_index(self) -> usize {
         self.slot_index as usize
     }
@@ -48,45 +50,81 @@ impl RawRunSlot {
 pub enum RawLocation {
     /// One vacant directory slot.
     Vacant,
-    /// One run-backed allocation.
-    Run(RawRunSlot),
-    /// One extent-backed allocation.
-    Extent(RawExtentId),
+    /// One small-space allocation stored in one span slot.
+    Small(RawSpanSlot),
+    /// One large-space allocation stored in one raw large allocation.
+    Large(RawLargeAllocationId),
+}
+
+/// One live raw handle entry.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RawHandle {
+    /// The storage location for this raw allocation.
+    pub(crate) location: RawLocation,
+    /// The logical byte length for this raw allocation.
+    pub(crate) byte_len: usize,
+}
+
+/// One raw handle-table entry.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum RawHandleEntry {
+    /// One free handle-table entry linked into the intrusive free list.
+    Free { next_free: u64 },
+    /// One live raw allocation.
+    Live(RawHandle),
+}
+
+/// One raw small-allocation space.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct SmallSpace {
+    /// The configured size-class table.
+    pub(crate) size_classes: SizeClassTable,
+    /// The configured span width.
+    pub(crate) span_bytes: usize,
+    /// The live raw spans.
+    pub(crate) spans: Vec<RawSpan>,
+    /// The reusable non-full spans per size class.
+    pub(crate) available_spans: Vec<Vec<usize>>,
+    /// The vacant span slots available for reuse.
+    pub(crate) free_span_ids: Vec<usize>,
+}
+
+/// One raw large-allocation space.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct LargeSpace {
+    /// The configured page width for large allocations.
+    pub(crate) page_bytes: usize,
+    /// The live raw large allocations.
+    pub(crate) large_allocations: Vec<RawLargeAllocation>,
+    /// The free raw large-allocation ids available for reuse.
+    pub(crate) free_large_allocation_ids: Vec<u64>,
+    /// The next raw large-allocation id to allocate.
+    pub(crate) next_unused_large_allocation_id: u64,
 }
 
 /// One live raw allocation space.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RawSpace {
-    /// The configured size-class table.
-    pub(crate) size_classes: SizeClassTable,
-    /// The configured run width.
-    pub(crate) run_bytes: usize,
-    /// The configured extent chunk width.
-    pub(crate) chunk_bytes: usize,
-    /// The live raw runs.
-    runs: Vec<RawRun>,
-    /// The reusable non-full runs per size class.
-    available_runs: Vec<Vec<usize>>,
-    /// The vacant run slots available for reuse.
-    free_run_ids: Vec<usize>,
-    /// The live raw extents.
-    extents: Vec<RawExtent>,
-    /// The free raw extent ids available for reuse.
-    free_extent_ids: Vec<u64>,
-    /// Stable raw locations keyed by allocation id minus one.
-    locations: Vec<RawLocation>,
-    /// The free raw allocation ids available for reuse.
-    free_ids: Vec<u64>,
+    /// The raw small-allocation space.
+    pub(crate) small: SmallSpace,
+    /// The raw large-allocation space.
+    pub(crate) large: LargeSpace,
+    /// The local page arena for large-allocation backing.
+    page_arena: PageArena,
+    /// Dense raw handle metadata keyed by allocation id minus one.
+    handles: Vec<RawHandleEntry>,
+    /// The free raw allocation id at the head of the intrusive free list.
+    free_handle_head: u64,
     /// The next raw allocation id to allocate.
     next_unused_id: u64,
-    /// The next raw extent id to allocate.
-    next_unused_extent_id: u64,
     /// The number of live raw allocations.
     allocated_count: usize,
     /// The number of live raw bytes.
     allocated_bytes: u64,
     /// The exact retained raw bytes.
-    retained_bytes: u64,
+    retained_bytes: Cell<u64>,
+    /// Whether the retained-byte cache needs one exact recomputation.
+    retained_bytes_dirty: Cell<bool>,
 }
 
 impl Default for RawSpace {
@@ -103,22 +141,28 @@ impl RawSpace {
 
     /// Create one raw space with explicit layout options.
     pub fn with_layout(options: &HeapLayoutOptions) -> Self {
-        let mut space = Self {
-            size_classes: options.size_classes.clone(),
-            run_bytes: options.raw_run_bytes,
-            chunk_bytes: options.chunk_bytes,
-            runs: Vec::new(),
-            available_runs: vec![Vec::new(); options.size_classes.classes.len()],
-            free_run_ids: Vec::new(),
-            extents: Vec::new(),
-            free_extent_ids: Vec::new(),
-            locations: Vec::new(),
-            free_ids: Vec::new(),
+        let space = Self {
+            small: SmallSpace {
+                size_classes: options.size_classes.clone(),
+                span_bytes: options.raw_small_bytes,
+                spans: Vec::new(),
+                available_spans: vec![Vec::new(); options.size_classes.classes.len()],
+                free_span_ids: Vec::new(),
+            },
+            large: LargeSpace {
+                page_bytes: options.page_bytes,
+                large_allocations: Vec::new(),
+                free_large_allocation_ids: Vec::new(),
+                next_unused_large_allocation_id: FIRST_ALLOCATED_LARGE_ALLOCATION_ID,
+            },
+            page_arena: PageArena::with_page_bytes(options.page_bytes),
+            handles: Vec::new(),
+            free_handle_head: 0,
             next_unused_id: FIRST_ALLOCATED_RAW_ID,
-            next_unused_extent_id: FIRST_ALLOCATED_EXTENT_ID,
             allocated_count: 0,
             allocated_bytes: 0,
-            retained_bytes: 0,
+            retained_bytes: Cell::new(0),
+            retained_bytes_dirty: Cell::new(false),
         };
 
         space.recompute_retained_bytes();
@@ -129,28 +173,43 @@ impl RawSpace {
     /// Restore one raw space from one immutable image.
     pub fn from_image(image: &RawImage) -> Self {
         let mut space = Self {
-            size_classes: image.size_classes.clone(),
-            run_bytes: image.run_bytes,
-            chunk_bytes: image.chunk_bytes,
-            runs: image.runs.iter().cloned().map(RawRun::from_image).collect(),
-            available_runs: vec![Vec::new(); image.size_classes.classes.len()],
-            free_run_ids: Vec::new(),
-            extents: image
-                .extents
-                .iter()
-                .map(RawExtent::from_extent_image)
-                .collect(),
-            free_extent_ids: image.free_extent_ids.iter().copied().collect(),
-            locations: image.locations.iter().copied().collect(),
-            free_ids: image.free_ids.iter().copied().collect(),
+            small: SmallSpace {
+                size_classes: image.size_classes.clone(),
+                span_bytes: image.small_bytes,
+                spans: image
+                    .spans
+                    .iter()
+                    .cloned()
+                    .map(RawSpan::from_image)
+                    .collect(),
+                available_spans: vec![Vec::new(); image.size_classes.classes.len()],
+                free_span_ids: Vec::new(),
+            },
+            large: LargeSpace {
+                page_bytes: image.page_bytes,
+                large_allocations: image
+                    .large_allocations
+                    .iter()
+                    .map(RawLargeAllocation::from_large_allocation_image)
+                    .collect(),
+                free_large_allocation_ids: image
+                    .free_large_allocation_ids
+                    .iter()
+                    .copied()
+                    .collect(),
+                next_unused_large_allocation_id: image.next_unused_large_allocation_id,
+            },
+            page_arena: PageArena::with_page_bytes(image.page_bytes),
+            handles: image.handles.iter().copied().collect(),
+            free_handle_head: image.free_handle_head,
             next_unused_id: image.next_unused_id,
-            next_unused_extent_id: image.next_unused_extent_id,
             allocated_count: image.allocated_count,
             allocated_bytes: image.allocated_bytes,
-            retained_bytes: 0,
+            retained_bytes: Cell::new(0),
+            retained_bytes_dirty: Cell::new(false),
         };
 
-        space.rebuild_run_directories();
+        space.rebuild_span_directories();
         space.recompute_retained_bytes();
 
         space
@@ -163,7 +222,8 @@ impl RawSpace {
 
     /// Return the exact retained raw bytes.
     pub fn retained_bytes(&self) -> u64 {
-        self.retained_bytes
+        self.refresh_retained_bytes();
+        self.retained_bytes.get()
     }
 
     /// Return the exact live usage for this raw space.
@@ -171,38 +231,37 @@ impl RawSpace {
         RawSpaceUsage {
             allocation_count: self.allocated_count,
             allocation_bytes: self.allocated_bytes,
-            retained_bytes: self.retained_bytes,
+            retained_bytes: self.retained_bytes(),
         }
     }
 
     /// Capture one immutable raw-space image.
     pub fn image(&mut self, base: Option<&RawImage>) -> RawImage {
-        let runs = self.runs.iter_mut().map(RawRun::image).collect::<Vec<_>>();
-        let extents = self
-            .extents
+        let _ = base;
+        let spans = self
+            .small
+            .spans
             .iter_mut()
-            .map(RawExtent::extent_image)
+            .map(|span| span.image(&mut self.page_arena))
+            .collect::<Vec<_>>();
+        let large_allocations = self
+            .large
+            .large_allocations
+            .iter_mut()
+            .map(|large_allocation| large_allocation.large_allocation_image(&mut self.page_arena))
             .collect::<Vec<_>>();
 
         RawImage {
-            size_classes: self.size_classes.clone(),
-            run_bytes: self.run_bytes,
-            chunk_bytes: self.chunk_bytes,
-            runs: TreeVector::from_values_by(
-                &runs,
-                base.map(|image| &image.runs),
-                RawRunImage::shares_storage_with,
-            ),
-            extents: TreeVector::from_values_by(
-                &extents,
-                base.map(|image| &image.extents),
-                RawExtentImage::shares_storage_with,
-            ),
-            locations: Arc::from(self.locations.as_slice()),
-            free_ids: Arc::from(self.free_ids.as_slice()),
-            free_extent_ids: Arc::from(self.free_extent_ids.as_slice()),
+            size_classes: self.small.size_classes.clone(),
+            small_bytes: self.small.span_bytes,
+            page_bytes: self.large.page_bytes,
+            spans,
+            large_allocations,
+            handles: Arc::from(self.handles.as_slice()),
+            free_handle_head: self.free_handle_head,
+            free_large_allocation_ids: Arc::from(self.large.free_large_allocation_ids.as_slice()),
             next_unused_id: self.next_unused_id,
-            next_unused_extent_id: self.next_unused_extent_id,
+            next_unused_large_allocation_id: self.large.next_unused_large_allocation_id,
             allocated_count: self.allocated_count,
             allocated_bytes: self.allocated_bytes,
         }
@@ -210,36 +269,85 @@ impl RawSpace {
 
     /// Allocate one raw byte allocation.
     pub fn allocate_bytes(&mut self, bytes: &[u8]) -> RawPointer {
-        let location = if let Some(class_index) = self.size_classes.class_index_for(bytes.len()) {
-            RawLocation::Run(self.allocate_run_slot(class_index, bytes))
+        let max_small_bytes = self.small.size_classes.max_small_allocation_bytes();
+        let retained_was_clean = !self.retained_bytes_dirty.get();
+        let old_handle_capacity = self.handles.capacity();
+        let (location, storage_retained_delta) = if bytes.len() <= max_small_bytes {
+            let class_index = self
+                .small
+                .size_classes
+                .class_index_for(bytes.len())
+                .expect("small raw payloads must fit one size class");
+
+            let (slot, retained_delta) = self.allocate_span_slot(class_index, bytes);
+            (RawLocation::Small(slot), retained_delta)
         } else {
-            RawLocation::Extent(self.allocate_extent(bytes))
+            let (large_allocation_id, retained_delta) = self.allocate_large_allocation(bytes);
+            (RawLocation::Large(large_allocation_id), retained_delta)
         };
 
-        let pointer = self.allocate_location(location);
+        let pointer = self.allocate_location(location, bytes.len());
         self.allocated_count += 1;
         self.allocated_bytes = self.allocated_bytes.saturating_add(bytes.len() as u64);
-        self.recompute_retained_bytes();
+
+        if retained_was_clean {
+            let retained_delta = storage_retained_delta
+                + capacity_bytes_delta::<RawHandleEntry>(
+                    old_handle_capacity,
+                    self.handles.capacity(),
+                );
+            self.apply_retained_bytes_delta(retained_delta);
+        } else {
+            self.mark_retained_bytes_dirty();
+        }
 
         pointer
     }
 
     /// Allocate one zeroed raw allocation.
     pub fn allocate_zeroed(&mut self, byte_len: usize) -> RawPointer {
-        self.allocate_bytes(&vec![0; byte_len])
+        let max_small_bytes = self.small.size_classes.max_small_allocation_bytes();
+        let retained_was_clean = !self.retained_bytes_dirty.get();
+        let old_handle_capacity = self.handles.capacity();
+        let (location, storage_retained_delta) = if byte_len <= max_small_bytes {
+            let class_index = self
+                .small
+                .size_classes
+                .class_index_for(byte_len)
+                .expect("small raw payloads must fit one size class");
+
+            let (slot, retained_delta) = self.allocate_zeroed_span_slot(class_index, byte_len);
+            (RawLocation::Small(slot), retained_delta)
+        } else {
+            let (large_allocation_id, retained_delta) =
+                self.allocate_zeroed_large_allocation(byte_len);
+            (RawLocation::Large(large_allocation_id), retained_delta)
+        };
+
+        let pointer = self.allocate_location(location, byte_len);
+        self.allocated_count += 1;
+        self.allocated_bytes = self.allocated_bytes.saturating_add(byte_len as u64);
+
+        if retained_was_clean {
+            let retained_delta = storage_retained_delta
+                + capacity_bytes_delta::<RawHandleEntry>(
+                    old_handle_capacity,
+                    self.handles.capacity(),
+                );
+            self.apply_retained_bytes_delta(retained_delta);
+        } else {
+            self.mark_retained_bytes_dirty();
+        }
+
+        pointer
     }
 
     /// Return the byte length for one raw allocation.
     pub fn byte_len(&self, pointer: RawPointer) -> Option<usize> {
         let base = RawPointer::new(pointer.id());
         let offset = pointer.byte_offset();
-        let location = self.location(base)?;
-
-        let len = match location {
-            RawLocation::Vacant => return None,
-            RawLocation::Run(slot) => self.runs.get(slot.run_index())?.len(slot.slot_index())?,
-            RawLocation::Extent(extent_id) => self.extent(extent_id)?.len(),
-        };
+        let handle = self.handle(base)?;
+        let len = handle.byte_len;
 
         len.checked_sub(offset)
     }
@@ -252,10 +360,14 @@ impl RawSpace {
 
         let bytes = match location {
             RawLocation::Vacant => return None,
-            RawLocation::Run(slot) => {
-                Cow::Borrowed(self.runs.get(slot.run_index())?.bytes(slot.slot_index())?)
-            }
-            RawLocation::Extent(extent_id) => self.extent(extent_id)?.bytes(),
+            RawLocation::Small(slot) => self
+                .small
+                .spans
+                .get(slot.span_index())?
+                .bytes(&self.page_arena, slot.slot_index())?,
+            RawLocation::Large(large_allocation_id) => self
+                .large_allocation(large_allocation_id)?
+                .bytes(&self.page_arena),
         };
 
         match bytes {
@@ -284,14 +396,44 @@ impl RawSpace {
 
         match location {
             RawLocation::Vacant => false,
-            RawLocation::Run(slot) => self
-                .runs
-                .get_mut(slot.run_index())
-                .map(|run| run.set_byte(slot.slot_index(), offset, byte))
+            RawLocation::Small(slot) => self
+                .small
+                .spans
+                .get_mut(slot.span_index())
+                .map(|span| span.set_byte(&mut self.page_arena, slot.slot_index(), offset, byte))
                 .unwrap_or(false),
-            RawLocation::Extent(extent_id) => self
-                .extent_mut(extent_id)
-                .map(|extent| extent.set(offset, byte))
+            RawLocation::Large(large_allocation_id) => self
+                .large
+                .large_allocations
+                .get_mut((large_allocation_id.id().saturating_sub(1)) as usize)
+                .map(|large_allocation| large_allocation.set(&mut self.page_arena, offset, byte))
+                .unwrap_or(false),
+        }
+    }
+
+    /// Set one byte slice inside one raw allocation.
+    pub fn set_bytes(&mut self, pointer: RawPointer, start: usize, bytes: &[u8]) -> bool {
+        let base = RawPointer::new(pointer.id());
+        let offset = pointer.byte_offset().saturating_add(start);
+        let Some(location) = self.location(base) else {
+            return false;
+        };
+
+        match location {
+            RawLocation::Vacant => false,
+            RawLocation::Small(slot) => self
+                .small
+                .spans
+                .get_mut(slot.span_index())
+                .map(|span| span.set_bytes(&mut self.page_arena, slot.slot_index(), offset, bytes))
+                .unwrap_or(false),
+            RawLocation::Large(large_allocation_id) => self
+                .large
+                .large_allocations
+                .get_mut((large_allocation_id.id().saturating_sub(1)) as usize)
+                .map(|large_allocation| {
+                    large_allocation.set_bytes(&mut self.page_arena, offset, bytes)
+                })
                 .unwrap_or(false),
         }
     }
@@ -308,47 +450,60 @@ impl RawSpace {
 
         match location {
             RawLocation::Vacant => return false,
-            RawLocation::Run(slot) => {
-                let run_index = slot.run_index();
-                let Some(size_class) = self.runs.get(run_index).map(RawRun::size_class) else {
+            RawLocation::Small(slot) => {
+                let span_index = slot.span_index();
+                let Some(size_class) = self.small.spans.get(span_index).map(RawSpan::size_class)
+                else {
                     return false;
                 };
-                let Some(class_index) = self.class_index_for_run(size_class) else {
+                let Some(class_index) = self.class_index_for_size_class(size_class) else {
                     return false;
                 };
-                let Some(run) = self.runs.get_mut(run_index) else {
+                let Some(span) = self.small.spans.get_mut(span_index) else {
                     return false;
                 };
 
-                if !run.free_slot(slot.slot_index()) {
+                if !span.free_slot(&mut self.page_arena, slot.slot_index()) {
                     return false;
                 }
 
-                if run.is_empty() {
-                    self.runs[run_index] = RawRun::vacant();
-                    self.free_run_ids.push(run_index);
-                } else if run.has_free_slot() {
-                    self.available_runs[class_index].push(run_index);
+                if span.is_empty() {
+                    span.release(&mut self.page_arena);
+                    self.small.spans[span_index] = RawSpan::vacant();
+                    self.small.free_span_ids.push(span_index);
+                } else if span.has_free_slot() {
+                    self.small.available_spans[class_index].push(span_index);
                 }
             }
-            RawLocation::Extent(extent_id) => {
-                let Some(extent) = self.extent_mut(extent_id) else {
+            RawLocation::Large(large_allocation_id) => {
+                if large_allocation_id.id() == 0 {
+                    return false;
+                }
+
+                let Some(large_allocation) = self
+                    .large
+                    .large_allocations
+                    .get_mut((large_allocation_id.id() - 1) as usize)
+                else {
                     return false;
                 };
 
-                extent.free();
-                self.free_extent_ids.push(extent_id.id());
+                large_allocation.free(&mut self.page_arena);
+                self.large
+                    .free_large_allocation_ids
+                    .push(large_allocation_id.id());
             }
         }
 
-        if let Some(location_slot) = self.location_entry_mut(pointer.id()) {
-            *location_slot = RawLocation::Vacant;
-        }
-
-        self.free_ids.push(pointer.id());
+        let next_free = self.free_handle_head;
+        let Some(entry) = self.handle_entry_mut(pointer.id()) else {
+            return false;
+        };
+        *entry = RawHandleEntry::Free { next_free };
+        self.free_handle_head = pointer.id();
         self.allocated_count = self.allocated_count.saturating_sub(1);
         self.allocated_bytes = self.allocated_bytes.saturating_sub(old_len as u64);
-        self.recompute_retained_bytes();
+        self.mark_retained_bytes_dirty();
 
         true
     }
@@ -364,60 +519,95 @@ impl RawSpace {
 
         let replaced = match location {
             RawLocation::Vacant => false,
-            RawLocation::Run(slot) => {
-                let Some(class_index) = self.size_classes.class_index_for(bytes.len()) else {
-                    let extent_id = self.allocate_extent(bytes);
+            RawLocation::Small(slot) => {
+                let Some(class_index) = self.small.size_classes.class_index_for(bytes.len()) else {
+                    let (large_allocation_id, _) = self.allocate_large_allocation(bytes);
                     let freed = self
-                        .runs
-                        .get_mut(slot.run_index())
-                        .map(|run| run.free_slot(slot.slot_index()))
+                        .small
+                        .spans
+                        .get_mut(slot.span_index())
+                        .map(|span| span.free_slot(&mut self.page_arena, slot.slot_index()))
                         .unwrap_or(false);
-                    self.move_location(pointer.id(), RawLocation::Extent(extent_id));
+                    self.move_handle(
+                        pointer.id(),
+                        RawLocation::Large(large_allocation_id),
+                        bytes.len(),
+                    );
                     return freed;
                 };
 
-                let run_size_class = self.runs.get(slot.run_index()).map(RawRun::size_class);
-                if run_size_class
+                let span_size_class = self
+                    .small
+                    .spans
+                    .get(slot.span_index())
+                    .map(RawSpan::size_class);
+                if span_size_class
                     == self
+                        .small
                         .size_classes
                         .classes
                         .get(class_index)
                         .map(|class| class.bytes)
                 {
-                    self.runs
-                        .get_mut(slot.run_index())
-                        .map(|run| run.replace_slot(slot.slot_index(), bytes))
+                    self.small
+                        .spans
+                        .get_mut(slot.span_index())
+                        .map(|span| {
+                            span.replace_slot(&mut self.page_arena, slot.slot_index(), bytes)
+                        })
                         .unwrap_or(false)
                 } else {
-                    let new_slot = self.allocate_run_slot(class_index, bytes);
+                    let (new_slot, _) = self.allocate_span_slot(class_index, bytes);
                     let freed = self
-                        .runs
-                        .get_mut(slot.run_index())
-                        .map(|run| run.free_slot(slot.slot_index()))
+                        .small
+                        .spans
+                        .get_mut(slot.span_index())
+                        .map(|span| span.free_slot(&mut self.page_arena, slot.slot_index()))
                         .unwrap_or(false);
-                    self.move_location(pointer.id(), RawLocation::Run(new_slot));
+                    self.move_handle(pointer.id(), RawLocation::Small(new_slot), bytes.len());
                     freed
                 }
             }
-            RawLocation::Extent(extent_id) => {
-                if let Some(class_index) = self.size_classes.class_index_for(bytes.len()) {
-                    let new_slot = self.allocate_run_slot(class_index, bytes);
-                    if let Some(extent) = self.extent_mut(extent_id) {
-                        extent.free();
-                        self.free_extent_ids.push(extent_id.id());
-                        self.move_location(pointer.id(), RawLocation::Run(new_slot));
+            RawLocation::Large(large_allocation_id) => {
+                if let Some(class_index) = self.small.size_classes.class_index_for(bytes.len()) {
+                    let (new_slot, _) = self.allocate_span_slot(class_index, bytes);
+                    if large_allocation_id.id() == 0 {
+                        false
+                    } else if let Some(large_allocation) = self
+                        .large
+                        .large_allocations
+                        .get_mut((large_allocation_id.id() - 1) as usize)
+                    {
+                        large_allocation.free(&mut self.page_arena);
+                        self.large
+                            .free_large_allocation_ids
+                            .push(large_allocation_id.id());
+                        self.move_handle(pointer.id(), RawLocation::Small(new_slot), bytes.len());
                         true
                     } else {
                         false
                     }
                 } else {
-                    let chunk_bytes = self.chunk_bytes;
-                    self.extent_mut(extent_id)
-                        .map(|extent| {
-                            extent.replace(bytes, chunk_bytes);
+                    let page_bytes = self.large.page_bytes;
+                    let replaced = self
+                        .large
+                        .large_allocations
+                        .get_mut((large_allocation_id.id().saturating_sub(1)) as usize)
+                        .map(|large_allocation| {
+                            large_allocation.replace(&mut self.page_arena, bytes, page_bytes);
                             true
                         })
-                        .unwrap_or(false)
+                        .unwrap_or(false);
+
+                    if replaced {
+                        self.move_handle(
+                            pointer.id(),
+                            RawLocation::Large(large_allocation_id),
+                            bytes.len(),
+                        );
+                    }
+
+                    replaced
                 }
             }
         };
@@ -427,7 +617,7 @@ impl RawSpace {
                 .allocated_bytes
                 .saturating_sub(old_len)
                 .saturating_add(bytes.len() as u64);
-            self.recompute_retained_bytes();
+            self.mark_retained_bytes_dirty();
         }
 
         replaced
@@ -474,174 +664,430 @@ impl RawSpace {
 
     // directories
 
-    fn allocate_location(&mut self, location: RawLocation) -> RawPointer {
-        if let Some(id) = self.free_ids.pop() {
-            if let Some(slot) = self.location_entry_mut(id) {
-                *slot = location;
-            }
+    fn allocate_location(&mut self, location: RawLocation, byte_len: usize) -> RawPointer {
+        let handle = RawHandle { location, byte_len };
+
+        if self.free_handle_head != 0 {
+            let id = self.free_handle_head;
+            let next_free = match self.handle_entry(id) {
+                Some(RawHandleEntry::Free { next_free }) => *next_free,
+                Some(RawHandleEntry::Live(_)) => {
+                    unreachable!("free raw handle head must point at one free entry")
+                }
+                None => unreachable!("free raw handle head must remain addressable"),
+            };
+
+            self.free_handle_head = next_free;
+
+            let Some(entry) = self.handle_entry_mut(id) else {
+                unreachable!("free raw handle head must remain mutable");
+            };
+            *entry = RawHandleEntry::Live(handle);
 
             return RawPointer::new(id);
         }
 
         let id = self.next_unused_id;
         self.next_unused_id = self.next_unused_id.saturating_add(1);
-        self.locations.push(location);
+        self.handles.push(RawHandleEntry::Live(handle));
 
         RawPointer::new(id)
     }
 
     fn location(&self, pointer: RawPointer) -> Option<RawLocation> {
-        if pointer.id() == 0 {
-            return None;
-        }
-
-        self.locations.get((pointer.id() - 1) as usize).copied()
+        Some(self.handle(pointer)?.location)
     }
 
-    fn location_entry_mut(&mut self, id: u64) -> Option<&mut RawLocation> {
+    fn handle(&self, pointer: RawPointer) -> Option<&RawHandle> {
+        match self.handle_entry(pointer.id())? {
+            RawHandleEntry::Live(handle) => Some(handle),
+            RawHandleEntry::Free { .. } => None,
+        }
+    }
+
+    fn handle_mut(&mut self, pointer: RawPointer) -> Option<&mut RawHandle> {
+        match self.handle_entry_mut(pointer.id())? {
+            RawHandleEntry::Live(handle) => Some(handle),
+            RawHandleEntry::Free { .. } => None,
+        }
+    }
+
+    fn handle_entry(&self, id: u64) -> Option<&RawHandleEntry> {
         if id == 0 {
             return None;
         }
 
-        self.locations.get_mut((id - 1) as usize)
+        self.handles.get((id - 1) as usize)
     }
 
-    fn move_location(&mut self, id: u64, location: RawLocation) {
-        if let Some(slot) = self.location_entry_mut(id) {
-            *slot = location;
+    fn handle_entry_mut(&mut self, id: u64) -> Option<&mut RawHandleEntry> {
+        if id == 0 {
+            return None;
+        }
+
+        self.handles.get_mut((id - 1) as usize)
+    }
+
+    fn move_handle(&mut self, id: u64, location: RawLocation, byte_len: usize) {
+        let pointer = RawPointer::new(id);
+        if let Some(handle) = self.handle_mut(pointer) {
+            handle.location = location;
+            handle.byte_len = byte_len;
         }
     }
 
-    fn allocate_run_slot(&mut self, class_index: usize, bytes: &[u8]) -> RawRunSlot {
-        while let Some(run_index) = self.available_runs[class_index].pop() {
-            let Some(run) = self.runs.get_mut(run_index) else {
+    fn allocate_span_slot(&mut self, class_index: usize, bytes: &[u8]) -> (RawSpanSlot, i64) {
+        let page_bytes = self.page_arena.page_bytes();
+
+        while let Some(span_index) = self.small.available_spans[class_index].pop() {
+            let Some(span) = self.small.spans.get_mut(span_index) else {
                 continue;
             };
 
-            if !run.has_free_slot() {
+            if !span.has_free_slot() {
                 continue;
             }
 
-            let Some(slot_index) = run.first_free_slot() else {
+            let Some(slot_index) = span.first_free_slot() else {
                 continue;
             };
 
-            if run.allocate_slot(slot_index, bytes) {
-                if run.has_free_slot() {
-                    self.available_runs[class_index].push(run_index);
+            let retained_before = span.retained_bytes(page_bytes) as i64;
+            if span.allocate_slot(&mut self.page_arena, slot_index, bytes) {
+                let mut retained_delta = span.retained_bytes(page_bytes) as i64 - retained_before;
+
+                if span.has_free_slot() {
+                    let queue_capacity = self.small.available_spans[class_index].capacity();
+                    self.small.available_spans[class_index].push(span_index);
+                    retained_delta += capacity_bytes_delta::<usize>(
+                        queue_capacity,
+                        self.small.available_spans[class_index].capacity(),
+                    );
                 }
 
-                return RawRunSlot::new(run_index, slot_index);
+                return (RawSpanSlot::new(span_index, slot_index), retained_delta);
             }
         }
 
-        let size_class = self.size_classes.classes[class_index].bytes;
-        let mut run = RawRun::new(size_class, self.run_bytes);
-        let slot_index = run.first_free_slot().unwrap_or(0);
-        let allocated = run.allocate_slot(slot_index, bytes);
-        debug_assert!(allocated, "fresh raw run must accept its first slot");
+        let size_class = self.small.size_classes.classes[class_index].bytes;
+        let spans_capacity = self.small.spans.capacity();
+        let queue_capacity = self.small.available_spans[class_index].capacity();
+        let page_arena_retained = self.page_arena.retained_bytes() as i64;
+        let mut span = RawSpan::new(size_class, self.small.span_bytes, &mut self.page_arena);
+        let slot_index = span.first_free_slot().unwrap_or(0);
+        let allocated = span.allocate_slot(&mut self.page_arena, slot_index, bytes);
+        debug_assert!(allocated, "fresh raw span must accept its first slot");
+        let span_retained = span.retained_bytes(page_bytes) as i64;
 
-        let run_index = if let Some(index) = self.free_run_ids.pop() {
-            self.runs[index] = run;
+        let span_index = if let Some(index) = self.small.free_span_ids.pop() {
+            self.small.spans[index] = span;
             index
         } else {
-            self.runs.push(run);
-            self.runs.len() - 1
+            self.small.spans.push(span);
+            self.small.spans.len() - 1
         };
 
-        if self.runs[run_index].has_free_slot() {
-            self.available_runs[class_index].push(run_index);
+        if self.small.spans[span_index].has_free_slot() {
+            self.small.available_spans[class_index].push(span_index);
         }
 
-        RawRunSlot::new(run_index, slot_index)
+        let retained_delta = span_retained
+            + capacity_bytes_delta::<RawSpan>(spans_capacity, self.small.spans.capacity())
+            + capacity_bytes_delta::<usize>(
+                queue_capacity,
+                self.small.available_spans[class_index].capacity(),
+            )
+            + (self.page_arena.retained_bytes() as i64 - page_arena_retained);
+
+        (RawSpanSlot::new(span_index, slot_index), retained_delta)
     }
 
-    fn allocate_extent(&mut self, bytes: &[u8]) -> RawExtentId {
-        if let Some(id) = self.free_extent_ids.pop() {
-            let extent_id = RawExtentId::new(id);
-            let chunk_bytes = self.chunk_bytes;
-            if let Some(extent) = self.extent_mut(extent_id) {
-                extent.replace(bytes, chunk_bytes);
+    fn allocate_zeroed_span_slot(
+        &mut self,
+        class_index: usize,
+        byte_len: usize,
+    ) -> (RawSpanSlot, i64) {
+        let page_bytes = self.page_arena.page_bytes();
+
+        while let Some(span_index) = self.small.available_spans[class_index].pop() {
+            let Some(span) = self.small.spans.get_mut(span_index) else {
+                continue;
+            };
+
+            if !span.has_free_slot() {
+                continue;
             }
 
-            return extent_id;
+            let Some(slot_index) = span.first_free_slot() else {
+                continue;
+            };
+
+            let retained_before = span.retained_bytes(page_bytes) as i64;
+            if span.allocate_zeroed_slot(&mut self.page_arena, slot_index, byte_len) {
+                let mut retained_delta = span.retained_bytes(page_bytes) as i64 - retained_before;
+
+                if span.has_free_slot() {
+                    let queue_capacity = self.small.available_spans[class_index].capacity();
+                    self.small.available_spans[class_index].push(span_index);
+                    retained_delta += capacity_bytes_delta::<usize>(
+                        queue_capacity,
+                        self.small.available_spans[class_index].capacity(),
+                    );
+                }
+
+                return (RawSpanSlot::new(span_index, slot_index), retained_delta);
+            }
         }
 
-        let extent_id = RawExtentId::new(self.next_unused_extent_id);
-        self.next_unused_extent_id = self.next_unused_extent_id.saturating_add(1);
-        self.extents.push(RawExtent::new(bytes, self.chunk_bytes));
+        let size_class = self.small.size_classes.classes[class_index].bytes;
+        let spans_capacity = self.small.spans.capacity();
+        let queue_capacity = self.small.available_spans[class_index].capacity();
+        let page_arena_retained = self.page_arena.retained_bytes() as i64;
+        let mut span = RawSpan::new(size_class, self.small.span_bytes, &mut self.page_arena);
+        let slot_index = span.first_free_slot().unwrap_or(0);
+        let allocated = span.allocate_zeroed_slot(&mut self.page_arena, slot_index, byte_len);
+        debug_assert!(allocated, "fresh raw span must accept its first slot");
+        let span_retained = span.retained_bytes(page_bytes) as i64;
 
-        extent_id
+        let span_index = if let Some(index) = self.small.free_span_ids.pop() {
+            self.small.spans[index] = span;
+            index
+        } else {
+            self.small.spans.push(span);
+            self.small.spans.len() - 1
+        };
+
+        if self.small.spans[span_index].has_free_slot() {
+            self.small.available_spans[class_index].push(span_index);
+        }
+
+        let retained_delta = span_retained
+            + capacity_bytes_delta::<RawSpan>(spans_capacity, self.small.spans.capacity())
+            + capacity_bytes_delta::<usize>(
+                queue_capacity,
+                self.small.available_spans[class_index].capacity(),
+            )
+            + (self.page_arena.retained_bytes() as i64 - page_arena_retained);
+
+        (RawSpanSlot::new(span_index, slot_index), retained_delta)
     }
 
-    fn extent(&self, extent_id: RawExtentId) -> Option<&RawExtent> {
-        if extent_id.id() == 0 {
+    fn allocate_large_allocation(&mut self, bytes: &[u8]) -> (RawLargeAllocationId, i64) {
+        if let Some(id) = self.large.free_large_allocation_ids.pop() {
+            let large_allocation_id = RawLargeAllocationId::new(id);
+            let page_bytes = self.large.page_bytes;
+            let page_arena_retained = self.page_arena.retained_bytes() as i64;
+            let retained_before = self
+                .large
+                .large_allocations
+                .get((large_allocation_id.id() - 1) as usize)
+                .map(RawLargeAllocation::retained_bytes)
+                .unwrap_or(0) as i64;
+            if let Some(large_allocation) = self
+                .large
+                .large_allocations
+                .get_mut((large_allocation_id.id() - 1) as usize)
+            {
+                large_allocation.replace(&mut self.page_arena, bytes, page_bytes);
+            }
+
+            let retained_after = self
+                .large
+                .large_allocations
+                .get((large_allocation_id.id() - 1) as usize)
+                .map(RawLargeAllocation::retained_bytes)
+                .unwrap_or(0) as i64;
+            let retained_delta = retained_after - retained_before
+                + (self.page_arena.retained_bytes() as i64 - page_arena_retained);
+
+            return (large_allocation_id, retained_delta);
+        }
+
+        let large_allocation_id =
+            RawLargeAllocationId::new(self.large.next_unused_large_allocation_id);
+        self.large.next_unused_large_allocation_id =
+            self.large.next_unused_large_allocation_id.saturating_add(1);
+        let large_capacity = self.large.large_allocations.capacity();
+        let page_arena_retained = self.page_arena.retained_bytes() as i64;
+        self.large.large_allocations.push(RawLargeAllocation::new(
+            bytes,
+            self.large.page_bytes,
+            &mut self.page_arena,
+        ));
+        let retained_delta = self
+            .large
+            .large_allocations
+            .last()
+            .map(RawLargeAllocation::retained_bytes)
+            .unwrap_or(0) as i64
+            + capacity_bytes_delta::<RawLargeAllocation>(
+                large_capacity,
+                self.large.large_allocations.capacity(),
+            )
+            + (self.page_arena.retained_bytes() as i64 - page_arena_retained);
+
+        (large_allocation_id, retained_delta)
+    }
+
+    fn allocate_zeroed_large_allocation(&mut self, byte_len: usize) -> (RawLargeAllocationId, i64) {
+        if let Some(id) = self.large.free_large_allocation_ids.pop() {
+            let large_allocation_id = RawLargeAllocationId::new(id);
+            let page_bytes = self.large.page_bytes;
+            let page_arena_retained = self.page_arena.retained_bytes() as i64;
+            let retained_before = self
+                .large
+                .large_allocations
+                .get((large_allocation_id.id() - 1) as usize)
+                .map(RawLargeAllocation::retained_bytes)
+                .unwrap_or(0) as i64;
+            if let Some(large_allocation) = self
+                .large
+                .large_allocations
+                .get_mut((large_allocation_id.id() - 1) as usize)
+            {
+                large_allocation.replace_zeroed(&mut self.page_arena, byte_len, page_bytes);
+            }
+
+            let retained_after = self
+                .large
+                .large_allocations
+                .get((large_allocation_id.id() - 1) as usize)
+                .map(RawLargeAllocation::retained_bytes)
+                .unwrap_or(0) as i64;
+            let retained_delta = retained_after - retained_before
+                + (self.page_arena.retained_bytes() as i64 - page_arena_retained);
+
+            return (large_allocation_id, retained_delta);
+        }
+
+        let large_allocation_id =
+            RawLargeAllocationId::new(self.large.next_unused_large_allocation_id);
+        self.large.next_unused_large_allocation_id =
+            self.large.next_unused_large_allocation_id.saturating_add(1);
+        let large_capacity = self.large.large_allocations.capacity();
+        let page_arena_retained = self.page_arena.retained_bytes() as i64;
+        self.large
+            .large_allocations
+            .push(RawLargeAllocation::new_zeroed(
+                byte_len,
+                self.large.page_bytes,
+                &mut self.page_arena,
+            ));
+        let retained_delta = self
+            .large
+            .large_allocations
+            .last()
+            .map(RawLargeAllocation::retained_bytes)
+            .unwrap_or(0) as i64
+            + capacity_bytes_delta::<RawLargeAllocation>(
+                large_capacity,
+                self.large.large_allocations.capacity(),
+            )
+            + (self.page_arena.retained_bytes() as i64 - page_arena_retained);
+
+        (large_allocation_id, retained_delta)
+    }
+
+    fn large_allocation(
+        &self,
+        large_allocation_id: RawLargeAllocationId,
+    ) -> Option<&RawLargeAllocation> {
+        if large_allocation_id.id() == 0 {
             return None;
         }
 
-        self.extents.get((extent_id.id() - 1) as usize)
+        self.large
+            .large_allocations
+            .get((large_allocation_id.id() - 1) as usize)
     }
 
-    fn extent_mut(&mut self, extent_id: RawExtentId) -> Option<&mut RawExtent> {
-        if extent_id.id() == 0 {
-            return None;
-        }
-
-        self.extents.get_mut((extent_id.id() - 1) as usize)
-    }
-
-    fn class_index_for_run(&self, size_class: usize) -> Option<usize> {
-        self.size_classes
+    fn class_index_for_size_class(&self, size_class: usize) -> Option<usize> {
+        self.small
+            .size_classes
             .classes
             .iter()
             .position(|class| class.bytes == size_class)
     }
 
-    fn rebuild_run_directories(&mut self) {
-        self.available_runs = vec![Vec::new(); self.size_classes.classes.len()];
-        self.free_run_ids.clear();
+    fn rebuild_span_directories(&mut self) {
+        self.small.available_spans = vec![Vec::new(); self.small.size_classes.classes.len()];
+        self.small.free_span_ids.clear();
 
-        for (index, run) in self.runs.iter().enumerate() {
-            if run.is_vacant() {
-                self.free_run_ids.push(index);
+        for (index, span) in self.small.spans.iter().enumerate() {
+            if span.is_vacant() {
+                self.small.free_span_ids.push(index);
                 continue;
             }
 
-            if !run.has_free_slot() {
+            if !span.has_free_slot() {
                 continue;
             }
 
-            if let Some(class_index) = self.class_index_for_run(run.size_class()) {
-                self.available_runs[class_index].push(index);
+            if let Some(class_index) = self.class_index_for_size_class(span.size_class()) {
+                self.small.available_spans[class_index].push(index);
             }
         }
     }
 
-    fn recompute_retained_bytes(&mut self) {
+    fn mark_retained_bytes_dirty(&self) {
+        self.retained_bytes_dirty.set(true);
+    }
+
+    fn apply_retained_bytes_delta(&self, delta: i64) {
+        let retained_bytes = self.retained_bytes.get();
+        let retained_bytes = if delta >= 0 {
+            retained_bytes.saturating_add(delta as u64)
+        } else {
+            retained_bytes.saturating_sub(delta.unsigned_abs())
+        };
+
+        self.retained_bytes.set(retained_bytes);
+        self.retained_bytes_dirty.set(false);
+    }
+
+    fn refresh_retained_bytes(&self) {
+        if !self.retained_bytes_dirty.get() {
+            return;
+        }
+
         let mut retained_bytes = 0usize;
 
-        retained_bytes += self.size_classes.retained_bytes();
-        retained_bytes += self.available_runs.capacity() * size_of::<Vec<usize>>();
-        retained_bytes += self.free_run_ids.capacity() * size_of::<usize>();
-        retained_bytes += self.extents.capacity() * size_of::<RawExtent>();
-        retained_bytes += self.free_extent_ids.capacity() * size_of::<u64>();
-        retained_bytes += self.locations.capacity() * size_of::<RawLocation>();
-        retained_bytes += self.free_ids.capacity() * size_of::<u64>();
+        retained_bytes += self.small.size_classes.retained_bytes();
+        retained_bytes += self.small.available_spans.capacity() * size_of::<Vec<usize>>();
+        retained_bytes += self.small.free_span_ids.capacity() * size_of::<usize>();
+        retained_bytes += self.large.large_allocations.capacity() * size_of::<RawLargeAllocation>();
+        retained_bytes += self.large.free_large_allocation_ids.capacity() * size_of::<u64>();
+        retained_bytes += self.page_arena.retained_bytes();
+        retained_bytes += self.handles.capacity() * size_of::<RawHandleEntry>();
 
-        for queue in &self.available_runs {
+        for queue in &self.small.available_spans {
             retained_bytes += queue.capacity() * size_of::<usize>();
         }
 
-        for run in &self.runs {
-            retained_bytes += run.retained_bytes();
+        for span in &self.small.spans {
+            retained_bytes += span.retained_bytes(self.page_arena.page_bytes());
         }
 
-        for extent in &self.extents {
-            retained_bytes += extent.retained_bytes();
+        for large_allocation in &self.large.large_allocations {
+            retained_bytes += large_allocation.retained_bytes();
         }
 
-        self.retained_bytes = retained_bytes as u64;
+        self.retained_bytes.set(retained_bytes as u64);
+        self.retained_bytes_dirty.set(false);
     }
+
+    fn recompute_retained_bytes(&self) {
+        self.retained_bytes_dirty.set(true);
+        self.refresh_retained_bytes();
+    }
+}
+
+/// Return the retained-byte delta implied by one vector-capacity change.
+fn capacity_bytes_delta<T>(old_capacity: usize, new_capacity: usize) -> i64 {
+    let old_bytes = old_capacity.saturating_mul(size_of::<T>()) as i64;
+    let new_bytes = new_capacity.saturating_mul(size_of::<T>()) as i64;
+
+    new_bytes - old_bytes
 }
 
 // encode one packed value vector into bytes

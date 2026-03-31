@@ -5,12 +5,21 @@ use serde::{Deserialize, Serialize};
 pub enum GcPhase {
     /// GC is idle.
     Idle,
-    /// GC is marking reachable objects.
+    /// GC is marking reachable allocations.
     Mark,
     /// GC is draining remaining work and finalizing the mark phase.
     MarkTermination,
-    /// GC is sweeping unreachable objects.
+    /// GC is sweeping unreachable allocations.
     Sweep,
+}
+
+/// Scope of one garbage collection cycle.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum GcKind {
+    /// One full heap collection.
+    Full,
+    /// One young-generation collection.
+    Minor,
 }
 
 impl GcPhase {
@@ -40,6 +49,8 @@ pub struct GcStats {
 pub struct GcState {
     /// Number of completed GC cycles.
     pub cycles: u64,
+    /// Kind of the current GC cycle, if one is active.
+    pub kind: Option<GcKind>,
     /// Current GC phase.
     pub phase: GcPhase,
     /// Stats from the last completed cycle.
@@ -50,6 +61,7 @@ impl Default for GcState {
     fn default() -> Self {
         Self {
             cycles: 0,
+            kind: None,
             phase: GcPhase::Idle,
             last_stats: None,
         }
@@ -58,13 +70,15 @@ impl Default for GcState {
 
 impl GcState {
     /// Begin a new GC cycle.
-    pub fn begin_cycle(&mut self) {
+    pub fn begin_cycle(&mut self, kind: GcKind) {
         self.cycles = self.cycles.saturating_add(1);
+        self.kind = Some(kind);
         self.phase = GcPhase::Mark;
     }
 
     /// Finish a GC cycle and record its stats.
     pub fn finish_cycle(&mut self, stats: GcStats) {
+        self.kind = None;
         self.phase = GcPhase::Idle;
         self.last_stats = Some(stats);
     }

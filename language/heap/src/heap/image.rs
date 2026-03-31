@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-use crate::managed::{GcState, ManagedImage, ManagedRunImage, ManagedSpaceSnapshot};
-use crate::raw::{RawImage, RawRunImage, RawSpaceSnapshot};
+use crate::managed::{GcState, ManagedImage, ManagedSpaceSnapshot, ManagedSpanImage};
+use crate::raw::{RawImage, RawSpaceSnapshot, RawSpanImage};
 
 /// Immutable in-memory heap image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -29,27 +29,27 @@ impl HeapImage {
         }
     }
 
-    /// Return one managed run image by index.
-    pub fn managed_run(&self, index: usize) -> Option<&ManagedRunImage> {
-        self.managed.runs.get(index)
+    /// Return one managed span image by index.
+    pub fn managed_span(&self, index: usize) -> Option<&ManagedSpanImage> {
+        self.managed.spans.get(index)
     }
 
-    /// Return one raw run image by index.
-    pub fn raw_run(&self, index: usize) -> Option<&RawRunImage> {
-        self.raw.runs.get(index)
+    /// Return one raw span image by index.
+    pub fn raw_span(&self, index: usize) -> Option<&RawSpanImage> {
+        self.raw.spans.get(index)
     }
 
-    /// Return whether one managed run leaf shares captured storage at the given index.
-    pub fn managed_run_shares_with(&self, other: &Self, index: usize) -> bool {
-        match (self.managed_run(index), other.managed_run(index)) {
+    /// Return whether one managed span leaf shares captured storage at the given index.
+    pub fn managed_span_shares_with(&self, other: &Self, index: usize) -> bool {
+        match (self.managed_span(index), other.managed_span(index)) {
             (Some(left), Some(right)) => left.shares_storage_with(right),
             _ => false,
         }
     }
 
-    /// Return whether one raw run leaf shares captured storage at the given index.
-    pub fn raw_run_shares_with(&self, other: &Self, index: usize) -> bool {
-        match (self.raw_run(index), other.raw_run(index)) {
+    /// Return whether one raw span leaf shares captured storage at the given index.
+    pub fn raw_span_shares_with(&self, other: &Self, index: usize) -> bool {
+        match (self.raw_span(index), other.raw_span(index)) {
             (Some(left), Some(right)) => left.shares_storage_with(right),
             _ => false,
         }
@@ -57,12 +57,12 @@ impl HeapImage {
 
     /// Return the number of immutable managed leaves in this image.
     pub fn managed_leaf_count(&self) -> usize {
-        self.managed.runs.len() + self.managed.extents.len()
+        self.managed.spans.len() + self.managed.large_allocations.len()
     }
 
     /// Return the number of immutable raw leaves in this image.
     pub fn raw_leaf_count(&self) -> usize {
-        self.raw.runs.len() + self.raw.extents.len()
+        self.raw.spans.len() + self.raw.large_allocations.len()
     }
 
     /// Return the total captured local allocation bytes in this heap image.

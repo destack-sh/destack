@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 /// The number of bits in one bitmap word.
 const BITMAP_WORD_BITS: usize = u64::BITS as usize;
 
-/// One bitmap for run-sized metadata.
+/// One bitmap for span-sized metadata.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Bitmap {
     /// The logical bit capacity.
@@ -82,6 +82,15 @@ impl Bitmap {
         }
 
         (start..self.capacity).find(|&index| !self.contains(index))
+    }
+
+    /// Return the first set bit from the given offset.
+    pub fn first_set_from(&self, start: usize) -> Option<usize> {
+        if start >= self.capacity {
+            return None;
+        }
+
+        (start..self.capacity).find(|&index| self.contains(index))
     }
 
     /// Return the retained bytes for this bitmap.

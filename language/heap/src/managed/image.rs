@@ -3,33 +3,39 @@ use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    GcState, ManagedExtentImage, ManagedLocation, ManagedRunImage, ManagedSpace, ReferenceMap,
+    GcState, ManagedHandleEntry, ManagedLargeAllocationImage, ManagedSpace, ManagedSpanImage,
+    ReferenceMap,
 };
-use crate::heap::{SizeClassTable, TreeVector};
+use crate::alloc::SizeClassTable;
+use crate::heap::validate_managed_reference_bytes;
 
 /// One immutable managed-space image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ManagedImage {
     /// The configured size-class table.
     pub(crate) size_classes: SizeClassTable,
-    /// The configured run width.
-    pub(crate) run_bytes: usize,
-    /// The configured extent chunk width.
-    pub(crate) chunk_bytes: usize,
-    /// The captured managed runs.
-    pub(crate) runs: TreeVector<ManagedRunImage>,
-    /// The captured managed extents.
-    pub(crate) extents: TreeVector<ManagedExtentImage>,
-    /// Stable allocation locations keyed by reference id minus one.
-    pub(crate) locations: Arc<[ManagedLocation]>,
-    /// The captured free managed reference ids.
-    pub(crate) free_ids: Arc<[u64]>,
-    /// The captured free extent ids.
-    pub(crate) free_extent_ids: Arc<[u64]>,
+    /// The encoded byte width for managed references inside traced payloads.
+    pub(crate) managed_reference_bytes: u8,
+    /// The configured young-space byte width.
+    pub(crate) young_bytes: usize,
+    /// The configured small-space span width.
+    pub(crate) small_bytes: usize,
+    /// The configured local page width.
+    pub(crate) page_bytes: usize,
+    /// The captured managed spans.
+    pub(crate) spans: Vec<ManagedSpanImage>,
+    /// The captured managed large allocations.
+    pub(crate) large_allocations: Vec<ManagedLargeAllocationImage>,
+    /// Dense managed handle metadata keyed by reference id minus one.
+    pub(crate) handles: Arc<[ManagedHandleEntry]>,
+    /// The free managed handle id at the head of the intrusive free list.
+    pub(crate) free_handle_head: u64,
+    /// The captured free large-allocation ids.
+    pub(crate) free_large_allocation_ids: Arc<[u64]>,
     /// The next managed reference id to allocate.
     pub(crate) next_unused_id: u64,
-    /// The next managed extent id to allocate.
-    pub(crate) next_unused_extent_id: u64,
+    /// The next managed large-allocation id to allocate.
+    pub(crate) next_unused_large_allocation_id: u64,
     /// The number of allocated managed references.
     pub(crate) allocated_count: usize,
     /// The number of allocated managed bytes.
@@ -45,24 +51,28 @@ pub struct ManagedImage {
 pub struct ManagedSpaceSnapshot {
     /// The configured size-class table.
     pub size_classes: SizeClassTable,
-    /// The configured run width.
-    pub run_bytes: usize,
-    /// The configured extent chunk width.
-    pub chunk_bytes: usize,
-    /// The flattened managed runs.
-    pub runs: Vec<ManagedRunImage>,
-    /// The flattened managed extents.
-    pub extents: Vec<ManagedExtentImage>,
-    /// Stable allocation locations keyed by reference id minus one.
-    pub(crate) locations: Vec<ManagedLocation>,
-    /// The flattened free managed reference ids.
-    pub free_ids: Vec<u64>,
-    /// The flattened free extent ids.
-    pub free_extent_ids: Vec<u64>,
+    /// The encoded byte width for managed references inside traced payloads.
+    pub managed_reference_bytes: u8,
+    /// The configured young-space byte width.
+    pub young_bytes: usize,
+    /// The configured small-space span width.
+    pub small_bytes: usize,
+    /// The configured local page width.
+    pub page_bytes: usize,
+    /// The flattened managed spans.
+    pub spans: Vec<ManagedSpanImage>,
+    /// The flattened managed large allocations.
+    pub large_allocations: Vec<ManagedLargeAllocationImage>,
+    /// Dense managed handle metadata keyed by reference id minus one.
+    pub(crate) handles: Vec<ManagedHandleEntry>,
+    /// The free managed handle id at the head of the intrusive free list.
+    pub free_handle_head: u64,
+    /// The flattened free large-allocation ids.
+    pub free_large_allocation_ids: Vec<u64>,
     /// The next managed reference id to allocate.
     pub next_unused_id: u64,
-    /// The next managed extent id to allocate.
-    pub next_unused_extent_id: u64,
+    /// The next managed large-allocation id to allocate.
+    pub next_unused_large_allocation_id: u64,
     /// The number of allocated managed references.
     pub allocated_count: usize,
     /// The number of allocated managed bytes.
@@ -76,25 +86,21 @@ pub struct ManagedSpaceSnapshot {
 impl ManagedImage {
     /// Build one managed-space image from one serialized snapshot.
     pub(crate) fn from_snapshot(snapshot: &ManagedSpaceSnapshot) -> Self {
+        validate_managed_reference_bytes(snapshot.managed_reference_bytes);
+
         Self {
             size_classes: snapshot.size_classes.clone(),
-            run_bytes: snapshot.run_bytes,
-            chunk_bytes: snapshot.chunk_bytes,
-            runs: TreeVector::from_values_by(
-                &snapshot.runs,
-                None,
-                ManagedRunImage::shares_storage_with,
-            ),
-            extents: TreeVector::from_values_by(
-                &snapshot.extents,
-                None,
-                ManagedExtentImage::shares_storage_with,
-            ),
-            locations: Arc::from(snapshot.locations.as_slice()),
-            free_ids: Arc::from(snapshot.free_ids.as_slice()),
-            free_extent_ids: Arc::from(snapshot.free_extent_ids.as_slice()),
+            managed_reference_bytes: snapshot.managed_reference_bytes,
+            young_bytes: snapshot.young_bytes,
+            small_bytes: snapshot.small_bytes,
+            page_bytes: snapshot.page_bytes,
+            spans: snapshot.spans.clone(),
+            large_allocations: snapshot.large_allocations.clone(),
+            handles: Arc::from(snapshot.handles.as_slice()),
+            free_handle_head: snapshot.free_handle_head,
+            free_large_allocation_ids: Arc::from(snapshot.free_large_allocation_ids.as_slice()),
             next_unused_id: snapshot.next_unused_id,
-            next_unused_extent_id: snapshot.next_unused_extent_id,
+            next_unused_large_allocation_id: snapshot.next_unused_large_allocation_id,
             allocated_count: snapshot.allocated_count,
             allocated_bytes: snapshot.allocated_bytes,
             reference_maps: snapshot.reference_maps.clone(),
@@ -106,15 +112,17 @@ impl ManagedImage {
     pub(crate) fn snapshot(&self) -> ManagedSpaceSnapshot {
         ManagedSpaceSnapshot {
             size_classes: self.size_classes.clone(),
-            run_bytes: self.run_bytes,
-            chunk_bytes: self.chunk_bytes,
-            runs: self.runs.iter().cloned().collect(),
-            extents: self.extents.iter().cloned().collect(),
-            locations: self.locations.iter().copied().collect(),
-            free_ids: self.free_ids.iter().copied().collect(),
-            free_extent_ids: self.free_extent_ids.iter().copied().collect(),
+            managed_reference_bytes: self.managed_reference_bytes,
+            young_bytes: self.young_bytes,
+            small_bytes: self.small_bytes,
+            page_bytes: self.page_bytes,
+            spans: self.spans.to_vec(),
+            large_allocations: self.large_allocations.to_vec(),
+            handles: self.handles.iter().copied().collect(),
+            free_handle_head: self.free_handle_head,
+            free_large_allocation_ids: self.free_large_allocation_ids.iter().copied().collect(),
             next_unused_id: self.next_unused_id,
-            next_unused_extent_id: self.next_unused_extent_id,
+            next_unused_large_allocation_id: self.next_unused_large_allocation_id,
             allocated_count: self.allocated_count,
             allocated_bytes: self.allocated_bytes,
             reference_maps: self.reference_maps.clone(),

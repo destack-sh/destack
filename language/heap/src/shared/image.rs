@@ -1,8 +1,9 @@
+use std::rc::Rc;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
-use super::super::{SharedSpace, TreeVector};
+use super::super::SharedSpace;
 use super::region::SharedRegion;
 
 /// One serialized shared-memory region snapshot.
@@ -27,8 +28,8 @@ pub struct SharedSpaceSnapshot {
     pub allocated_count: usize,
     /// The number of allocated shared-memory bytes.
     pub allocated_bytes: u64,
-    /// The configured shared chunk width.
-    pub chunk_bytes: usize,
+    /// The configured shared page width.
+    pub page_bytes: usize,
 }
 
 /// One immutable shared-memory region image.
@@ -38,10 +39,10 @@ pub struct SharedRegionImage {
     pub is_allocated: bool,
     /// The logical byte length of this region.
     pub len: usize,
-    /// The chunk width used by this region.
-    pub chunk_bytes: usize,
+    /// The page width used by this region.
+    pub page_bytes: usize,
     /// The immutable chunk leaves captured for this region id.
-    pub(crate) chunks: TreeVector<Arc<[u8]>>,
+    pub(crate) chunks: Vec<Rc<[u8]>>,
 }
 
 impl SharedRegionImage {
@@ -49,13 +50,13 @@ impl SharedRegionImage {
     pub fn shares_storage_with(&self, other: &Self) -> bool {
         self.is_allocated == other.is_allocated
             && self.len == other.len
-            && self.chunk_bytes == other.chunk_bytes
+            && self.page_bytes == other.page_bytes
             && self.chunks.len() == other.chunks.len()
             && self
                 .chunks
                 .iter()
                 .zip(other.chunks.iter())
-                .all(|(left, right)| Arc::ptr_eq(left, right))
+                .all(|(left, right)| Rc::ptr_eq(left, right))
     }
 
     /// Flatten this region image into one contiguous byte vector.
@@ -75,7 +76,7 @@ impl SharedRegionImage {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SharedImage {
     /// Captured shared-memory regions keyed by region id minus one.
-    regions: TreeVector<SharedRegionImage>,
+    regions: Vec<SharedRegionImage>,
     /// The next shared-memory region id to allocate.
     next_unused_id: u64,
     /// The captured free shared-memory region ids.
@@ -84,8 +85,8 @@ pub struct SharedImage {
     allocated_count: usize,
     /// The number of allocated shared-memory bytes.
     allocated_bytes: u64,
-    /// The configured shared chunk width.
-    chunk_bytes: usize,
+    /// The configured shared page width.
+    page_bytes: usize,
 }
 
 impl SharedImage {
@@ -102,29 +103,22 @@ impl SharedImage {
             .map(|region| SharedRegionImage {
                 is_allocated: region.is_allocated,
                 len: region.bytes.len(),
-                chunk_bytes: snapshot.chunk_bytes,
-                chunks: TreeVector::from_shared(
-                    &region
-                        .bytes
-                        .chunks(snapshot.chunk_bytes)
-                        .map(|chunk| Arc::from(chunk.to_vec().into_boxed_slice()))
-                        .collect::<Vec<_>>(),
-                    None,
-                ),
+                page_bytes: snapshot.page_bytes,
+                chunks: region
+                    .bytes
+                    .chunks(snapshot.page_bytes)
+                    .map(|chunk| Rc::from(chunk.to_vec().into_boxed_slice()))
+                    .collect::<Vec<_>>(),
             })
             .collect::<Vec<_>>();
 
         Self {
-            regions: TreeVector::from_values_by(
-                &regions,
-                None,
-                SharedRegionImage::shares_storage_with,
-            ),
+            regions,
             next_unused_id: snapshot.next_unused_id,
             free_ids: Arc::from(snapshot.free_ids.as_slice()),
             allocated_count: snapshot.allocated_count,
             allocated_bytes: snapshot.allocated_bytes,
-            chunk_bytes: snapshot.chunk_bytes,
+            page_bytes: snapshot.page_bytes,
         }
     }
 
@@ -143,7 +137,7 @@ impl SharedImage {
             free_ids: self.free_ids.iter().copied().collect(),
             allocated_count: self.allocated_count,
             allocated_bytes: self.allocated_bytes,
-            chunk_bytes: self.chunk_bytes,
+            page_bytes: self.page_bytes,
         }
     }
 }
@@ -159,8 +153,9 @@ impl SharedSpace {
         let free_ids = image.free_ids.iter().copied().collect();
 
         let mut space = Self {
-            chunk_bytes: image.chunk_bytes,
+            page_bytes: image.page_bytes,
             regions,
+            page_arena: crate::alloc::PageArena::with_page_bytes(image.page_bytes),
             free_ids,
             next_unused_id: image.next_unused_id,
             allocated_count: image.allocated_count,
@@ -180,13 +175,14 @@ impl SharedSpace {
             .regions
             .iter_mut()
             .enumerate()
-            .map(|(index, region)| region.image(base.and_then(|image| image.regions.get(index))))
+            .map(|(index, region)| {
+                region.image(
+                    &mut self.page_arena,
+                    base.and_then(|image| image.regions.get(index)),
+                )
+            })
             .collect::<Vec<_>>();
-        let regions = TreeVector::from_values_by(
-            &regions,
-            base.map(|image| &image.regions),
-            SharedRegionImage::shares_storage_with,
-        );
+        let _ = base;
         let free_ids = Arc::from(self.free_ids.as_slice());
 
         SharedImage {
@@ -195,7 +191,7 @@ impl SharedSpace {
             free_ids,
             allocated_count: self.allocated_count,
             allocated_bytes: self.allocated_bytes,
-            chunk_bytes: self.chunk_bytes,
+            page_bytes: self.page_bytes,
         }
     }
 }

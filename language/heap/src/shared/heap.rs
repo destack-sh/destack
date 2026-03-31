@@ -1,6 +1,7 @@
 use std::mem::size_of;
 
-use crate::heap::{DEFAULT_CHUNK_BYTES, SharedBudget, SharedLimitError, SharedSpaceUsage};
+use crate::alloc::PageArena;
+use crate::heap::{DEFAULT_PAGE_BYTES, SharedBudget, SharedLimitError, SharedSpaceUsage};
 
 use super::super::SharedPointer;
 use super::region::SharedRegion;
@@ -11,10 +12,12 @@ const FIRST_SHARED_REGION_ID: u64 = 1;
 /// One live shared-memory space.
 #[derive(Debug)]
 pub struct SharedSpace {
-    /// The configured shared chunk width.
-    pub(crate) chunk_bytes: usize,
+    /// The configured local page width.
+    pub(crate) page_bytes: usize,
     /// Stable shared-memory regions keyed by region id minus one.
     pub(crate) regions: Vec<SharedRegion>,
+    /// The local page arena for shared-region backing.
+    pub(crate) page_arena: PageArena,
     /// Free shared-memory region ids available for reuse.
     pub(crate) free_ids: Vec<u64>,
     /// The next shared-memory region id to allocate.
@@ -36,14 +39,15 @@ impl Default for SharedSpace {
 impl SharedSpace {
     /// Create a new empty shared-memory space.
     pub fn new() -> Self {
-        Self::with_chunk_bytes(DEFAULT_CHUNK_BYTES)
+        Self::with_page_bytes(DEFAULT_PAGE_BYTES)
     }
 
-    /// Create a new empty shared-memory space with one explicit chunk width.
-    pub fn with_chunk_bytes(chunk_bytes: usize) -> Self {
+    /// Create a new empty shared-memory space with one explicit page width.
+    pub fn with_page_bytes(page_bytes: usize) -> Self {
         let mut space = Self {
-            chunk_bytes,
+            page_bytes,
             regions: Vec::new(),
+            page_arena: PageArena::with_page_bytes(page_bytes),
             free_ids: Vec::new(),
             next_unused_id: FIRST_SHARED_REGION_ID,
             allocated_count: 0,
@@ -57,9 +61,9 @@ impl SharedSpace {
         space
     }
 
-    /// Return the configured shared chunk width.
-    pub fn chunk_bytes(&self) -> usize {
-        self.chunk_bytes
+    /// Return the configured shared page width.
+    pub fn page_bytes(&self) -> usize {
+        self.page_bytes
     }
 
     /// Allocate one shared-memory region with the given payload.
@@ -82,12 +86,12 @@ impl SharedSpace {
 
     /// Return one owned copy of the shared-memory bytes for this region.
     pub fn bytes_to_vec(&self, region: SharedPointer) -> Option<Vec<u8>> {
-        Some(self.region(region)?.bytes_to_vec())
+        Some(self.region(region)?.bytes_to_vec(&self.page_arena))
     }
 
     /// Return one byte by slot offset.
     pub fn byte_at(&self, region: SharedPointer, index: usize) -> Option<u8> {
-        self.region(region)?.get(index)
+        self.region(region)?.get(&self.page_arena, index)
     }
 
     /// Return the shared-memory byte length for this region.
@@ -107,10 +111,15 @@ impl SharedSpace {
         let region_retained_bytes = region_metrics.retained_bytes();
 
         // free the live region payload while keeping the stable id slot
-        let Some(region_slot) = self.region_mut(region) else {
+        let region_index = (region.id().saturating_sub(1)) as usize;
+        let Some(region_slot) = self.regions.get_mut(region_index) else {
             return false;
         };
-        region_slot.free();
+        if !region_slot.is_allocated() {
+            return false;
+        }
+
+        region_slot.free(&mut self.page_arena);
 
         // release usage and retained accounting
         self.allocated_count = self.allocated_count.saturating_sub(1);
@@ -125,11 +134,19 @@ impl SharedSpace {
 
     /// Write one shared-memory byte by slot offset.
     pub fn set_byte(&mut self, region: SharedPointer, index: usize, byte: u8) -> bool {
-        let Some(region) = self.region_mut(region) else {
+        if region.id() == 0 {
+            return false;
+        }
+
+        let Some(region) = self.regions.get_mut((region.id() - 1) as usize) else {
             return false;
         };
 
-        region.set(index, byte)
+        if !region.is_allocated() {
+            return false;
+        }
+
+        region.set(&mut self.page_arena, index, byte)
     }
 
     /// Replace the entire shared-memory payload with exact retained-byte admission.
@@ -159,13 +176,21 @@ impl SharedSpace {
 
     /// Replace the entire shared-memory payload.
     fn commit_replace_bytes(&mut self, region: SharedPointer, bytes: &[u8]) -> bool {
-        let chunk_bytes = self.chunk_bytes;
-        let Some(region) = self.region_mut(region) else {
+        let page_bytes = self.page_bytes;
+        if region.id() == 0 {
+            return false;
+        }
+
+        let Some(region) = self.regions.get_mut((region.id() - 1) as usize) else {
             return false;
         };
 
+        if !region.is_allocated() {
+            return false;
+        }
+
         let old_len = region.len();
-        region.replace(bytes, chunk_bytes);
+        region.replace(&mut self.page_arena, bytes, page_bytes);
         self.allocated_bytes = self
             .allocated_bytes
             .saturating_sub(old_len as u64)
@@ -207,20 +232,6 @@ impl SharedSpace {
         Some(region)
     }
 
-    /// Return one mutable shared-memory region by identifier.
-    fn region_mut(&mut self, region: SharedPointer) -> Option<&mut SharedRegion> {
-        if region.id() == 0 {
-            return None;
-        }
-
-        let region = self.regions.get_mut((region.id() - 1) as usize)?;
-        if !region.is_allocated() {
-            return None;
-        }
-
-        Some(region)
-    }
-
     /// Allocate one shared-memory region.
     fn commit_allocate_bytes(&mut self, bytes: &[u8]) -> SharedPointer {
         if let Some(id) = self.free_ids.pop() {
@@ -228,7 +239,7 @@ impl SharedSpace {
                 .regions
                 .get_mut((id - 1) as usize)
                 .expect("reused shared region id must stay addressable");
-            region.allocate(bytes, self.chunk_bytes);
+            region.allocate(&mut self.page_arena, bytes, self.page_bytes);
             self.allocated_count += 1;
             self.allocated_bytes = self.allocated_bytes.saturating_add(bytes.len() as u64);
 
@@ -237,8 +248,11 @@ impl SharedSpace {
 
         let id = self.next_unused_id;
         self.next_unused_id = self.next_unused_id.saturating_add(1);
-        self.regions
-            .push(SharedRegion::new(bytes, self.chunk_bytes));
+        self.regions.push(SharedRegion::new(
+            bytes,
+            self.page_bytes,
+            &mut self.page_arena,
+        ));
         self.allocated_count += 1;
         self.allocated_bytes = self.allocated_bytes.saturating_add(bytes.len() as u64);
 
@@ -266,7 +280,7 @@ impl SharedSpace {
 
     /// Return the retained payload bytes for one region length.
     pub(crate) fn region_payload_retained_bytes(&self, len: usize) -> usize {
-        SharedRegion::retained_bytes_for_len(len, self.chunk_bytes)
+        SharedRegion::retained_bytes_for_len(len, self.page_bytes)
     }
 
     /// Apply one exact retained-byte delta after a committed mutation.
@@ -292,6 +306,7 @@ impl SharedSpace {
 
         // allocator state
         retained_bytes += self.free_ids.capacity() * size_of::<u64>();
+        retained_bytes += self.page_arena.retained_bytes();
 
         self.retained_bytes = retained_bytes as u64;
     }

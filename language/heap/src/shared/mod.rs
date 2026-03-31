@@ -1,4 +1,3 @@
-mod chunk;
 mod heap;
 mod image;
 mod region;
