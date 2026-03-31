@@ -121,17 +121,6 @@ pub struct ContainerName {
     pub name: String,
 }
 
-/// One authored CSS container condition.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ContainerCondition {
-    /// The container condition kind.
-    pub kind: ContainerConditionKind,
-}
-
-impl Node for ContainerCondition {
-    const TYPE: NodeType = NodeType::ContainerCondition;
-}
-
 /// One authored boolean operator.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ConditionOperator {
@@ -158,26 +147,17 @@ pub enum FeatureComparison {
 
 /// One authored CSS feature name.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct FeatureName {
-    /// The feature name kind.
-    pub kind: FeatureNameKind,
-    /// The authored identifier.
-    pub name: String,
+pub enum FeatureName {
+    /// One standard feature name.
+    Standard(String),
+    /// One custom feature name.
+    Custom(String),
+    /// One unknown feature name.
+    Unknown(String),
 }
 
 impl Node for FeatureName {
     const TYPE: NodeType = NodeType::FeatureName;
-}
-
-/// One authored CSS feature name kind.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum FeatureNameKind {
-    /// One standard feature name.
-    Standard,
-    /// One custom feature name.
-    Custom,
-    /// One unknown feature name.
-    Unknown,
 }
 
 /// One authored CSS feature value.
@@ -308,9 +288,9 @@ pub struct SupportsUnknownCondition {
     pub components: ComponentValueList,
 }
 
-/// One authored CSS container condition kind.
+/// One authored CSS container condition.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum ContainerConditionKind {
+pub enum ContainerCondition {
     /// One container feature condition.
     Feature(LocalNodeId<QueryFeature>),
     /// One negated container condition.
@@ -328,6 +308,10 @@ pub enum ContainerConditionKind {
     ScrollState(LocalNodeId<ContainerScrollStateQuery>),
     /// One unknown container condition.
     Unknown(ContainerUnknownCondition),
+}
+
+impl Node for ContainerCondition {
+    const TYPE: NodeType = NodeType::ContainerCondition;
 }
 
 /// One authored CSS container style query.

@@ -1,10 +1,10 @@
 use super::printer::Printer;
 use crate::{
-    ConditionOperator, ContainerCondition, ContainerConditionKind, ContainerName,
-    ContainerScrollStateQuery, ContainerStyleQuery, EnvironmentVariable, EnvironmentVariableName,
-    FeatureComparison, FeatureName, FeatureValue, ImportLayer, LayerNameList, LocalNodeId,
-    MediaCondition, MediaQualifier, MediaQuery, MediaQueryList, MediaType, PropertyName,
-    QueryFeature, RatioValue, SupportsCondition,
+    ConditionOperator, ContainerCondition, ContainerName, ContainerScrollStateQuery,
+    ContainerStyleQuery, EnvironmentVariable, EnvironmentVariableName, FeatureComparison,
+    FeatureName, FeatureValue, ImportLayer, LayerNameList, LocalNodeId, MediaCondition,
+    MediaQualifier, MediaQuery, MediaQueryList, MediaType, PropertyName, QueryFeature, RatioValue,
+    SupportsCondition,
 };
 
 use crate::NodeTree;
@@ -179,21 +179,12 @@ impl<'a> Printer<'a> {
         &self,
         condition: LocalNodeId<ContainerCondition>,
     ) -> String {
-        let condition = self.tree.get(condition);
-        self.render_container_condition_kind(&condition.kind)
-    }
-
-    /// Render one container condition kind as canonical CSS source.
-    pub(crate) fn render_container_condition_kind(
-        &self,
-        condition: &ContainerConditionKind,
-    ) -> String {
-        match condition {
-            ContainerConditionKind::Feature(feature) => self.render_query_feature(*feature),
-            ContainerConditionKind::Not(condition) => {
+        match self.tree.get(condition) {
+            ContainerCondition::Feature(feature) => self.render_query_feature(*feature),
+            ContainerCondition::Not(condition) => {
                 format!("not {}", self.render_parenthesized_container(*condition))
             }
-            ContainerConditionKind::Operation {
+            ContainerCondition::Operation {
                 operator,
                 conditions,
             } => Self::join_conditions(
@@ -201,16 +192,16 @@ impl<'a> Printer<'a> {
                 conditions,
                 |condition| self.render_parenthesized_container(*condition),
             ),
-            ContainerConditionKind::Style(query) => {
+            ContainerCondition::Style(query) => {
                 format!("style({})", self.render_container_style_query(*query))
             }
-            ContainerConditionKind::ScrollState(query) => {
+            ContainerCondition::ScrollState(query) => {
                 format!(
                     "scroll-state({})",
                     self.render_container_scroll_state_query(*query)
                 )
             }
-            ContainerConditionKind::Unknown(condition) => {
+            ContainerCondition::Unknown(condition) => {
                 Self::render_component_value_list(&condition.components)
             }
         }
@@ -237,7 +228,11 @@ impl<'a> Printer<'a> {
 
     /// Render one feature name as canonical CSS source.
     pub(crate) fn render_feature_name(&self, name: LocalNodeId<FeatureName>) -> String {
-        self.tree.get(name).name.clone()
+        match self.tree.get(name) {
+            FeatureName::Standard(name)
+            | FeatureName::Custom(name)
+            | FeatureName::Unknown(name) => name.clone(),
+        }
     }
 
     /// Render one feature value as canonical CSS source.
@@ -478,20 +473,13 @@ impl<'a> Printer<'a> {
         &self,
         condition: LocalNodeId<ContainerCondition>,
     ) -> String {
-        let condition = self.tree.get(condition);
-
-        match &condition.kind {
-            ContainerConditionKind::Feature(_)
-            | ContainerConditionKind::Style(_)
-            | ContainerConditionKind::ScrollState(_)
-            | ContainerConditionKind::Unknown(_) => {
-                self.render_container_condition_kind(&condition.kind)
-            }
-            ContainerConditionKind::Not(_) | ContainerConditionKind::Operation { .. } => {
-                format!(
-                    "({})",
-                    self.render_container_condition_kind(&condition.kind)
-                )
+        match self.tree.get(condition) {
+            ContainerCondition::Feature(_)
+            | ContainerCondition::Style(_)
+            | ContainerCondition::ScrollState(_)
+            | ContainerCondition::Unknown(_) => self.render_container_condition(condition),
+            ContainerCondition::Not(_) | ContainerCondition::Operation { .. } => {
+                format!("({})", self.render_container_condition(condition))
             }
         }
     }

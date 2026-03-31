@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 /// One CSS stylesheet node.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct StyleSheet {
+pub struct Stylesheet {
     /// The source filenames attached to the stylesheet.
     pub sources: Vec<String>,
     /// The extracted license comments.
@@ -16,8 +16,8 @@ pub struct StyleSheet {
     pub rules: Vec<LocalNodeId<Rule>>,
 }
 
-impl Node for StyleSheet {
-    const TYPE: NodeType = NodeType::StyleSheet;
+impl Node for Stylesheet {
+    const TYPE: NodeType = NodeType::Stylesheet;
 }
 
 /// One CSS rule node.

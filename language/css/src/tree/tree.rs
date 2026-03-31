@@ -5,7 +5,7 @@ use crate::{
     ContainerStyleQuery, Declaration, DeclarationBlock, EnvironmentVariable, FeatureName,
     FeatureValue, LocalNodeId, MediaCondition, MediaQuery, MediaQueryList, Node, NodeType,
     NthOfSelector, NthSelector, PageMarginRule, PseudoClass, PseudoElement, QueryFeature,
-    RatioValue, Rule, Selector, SelectorComponent, SelectorList, SimpleSelector, StyleSheet,
+    RatioValue, Rule, Selector, SelectorComponent, SelectorList, SimpleSelector, Stylesheet,
     SupportsCondition,
 };
 use destack_core::Arena;
@@ -25,7 +25,7 @@ pub struct NodeTree {
     pub source_map: NodeSourceMap,
 
     // node arenas
-    pub(crate) stylesheets: Arena<StyleSheet>,
+    pub(crate) stylesheets: Arena<Stylesheet>,
     pub(crate) rules: Arena<Rule>,
     pub(crate) page_margin_rules: Arena<PageMarginRule>,
     pub(crate) declaration_blocks: Arena<DeclarationBlock>,
@@ -211,7 +211,7 @@ macro_rules! impl_node_tree_store {
     };
 }
 
-impl_node_tree_store!(StyleSheet, stylesheets);
+impl_node_tree_store!(Stylesheet, stylesheets);
 impl_node_tree_store!(Rule, rules);
 impl_node_tree_store!(PageMarginRule, page_margin_rules);
 impl_node_tree_store!(DeclarationBlock, declaration_blocks);

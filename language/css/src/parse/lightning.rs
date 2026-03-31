@@ -8,7 +8,6 @@ pub(crate) use lightningcss::properties::custom::{
     CustomPropertyName, EnvironmentVariable, EnvironmentVariableName, Function as CustomFunction,
     Token as CustomToken, TokenList, TokenOrValue, UnresolvedColor, Variable,
 };
-pub(crate) use lightningcss::rules::CssRule;
 pub(crate) use lightningcss::rules::container::{
     ContainerCondition, ContainerName, ContainerSizeFeature, ScrollStateFeature, ScrollStateQuery,
     StyleQuery,
@@ -25,12 +24,15 @@ pub(crate) use lightningcss::rules::page::{
 pub(crate) use lightningcss::rules::style::StyleRule;
 pub(crate) use lightningcss::rules::supports::SupportsCondition;
 pub(crate) use lightningcss::rules::view_transition::ViewTransitionProperty;
+pub(crate) use lightningcss::rules::{CssRule, Location};
 pub(crate) use lightningcss::selector::{
     Combinator, Component as SelectorComponent, Direction, PseudoClass, PseudoElement, Selector,
     SelectorList, ViewTransitionPartSelector, WebKitScrollbarPseudoClass,
     WebKitScrollbarPseudoElement,
 };
-pub(crate) use lightningcss::stylesheet::{ParserOptions, PrinterOptions, StyleSheet};
+pub(crate) use lightningcss::stylesheet::{
+    ParserOptions, PrinterOptions, StyleSheet as LightningStylesheet,
+};
 pub(crate) use lightningcss::traits::{ParseWithOptions, ToCss};
 pub(crate) use lightningcss::values::ident::{CustomIdent, Ident};
 pub(crate) use lightningcss::values::string::CowArcStr;

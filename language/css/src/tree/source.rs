@@ -1,24 +1,24 @@
 use crate::{
     Declaration, DeclarationBlock, DeclarationRule, GroupRule, IgnoredRule, ImportRule,
     KeyframeRule, LeafRule, LocalNodeId, NestedDeclarationsRule, NodeTree, PageMarginRule,
-    PageRule, Rule, StyleRule, StyleSheet,
+    PageRule, Rule, StyleRule, Stylesheet,
 };
 use lightningcss::rules::CssRuleList;
-use lightningcss::stylesheet::{ParserOptions, StyleSheet as LightningStyleSheet};
+use lightningcss::stylesheet::{ParserOptions, Stylesheet as LightningStylesheet};
 use lightningcss::traits::IntoOwned;
 
 /// One owned Lightning CSS stylesheet.
-pub type OwnedStyleSheet = LightningStyleSheet<'static, 'static>;
+pub type OwnedStylesheet = LightningStylesheet<'static, 'static>;
 
 /// One stylesheet reconstruction failure.
 #[derive(Debug, Clone)]
-pub struct StyleSheetError {
+pub struct StylesheetError {
     /// The reconstruction error message.
     pub message: String,
 }
 
 /// Return one stylesheet subtree as canonical CSS source.
-pub fn stylesheet_to_source(tree: &NodeTree, stylesheet: LocalNodeId<StyleSheet>) -> String {
+pub fn stylesheet_to_source(tree: &NodeTree, stylesheet: LocalNodeId<Stylesheet>) -> String {
     let stylesheet = tree.get(stylesheet);
     let mut source = String::new();
 
@@ -39,24 +39,24 @@ pub fn stylesheet_to_source(tree: &NodeTree, stylesheet: LocalNodeId<StyleSheet>
 /// Rebuild one owned Lightning CSS stylesheet from one stylesheet subtree.
 pub fn stylesheet_to_lightning_stylesheet(
     tree: &NodeTree,
-    stylesheet: LocalNodeId<StyleSheet>,
-) -> Result<OwnedStyleSheet, StyleSheetError> {
+    stylesheet: LocalNodeId<Stylesheet>,
+) -> Result<OwnedStylesheet, StylesheetError> {
     let stylesheet_node = tree.get(stylesheet);
     let source = stylesheet_to_source(tree, stylesheet);
     let filename = stylesheet_node.sources.first().cloned().unwrap_or_default();
-    let stylesheet = LightningStyleSheet::parse(
+    let stylesheet = LightningStylesheet::parse(
         &source,
         ParserOptions {
             filename: filename.clone(),
             ..ParserOptions::default()
         },
     )
-    .map_err(|error| StyleSheetError {
+    .map_err(|error| StylesheetError {
         message: error.to_string(),
     })?;
     let sources = stylesheet.sources.into_owned();
     let rules = stylesheet.rules.into_owned();
-    let mut stylesheet = LightningStyleSheet::new(
+    let mut stylesheet = LightningStylesheet::new(
         sources,
         CssRuleList(rules.0),
         ParserOptions {
