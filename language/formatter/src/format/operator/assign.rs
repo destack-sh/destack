@@ -1,18 +1,17 @@
-use crate::format::analysis::{
-    previous_non_whitespace_token_before_annotation, previous_non_whitespace_token_before_span,
-};
 use crate::format::chain::{
     has_comment_between_expressions, is_assignment_chain_tail_lambda, is_chain_root,
     is_expression_chain, is_lambda_expression, transparent_inner_expression,
 };
-use crate::format::expression::is_assignment_left_target;
-use crate::format::operator::{
-    expression_is_trivial_inline_without_annotations, flattened_binary_operand_count,
+use crate::format::context::expression_has_own_line_prefix;
+use crate::format::expression::{
+    expression_has_prefix_comment_or_doc_annotation_in_left_spine,
+    expression_is_trivial_inline_without_annotations, is_assignment_left_target,
 };
+use crate::format::operator::flattened_binary_operand_count;
 use crate::{Annotation, DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    AnnotationPosition, AssignOperator, Comment, CommentStyle, Declaration, Doc, DocStyle,
-    Expression, LocalNodeId, NodeTree, NodeType, ScalarLiteral, TokenType,
+    AnnotationPosition, AssignOperator, Declaration, Doc, DocStyle, Expression, LocalNodeId,
+    NodeTree, NodeType, ScalarLiteral, TokenType,
 };
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{
@@ -21,38 +20,42 @@ use destack_fir::prelude::{
 use destack_fir::{format_args, write};
 use destack_source::Span;
 
+/// Decide whether an assignment can drop one parenthesized operand wrapper.
+pub(crate) fn assignment_drops_parenthesized_operand_wrapper(
+    context: &DestackFormatContext<'_>,
+    parenthesized_id: LocalNodeId<Expression>,
+    inner_expression_id: LocalNodeId<Expression>,
+    parent_expression: &Expression,
+) -> bool {
+    let drops_left_must_wrapper = matches!(
+        parent_expression,
+        Expression::Assign { left, .. } if *left == parenthesized_id
+    ) && matches!(
+        context.tree.get(inner_expression_id),
+        Expression::Must { .. }
+    );
+
+    let drops_right_prefix_wrapper = matches!(
+        parent_expression,
+        Expression::Assign { right, .. } if *right == parenthesized_id
+    ) && !context.has_annotation(parenthesized_id)
+        && !crate::format::expression::parenthesized_has_leading_inner_newline(
+            context,
+            parenthesized_id,
+            inner_expression_id,
+        )
+        && expression_has_prefix_comment_or_doc_annotation_in_left_spine(
+            context,
+            inner_expression_id,
+        );
+
+    drops_left_must_wrapper || drops_right_prefix_wrapper
+}
+
 /// Return whether one token is an assignment operator token.
 #[inline]
 fn is_assignment_operator_token(token_type: TokenType) -> bool {
     AssignOperator::from_token(token_type).is_some()
-}
-
-/// Return whether one expression has any own-line prefix annotation.
-fn expression_has_own_line_prefix_annotation(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    context
-        .visit_annotations(expression_id, |annotation_ids| {
-            annotation_ids.iter().any(|annotation_id| {
-                let annotation = context.annotation(*annotation_id);
-                let is_prefix = matches!(
-                    annotation,
-                    Annotation::Comment {
-                        position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
-                        ..
-                    } | Annotation::Doc {
-                        position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
-                        ..
-                    } | Annotation::Decorator {
-                        position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
-                        ..
-                    }
-                );
-                is_prefix && context.annotation_starts_on_own_line(*annotation_id)
-            })
-        })
-        .unwrap_or(false)
 }
 
 /// Return whether one expression has an inline prefix comment on an assignment seam.
@@ -85,16 +88,16 @@ fn expression_has_assignment_seam_inline_prefix_annotation_style(
 
     loop {
         let has_inline_seam_comment = context
-            .visit_annotations(current_expression_id, |annotation_ids| {
-                annotation_ids.iter().copied().any(|annotation_id| {
-                    annotation_is_assignment_seam_inline_prefix_comment(
-                        context,
-                        annotation_id,
-                        &mut style_filter,
-                    )
-                })
-            })
-            .unwrap_or(false);
+            .annotation_ids(current_expression_id)
+            .iter()
+            .copied()
+            .any(|annotation_id| {
+                annotation_is_assignment_seam_inline_prefix_comment(
+                    context,
+                    annotation_id,
+                    &mut style_filter,
+                )
+            });
         if has_inline_seam_comment {
             return true;
         }
@@ -129,8 +132,7 @@ fn annotation_is_assignment_seam_inline_prefix_comment(
         return false;
     }
 
-    let Some(previous_token) =
-        previous_non_whitespace_token_before_annotation(context, annotation_id)
+    let Some(previous_token) = context.annotation_previous_non_whitespace_token(annotation_id)
     else {
         return false;
     };
@@ -164,10 +166,6 @@ fn assignment_seam_annotation_style(
     annotation_id: LocalNodeId<Annotation>,
 ) -> Option<(Span, AnnotationPosition, bool)> {
     match context.annotation(annotation_id) {
-        Annotation::Comment { node, position } => {
-            let is_slash_style = context.tree.get::<Comment>(node).style == CommentStyle::Slash;
-            Some((context.span(node), position, is_slash_style))
-        }
         Annotation::Doc { node, position } => {
             let is_slash_style = context.tree.get::<Doc>(node).style == DocStyle::Slash;
             Some((context.span(node), position, is_slash_style))
@@ -199,6 +197,24 @@ fn next_assignment_seam_left_spine_expression(
     }
 }
 
+/// Return whether one expression has an argument ancestor.
+fn expression_has_argument_ancestor(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    let mut current_id = node_id.id;
+
+    while let Some((parent_id, parent_type)) = context.parent_by_id(current_id) {
+        if parent_type == NodeType::Argument {
+            return true;
+        }
+
+        current_id = parent_id;
+    }
+
+    false
+}
+
 /// Return whether one assignment seam has a slash line comment between left and right.
 pub(crate) fn assignment_seam_has_line_comment_between(
     context: &DestackFormatContext<'_>,
@@ -219,7 +235,8 @@ pub(crate) fn assignment_seam_has_line_comment_between(
             return false;
         }
 
-        previous_non_whitespace_token_before_span(context, comment_token.span)
+        context
+            .previous_non_whitespace_token_before_span(comment_token.span)
             .is_some_and(|token| is_assignment_operator_token(token.token.ty))
     })
 }
@@ -611,8 +628,7 @@ pub(crate) fn format_assign_expression<'ast>(
         || right_is_chain_tail_lambda
         || right_is_lambda;
     let right_has_prefix_annotation = context.has_prefix_annotation(right);
-    let right_has_own_line_prefix_annotation =
-        expression_has_own_line_prefix_annotation(context, right);
+    let right_has_own_line_prefix_annotation = expression_has_own_line_prefix(context, right);
     let right_has_assignment_seam_inline_prefix_comment =
         expression_has_assignment_seam_inline_prefix_comment(context, right)
             || assignment_seam_has_line_comment_between(context, left, right);
@@ -664,8 +680,7 @@ pub(crate) fn format_assign_expression<'ast>(
         binary_operand_count > LONG_BINARY_OPERAND_COUNT_THRESHOLD
             && (right_has_between_comment || right_has_newline)
     };
-    let node_is_call_argument =
-        context.any_ancestor(node_id, |_, parent_type| parent_type == NodeType::Argument);
+    let node_is_call_argument = expression_has_argument_ancestor(context, node_id);
     let right_is_collection_or_call_like = matches!(
         inner_right_expression,
         Expression::ObjectExpression { .. }

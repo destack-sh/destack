@@ -1,15 +1,11 @@
-mod attachment;
-mod facts;
-mod ownership;
-mod render;
-mod semantic;
-mod semicolon;
-mod terminator;
+mod decorator;
+mod sequence;
+mod trivia;
 
-pub(crate) use attachment::annotation_projection;
-#[cfg(test)]
-pub(crate) use ownership::find_smallest_owner_enclosing_range;
-pub(crate) use render::{annotation_render_items_matching, write_annotation_render_items};
-pub(crate) use terminator::{
-    expression_needs_statement_terminator, statement_wrapper_needs_semicolon,
+pub(crate) use self::sequence::{
+    block_infix_annotations, infix_or_postfix_annotations,
+    infix_or_postfix_annotations_without_line_postfix_boundary, line_postfix_boundary_annotations,
+    postfix_annotations, postfix_annotations_without_line_postfix_boundary, prefix_annotations,
+    write_annotation_sequence, write_annotation_sequence_without_trailing_break,
+    write_inline_prefix_annotations,
 };

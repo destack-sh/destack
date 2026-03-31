@@ -1,4 +1,4 @@
-use super::format_context::{
+use super::context::{
     DestackFormatContext, NODE_BOOL_STATE_FALSE, NODE_BOOL_STATE_TRUE, TYPE_CONTEXT_STATE_FALSE,
     TYPE_CONTEXT_STATE_TRUE, TYPE_CONTEXT_STATE_UNKNOWN,
 };
@@ -137,7 +137,223 @@ fn extend_span_with_trailing_statement_terminator(tokens: &[TokenSpan], span: Sp
     Span::new(span.file, span.start, candidate.span.end)
 }
 
+/// Return the trailing comment gap after one expression.
+fn expression_postfix_comment_gap(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> Option<Span> {
+    let expression_span = context.span(expression_id);
+    let gap_end =
+        if let Some(next_token) = context.next_non_trivia_token_after_span(expression_span) {
+            if next_token.span.file != expression_span.file
+                || next_token.span.start <= expression_span.end
+            {
+                return None;
+            }
+
+            next_token.span.start
+        } else {
+            let (line_index, _) = context.source_position(expression_span.end)?;
+            let line_span = context.source_line_span(line_index)?;
+            line_span.end
+        };
+
+    if gap_end <= expression_span.end {
+        return None;
+    }
+
+    Some(Span::new(
+        expression_span.file,
+        expression_span.end,
+        gap_end,
+    ))
+}
+
+/// Return the prefix comment gap before one expression.
+fn expression_prefix_comment_gap(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> Option<Span> {
+    let expression_span = context.span(expression_id);
+    let previous_token = context.previous_non_whitespace_token_before_span(expression_span)?;
+    if previous_token.span.file != expression_span.file
+        || previous_token.span.end >= expression_span.start
+    {
+        return None;
+    }
+
+    Some(Span::new(
+        expression_span.file,
+        previous_token.span.end,
+        expression_span.start,
+    ))
+}
+
+/// Return whether an expression ends with a `//` postfix comment.
+pub(crate) fn expression_has_line_postfix_slash_comment(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some(gap_span) = expression_postfix_comment_gap(context, expression_id) else {
+        return false;
+    };
+
+    context
+        .comments_in_range(gap_span.start, gap_span.end)
+        .iter()
+        .copied()
+        .any(|comment| context.comment_is_line(comment))
+}
+
+/// Return whether an expression has one postfix comment.
+pub(crate) fn expression_has_postfix_comment(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let has_postfix_annotation =
+        context
+            .annotation_ids(expression_id)
+            .iter()
+            .copied()
+            .any(|annotation_id| {
+                let annotation = context.annotation(annotation_id);
+                matches!(annotation, destack_ast::Annotation::Doc { .. })
+                    && matches!(
+                        annotation.position(),
+                        destack_ast::AnnotationPosition::BlockPostfix
+                            | destack_ast::AnnotationPosition::LinePostfix
+                            | destack_ast::AnnotationPosition::LinePostfixBoundary
+                    )
+            });
+    if has_postfix_annotation {
+        return true;
+    }
+
+    let Some(gap_span) = expression_postfix_comment_gap(context, expression_id) else {
+        return false;
+    };
+
+    !context
+        .comments_in_range(gap_span.start, gap_span.end)
+        .is_empty()
+}
+
+/// Return whether an expression starts with a `//` line-prefix comment.
+pub(crate) fn expression_has_line_prefix_slash_comment(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some(gap_span) = expression_prefix_comment_gap(context, expression_id) else {
+        return false;
+    };
+
+    context
+        .comments_in_range(gap_span.start, gap_span.end)
+        .iter()
+        .copied()
+        .any(|comment| context.comment_is_line(comment))
+}
+
+/// Return whether an expression starts with one own-line prefix signal.
+pub(crate) fn expression_has_own_line_prefix(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    context
+        .annotation_ids(expression_id)
+        .iter()
+        .copied()
+        .any(|annotation_id| {
+            let annotation = context.annotation(annotation_id);
+            if !matches!(
+                annotation.position(),
+                destack_ast::AnnotationPosition::LinePrefix
+                    | destack_ast::AnnotationPosition::BlockPrefix
+            ) {
+                return false;
+            }
+
+            context.annotation_starts_on_own_line(annotation_id)
+        })
+}
+
+/// Return whether an expression starts with an inline `/* ... */` prefix comment.
+pub(crate) fn expression_has_inline_block_prefix_star_comment(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some(gap_span) = expression_prefix_comment_gap(context, expression_id) else {
+        return false;
+    };
+    if context.has_newline(gap_span) {
+        return false;
+    }
+
+    context
+        .comment_tokens_in_range(gap_span.start, gap_span.end)
+        .iter()
+        .any(|token| {
+            matches!(
+                token.token.ty,
+                TokenType::BlockComment | TokenType::DocBlockComment
+            )
+        })
+}
+
+/// Return whether an expression ends with one inline postfix-boundary `/* ... */` comment.
+pub(crate) fn expression_has_inline_block_postfix_boundary_star_comment(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some(gap_span) = expression_postfix_comment_gap(context, expression_id) else {
+        return false;
+    };
+    if context.has_newline(gap_span) {
+        return false;
+    }
+
+    context
+        .comment_tokens_in_range(gap_span.start, gap_span.end)
+        .iter()
+        .any(|token| {
+            matches!(
+                token.token.ty,
+                TokenType::BlockComment | TokenType::DocBlockComment
+            )
+        })
+}
+
 impl<'a> DestackFormatContext<'a> {
+    /// Return whether all bytes in one file-local range match one predicate.
+    fn file_range_bytes_match(
+        &self,
+        start: u32,
+        end: u32,
+        mut predicate: impl FnMut(u8) -> bool,
+    ) -> bool {
+        if start >= end {
+            return true;
+        }
+
+        let Ok(start) = usize::try_from(start) else {
+            return false;
+        };
+        let Ok(end) = usize::try_from(end) else {
+            return false;
+        };
+        let Some(bytes) = self.file.text().as_bytes().get(start..end) else {
+            return false;
+        };
+
+        bytes.iter().copied().all(&mut predicate)
+    }
+
+    /// Return whether one file-local range contains one byte value.
+    #[inline]
+    pub fn range_contains_byte(&self, start: u32, end: u32, byte: u8) -> bool {
+        !self.file_range_bytes_match(start, end, |current| current != byte)
+    }
+
     /// Return the token immediately before one token that starts at the given offset.
     pub fn token_before_token_start(&self, token_start: u32) -> Option<TokenSpan> {
         let tokens = self.tokens;
@@ -380,9 +596,15 @@ impl<'a> DestackFormatContext<'a> {
     /// Return the first non-trivia token that intersects one span.
     #[inline]
     pub fn first_non_trivia_token_in_span(&self, span: Span) -> Option<TokenSpan> {
+        self.nth_non_trivia_token_in_span(span, 0)
+    }
+
+    /// Return the Nth non-trivia token that intersects one span.
+    pub fn nth_non_trivia_token_in_span(&self, span: Span, nth: usize) -> Option<TokenSpan> {
         let mut index = self
             .tokens
             .partition_point(|token| token.span.end <= span.start);
+        let mut seen = 0usize;
 
         while let Some(token) = self.tokens.get(index).copied() {
             if token.span.start >= span.end {
@@ -390,6 +612,41 @@ impl<'a> DestackFormatContext<'a> {
             }
 
             index += 1;
+            if matches!(
+                token.token.ty,
+                TokenType::Whitespace
+                    | TokenType::Newline
+                    | TokenType::LineComment
+                    | TokenType::BlockComment
+                    | TokenType::DocLineComment
+                    | TokenType::DocBlockComment
+            ) {
+                continue;
+            }
+
+            if seen == nth {
+                return Some(token);
+            }
+
+            seen += 1;
+        }
+
+        None
+    }
+
+    /// Return the last non-trivia token that intersects one span.
+    pub fn last_non_trivia_token_in_span(&self, span: Span) -> Option<TokenSpan> {
+        let mut index = self
+            .tokens
+            .partition_point(|token| token.span.start < span.end);
+
+        while index > 0 {
+            index -= 1;
+            let token = self.tokens[index];
+            if token.span.end <= span.start {
+                break;
+            }
+
             if matches!(
                 token.token.ty,
                 TokenType::Whitespace
@@ -585,6 +842,258 @@ impl<'a> DestackFormatContext<'a> {
         })
     }
 
+    /// Return comment tokens that end before or at one position.
+    #[inline]
+    pub fn comment_tokens_before(&self, pos: u32) -> &[TokenSpan] {
+        let comment_tokens = self.comment_tokens();
+        let end_index = comment_tokens.partition_point(|token| token.span.end <= pos);
+        &comment_tokens[..end_index]
+    }
+
+    /// Return comments that end before or at one position.
+    #[inline]
+    pub fn comments_before(&self, pos: u32) -> &[TokenSpan] {
+        self.comment_tokens_before(pos)
+    }
+
+    /// Return comment nodes that end before or at one position.
+    pub fn comment_nodes_before(&self, pos: u32) -> Vec<LocalNodeId<Comment>> {
+        self.tree
+            .comment_trivia()
+            .iter()
+            .copied()
+            .take_while(|comment_trivia| comment_trivia.span.end <= pos)
+            .map(|comment_trivia| comment_trivia.comment)
+            .collect()
+    }
+
+    /// Return comment tokens that start after one position.
+    #[inline]
+    pub fn comment_tokens_after(&self, pos: u32) -> &[TokenSpan] {
+        let comment_tokens = self.comment_tokens();
+        let start_index = comment_tokens.partition_point(|token| token.span.end < pos);
+        &comment_tokens[start_index..]
+    }
+
+    /// Return comment tokens that fall in one file-local range.
+    #[inline]
+    pub fn comment_tokens_in_range(&self, start: u32, end: u32) -> &[TokenSpan] {
+        if start >= end {
+            return &[];
+        }
+
+        let comment_tokens = self.comment_tokens_after(start);
+        let end_index = comment_tokens.partition_point(|token| token.span.end <= end);
+        &comment_tokens[..end_index]
+    }
+
+    /// Return comments that fall in one file-local range.
+    #[inline]
+    pub fn comments_in_range(&self, start: u32, end: u32) -> &[TokenSpan] {
+        self.comment_tokens_in_range(start, end)
+    }
+
+    /// Return comment nodes that fall in one file-local range.
+    pub fn comment_nodes_in_range(&self, start: u32, end: u32) -> Vec<LocalNodeId<Comment>> {
+        if start >= end {
+            return Vec::new();
+        }
+
+        self.tree
+            .comment_trivia()
+            .iter()
+            .copied()
+            .skip_while(|comment_trivia| comment_trivia.span.end < start)
+            .take_while(|comment_trivia| comment_trivia.span.end <= end)
+            .map(|comment_trivia| comment_trivia.comment)
+            .collect()
+    }
+
+    /// Return comment tokens before the first instance of one byte value.
+    pub fn comment_tokens_before_character(&self, mut start: u32, character: u8) -> &[TokenSpan] {
+        let comment_tokens = self.comment_tokens_after(start);
+
+        for (index, token) in comment_tokens.iter().enumerate() {
+            if self.file_range_bytes_match(start, token.span.start, |byte| byte != character) {
+                start = token.span.end;
+                continue;
+            }
+
+            return &comment_tokens[..index];
+        }
+
+        comment_tokens
+    }
+
+    /// Return comments before the first instance of one byte value.
+    #[inline]
+    pub fn comments_before_character(&self, start: u32, character: u8) -> &[TokenSpan] {
+        self.comment_tokens_before_character(start, character)
+    }
+
+    /// Return comment nodes before the first instance of one byte value.
+    pub fn comment_nodes_before_character(
+        &self,
+        mut start: u32,
+        character: u8,
+    ) -> Vec<LocalNodeId<Comment>> {
+        let comment_trivia = self.tree.comment_trivia();
+        let start_index =
+            comment_trivia.partition_point(|comment_trivia| comment_trivia.span.end < start);
+        let mut comment_nodes = Vec::new();
+
+        for comment_trivia in &comment_trivia[start_index..] {
+            if self
+                .file_range_bytes_match(start, comment_trivia.span.start, |byte| byte != character)
+            {
+                comment_nodes.push(comment_trivia.comment);
+                start = comment_trivia.span.end;
+                continue;
+            }
+
+            break;
+        }
+
+        comment_nodes
+    }
+
+    /// Return end-of-line comment tokens after one position.
+    pub fn end_of_line_comment_tokens_after(&self, mut pos: u32) -> &[TokenSpan] {
+        let comment_tokens = self.comment_tokens_after(pos);
+
+        for (index, token) in comment_tokens.iter().enumerate() {
+            if !self.file_range_bytes_match(pos, token.span.start, |byte| {
+                matches!(byte, b'\t' | b' ' | b'=' | b':')
+            }) {
+                break;
+            }
+
+            if matches!(
+                token.token.ty,
+                TokenType::LineComment | TokenType::DocLineComment
+            ) || self.has_newline(token.span)
+            {
+                return &comment_tokens[..=index];
+            }
+
+            pos = token.span.end;
+        }
+
+        &[]
+    }
+
+    /// Return end-of-line comments after one position.
+    #[inline]
+    pub fn end_of_line_comments_after(&self, pos: u32) -> &[TokenSpan] {
+        self.end_of_line_comment_tokens_after(pos)
+    }
+
+    /// Return end-of-line comment nodes after one position.
+    pub fn end_of_line_comment_nodes_after(&self, mut pos: u32) -> Vec<LocalNodeId<Comment>> {
+        let comment_trivia = self.tree.comment_trivia();
+        let start_index =
+            comment_trivia.partition_point(|comment_trivia| comment_trivia.span.end < pos);
+        let mut comment_nodes = Vec::new();
+
+        for comment_trivia in &comment_trivia[start_index..] {
+            if !self.file_range_bytes_match(pos, comment_trivia.span.start, |byte| {
+                matches!(byte, b'\t' | b' ' | b'=' | b':')
+            }) {
+                break;
+            }
+
+            comment_nodes.push(comment_trivia.comment);
+            if self.comment_is_line_token_type(comment_trivia.comment)
+                || self.comment_followed_by_newline_token_span(comment_trivia.span)
+            {
+                break;
+            }
+
+            pos = comment_trivia.span.end;
+        }
+
+        comment_nodes
+    }
+
+    /// Return block comments that end before or at one position.
+    pub fn block_comments_before(&self, pos: u32) -> Vec<TokenSpan> {
+        self.comments_before(pos)
+            .iter()
+            .copied()
+            .filter(|token| {
+                matches!(
+                    token.token.ty,
+                    TokenType::BlockComment | TokenType::DocBlockComment
+                )
+            })
+            .collect()
+    }
+
+    /// Return line comments that end before or at one position.
+    pub fn line_comments_before(&self, pos: u32) -> Vec<TokenSpan> {
+        self.comments_before(pos)
+            .iter()
+            .copied()
+            .filter(|token| {
+                matches!(
+                    token.token.ty,
+                    TokenType::LineComment | TokenType::DocLineComment
+                )
+            })
+            .collect()
+    }
+
+    /// Return own-line comments that end before or at one position.
+    pub fn own_line_comments_before(&self, pos: u32) -> Vec<TokenSpan> {
+        self.comments_before(pos)
+            .iter()
+            .copied()
+            .filter(|token| self.comment_starts_on_own_line(*token))
+            .collect()
+    }
+
+    /// Return whether one comment token starts on its own line.
+    #[inline]
+    pub fn comment_starts_on_own_line(&self, token: TokenSpan) -> bool {
+        self.span_starts_on_own_line(token.span)
+    }
+
+    /// Return whether one comment token is line-oriented.
+    #[inline]
+    pub fn comment_is_line(&self, token: TokenSpan) -> bool {
+        matches!(
+            token.token.ty,
+            TokenType::LineComment | TokenType::DocLineComment
+        )
+    }
+
+    /// Return whether one comment token is block-oriented.
+    #[inline]
+    pub fn comment_is_block(&self, token: TokenSpan) -> bool {
+        matches!(
+            token.token.ty,
+            TokenType::BlockComment | TokenType::DocBlockComment
+        )
+    }
+
+    /// Return whether one comment token is followed by a newline before the next token.
+    #[inline]
+    pub fn comment_followed_by_newline(&self, token: TokenSpan) -> bool {
+        self.span_has_newline_before_next_non_whitespace_token(token.span)
+    }
+
+    /// Return whether one comment token type is line-oriented.
+    #[inline]
+    fn comment_is_line_token_type(&self, comment_id: LocalNodeId<Comment>) -> bool {
+        self.tree.get(comment_id).style == destack_ast::CommentStyle::Slash
+    }
+
+    /// Return whether one comment span is followed by a newline before the next token.
+    #[inline]
+    fn comment_followed_by_newline_token_span(&self, comment_span: Span) -> bool {
+        self.span_has_newline_before_next_non_whitespace_token(comment_span)
+    }
+
     /// Return all source and side tokens sorted by source position.
     #[inline]
     pub fn source_tokens_sorted(&self) -> Vec<TokenSpan> {
@@ -697,26 +1206,6 @@ impl<'a> DestackFormatContext<'a> {
             .collect()
     }
 
-    /// Return whether any ancestor of a node matches the predicate.
-    #[inline]
-    pub fn any_ancestor<T, F>(&self, node_id: LocalNodeId<T>, mut predicate: F) -> bool
-    where
-        T: Node,
-        NodeTree: NodeTreeImpl<T>,
-        F: FnMut(u32, NodeType) -> bool,
-    {
-        let mut current_id = node_id.id;
-        while let Some(parent_id) = self.parents.get_by_id(current_id) {
-            let parent_type = self.tree.get_node_type(parent_id);
-            if predicate(parent_id, parent_type) {
-                return true;
-            }
-            current_id = parent_id;
-        }
-
-        false
-    }
-
     /// Return the transparent inner expression for one expression node.
     #[inline]
     pub fn transparent_inner_expression(
@@ -767,44 +1256,6 @@ impl<'a> DestackFormatContext<'a> {
         }
 
         current_id
-    }
-
-    /// Return a cached type-ctx value for one expression node.
-    #[inline]
-    pub fn lookup_expression_type_context(&self, node_id: LocalNodeId<Expression>) -> Option<bool> {
-        let node_index = node_id.id as usize;
-        let state = self
-            .expression_type_context_by_node_id
-            .get(node_index)
-            .map(Cell::get)
-            .unwrap_or(TYPE_CONTEXT_STATE_UNKNOWN);
-
-        if state == TYPE_CONTEXT_STATE_TRUE {
-            return Some(true);
-        }
-        if state == TYPE_CONTEXT_STATE_FALSE {
-            return Some(false);
-        }
-
-        None
-    }
-
-    /// Store one type-ctx value for one expression node.
-    #[inline]
-    pub fn store_expression_type_context(
-        &self,
-        node_id: LocalNodeId<Expression>,
-        is_type_context: bool,
-    ) {
-        let node_index = node_id.id as usize;
-        let state = if is_type_context {
-            TYPE_CONTEXT_STATE_TRUE
-        } else {
-            TYPE_CONTEXT_STATE_FALSE
-        };
-        if let Some(state_cell) = self.expression_type_context_by_node_id.get(node_index) {
-            state_cell.set(state);
-        }
     }
 
     /// Return whether one expression appears in template-literal interpolation.
@@ -1037,36 +1488,41 @@ impl<'a> DestackFormatContext<'a> {
         !self.has_non_whitespace_content(prefix_span)
     }
 
-    /// Whether the given span contains a comment token.
+    /// Return whether one position has leading comments before it.
     #[inline]
-    pub fn has_comment(&self, span: Span) -> bool {
-        {
-            let cache = self.span_has_comment_by_span.borrow();
-            if let Some(has_comment) = cache.get(&span) {
-                return *has_comment;
-            }
-        }
+    pub fn has_comments_before(&self, pos: u32) -> bool {
+        !self.comment_tokens_before(pos).is_empty()
+    }
 
-        let first_relevant_index = self
-            .comment_spans
-            .partition_point(|comment_span| comment_span.end < span.start);
+    /// Return whether one position has leading line comments before it.
+    #[inline]
+    pub fn has_line_comments_before(&self, pos: u32) -> bool {
+        self.comment_tokens_before(pos).iter().any(|token| {
+            matches!(
+                token.token.ty,
+                TokenType::LineComment | TokenType::DocLineComment
+            )
+        })
+    }
 
-        let mut has_comment = false;
-        for comment_span in &self.comment_spans[first_relevant_index..] {
-            if comment_span.start > span.end {
-                break;
-            }
+    /// Return whether one position has own-line comments before it.
+    #[inline]
+    pub fn has_own_line_comments_before(&self, pos: u32) -> bool {
+        self.comment_tokens_before(pos)
+            .iter()
+            .any(|token| self.span_starts_on_own_line(token.span))
+    }
 
-            if span.intersects(*comment_span) {
-                has_comment = true;
-                break;
-            }
-        }
+    /// Return whether one position has a leading own-line comment.
+    #[inline]
+    pub fn has_leading_own_line_comment(&self, pos: u32) -> bool {
+        self.has_own_line_comments_before(pos)
+    }
 
-        self.span_has_comment_by_span
-            .borrow_mut()
-            .insert(span, has_comment);
-        has_comment
+    /// Return whether one position has an end-of-line comment after it.
+    #[inline]
+    pub fn has_end_of_line_comment_after(&self, pos: u32) -> bool {
+        !self.end_of_line_comment_tokens_after(pos).is_empty()
     }
 
     /// Return whether one span contains an own-line or multiline comment span.

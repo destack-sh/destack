@@ -6,9 +6,9 @@ use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
 use destack_source::Span;
 
-use crate::format::declaration::statement_list::{
+use crate::format::declaration::sequence::{
     block_allows_value_tail, format_block_body_narrow, format_block_body_wide,
-    format_block_of_statements,
+    program_statement_sequence,
 };
 use crate::format::directive::{has_file_ignore_directive, write_ignored_span};
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
@@ -29,7 +29,7 @@ pub fn statement_list<'ast>(
             return Ok(());
         }
 
-        format_block_of_statements(f, expressions, false)?;
+        write!(f, [program_statement_sequence(expressions)])?;
         if !expressions.is_empty() {
             write!(f, [hard_line_break()])?;
         }
@@ -75,7 +75,7 @@ where
                 token("{"),
                 soft_block_indent(&format_args![
                     if_group_fits_on_line(&token("")),
-                    &f.context().block_infix_annotations(node_id)
+                    &crate::format::annotation::block_infix_annotations(f.context(), node_id)
                 ]),
                 token("}")
             ])]
@@ -209,13 +209,25 @@ pub fn format_block<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Block>,
 ) -> FormatResult<()> {
-    write!(f, [f.context().any_prefix_annotations(node_id)])?;
+    write!(
+        f,
+        [crate::format::annotation::prefix_annotations(
+            f.context(),
+            node_id
+        )]
+    )?;
     if should_inline_block(f, node_id) {
         format_block_body_narrow(f, node_id)?;
     } else {
         format_block_body_wide(f, node_id)?;
     }
-    write!(f, [f.context().any_postfix_annotations(node_id)])?;
+    write!(
+        f,
+        [crate::format::annotation::postfix_annotations(
+            f.context(),
+            node_id
+        )]
+    )?;
     Ok(())
 }
 
@@ -225,7 +237,13 @@ impl<'ast> FormatNode<'ast, Block> for Block {
         node_id: LocalNodeId<Block>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+        write!(
+            f,
+            [crate::format::annotation::prefix_annotations(
+                f.context(),
+                node_id
+            )]
+        )?;
         if should_inline_block(f, node_id) {
             write!(
                 f,
@@ -239,7 +257,13 @@ impl<'ast> FormatNode<'ast, Block> for Block {
                 [group(&format_with(|f| format_block_body_wide(f, node_id)))]
             )?;
         }
-        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+        write!(
+            f,
+            [crate::format::annotation::postfix_annotations(
+                f.context(),
+                node_id
+            )]
+        )?;
         Ok(())
     }
 }

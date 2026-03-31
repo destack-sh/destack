@@ -1,14 +1,15 @@
 use crate::format::chain::{lambda_expression_should_break, transparent_inner_expression};
-use crate::format::collection::list_like;
+use crate::format::collection::TrailingSeparator;
 use crate::format::declaration::declaration::format_declaration_export_modifier;
 use crate::format::declaration::signature::{
     expression_body_requires_head_space, format_where_clause_with_break, parameter_is_variadic,
     signature_parameters_should_expand, signature_return_type_has_line_postfix_boundary_annotation,
     signature_should_elide_space_before_body, single_parameter_should_hug,
-    write_empty_parameter_list_with_interior_annotations, write_function_header_prefix,
-    write_signature_dynamic_parameter_list,
+    write_empty_parameter_list_with_interior_comments, write_function_header_prefix,
+    write_signature_dynamic_parameter_list, write_static_parameter_list,
 };
 use crate::format::declaration::statement::format_block;
+use crate::format::operator::write_expression_with_inline_prefix_annotations;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
     Argument, Declaration, DeclarationDescriptor, Expression, FunctionCardinality, FunctionKind,
@@ -200,16 +201,22 @@ fn lambda_body_is_empty_annotated_block(
         return false;
     };
     let block = context.tree.get(*block_id);
-    block.expressions.is_empty() && context.has_non_blank_infix_annotation(*block_id)
+    block.expressions.is_empty() && context.has_infix_annotation(*block_id)
 }
 
-/// Write one lambda arrow token with infix annotation-aware spacing.
+/// Write one lambda arrow token with local infix spacing.
 fn write_lambda_arrow_with_infix_annotations<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
 ) -> FormatResult<()> {
-    write!(f, [f.context().block_infix_annotations(node_id)])?;
-    if !f.context().has_non_blank_infix_annotation(node_id) {
+    write!(
+        f,
+        [crate::format::annotation::block_infix_annotations(
+            f.context(),
+            node_id
+        )]
+    )?;
+    if !f.context().has_infix_annotation(node_id) {
         write!(f, [space()])?;
     }
     write!(f, [token("=>")])
@@ -239,12 +246,24 @@ pub(crate) fn format_function_declaration<'ast>(
 
     // constructor type signatures can own inline seam comments between `new` and `(`
     if signature.mode == Some(FunctionMode::New) {
-        write!(f, [f.context().block_infix_annotations(node_id)])?;
+        write!(
+            f,
+            [crate::format::annotation::block_infix_annotations(
+                f.context(),
+                node_id
+            )]
+        )?;
     }
 
     // declaration name seam
     if signature.kind == FunctionKind::Function && descriptor.name.is_some() {
-        write!(f, [f.context().block_infix_annotations(node_id)])?;
+        write!(
+            f,
+            [crate::format::annotation::block_infix_annotations(
+                f.context(),
+                node_id
+            )]
+        )?;
     }
 
     // name / key
@@ -269,18 +288,26 @@ pub(crate) fn format_function_declaration<'ast>(
         let needs_module_typescript_trailing_comma = signature.kind == FunctionKind::Lambda
             && static_parameters.len() == 1
             && is_module_typescript_file(&f.context().file.name);
-        let mut static_params_list = list_like("<", ">", ",", static_parameters);
-
-        if needs_jsx_disambiguation || needs_module_typescript_trailing_comma {
-            static_params_list.force_trailing_separator();
-        }
-
-        write!(f, [static_params_list])?;
+        write_static_parameter_list(
+            f,
+            static_parameters,
+            if needs_jsx_disambiguation || needs_module_typescript_trailing_comma {
+                TrailingSeparator::Allowed
+            } else {
+                TrailingSeparator::Disallowed
+            },
+        )?;
     }
 
     // declaration parameter head seam
     if signature.kind == FunctionKind::Function {
-        write!(f, [f.context().block_infix_annotations(node_id)])?;
+        write!(
+            f,
+            [crate::format::annotation::block_infix_annotations(
+                f.context(),
+                node_id
+            )]
+        )?;
     }
 
     // dynamic parameters
@@ -322,7 +349,7 @@ pub(crate) fn format_function_declaration<'ast>(
         true,
     );
     if dynamic_parameters.is_empty() {
-        write_empty_parameter_list_with_interior_annotations(f, node_id)?;
+        write_empty_parameter_list_with_interior_comments(f, node_id)?;
     } else if can_omit_parens {
         write!(f, [&dynamic_parameters[0]])?;
     } else if dynamic_parameters.len() == 1
@@ -365,9 +392,11 @@ pub(crate) fn format_function_declaration<'ast>(
     if let Some(return_type) = signature.return_type {
         if signature.kind == FunctionKind::Lambda && body.is_none() {
             write_lambda_arrow_with_infix_annotations(f, node_id)?;
-            write!(f, [space(), return_type])?;
+            write!(f, [space()])?;
+            write_expression_with_inline_prefix_annotations(f, return_type)?;
         } else {
-            write!(f, [token(":"), space(), return_type])?;
+            write!(f, [token(":"), space()])?;
+            write_expression_with_inline_prefix_annotations(f, return_type)?;
         }
     }
 
@@ -522,7 +551,10 @@ pub(crate) fn format_function_declaration<'ast>(
         || is_statement_lambda_declaration
         || is_bodyless_function_declaration;
 
-    write!(f, [f.context().line_postfix_boundary_annotations(node_id)])?;
+    write!(
+        f,
+        [crate::format::annotation::line_postfix_boundary_annotations(f.context(), node_id)]
+    )?;
 
     if needs_trailing_semicolon {
         write!(f, [token(";")])?;

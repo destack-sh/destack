@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 
 use destack_ast::{
-    Comment, CommentDirective, LocalNodeId, Node, NodeTree, NodeTreeImpl, TokenSpan, TokenType,
+    CommentDirective, LocalNodeId, Node, NodeTree, NodeTreeImpl, TokenSpan, TokenType,
 };
 use destack_fir::format::{FormatResult, text};
 use destack_fir::prelude::*;
@@ -455,32 +455,6 @@ fn find_ignore_range_end(
 fn parse_directive_token_from_raw(raw: &str) -> Option<CommentDirective> {
     let content = strip_comment_markers(raw);
     parse_directive_token(content.as_ref())
-}
-
-/// Return whether raw comment text is an ignore directive.
-pub(crate) fn is_ignore_directive_comment(raw: &str) -> bool {
-    matches!(
-        parse_directive_token_from_raw(raw),
-        Some(CommentDirective::FormatIgnore | CommentDirective::FormatIgnoreStart)
-    )
-}
-
-/// Return whether one comment node is an ignore directive.
-pub(crate) fn comment_node_is_ignore_directive(
-    ctx: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Comment>,
-) -> bool {
-    let comment_source = ctx.comment_text(node_id);
-    is_ignore_directive_comment(comment_source.as_ref())
-}
-
-/// Return whether one comment node is any ignore directive token.
-pub(crate) fn comment_node_is_any_ignore_directive(
-    ctx: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Comment>,
-) -> bool {
-    let comment_source = ctx.comment_text(node_id);
-    is_any_ignore_directive_comment(comment_source.as_ref())
 }
 
 /// Return whether raw comment text is any ignore directive token.

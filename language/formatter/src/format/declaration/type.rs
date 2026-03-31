@@ -1,11 +1,16 @@
-use crate::format::collection::list_like;
-use crate::format::collection::property::format_block_of_members;
+use crate::format::collection::TrailingSeparator;
+use crate::format::collection::member::format_block_of_members;
 use crate::format::declaration::declaration::{
     format_declaration_export_modifier, format_super_type_clause,
     format_super_type_clause_with_expand,
 };
-use crate::format::declaration::signature::format_where_clause_with_break;
-use crate::format::expression::expression_has_static_type_arguments;
+use crate::format::declaration::signature::{
+    format_where_clause_with_break, write_static_parameter_list,
+};
+use crate::format::expression::{
+    expression_has_prefix_comment_or_doc_annotation_in_left_spine,
+    expression_has_static_type_arguments,
+};
 use crate::{Annotation, DestackFormatter, FormatNode, empty_block_with_infix_annotations};
 use destack_ast::{
     AnnotationPosition, Declaration, DeclarationAbstraction, DeclarationDescriptor,
@@ -16,25 +21,138 @@ use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
 
+/// Return whether a declaration expression is a decorated class declaration.
+pub(crate) fn expression_is_decorated_class_declaration(
+    context: &crate::DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Expression::Declaration(declaration_id) = context.tree.get(expression_id) else {
+        return false;
+    };
+    let Declaration::Class { .. } = context.tree.get(*declaration_id) else {
+        return false;
+    };
+
+    let expression_has_decorator =
+        context
+            .annotation_ids(expression_id)
+            .iter()
+            .any(|annotation_id| {
+                matches!(
+                    context.annotation(*annotation_id),
+                    Annotation::Decorator { .. }
+                )
+            });
+    if expression_has_decorator {
+        return true;
+    }
+
+    context
+        .annotation_ids(*declaration_id)
+        .iter()
+        .any(|annotation_id| {
+            matches!(
+                context.annotation(*annotation_id),
+                Annotation::Decorator { .. }
+            )
+        })
+}
+
+/// Return whether a parenthesized expression wraps a decorated class in `extends`.
+pub(crate) fn parenthesized_wraps_decorated_class_extends_head(
+    context: &crate::DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+    inner_expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some((parent_id, parent_type)) = context.parent(node_id) else {
+        return false;
+    };
+    if parent_type != NodeType::Declaration {
+        return false;
+    }
+
+    let declaration_id = LocalNodeId::<Declaration>::new(parent_id);
+    let extends_types = match context.tree.get(declaration_id) {
+        Declaration::Class { heritage, .. } => heritage.extends_types.as_deref(),
+        _ => None,
+    };
+    let Some(extends_types) = extends_types else {
+        return false;
+    };
+
+    extends_types.contains(&node_id)
+        && expression_is_decorated_class_declaration(context, inner_expression_id)
+}
+
+/// Return whether a parenthesized extends head carries prefix comment or doc annotations.
+pub(crate) fn parenthesized_wraps_prefix_annotated_class_extends_head(
+    context: &crate::DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+    inner_expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some((parent_id, parent_type)) = context.parent(node_id) else {
+        return false;
+    };
+    if parent_type != NodeType::Declaration {
+        return false;
+    }
+
+    let declaration_id = LocalNodeId::<Declaration>::new(parent_id);
+    let extends_types = match context.tree.get(declaration_id) {
+        Declaration::Class { heritage, .. } => heritage.extends_types.as_deref(),
+        _ => None,
+    };
+    let Some(extends_types) = extends_types else {
+        return false;
+    };
+    if !extends_types.contains(&node_id) {
+        return false;
+    }
+
+    expression_has_prefix_comment_or_doc_annotation_in_left_spine(context, inner_expression_id)
+}
+
 /// Return whether one super-type list has a line-postfix-boundary comment.
 fn super_type_clause_has_line_postfix_boundary_annotation(
     f: &DestackFormatter<'_, '_>,
     types: &[LocalNodeId<Expression>],
 ) -> bool {
     types.iter().copied().any(|expression_id| {
-        let Some(annotation_ids) = f.context().annotations(expression_id) else {
+        let annotation_ids = f.context().annotation_ids(expression_id);
+        if annotation_ids.is_empty() {
             return false;
-        };
+        }
 
         annotation_ids.iter().any(|annotation_id| {
             matches!(
                 f.context().annotation(*annotation_id),
-                Annotation::Comment {
+                Annotation::Doc {
                     position: AnnotationPosition::LinePostfixBoundary,
                     ..
                 }
             )
         })
+    })
+}
+
+/// Return whether one declaration head has a line-postfix-boundary comment before heritage.
+fn declaration_heritage_head_has_line_postfix_boundary_annotation(
+    f: &DestackFormatter<'_, '_>,
+    node_id: LocalNodeId<Declaration>,
+) -> bool {
+    let annotation_ids = f.context().annotation_ids(node_id);
+    if annotation_ids.is_empty() {
+        return false;
+    }
+
+    annotation_ids.iter().any(|annotation_id| {
+        matches!(
+            f.context().annotation(*annotation_id),
+            Annotation::Doc {
+                position: AnnotationPosition::LinePostfixBoundary,
+                ..
+            }
+        )
     })
 }
 
@@ -155,7 +273,7 @@ fn format_declaration_static_parameters<'ast>(
     if let Some(static_parameters) = generics.static_parameters.as_ref()
         && !static_parameters.is_empty()
     {
-        write!(f, [list_like("<", ">", ",", static_parameters)])?;
+        write_static_parameter_list(f, static_parameters, TrailingSeparator::Disallowed)?;
     }
 
     Ok(())
@@ -180,7 +298,13 @@ fn format_declaration_heritage_head_annotations<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
 ) -> FormatResult<()> {
-    write!(f, [f.context().any_prefix_annotations(node_id)])
+    write!(
+        f,
+        [
+            crate::format::annotation::line_postfix_boundary_annotations(f.context(), node_id),
+            crate::format::annotation::prefix_annotations(f.context(), node_id)
+        ]
+    )
 }
 
 /// Format declaration extends and optional implements clauses.
@@ -375,11 +499,25 @@ pub(crate) fn format_struct_or_class_declaration<'ast>(
     } else {
         // body-head annotations emit their own boundary separator.
     }
-    write!(f, [f.context().any_prefix_annotations(node_id)])?;
+    write!(
+        f,
+        [crate::format::annotation::prefix_annotations(
+            f.context(),
+            node_id
+        )]
+    )?;
 
     if members.is_empty() {
         write!(f, [empty_block_with_infix_annotations(node_id)])?;
-        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+        write!(
+            f,
+            [
+                crate::format::annotation::postfix_annotations_without_line_postfix_boundary(
+                    f.context(),
+                    node_id
+                )
+            ]
+        )?;
         return Ok(true);
     }
 
@@ -390,7 +528,13 @@ pub(crate) fn format_struct_or_class_declaration<'ast>(
             format_block_of_members(f, members)
         })),])]
     )?;
-    write!(f, [f.context().block_infix_annotations(node_id)])?;
+    write!(
+        f,
+        [crate::format::annotation::block_infix_annotations(
+            f.context(),
+            node_id
+        )]
+    )?;
     write!(f, [hard_line_break(), token("}")])?;
     Ok(false)
 }
@@ -403,7 +547,13 @@ impl<'ast> FormatNode<'ast, EnumField> for EnumField {
         node_id: LocalNodeId<EnumField>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+        write!(
+            f,
+            [crate::format::annotation::prefix_annotations(
+                f.context(),
+                node_id
+            )]
+        )?;
 
         // name
         write!(f, [self.name])?;
@@ -417,7 +567,13 @@ impl<'ast> FormatNode<'ast, EnumField> for EnumField {
         // NOTE #Cleanup: having commas inside EnumField formatting feels wrong
         write!(f, [token(",")])?;
 
-        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
+        write!(
+            f,
+            [crate::format::annotation::infix_or_postfix_annotations(
+                f.context(),
+                node_id
+            )]
+        )?;
         Ok(())
     }
 }
@@ -446,7 +602,9 @@ pub(crate) fn format_enum_declaration<'ast>(
     }
 
     format_declaration_static_parameters(f, generics)?;
-    let has_heritage_head_comment = f.context().has_prefix_annotation(node_id);
+    let has_heritage_head_comment =
+        declaration_heritage_head_has_line_postfix_boundary_annotation(f, node_id)
+            || f.context().has_prefix_annotation(node_id);
     format_declaration_heritage_head_annotations(f, node_id)?;
     format_declaration_heritage(f, heritage, true, has_heritage_head_comment)?;
     format_declaration_where_clauses(f, generics.where_clauses.as_deref())?;
@@ -455,7 +613,15 @@ pub(crate) fn format_enum_declaration<'ast>(
 
     if fields.is_empty() && members.is_empty() {
         write!(f, [empty_block_with_infix_annotations(node_id)])?;
-        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+        write!(
+            f,
+            [
+                crate::format::annotation::postfix_annotations_without_line_postfix_boundary(
+                    f.context(),
+                    node_id
+                )
+            ]
+        )?;
         return Ok(true);
     }
 
@@ -471,9 +637,7 @@ pub(crate) fn format_enum_declaration<'ast>(
 
     if !fields.is_empty() && !members.is_empty() {
         write!(f, [hard_line_break()])?;
-        if !f.context().has_blank_prefix_annotation(members[0]) {
-            write!(f, [empty_line()])?;
-        }
+        write!(f, [empty_line()])?;
     }
 
     write!(
@@ -482,7 +646,13 @@ pub(crate) fn format_enum_declaration<'ast>(
             format_block_of_members(f, members)
         })),])]
     )?;
-    write!(f, [f.context().block_infix_annotations(node_id)])?;
+    write!(
+        f,
+        [crate::format::annotation::block_infix_annotations(
+            f.context(),
+            node_id
+        )]
+    )?;
     write!(f, [hard_line_break(), token("}")])?;
     Ok(false)
 }
@@ -509,7 +679,9 @@ pub(crate) fn format_interface_declaration<'ast>(
     }
 
     format_declaration_static_parameters(f, generics)?;
-    let has_heritage_head_comment = f.context().has_prefix_annotation(node_id);
+    let has_heritage_head_comment =
+        declaration_heritage_head_has_line_postfix_boundary_annotation(f, node_id)
+            || f.context().has_prefix_annotation(node_id);
     format_declaration_heritage_head_annotations(f, node_id)?;
     format_declaration_heritage(f, heritage, false, has_heritage_head_comment)?;
     format_declaration_where_clauses(f, generics.where_clauses.as_deref())?;
@@ -518,7 +690,15 @@ pub(crate) fn format_interface_declaration<'ast>(
 
     if members.is_empty() {
         write!(f, [empty_block_with_infix_annotations(node_id)])?;
-        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+        write!(
+            f,
+            [
+                crate::format::annotation::postfix_annotations_without_line_postfix_boundary(
+                    f.context(),
+                    node_id
+                )
+            ]
+        )?;
         return Ok(true);
     }
 
@@ -529,7 +709,13 @@ pub(crate) fn format_interface_declaration<'ast>(
             format_block_of_members(f, members)
         })),])]
     )?;
-    write!(f, [f.context().block_infix_annotations(node_id)])?;
+    write!(
+        f,
+        [crate::format::annotation::block_infix_annotations(
+            f.context(),
+            node_id
+        )]
+    )?;
     write!(f, [hard_line_break(), token("}")])?;
     Ok(false)
 }

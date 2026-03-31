@@ -1,17 +1,21 @@
-use crate::format::analysis::previous_non_whitespace_token_before_annotation;
 use crate::format::call::{format_call_expression, format_instantiation_expression};
 use crate::format::chain::{
     argument_value_id_if_present, has_line_comment_between_expressions, is_chain_root,
     is_expression_chain, transparent_inner_expression,
 };
+use crate::format::context::expression_has_own_line_prefix;
 use crate::format::expression::{
+    expression_has_prefix_comment_or_doc_annotation_in_left_spine,
     expression_has_static_type_arguments, is_expression_breakable, is_pattern_breakable,
 };
-use crate::format::operator::flattened_binary_operand_count;
+use crate::format::operator::{
+    flattened_binary_operand_count, write_expression_with_inline_prefix_annotations,
+};
+use crate::format::tree::tree_literal_should_expand;
 use crate::{Annotation, DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    AnnotationPosition, Argument, Declaration, Declarator, Expression, LocalNodeId, NodeTree,
-    Pattern, PatternField, ScalarLiteral, TokenType, TypeBinaryOperator,
+    AnnotationPosition, Argument, Declaration, Declarator, Expression, IfKind, LocalNodeId,
+    NodeTree, Pattern, PatternField, ScalarLiteral, TokenType, TypeBinaryOperator,
 };
 use destack_fir::format::{Buffer, Format, FormatResult};
 use destack_fir::prelude::{
@@ -181,36 +185,33 @@ pub(crate) fn declarator_value_has_assignment_seam_prefix_comment(
     value_id: LocalNodeId<Expression>,
 ) -> bool {
     context
-        .visit_annotations(value_id, |annotation_ids| {
-            annotation_ids.iter().any(|annotation_id| {
-                let annotation = context.annotation(*annotation_id);
-                let annotation_position = match annotation {
-                    Annotation::Comment { position, .. } | Annotation::Doc { position, .. } => {
-                        position
-                    }
-                    _ => {
-                        return false;
-                    }
-                };
-
-                if !matches!(
-                    annotation_position,
-                    AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
-                ) {
+        .annotation_ids(value_id)
+        .iter()
+        .any(|annotation_id| {
+            let annotation = context.annotation(*annotation_id);
+            let annotation_position = match annotation {
+                Annotation::Doc { position, .. } => position,
+                _ => {
                     return false;
                 }
+            };
 
-                let previous_token_is_assign =
-                    previous_non_whitespace_token_before_annotation(context, *annotation_id)
-                        .is_some_and(|token| token.token.ty == TokenType::Assign);
-                let next_token_is_assign = context
-                    .annotation_next_non_whitespace_token_type(*annotation_id)
-                    == Some(TokenType::Assign);
+            if !matches!(
+                annotation_position,
+                AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
+            ) {
+                return false;
+            }
 
-                !previous_token_is_assign && next_token_is_assign
-            })
+            let previous_token_is_assign = context
+                .annotation_previous_non_whitespace_token(*annotation_id)
+                .is_some_and(|token| token.token.ty == TokenType::Assign);
+            let next_token_is_assign = context
+                .annotation_next_non_whitespace_token_type(*annotation_id)
+                == Some(TokenType::Assign);
+
+            !previous_token_is_assign && next_token_is_assign
         })
-        .unwrap_or(false)
 }
 
 /// Return whether a declaration heritage clause contains static type arguments.
@@ -238,6 +239,70 @@ fn declaration_has_generic_heritage(
             .copied()
             .any(|type_id| expression_has_static_type_arguments(context, type_id))
     })
+}
+
+/// Decide whether a declarator can drop one parenthesized value wrapper.
+pub(crate) fn declarator_drops_parenthesized_value_wrapper(
+    context: &DestackFormatContext<'_>,
+    parenthesized_id: LocalNodeId<Expression>,
+    inner_expression_id: LocalNodeId<Expression>,
+) -> bool {
+    if context.has_annotation(parenthesized_id) {
+        return false;
+    }
+
+    if crate::format::expression::parenthesized_has_leading_inner_newline(
+        context,
+        parenthesized_id,
+        inner_expression_id,
+    ) {
+        return false;
+    }
+
+    // keep multiline tree and nested ternary wrappers explicit in declarators
+    let drops_tree_wrapper = !context.node_has_newline(inner_expression_id)
+        && !matches!(
+            context.tree.get(inner_expression_id),
+            Expression::TreeExpression { elements: Some(elements), .. }
+                if elements.iter().any(|argument_id| {
+                    let value_id = match context.tree.get(*argument_id) {
+                        Argument::Positional { value, .. }
+                        | Argument::Spread { value, .. }
+                        | Argument::Named { value, .. }
+                        | Argument::Labeled { value, .. } => *value,
+                        Argument::Error => return false,
+                    };
+
+                    let Expression::If {
+                        kind: IfKind::Ternary,
+                        then_expression,
+                        else_expression,
+                        ..
+                    } = context.tree.get(value_id)
+                    else {
+                        return false;
+                    };
+
+                    matches!(context.tree.get(*then_expression), Expression::Parenthesized { .. })
+                        || else_expression.is_some_and(|else_id| {
+                            matches!(context.tree.get(else_id), Expression::Parenthesized { .. })
+                        })
+                })
+        )
+        && matches!(
+            context.tree.get(inner_expression_id),
+            Expression::TreeExpression {
+                arguments,
+                elements,
+                ..
+            } if !tree_literal_should_expand(context, arguments, elements)
+        );
+
+    // keep left-spine prefix ownership intact when the declarator already owns the seam
+    let drops_prefix_wrapper =
+        expression_has_prefix_comment_or_doc_annotation_in_left_spine(context, inner_expression_id);
+
+    drops_tree_wrapper || drops_prefix_wrapper
 }
 
 /// Return whether a value expression wraps a class declaration with generic heritage.
@@ -286,31 +351,23 @@ pub(crate) fn value_is_inline_closure_cast_type_binary(
     let mut current_id = value_id;
     loop {
         let current_span = context.span(current_id);
-        let has_prefix = context
-            .visit_annotations(current_id, |annotations| {
-                !annotations.is_empty()
-                    && annotations.iter().all(|annotation_id| {
-                        let annotation_is_prefix = matches!(
-                            context.annotation(*annotation_id),
-                            Annotation::Comment {
-                                position: AnnotationPosition::LinePrefix
-                                    | AnnotationPosition::BlockPrefix,
-                                ..
-                            } | Annotation::Doc {
-                                position: AnnotationPosition::LinePrefix
-                                    | AnnotationPosition::BlockPrefix,
-                                ..
-                            }
-                        );
-                        if !annotation_is_prefix {
-                            return false;
-                        }
+        let annotations = context.annotation_ids(current_id);
+        let has_prefix = !annotations.is_empty()
+            && annotations.iter().all(|annotation_id| {
+                let annotation_is_prefix = matches!(
+                    context.annotation(*annotation_id),
+                    Annotation::Doc {
+                        position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
+                        ..
+                    }
+                );
+                if !annotation_is_prefix {
+                    return false;
+                }
 
-                        let annotation_span = context.annotation_span(*annotation_id);
-                        annotation_span.start < current_span.start
-                    })
-            })
-            .unwrap_or(false);
+                let annotation_span = context.annotation_span(*annotation_id);
+                annotation_span.start < current_span.start
+            });
         if has_prefix {
             return true;
         }
@@ -335,34 +392,6 @@ pub(crate) fn value_is_inline_closure_cast_type_binary(
         };
         current_id = next_id;
     }
-}
-
-/// Return whether one expression has any own-line prefix annotation.
-fn expression_has_own_line_prefix_annotation(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    context
-        .visit_annotations(expression_id, |annotation_ids| {
-            annotation_ids.iter().any(|annotation_id| {
-                let annotation = context.annotation(*annotation_id);
-                let is_prefix = matches!(
-                    annotation,
-                    Annotation::Comment {
-                        position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
-                        ..
-                    } | Annotation::Doc {
-                        position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
-                        ..
-                    } | Annotation::Decorator {
-                        position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
-                        ..
-                    }
-                );
-                is_prefix && context.annotation_starts_on_own_line(*annotation_id)
-            })
-        })
-        .unwrap_or(false)
 }
 
 const LONG_BINARY_OPERAND_COUNT_THRESHOLD: usize = 2;
@@ -655,7 +684,8 @@ pub(crate) fn format_declarator<'ast>(
     let header = format_with(|f| {
         write!(f, [pattern])?;
         if let Some(ty_id) = ty {
-            write!(f, [token(":"), space(), ty_id])?;
+            write!(f, [token(":"), space()])?;
+            write_expression_with_inline_prefix_annotations(f, *ty_id)?;
         }
         Ok(())
     });
@@ -694,7 +724,7 @@ pub(crate) fn format_declarator<'ast>(
     let value_has_generic_class_heritage =
         value_has_generic_class_heritage(f.context(), value_inner_id);
     let value_has_own_line_prefix_annotation =
-        expression_has_own_line_prefix_annotation(f.context(), *value_id);
+        expression_has_own_line_prefix(f.context(), *value_id);
     let pattern_span = f.context().span(*pattern);
     let value_has_prefix_annotation = f.context().has_prefix_annotation(*value_id);
     let value_has_assignment_seam_prefix_annotation =
@@ -714,11 +744,17 @@ pub(crate) fn format_declarator<'ast>(
     let value_has_newline = f.context().has_newline(value_span);
     let pattern_has_newline = f.context().has_newline(pattern_span);
     let pattern_has_default_assignment = pattern_has_default_assignment(tree, *pattern);
-    let pattern_has_comments_or_annotations =
-        f.context().has_annotation(*pattern) || f.context().has_comment(pattern_span);
+    let pattern_has_comments_or_annotations = f.context().has_annotation(*pattern)
+        || !f
+            .context()
+            .comments_in_range(pattern_span.start, pattern_span.end)
+            .is_empty();
     let value_is_parenthesized = matches!(value_expr, Expression::Parenthesized { .. });
-    let value_has_between_comment = between_span.is_some_and(|span| f.context().has_comment(span))
-        && !value_has_assignment_seam_prefix_annotation;
+    let value_has_between_comment = between_span.is_some_and(|span| {
+        !f.context()
+            .comments_in_range(span.start, span.end)
+            .is_empty()
+    }) && !value_has_assignment_seam_prefix_annotation;
     let value_has_line_comment_between_operands = match value_inner_expr {
         Expression::Binary { left, right, .. } => {
             has_line_comment_between_expressions(f.context(), *left, *right)
@@ -1053,11 +1089,23 @@ impl<'ast> FormatNode<'ast, Declarator> for Declarator {
         node_id: LocalNodeId<Declarator>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+        write!(
+            f,
+            [crate::format::annotation::prefix_annotations(
+                f.context(),
+                node_id
+            )]
+        )?;
 
         format_declarator(f, f.context().tree, node_id)?;
 
-        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
+        write!(
+            f,
+            [crate::format::annotation::infix_or_postfix_annotations(
+                f.context(),
+                node_id
+            )]
+        )?;
 
         Ok(())
     }

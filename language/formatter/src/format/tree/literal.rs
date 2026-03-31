@@ -1,6 +1,6 @@
-use crate::format::chain::transparent_inner_expression;
+use crate::format::chain::{is_call_like_argument, transparent_inner_expression};
 use crate::format::expression::expression_has_static_type_arguments;
-use crate::format::tree::argument::{
+use crate::format::tree::{
     is_jsx_whitespace_char, should_force_break_tree_attributes, tree_argument_is_wrapped_in_braces,
     tree_child_breaks_element, tree_children_have_blank_line_between, tree_text_is_whitespace_only,
     write_tree_expression_argument,
@@ -142,7 +142,12 @@ fn write_tree_closing_tag<'ast>(
     write!(f, [token("</")])?;
     write!(
         f,
-        [f.context().line_postfix_boundary_annotations(expression_id)]
+        [
+            crate::format::annotation::line_postfix_boundary_annotations(
+                f.context(),
+                expression_id
+            )
+        ]
     )?;
     if let Some(left) = left {
         let left_expression = f.context().tree.get(*left);
@@ -786,6 +791,40 @@ pub(crate) fn format_tree_literal_expression<'ast>(
     )
 }
 
+/// Format one preserved parenthesized tree expression wrapper.
+pub(crate) fn format_parenthesized_tree_expression<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    parenthesized_id: LocalNodeId<Expression>,
+    expression_id: LocalNodeId<Expression>,
+    arguments: &Option<Vec<LocalNodeId<Argument>>>,
+    elements: &Option<Vec<LocalNodeId<Argument>>>,
+    has_leading_inner_trivia: bool,
+) -> FormatResult<()> {
+    let tree_should_break = tree_literal_should_break(f.context(), arguments, elements)
+        || f.context().node_has_newline(expression_id);
+
+    if is_call_like_argument(f.context(), parenthesized_id) {
+        write!(f, [expression_id])?;
+    } else if has_leading_inner_trivia || tree_should_break {
+        write!(
+            f,
+            [
+                token("("),
+                block_indent(&group(&expression_id).should_expand(true)),
+                hard_line_break(),
+                token(")")
+            ]
+        )?;
+    } else {
+        write!(
+            f,
+            [token("("), soft_block_indent(&expression_id), token(")")]
+        )?;
+    }
+
+    Ok(())
+}
+
 /// Format tree attributes in one opening tag.
 fn format_tree_attributes<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -922,7 +961,13 @@ fn format_tree_body<'ast>(
     };
 
     if elements.is_empty() {
-        write!(f, [f.context().block_infix_annotations(expression_id)])?;
+        write!(
+            f,
+            [crate::format::annotation::block_infix_annotations(
+                f.context(),
+                expression_id
+            )]
+        )?;
         return write_tree_closing_tag(f, expression_id, left);
     }
 
@@ -937,7 +982,13 @@ fn format_tree_body<'ast>(
         write!(f, [group(&soft_block_indent(&format_children))])?;
     }
 
-    write!(f, [f.context().block_infix_annotations(expression_id)])?;
+    write!(
+        f,
+        [crate::format::annotation::block_infix_annotations(
+            f.context(),
+            expression_id
+        )]
+    )?;
     write_tree_closing_tag(f, expression_id, left)
 }
 

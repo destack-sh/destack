@@ -1,0 +1,476 @@
+use super::parentheses::parenthesized_has_leading_inner_trivia;
+use crate::{Annotation, DestackFormatContext};
+use destack_ast::{
+    AnnotationPosition, Argument, Expression, IfCondition, IfKind, LocalNodeId, NodeTree, NodeType,
+    Pattern, Property, ScalarLiteral, TokenType, TypeBinaryOperator, UnaryOperator,
+};
+use destack_source::Span;
+
+/// Return whether an expression is trivial and inline-safe without annotations.
+pub(crate) fn expression_is_trivial_inline_without_annotations(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    !context.has_annotation(expression_id)
+        && !context.node_has_newline(expression_id)
+        && is_trivial_expression(context.tree, context.tree.get(expression_id))
+}
+
+/// Return whether annotations are only prefix comment or doc markers for this expression.
+pub(crate) fn expression_has_only_prefix_comment_or_doc_annotations(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let annotation_ids = context.annotation_ids(expression_id);
+    if annotation_ids.is_empty() {
+        return false;
+    }
+
+    annotation_ids.iter().all(|annotation_id| {
+        matches!(
+            context.annotation(*annotation_id),
+            Annotation::Doc {
+                position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
+                ..
+            }
+        )
+    })
+}
+
+/// Return whether any expression on the left spine has a prefix comment or doc annotation.
+pub(crate) fn expression_has_prefix_comment_or_doc_annotation_in_left_spine(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let mut current_id = expression_id;
+
+    loop {
+        if expression_has_only_prefix_comment_or_doc_annotations(context, current_id) {
+            return true;
+        }
+
+        let next_id = match context.tree.get(current_id) {
+            Expression::Parenthesized { expression } => Some(*expression),
+            Expression::Call { left, .. }
+            | Expression::Member { left, .. }
+            | Expression::PrivateMember { left, .. }
+            | Expression::Index { left, .. }
+            | Expression::Instantiation { left, .. }
+            | Expression::Maybe { left, .. }
+            | Expression::Must { left, .. }
+            | Expression::TypeBinary { left, .. }
+            | Expression::Binary { left, .. } => Some(*left),
+            _ => None,
+        };
+
+        let Some(next_id) = next_id else {
+            break;
+        };
+
+        current_id = next_id;
+    }
+
+    false
+}
+
+/// Return whether an expression prefers inline layout.
+pub fn is_trivial_expression(tree: &NodeTree, expression: &Expression) -> bool {
+    match expression {
+        Expression::ScalarLiteral(_)
+        | Expression::TypeLiteral(_)
+        | Expression::This
+        | Expression::Super
+        | Expression::PrivateIdentifier { .. } => true,
+        Expression::ObjectExpression { ty, properties, .. } => {
+            ty.is_none()
+                && properties.len() <= 5
+                && properties
+                    .iter()
+                    .all(|property| is_trivial_property(tree, tree.get(*property)))
+        }
+        Expression::Unary { right, .. } => is_trivial_expression(tree, tree.get(*right)),
+        Expression::Index { left, index, .. } => index
+            .as_ref()
+            .map_or(is_trivial_expression(tree, tree.get(*left)), |index_id| {
+                is_trivial_expression(tree, tree.get(*index_id))
+            }),
+        Expression::ReferenceOf { right, .. } | Expression::PointerOf { right, .. } => {
+            is_trivial_expression(tree, tree.get(*right))
+        }
+        Expression::Member { left, .. } | Expression::PrivateMember { left, .. } => {
+            is_trivial_expression(tree, tree.get(*left))
+        }
+        Expression::Path {
+            path,
+            static_arguments,
+        } => {
+            path.segments.len() <= 3
+                && static_arguments.as_deref().is_none_or(|static_arguments| {
+                    static_arguments_are_trivial(tree, static_arguments)
+                })
+        }
+        Expression::TypeBinary {
+            left,
+            operator: TypeBinaryOperator::Cast | TypeBinaryOperator::Satisfies,
+            right,
+        } => {
+            is_trivial_expression(tree, tree.get(*left))
+                && is_trivial_expression(tree, tree.get(*right))
+        }
+        _ => false,
+    }
+}
+
+/// Return whether static arguments stay concise when inlined.
+fn static_arguments_are_trivial(
+    tree: &NodeTree,
+    static_arguments: &[LocalNodeId<Argument>],
+) -> bool {
+    static_arguments
+        .iter()
+        .all(|argument_id| is_trivial_argument(tree, tree.get(*argument_id)))
+}
+
+/// Return whether an expression prefers multiline layout.
+pub fn is_complex_expression(_tree: &NodeTree, expression: &Expression) -> bool {
+    match expression {
+        Expression::Statement { .. } => true,
+        Expression::ObjectExpression { properties, .. } => properties.len() > 3,
+        Expression::TreeExpression { .. } => true,
+        _ => false,
+    }
+}
+
+/// Return whether an argument prefers inline layout.
+pub fn is_trivial_argument(tree: &NodeTree, argument: &Argument) -> bool {
+    match argument {
+        Argument::Named { value, .. }
+        | Argument::Labeled { value, .. }
+        | Argument::Positional { value, .. }
+        | Argument::Spread { value, .. } => is_trivial_expression(tree, tree.get(*value)),
+        Argument::Error => false,
+    }
+}
+
+/// Return whether a property prefers inline layout.
+pub fn is_trivial_property(tree: &NodeTree, property: &Property) -> bool {
+    match property {
+        Property::Field { value, default, .. } => {
+            value.is_none_or(|value| is_trivial_expression(tree, tree.get(value)))
+                && default.is_none_or(|default| is_trivial_expression(tree, tree.get(default)))
+        }
+        Property::Method { body, .. } => {
+            body.is_none_or(|body| is_trivial_expression(tree, tree.get(body)))
+        }
+        Property::Spread { value, .. } => is_trivial_expression(tree, tree.get(*value)),
+        Property::Error => false,
+    }
+}
+
+/// Return whether an argument prefers multiline layout.
+pub fn is_complex_argument(tree: &NodeTree, argument: &Argument) -> bool {
+    match argument {
+        Argument::Named { value, .. }
+        | Argument::Labeled { value, .. }
+        | Argument::Positional { value, .. }
+        | Argument::Spread { value, .. } => is_complex_expression(tree, tree.get(*value)),
+        Argument::Error => true,
+    }
+}
+
+/// Return whether an expression can break across multiple lines.
+pub fn is_expression_breakable(tree: &NodeTree, expression: &Expression) -> bool {
+    match expression {
+        Expression::ArrayExpression { elements, .. } => !elements.is_empty(),
+        Expression::TupleExpression { elements, .. } => !elements.is_empty(),
+        Expression::SequenceExpression { expressions, .. } => !expressions.is_empty(),
+        Expression::ObjectExpression { ty, properties, .. } => {
+            ty.is_some_and(|ty| is_expression_breakable(tree, tree.get(ty)))
+                || !properties.is_empty()
+        }
+        Expression::TreeExpression {
+            arguments,
+            elements,
+            ..
+        } => {
+            arguments
+                .as_ref()
+                .is_some_and(|arguments| !arguments.is_empty())
+                || elements
+                    .as_ref()
+                    .is_some_and(|elements| !elements.is_empty())
+        }
+        Expression::Call {
+            dynamic_arguments, ..
+        }
+        | Expression::New {
+            dynamic_arguments, ..
+        } => !dynamic_arguments.is_empty(),
+        Expression::Match { .. }
+        | Expression::If { .. }
+        | Expression::Loop { .. }
+        | Expression::Try { .. }
+        | Expression::Block { .. }
+        | Expression::ForEach { .. }
+        | Expression::For { .. }
+        | Expression::While { .. }
+        | Expression::Import { .. }
+        | Expression::Export { .. }
+        | Expression::Binary { .. }
+        | Expression::TypeBinary { .. }
+        | Expression::TypeConditional { .. }
+        | Expression::TypeMapped { .. }
+        | Expression::TypeTemplateLiteral { .. } => true,
+        Expression::Path {
+            static_arguments, ..
+        } => static_arguments
+            .as_ref()
+            .is_some_and(|static_arguments| !static_arguments.is_empty()),
+        _ => false,
+    }
+}
+
+/// Return whether a pattern can expand to multiple lines.
+pub fn is_pattern_breakable(tree: &NodeTree, pattern_id: LocalNodeId<Pattern>) -> bool {
+    match tree.get(pattern_id) {
+        Pattern::Object { fields } | Pattern::TaggedObject { fields, .. } => !fields.is_empty(),
+        Pattern::Array { fields }
+        | Pattern::Tuple { fields }
+        | Pattern::TaggedTuple { fields, .. } => !fields.is_empty(),
+        _ => false,
+    }
+}
+
+/// Return whether array elements are simple enough for concise fill formatting.
+pub(crate) fn array_elements_are_fill_candidates(
+    tree: &NodeTree,
+    elements: &[LocalNodeId<Argument>],
+) -> bool {
+    elements
+        .iter()
+        .all(|element_id| array_element_is_fill_candidate(tree, *element_id))
+}
+
+/// Return whether comments in an array appear only at the boundaries.
+pub(crate) fn array_has_only_boundary_comments(
+    context: &DestackFormatContext<'_>,
+    array_span: Span,
+    elements: &[LocalNodeId<Argument>],
+) -> bool {
+    let (Some(first_element), Some(last_element)) = (elements.first(), elements.last()) else {
+        return false;
+    };
+
+    let first_span = context.span(*first_element);
+    let last_span = context.span(*last_element);
+
+    let has_internal_comment =
+        context
+            .tokens
+            .iter()
+            .chain(context.side_tokens.iter())
+            .any(|token| {
+                if !array_span.intersects(token.span) || !is_comment_token_type(token.token.ty) {
+                    return false;
+                }
+
+                let is_before_first = token.span.end <= first_span.start;
+                let is_after_last = token.span.start >= last_span.end;
+                !(is_before_first || is_after_last)
+            });
+
+    !has_internal_comment
+}
+
+/// Return whether a token type is a comment token.
+fn is_comment_token_type(token_type: TokenType) -> bool {
+    matches!(
+        token_type,
+        TokenType::LineComment
+            | TokenType::BlockComment
+            | TokenType::DocLineComment
+            | TokenType::DocBlockComment
+    )
+}
+
+/// Return whether a single array element is a concise fill candidate.
+fn array_element_is_fill_candidate(tree: &NodeTree, element_id: LocalNodeId<Argument>) -> bool {
+    let value_id = match tree.get(element_id) {
+        Argument::Positional { value, .. } => *value,
+        _ => return false,
+    };
+
+    match tree.get(value_id) {
+        Expression::ScalarLiteral(
+            ScalarLiteral::Integer(_) | ScalarLiteral::Bigint(_) | ScalarLiteral::Float(_),
+        ) => true,
+        Expression::Unary { operator, right } => {
+            let mut right_id = *right;
+            while let Expression::Parenthesized { expression } = tree.get(right_id) {
+                right_id = *expression;
+            }
+
+            matches!(operator, UnaryOperator::Plus | UnaryOperator::Negate)
+                && matches!(
+                    tree.get(right_id),
+                    Expression::ScalarLiteral(
+                        ScalarLiteral::Integer(_)
+                            | ScalarLiteral::Bigint(_)
+                            | ScalarLiteral::Float(_)
+                    )
+                )
+        }
+        _ => false,
+    }
+}
+
+/// Return whether expression source is wrapped in a top-level parenthesis pair.
+fn expression_has_outer_parentheses_tokens(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    let span = context.span(node_id);
+    let Some(first_token) = context.first_non_trivia_token_in_span(span) else {
+        return false;
+    };
+    let Some(last_token) = context.last_non_trivia_token_in_span(span) else {
+        return false;
+    };
+
+    first_token.token.ty == TokenType::OpenParenthesis
+        && last_token.token.ty == TokenType::CloseParenthesis
+}
+
+/// Return whether an expression has a prefix documentation annotation.
+fn expression_has_prefix_doc_annotation(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    context
+        .annotation_ids(expression_id)
+        .iter()
+        .any(|annotation_id| {
+            matches!(
+                context.annotation(*annotation_id),
+                Annotation::Doc {
+                    position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
+                    ..
+                }
+            )
+        })
+}
+
+/// Return whether an expression has a leading prefix comment in its left spine.
+pub(crate) fn expression_has_leading_prefix_comment(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let mut current = expression_id;
+
+    loop {
+        if expression_has_prefix_doc_annotation(context, current) {
+            return true;
+        }
+
+        let next = match context.tree.get(current) {
+            Expression::Parenthesized { expression } => Some(*expression),
+            Expression::Binary { left, .. } | Expression::TypeBinary { left, .. } => Some(*left),
+            Expression::If {
+                kind: IfKind::Ternary,
+                condition:
+                    IfCondition::Expression {
+                        condition: expression_id,
+                    },
+                ..
+            } => Some(*expression_id),
+            Expression::Member { left, .. }
+            | Expression::PrivateMember { left, .. }
+            | Expression::Call { left, .. }
+            | Expression::Index { left, .. }
+            | Expression::Instantiation { left, .. }
+            | Expression::Maybe { left, .. }
+            | Expression::Must { left, .. } => Some(*left),
+            Expression::TaggedTemplateExpression { tag, .. } => Some(*tag),
+            _ => None,
+        };
+
+        let Some(next) = next else {
+            break;
+        };
+        current = next;
+    }
+
+    false
+}
+
+/// Return whether parenthesized cast comments should be hoisted before `(`.
+pub(crate) fn should_hoist_parenthesized_inner_cast_prefix_comments(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+    inner_id: LocalNodeId<Expression>,
+) -> bool {
+    let is_parent_yield_value = context
+        .parent(node_id)
+        .is_some_and(|(parent_id, parent_type)| {
+            parent_type == NodeType::Expression
+                && matches!(
+                    context.tree.get(LocalNodeId::<Expression>::new(parent_id)),
+                    Expression::Yield { value: Some(value_id), .. } if *value_id == node_id
+                )
+        });
+    if is_parent_yield_value {
+        return false;
+    }
+
+    let has_doc_like_prefix_annotation =
+        context
+            .annotation_ids(inner_id)
+            .iter()
+            .any(|annotation_id| {
+                matches!(
+                    context.annotation(*annotation_id),
+                    Annotation::Doc {
+                        position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
+                        ..
+                    }
+                )
+            });
+
+    parenthesized_has_leading_inner_trivia(context, node_id, inner_id)
+        && has_doc_like_prefix_annotation
+}
+
+/// Return whether a sequence expression needs parentheses in its parent context.
+pub(crate) fn sequence_expression_needs_parens(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some((parent_id, parent_type)) = context.parent(node_id) else {
+        return false;
+    };
+
+    if parent_type != NodeType::Expression {
+        return true;
+    }
+
+    let parent_id = LocalNodeId::<Expression>::new(parent_id);
+    match context.tree.get(parent_id) {
+        Expression::Statement(_) => true,
+        Expression::Return { value } => value.is_some_and(|value_id| value_id != node_id),
+        Expression::Throw { value } => *value != node_id,
+        Expression::Parenthesized { expression } => *expression != node_id,
+        Expression::For {
+            initialization,
+            increment,
+            ..
+        } => {
+            !initialization.is_some_and(|value_id| value_id == node_id)
+                && !increment.is_some_and(|value_id| value_id == node_id)
+        }
+        // preserve explicit nested grouping: `(1, (2, 3), 4)`
+        Expression::SequenceExpression { .. } => {
+            expression_has_outer_parentheses_tokens(context, node_id)
+        }
+        _ => true,
+    }
+}

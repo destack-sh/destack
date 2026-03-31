@@ -1,134 +1,148 @@
 use std::collections::HashMap;
-use std::marker::PhantomData;
 
 use destack_fir::format::{FormatResult, GroupId};
-use destack_workspace::TrailingComma;
 
-use crate::format::analysis::{first_non_trivia_token_in_span, last_non_trivia_token_in_span};
 use crate::format::directive::{ignore_ranges_for_nodes, write_ignored_span};
-use crate::{Annotation, DestackFormatContext, FormatNode};
-use destack_ast::{
-    AnnotationPosition, Declaration, Expression, LocalNodeId, Node, NodeTree, NodeTreeImpl,
-    NodeType, TokenType,
-};
+use crate::{DestackFormatContext, FormatNode};
+use destack_ast::{LocalNodeId, Node, NodeTree, NodeTreeImpl, TokenType};
 use destack_fir::prelude::*;
-use destack_fir::{format_args, write};
+use destack_fir::write;
 use destack_source::Span;
 
-/// The kind of list, which affects trailing comma behavior.
-#[derive(Debug, Clone, Copy, PartialEq, Default)]
-pub(crate) enum ListKind {
-    /// Function parameters/arguments - trailing comma only with `All`.
-    #[default]
-    FunctionParameters,
-    /// Collections (arrays, objects, tuples) - trailing comma with `All` or `Es5`.
-    Collection,
+/// The trailing separator mode for one separated entry list.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum TrailingSeparator {
+    /// Omit the trailing separator.
+    Omit,
+    /// Allow the trailing separator when the group breaks.
+    Allowed,
+    /// Require the trailing separator.
+    Mandatory,
+    /// Disallow the trailing separator.
+    Disallowed,
 }
 
-impl ListKind {
-    /// Whether a trailing comma should be added based on this kind and the option.
-    pub(crate) fn should_add_trailing_comma(&self, option: TrailingComma) -> bool {
-        match option {
-            TrailingComma::All => true,
-            TrailingComma::Es5 => matches!(self, ListKind::Collection),
-            TrailingComma::None => false,
+/// One formatted entry in a separated list.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct FormatSeparatedElement<T: Node> {
+    element: LocalNodeId<T>,
+    is_last: bool,
+    separator: &'static str,
+    trailing_separator: TrailingSeparator,
+    group_id: Option<GroupId>,
+}
+
+impl<'ast, T> Format<DestackFormatContext<'ast>> for FormatSeparatedElement<T>
+where
+    T: Node + Clone + FormatNode<'ast, T>,
+    NodeTree: NodeTreeImpl<T>,
+{
+    fn format(&self, f: &mut Formatter<'_, DestackFormatContext<'ast>>) -> FormatResult<()> {
+        write!(f, [self.element])?;
+
+        if self.is_last {
+            match self.trailing_separator {
+                TrailingSeparator::Allowed => {
+                    write!(
+                        f,
+                        [if_group_breaks(&token(self.separator)).with_group_id(self.group_id)]
+                    )?;
+                }
+                TrailingSeparator::Mandatory => {
+                    write!(f, [token(self.separator)])?;
+                }
+                TrailingSeparator::Disallowed | TrailingSeparator::Omit => {}
+            }
+        } else {
+            write!(f, [token(self.separator)])?;
+        }
+
+        Ok(())
+    }
+}
+
+/// An iterator over formatted separated elements.
+pub(crate) struct FormatSeparatedIter<I, T: Node> {
+    next: Option<LocalNodeId<T>>,
+    inner: I,
+    separator: &'static str,
+    trailing_separator: TrailingSeparator,
+    group_id: Option<GroupId>,
+}
+
+impl<I, T> FormatSeparatedIter<I, T>
+where
+    T: Node,
+    I: Iterator<Item = LocalNodeId<T>>,
+{
+    /// Create a new separated iterator for one element stream.
+    pub(crate) fn new(inner: I, separator: &'static str) -> Self {
+        Self {
+            next: None,
+            inner,
+            separator,
+            trailing_separator: TrailingSeparator::Omit,
+            group_id: None,
         }
     }
-}
 
-/// List like thing infix annotations.
-#[derive(Debug, Clone, PartialEq)]
-pub(crate) struct ListLike<'ast, 'e, T>
-where
-    T: Node + Clone + FormatNode<'ast, T>,
-    NodeTree: NodeTreeImpl<T> + NodeTreeImpl<Expression> + NodeTreeImpl<Declaration>,
-{
-    start_token: &'static str,
-    end_token: &'static str,
-    separator: &'static str,
-    include_space: bool,
-    force_trailing_separator: bool,
-    allow_trailing_separator: bool,
-    force_expand: bool,
-    kind: ListKind,
-    group_id: Option<GroupId>,
-    elements: &'e [LocalNodeId<T>],
-
-    _phantom: PhantomData<&'ast ()>,
-}
-
-#[allow(dead_code)]
-impl<'ast, 'e, T> ListLike<'ast, 'e, T>
-where
-    T: Node + Clone + FormatNode<'ast, T>,
-    NodeTree: NodeTreeImpl<T> + NodeTreeImpl<Expression> + NodeTreeImpl<Declaration>,
-{
-    pub(crate) fn force_expand(&mut self) -> &mut Self {
-        self.force_expand = true;
+    /// Set the trailing separator mode.
+    pub(crate) fn with_trailing_separator(mut self, trailing_separator: TrailingSeparator) -> Self {
+        self.trailing_separator = trailing_separator;
         self
     }
 
-    pub(crate) fn should_expand(&mut self, should_expand: bool) -> &mut Self {
-        self.force_expand = should_expand;
-        self
-    }
-
-    pub(crate) fn include_space(&mut self) -> &mut Self {
-        self.include_space = true;
-        self
-    }
-
-    pub(crate) fn force_trailing_separator(&mut self) -> &mut Self {
-        self.force_trailing_separator = true;
-        self
-    }
-
-    pub(crate) fn disallow_trailing_separator(&mut self) -> &mut Self {
-        self.allow_trailing_separator = false;
-        self
-    }
-
-    /// Mark this as a collection (arrays, objects, tuples) for trailing comma purposes.
-    pub(crate) fn as_collection(&mut self) -> &mut Self {
-        self.kind = ListKind::Collection;
-        self
-    }
-
-    pub(crate) fn with_group_id(&mut self, group_id: Option<GroupId>) -> &mut Self {
+    /// Set the group id used by conditional trailing separators.
+    pub(crate) fn with_group_id(mut self, group_id: Option<GroupId>) -> Self {
         self.group_id = group_id;
         self
     }
 }
 
-impl<'ast, 'e, T> Format<DestackFormatContext<'ast>> for ListLike<'ast, 'e, T>
+impl<I, T> Iterator for FormatSeparatedIter<I, T>
+where
+    T: Node,
+    I: Iterator<Item = LocalNodeId<T>>,
+{
+    type Item = FormatSeparatedElement<T>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let element = self.next.take().or_else(|| self.inner.next())?;
+        self.next = self.inner.next();
+        let is_last = self.next.is_none();
+
+        Some(FormatSeparatedElement {
+            element,
+            is_last,
+            separator: self.separator,
+            trailing_separator: self.trailing_separator,
+            group_id: self.group_id,
+        })
+    }
+}
+
+/// Format separated entries with optional trailing separator handling.
+pub(crate) fn separated_entries<'ast, 'e, T>(
+    separator: &'static str,
+    elements: &'e [LocalNodeId<T>],
+    trailing_separator: TrailingSeparator,
+    group_id: Option<GroupId>,
+) -> impl Format<DestackFormatContext<'ast>> + use<'ast, 'e, T>
 where
     T: Node + Clone + FormatNode<'ast, T>,
-    NodeTree: NodeTreeImpl<T> + NodeTreeImpl<Expression> + NodeTreeImpl<Declaration>,
+    NodeTree: NodeTreeImpl<T>,
 {
-    #[inline]
-    fn format(&self, f: &mut Formatter<'_, DestackFormatContext<'ast>>) -> FormatResult<()> {
-        let options = &f.context().options;
-        let trailing_comma_option = options.trailing_comma;
-        let has_elements = !self.elements.is_empty();
+    format_with(move |f: &mut Formatter<'_, DestackFormatContext<'ast>>| {
+        let has_elements = !elements.is_empty();
 
-        // empty lists do not need any layout planning
         if !has_elements {
-            write!(f, [token(self.start_token), token(self.end_token)])?;
             return Ok(());
         }
-
-        let should_add_trailing = has_elements
-            && self.allow_trailing_separator
-            && self.kind.should_add_trailing_comma(trailing_comma_option);
-        let should_add_space = self.include_space && options.bracket_spacing && has_elements;
-        let should_expand_for_line_postfix_boundary = self.start_token == "<"
-            && self.end_token == ">"
-            && list_elements_have_line_postfix_boundary_annotations(f.context(), self.elements);
 
         let ignore_ranges_by_id = if f.context().has_ignore_directive_markers() {
             let comment_tokens = f.context().comment_tokens();
             let ignore_ranges_by_id =
-                ignore_ranges_for_nodes(f.context(), self.elements, comment_tokens);
+                ignore_ranges_for_nodes(f.context(), elements, comment_tokens);
             if ignore_ranges_by_id.is_empty() {
                 None
             } else {
@@ -138,177 +152,37 @@ where
             None
         };
         let has_ignore_ranges = ignore_ranges_by_id.is_some();
-        let body = &format_with(|f| {
-            // leading space
-            if should_add_space {
-                write!(f, [if_group_fits_on_line(&space())])?;
-            }
+        let mut needs_trailing_separator = true;
+        if let Some(ignore_ranges_by_id) = ignore_ranges_by_id.as_ref() {
+            needs_trailing_separator =
+                format_list_with_ignored_ranges(f, elements, ignore_ranges_by_id, separator)?;
+        } else {
+            let entries = FormatSeparatedIter::new(elements.iter().copied(), separator)
+                .with_trailing_separator(trailing_separator)
+                .with_group_id(group_id);
 
-            let mut needs_trailing_separator = true;
-            if let Some(ignore_ranges_by_id) = ignore_ranges_by_id.as_ref() {
-                needs_trailing_separator = format_list_with_ignored_ranges(
-                    f,
-                    self.elements,
-                    ignore_ranges_by_id,
-                    self.separator,
-                )?;
-            } else {
-                // elements
-                f.join_with(&format_args![
-                    &token(self.separator),
-                    soft_line_break_or_space()
-                ])
-                .entries(self.elements)
+            f.join_with(&soft_line_break_or_space())
+                .entries(entries)
                 .finish()?;
-            }
-
-            // trailing separator
-            if has_elements
-                && self.force_trailing_separator
-                && self.allow_trailing_separator
-                && (!has_ignore_ranges || needs_trailing_separator)
-            {
-                write!(f, [token(self.separator)])?;
-            } else if should_add_trailing && (!has_ignore_ranges || needs_trailing_separator) {
-                write!(f, [if_group_breaks(&token(self.separator))])?;
-            }
-
-            // trailing space
-            if should_add_space {
-                write!(f, [if_group_fits_on_line(&space())])?;
-            }
-
-            Ok(())
-        });
-
-        // otherwise, indent the body
-        let format_indented = format_with(|f| {
-            group(&format_args![
-                &token(self.start_token),
-                block_indent(body),
-                &token(self.end_token)
-            ])
-            .with_id(self.group_id)
-            .should_expand(true)
-            .format(f)
-        });
-
-        // grouped lists can choose inline or expanded shape without best fitting
-        let should_expand =
-            self.force_expand || has_ignore_ranges || should_expand_for_line_postfix_boundary;
-
-        let format_grouped = format_with(|f| {
-            group(&format_args![
-                &token(self.start_token),
-                soft_block_indent(body),
-                &token(self.end_token)
-            ])
-            .with_id(self.group_id)
-            .should_expand(should_expand)
-            .format(f)
-        });
-
-        // grouped lists use one adaptive layout path
-        if self.group_id.is_some() {
-            format_grouped.format(f)?;
-            return Ok(());
         }
 
-        if should_expand {
-            format_indented.format(f)?;
-        } else if self.group_id.is_none() {
-            if self.start_token == "<" && self.end_token == ">" {
-                if self.elements.len() == 1 {
-                    let element_id = self.elements[0];
-                    let preserve_source_breaks =
-                        parent_expression_has_linebreak_around_element(f.context(), element_id);
-                    if preserve_source_breaks {
-                        format_grouped.format(f)?;
-                    } else {
-                        group(&format_args![
-                            &token(self.start_token),
-                            body,
-                            &token(self.end_token)
-                        ])
-                        .format(f)?;
-                    }
-                } else {
-                    format_grouped.format(f)?;
+        if has_ignore_ranges && needs_trailing_separator {
+            match trailing_separator {
+                TrailingSeparator::Allowed => {
+                    write!(
+                        f,
+                        [if_group_breaks(&token(separator)).with_group_id(group_id)]
+                    )?;
                 }
-            } else {
-                format_grouped.format(f)?;
+                TrailingSeparator::Mandatory => {
+                    write!(f, [token(separator)])?;
+                }
+                TrailingSeparator::Disallowed | TrailingSeparator::Omit => {}
             }
-        } else {
-            format_grouped.format(f)?;
         }
 
         Ok(())
-    }
-}
-
-/// Return whether list elements contain line-postfix-boundary annotations.
-fn list_elements_have_line_postfix_boundary_annotations<'ast, T>(
-    context: &DestackFormatContext<'ast>,
-    elements: &[LocalNodeId<T>],
-) -> bool
-where
-    T: Node + Clone + FormatNode<'ast, T>,
-    NodeTree: NodeTreeImpl<T>,
-{
-    elements.iter().copied().any(|element_id| {
-        context
-            .visit_annotations(element_id, |annotations| {
-                annotations.iter().copied().any(|annotation_id| {
-                    matches!(
-                        context.annotation(annotation_id),
-                        Annotation::Comment {
-                            position: AnnotationPosition::LinePostfixBoundary,
-                            ..
-                        }
-                    )
-                })
-            })
-            .unwrap_or(false)
     })
-}
-
-/// Return whether the parent expression includes source line breaks around this element.
-fn parent_expression_has_linebreak_around_element<'ast, T>(
-    context: &DestackFormatContext<'ast>,
-    element_id: LocalNodeId<T>,
-) -> bool
-where
-    T: Node + Clone + FormatNode<'ast, T>,
-    NodeTree: NodeTreeImpl<T> + NodeTreeImpl<Expression>,
-{
-    let Some((parent_id, parent_type)) = context.parent(element_id) else {
-        return false;
-    };
-    if parent_type != NodeType::Expression {
-        return false;
-    }
-
-    let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
-    let parent_span = context.span(parent_expression_id);
-    let element_span = context.span(element_id);
-    if parent_span.file != element_span.file {
-        return false;
-    }
-
-    let has_leading_break = parent_span.start < element_span.start
-        && context.has_newline(Span::new(
-            parent_span.file,
-            parent_span.start,
-            element_span.start,
-        ));
-    let has_trailing_break = element_span.end < parent_span.end
-        && context.has_newline(Span::new(
-            parent_span.file,
-            element_span.end,
-            parent_span.end,
-        ));
-
-    has_leading_break || has_trailing_break
 }
 
 /// Format a list while preserving any ignore ranges as raw text.
@@ -383,7 +257,8 @@ fn ignored_range_starts_with_separator(
         return false;
     };
 
-    first_non_trivia_token_in_span(context, range_span)
+    context
+        .first_non_trivia_token_in_span(range_span)
         .is_some_and(|token| token.token.ty == separator_token)
 }
 
@@ -397,98 +272,7 @@ fn ignored_range_ends_with_separator(
         return false;
     };
 
-    last_non_trivia_token_in_span(context, range_span)
+    context
+        .last_non_trivia_token_in_span(range_span)
         .is_some_and(|token| token.token.ty == separator_token)
-}
-
-/// Format a list-like group for `elements`.
-/// Begin with `start_token`.
-/// End with `end_token`.
-/// Separate entries with `separator`.
-///
-/// By default, treats the list as function params for trailing comma purposes.
-/// Call `.as_collection()` for arrays, objects, and tuples.
-pub(crate) fn list_like<'ast, 'e, T>(
-    start_token: &'static str,
-    end_token: &'static str,
-    separator: &'static str,
-    elements: &'e [LocalNodeId<T>],
-) -> ListLike<'ast, 'e, T>
-where
-    T: Node + Clone + FormatNode<'ast, T>,
-    NodeTree: NodeTreeImpl<T>,
-{
-    ListLike {
-        start_token,
-        end_token,
-        separator,
-        include_space: false,
-        force_trailing_separator: false,
-        allow_trailing_separator: true,
-        force_expand: false,
-        kind: ListKind::FunctionParameters,
-        group_id: None,
-        elements,
-        _phantom: PhantomData,
-    }
-}
-
-/// Return whether any node in a collection has annotations.
-pub(crate) fn collection_nodes_have_annotations<T>(
-    context: &DestackFormatContext<'_>,
-    node_ids: &[LocalNodeId<T>],
-) -> bool
-where
-    T: Node,
-    NodeTree: NodeTreeImpl<T>,
-{
-    node_ids.iter().any(|node_id| {
-        let node_id = LocalNodeId::<T>::new(node_id.id);
-        context.has_annotation(node_id)
-    })
-}
-
-/// Return whether any node in a collection spans multiple lines in source.
-pub(crate) fn collection_nodes_have_newline<T>(
-    context: &DestackFormatContext<'_>,
-    node_ids: &[LocalNodeId<T>],
-) -> bool
-where
-    T: Node,
-    NodeTree: NodeTreeImpl<T>,
-{
-    node_ids.iter().any(|node_id| {
-        let node_id = LocalNodeId::<T>::new(node_id.id);
-        context.node_has_newline(node_id)
-    })
-}
-
-/// Return whether items in a collection are inline between first and last spans.
-pub(crate) fn collection_range_is_inline<T>(
-    context: &DestackFormatContext<'_>,
-    node_ids: &[LocalNodeId<T>],
-) -> bool
-where
-    T: Node,
-    NodeTree: NodeTreeImpl<T>,
-{
-    let (Some(first_id), Some(last_id)) = (node_ids.first(), node_ids.last()) else {
-        return false;
-    };
-
-    let first_span = context.span(LocalNodeId::<T>::new(first_id.id));
-    let last_span = context.span(LocalNodeId::<T>::new(last_id.id));
-    if first_span.file != last_span.file || first_span.start >= last_span.end {
-        return false;
-    }
-
-    !context.has_newline(Span::new(first_span.file, first_span.start, last_span.end))
-}
-
-/// Return whether a value collection should force multiline break by complexity.
-pub(crate) fn collection_value_should_force_break(
-    has_multiple_items: bool,
-    has_complex_items: bool,
-) -> bool {
-    has_multiple_items && has_complex_items
 }
