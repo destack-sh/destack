@@ -13,7 +13,7 @@ pub enum WorkspaceKind {
     SinglePackage,
 }
 
-/// A workspace describes the layout and configuration discovered on disk.
+/// A repository-derived workspace view for one revision.
 #[derive(Debug, Clone)]
 pub struct Workspace {
     /// The workspace root directory.
@@ -27,32 +27,6 @@ pub struct Workspace {
 }
 
 impl Workspace {
-    /// Create a new single-package workspace.
-    pub fn single_package(root: PathBuf) -> Self {
-        Self {
-            root: root.clone(),
-            kind: WorkspaceKind::SinglePackage,
-            config: None,
-            package_paths: vec![root],
-        }
-    }
-
-    /// Create a new monorepo workspace.
-    pub fn monorepo(root: PathBuf, package_paths: Vec<PathBuf>) -> Self {
-        Self {
-            root,
-            kind: WorkspaceKind::Monorepo,
-            config: None,
-            package_paths,
-        }
-    }
-
-    /// Set the workspace-wide configuration.
-    pub fn with_config(mut self, config: Destack) -> Self {
-        self.config = Some(Arc::new(config));
-        self
-    }
-
     /// Check if this is a monorepo workspace.
     pub fn is_monorepo(&self) -> bool {
         self.kind == WorkspaceKind::Monorepo

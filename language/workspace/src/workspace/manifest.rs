@@ -7,7 +7,7 @@ use indexmap::IndexMap;
 use serde::Deserialize;
 use serde_json::{Map, Value};
 
-use crate::{config::Destack, config::TaskOptions};
+use crate::config::{Destack, TaskOptions};
 
 /// Package manifest from `package.json`.
 #[derive(Debug, Clone)]
