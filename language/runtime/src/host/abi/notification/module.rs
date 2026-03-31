@@ -3,6 +3,7 @@ use crate::host::abi::describe::host_abi_module;
 host_abi_module! {
     fn host_abi_module() -> "notification" {
         platforms: [ios, android];
+        runtime_host: generated [ios, android];
         types: super::types::host_abi_types();
         requests {
             /// Post one host notification request.

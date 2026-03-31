@@ -8,6 +8,7 @@ mod types;
 pub use module::*;
 #[cfg(not(feature = "generator"))]
 #[allow(unused_imports)]
-pub(crate) use runtime::*;
+#[allow(unreachable_pub)]
+pub use runtime::*;
 #[allow(unused_imports)]
-pub(crate) use types::*;
+pub use types::*;

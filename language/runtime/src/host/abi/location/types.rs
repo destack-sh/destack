@@ -5,6 +5,42 @@ use crate::host::abi::describe::host_abi_types;
 #[cfg(not(feature = "generator"))]
 pub(crate) use crate::platform::os::{LocationAccuracy, LocationSample, LocationWatchOptions};
 
+/// One location-services response payload.
+#[cfg(not(feature = "generator"))]
+#[derive(Clone, Debug, PartialEq)]
+pub struct LocationServicesResponse {
+    /// The request status code.
+    pub status: u32,
+    /// Whether location services are enabled.
+    pub is_enabled: bool,
+}
+
+#[cfg(not(feature = "generator"))]
+impl LocationServicesResponse {
+    /// Create one location-services response payload.
+    pub const fn new(status: u32, is_enabled: bool) -> Self {
+        Self { status, is_enabled }
+    }
+}
+
+/// One last-known location response payload.
+#[cfg(not(feature = "generator"))]
+#[derive(Clone, Debug, PartialEq)]
+pub struct LocationLastKnownResponse {
+    /// The request status code.
+    pub status: u32,
+    /// The returned sample when available.
+    pub sample: Option<LocationSample>,
+}
+
+#[cfg(not(feature = "generator"))]
+impl LocationLastKnownResponse {
+    /// Create one last-known location response payload.
+    pub const fn new(status: u32, sample: Option<LocationSample>) -> Self {
+        Self { status, sample }
+    }
+}
+
 #[cfg(feature = "generator")]
 host_abi_types! {
     fn host_abi_types() {
@@ -52,6 +88,24 @@ host_abi_types! {
             minimum_distance_meters: f64,
             /// Whether heading should be included when available.
             include_heading: bool,
+        }
+
+        /// One location-services response payload.
+        struct LocationServicesResponse {
+            /// The request status code.
+            status: host_status,
+            /// Whether location services are enabled.
+            is_enabled: bool,
+        }
+
+        /// One last-known location response payload.
+        struct LocationLastKnownResponse {
+            /// The request status code.
+            status: host_status,
+            /// Whether the response includes one sample.
+            has_sample: bool,
+            /// The returned sample when available.
+            sample: LocationSample,
         }
     }
 }

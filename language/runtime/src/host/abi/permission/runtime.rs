@@ -35,10 +35,7 @@ pub(crate) struct HostPermissionRequestPayload {
 
 impl HostPermissionRequestPayload {
     /// Build one owned single-permission request payload.
-    pub(crate) fn single(
-        request_id: u64,
-        permission: Permission,
-    ) -> Self {
+    pub(crate) fn single(request_id: u64, permission: Permission) -> Self {
         let permission_storage = permission_name(permission).to_string();
 
         let abi = HostPermissionRequest {
