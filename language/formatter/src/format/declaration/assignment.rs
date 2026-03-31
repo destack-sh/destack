@@ -2,7 +2,16 @@ use crate::format::chain::transparent_inner_expression;
 use crate::format::collection::TrailingSeparator;
 use crate::format::declaration::declaration::format_declaration_export_modifier;
 use crate::format::declaration::signature::write_static_parameter_list;
-use crate::format::expression::expression_has_static_type_arguments;
+use crate::format::expression::{
+    expression_has_static_type_arguments, write_expression_without_prefix_annotations,
+};
+use crate::format::operator::{
+    expression_has_type_grouping_semantics, format_binary_expression,
+    normalize_parenthesized_type_grouping_inner_expression,
+    should_drop_parenthesized_type_expression, transparent_type_binary_root_expression,
+    type_union_prefers_inline_assignment_seam, union_has_trailing_own_line_doc_prefix_annotation,
+    write_expression_with_inline_prefix_annotations,
+};
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
     CommentStyle, Declaration, DeclarationDescriptor, DeclarationKind, Expression, Keyword,
@@ -292,6 +301,24 @@ impl<'a> TypeAliasAssignmentLike<'a> {
     ) -> bool {
         let value_span = context.span(self.value_id);
         let has_leading_comments = context.has_comments_before(value_span.start);
+        let has_union_leading_doc_head =
+            union_has_trailing_own_line_doc_prefix_annotation(context, self.value_id);
+        let transparent_type_binary_root = [
+            destack_ast::BinaryOperator::ElementwiseOr,
+            destack_ast::BinaryOperator::ElementwiseAnd,
+        ]
+        .into_iter()
+        .find_map(|operator| {
+            let root_id = transparent_type_binary_root_expression(context, self.value_id, operator);
+            matches!(
+                context.tree.get(root_id),
+                Expression::Binary {
+                    operator: root_operator,
+                    ..
+                } if *root_operator == operator
+            )
+            .then_some(root_id)
+        });
 
         match context.tree.get(self.value_id) {
             Expression::TypeConditional { left, right, .. } => {
@@ -299,6 +326,7 @@ impl<'a> TypeAliasAssignmentLike<'a> {
                     || self.type_conditional_test_operand_is_generic_like(context, *right)
                     || has_leading_comments
             }
+            _ if transparent_type_binary_root.is_some() => has_union_leading_doc_head,
             Expression::Binary { .. } => false,
             _ => has_leading_comments,
         }
@@ -316,6 +344,10 @@ impl<'a> TypeAliasAssignmentLike<'a> {
         }
 
         if is_left_short {
+            return true;
+        }
+
+        if type_union_prefers_inline_assignment_seam(context, self.value_id) {
             return true;
         }
 
@@ -349,7 +381,141 @@ impl<'a> TypeAliasAssignmentLike<'a> {
 
     /// Write the rhs of the type alias for one assignment-like layout.
     fn write_right<'ast>(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
-        write!(f, [self.value_id])
+        let normalized_binary_value_id = [
+            destack_ast::BinaryOperator::ElementwiseOr,
+            destack_ast::BinaryOperator::ElementwiseAnd,
+        ]
+        .into_iter()
+        .find_map(|operator| {
+            let normalized_root_id =
+                transparent_type_binary_root_expression(f.context(), self.value_id, operator);
+
+            matches!(
+                f.context().tree.get(normalized_root_id),
+                Expression::Binary {
+                    operator: root_operator,
+                    ..
+                } if *root_operator == operator
+            )
+            .then_some(normalized_root_id)
+        })
+        .or_else(|| match f.context().tree.get(self.value_id) {
+            Expression::Parenthesized { expression } => {
+                let normalized_inner_id = normalize_parenthesized_type_grouping_inner_expression(
+                    f.context(),
+                    *expression,
+                );
+                let should_route_through_type_binary_owner = matches!(
+                    f.context().tree.get(normalized_inner_id),
+                    Expression::Binary {
+                        operator: destack_ast::BinaryOperator::ElementwiseOr
+                            | destack_ast::BinaryOperator::ElementwiseAnd,
+                        ..
+                    }
+                )
+                    && expression_has_type_grouping_semantics(f.context(), normalized_inner_id);
+
+                if should_route_through_type_binary_owner {
+                    Some(normalized_inner_id)
+                } else if should_drop_parenthesized_type_expression(
+                    f.context(),
+                    self.value_id,
+                    *expression,
+                ) {
+                    Some(*expression)
+                } else {
+                    None
+                }
+            }
+            Expression::Statement(expression) => {
+                let normalized_inner_id = normalize_parenthesized_type_grouping_inner_expression(
+                    f.context(),
+                    *expression,
+                );
+                let should_route_through_type_binary_owner = matches!(
+                    f.context().tree.get(normalized_inner_id),
+                    Expression::Binary {
+                        operator: destack_ast::BinaryOperator::ElementwiseOr
+                            | destack_ast::BinaryOperator::ElementwiseAnd,
+                        ..
+                    }
+                )
+                    && expression_has_type_grouping_semantics(f.context(), normalized_inner_id);
+
+                if should_route_through_type_binary_owner {
+                    Some(normalized_inner_id)
+                } else {
+                    Some(*expression)
+                }
+            }
+            _ => None,
+        });
+
+        if let Some(normalized_binary_value_id) = normalized_binary_value_id
+            && let Expression::Binary {
+                left,
+                operator:
+                    operator @ (destack_ast::BinaryOperator::ElementwiseOr
+                    | destack_ast::BinaryOperator::ElementwiseAnd),
+                right,
+            } = f.context().tree.get(normalized_binary_value_id)
+        {
+            f.context()
+                .push_forced_type_position_expression_root(self.value_id);
+            let result = format_binary_expression(f, self.value_id, *left, operator, *right);
+            f.context().pop_forced_type_position_expression_root();
+            return result;
+        }
+
+        let value_id = normalized_binary_value_id.unwrap_or(self.value_id);
+
+        let has_inline_prefix_annotation = f
+            .context()
+            .annotation_ids(value_id)
+            .iter()
+            .copied()
+            .any(|annotation_id| {
+                matches!(
+                    f.context().annotation(annotation_id).position(),
+                    destack_ast::AnnotationPosition::BlockPrefix
+                        | destack_ast::AnnotationPosition::LinePrefix
+                )
+            });
+
+        if !has_inline_prefix_annotation {
+            return write_expression_with_inline_prefix_annotations(f, value_id);
+        }
+
+        write!(
+            f,
+            [crate::format::annotation::prefix_annotations(
+                f.context(),
+                value_id
+            )]
+        )?;
+
+        let last_prefix_annotation_id = f
+            .context()
+            .annotation_ids(value_id)
+            .iter()
+            .copied()
+            .filter(|annotation_id| {
+                matches!(
+                    f.context().annotation(*annotation_id).position(),
+                    destack_ast::AnnotationPosition::BlockPrefix
+                        | destack_ast::AnnotationPosition::LinePrefix
+                )
+            })
+            .last();
+
+        if let Some(last_prefix_annotation_id) = last_prefix_annotation_id
+            && f.context()
+                .annotation_next_token_is_on_same_line(last_prefix_annotation_id)
+        {
+            write!(f, [space()])?;
+        }
+
+        write_expression_without_prefix_annotations(f, value_id)
     }
 
     /// Format the full assignment-like type alias shell.

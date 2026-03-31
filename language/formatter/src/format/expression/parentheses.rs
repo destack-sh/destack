@@ -39,10 +39,6 @@ pub(crate) fn parenthesized_boundary_comments(
         return Vec::new();
     }
 
-    if context.has_annotation(parenthesized_id) || context.has_annotation(inner_expression_id) {
-        return Vec::new();
-    }
-
     let parenthesized_span = context.span(parenthesized_id);
     let inner_span = context.span(inner_expression_id);
     if parenthesized_span.file != inner_span.file || inner_span.end >= parenthesized_span.end {
@@ -74,6 +70,47 @@ pub(crate) fn parenthesized_boundary_comments(
             continue;
         }
         if comment_trivia.span.start < inner_span.end
+            || comment_trivia.span.end > parenthesized_span.end
+        {
+            continue;
+        }
+
+        if context
+            .next_non_whitespace_token_after_span(comment_trivia.span)
+            .is_none_or(|token| token.token.ty != TokenType::CloseParenthesis)
+        {
+            continue;
+        }
+        comments.push((comment_trivia.span.start, comment_trivia.comment));
+    }
+
+    comments.sort_by_key(|(start, _)| *start);
+    comments
+        .into_iter()
+        .map(|(_, comment_id)| comment_id)
+        .collect()
+}
+
+/// Collect line comments that belong immediately before one closing `)`.
+fn parenthesized_trailing_inner_line_comments(
+    context: &DestackFormatContext<'_>,
+    parenthesized_id: LocalNodeId<Expression>,
+    _inner_expression_id: LocalNodeId<Expression>,
+) -> Vec<LocalNodeId<Comment>> {
+    let parenthesized_span = context.span(parenthesized_id);
+    let comment_trivia = context.tree.comment_trivia();
+    let first_relevant_index = comment_trivia
+        .partition_point(|comment_trivia| comment_trivia.span.end < parenthesized_span.start);
+
+    let mut comments: Vec<(u32, LocalNodeId<Comment>)> = Vec::new();
+    for comment_trivia in comment_trivia[first_relevant_index..].iter().copied() {
+        if comment_trivia.span.start >= parenthesized_span.end {
+            break;
+        }
+        if context.tree.get(comment_trivia.comment).style != CommentStyle::Slash {
+            continue;
+        }
+        if comment_trivia.span.start < parenthesized_span.start
             || comment_trivia.span.end > parenthesized_span.end
         {
             continue;
@@ -288,8 +325,8 @@ pub(crate) fn parenthesized_has_leading_inner_line_comment(
         })
 }
 
-/// Return whether a parenthesized wrapper is immediately preceded by a closure-style type-cast comment.
-pub(crate) fn parenthesized_has_leading_type_cast_comment(
+/// Return whether one expression is the parenthesized node of a type-cast comment wrapper.
+pub(crate) fn is_type_cast_comment_node(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -323,13 +360,90 @@ pub(crate) fn parenthesized_has_leading_type_cast_comment(
     false
 }
 
+/// Format one parenthesized type-cast comment wrapper.
+pub(crate) fn format_type_cast_comment_node<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
+    expression_id: LocalNodeId<Expression>,
+    trailing_inner_line_comments: &[LocalNodeId<Comment>],
+) -> FormatResult<bool> {
+    if !is_type_cast_comment_node(f.context(), node_id) {
+        return Ok(false);
+    }
+
+    let prefix_annotation_ids: Vec<_> = f
+        .context()
+        .annotation_ids(node_id)
+        .iter()
+        .copied()
+        .filter(|annotation_id| {
+            matches!(
+                f.context().annotation(*annotation_id).position(),
+                AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
+            )
+        })
+        .collect();
+    if prefix_annotation_ids.is_empty() {
+        return Ok(true);
+    }
+
+    for (annotation_index, annotation_id) in prefix_annotation_ids.iter().copied().enumerate() {
+        write!(f, [annotation_id])?;
+
+        let is_last = annotation_index + 1 == prefix_annotation_ids.len();
+        if !is_last {
+            let current_span = f.context().annotation_span(annotation_id);
+            let next_span = f
+                .context()
+                .annotation_span(prefix_annotation_ids[annotation_index + 1]);
+            let gap_span = Span::new(current_span.file, current_span.end, next_span.start);
+
+            if f.context().has_newline(gap_span) {
+                write!(f, [hard_line_break()])?;
+            } else {
+                write!(f, [space()])?;
+            }
+        }
+    }
+
+    if let Some(last_annotation_id) = prefix_annotation_ids.last().copied() {
+        if f.context()
+            .annotation_next_token_is_on_same_line(last_annotation_id)
+        {
+            write!(f, [space()])?;
+        } else {
+            write!(f, [hard_line_break()])?;
+        }
+    }
+
+    let format_inner = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        write!(f, [expression_id])?;
+
+        for comment_id in trailing_inner_line_comments {
+            write!(f, [hard_line_break(), *comment_id])?;
+        }
+
+        Ok(())
+    });
+    write!(
+        f,
+        [group(&format_args![
+            token("("),
+            soft_block_indent(&format_inner),
+            token(")")
+        ])]
+    )?;
+
+    Ok(true)
+}
+
 /// Decide whether a parenthesized expression should drop wrappers in generic expression contexts.
 pub(crate) fn should_drop_parenthesized_expression_wrapper(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
     inner_expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    if parenthesized_has_leading_type_cast_comment(context, node_id) {
+    if is_type_cast_comment_node(context, node_id) {
         return false;
     }
 
@@ -428,12 +542,15 @@ pub(crate) fn format_primary_parenthesized_expression<'ast>(
     }
     // preserved wrapper
     else {
-        let has_parenthesized_leading_inner_trivia =
-            parenthesized_has_leading_inner_trivia(f.context(), node_id, expression_id);
-        let has_parenthesized_leading_inner_comments =
-            parenthesized_has_leading_inner_comments(f.context(), node_id, expression_id);
-        let has_parenthesized_leading_inner_newline =
-            parenthesized_has_leading_inner_newline(f.context(), node_id, expression_id);
+        let suppress_leading_inner_comments = f
+            .context()
+            .is_parenthesized_leading_comment_node_suppressed(node_id);
+        let has_parenthesized_leading_inner_trivia = !suppress_leading_inner_comments
+            && parenthesized_has_leading_inner_trivia(f.context(), node_id, expression_id);
+        let has_parenthesized_leading_inner_comments = !suppress_leading_inner_comments
+            && parenthesized_has_leading_inner_comments(f.context(), node_id, expression_id);
+        let has_parenthesized_leading_inner_newline = !suppress_leading_inner_comments
+            && parenthesized_has_leading_inner_newline(f.context(), node_id, expression_id);
         let has_inner_decorator_prefix_annotation = {
             let expression_has_decorator =
                 f.context()
@@ -549,9 +666,21 @@ pub(crate) fn format_primary_parenthesized_expression<'ast>(
                 && !f.context().node_has_newline(expression_id);
         let should_expand_assignment_target =
             parenthesized_assignment_target_prefers_expanded_layout(f.context(), expression_id);
+        let trailing_inner_line_comments =
+            parenthesized_trailing_inner_line_comments(f.context(), node_id, expression_id);
+        let formatted_type_cast_comment_node = format_type_cast_comment_node(
+            f,
+            node_id,
+            expression_id,
+            &trailing_inner_line_comments,
+        )?;
 
+        // type-cast wrappers
+        if formatted_type_cast_comment_node {
+            // already formatted by the type-cast owner
+        }
         // destructuring targets
-        if should_expand_assignment_target {
+        else if should_expand_assignment_target {
             write!(
                 f,
                 [group(&format_args![

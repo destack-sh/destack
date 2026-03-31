@@ -29,5 +29,7 @@ pub(crate) use self::r#type::{
 pub(crate) use self::union::{
     binary_like_is_type_intersection, binary_like_is_type_union, flatten_binary_like_operands,
     format_type_intersection_binary_layout, format_type_union_binary_layout,
-    operator_expression_owns_prefix_annotations, type_binary_operand_needs_grouping_parentheses,
+    operator_expression_owns_prefix_annotations, transparent_type_binary_root_expression,
+    type_binary_operand_needs_grouping_parentheses, type_union_prefers_inline_assignment_seam,
+    union_has_trailing_own_line_doc_prefix_annotation,
 };

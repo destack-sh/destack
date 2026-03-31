@@ -195,7 +195,11 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         let is_ignored = node_has_ignore_directive(f.context(), node_id);
-        if !operator_expression_owns_prefix_annotations(f.context(), node_id, self, is_ignored) {
+        let type_cast_node_owns_prefix = matches!(self, Expression::Parenthesized { .. })
+            && crate::format::expression::is_type_cast_comment_node(f.context(), node_id);
+        if !operator_expression_owns_prefix_annotations(f.context(), node_id, self, is_ignored)
+            && !type_cast_node_owns_prefix
+        {
             write!(
                 f,
                 [crate::format::annotation::prefix_annotations(

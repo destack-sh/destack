@@ -78,6 +78,10 @@ pub struct DestackFormatContext<'a> {
     pub has_template_literal_markers: bool,
     /// Whether file-level ignore was applied during formatting.
     pub file_ignore_applied: Rc<Cell<bool>>,
+    /// Parenthesized nodes whose leading-inner comments are hoisted by an outer owner.
+    pub suppressed_parenthesized_leading_comment_nodes: Rc<RefCell<Vec<LocalNodeId<Expression>>>>,
+    /// Expression roots that should be treated as explicit type-position subtrees.
+    pub forced_type_position_expression_roots: Rc<RefCell<Vec<LocalNodeId<Expression>>>>,
 }
 
 impl<'a> DestackFormatContext<'a> {
@@ -170,6 +174,79 @@ impl<'a> DestackFormatContext<'a> {
             has_ignore_directive_markers,
             has_template_literal_markers,
             file_ignore_applied: Rc::new(Cell::new(false)),
+            suppressed_parenthesized_leading_comment_nodes: Rc::new(RefCell::new(Vec::new())),
+            forced_type_position_expression_roots: Rc::new(RefCell::new(Vec::new())),
+        }
+    }
+
+    /// Push one parenthesized node whose leading-inner comments are owned by an outer formatter.
+    pub fn push_suppressed_parenthesized_leading_comment_node(
+        &self,
+        node_id: LocalNodeId<Expression>,
+    ) {
+        self.suppressed_parenthesized_leading_comment_nodes
+            .borrow_mut()
+            .push(node_id);
+    }
+
+    /// Pop one parenthesized node whose leading-inner comments were owned by an outer formatter.
+    pub fn pop_suppressed_parenthesized_leading_comment_node(&self) {
+        let _ = self
+            .suppressed_parenthesized_leading_comment_nodes
+            .borrow_mut()
+            .pop();
+    }
+
+    /// Return whether one parenthesized node has its leading-inner comments suppressed.
+    pub fn is_parenthesized_leading_comment_node_suppressed(
+        &self,
+        node_id: LocalNodeId<Expression>,
+    ) -> bool {
+        self.suppressed_parenthesized_leading_comment_nodes
+            .borrow()
+            .contains(&node_id)
+    }
+
+    /// Push one expression root that should be treated as a forced type-position subtree.
+    pub fn push_forced_type_position_expression_root(&self, node_id: LocalNodeId<Expression>) {
+        self.forced_type_position_expression_roots
+            .borrow_mut()
+            .push(node_id);
+    }
+
+    /// Pop one forced type-position subtree root.
+    pub fn pop_forced_type_position_expression_root(&self) {
+        let _ = self
+            .forced_type_position_expression_roots
+            .borrow_mut()
+            .pop();
+    }
+
+    /// Return whether one expression sits under a forced type-position subtree root.
+    pub fn expression_is_under_forced_type_position_root(
+        &self,
+        node_id: LocalNodeId<Expression>,
+    ) -> bool {
+        let forced_roots = self.forced_type_position_expression_roots.borrow();
+        if forced_roots.is_empty() {
+            return false;
+        }
+
+        let mut current_id = node_id.id;
+        loop {
+            let current_expression_id = LocalNodeId::<Expression>::new(current_id);
+            if forced_roots.contains(&current_expression_id) {
+                return true;
+            }
+
+            let Some((parent_id, parent_type)) = self.parent_by_id(current_id) else {
+                return false;
+            };
+            if parent_type != NodeType::Expression {
+                return false;
+            }
+
+            current_id = parent_id;
         }
     }
 }
