@@ -13,12 +13,7 @@ pub unsafe extern "C" fn destack_host_ios_document_pick(
     session_handle: u64,
     request: HostDocumentRequest,
 ) -> u32 {
-    unsafe {
-        runtime_document_pick(
-            session_handle,
-            request,
-        )
-    }
+    unsafe { runtime_document_pick(session_handle, request) }
 }
 
 /// Forward the `notify_document_result` ingress through the ABI artifact.
@@ -28,9 +23,5 @@ pub unsafe extern "C" fn destack_host_ios_notify_document_result(
     request_id: u64,
     documents: NativeSlice<DocumentDescriptorValue>,
 ) -> RuntimeStatus {
-    unsafe { runtime_notify_document_result(
-        runtime_id,
-        request_id,
-        documents,
-    ) }
+    unsafe { runtime_notify_document_result(runtime_id, request_id, documents) }
 }
