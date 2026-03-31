@@ -9,6 +9,7 @@ pub(crate) mod message;
 mod notification;
 mod permission;
 mod system;
+mod text;
 
 pub(crate) use background::android_notify_background_event;
 pub(crate) use document::android_notify_document_result;
@@ -26,3 +27,4 @@ pub(crate) use system::{
     android_notify_power_mode_changed, android_notify_thermal_state_changed, android_notify_wake,
     android_notify_wall_clock_changed,
 };
+pub(crate) use text::android_notify_text_input_state;

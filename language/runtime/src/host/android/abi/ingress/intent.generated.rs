@@ -9,8 +9,7 @@ android_notify_intent_open_url, android_notify_intent_share_files,
 android_notify_intent_share_text,
 };
 
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn destack_host_android_notify_intent_open_url(
+pub unsafe fn destack_host_android_notify_intent_open_url(
 runtime_id: u64,
 has_source: bool,
 source: NativeStringRef,
@@ -24,8 +23,7 @@ decode_string(url, "url")
 runtime_status(result)
 }
 
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn destack_host_android_notify_intent_open_file(
+pub unsafe fn destack_host_android_notify_intent_open_file(
 runtime_id: u64,
 has_source: bool,
 source: NativeStringRef,
@@ -49,8 +47,7 @@ mime_type.as_deref(),
 runtime_status(result)
 }
 
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn destack_host_android_notify_intent_share_text(
+pub unsafe fn destack_host_android_notify_intent_share_text(
 runtime_id: u64,
 has_source: bool,
 source: NativeStringRef,
@@ -74,8 +71,7 @@ mime_type.as_deref(),
 runtime_status(result)
 }
 
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn destack_host_android_notify_intent_share_files(
+pub unsafe fn destack_host_android_notify_intent_share_files(
 runtime_id: u64,
 has_source: bool,
 source: NativeStringRef,
@@ -99,8 +95,7 @@ mime_type.as_deref(),
 runtime_status(result)
 }
 
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn destack_host_android_notify_intent_custom_action(
+pub unsafe fn destack_host_android_notify_intent_custom_action(
 runtime_id: u64,
 has_source: bool,
 source: NativeStringRef,

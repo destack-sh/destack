@@ -7,13 +7,13 @@ use crate::host::abi::calendar::{
     decode_calendar_event_list_response, decode_calendar_event_read_response,
     decode_calendar_list_response, encode_calendar_event_draft, encode_calendar_event_query,
 };
-use crate::host::core::callback::decode_callback_host_status;
-use crate::host::core::{HostRequest, HostRequestOutcome, HostRequestResult};
-use crate::host::ios::abi::calendar::{
+use crate::host::apple::abi::calendar::{
     destack_host_ios_calendar_event_create, destack_host_ios_calendar_event_delete,
     destack_host_ios_calendar_event_list, destack_host_ios_calendar_event_read,
     destack_host_ios_calendar_event_update, destack_host_ios_calendar_list,
 };
+use crate::host::core::callback::decode_callback_host_status;
+use crate::host::core::{HostRequest, HostRequestOutcome, HostRequestResult};
 use crate::platform::abi::NativeStringRef;
 use crate::platform::os::abi_generated::{
     CalendarEventDraftValue, CalendarEventQueryValue, CalendarEventValue,

@@ -1,5 +1,5 @@
 #[cfg(any(test, target_os = "android"))]
-pub(crate) mod abi;
+pub mod abi;
 #[cfg(target_os = "android")]
 mod adapter;
 #[cfg(any(test, target_os = "android"))]

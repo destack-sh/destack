@@ -6,13 +6,13 @@ use crate::host::abi::contact::{
     decode_contact_create_response, decode_contact_page_response, decode_contact_response,
     encode_contact_draft, encode_contact_query,
 };
-use crate::host::core::callback::decode_callback_host_status;
-use crate::host::core::{HostRequest, HostRequestOutcome, HostRequestResult};
-use crate::host::ios::abi::contact::{
+use crate::host::apple::abi::contact::{
     destack_host_ios_contact_create, destack_host_ios_contact_delete_contact,
     destack_host_ios_contact_list, destack_host_ios_contact_read, destack_host_ios_contact_search,
     destack_host_ios_contact_update,
 };
+use crate::host::core::callback::decode_callback_host_status;
+use crate::host::core::{HostRequest, HostRequestOutcome, HostRequestResult};
 use crate::platform::abi::NativeStringRef;
 use crate::platform::os::abi_generated::{
     ContactDraftValue, ContactPageValue, ContactQueryValue, ContactValue,
