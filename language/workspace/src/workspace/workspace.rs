@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use crate::Destack;
+use crate::config::Destack;
 
 /// Kind of workspace based on how it was discovered.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -13,27 +13,16 @@ pub enum WorkspaceKind {
     SinglePackage,
 }
 
-/// A workspace is an organizational structure discovered from disk.
-///
-/// It represents a monorepo or single-package project, containing:
-/// - The root directory of the workspace
-/// - Workspace-wide configuration (from root `destack.json`)
-/// - Paths to packages within the workspace
-///
-/// This is distinct from `Session`, which is the runtime state for
-/// daemon/LSP use cases with program caching and file watching.
+/// A workspace describes the layout and configuration discovered on disk.
 #[derive(Debug, Clone)]
 pub struct Workspace {
-    /// The root directory of the workspace.
+    /// The workspace root directory.
     pub root: PathBuf,
-    /// The kind of workspace (monorepo or single package).
+    /// The workspace kind.
     pub kind: WorkspaceKind,
-    /// The workspace-wide Destack config (from root `destack.json`).
-    /// Child packages inherit from this configuration.
+    /// The root `destack.json` configuration.
     pub config: Option<Arc<Destack>>,
-    /// Paths to packages within the workspace.
-    /// For single-package workspaces, this is just the root.
-    /// For monorepos, these are the package directories.
+    /// The package directories in this workspace.
     pub package_paths: Vec<PathBuf>,
 }
 

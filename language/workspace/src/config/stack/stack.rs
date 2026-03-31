@@ -10,7 +10,7 @@ use super::publication::{StackPublicationJson, StackPublicationOptions};
 use super::service::{StackServiceJson, StackServiceOptions};
 use super::volume::{StackVolumeJson, StackVolumeOptions};
 use super::workloads::{StackWorkloadJson, StackWorkloadOptions};
-use crate::{AssetJson, AssetOptions, FeatureRefsJson, TelemetryRefsJson};
+use crate::config::{AssetJson, AssetOptions, FeatureRefsJson, TelemetryRefsJson};
 
 /// Destack stack configuration options.
 #[derive(Debug, Clone, Default)]

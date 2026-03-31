@@ -4,7 +4,7 @@ use serde_json::Value;
 
 use super::super::common::{StackProviderJson, StackProviderOptions, merge_metadata};
 use crate::config::runtime::{RuntimeConfigJson, RuntimeOptionsJson};
-use crate::{FeatureRefsJson, TelemetryRefsJson};
+use crate::config::{FeatureRefsJson, TelemetryRefsJson};
 
 use super::{
     StackAvailabilityJson, StackAvailabilityOptions, StackBindingJson, StackBindingOptions,
