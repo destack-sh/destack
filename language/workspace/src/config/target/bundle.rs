@@ -358,8 +358,8 @@ impl Hash for TargetBundleOutput {
 /// Target scoped bundling options.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct TargetBundle {
-    /// Assembly mode for this script target.
-    pub mode: BundleMode,
+    /// Assembly topology for this script target.
+    pub assembly: BundleMode,
     /// Whether to preserve one emitted module per reachable source module.
     pub preserve_modules: bool,
     /// Whether to inline dynamic imports into the current output.
@@ -387,13 +387,13 @@ pub struct TargetBundle {
 impl TargetBundle {
     /// Return whether this bundler policy emits entry or chunk collections.
     pub fn uses_entry_output_layout(&self) -> bool {
-        self.mode.uses_entry_output_layout()
+        self.assembly.uses_entry_output_layout()
     }
 }
 
 impl Hash for TargetBundle {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.mode.hash(state);
+        self.assembly.hash(state);
         self.preserve_modules.hash(state);
         self.inline_dynamic_imports.hash(state);
         self.preserve_modules_root.hash(state);
@@ -421,7 +421,7 @@ impl Hash for TargetBundle {
 impl From<&TargetBundleJson> for TargetBundle {
     fn from(json: &TargetBundleJson) -> Self {
         Self {
-            mode: json.mode.unwrap_or_default(),
+            assembly: json.assembly.unwrap_or_default(),
             preserve_modules: json.preserve_modules,
             inline_dynamic_imports: json.inline_dynamic_imports,
             preserve_modules_root: json.preserve_modules_root.as_ref().map(PathBuf::from),
@@ -810,8 +810,9 @@ impl From<&TargetBundleMinifyJson> for TargetBundleMinify {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct TargetBundleJson {
-    /// Assembly mode for this script target.
-    pub mode: Option<BundleMode>,
+    /// Assembly topology for this script target.
+    #[serde(alias = "mode")]
+    pub assembly: Option<BundleMode>,
     /// Whether to preserve one emitted module file per reachable module.
     #[serde(default)]
     pub preserve_modules: bool,
@@ -838,4 +839,23 @@ pub struct TargetBundleJson {
     pub define: Option<IndexMap<String, String>>,
     /// Minification options.
     pub minify: Option<TargetBundleMinifyJson>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Accept both the canonical assembly key and the legacy mode alias.
+    #[test]
+    fn test_deserializes_bundle_assembly_and_mode_alias() {
+        let assembly_json = r#"{ "assembly": "chunked" }"#;
+        let assembly = serde_json::from_str::<TargetBundleJson>(assembly_json)
+            .unwrap_or_else(|error| panic!("expected valid assembly json: {error}"));
+        assert_eq!(assembly.assembly, Some(BundleMode::Chunked));
+
+        let alias_json = r#"{ "mode": "preserveModules" }"#;
+        let alias = serde_json::from_str::<TargetBundleJson>(alias_json)
+            .unwrap_or_else(|error| panic!("expected valid mode alias json: {error}"));
+        assert_eq!(alias.assembly, Some(BundleMode::PreserveModules));
+    }
 }

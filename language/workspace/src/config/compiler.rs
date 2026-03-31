@@ -41,8 +41,12 @@ pub struct CompilerOptions {
     pub lib: Vec<String>,
     /// Additional ambient type entries to include (e.g., "node", "@types/node", "dom.iterable").
     pub types: Vec<String>,
+    /// Default environment for IDEs and CLI usage.
+    pub environment: Option<String>,
     /// Default profile for IDEs and CLI usage.
     pub profile: Option<String>,
+    /// Default mode for IDEs and CLI usage.
+    pub mode: Option<String>,
     /// Comptime environment whitelist (if omitted, all env keys are visible).
     pub comptime_env: Option<Vec<String>>,
     /// Enable incremental compilation for this project.
@@ -210,7 +214,9 @@ impl Default for CompilerOptions {
             module_detection: ModuleDetection::default(),
             lib: Vec::new(), // derived from runtime/platform if empty
             types: Vec::new(),
+            environment: None,
             profile: None,
+            mode: None,
             comptime_env: None,
             incremental: true,
 
@@ -616,8 +622,12 @@ pub struct CompilerOptionsJson {
     pub lib: Option<Vec<String>>,
     /// Additional ambient type entries to include (e.g., ["node", "@types/node", "dom.iterable"]).
     pub types: Option<Vec<String>>,
+    /// Default environment for IDEs and CLI usage.
+    pub environment: Option<String>,
     /// Default profile for IDEs and CLI usage.
     pub profile: Option<String>,
+    /// Default mode for IDEs and CLI usage.
+    pub mode: Option<String>,
     /// Comptime environment whitelist (if omitted, all env keys are visible).
     pub comptime_env: Option<Vec<String>>,
     /// Enable incremental compilation for this project.
@@ -817,7 +827,9 @@ impl From<&CompilerOptionsJson> for CompilerOptions {
                 .unwrap_or_default(),
             lib: json.lib.clone().unwrap_or_default(),
             types: json.types.clone().unwrap_or_default(),
+            environment: json.environment.clone(),
             profile: json.profile.clone(),
+            mode: json.mode.clone(),
             comptime_env: json.comptime_env.clone(),
             incremental: json.incremental.unwrap_or(true),
 

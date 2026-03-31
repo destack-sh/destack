@@ -328,6 +328,10 @@ pub struct EnvironmentOptions {
     pub annotations: IndexMap<String, String>,
     /// Whether this environment is ephemeral.
     pub ephemeral: Option<bool>,
+    /// Default profile selection for this environment.
+    pub profile: Option<String>,
+    /// Default mode selection for this environment.
+    pub mode: Option<String>,
     /// Referenced runtime feature definitions.
     pub features: Vec<String>,
     /// Referenced telemetry definitions.
@@ -361,6 +365,12 @@ impl EnvironmentOptions {
         merge_metadata(&mut self.annotations, &parent.annotations);
         if self.ephemeral.is_none() {
             self.ephemeral = parent.ephemeral;
+        }
+        if self.profile.is_none() {
+            self.profile = parent.profile.clone();
+        }
+        if self.mode.is_none() {
+            self.mode = parent.mode.clone();
         }
         if self.features.is_empty() {
             self.features = parent.features.clone();
@@ -444,6 +454,8 @@ impl From<&EnvironmentJson> for EnvironmentOptions {
             labels: json.labels.clone().unwrap_or_default(),
             annotations: json.annotations.clone().unwrap_or_default(),
             ephemeral: json.ephemeral,
+            profile: json.profile.clone(),
+            mode: json.mode.clone(),
             features: json
                 .features
                 .as_ref()
@@ -689,6 +701,10 @@ pub struct EnvironmentJson {
     pub annotations: Option<IndexMap<String, String>>,
     /// Whether this environment is ephemeral.
     pub ephemeral: Option<bool>,
+    /// Default profile selection for this environment.
+    pub profile: Option<String>,
+    /// Default mode selection for this environment.
+    pub mode: Option<String>,
     /// Referenced runtime feature definitions.
     pub features: Option<FeatureRefsJson>,
     /// Referenced telemetry definitions.

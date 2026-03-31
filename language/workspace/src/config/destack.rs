@@ -14,6 +14,7 @@ use super::environment::EnvironmentJson;
 use super::feature::FeatureJson;
 use super::formatter::FormatterJson;
 use super::linter::LinterJson;
+use super::mode::ModeJson;
 use super::runtime::RuntimeConfigJson;
 use super::secret::SecretJson;
 use super::stack::StackJson;
@@ -117,6 +118,8 @@ pub struct DestackJson {
     pub telemetry: Option<IndexMap<String, TelemetryJson>>,
     /// Named profiles for semantic configuration.
     pub profiles: Option<IndexMap<String, ProfileConfigJson>>,
+    /// Named modes for emitted output policy.
+    pub modes: Option<IndexMap<String, ModeJson>>,
     /// Default target for the package.
     pub default_target: Option<String>,
 }
