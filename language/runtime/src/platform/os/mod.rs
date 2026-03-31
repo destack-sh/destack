@@ -1,11 +1,11 @@
 #![cfg_attr(target_arch = "wasm32", allow(dead_code))]
 
 #[path = "abi.generated.rs"]
-pub(crate) mod abi_generated;
+pub mod abi_generated;
 #[path = "bindings.generated.rs"]
 mod bindings_generated;
 
-pub(crate) use abi_generated::*;
+pub use abi_generated::*;
 pub(crate) use bindings_generated::*;
 
 pub(crate) mod background;

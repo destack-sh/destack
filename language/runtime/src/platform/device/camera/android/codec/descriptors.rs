@@ -119,7 +119,7 @@ pub(crate) fn read_camera_stream_configs(
         let mut header_count_written = 0u32;
 
         let status = unsafe {
-            destack_host_android_camera_device_stream_config_list(
+            destack_host_android_camera_stream_config_list(
                 runtime_id,
                 session_id,
                 NativeSlice {
@@ -181,7 +181,7 @@ pub(crate) fn read_camera_stream_capabilities(
         let mut header_count_written = 0u32;
 
         let status = unsafe {
-            destack_host_android_camera_device_stream_capability_list(
+            destack_host_android_camera_stream_capability_list(
                 runtime_id,
                 session_id,
                 NativeSlice {

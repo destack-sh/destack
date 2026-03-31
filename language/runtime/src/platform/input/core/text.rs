@@ -140,7 +140,7 @@ pub(crate) fn notify_text_input_state(
 
 /// Push one state-change event into one queued host text session.
 #[cfg(any(target_os = "android", target_os = "ios"))]
-pub(super) fn push_host_text_state_event(
+pub(crate) fn push_host_text_state_event(
     queue: &RuntimeEventQueue<InputTextSessionEventValue>,
     next_sequence: &mut u64,
     target_window: Option<resource::WindowHandle>,

@@ -5,7 +5,9 @@ use crate::platform::core as core_platform;
 use crate::platform::os::PowerState;
 use crate::runtime::BindingCallContext;
 
-use crate::platform::os::power::core::{OS_POWER_STATE_OPERATION, OS_POWER_SUSPEND_OPERATION};
+use crate::platform::os::power::core::OS_POWER_SUSPEND_OPERATION;
+
+const OS_POWER_STATE_OPERATION: &str = "destack.os.power.state";
 
 /// Read one host power-state value from unsupported backends.
 pub(super) fn read_power_state(binding: &BindingCallContext) -> RuntimeResult<PowerState> {

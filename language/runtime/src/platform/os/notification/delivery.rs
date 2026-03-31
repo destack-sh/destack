@@ -6,13 +6,23 @@ use crate::platform::os::abi_generated::{NotificationCategoryValue, Notification
 
 #[cfg(target_os = "macos")]
 use crate::host::macos::request::notification::backend as notification_backend;
-#[cfg(all(unix, not(target_os = "macos")))]
+#[cfg(all(
+    unix,
+    not(any(target_os = "android", target_os = "ios", target_os = "macos"))
+))]
 use crate::host::unix::request::notification::backend as notification_backend;
 #[cfg(windows)]
 use crate::host::windows::request::notification::core as notification_backend;
 #[cfg(test)]
 use crate::platform::os::notification::runtime::desktop_notification_test_mode_enabled;
-#[cfg(not(any(windows, target_os = "macos", all(unix, not(target_os = "macos")))))]
+#[cfg(not(any(
+    windows,
+    target_os = "macos",
+    all(
+        unix,
+        not(any(target_os = "android", target_os = "ios", target_os = "macos"))
+    )
+)))]
 use crate::platform::os::notification::unsupported as notification_backend;
 
 /// Deliver one notification through the active desktop host.

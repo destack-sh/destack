@@ -1,6 +1,6 @@
 use crate::diagnostic::RuntimeResult;
 use crate::host::core::error::not_supported;
-use crate::host::core::{HostSessionContext, HostSessionId};
+use crate::host::core::{HostRequestContext, HostSessionContext, HostSessionId};
 use crate::platform::os::NotificationPermissionState;
 use crate::platform::os::abi_generated::{
     NotificationCategoryValue, NotificationRequestValue, NotificationScheduledDescriptorValue,

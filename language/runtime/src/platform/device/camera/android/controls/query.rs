@@ -1,6 +1,5 @@
 use super::super::core::{
     AndroidCameraStreamResource, camera_control_capabilities, camera_stream_resource,
-    empty_camera_control_modes,
 };
 use super::common::optional_control_value;
 use super::operations::*;
@@ -102,7 +101,9 @@ pub(crate) unsafe fn destack_device_camera_stream_control_capabilities(
         .capability
         .as_ref()
         .map(|capability| capability.controls.clone())
-        .unwrap_or_else(|| camera_control_capabilities(&empty_camera_control_modes()));
+        .unwrap_or_else(|| {
+            camera_control_capabilities(&super::super::core::empty_camera_control_modes())
+        });
 
     capabilities.exposure_compensation_range =
         optional_control_value(|out: *mut CameraExposureCompensationRange| unsafe {

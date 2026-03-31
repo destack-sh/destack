@@ -2,9 +2,9 @@ mod core;
 mod target;
 #[cfg(test)]
 mod tests;
-#[cfg(unix)]
+#[cfg(all(unix, not(target_os = "android")))]
 mod unix;
-#[cfg(not(any(unix, windows)))]
+#[cfg(not(any(all(unix, not(target_os = "android")), windows)))]
 mod unsupported;
 #[cfg(windows)]
 mod windows;
