@@ -746,7 +746,7 @@ pub(super) fn frame_plane_layouts(
     target_os = "macos",
     windows
 ))]
-pub(super) fn empty_camera_control_modes() -> CameraControlModes {
+pub(crate) fn empty_camera_control_modes() -> CameraControlModes {
     CameraControlModes {
         exposure_modes: Vec::new(),
         white_balance_modes: Vec::new(),

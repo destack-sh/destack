@@ -70,6 +70,7 @@ pub(crate) fn background_wrapper_script_path(
 }
 
 /// Return one launchd label for one background task identifier.
+#[cfg(target_os = "macos")]
 pub(crate) fn background_launchd_label(
     context: &HostRequestContext,
     identifier: &str,
@@ -81,6 +82,7 @@ pub(crate) fn background_launchd_label(
 }
 
 /// Return the launchd plist path for one background task identifier.
+#[cfg(target_os = "macos")]
 pub(crate) fn background_launchd_plist_path(
     context: &HostRequestContext,
     identifier: &str,

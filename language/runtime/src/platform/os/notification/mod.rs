@@ -7,7 +7,14 @@ pub(crate) mod storage;
 #[cfg(test)]
 mod tests;
 pub(crate) mod time;
-#[cfg(not(any(windows, target_os = "macos", all(unix, not(target_os = "macos")))))]
+#[cfg(not(any(
+    windows,
+    target_os = "macos",
+    all(
+        unix,
+        not(any(target_os = "android", target_os = "ios", target_os = "macos"))
+    )
+)))]
 mod unsupported;
 #[cfg(target_os = "linux")]
 pub(crate) mod wrapper;

@@ -73,7 +73,7 @@ pub(crate) use constants::{
 #[cfg(any(test, target_os = "android", target_os = "linux", windows))]
 pub(crate) use constants::DEVICE_CAPABILITY_BACKEND_DISCONNECT_EVENTS;
 
-#[cfg(test)]
+#[cfg(any(test, target_os = "android"))]
 pub(crate) use constants::{
     DEVICE_LIST_INCLUDE_DISCONNECTED, DEVICE_OPEN_RAW, STREAM_FLAG_EXPLICIT_SAMPLE_FORMAT,
     STREAM_FLAG_MINIMIZE_LATENCY, STREAM_FLAG_NO_AUTO_CONVERT, STREAM_FLAG_NON_INTERLEAVED,

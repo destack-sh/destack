@@ -12,12 +12,12 @@ use crate::host::abi::text::{
     HostTextInputStateRequest, HostTextOpenRequestPayload, HostTextStateRequestPayload,
 };
 #[cfg(target_os = "android")]
-use crate::host::api::android::text::ffi::{
+use crate::host::android::abi::text::ffi::{
     destack_host_android_text_close, destack_host_android_text_open,
     destack_host_android_text_set_geometry, destack_host_android_text_set_state,
 };
 #[cfg(target_os = "ios")]
-use crate::host::api::ios::text::ffi::{
+use crate::host::apple::abi::text::ffi::{
     destack_host_ios_text_close, destack_host_ios_text_open, destack_host_ios_text_set_geometry,
     destack_host_ios_text_set_state,
 };
@@ -2116,7 +2116,7 @@ pub(crate) unsafe fn destack_input_text_read_event(
         },
         |duration| queue.wait_once(duration),
     )?;
-    let event = InputTextSessionEvent::from_value(binding, event)?;
+    let event = InputTextSessionEvent::from_value(binding, event);
 
     unsafe {
         *out = event;
@@ -2198,7 +2198,7 @@ pub(crate) unsafe fn destack_input_text_try_read_event(
             "no pending text-session event is available",
         ));
     };
-    let event = InputTextSessionEvent::from_value(binding, event)?;
+    let event = InputTextSessionEvent::from_value(binding, event);
 
     unsafe {
         *out = event;
