@@ -1,7 +1,6 @@
 use destack_ast::{StringId, is_identifier};
-use destack_dir::{self as dir, LocalSymbolId, StaticKey, SymbolKey};
-use destack_js as js;
 use smallvec::smallvec;
+use {destack_dir as dir, destack_js as js};
 
 use crate::{CodegenJsError, CodegenJsResult, CodegenJsResultExt, ModuleLowerer};
 
@@ -45,13 +44,13 @@ impl ModuleLowerer<'_> {
     fn lower_symbol_key_expression(
         &mut self,
         source_id: dir::LocalNodeIdAny,
-        key: SymbolKey,
+        key: dir::SymbolKey,
     ) -> CodegenJsResult<js::LocalNodeId<js::Expression>> {
         let expression_id = match key {
-            SymbolKey::WellKnown(symbol) => {
+            dir::SymbolKey::WellKnown(symbol) => {
                 self.insert_path_expression(source_id, &["Symbol", symbol.member_name()])
             }
-            SymbolKey::Registry(name) => {
+            dir::SymbolKey::Registry(name) => {
                 let callee = self.insert_path_expression(source_id, &["Symbol", "for"]);
                 let value = self.insert_string_literal_expression(source_id, name);
                 let argument = js::Argument::Positional { value };
@@ -67,7 +66,7 @@ impl ModuleLowerer<'_> {
                 self.tree
                     .insert_from_source_any(call, self.module.id, source_id)
             }
-            SymbolKey::Unique(symbol_id) => {
+            dir::SymbolKey::Unique(symbol_id) => {
                 if symbol_id.module_id != self.module.id {
                     return Err(CodegenJsError::UnsupportedConstruct {
                         node: source_id.into_global(self.module.id),
@@ -78,8 +77,8 @@ impl ModuleLowerer<'_> {
                     });
                 }
 
-                let symbol = self.symbols.get_symbol(LocalSymbolId::from(symbol_id));
-                let Some(StaticKey::Name(name)) = symbol.key else {
+                let symbol = self.symbols.get_symbol(dir::LocalSymbolId::from(symbol_id));
+                let Some(dir::StaticKey::Name(name)) = symbol.key else {
                     return Err(CodegenJsError::UnsupportedConstruct {
                         node: source_id.into_global(self.module.id),
                         message: Some(
@@ -171,14 +170,14 @@ impl ModuleLowerer<'_> {
     pub fn lower_static_key(
         &mut self,
         source_id: dir::LocalNodeIdAny,
-        key: StaticKey,
+        key: dir::StaticKey,
     ) -> CodegenJsResult<js::Key> {
         let key = match key {
-            StaticKey::Name(name) | StaticKey::Number(name) => {
+            dir::StaticKey::Name(name) | dir::StaticKey::Number(name) => {
                 let name = self.lower_string_to_name(name);
                 js::Key::Name(name)
             }
-            StaticKey::Symbol(symbol) => {
+            dir::StaticKey::Symbol(symbol) => {
                 let expression_id = self.lower_symbol_key_expression(source_id, symbol)?;
                 js::Key::Expression(expression_id)
             }
