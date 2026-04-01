@@ -1,5 +1,5 @@
-use destack_dir::{self as dir, Node};
-use destack_js as js;
+use dir::Node;
+use {destack_dir as dir, destack_js as js};
 
 use crate::{CodegenJsError, CodegenJsResult, CodegenJsResultExt, ModuleLowerer};
 
