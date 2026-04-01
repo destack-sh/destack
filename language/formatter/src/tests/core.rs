@@ -39,12 +39,25 @@ impl TestFormatter {
     where
         F: FnOnce(&mut Parser) -> ParseResult<N>,
     {
+        Self::parse_with_file_name_and_type(input, "<string>", file_type, parse_fn)
+    }
+
+    /// Parse one input with an explicit file name and file type.
+    pub(crate) fn parse_with_file_name_and_type<F, N>(
+        input: &str,
+        file_name: &str,
+        file_type: FileType,
+        parse_fn: F,
+    ) -> ParseResult<(Self, N)>
+    where
+        F: FnOnce(&mut Parser) -> ParseResult<N>,
+    {
         // source
         let file_id = FileId::new(0);
         let file = File::from_text(
             file_id,
-            "<string>".to_string(),
-            Uri::from_string("<string>"),
+            file_name.to_string(),
+            Uri::from_string(file_name),
             None,
             file_type,
             input.to_string(),
@@ -110,6 +123,15 @@ impl TestFormatter {
     }
 }
 
+/// Normalize test formatter options for one file type.
+fn normalize_test_options_for_file_type(
+    mut options: DestackFormatOptions,
+    file_type: FileType,
+) -> DestackFormatOptions {
+    options.language_type = LanguageType::from(file_type);
+    options
+}
+
 /// Assert formatter output and print a diff on mismatch.
 #[track_caller]
 pub(crate) fn assert_format_output_eq(expected: impl AsRef<str>, actual: impl AsRef<str>) {
@@ -133,6 +155,8 @@ pub(crate) fn assert_format_roundtrip_with_file_type<F, N>(
     F: Fn(&mut Parser) -> ParseResult<N> + Copy,
     N: for<'a> Format<DestackFormatContext<'a>>,
 {
+    let options = normalize_test_options_for_file_type(options, file_type);
+
     let (first_formatter, first_node_id) =
         TestFormatter::parse_with_file_type(input, file_type, parse_fn)
             .expect("parse first-pass source");
@@ -153,6 +177,8 @@ pub(crate) fn assert_format_program_roundtrip_with_file_type(
     file_type: FileType,
     options: DestackFormatOptions,
 ) {
+    let options = normalize_test_options_for_file_type(options, file_type);
+
     let (first_formatter, first_roots) =
         TestFormatter::parse_with_file_type(input, file_type, |p| Ok(p.parse()))
             .expect("parse first-pass source");
@@ -162,6 +188,35 @@ pub(crate) fn assert_format_program_roundtrip_with_file_type(
     let (second_formatter, second_roots) =
         TestFormatter::parse_with_file_type(&first_output, file_type, |p| Ok(p.parse()))
             .expect("parse second-pass source");
+    let second_output = second_formatter.format(&statement_list(&second_roots), options);
+    assert_format_output_eq(&first_output, &second_output);
+}
+
+/// Assert one whole-program output and second-pass stability with an explicit file name.
+pub(crate) fn assert_format_program_roundtrip_with_file_name_and_type(
+    input: &str,
+    expected: &str,
+    file_name: &str,
+    file_type: FileType,
+    options: DestackFormatOptions,
+) {
+    let options = normalize_test_options_for_file_type(options, file_type);
+
+    let (first_formatter, first_roots) = TestFormatter::parse_with_file_name_and_type(
+        input,
+        file_name,
+        file_type,
+        |p| Ok(p.parse()),
+    )
+    .expect("parse first-pass source");
+    let first_output = first_formatter.format(&statement_list(&first_roots), options.clone());
+    assert_format_output_eq(expected, &first_output);
+
+    let (second_formatter, second_roots) =
+        TestFormatter::parse_with_file_name_and_type(&first_output, file_name, file_type, |p| {
+            Ok(p.parse())
+        })
+        .expect("parse second-pass source");
     let second_output = second_formatter.format(&statement_list(&second_roots), options);
     assert_format_output_eq(&first_output, &second_output);
 }
@@ -185,6 +240,8 @@ pub(crate) fn assert_format_program_idempotent_with_file_type(
     file_type: FileType,
     options: DestackFormatOptions,
 ) {
+    let options = normalize_test_options_for_file_type(options, file_type);
+
     let (first_formatter, first_roots) =
         TestFormatter::parse_with_file_type(input, file_type, |p| Ok(p.parse()))
             .expect("parse first-pass source");
