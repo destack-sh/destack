@@ -41,6 +41,17 @@ fn default_switch_transfer(default_target: u32, default_copies: CopyRange) -> Tr
     }
 }
 
+/// Load one switch operand as a signed integer.
+#[inline(always)]
+fn load_switch_value(state: &StepState<'_, '_>, value: mir::Value) -> Result<i64, Error> {
+    let value = state.get(value);
+
+    value.as_int().ok_or_else(|| Error::TypeMismatch {
+        expected: "signed integer".to_string(),
+        actual: format!("{value:?}"),
+    })
+}
+
 /// Step assume (optimizer hint).
 pub(crate) fn step_assume(
     state: &mut StepState<'_, '_>,
@@ -659,8 +670,10 @@ pub(crate) fn step_switch(
     };
 
     // load switch value
-    let switch_val = state.get(*value);
-    let int_val = switch_val.as_int().unwrap_or(0);
+    let int_val = match load_switch_value(state, *value) {
+        Ok(int_val) => int_val,
+        Err(error) => return Transfer::Error(error),
+    };
 
     // update branch statistics
     if state.collect_stats {
@@ -704,8 +717,10 @@ pub(crate) fn step_switch_table(
     };
 
     // load switch value
-    let switch_val = state.get(*value);
-    let int_val = switch_val.as_int().unwrap_or(0);
+    let int_val = match load_switch_value(state, *value) {
+        Ok(int_val) => int_val,
+        Err(error) => return Transfer::Error(error),
+    };
 
     // record the branch before selecting a target
     record_branch(state);

@@ -18,6 +18,11 @@ use super::{
     enter_event_loop_scope,
 };
 
+/// Convert one configured runtime limit into a host usize.
+fn host_limit(value: u64, label: &str) -> usize {
+    usize::try_from(value).unwrap_or_else(|_| panic!("runtime {label} exceeds host usize: {value}"))
+}
+
 impl Agent {
     /// Run an entrypoint through the event loop.
     pub fn run_entrypoint(
@@ -307,7 +312,7 @@ impl Agent {
             .event_loop
             .options()
             .max_microtask_depth
-            .map(|depth| usize::try_from(depth).unwrap_or(usize::MAX))
+            .map(|depth| host_limit(depth, "max_microtask_depth"))
             .unwrap_or(usize::MAX);
         let mut ran_macrotask = false;
         if let Some(item) = self.event_loop.next_runnable(wall_now, mono_now)? {
@@ -523,13 +528,13 @@ impl Agent {
             .event_loop
             .options()
             .microtask_budget
-            .map(|budget| usize::try_from(budget).unwrap_or(usize::MAX))
+            .map(|budget| host_limit(budget, "microtask_budget"))
             .unwrap_or(usize::MAX);
         let max_microtask_depth = self
             .event_loop
             .options()
             .max_microtask_depth
-            .map(|depth| usize::try_from(depth).unwrap_or(usize::MAX))
+            .map(|depth| host_limit(depth, "max_microtask_depth"))
             .unwrap_or(usize::MAX);
 
         // drain microtasks until the queue or budget is exhausted

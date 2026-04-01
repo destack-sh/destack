@@ -21,8 +21,13 @@ fn build_reference_result(
 
 /// Load one array index operand as an unsigned value.
 #[inline(always)]
-fn load_array_index(state: &StepState<'_, '_>, index: mir::Value) -> u64 {
-    state.get(index).as_uint().unwrap_or(0)
+fn load_array_index(state: &StepState<'_, '_>, index: mir::Value) -> Result<u64, Error> {
+    let value = state.get(index);
+
+    value.as_uint().ok_or_else(|| Error::TypeMismatch {
+        expected: "unsigned integer".to_string(),
+        actual: format!("{value:?}"),
+    })
 }
 
 /// Step field get.
@@ -1095,7 +1100,10 @@ pub(crate) fn step_element_get(
 
     // load array and index
     let arr = state.get(*array);
-    let idx_val = load_array_index(state, *index);
+    let idx_val = match load_array_index(state, *index) {
+        Ok(idx_val) => idx_val,
+        Err(error) => return Transfer::Error(error),
+    };
 
     // load element value
     let value = match access::get_element(state, arr, idx_val) {
@@ -1127,7 +1135,10 @@ pub(crate) fn step_index_select(
     };
 
     // load index and cases
-    let index_value = load_array_index(state, *index);
+    let index_value = match load_array_index(state, *index) {
+        Ok(index_value) => index_value,
+        Err(error) => return Transfer::Error(error),
+    };
     let element_slice = state.argument_slice(*elements);
     let selected = match usize::try_from(index_value) {
         Ok(index) => element_slice.get(index).copied(),
@@ -1166,7 +1177,10 @@ pub(crate) fn step_select_by_index(
     };
 
     // load index and choose the source value
-    let index_value = load_array_index(state, *index);
+    let index_value = match load_array_index(state, *index) {
+        Ok(index_value) => index_value,
+        Err(error) => return Transfer::Error(error),
+    };
     let selected = if index_value == *match_index {
         *then_value
     } else {
@@ -1201,8 +1215,10 @@ pub(crate) fn step_element_addr(
 
     // load array and index
     let arr = state.get(*array);
-    let idx = state.get(*index);
-    let idx_val = idx.as_uint().unwrap_or(0);
+    let idx_val = match load_array_index(state, *index) {
+        Ok(idx_val) => idx_val,
+        Err(error) => return Transfer::Error(error),
+    };
 
     // compute element address
     let value = match (arr.tag(), *element) {
@@ -1264,7 +1280,10 @@ pub(crate) fn step_element_addr_composite(
             actual: format!("{arr:?}"),
         });
     }
-    let idx_val = load_array_index(state, *index);
+    let idx_val = match load_array_index(state, *index) {
+        Ok(idx_val) => idx_val,
+        Err(error) => return Transfer::Error(error),
+    };
 
     // compute element address
     let Some(element) = *element else {
@@ -1323,7 +1342,10 @@ pub(crate) fn step_element_addr_managed(
             actual: format!("{arr:?}"),
         });
     }
-    let idx_val = load_array_index(state, *index);
+    let idx_val = match load_array_index(state, *index) {
+        Ok(idx_val) => idx_val,
+        Err(error) => return Transfer::Error(error),
+    };
 
     // compute element address
     let handle = arr.as_managed_reference().unwrap();
@@ -1370,7 +1392,10 @@ pub(crate) fn step_element_addr_raw(
             actual: format!("{arr:?}"),
         });
     }
-    let idx_val = load_array_index(state, *index);
+    let idx_val = match load_array_index(state, *index) {
+        Ok(idx_val) => idx_val,
+        Err(error) => return Transfer::Error(error),
+    };
 
     // compute element address
     let pointer = arr.as_raw_pointer().unwrap();
@@ -1417,7 +1442,10 @@ pub(crate) fn step_element_addr_stack(
             actual: format!("{arr:?}"),
         });
     }
-    let idx_val = load_array_index(state, *index);
+    let idx_val = match load_array_index(state, *index) {
+        Ok(idx_val) => idx_val,
+        Err(error) => return Transfer::Error(error),
+    };
 
     // compute element address
     let pointer = arr.as_stack_pointer().unwrap();
@@ -1464,7 +1492,10 @@ pub(crate) fn step_element_addr_global(
             actual: format!("{arr:?}"),
         });
     }
-    let idx_val = load_array_index(state, *index);
+    let idx_val = match load_array_index(state, *index) {
+        Ok(idx_val) => idx_val,
+        Err(error) => return Transfer::Error(error),
+    };
 
     // compute element address
     let pointer = arr.as_global_pointer().unwrap();
@@ -1502,8 +1533,10 @@ pub(crate) fn step_element_load(
 
     // load array and index
     let arr = state.get(*array);
-    let idx = state.get(*index);
-    let idx_val = idx.as_uint().unwrap_or(0);
+    let idx_val = match load_array_index(state, *index) {
+        Ok(idx_val) => idx_val,
+        Err(error) => return Transfer::Error(error),
+    };
 
     // load the selected element through the runtime storage class
     let value = match (arr.tag(), *element) {
@@ -1570,8 +1603,10 @@ pub(crate) fn step_element_load_composite(
             actual: format!("{arr:?}"),
         });
     }
-    let idx = state.get(*index);
-    let idx_val = idx.as_uint().unwrap_or(0);
+    let idx_val = match load_array_index(state, *index) {
+        Ok(idx_val) => idx_val,
+        Err(error) => return Transfer::Error(error),
+    };
 
     // load element value
     let value = match access::get_element(state, arr, idx_val) {
@@ -1611,8 +1646,10 @@ pub(crate) fn step_element_load_managed(
             actual: format!("{arr:?}"),
         });
     }
-    let idx = state.get(*index);
-    let idx_val = idx.as_uint().unwrap_or(0);
+    let idx_val = match load_array_index(state, *index) {
+        Ok(idx_val) => idx_val,
+        Err(error) => return Transfer::Error(error),
+    };
 
     // load element value
     let handle = arr.as_managed_reference().unwrap();
@@ -1656,8 +1693,10 @@ pub(crate) fn step_element_load_raw(
             actual: format!("{arr:?}"),
         });
     }
-    let idx = state.get(*index);
-    let idx_val = idx.as_uint().unwrap_or(0);
+    let idx_val = match load_array_index(state, *index) {
+        Ok(idx_val) => idx_val,
+        Err(error) => return Transfer::Error(error),
+    };
 
     // load element value
     let pointer = arr.as_raw_pointer().unwrap();
@@ -1701,8 +1740,10 @@ pub(crate) fn step_element_load_stack(
             actual: format!("{arr:?}"),
         });
     }
-    let idx = state.get(*index);
-    let idx_val = idx.as_uint().unwrap_or(0);
+    let idx_val = match load_array_index(state, *index) {
+        Ok(idx_val) => idx_val,
+        Err(error) => return Transfer::Error(error),
+    };
 
     // load element value
     let pointer = arr.as_stack_pointer().unwrap();
@@ -1746,8 +1787,10 @@ pub(crate) fn step_element_load_global(
             actual: format!("{arr:?}"),
         });
     }
-    let idx = state.get(*index);
-    let idx_val = idx.as_uint().unwrap_or(0);
+    let idx_val = match load_array_index(state, *index) {
+        Ok(idx_val) => idx_val,
+        Err(error) => return Transfer::Error(error),
+    };
 
     // load element value
     let pointer = arr.as_global_pointer().unwrap();
@@ -1782,9 +1825,11 @@ pub(crate) fn step_element_set(
 
     // load operands
     let arr = state.get(*array);
-    let idx = state.get(*index);
     let val = state.get(*value);
-    let idx_val = idx.as_uint().unwrap_or(0);
+    let idx_val = match load_array_index(state, *index) {
+        Ok(idx_val) => idx_val,
+        Err(error) => return Transfer::Error(error),
+    };
 
     // write element
     let result = match access::set_element(state, arr, idx_val, val) {
@@ -1820,9 +1865,11 @@ pub(crate) fn step_element_store(
 
     // load operands
     let arr = state.get(*array);
-    let idx = state.get(*index);
     let val = state.get(*value);
-    let idx_val = idx.as_uint().unwrap_or(0);
+    let idx_val = match load_array_index(state, *index) {
+        Ok(idx_val) => idx_val,
+        Err(error) => return Transfer::Error(error),
+    };
 
     // store the selected element through the runtime storage class
     let result = match (arr.tag(), *element) {
@@ -1924,9 +1971,11 @@ pub(crate) fn step_element_store_composite(
             actual: format!("{arr:?}"),
         });
     }
-    let idx = state.get(*index);
     let val = state.get(*value);
-    let idx_val = idx.as_uint().unwrap_or(0);
+    let idx_val = match load_array_index(state, *index) {
+        Ok(idx_val) => idx_val,
+        Err(error) => return Transfer::Error(error),
+    };
 
     // validate reference semantics
     let pointer = match arr.tag() {
@@ -1980,9 +2029,11 @@ pub(crate) fn step_element_store_managed(
             actual: format!("{arr:?}"),
         });
     }
-    let idx = state.get(*index);
     let val = state.get(*value);
-    let idx_val = idx.as_uint().unwrap_or(0);
+    let idx_val = match load_array_index(state, *index) {
+        Ok(idx_val) => idx_val,
+        Err(error) => return Transfer::Error(error),
+    };
 
     // validate reference semantics
     let handle = arr.as_managed_reference().unwrap();
@@ -2034,9 +2085,11 @@ pub(crate) fn step_element_store_raw(
             actual: format!("{arr:?}"),
         });
     }
-    let idx = state.get(*index);
     let val = state.get(*value);
-    let idx_val = idx.as_uint().unwrap_or(0);
+    let idx_val = match load_array_index(state, *index) {
+        Ok(idx_val) => idx_val,
+        Err(error) => return Transfer::Error(error),
+    };
 
     // validate reference semantics
     let raw_pointer = arr.as_raw_pointer().unwrap();
@@ -2088,9 +2141,11 @@ pub(crate) fn step_element_store_stack(
             actual: format!("{arr:?}"),
         });
     }
-    let idx = state.get(*index);
     let val = state.get(*value);
-    let idx_val = idx.as_uint().unwrap_or(0);
+    let idx_val = match load_array_index(state, *index) {
+        Ok(idx_val) => idx_val,
+        Err(error) => return Transfer::Error(error),
+    };
 
     // validate reference semantics
     let stack_pointer = arr.as_stack_pointer().unwrap();
@@ -2142,9 +2197,11 @@ pub(crate) fn step_element_store_global(
             actual: format!("{arr:?}"),
         });
     }
-    let idx = state.get(*index);
     let val = state.get(*value);
-    let idx_val = idx.as_uint().unwrap_or(0);
+    let idx_val = match load_array_index(state, *index) {
+        Ok(idx_val) => idx_val,
+        Err(error) => return Transfer::Error(error),
+    };
 
     // validate reference semantics
     let global_pointer = arr.as_global_pointer().unwrap();
