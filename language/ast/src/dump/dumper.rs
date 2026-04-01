@@ -934,11 +934,18 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Return { value: _ } => {
                 self.node("Expression::Return", _id.id).end();
             }
-            Expression::Path {
+            Expression::Identifier { name } => {
+                self.node("Expression::Identifier", _id.id)
+                    .field("name", name)
+                    .end();
+            }
+            Expression::QualifiedReference {
                 path,
                 static_arguments: _,
             } => {
-                self.node("Expression::Path", _id.id).value(path).end();
+                self.node("Expression::QualifiedReference", _id.id)
+                    .value(path)
+                    .end();
             }
             Expression::PrivateIdentifier { name } => {
                 self.node("Expression::PrivateIdentifier", _id.id)

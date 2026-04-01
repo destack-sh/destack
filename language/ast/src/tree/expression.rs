@@ -392,8 +392,11 @@ pub enum Expression {
         value: Option<LocalNodeId<Expression>>,
     },
 
-    /// Alias reference to some path, statically parameterized.
-    Path {
+    /// Bare identifier reference.
+    Identifier { name: StringId },
+
+    /// Static qualified reference, optionally parameterized.
+    QualifiedReference {
         path: Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
