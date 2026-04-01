@@ -27,6 +27,239 @@ use destack_fir::format::{Buffer, FormatResult, GroupId};
 use destack_fir::prelude::{block_indent, group, hard_line_break, soft_block_indent, space, token};
 use destack_fir::{format_args, write};
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum GroupedCallArgumentLayout {
+    GroupedFirstArgument,
+    GroupedLastArgument,
+}
+
+/// Return the plain expression value behind one call argument.
+fn call_argument_expression_id(
+    ctx: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> Option<LocalNodeId<Expression>> {
+    let value_id = argument_value_id_if_present(ctx.tree, argument_id)?;
+    Some(transparent_inner_expression(ctx, value_id))
+}
+
+/// Return whether one expression is a function-like call argument.
+fn expression_is_function_like_argument(
+    ctx: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Expression::Declaration(declaration_id) = ctx.tree.get(expression_id) else {
+        return false;
+    };
+
+    matches!(ctx.tree.get(*declaration_id), Declaration::Function { .. })
+}
+
+/// Return whether one expression is a block-bodied lambda call argument.
+fn expression_is_block_lambda_argument(
+    ctx: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Expression::Declaration(declaration_id) = ctx.tree.get(expression_id) else {
+        return false;
+    };
+    let Declaration::Function {
+        signature,
+        body: Some(body_id),
+        ..
+    } = ctx.tree.get(*declaration_id)
+    else {
+        return false;
+    };
+
+    if signature.kind != FunctionKind::Lambda {
+        return false;
+    }
+
+    let body_id = transparent_inner_expression(ctx, *body_id);
+    matches!(ctx.tree.get(body_id), Expression::Block(_))
+}
+
+/// Return whether one expression can participate in grouped call-argument layout.
+fn can_group_expression_argument(
+    ctx: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    match ctx.tree.get(expression_id) {
+        Expression::ObjectExpression { properties, .. } => {
+            !properties.is_empty()
+                || !ctx
+                    .comments_in_range(ctx.span(expression_id).start, ctx.span(expression_id).end)
+                    .is_empty()
+        }
+        Expression::ArrayExpression { elements, .. } => {
+            !elements.is_empty()
+                || !ctx
+                    .comments_in_range(ctx.span(expression_id).start, ctx.span(expression_id).end)
+                    .is_empty()
+        }
+        Expression::TypeBinary {
+            operator:
+                destack_ast::TypeBinaryOperator::Cast | destack_ast::TypeBinaryOperator::Satisfies,
+            left,
+            ..
+        } => can_group_expression_argument(ctx, transparent_inner_expression(ctx, *left)),
+        _ => expression_is_function_like_argument(ctx, expression_id),
+    }
+}
+
+/// Return whether one expression is short enough to stay next to a grouped function argument.
+fn expression_is_relatively_short_group_partner(
+    ctx: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    if ctx.node_has_newline(expression_id) || ctx.has_annotation(expression_id) {
+        return false;
+    }
+
+    match ctx.tree.get(expression_id) {
+        Expression::ObjectExpression { .. }
+        | Expression::ArrayExpression { .. }
+        | Expression::If { .. }
+        | Expression::Declaration(_)
+        | Expression::Block(_) => false,
+        Expression::TypeBinary {
+            operator:
+                destack_ast::TypeBinaryOperator::Cast | destack_ast::TypeBinaryOperator::Satisfies,
+            left,
+            ..
+        } => {
+            let left_id = transparent_inner_expression(ctx, *left);
+            matches!(
+                ctx.tree.get(left_id),
+                Expression::ObjectExpression { .. } | Expression::ArrayExpression { .. }
+            )
+        }
+        expression => is_trivial_expression(ctx.tree, expression),
+    }
+}
+
+/// Return whether two grouped-last arguments are the same family and should not use grouped layout.
+fn grouped_last_arguments_share_family(
+    ctx: &DestackFormatContext<'_>,
+    penultimate_id: LocalNodeId<Expression>,
+    last_id: LocalNodeId<Expression>,
+) -> bool {
+    matches!(
+        (ctx.tree.get(penultimate_id), ctx.tree.get(last_id)),
+        (
+            Expression::ObjectExpression { .. },
+            Expression::ObjectExpression { .. }
+        ) | (
+            Expression::ArrayExpression { .. },
+            Expression::ArrayExpression { .. }
+        ) | (
+            Expression::TypeBinary {
+                operator: destack_ast::TypeBinaryOperator::Cast
+                    | destack_ast::TypeBinaryOperator::Satisfies,
+                ..
+            },
+            Expression::TypeBinary {
+                operator: destack_ast::TypeBinaryOperator::Cast
+                    | destack_ast::TypeBinaryOperator::Satisfies,
+                ..
+            }
+        )
+    ) || (expression_is_function_like_argument(ctx, penultimate_id)
+        && expression_is_function_like_argument(ctx, last_id))
+}
+
+/// Return the grouped call-argument layout, if one standard grouped layout applies.
+fn grouped_call_argument_layout(
+    ctx: &DestackFormatContext<'_>,
+    dynamic_arguments: &[LocalNodeId<Argument>],
+    has_call_infix_annotations: bool,
+    has_any_argument_annotation: bool,
+    has_boundary_comments: bool,
+) -> Option<GroupedCallArgumentLayout> {
+    if has_call_infix_annotations || has_any_argument_annotation || has_boundary_comments {
+        return None;
+    }
+
+    if dynamic_arguments.len() == 1 {
+        let argument_expression_id = call_argument_expression_id(ctx, dynamic_arguments[0])?;
+        if expression_is_function_like_argument(ctx, argument_expression_id) {
+            return Some(GroupedCallArgumentLayout::GroupedFirstArgument);
+        }
+
+        return None;
+    }
+
+    if dynamic_arguments.len() != 2 {
+        return None;
+    }
+
+    let first_id = call_argument_expression_id(ctx, dynamic_arguments[0])?;
+    let second_id = call_argument_expression_id(ctx, dynamic_arguments[1])?;
+
+    if expression_is_block_lambda_argument(ctx, first_id)
+        && expression_is_relatively_short_group_partner(ctx, second_id)
+    {
+        return Some(GroupedCallArgumentLayout::GroupedFirstArgument);
+    }
+
+    if expression_is_function_like_argument(ctx, first_id) {
+        return None;
+    }
+
+    if can_group_expression_argument(ctx, second_id)
+        && !grouped_last_arguments_share_family(ctx, first_id, second_id)
+    {
+        return Some(GroupedCallArgumentLayout::GroupedLastArgument);
+    }
+
+    None
+}
+
+/// Format one grouped call-argument layout.
+fn format_grouped_call_argument_layout<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    dynamic_arguments: &[LocalNodeId<Argument>],
+    layout: GroupedCallArgumentLayout,
+) -> FormatResult<()> {
+    match (layout, dynamic_arguments) {
+        (GroupedCallArgumentLayout::GroupedFirstArgument, [argument_id]) => {
+            write!(
+                f,
+                [group(&format_args![token("("), *argument_id, token(")")])]
+            )
+        }
+        (GroupedCallArgumentLayout::GroupedFirstArgument, [first_id, second_id]) => write!(
+            f,
+            [group(&format_args![
+                token("("),
+                *first_id,
+                token(","),
+                space(),
+                *second_id,
+                token(")")
+            ])]
+        ),
+        (GroupedCallArgumentLayout::GroupedLastArgument, [first_id, second_id]) => write!(
+            f,
+            [group(&format_args![
+                token("("),
+                *first_id,
+                token(","),
+                space(),
+                group(second_id),
+                token(")")
+            ])]
+        ),
+        _ => format_default_call_argument_list(
+            f,
+            f.group_id("call_args_grouped_fallback"),
+            dynamic_arguments,
+            false,
+            false,
+        ),
+    }
+}
+
 /// Return whether an argument can be emitted directly without argument-node formatting.
 pub(crate) fn argument_is_plain_call_argument(
     ctx: &DestackFormatContext<'_>,
@@ -510,6 +743,17 @@ pub(crate) fn format_decided_call_argument_list<'ast>(
     force_expand_single_collection_for_type_binary_callee: bool,
     has_boundary_comments: bool,
 ) -> FormatResult<()> {
+    // grouped standard layouts
+    if let Some(layout) = grouped_call_argument_layout(
+        f.context(),
+        dynamic_arguments,
+        has_call_infix_annotations,
+        has_any_argument_annotation,
+        has_boundary_comments,
+    ) {
+        return format_grouped_call_argument_layout(f, dynamic_arguments, layout);
+    }
+
     if dynamic_arguments.len() == 1 {
         let argument_id = dynamic_arguments[0];
 

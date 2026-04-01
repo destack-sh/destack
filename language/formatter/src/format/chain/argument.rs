@@ -1,7 +1,10 @@
 use super::transparent_inner_expression;
 use crate::DestackFormatContext;
 use crate::format::expression::is_expression_breakable;
-use crate::format::operator::expression_static_arguments;
+use crate::format::operator::{
+    expression_static_arguments, is_object_like_type_expression,
+    leading_raw_type_position_comment_nodes,
+};
 use crate::format::tree::tree_literal_should_break;
 use destack_ast::{
     Argument, Declaration, Expression, FunctionKind, LocalNodeId, NodeTree, NodeType, Property,
@@ -112,6 +115,15 @@ pub(crate) fn static_argument_list_is_hug_safe(
             return false;
         };
         let argument_value_id = transparent_inner_expression(context, argument_value_id);
+        if !leading_raw_type_position_comment_nodes(context, argument_value_id).is_empty() {
+            return false;
+        }
+
+        // object-like type arguments stay hugged even when the source was multiline
+        if is_object_like_type_expression(context, argument_value_id) {
+            return true;
+        }
+
         if context.node_has_newline(argument_value_id) {
             return false;
         }

@@ -157,6 +157,9 @@ impl Parser {
             )
         };
 
+        // reattach decorator prefix comments onto class and object body owners
+        self.attach_decorator_prefix_comment_targets(semantic_tokens);
+
         // emit blank runs
         {
             let _group_loop_timing = self
@@ -372,6 +375,76 @@ impl Parser {
         }
 
         inserted_docs
+    }
+
+    /// Attach prefix comment trivia that belongs to decorator chains onto body owners.
+    fn attach_decorator_prefix_comment_targets(&mut self, semantic_tokens: &[TokenSpan]) {
+        if semantic_tokens.is_empty() || self.tree.comment_trivia().is_empty() {
+            return;
+        }
+
+        let node_count = self.tree.next_id();
+        for node_id in 0..node_count {
+            let node_type = self.tree.get_node_type(node_id);
+            if !matches!(node_type, NodeType::Property | NodeType::Member) {
+                continue;
+            }
+
+            let annotation_ids = self.tree.get_annotations_ref(node_id);
+            if annotation_ids.is_empty() {
+                continue;
+            }
+
+            let mut token_after_indexes = Vec::new();
+            for &annotation_id in annotation_ids {
+                let annotation = self.tree.get(annotation_id);
+                if !matches!(
+                    annotation,
+                    Annotation::Decorator {
+                        position: AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix,
+                        ..
+                    }
+                ) {
+                    continue;
+                }
+
+                let annotation_span = self.tree.get_span(annotation_id);
+                if let Ok(token_index) = semantic_tokens
+                    .binary_search_by_key(&annotation_span.start, |token| token.span.start)
+                {
+                    token_after_indexes.push(token_index as u32);
+                }
+            }
+
+            if token_after_indexes.is_empty() {
+                continue;
+            }
+
+            let owner_span = self.tree.get_span_by_id(node_id);
+            if let Ok(token_index) =
+                semantic_tokens.binary_search_by_key(&owner_span.start, |token| token.span.start)
+            {
+                token_after_indexes.push(token_index as u32);
+            }
+
+            token_after_indexes.sort_unstable();
+            token_after_indexes.dedup();
+
+            for trivia in self.tree.comment_trivia_mut() {
+                if trivia.target_node.is_some()
+                    || !token_after_indexes.contains(&trivia.boundary.token_after)
+                {
+                    continue;
+                }
+
+                trivia.target_node = Some(node_id);
+                trivia.position = if trivia.boundary.newlines.has_leading_newline() {
+                    AnnotationPosition::BlockPrefix
+                } else {
+                    AnnotationPosition::LinePrefix
+                };
+            }
+        }
     }
 
     /// Build a direct token-to-owner map for semantic documentation targets.

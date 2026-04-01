@@ -113,7 +113,7 @@ fn tree_children_layout(
                 || has_tree_child
                 || has_multiple_expression_children
                 || has_newline_whitespace_text_child))
-            // ts/js/tsx/jsx: any tag child forces multiline, like prettier and oxc
+            // ts/js/tsx/jsx: any tag child forces multiline, like the standard formatters
             || (!is_destack
                 && (force_break_attributes
                     || has_breaking_child
