@@ -109,6 +109,7 @@ fn encode_destack_error_error_take_platform_error_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<PlatformErrorVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> =
@@ -129,13 +130,30 @@ fn encode_destack_error_error_take_platform_error_result(
                                 Some(value) => Ok(value.value()),
                                 None => Ok(vm::Value::VOID),
                             };
-                            context
-                                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                                .map_err(Box::<RuntimeError>::from)
+                            let mut value_builder = context
+                                .begin_named_storage_value_builder("error::PlatformSystemSourceEai")
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(0, field_0?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(1, field_1?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(2, field_2?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder.finish().map_err(Box::<RuntimeError>::from)
                         }?;
-                        context
-                            .allocate_aggregate(vec![tag_value, payload_value])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("error::PlatformSystemSource")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, tag_value)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, payload_value)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     }
                     PlatformSystemSourceVm::PlatformSystemSourceErrno(value) => {
                         let tag_value = vm::Value::uint(631622357u64, 32);
@@ -147,13 +165,32 @@ fn encode_destack_error_error_take_platform_error_result(
                                 Some(value) => Ok(value.value()),
                                 None => Ok(vm::Value::VOID),
                             };
-                            context
-                                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                                .map_err(Box::<RuntimeError>::from)
+                            let mut value_builder = context
+                                .begin_named_storage_value_builder(
+                                    "error::PlatformSystemSourceErrno",
+                                )
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(0, field_0?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(1, field_1?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(2, field_2?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder.finish().map_err(Box::<RuntimeError>::from)
                         }?;
-                        context
-                            .allocate_aggregate(vec![tag_value, payload_value])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("error::PlatformSystemSource")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, tag_value)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, payload_value)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     }
                     PlatformSystemSourceVm::PlatformSystemSourceHResult(value) => {
                         let tag_value = vm::Value::uint(1028132082u64, 32);
@@ -165,13 +202,32 @@ fn encode_destack_error_error_take_platform_error_result(
                                 Some(value) => Ok(value.value()),
                                 None => Ok(vm::Value::VOID),
                             };
-                            context
-                                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                                .map_err(Box::<RuntimeError>::from)
+                            let mut value_builder = context
+                                .begin_named_storage_value_builder(
+                                    "error::PlatformSystemSourceHResult",
+                                )
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(0, field_0?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(1, field_1?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(2, field_2?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder.finish().map_err(Box::<RuntimeError>::from)
                         }?;
-                        context
-                            .allocate_aggregate(vec![tag_value, payload_value])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("error::PlatformSystemSource")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, tag_value)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, payload_value)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     }
                     PlatformSystemSourceVm::PlatformSystemSourceOther(value) => {
                         let tag_value = vm::Value::uint(3614867150u64, 32);
@@ -183,13 +239,32 @@ fn encode_destack_error_error_take_platform_error_result(
                                 Some(value) => Ok(value.value()),
                                 None => Ok(vm::Value::VOID),
                             };
-                            context
-                                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                                .map_err(Box::<RuntimeError>::from)
+                            let mut value_builder = context
+                                .begin_named_storage_value_builder(
+                                    "error::PlatformSystemSourceOther",
+                                )
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(0, field_0?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(1, field_1?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(2, field_2?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder.finish().map_err(Box::<RuntimeError>::from)
                         }?;
-                        context
-                            .allocate_aggregate(vec![tag_value, payload_value])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("error::PlatformSystemSource")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, tag_value)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, payload_value)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     }
                     PlatformSystemSourceVm::PlatformSystemSourceSignal(value) => {
                         let tag_value = vm::Value::uint(2760780772u64, 32);
@@ -201,13 +276,32 @@ fn encode_destack_error_error_take_platform_error_result(
                                 Some(value) => Ok(value.value()),
                                 None => Ok(vm::Value::VOID),
                             };
-                            context
-                                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                                .map_err(Box::<RuntimeError>::from)
+                            let mut value_builder = context
+                                .begin_named_storage_value_builder(
+                                    "error::PlatformSystemSourceSignal",
+                                )
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(0, field_0?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(1, field_1?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(2, field_2?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder.finish().map_err(Box::<RuntimeError>::from)
                         }?;
-                        context
-                            .allocate_aggregate(vec![tag_value, payload_value])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("error::PlatformSystemSource")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, tag_value)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, payload_value)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     }
                     PlatformSystemSourceVm::PlatformSystemSourceWinsock(value) => {
                         let tag_value = vm::Value::uint(1456327686u64, 32);
@@ -219,13 +313,32 @@ fn encode_destack_error_error_take_platform_error_result(
                                 Some(value) => Ok(value.value()),
                                 None => Ok(vm::Value::VOID),
                             };
-                            context
-                                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                                .map_err(Box::<RuntimeError>::from)
+                            let mut value_builder = context
+                                .begin_named_storage_value_builder(
+                                    "error::PlatformSystemSourceWinsock",
+                                )
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(0, field_0?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(1, field_1?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(2, field_2?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder.finish().map_err(Box::<RuntimeError>::from)
                         }?;
-                        context
-                            .allocate_aggregate(vec![tag_value, payload_value])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("error::PlatformSystemSource")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, tag_value)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, payload_value)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     }
                 },
                 None => Ok(vm::Value::VOID),
@@ -244,13 +357,32 @@ fn encode_destack_error_error_take_platform_error_result(
                                 Some(value) => Ok(value.value()),
                                 None => Ok(vm::Value::VOID),
                             };
-                            context
-                                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                                .map_err(Box::<RuntimeError>::from)
+                            let mut value_builder = context
+                                .begin_named_storage_value_builder(
+                                    "error::PlatformErrorContextAudio",
+                                )
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(0, field_0?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(1, field_1?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(2, field_2?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder.finish().map_err(Box::<RuntimeError>::from)
                         }?;
-                        context
-                            .allocate_aggregate(vec![tag_value, payload_value])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("error::PlatformErrorContext")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, tag_value)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, payload_value)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     }
                     PlatformErrorContextVm::PlatformErrorContextDevice(value) => {
                         let tag_value = vm::Value::uint(1175468002u64, 32);
@@ -269,13 +401,33 @@ fn encode_destack_error_error_take_platform_error_result(
                                                 Ok(value.kind.value());
                                             let field_1: RuntimeResult<vm::Value> =
                                                 value.bytes.to_value(context);
-                                            context
-                                                .allocate_aggregate(vec![field_0?, field_1?])
+                                            let mut value_builder = context
+                                                .begin_named_storage_value_builder(
+                                                    "error::PlatformPathPayloadBytes",
+                                                )
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(0, field_0?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(1, field_1?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .finish()
                                                 .map_err(Box::<RuntimeError>::from)
                                         }?;
-                                        context
-                                            .allocate_aggregate(vec![tag_value, payload_value])
-                                            .map_err(Box::<RuntimeError>::from)
+                                        let mut value_builder = context
+                                            .begin_named_storage_value_builder(
+                                                "error::PlatformPathPayload",
+                                            )
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(0, tag_value)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(1, payload_value)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                                     }
                                     PlatformPathPayloadVm::PlatformPathPayloadUtf16(value) => {
                                         let tag_value = vm::Value::uint(2409119511u64, 32);
@@ -284,13 +436,33 @@ fn encode_destack_error_error_take_platform_error_result(
                                                 Ok(value.kind.value());
                                             let field_1: RuntimeResult<vm::Value> =
                                                 value.utf16.to_value(context);
-                                            context
-                                                .allocate_aggregate(vec![field_0?, field_1?])
+                                            let mut value_builder = context
+                                                .begin_named_storage_value_builder(
+                                                    "error::PlatformPathPayloadUtf16",
+                                                )
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(0, field_0?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(1, field_1?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .finish()
                                                 .map_err(Box::<RuntimeError>::from)
                                         }?;
-                                        context
-                                            .allocate_aggregate(vec![tag_value, payload_value])
-                                            .map_err(Box::<RuntimeError>::from)
+                                        let mut value_builder = context
+                                            .begin_named_storage_value_builder(
+                                                "error::PlatformPathPayload",
+                                            )
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(0, tag_value)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(1, payload_value)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                                     }
                                 },
                                 None => Ok(vm::Value::VOID),
@@ -303,15 +475,38 @@ fn encode_destack_error_error_take_platform_error_result(
                                 Some(value) => Ok(value.value()),
                                 None => Ok(vm::Value::VOID),
                             };
-                            context
-                                .allocate_aggregate(vec![
-                                    field_0?, field_1?, field_2?, field_3?, field_4?,
-                                ])
-                                .map_err(Box::<RuntimeError>::from)
+                            let mut value_builder = context
+                                .begin_named_storage_value_builder(
+                                    "error::PlatformErrorContextDevice",
+                                )
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(0, field_0?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(1, field_1?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(2, field_2?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(3, field_3?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(4, field_4?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder.finish().map_err(Box::<RuntimeError>::from)
                         }?;
-                        context
-                            .allocate_aggregate(vec![tag_value, payload_value])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("error::PlatformErrorContext")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, tag_value)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, payload_value)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     }
                     PlatformErrorContextVm::PlatformErrorContextDisplay(value) => {
                         let tag_value = vm::Value::uint(2713129955u64, 32);
@@ -325,13 +520,32 @@ fn encode_destack_error_error_take_platform_error_result(
                                 Some(value) => Ok(value.value()),
                                 None => Ok(vm::Value::VOID),
                             };
-                            context
-                                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                                .map_err(Box::<RuntimeError>::from)
+                            let mut value_builder = context
+                                .begin_named_storage_value_builder(
+                                    "error::PlatformErrorContextDisplay",
+                                )
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(0, field_0?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(1, field_1?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(2, field_2?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder.finish().map_err(Box::<RuntimeError>::from)
                         }?;
-                        context
-                            .allocate_aggregate(vec![tag_value, payload_value])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("error::PlatformErrorContext")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, tag_value)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, payload_value)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     }
                     PlatformErrorContextVm::PlatformErrorContextFfi(value) => {
                         let tag_value = vm::Value::uint(296575469u64, 32);
@@ -349,13 +563,33 @@ fn encode_destack_error_error_take_platform_error_result(
                                 Some(value) => Ok(value.value()),
                                 None => Ok(vm::Value::VOID),
                             };
-                            context
-                                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                                .map_err(Box::<RuntimeError>::from)
+                            let mut value_builder = context
+                                .begin_named_storage_value_builder("error::PlatformErrorContextFfi")
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(0, field_0?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(1, field_1?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(2, field_2?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(3, field_3?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder.finish().map_err(Box::<RuntimeError>::from)
                         }?;
-                        context
-                            .allocate_aggregate(vec![tag_value, payload_value])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("error::PlatformErrorContext")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, tag_value)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, payload_value)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     }
                     PlatformErrorContextVm::PlatformErrorContextGeneric(value) => {
                         let tag_value = vm::Value::uint(1651991300u64, 32);
@@ -377,15 +611,38 @@ fn encode_destack_error_error_take_platform_error_result(
                                 Some(value) => Ok(value.value()),
                                 None => Ok(vm::Value::VOID),
                             };
-                            context
-                                .allocate_aggregate(vec![
-                                    field_0?, field_1?, field_2?, field_3?, field_4?,
-                                ])
-                                .map_err(Box::<RuntimeError>::from)
+                            let mut value_builder = context
+                                .begin_named_storage_value_builder(
+                                    "error::PlatformErrorContextGeneric",
+                                )
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(0, field_0?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(1, field_1?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(2, field_2?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(3, field_3?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(4, field_4?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder.finish().map_err(Box::<RuntimeError>::from)
                         }?;
-                        context
-                            .allocate_aggregate(vec![tag_value, payload_value])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("error::PlatformErrorContext")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, tag_value)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, payload_value)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     }
                     PlatformErrorContextVm::PlatformErrorContextGpu(value) => {
                         let tag_value = vm::Value::uint(10423638u64, 32);
@@ -399,13 +656,30 @@ fn encode_destack_error_error_take_platform_error_result(
                                 Some(value) => Ok(value.value()),
                                 None => Ok(vm::Value::VOID),
                             };
-                            context
-                                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                                .map_err(Box::<RuntimeError>::from)
+                            let mut value_builder = context
+                                .begin_named_storage_value_builder("error::PlatformErrorContextGpu")
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(0, field_0?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(1, field_1?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(2, field_2?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder.finish().map_err(Box::<RuntimeError>::from)
                         }?;
-                        context
-                            .allocate_aggregate(vec![tag_value, payload_value])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("error::PlatformErrorContext")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, tag_value)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, payload_value)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     }
                     PlatformErrorContextVm::PlatformErrorContextIo(value) => {
                         let tag_value = vm::Value::uint(629091376u64, 32);
@@ -424,13 +698,33 @@ fn encode_destack_error_error_take_platform_error_result(
                                                 Ok(value.kind.value());
                                             let field_1: RuntimeResult<vm::Value> =
                                                 value.bytes.to_value(context);
-                                            context
-                                                .allocate_aggregate(vec![field_0?, field_1?])
+                                            let mut value_builder = context
+                                                .begin_named_storage_value_builder(
+                                                    "error::PlatformPathPayloadBytes",
+                                                )
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(0, field_0?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(1, field_1?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .finish()
                                                 .map_err(Box::<RuntimeError>::from)
                                         }?;
-                                        context
-                                            .allocate_aggregate(vec![tag_value, payload_value])
-                                            .map_err(Box::<RuntimeError>::from)
+                                        let mut value_builder = context
+                                            .begin_named_storage_value_builder(
+                                                "error::PlatformPathPayload",
+                                            )
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(0, tag_value)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(1, payload_value)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                                     }
                                     PlatformPathPayloadVm::PlatformPathPayloadUtf16(value) => {
                                         let tag_value = vm::Value::uint(2409119511u64, 32);
@@ -439,13 +733,33 @@ fn encode_destack_error_error_take_platform_error_result(
                                                 Ok(value.kind.value());
                                             let field_1: RuntimeResult<vm::Value> =
                                                 value.utf16.to_value(context);
-                                            context
-                                                .allocate_aggregate(vec![field_0?, field_1?])
+                                            let mut value_builder = context
+                                                .begin_named_storage_value_builder(
+                                                    "error::PlatformPathPayloadUtf16",
+                                                )
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(0, field_0?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(1, field_1?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .finish()
                                                 .map_err(Box::<RuntimeError>::from)
                                         }?;
-                                        context
-                                            .allocate_aggregate(vec![tag_value, payload_value])
-                                            .map_err(Box::<RuntimeError>::from)
+                                        let mut value_builder = context
+                                            .begin_named_storage_value_builder(
+                                                "error::PlatformPathPayload",
+                                            )
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(0, tag_value)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(1, payload_value)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                                     }
                                 },
                                 None => Ok(vm::Value::VOID),
@@ -459,13 +773,33 @@ fn encode_destack_error_error_take_platform_error_result(
                                                 Ok(value.kind.value());
                                             let field_1: RuntimeResult<vm::Value> =
                                                 value.bytes.to_value(context);
-                                            context
-                                                .allocate_aggregate(vec![field_0?, field_1?])
+                                            let mut value_builder = context
+                                                .begin_named_storage_value_builder(
+                                                    "error::PlatformPathPayloadBytes",
+                                                )
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(0, field_0?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(1, field_1?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .finish()
                                                 .map_err(Box::<RuntimeError>::from)
                                         }?;
-                                        context
-                                            .allocate_aggregate(vec![tag_value, payload_value])
-                                            .map_err(Box::<RuntimeError>::from)
+                                        let mut value_builder = context
+                                            .begin_named_storage_value_builder(
+                                                "error::PlatformPathPayload",
+                                            )
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(0, tag_value)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(1, payload_value)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                                     }
                                     PlatformPathPayloadVm::PlatformPathPayloadUtf16(value) => {
                                         let tag_value = vm::Value::uint(2409119511u64, 32);
@@ -474,13 +808,33 @@ fn encode_destack_error_error_take_platform_error_result(
                                                 Ok(value.kind.value());
                                             let field_1: RuntimeResult<vm::Value> =
                                                 value.utf16.to_value(context);
-                                            context
-                                                .allocate_aggregate(vec![field_0?, field_1?])
+                                            let mut value_builder = context
+                                                .begin_named_storage_value_builder(
+                                                    "error::PlatformPathPayloadUtf16",
+                                                )
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(0, field_0?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(1, field_1?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .finish()
                                                 .map_err(Box::<RuntimeError>::from)
                                         }?;
-                                        context
-                                            .allocate_aggregate(vec![tag_value, payload_value])
-                                            .map_err(Box::<RuntimeError>::from)
+                                        let mut value_builder = context
+                                            .begin_named_storage_value_builder(
+                                                "error::PlatformPathPayload",
+                                            )
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(0, tag_value)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(1, payload_value)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                                     }
                                 },
                                 None => Ok(vm::Value::VOID),
@@ -497,16 +851,42 @@ fn encode_destack_error_error_take_platform_error_result(
                                 Some(value) => Ok(vm::Value::int(value as i64, 32)),
                                 None => Ok(vm::Value::VOID),
                             };
-                            context
-                                .allocate_aggregate(vec![
-                                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                    field_6?,
-                                ])
-                                .map_err(Box::<RuntimeError>::from)
+                            let mut value_builder = context
+                                .begin_named_storage_value_builder("error::PlatformErrorContextIo")
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(0, field_0?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(1, field_1?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(2, field_2?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(3, field_3?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(4, field_4?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(5, field_5?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(6, field_6?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder.finish().map_err(Box::<RuntimeError>::from)
                         }?;
-                        context
-                            .allocate_aggregate(vec![tag_value, payload_value])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("error::PlatformErrorContext")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, tag_value)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, payload_value)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     }
                     PlatformErrorContextVm::PlatformErrorContextIoDriver(value) => {
                         let tag_value = vm::Value::uint(3236432103u64, 32);
@@ -524,13 +904,35 @@ fn encode_destack_error_error_take_platform_error_result(
                                 Some(value) => Ok(value.value()),
                                 None => Ok(vm::Value::VOID),
                             };
-                            context
-                                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                                .map_err(Box::<RuntimeError>::from)
+                            let mut value_builder = context
+                                .begin_named_storage_value_builder(
+                                    "error::PlatformErrorContextIoDriver",
+                                )
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(0, field_0?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(1, field_1?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(2, field_2?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(3, field_3?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder.finish().map_err(Box::<RuntimeError>::from)
                         }?;
-                        context
-                            .allocate_aggregate(vec![tag_value, payload_value])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("error::PlatformErrorContext")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, tag_value)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, payload_value)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     }
                     PlatformErrorContextVm::PlatformErrorContextIpc(value) => {
                         let tag_value = vm::Value::uint(1171251870u64, 32);
@@ -549,13 +951,33 @@ fn encode_destack_error_error_take_platform_error_result(
                                                 Ok(value.kind.value());
                                             let field_1: RuntimeResult<vm::Value> =
                                                 value.bytes.to_value(context);
-                                            context
-                                                .allocate_aggregate(vec![field_0?, field_1?])
+                                            let mut value_builder = context
+                                                .begin_named_storage_value_builder(
+                                                    "error::PlatformPathPayloadBytes",
+                                                )
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(0, field_0?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(1, field_1?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .finish()
                                                 .map_err(Box::<RuntimeError>::from)
                                         }?;
-                                        context
-                                            .allocate_aggregate(vec![tag_value, payload_value])
-                                            .map_err(Box::<RuntimeError>::from)
+                                        let mut value_builder = context
+                                            .begin_named_storage_value_builder(
+                                                "error::PlatformPathPayload",
+                                            )
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(0, tag_value)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(1, payload_value)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                                     }
                                     PlatformPathPayloadVm::PlatformPathPayloadUtf16(value) => {
                                         let tag_value = vm::Value::uint(2409119511u64, 32);
@@ -564,13 +986,33 @@ fn encode_destack_error_error_take_platform_error_result(
                                                 Ok(value.kind.value());
                                             let field_1: RuntimeResult<vm::Value> =
                                                 value.utf16.to_value(context);
-                                            context
-                                                .allocate_aggregate(vec![field_0?, field_1?])
+                                            let mut value_builder = context
+                                                .begin_named_storage_value_builder(
+                                                    "error::PlatformPathPayloadUtf16",
+                                                )
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(0, field_0?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(1, field_1?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .finish()
                                                 .map_err(Box::<RuntimeError>::from)
                                         }?;
-                                        context
-                                            .allocate_aggregate(vec![tag_value, payload_value])
-                                            .map_err(Box::<RuntimeError>::from)
+                                        let mut value_builder = context
+                                            .begin_named_storage_value_builder(
+                                                "error::PlatformPathPayload",
+                                            )
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(0, tag_value)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(1, payload_value)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                                     }
                                 },
                                 None => Ok(vm::Value::VOID),
@@ -583,15 +1025,36 @@ fn encode_destack_error_error_take_platform_error_result(
                                 Some(value) => Ok(vm::Value::int(value as i64, 32)),
                                 None => Ok(vm::Value::VOID),
                             };
-                            context
-                                .allocate_aggregate(vec![
-                                    field_0?, field_1?, field_2?, field_3?, field_4?,
-                                ])
-                                .map_err(Box::<RuntimeError>::from)
+                            let mut value_builder = context
+                                .begin_named_storage_value_builder("error::PlatformErrorContextIpc")
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(0, field_0?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(1, field_1?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(2, field_2?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(3, field_3?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(4, field_4?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder.finish().map_err(Box::<RuntimeError>::from)
                         }?;
-                        context
-                            .allocate_aggregate(vec![tag_value, payload_value])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("error::PlatformErrorContext")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, tag_value)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, payload_value)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     }
                     PlatformErrorContextVm::PlatformErrorContextNet(value) => {
                         let tag_value = vm::Value::uint(2690143185u64, 32);
@@ -613,15 +1076,36 @@ fn encode_destack_error_error_take_platform_error_result(
                                 Some(value) => Ok(value.value()),
                                 None => Ok(vm::Value::VOID),
                             };
-                            context
-                                .allocate_aggregate(vec![
-                                    field_0?, field_1?, field_2?, field_3?, field_4?,
-                                ])
-                                .map_err(Box::<RuntimeError>::from)
+                            let mut value_builder = context
+                                .begin_named_storage_value_builder("error::PlatformErrorContextNet")
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(0, field_0?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(1, field_1?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(2, field_2?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(3, field_3?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(4, field_4?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder.finish().map_err(Box::<RuntimeError>::from)
                         }?;
-                        context
-                            .allocate_aggregate(vec![tag_value, payload_value])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("error::PlatformErrorContext")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, tag_value)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, payload_value)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     }
                     PlatformErrorContextVm::PlatformErrorContextProcess(value) => {
                         let tag_value = vm::Value::uint(1891737808u64, 32);
@@ -643,15 +1127,38 @@ fn encode_destack_error_error_take_platform_error_result(
                                 Some(value) => Ok(vm::Value::int(value as i64, 32)),
                                 None => Ok(vm::Value::VOID),
                             };
-                            context
-                                .allocate_aggregate(vec![
-                                    field_0?, field_1?, field_2?, field_3?, field_4?,
-                                ])
-                                .map_err(Box::<RuntimeError>::from)
+                            let mut value_builder = context
+                                .begin_named_storage_value_builder(
+                                    "error::PlatformErrorContextProcess",
+                                )
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(0, field_0?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(1, field_1?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(2, field_2?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(3, field_3?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(4, field_4?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder.finish().map_err(Box::<RuntimeError>::from)
                         }?;
-                        context
-                            .allocate_aggregate(vec![tag_value, payload_value])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("error::PlatformErrorContext")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, tag_value)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, payload_value)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     }
                     PlatformErrorContextVm::PlatformErrorContextResource(value) => {
                         let tag_value = vm::Value::uint(2486361974u64, 32);
@@ -669,13 +1176,35 @@ fn encode_destack_error_error_take_platform_error_result(
                                 Some(value) => Ok(value.value()),
                                 None => Ok(vm::Value::VOID),
                             };
-                            context
-                                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                                .map_err(Box::<RuntimeError>::from)
+                            let mut value_builder = context
+                                .begin_named_storage_value_builder(
+                                    "error::PlatformErrorContextResource",
+                                )
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(0, field_0?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(1, field_1?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(2, field_2?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(3, field_3?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder.finish().map_err(Box::<RuntimeError>::from)
                         }?;
-                        context
-                            .allocate_aggregate(vec![tag_value, payload_value])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("error::PlatformErrorContext")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, tag_value)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, payload_value)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     }
                     PlatformErrorContextVm::PlatformErrorContextSecurity(value) => {
                         let tag_value = vm::Value::uint(522139370u64, 32);
@@ -693,13 +1222,35 @@ fn encode_destack_error_error_take_platform_error_result(
                                 Some(value) => Ok(value.value()),
                                 None => Ok(vm::Value::VOID),
                             };
-                            context
-                                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                                .map_err(Box::<RuntimeError>::from)
+                            let mut value_builder = context
+                                .begin_named_storage_value_builder(
+                                    "error::PlatformErrorContextSecurity",
+                                )
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(0, field_0?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(1, field_1?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(2, field_2?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(3, field_3?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder.finish().map_err(Box::<RuntimeError>::from)
                         }?;
-                        context
-                            .allocate_aggregate(vec![tag_value, payload_value])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("error::PlatformErrorContext")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, tag_value)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, payload_value)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     }
                     PlatformErrorContextVm::PlatformErrorContextThread(value) => {
                         let tag_value = vm::Value::uint(2561716789u64, 32);
@@ -713,13 +1264,32 @@ fn encode_destack_error_error_take_platform_error_result(
                                 Some(value) => Ok(vm::Value::uint(value, 64)),
                                 None => Ok(vm::Value::VOID),
                             };
-                            context
-                                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                                .map_err(Box::<RuntimeError>::from)
+                            let mut value_builder = context
+                                .begin_named_storage_value_builder(
+                                    "error::PlatformErrorContextThread",
+                                )
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(0, field_0?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(1, field_1?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(2, field_2?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder.finish().map_err(Box::<RuntimeError>::from)
                         }?;
-                        context
-                            .allocate_aggregate(vec![tag_value, payload_value])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("error::PlatformErrorContext")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, tag_value)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, payload_value)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     }
                     PlatformErrorContextVm::PlatformErrorContextTimer(value) => {
                         let tag_value = vm::Value::uint(3049620673u64, 32);
@@ -737,13 +1307,35 @@ fn encode_destack_error_error_take_platform_error_result(
                                 Some(value) => Ok(vm::Value::uint(value, 64)),
                                 None => Ok(vm::Value::VOID),
                             };
-                            context
-                                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                                .map_err(Box::<RuntimeError>::from)
+                            let mut value_builder = context
+                                .begin_named_storage_value_builder(
+                                    "error::PlatformErrorContextTimer",
+                                )
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(0, field_0?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(1, field_1?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(2, field_2?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(3, field_3?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder.finish().map_err(Box::<RuntimeError>::from)
                         }?;
-                        context
-                            .allocate_aggregate(vec![tag_value, payload_value])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("error::PlatformErrorContext")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, tag_value)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, payload_value)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     }
                 },
                 None => Ok(vm::Value::VOID),
@@ -752,9 +1344,25 @@ fn encode_destack_error_error_take_platform_error_result(
                 Some(value) => Ok(value.value()),
                 None => Ok(vm::Value::VOID),
             };
-            context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("error::PlatformError")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(3, field_3?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(4, field_4?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -848,6 +1456,7 @@ pub(crate) fn register_error_vm_bindings(registry: &mut BindingRegistry, isolate
 
 /// Install VM bindings for error.
 pub(crate) fn install_error_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+    super::abi_generated::register_error_vm_storage_types(isolate);
     register_error_vm_bindings(registry, isolate);
 }
 

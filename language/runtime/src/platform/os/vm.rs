@@ -176,7 +176,7 @@ pub(crate) fn destack_os_background_complete(
     executionid: vm::StringHandle,
     argument_result: BackgroundTaskResult,
 ) -> RuntimeResult<()> {
-    let execution_id = <vm::StringHandle as VmAbiCodec>::into_value(executionid, context)?;
+    let execution_id = <vm::StringHandle as VmAbiCodec>::into_value(executionid, &context.read())?;
 
     background::complete(binding, execution_id.as_str(), argument_result)
 }
@@ -328,7 +328,7 @@ pub(crate) fn destack_os_background_register(
     context: &mut vm::ExternalCallContext<'_>,
     options: BackgroundTaskOptionsVm,
 ) -> RuntimeResult<()> {
-    let options = <BackgroundTaskOptionsVm as VmAbiCodec>::into_value(options, context)?;
+    let options = <BackgroundTaskOptionsVm as VmAbiCodec>::into_value(options, &context.read())?;
 
     background::register(binding, options)
 }
@@ -377,7 +377,7 @@ pub(crate) fn destack_os_background_trigger_test(
     context: &mut vm::ExternalCallContext<'_>,
     identifier: vm::StringHandle,
 ) -> RuntimeResult<bool> {
-    let identifier = <vm::StringHandle as VmAbiCodec>::into_value(identifier, context)?;
+    let identifier = <vm::StringHandle as VmAbiCodec>::into_value(identifier, &context.read())?;
 
     background::trigger_test(binding, identifier.as_str())
 }
@@ -403,7 +403,7 @@ pub(crate) fn destack_os_background_unregister(
     context: &mut vm::ExternalCallContext<'_>,
     identifier: vm::StringHandle,
 ) -> RuntimeResult<()> {
-    let identifier = <vm::StringHandle as VmAbiCodec>::into_value(identifier, context)?;
+    let identifier = <vm::StringHandle as VmAbiCodec>::into_value(identifier, &context.read())?;
 
     background::unregister(binding, identifier.as_str())
 }
@@ -429,7 +429,7 @@ pub(crate) fn destack_os_calendar_event_create(
     context: &mut vm::ExternalCallContext<'_>,
     event: CalendarEventDraftVm,
 ) -> RuntimeResult<vm::StringHandle> {
-    let event = event.into_value(context)?;
+    let event = event.into_value(&context.read())?;
     let id = calendar::event_create(binding, event)?;
 
     calendar::id_vm(context, &id)
@@ -456,7 +456,7 @@ pub(crate) fn destack_os_calendar_event_delete(
     context: &mut vm::ExternalCallContext<'_>,
     id: vm::StringHandle,
 ) -> RuntimeResult<()> {
-    let id = <vm::StringHandle as VmAbiCodec>::into_value(id, context)?;
+    let id = <vm::StringHandle as VmAbiCodec>::into_value(id, &context.read())?;
 
     calendar::event_delete(binding, id.as_str())
 }
@@ -482,7 +482,7 @@ pub(crate) fn destack_os_calendar_event_list(
     context: &mut vm::ExternalCallContext<'_>,
     query: CalendarEventQueryVm,
 ) -> RuntimeResult<VmArray<CalendarEventVm>> {
-    let query = query.into_value(context)?;
+    let query = query.into_value(&context.read())?;
     let events = calendar::event_list(binding, query)?;
 
     calendar::event_list_vm(context, &events)
@@ -509,7 +509,7 @@ pub(crate) fn destack_os_calendar_event_read(
     context: &mut vm::ExternalCallContext<'_>,
     id: vm::StringHandle,
 ) -> RuntimeResult<CalendarEventVm> {
-    let id = <vm::StringHandle as VmAbiCodec>::into_value(id, context)?;
+    let id = <vm::StringHandle as VmAbiCodec>::into_value(id, &context.read())?;
     let event = calendar::event_read(binding, id.as_str())?;
 
     calendar::event_vm(context, event)
@@ -537,8 +537,8 @@ pub(crate) fn destack_os_calendar_event_update(
     id: vm::StringHandle,
     event: CalendarEventDraftVm,
 ) -> RuntimeResult<()> {
-    let id = <vm::StringHandle as VmAbiCodec>::into_value(id, context)?;
-    let event = event.into_value(context)?;
+    let id = <vm::StringHandle as VmAbiCodec>::into_value(id, &context.read())?;
+    let event = event.into_value(&context.read())?;
 
     calendar::event_update(binding, id.as_str(), event)
 }
@@ -589,7 +589,7 @@ pub(crate) fn destack_os_contact_create(
     context: &mut vm::ExternalCallContext<'_>,
     contact: ContactDraftVm,
 ) -> RuntimeResult<vm::StringHandle> {
-    let contact = contact.into_value(context)?;
+    let contact = contact.into_value(&context.read())?;
     let id = contact::create(binding, contact)?;
 
     contact::id_vm(context, &id)
@@ -616,7 +616,7 @@ pub(crate) fn destack_os_contact_delete(
     context: &mut vm::ExternalCallContext<'_>,
     id: vm::StringHandle,
 ) -> RuntimeResult<()> {
-    let id = <vm::StringHandle as VmAbiCodec>::into_value(id, context)?;
+    let id = <vm::StringHandle as VmAbiCodec>::into_value(id, &context.read())?;
 
     contact::delete(binding, id.as_str())
 }
@@ -642,7 +642,7 @@ pub(crate) fn destack_os_contact_list(
     context: &mut vm::ExternalCallContext<'_>,
     query: ContactQueryVm,
 ) -> RuntimeResult<ContactPageVm> {
-    let query = query.into_value(context)?;
+    let query = query.into_value(&context.read())?;
     let page = contact::list(binding, query)?;
 
     contact::page_vm(context, page)
@@ -669,7 +669,7 @@ pub(crate) fn destack_os_contact_read(
     context: &mut vm::ExternalCallContext<'_>,
     id: vm::StringHandle,
 ) -> RuntimeResult<ContactVm> {
-    let id = <vm::StringHandle as VmAbiCodec>::into_value(id, context)?;
+    let id = <vm::StringHandle as VmAbiCodec>::into_value(id, &context.read())?;
     let contact = contact::read(binding, id.as_str())?;
 
     contact::contact_vm(context, contact)
@@ -697,8 +697,8 @@ pub(crate) fn destack_os_contact_search(
     querytext: vm::StringHandle,
     query: ContactQueryVm,
 ) -> RuntimeResult<ContactPageVm> {
-    let query_text = <vm::StringHandle as VmAbiCodec>::into_value(querytext, context)?;
-    let query = query.into_value(context)?;
+    let query_text = <vm::StringHandle as VmAbiCodec>::into_value(querytext, &context.read())?;
+    let query = query.into_value(&context.read())?;
     let page = contact::search(binding, query_text.as_str(), query)?;
 
     contact::page_vm(context, page)
@@ -726,8 +726,8 @@ pub(crate) fn destack_os_contact_update(
     id: vm::StringHandle,
     contact: ContactDraftVm,
 ) -> RuntimeResult<()> {
-    let id = <vm::StringHandle as VmAbiCodec>::into_value(id, context)?;
-    let contact = contact.into_value(context)?;
+    let id = <vm::StringHandle as VmAbiCodec>::into_value(id, &context.read())?;
+    let contact = contact.into_value(&context.read())?;
 
     contact::update(binding, id.as_str(), contact)
 }
@@ -941,33 +941,6 @@ pub(crate) fn destack_os_document_open(
     document::open(binding, uri.as_str(), access)
 }
 
-/// Pick documents from host picker UI.
-///
-/// Open host picker UI and return selected document descriptors.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses SAF or system picker APIs on Android, UIDocumentPicker on Apple platforms, and host file-picker bridges on desktop hosts.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.document.pick`.
-///
-/// # Replay
-/// External, nonrecordable.
-#[cfg(any(test, feature = "execution"))]
-pub(crate) fn destack_os_document_pick(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    options: DocumentPickOptionsVm,
-) -> RuntimeResult<VmArray<DocumentDescriptorVm>> {
-    let options = options.into_value(context)?;
-
-    document::pick_vm(binding, context, options)
-}
-
 /// Close one document-picker transaction.
 ///
 /// Close one document-picker transaction handle and release host routing state.
@@ -1028,9 +1001,9 @@ pub(crate) fn destack_os_document_pick_open(
     options: DocumentPickOptionsVm,
 ) -> RuntimeResult<resource::DocumentPickHandle> {
     // resolve the picker result eagerly through the existing sync implementation
-    let options = options.into_value(context)?;
+    let options = options.into_value(&context.read())?;
     let result = document::pick_vm(binding, context, options)?;
-    let result = result.read_values(context)?;
+    let result = result.read_values(&context.read())?;
 
     // store the result behind one transaction handle
     let entry = resource::ResourceEntry::new(resource::ResourceKind::DocumentPick)
@@ -1073,7 +1046,7 @@ pub(crate) fn destack_os_document_pick_read(
 
     let result = take_document_pick_result(binding, handle, "destack.os.document.pickRead")?;
 
-    VmArray::from_values(context, &result)
+    VmArray::from_values(&mut context.write(), &result)
 }
 
 /// Poll one document-picker result without blocking.
@@ -1099,7 +1072,7 @@ pub(crate) fn destack_os_document_pick_try_read(
 ) -> RuntimeResult<VmArray<DocumentDescriptorVm>> {
     let result = take_document_pick_result(binding, handle, "destack.os.document.pickTryRead")?;
 
-    VmArray::from_values(context, &result)
+    VmArray::from_values(&mut context.write(), &result)
 }
 
 /// Read one chunk of document bytes.
@@ -1127,7 +1100,7 @@ pub(crate) fn destack_os_document_read(
 ) -> RuntimeResult<VmSlice<u8>> {
     let value = document::read(binding, handle, maxbytes, timeoutns)?;
 
-    VmSlice::from_bytes(context, &value)
+    VmSlice::from_bytes(&mut context.write(), &value)
 }
 
 /// Poll one chunk of document bytes without blocking.
@@ -1154,7 +1127,7 @@ pub(crate) fn destack_os_document_try_read(
 ) -> RuntimeResult<VmSlice<u8>> {
     let value = document::try_read(binding, handle, maxbytes)?;
 
-    VmSlice::from_bytes(context, &value)
+    VmSlice::from_bytes(&mut context.write(), &value)
 }
 
 /// Write one chunk of document bytes.
@@ -1180,7 +1153,7 @@ pub(crate) fn destack_os_document_write(
     argument_bytes: VmSlice<u8>,
     timeoutns: u64,
 ) -> RuntimeResult<u32> {
-    let bytes = argument_bytes.read_bytes(context)?;
+    let bytes = argument_bytes.read_bytes(&context.read())?;
 
     document::write(binding, handle, &bytes, timeoutns)
 }
@@ -1459,7 +1432,7 @@ pub(crate) fn destack_os_intent_read(
 ) -> RuntimeResult<IntentEventVm> {
     let value = intent::read_value(binding, handle, timeoutns)?;
 
-    <IntentEventVm as VmAbiCodec>::from_value(context, value)
+    <IntentEventVm as VmAbiCodec>::from_value(&mut context.write(), value)
 }
 
 /// Share file paths through host share routing.
@@ -1484,7 +1457,7 @@ pub(crate) fn destack_os_intent_share_paths(
     paths: VmArray<fs::OsPathVm>,
     mimetype: Option<vm::StringHandle>,
 ) -> RuntimeResult<()> {
-    let paths = paths.read_values(context)?;
+    let paths = paths.read_values(&context.read())?;
     let mut native_paths = Vec::with_capacity(paths.len());
 
     for path in paths {
@@ -1567,7 +1540,7 @@ pub(crate) fn destack_os_intent_try_read(
 ) -> RuntimeResult<IntentEventVm> {
     let value = intent::try_read_value(binding, handle)?;
 
-    <IntentEventVm as VmAbiCodec>::from_value(context, value)
+    <IntentEventVm as VmAbiCodec>::from_value(&mut context.write(), value)
 }
 
 /// Close lifecycle event stream.
@@ -1641,7 +1614,7 @@ pub(crate) fn destack_os_lifecycle_read(
 ) -> RuntimeResult<LifecycleEventVm> {
     let event = lifecycle::read(binding, handle, timeoutns)?;
 
-    LifecycleEventVm::from_value(context, event)
+    LifecycleEventVm::from_value(&mut context.write(), event)
 }
 
 /// Read current lifecycle state.
@@ -1690,7 +1663,7 @@ pub(crate) fn destack_os_lifecycle_try_read(
 ) -> RuntimeResult<LifecycleEventVm> {
     let event = lifecycle::try_read(binding, handle)?;
 
-    LifecycleEventVm::from_value(context, event)
+    LifecycleEventVm::from_value(&mut context.write(), event)
 }
 
 /// Read last known location sample.
@@ -1786,7 +1759,7 @@ pub(crate) fn destack_os_location_watch_open(
     context: &mut vm::ExternalCallContext<'_>,
     options: LocationWatchOptionsVm,
 ) -> RuntimeResult<resource::LocationWatchHandle> {
-    let options = options.into_value(context)?;
+    let options = options.into_value(&context.read())?;
 
     location::watch_open(binding, options)
 }
@@ -1865,7 +1838,7 @@ pub(crate) fn destack_os_media_delete(
     context: &mut vm::ExternalCallContext<'_>,
     ids: VmArray<vm::StringHandle>,
 ) -> RuntimeResult<u32> {
-    let ids = ids.into_value(context)?;
+    let ids = ids.into_value(&context.read())?;
 
     media::delete(binding, ids)
 }
@@ -1919,7 +1892,7 @@ pub(crate) fn destack_os_media_list(
     context: &mut vm::ExternalCallContext<'_>,
     query: MediaQueryVm,
 ) -> RuntimeResult<MediaPageVm> {
-    let query = query.into_value(context)?;
+    let query = query.into_value(&context.read())?;
     let page = media::list(binding, query)?;
 
     media::page_vm(context, page)
@@ -1946,7 +1919,7 @@ pub(crate) fn destack_os_media_read(
     context: &mut vm::ExternalCallContext<'_>,
     id: vm::StringHandle,
 ) -> RuntimeResult<MediaAssetDescriptorVm> {
-    let id = <vm::StringHandle as VmAbiCodec>::into_value(id, context)?;
+    let id = <vm::StringHandle as VmAbiCodec>::into_value(id, &context.read())?;
     let descriptor = media::read(binding, id.as_str())?;
 
     media::descriptor_vm(context, descriptor)
@@ -2194,7 +2167,7 @@ pub(crate) fn destack_os_notification_category_set(
     context: &mut vm::ExternalCallContext<'_>,
     categories: VmArray<NotificationCategoryVm>,
 ) -> RuntimeResult<()> {
-    let categories = categories.into_value(context)?;
+    let categories = categories.into_value(&context.read())?;
 
     notification::category_set(binding, categories)
 }
@@ -2244,7 +2217,7 @@ pub(crate) fn destack_os_notification_event_open(
     context: &mut vm::ExternalCallContext<'_>,
     options: NotificationEventOpenOptionsVm,
 ) -> RuntimeResult<resource::NotificationEventHandle> {
-    let options = options.into_value(context)?;
+    let options = options.into_value(&context.read())?;
 
     notification::event_open(binding, options)
 }
@@ -2420,34 +2393,10 @@ pub(crate) fn destack_os_notification_post(
     context: &mut vm::ExternalCallContext<'_>,
     request: NotificationRequestVm,
 ) -> RuntimeResult<vm::StringHandle> {
-    let request = request.into_value(context)?;
+    let request = request.into_value(&context.read())?;
     let id = notification::post(binding, request)?;
 
     notification::id_vm(context, &id)
-}
-
-/// Request host notification permission.
-///
-/// Request notification permission through host authorization flow and return resulting permission state.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host notification permission request APIs where supported.
-///
-/// # Errors
-/// Returns ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.notification.permission`.
-///
-/// # Replay
-/// External, nonrecordable.
-#[cfg(any(test, feature = "execution"))]
-pub(crate) fn destack_os_notification_request_permission(
-    binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-) -> RuntimeResult<NotificationPermissionState> {
-    notification::request_permission(binding)
 }
 
 /// Close one notification-permission request transaction.
@@ -2606,7 +2555,7 @@ pub(crate) fn destack_os_notification_schedule(
     context: &mut vm::ExternalCallContext<'_>,
     request: NotificationRequestVm,
 ) -> RuntimeResult<vm::StringHandle> {
-    let request = request.into_value(context)?;
+    let request = request.into_value(&context.read())?;
     let id = notification::schedule(binding, request)?;
 
     notification::id_vm(context, &id)
@@ -2633,59 +2582,6 @@ pub(crate) fn destack_os_permission_open_settings(
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<()> {
     permission::open_settings(binding)
-}
-
-/// Request one permission.
-///
-/// Request host authorization for one permission selector.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host permission-request dialogs and policy APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.permission.request`.
-///
-/// # Replay
-/// External, nonrecordable.
-#[cfg(any(test, feature = "execution"))]
-pub(crate) fn destack_os_permission_request(
-    binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    permission: Permission,
-) -> RuntimeResult<PermissionState> {
-    permission::request(binding, permission)
-}
-
-/// Request multiple permissions.
-///
-/// Request host authorization for one selector list and return resulting states.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses batched host permission request APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.permission.request`.
-///
-/// # Replay
-/// External, nonrecordable.
-#[cfg(any(test, feature = "execution"))]
-pub(crate) fn destack_os_permission_request_many(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    permissions: VmArray<Permission>,
-) -> RuntimeResult<VmArray<PermissionEntryVm>> {
-    let permissions = permissions.read_values(context)?;
-    let values = permission::request_many(binding, permissions)?;
-
-    VmArray::from_values(context, &values)
 }
 
 /// Close one permission-request transaction.
@@ -2748,7 +2644,7 @@ pub(crate) fn destack_os_permission_request_many_open(
     permissions: VmArray<Permission>,
 ) -> RuntimeResult<resource::PermissionRequestHandle> {
     // resolve the permission result eagerly through the existing sync implementation
-    let permissions = permissions.read_values(context)?;
+    let permissions = permissions.read_values(&context.read())?;
     let result = permission::request_many(binding, permissions)?;
 
     // store the result behind one transaction handle
@@ -2832,7 +2728,7 @@ pub(crate) fn destack_os_permission_request_read(
     let result =
         take_permission_request_result(binding, handle, "destack.os.permission.requestRead")?;
 
-    VmArray::from_values(context, &result)
+    VmArray::from_values(&mut context.write(), &result)
 }
 
 /// Poll one permission-request result without blocking.
@@ -2859,7 +2755,7 @@ pub(crate) fn destack_os_permission_request_try_read(
     let result =
         take_permission_request_result(binding, handle, "destack.os.permission.requestTryRead")?;
 
-    VmArray::from_values(context, &result)
+    VmArray::from_values(&mut context.write(), &result)
 }
 
 /// Read one permission state.
@@ -2907,10 +2803,10 @@ pub(crate) fn destack_os_permission_state_many(
     context: &mut vm::ExternalCallContext<'_>,
     permissions: VmArray<Permission>,
 ) -> RuntimeResult<VmArray<PermissionEntryVm>> {
-    let permissions = permissions.read_values(context)?;
+    let permissions = permissions.read_values(&context.read())?;
     let values = permission::state_many(binding, &permissions)?;
 
-    VmArray::from_values(context, &values)
+    VmArray::from_values(&mut context.write(), &values)
 }
 
 /// Read current host power state.

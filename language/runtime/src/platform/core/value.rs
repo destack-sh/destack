@@ -1,5 +1,8 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::{NativeArray, VmAggregateCodec, VmArray, VmCollectionElement, VmSlice};
+use crate::platform::{
+    NativeArray, PlatformError, VmAggregateCodec, VmArray, VmCollectionElement,
+    VmCollectionStorage, VmSlice,
+};
 use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef, NativeStringSlice};
 use destack_vm as vm;
 
@@ -21,11 +24,11 @@ pub(crate) trait VmAbiCodec: Sized {
     type Value;
 
     /// Decode this VM binding value into one materialized Rust value.
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<Self::Value>;
+    fn into_value(self, context: &vm::ExternalReadContext<'_, '_>) -> RuntimeResult<Self::Value>;
 
     /// Encode one materialized Rust value into this VM binding type.
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: Self::Value,
     ) -> RuntimeResult<Self>;
 }
@@ -50,13 +53,13 @@ macro_rules! identity_value_codec {
 
                 fn into_value(
                     self,
-                    _context: &vm::ExternalCallContext<'_>,
+                    _context: &vm::ExternalReadContext<'_, '_>,
                 ) -> RuntimeResult<Self::Value> {
                     Ok(self)
                 }
 
                 fn from_value(
-                    _context: &mut vm::ExternalCallContext<'_>,
+                    _context: &mut vm::ExternalWriteContext<'_, '_>,
                     value: Self::Value,
                 ) -> RuntimeResult<Self> {
                     Ok(value)
@@ -83,7 +86,7 @@ impl<T: NativeAbiCodec> NativeAbiCodec for Option<T> {
 impl VmAbiCodec for vm::StringHandle {
     type Value = String;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<Self::Value> {
+    fn into_value(self, context: &vm::ExternalReadContext<'_, '_>) -> RuntimeResult<Self::Value> {
         Ok(context
             .string_ref(self)
             .map_err(Box::<RuntimeError>::from)?
@@ -91,7 +94,7 @@ impl VmAbiCodec for vm::StringHandle {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: Self::Value,
     ) -> RuntimeResult<Self> {
         context
@@ -103,12 +106,12 @@ impl VmAbiCodec for vm::StringHandle {
 impl<T: VmAbiCodec> VmAbiCodec for Option<T> {
     type Value = Option<T::Value>;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<Self::Value> {
+    fn into_value(self, context: &vm::ExternalReadContext<'_, '_>) -> RuntimeResult<Self::Value> {
         self.map(|value| value.into_value(context)).transpose()
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: Self::Value,
     ) -> RuntimeResult<Self> {
         value.map(|value| T::from_value(context, value)).transpose()
@@ -123,7 +126,7 @@ impl NativeAbiCodec for NativeStringRef {
     }
 
     fn from_value(binding: &BindingCallContext, value: Self::Value) -> Self {
-        binding.store_string(&value)
+        binding.store_string_owned(value)
     }
 }
 
@@ -147,7 +150,7 @@ impl NativeAbiCodec for NativeStringSlice {
 
         // encode each string
         for value in value {
-            values.push(NativeStringRef::from_value(binding, value));
+            values.push(binding.store_string_owned(value));
         }
 
         binding.store_string_slice(values)
@@ -220,7 +223,7 @@ where
 {
     type Value = Vec<T::Value>;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<Self::Value> {
+    fn into_value(self, context: &vm::ExternalReadContext<'_, '_>) -> RuntimeResult<Self::Value> {
         let values = self.read_values(context)?;
         let mut decoded_values = Vec::with_capacity(values.len());
 
@@ -233,17 +236,46 @@ where
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: Self::Value,
     ) -> RuntimeResult<Self> {
-        let mut values = Vec::with_capacity(value.len());
+        // byte-storage collections still use the general slice path
+        if T::STORAGE == VmCollectionStorage::Bytes {
+            let mut values = Vec::with_capacity(value.len());
 
-        // encode each value
-        for value in value {
-            values.push(T::from_value(context, value)?);
+            for value in value {
+                values.push(T::from_value(context, value)?);
+            }
+
+            return VmSlice::from_values(context, &values);
         }
 
-        VmSlice::from_values(context, &values)
+        let len = value.len();
+        let len_u32 = u32::try_from(len).map_err(|_| {
+            RuntimeError::from(PlatformError::invalid_argument_value(
+                "slice",
+                "slice length exceeds u32",
+            ))
+            .boxed()
+        })?;
+        let data = context
+            .allocate_raw_value_slots(len)
+            .map_err(Box::<RuntimeError>::from)?;
+
+        // encode each value directly into raw VM storage
+        for (index, value) in value.into_iter().enumerate() {
+            let value = T::from_value(context, value)?;
+            let value = T::encode_with_context(value, context)?;
+            context
+                .write_raw_value(data, index, value)
+                .map_err(Box::<RuntimeError>::from)?;
+        }
+
+        Ok(VmSlice {
+            data,
+            len: len_u32,
+            _marker: std::marker::PhantomData,
+        })
     }
 }
 
@@ -253,7 +285,7 @@ where
 {
     type Value = Vec<T::Value>;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<Self::Value> {
+    fn into_value(self, context: &vm::ExternalReadContext<'_, '_>) -> RuntimeResult<Self::Value> {
         let values = self.read_values(context)?;
         let mut decoded_values = Vec::with_capacity(values.len());
 
@@ -266,16 +298,16 @@ where
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: Self::Value,
     ) -> RuntimeResult<Self> {
-        let mut values = Vec::with_capacity(value.len());
+        let slice = <VmSlice<T> as VmAbiCodec>::from_value(context, value)?;
 
-        // encode each value
-        for value in value {
-            values.push(T::from_value(context, value)?);
-        }
-
-        VmArray::from_values(context, &values)
+        Ok(VmArray {
+            data: slice.data,
+            len: slice.len,
+            capacity: slice.len,
+            _marker: std::marker::PhantomData,
+        })
     }
 }

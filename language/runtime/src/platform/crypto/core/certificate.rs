@@ -302,7 +302,7 @@ pub(crate) fn certificate_descriptor(
             if let Some(ip_address) = name.ipaddress()
                 && let Some(ip_address) = format_ip_subject_alternative_name(ip_address)
             {
-                subject_alternative_names.push(binding.store_string(&ip_address));
+                subject_alternative_names.push(binding.store_string_owned(ip_address));
             }
         }
     }
@@ -316,11 +316,11 @@ pub(crate) fn certificate_descriptor(
     let not_after = x509_time_to_unix_seconds(resource.certificate.not_after());
 
     Ok(CryptoCertificateDescriptor {
-        subject: binding.store_string(&subject),
-        issuer: binding.store_string(&issuer),
+        subject: binding.store_string_owned(subject),
+        issuer: binding.store_string_owned(issuer),
         serial_number: binding.store_string(&serial_number),
         subject_alternative_names: binding.store_array(subject_alternative_names),
-        fingerprint_sha256: binding.store_slice(fingerprint.to_vec()),
+        fingerprint_sha256: binding.store_slice_copy(fingerprint.as_ref()),
         validity: CryptoCertificateValidity {
             not_before_unix_seconds: not_before,
             not_after_unix_seconds: not_after,

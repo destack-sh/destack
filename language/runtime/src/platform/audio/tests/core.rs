@@ -221,7 +221,7 @@ pub(super) fn harness_bytes(
     data: &[u8],
 ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
     if let Some(vm_context) = vm_context_mut(context) {
-        let value = VmSlice::from_bytes(vm_context, data)?;
+        let value = VmSlice::from_bytes(&mut vm_context.write(), data)?;
 
         Ok(context.harness_value_vm(value))
     } else {
@@ -236,7 +236,7 @@ fn vm_slice_of_slices(
 ) -> RuntimeResult<VmSlice<VmSlice<u8>>> {
     let values = slices
         .iter()
-        .map(|slice| slice.to_value(context))
+        .map(|slice| slice.to_value(&mut context.write()))
         .collect::<RuntimeResult<Vec<_>>>()?;
     let data = context
         .allocate_raw_values(values)
@@ -257,7 +257,7 @@ pub(super) fn harness_bytes_slices(
     if let Some(vm_context) = vm_context_mut(context) {
         let vm_buffers = buffers
             .iter()
-            .map(|buffer| VmSlice::from_bytes(vm_context, buffer))
+            .map(|buffer| VmSlice::from_bytes(&mut vm_context.write(), buffer))
             .collect::<RuntimeResult<Vec<_>>>()?;
         let values = vm_slice_of_slices(vm_context, &vm_buffers)?;
 
@@ -282,7 +282,7 @@ pub(super) fn harness_mutable_bytes_slices(
     if let Some(vm_context) = vm_context_mut(context) {
         let vm_buffers = buffers
             .iter()
-            .map(|buffer| VmSlice::from_bytes(vm_context, &vec![0u8; buffer.len()]))
+            .map(|buffer| VmSlice::from_bytes(&mut vm_context.write(), &vec![0u8; buffer.len()]))
             .collect::<RuntimeResult<Vec<_>>>()?;
         let values = vm_slice_of_slices(vm_context, &vm_buffers)?;
 
@@ -309,7 +309,7 @@ pub(super) fn descriptor_count(
         HarnessValue::Vm(value) => {
             let vm_context = vm_context_mut(context)
                 .expect("vm payload requires vm context to decode descriptor slice");
-            Ok(value.read_values(vm_context)?.len())
+            Ok(value.read_values(&vm_context.read())?.len())
         }
     }
 }
@@ -330,7 +330,7 @@ pub(super) fn device_direction_capability_rows(
         HarnessValue::Vm(value) => {
             let vm_context = vm_context_mut(context)
                 .expect("vm payload requires vm context to decode device descriptor slice");
-            let values = value.read_values(vm_context)?;
+            let values = value.read_values(&vm_context.read())?;
             Ok(values
                 .iter()
                 .map(|value| (value.direction, value.capability_flags))
@@ -349,7 +349,7 @@ pub(super) fn byte_len(
         HarnessValue::Vm(value) => {
             let vm_context = vm_context_mut(context)
                 .expect("vm payload requires vm context to decode byte slice");
-            Ok(value.read_bytes(vm_context)?.len())
+            Ok(value.read_bytes(&vm_context.read())?.len())
         }
     }
 }
@@ -381,7 +381,7 @@ pub(super) fn backend_descriptor_summaries(
         HarnessValue::Vm(value) => {
             let vm_context = vm_context_mut(context)
                 .expect("vm payload requires vm context to decode backend descriptor slice");
-            let values = value.read_values(vm_context)?;
+            let values = value.read_values(&vm_context.read())?;
             Ok(values
                 .iter()
                 .map(|value| AudioBackendDescriptorSummary {
@@ -680,7 +680,7 @@ pub(super) fn event_batch_len(
         HarnessValue::Vm(value) => {
             let vm_context = vm_context_mut(context)
                 .expect("vm payload requires vm context to decode event slice");
-            Ok(value.read_values(vm_context)?.len())
+            Ok(value.read_values(&vm_context.read())?.len())
         }
     }
 }
@@ -912,7 +912,7 @@ pub(super) fn event_batch_sequence_rows(
         HarnessValue::Vm(value) => {
             let vm_context = vm_context_mut(context)
                 .expect("vm payload requires vm context to decode event slice");
-            let values = value.read_values(vm_context)?;
+            let values = value.read_values(&vm_context.read())?;
             Ok(values
                 .iter()
                 .map(|value| {

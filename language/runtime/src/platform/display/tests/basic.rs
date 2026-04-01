@@ -218,7 +218,7 @@ pub(crate) fn test_display_backend_capabilities_match_win32_implementation() {
                         &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>)
                     })
                     .expect("vm context should exist for vm harness");
-                let backends = values.read_values(vm_context)?;
+                let backends = values.read_values(&vm_context.read())?;
                 let backend = backends
                     .iter()
                     .find(|backend| backend.backend == DisplayBackend::Win32)

@@ -26,7 +26,7 @@ pub(crate) fn os_path_from_utf16_units(
     binding: &BindingCallContext,
     units: &[u16],
 ) -> platform_fs::OsPath {
-    let utf16 = PathUtf16Abi::<NativeAbi>(binding.store_array(units.to_vec()));
+    let utf16 = PathUtf16Abi::<NativeAbi>(binding.store_array_copy(units));
 
     core_fs::path_ref_from_utf16(utf16)
 }

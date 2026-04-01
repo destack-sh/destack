@@ -70,8 +70,8 @@ pub(super) fn media_query_harness_value(
     match context.vm_context {
         Some(vm_context) => {
             let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
-            let query =
-                MediaQueryVm::from_value(vm_context, query).expect("media query should encode");
+            let query = MediaQueryVm::from_value(&mut vm_context.write(), query)
+                .expect("media query should encode");
 
             HarnessValue::Vm(query)
         }
@@ -119,7 +119,7 @@ pub(super) fn string_array_harness_value(
                 handles.push(handle);
             }
 
-            let handles = VmArray::from_values(vm_context, &handles)?;
+            let handles = VmArray::from_values(&mut vm_context.write(), &handles)?;
 
             Ok(HarnessValue::Vm(handles))
         }
@@ -171,7 +171,7 @@ pub(super) fn decode_media_page(
                     as *mut vm::ExternalCallContext<'_>)
             };
 
-            MediaPageVm::into_value(page, vm_context)
+            MediaPageVm::into_value(page, &vm_context.read())
         }
     }
 }
@@ -191,7 +191,7 @@ pub(super) fn decode_media_descriptor(
                     as *mut vm::ExternalCallContext<'_>)
             };
 
-            MediaAssetDescriptorVm::into_value(descriptor, vm_context)
+            MediaAssetDescriptorVm::into_value(descriptor, &vm_context.read())
         }
     }
 }
@@ -291,7 +291,8 @@ pub(super) fn vm_path_from_utf8(
 ) -> RuntimeResult<fs::OsPathVm> {
     #[cfg(unix)]
     {
-        let bytes = fs::PathBytesAbi::<VmAbi>(VmArray::from_bytes(context, value.as_bytes())?);
+        let bytes =
+            fs::PathBytesAbi::<VmAbi>(VmArray::from_bytes(&mut context.write(), value.as_bytes())?);
         let kind = vm::StringHandle::new(context.intern_string("bytes")?);
 
         Ok(fs::OsPathVm::OsPathBytes(fs::OsPathBytesVm { kind, bytes }))
@@ -300,7 +301,7 @@ pub(super) fn vm_path_from_utf8(
     #[cfg(windows)]
     {
         let units = value.encode_utf16().collect::<Vec<_>>();
-        let utf16 = fs::PathUtf16Abi::<VmAbi>(VmArray::from_values(context, &units)?);
+        let utf16 = fs::PathUtf16Abi::<VmAbi>(VmArray::from_values(&mut context.write(), &units)?);
         let kind = vm::StringHandle::new(context.intern_string("utf16")?);
 
         Ok(fs::OsPathVm::OsPathUtf16(fs::OsPathUtf16Vm { kind, utf16 }))
@@ -308,7 +309,8 @@ pub(super) fn vm_path_from_utf8(
 
     #[cfg(not(any(unix, windows)))]
     {
-        let bytes = fs::PathBytesAbi::<VmAbi>(VmArray::from_bytes(context, value.as_bytes())?);
+        let bytes =
+            fs::PathBytesAbi::<VmAbi>(VmArray::from_bytes(&mut context.write(), value.as_bytes())?);
         let kind = vm::StringHandle::new(context.intern_string("bytes")?);
 
         Ok(fs::OsPathVm::OsPathBytes(fs::OsPathBytesVm { kind, bytes }))

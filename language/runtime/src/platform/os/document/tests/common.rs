@@ -84,9 +84,9 @@ pub(super) fn pick_options_harness_value(
                     )
                 })
                 .collect::<Vec<_>>();
-            let mime_types = VmArray::from_values(vm_context, &mime_types)
+            let mime_types = VmArray::from_values(&mut vm_context.write(), &mime_types)
                 .expect("document picker mime type array should encode");
-            let extensions = VmArray::from_values(vm_context, &extensions)
+            let extensions = VmArray::from_values(&mut vm_context.write(), &extensions)
                 .expect("document picker extension array should encode");
 
             HarnessValue::Vm(DocumentPickOptionsVm {
@@ -160,13 +160,15 @@ pub(super) fn decode_document_descriptors(
                     .expect("vm context should exist for vm harness")
                     as *mut vm::ExternalCallContext<'_>)
             };
-            let descriptors = value.read_values(vm_context)?;
+            let descriptors = value.read_values(&vm_context.read())?;
             let mut values = Vec::with_capacity(descriptors.len());
 
             // decode one vm descriptor per picker result
             for descriptor in descriptors {
-                let descriptor =
-                    <DocumentDescriptorVm as VmAbiCodec>::into_value(descriptor, vm_context)?;
+                let descriptor = <DocumentDescriptorVm as VmAbiCodec>::into_value(
+                    descriptor,
+                    &vm_context.read(),
+                )?;
                 values.push(descriptor);
             }
 
@@ -210,7 +212,7 @@ pub(super) fn decode_document_bytes(
                     as *mut vm::ExternalCallContext<'_>)
             };
 
-            value.read_bytes(vm_context)
+            value.read_bytes(&vm_context.read())
         }
     }
 }

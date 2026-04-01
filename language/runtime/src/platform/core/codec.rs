@@ -39,18 +39,19 @@ impl<'a> NativeBindingCodec<'a> {
 /// Mechanical VM decode codec for one VM call context.
 pub(crate) struct VmDecodeCodec<'call, 'vm> {
     /// The active VM call context.
-    context: &'call vm::ExternalCallContext<'vm>,
+    context: &'call mut vm::ExternalCallContext<'vm>,
 }
 
 impl<'call, 'vm> VmDecodeCodec<'call, 'vm> {
     /// Create one VM decode codec for one call context.
-    pub(crate) fn new(context: &'call vm::ExternalCallContext<'vm>) -> Self {
+    pub(crate) fn new(context: &'call mut vm::ExternalCallContext<'vm>) -> Self {
         Self { context }
     }
 
     /// Decode one VM binding value into one materialized Rust value.
-    pub(crate) fn decode<T: VmAbiCodec>(&self, value: T) -> RuntimeResult<T::Value> {
-        value.into_value(self.context)
+    pub(crate) fn decode<T: VmAbiCodec>(&mut self, value: T) -> RuntimeResult<T::Value> {
+        let context = self.context.read();
+        value.into_value(&context)
     }
 }
 
@@ -68,7 +69,8 @@ impl<'call, 'vm> VmEncodeCodec<'call, 'vm> {
 
     /// Encode one materialized Rust value into one VM binding value.
     pub(crate) fn encode<T: VmAbiCodec>(&mut self, value: T::Value) -> RuntimeResult<T> {
-        T::from_value(self.context, value)
+        let mut context = self.context.write();
+        T::from_value(&mut context, value)
     }
 }
 
@@ -133,6 +135,7 @@ pub(crate) fn store_string_from_vm(
     context: &mut vm::ExternalCallContext<'_>,
     value: vm::StringHandle,
 ) -> RuntimeResult<NativeStringRef> {
+    let context = context.read();
     let value = context
         .string_ref(value)
         .map_err(|error| RuntimeError::from(error).boxed())?;
@@ -179,15 +182,17 @@ pub(crate) fn store_string_slice_from_vm(
     context: &mut vm::ExternalCallContext<'_>,
     values: VmSlice<vm::StringHandle>,
 ) -> RuntimeResult<NativeStringSlice> {
-    let values = values.read_values(context)?;
-    let mut native_values = Vec::with_capacity(values.len());
-
-    // decode each string
-    for value in values {
-        native_values.push(store_string_from_vm(binding, context, value)?);
-    }
-
-    Ok(binding.store_string_slice(native_values))
+    let context = context.read();
+    binding.store_string_slice_with(values.len as usize, |builder| {
+        // decode each string directly into call-arena storage
+        values.try_for_each_value_with_context(&context, |context, value| {
+            let value = context
+                .string_ref(value)
+                .map_err(|error| RuntimeError::from(error).boxed())?;
+            builder.push(binding.store_string(value.as_str()));
+            Ok(())
+        })
+    })
 }
 
 /// Read one VM byte slice and store it in binding-local slice storage.
@@ -196,9 +201,10 @@ pub(crate) fn store_bytes_from_vm(
     context: &mut vm::ExternalCallContext<'_>,
     value: VmSlice<u8>,
 ) -> RuntimeResult<NativeSlice<u8>> {
-    let value = value.read_bytes(context)?;
+    let context = context.read();
+    let value = value.bytes(&context)?;
 
-    Ok(binding.store_slice(value))
+    Ok(binding.store_slice_copy(value.as_ref()))
 }
 
 /// Read one optional VM byte slice and store it in binding-local slice storage.
@@ -218,9 +224,14 @@ pub(crate) fn store_values_from_vm<T: Copy + VmAggregateCodec + VmCollectionElem
     context: &mut vm::ExternalCallContext<'_>,
     value: VmSlice<T>,
 ) -> RuntimeResult<NativeSlice<T>> {
-    let value = value.read_values(context)?;
-
-    Ok(binding.store_slice(value))
+    let context = context.read();
+    binding.store_slice_with(value.len as usize, |builder| {
+        // decode each value directly into call-arena storage
+        value.try_for_each_value(&context, |item| {
+            builder.push(item);
+            Ok(())
+        })
+    })
 }
 
 /// Read one VM byte array and store it in binding-local array storage.
@@ -229,9 +240,10 @@ pub(crate) fn store_bytes_array_from_vm(
     context: &mut vm::ExternalCallContext<'_>,
     value: VmArray<u8>,
 ) -> RuntimeResult<NativeArray<u8>> {
-    let value = value.read_bytes(context)?;
+    let context = context.read();
+    let value = value.bytes(&context)?;
 
-    Ok(binding.store_array(value))
+    Ok(binding.store_array_copy(value.as_ref()))
 }
 
 /// Read one VM value array and store it in binding-local array storage.
@@ -242,9 +254,14 @@ pub(crate) fn store_values_array_from_vm<
     context: &mut vm::ExternalCallContext<'_>,
     value: VmArray<T>,
 ) -> RuntimeResult<NativeArray<T>> {
-    let value = value.read_values(context)?;
-
-    Ok(binding.store_array(value))
+    let context = context.read();
+    binding.store_array_with(value.len as usize, |builder| {
+        // decode each value directly into call-arena storage
+        value.try_for_each_value(&context, |item| {
+            builder.push(item);
+            Ok(())
+        })
+    })
 }
 
 /// Encode one native byte slice as one VM byte slice.
@@ -253,8 +270,9 @@ pub(crate) fn bytes_to_vm(
     value: NativeSlice<u8>,
 ) -> RuntimeResult<VmSlice<u8>> {
     let value = unsafe { value.as_slice()? };
+    let mut context = context.write();
 
-    VmSlice::from_bytes(context, value)
+    VmSlice::from_bytes(&mut context, value)
 }
 
 /// Encode one native byte array as one VM byte array.
@@ -263,8 +281,9 @@ pub(crate) fn bytes_array_to_vm(
     value: NativeArray<u8>,
 ) -> RuntimeResult<VmArray<u8>> {
     let value = unsafe { value.as_slice()? };
+    let mut context = context.write();
 
-    VmArray::from_bytes(context, value)
+    VmArray::from_bytes(&mut context, value)
 }
 
 /// Encode one native byte-array array as one VM byte-array array.
@@ -273,14 +292,34 @@ pub(crate) fn bytes_array_array_to_vm(
     values: NativeArray<NativeArray<u8>>,
 ) -> RuntimeResult<VmArray<VmArray<u8>>> {
     let values = unsafe { values.as_slice()? };
-    let mut encoded = Vec::with_capacity(values.len());
+    let mut context = context.write();
+    let len = values.len();
+    let len_u32 = u32::try_from(len).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "array",
+            "array length exceeds u32",
+        ))
+        .boxed()
+    })?;
+    let data = context
+        .allocate_raw_value_slots(len)
+        .map_err(Box::<RuntimeError>::from)?;
 
-    // encode each byte array
-    for value in values {
-        encoded.push(bytes_array_to_vm(context, *value)?);
+    // encode each byte array directly into raw VM storage
+    for (index, value) in values.iter().enumerate() {
+        let value = VmArray::from_bytes(&mut context, unsafe { value.as_slice()? })?;
+        let value = value.encode_with_context(&mut context)?;
+        context
+            .write_raw_value(data, index, value)
+            .map_err(Box::<RuntimeError>::from)?;
     }
 
-    VmArray::from_values(context, &encoded)
+    Ok(VmArray {
+        data,
+        len: len_u32,
+        capacity: len_u32,
+        _marker: std::marker::PhantomData,
+    })
 }
 
 /// Encode one native value slice as one VM value slice.
@@ -289,8 +328,9 @@ pub(crate) fn values_to_vm<T: Copy + VmAggregateCodec + VmCollectionElement>(
     value: NativeSlice<T>,
 ) -> RuntimeResult<VmSlice<T>> {
     let value = unsafe { value.as_slice()? };
+    let mut context = context.write();
 
-    VmSlice::from_values(context, value)
+    VmSlice::from_values(&mut context, value)
 }
 
 /// Encode one native value array as one VM value array.
@@ -299,8 +339,9 @@ pub(crate) fn values_array_to_vm<T: Copy + VmAggregateCodec + VmCollectionElemen
     value: NativeArray<T>,
 ) -> RuntimeResult<VmArray<T>> {
     let value = unsafe { value.as_slice()? };
+    let mut context = context.write();
 
-    VmArray::from_values(context, value)
+    VmArray::from_values(&mut context, value)
 }
 
 /// Map one native value slice into one VM aggregate slice.
@@ -313,34 +354,84 @@ where
     U: Copy + VmAggregateCodec + VmCollectionElement,
 {
     let values = unsafe { values.as_slice()? };
-    let mut encoded = Vec::with_capacity(values.len());
+    let len = values.len();
+    let len_u32 = u32::try_from(len).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "slice",
+            "slice length exceeds u32",
+        ))
+        .boxed()
+    })?;
 
-    // encode each element
-    for value in values {
-        encoded.push(map(context, value)?);
+    // byte-storage collection mapping still uses the general slice path
+    if U::STORAGE == crate::platform::VmCollectionStorage::Bytes {
+        let mut mapped = Vec::with_capacity(len);
+
+        // semantic mapping
+        for value in values {
+            mapped.push(map(context, value)?);
+        }
+
+        let mut context = context.write();
+        return VmSlice::from_values(&mut context, &mapped);
     }
 
-    VmSlice::from_values(context, &encoded)
+    let data = {
+        let mut write = context.write();
+        write
+            .allocate_raw_value_slots(len)
+            .map_err(Box::<RuntimeError>::from)?
+    };
+
+    // encode each element directly into raw VM storage
+    for (index, value) in values.iter().enumerate() {
+        let value = map(context, value)?;
+        let mut write = context.write();
+        let encoded = U::encode_with_context(value, &mut write)?;
+        write
+            .write_raw_value(data, index, encoded)
+            .map_err(Box::<RuntimeError>::from)?;
+    }
+
+    Ok(VmSlice {
+        data,
+        len: len_u32,
+        _marker: std::marker::PhantomData,
+    })
 }
 
 /// Map one native value array into one VM aggregate array.
 pub(crate) fn map_native_array_to_vm<T, U>(
     context: &mut vm::ExternalCallContext<'_>,
     values: NativeArray<T>,
-    mut map: impl FnMut(&mut vm::ExternalCallContext<'_>, &T) -> RuntimeResult<U>,
+    map: impl FnMut(&mut vm::ExternalCallContext<'_>, &T) -> RuntimeResult<U>,
 ) -> RuntimeResult<VmArray<U>>
 where
     U: Copy + VmAggregateCodec + VmCollectionElement,
 {
     let values = unsafe { values.as_slice()? };
-    let mut encoded = Vec::with_capacity(values.len());
+    let len_u32 = u32::try_from(values.len()).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "array",
+            "array length exceeds u32",
+        ))
+        .boxed()
+    })?;
+    let slice = map_native_slice_to_vm(
+        context,
+        NativeSlice {
+            data: values.as_ptr() as *mut T,
+            len: len_u32,
+        },
+        map,
+    )?;
 
-    // encode each element
-    for value in values {
-        encoded.push(map(context, value)?);
-    }
-
-    VmArray::from_values(context, &encoded)
+    Ok(VmArray {
+        data: slice.data,
+        len: slice.len,
+        capacity: slice.len,
+        _marker: std::marker::PhantomData,
+    })
 }
 
 /// Encode one native string array as one VM string-handle array.
@@ -349,14 +440,36 @@ pub(crate) fn string_array_to_vm(
     values: NativeArray<NativeStringRef>,
 ) -> RuntimeResult<VmArray<vm::StringHandle>> {
     let values = unsafe { values.as_slice()? };
-    let mut handles = Vec::with_capacity(values.len());
+    let mut context = context.write();
+    let len = values.len();
+    let len_u32 = u32::try_from(len).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "array",
+            "array length exceeds u32",
+        ))
+        .boxed()
+    })?;
+    let data = context
+        .allocate_raw_value_slots(len)
+        .map_err(Box::<RuntimeError>::from)?;
 
-    // encode each string
-    for value in values {
-        handles.push(intern_string_to_vm(context, *value)?);
+    // encode each string directly into raw VM storage
+    for (index, value) in values.iter().enumerate() {
+        let handle = context
+            .string_handle(unsafe { value.as_str()? })
+            .map_err(Box::<RuntimeError>::from)?;
+        let handle = handle.value();
+        context
+            .write_raw_value(data, index, handle)
+            .map_err(Box::<RuntimeError>::from)?;
     }
 
-    VmArray::from_values(context, &handles)
+    Ok(VmArray {
+        data,
+        len: len_u32,
+        capacity: len_u32,
+        _marker: std::marker::PhantomData,
+    })
 }
 
 /// Encode one native string slice as one VM string-handle slice.
@@ -365,14 +478,35 @@ pub(crate) fn string_slice_to_vm(
     values: NativeStringSlice,
 ) -> RuntimeResult<VmSlice<vm::StringHandle>> {
     let values = unsafe { values.as_slice()? };
-    let mut handles = Vec::with_capacity(values.len());
+    let mut context = context.write();
+    let len = values.len();
+    let len_u32 = u32::try_from(len).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "slice",
+            "slice length exceeds u32",
+        ))
+        .boxed()
+    })?;
+    let data = context
+        .allocate_raw_value_slots(len)
+        .map_err(Box::<RuntimeError>::from)?;
 
-    // encode each string
-    for value in values {
-        handles.push(intern_string_to_vm(context, *value)?);
+    // encode each string directly into raw VM storage
+    for (index, value) in values.iter().enumerate() {
+        let handle = context
+            .string_handle(unsafe { value.as_str()? })
+            .map_err(Box::<RuntimeError>::from)?;
+        let handle = handle.value();
+        context
+            .write_raw_value(data, index, handle)
+            .map_err(Box::<RuntimeError>::from)?;
     }
 
-    VmSlice::from_values(context, &handles)
+    Ok(VmSlice {
+        data,
+        len: len_u32,
+        _marker: std::marker::PhantomData,
+    })
 }
 
 /// Write one native byte slice into one mutable VM byte slice.
@@ -382,8 +516,9 @@ pub(crate) fn write_bytes_to_vm(
     value: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let value = unsafe { value.as_slice()? };
+    let mut context = context.write();
 
-    output.write_bytes(context, value)
+    output.write_bytes(&mut context, value)
 }
 
 /// Read one VM path-bytes payload and store it in binding-local path storage.
@@ -392,9 +527,12 @@ pub(crate) fn store_path_bytes_from_vm(
     context: &mut vm::ExternalCallContext<'_>,
     path: PathBytesVm,
 ) -> RuntimeResult<PathBytes> {
-    let bytes = path.0.read_bytes(context)?;
+    let context = context.read();
+    let bytes = path.0.bytes(&context)?;
 
-    Ok(PathBytesAbi::<NativeAbi>(binding.store_array(bytes)))
+    Ok(PathBytesAbi::<NativeAbi>(
+        binding.store_array_copy(bytes.as_ref()),
+    ))
 }
 
 /// Read one VM path-utf16 payload and store it in binding-local path storage.
@@ -403,9 +541,15 @@ pub(crate) fn store_path_utf16_from_vm(
     context: &mut vm::ExternalCallContext<'_>,
     path: PathUtf16Vm,
 ) -> RuntimeResult<PathUtf16> {
-    let units = path.0.read_values(context)?;
+    let context = context.read();
+    let units = binding.store_array_with(path.0.len as usize, |builder| {
+        path.0.try_for_each_value(&context, |unit| {
+            builder.push(unit);
+            Ok(())
+        })
+    })?;
 
-    Ok(PathUtf16Abi::<NativeAbi>(binding.store_array(units)))
+    Ok(PathUtf16Abi::<NativeAbi>(units))
 }
 
 /// Read one VM path payload and store it in binding-local path storage.
@@ -434,7 +578,8 @@ pub(crate) fn path_bytes_to_vm(
     path: PathBytes,
 ) -> RuntimeResult<PathBytesVm> {
     let bytes = unsafe { path.0.as_slice()? };
-    let array = VmArray::from_bytes(context, bytes)?;
+    let mut context = context.write();
+    let array = VmArray::from_bytes(&mut context, bytes)?;
 
     Ok(PathBytesAbi::<VmAbi>(array))
 }
@@ -445,7 +590,8 @@ pub(crate) fn path_utf16_to_vm(
     path: PathUtf16,
 ) -> RuntimeResult<PathUtf16Vm> {
     let units = unsafe { path.0.as_slice()? };
-    let array = VmArray::from_values(context, units)?;
+    let mut context = context.write();
+    let array = VmArray::from_values(&mut context, units)?;
 
     Ok(PathUtf16Abi::<VmAbi>(array))
 }
@@ -458,9 +604,10 @@ pub(crate) fn os_path_to_vm(
     match path {
         OsPath::OsPathBytes(path_bytes) => {
             let bytes = path_bytes_to_vm(context, path_bytes.bytes)?;
+            let mut write = context.write();
 
             Ok(OsPathVm::OsPathBytes(OsPathBytesVm {
-                kind: context
+                kind: write
                     .string_handle("bytes")
                     .map_err(Box::<RuntimeError>::from)?,
                 bytes,
@@ -468,9 +615,10 @@ pub(crate) fn os_path_to_vm(
         }
         OsPath::OsPathUtf16(path_utf16) => {
             let utf16 = path_utf16_to_vm(context, path_utf16.utf16)?;
+            let mut write = context.write();
 
             Ok(OsPathVm::OsPathUtf16(OsPathUtf16Vm {
-                kind: context
+                kind: write
                     .string_handle("utf16")
                     .map_err(Box::<RuntimeError>::from)?,
                 utf16,
@@ -484,9 +632,7 @@ pub(crate) fn allocate_vm_read_buffer(
     binding: &BindingCallContext,
     buffer: VmSlice<u8>,
 ) -> NativeSlice<u8> {
-    let length = buffer.len as usize;
-
-    binding.store_slice(vec![0u8; length])
+    binding.store_zeroed_byte_slice(buffer.len as usize)
 }
 
 /// Copy one native read buffer back into one VM slice.
@@ -496,8 +642,9 @@ pub(crate) fn write_vm_read_buffer(
     native: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let bytes = unsafe { native.as_slice()? };
+    let mut context = context.write();
 
-    buffer.write_bytes(context, bytes)
+    buffer.write_bytes(&mut context, bytes)
 }
 
 /// Decode one VM slice of byte slices into plain VM slice values.
@@ -506,12 +653,13 @@ pub(crate) fn decode_vm_byte_slices(
     buffers: VmSlice<VmSlice<u8>>,
     field: &'static str,
 ) -> RuntimeResult<Vec<VmSlice<u8>>> {
-    let values = buffers.raw_values(context)?;
+    let context = context.read();
+    let values = buffers.raw_values(&context)?;
     let mut decoded = Vec::with_capacity(values.len());
 
     // decode each slice handle
     for value in values {
-        decoded.push(VmSlice::from_value(context, value, field, "Slice<uint8>")?);
+        decoded.push(VmSlice::from_value(&context, value, field, "Slice<uint8>")?);
     }
 
     Ok(decoded)
@@ -526,15 +674,16 @@ pub(crate) fn allocate_vm_read_buffers(
     field: &'static str,
 ) -> RuntimeResult<(NativeSlice<NativeSlice<u8>>, Vec<VmSlice<u8>>)> {
     let vm_buffers = decode_vm_byte_slices(context, buffers, field)?;
-    let mut native_buffers = Vec::with_capacity(vm_buffers.len());
+    let native_buffers = binding.store_slice_with(vm_buffers.len(), |builder| {
+        // allocate matching native buffers
+        for buffer in &vm_buffers {
+            builder.push(binding.store_zeroed_byte_slice(buffer.len as usize));
+        }
 
-    // allocate matching native buffers
-    for buffer in &vm_buffers {
-        let length = buffer.len as usize;
-        native_buffers.push(binding.store_slice(vec![0u8; length]));
-    }
+        Ok(())
+    })?;
 
-    Ok((binding.store_slice(native_buffers), vm_buffers))
+    Ok((native_buffers, vm_buffers))
 }
 
 /// Copy native read buffers back into one VM slice of byte slices.
@@ -558,7 +707,8 @@ pub(crate) fn write_vm_read_buffers(
     // copy each native buffer back into VM
     for (vm_buffer, native_buffer) in vm_buffers.into_iter().zip(native_buffers.iter()) {
         let bytes = unsafe { native_buffer.as_slice()? };
-        vm_buffer.write_bytes(context, bytes)?;
+        let mut context = context.write();
+        vm_buffer.write_bytes(&mut context, bytes)?;
     }
 
     Ok(())
@@ -572,13 +722,15 @@ pub(crate) fn store_vm_byte_slices(
     field: &'static str,
 ) -> RuntimeResult<NativeSlice<NativeSlice<u8>>> {
     let vm_buffers = decode_vm_byte_slices(context, buffers, field)?;
-    let mut native_buffers = Vec::with_capacity(vm_buffers.len());
+    let context = context.read();
 
-    // copy each VM buffer into binding-owned storage
-    for buffer in vm_buffers {
-        let bytes = buffer.read_bytes(context)?;
-        native_buffers.push(binding.store_slice(bytes));
-    }
+    binding.store_slice_with(vm_buffers.len(), |builder| {
+        // copy each VM buffer into binding-owned storage
+        for buffer in vm_buffers {
+            let bytes = buffer.read_bytes(&context)?;
+            builder.push(binding.store_slice(bytes));
+        }
 
-    Ok(binding.store_slice(native_buffers))
+        Ok(())
+    })
 }

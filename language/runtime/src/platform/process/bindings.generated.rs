@@ -171,23 +171,20 @@ fn decode_uint64(
 /// Decode a string argument.
 #[allow(dead_code)]
 fn decode_string(
+    context: &vm::ExternalReadContext<'_, '_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
 ) -> RuntimeResult<vm::StringHandle> {
-    if value.tag() != vm::ValueTag::String {
-        return Err(
-            RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed(),
-        );
-    }
-
-    Ok(vm::StringHandle::new(value))
+    context.string_handle_from_value(value).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
+    })
 }
 
 /// Decode a slice argument.
 #[allow(dead_code)]
 fn decode_slice<T>(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &vm::ExternalReadContext<'_, '_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
@@ -198,7 +195,7 @@ fn decode_slice<T>(
 /// Decode an array argument.
 #[allow(dead_code)]
 fn decode_array<T>(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &vm::ExternalReadContext<'_, '_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
@@ -212,6 +209,7 @@ fn encode_destack_process_args_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<vm::StringHandle>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -223,6 +221,7 @@ fn decode_destack_process_cwd_chdir_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(fs::OsPathVm,)> {
+    let context = &context.read();
     let path_value = arg_value(args, 0, "path", "OsPath")?;
     let path = <fs::OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     Ok((path,))
@@ -243,6 +242,7 @@ fn encode_destack_process_cwd_get_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<fs::OsPathVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| match value {
             fs::OsPathVm::OsPathBytes(value) => {
@@ -250,26 +250,54 @@ fn encode_destack_process_cwd_get_result(
                 let payload_value = {
                     let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                     let field_1: RuntimeResult<vm::Value> = value.bytes.0.to_value(context);
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("fs::OsPathBytes")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("fs::OsPath")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             fs::OsPathVm::OsPathUtf16(value) => {
                 let tag_value = vm::Value::uint(2271740357u64, 32);
                 let payload_value = {
                     let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                     let field_1: RuntimeResult<vm::Value> = value.utf16.0.to_value(context);
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("fs::OsPathUtf16")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("fs::OsPath")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
         })
         .and_then(|value| value)
@@ -278,11 +306,12 @@ fn encode_destack_process_cwd_get_result(
 /// Decode arguments for destack.process.env.delete.
 #[inline]
 fn decode_destack_process_env_delete_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
+    let context = &context.read();
     let name_value = arg_value(args, 0, "name", "string")?;
-    let name = decode_string(name_value, "name", "string")?;
+    let name = decode_string(context, name_value, "name", "string")?;
     Ok((name,))
 }
 
@@ -301,6 +330,7 @@ fn decode_destack_process_env_delete_bytes_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(VmSlice<u8>,)> {
+    let context = &context.read();
     let name_value = arg_value(args, 0, "name", "Slice<uint8>")?;
     let name = decode_slice::<u8>(context, name_value, "name", "Slice<uint8>")?;
     Ok((name,))
@@ -318,11 +348,12 @@ fn encode_destack_process_env_delete_bytes_result(
 /// Decode arguments for destack.process.env.get.
 #[inline]
 fn decode_destack_process_env_get_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
+    let context = &context.read();
     let name_value = arg_value(args, 0, "name", "string")?;
-    let name = decode_string(name_value, "name", "string")?;
+    let name = decode_string(context, name_value, "name", "string")?;
     Ok((name,))
 }
 
@@ -343,6 +374,7 @@ fn decode_destack_process_env_get_bytes_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(VmSlice<u8>,)> {
+    let context = &context.read();
     let name_value = arg_value(args, 0, "name", "Slice<uint8>")?;
     let name = decode_slice::<u8>(context, name_value, "name", "Slice<uint8>")?;
     Ok((name,))
@@ -354,6 +386,7 @@ fn encode_destack_process_env_get_bytes_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<u8>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -362,13 +395,14 @@ fn encode_destack_process_env_get_bytes_result(
 /// Decode arguments for destack.process.env.set.
 #[inline]
 fn decode_destack_process_env_set_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle, vm::StringHandle)> {
+    let context = &context.read();
     let name_value = arg_value(args, 0, "name", "string")?;
-    let name = decode_string(name_value, "name", "string")?;
+    let name = decode_string(context, name_value, "name", "string")?;
     let argument_value_value = arg_value(args, 1, "argument_value", "string")?;
-    let argument_value = decode_string(argument_value_value, "argument_value", "string")?;
+    let argument_value = decode_string(context, argument_value_value, "argument_value", "string")?;
     Ok((name, argument_value))
 }
 
@@ -387,6 +421,7 @@ fn decode_destack_process_env_set_bytes_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(VmSlice<u8>, VmSlice<u8>)> {
+    let context = &context.read();
     let name_value = arg_value(args, 0, "name", "Slice<uint8>")?;
     let name = decode_slice::<u8>(context, name_value, "name", "Slice<uint8>")?;
     let argument_value_value = arg_value(args, 1, "argument_value", "Slice<uint8>")?;
@@ -418,6 +453,7 @@ fn decode_destack_process_exec_fexec_args(
     VmSlice<vm::StringHandle>,
     VmSlice<vm::StringHandle>,
 )> {
+    let context = &context.read();
     let executable_value = arg_value(args, 0, "executable", "FileHandle")?;
     let executable_inner_inner =
         decode_uint64(executable_value, "executable_inner_inner", "FileHandle")?;
@@ -455,6 +491,7 @@ fn decode_destack_process_exec_path_args(
     VmSlice<vm::StringHandle>,
     VmSlice<vm::StringHandle>,
 )> {
+    let context = &context.read();
     let command_value = arg_value(args, 0, "command", "OsPath")?;
     let command = <fs::OsPathVm as VmAggregateCodec>::decode_with_context(context, command_value)?;
     let arguments_value = arg_value(args, 1, "arguments", "Slice<string>")?;
@@ -491,6 +528,7 @@ fn decode_destack_process_exec_pathat_args(
     VmSlice<vm::StringHandle>,
     ExecAtFlags,
 )> {
+    let context = &context.read();
     let directory_value = arg_value(args, 0, "directory", "DirectoryHandle")?;
     let directory_inner_inner =
         decode_uint64(directory_value, "directory_inner_inner", "DirectoryHandle")?;
@@ -638,6 +676,7 @@ fn encode_destack_process_fd_process_fd_try_wait_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessWaitStatusVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| match value {
             ProcessWaitStatusVm::ProcessWaitContinuedStatus(value) => {
@@ -646,13 +685,27 @@ fn encode_destack_process_fd_process_fd_try_wait_result(
                     let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                     let field_1: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("process::ProcessWaitContinuedStatus")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             ProcessWaitStatusVm::ProcessWaitExitedStatus(value) => {
                 let tag_value = vm::Value::uint(4060872876u64, 32);
@@ -662,13 +715,30 @@ fn encode_destack_process_fd_process_fd_try_wait_result(
                         Ok(vm::Value::uint(value.pid.0 as u64, 32));
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::int(value.exit_code as i64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("process::ProcessWaitExitedStatus")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             ProcessWaitStatusVm::ProcessWaitRunningStatus(value) => {
                 let tag_value = vm::Value::uint(2787154895u64, 32);
@@ -676,13 +746,27 @@ fn encode_destack_process_fd_process_fd_try_wait_result(
                     let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                     let field_1: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("process::ProcessWaitRunningStatus")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             ProcessWaitStatusVm::ProcessWaitSignaledStatus(value) => {
                 let tag_value = vm::Value::uint(2483179112u64, 32);
@@ -693,13 +777,33 @@ fn encode_destack_process_fd_process_fd_try_wait_result(
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.signal.0 as u64, 32));
                     let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.core_dumped));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("process::ProcessWaitSignaledStatus")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(3, field_3?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             ProcessWaitStatusVm::ProcessWaitStoppedStatus(value) => {
                 let tag_value = vm::Value::uint(116212971u64, 32);
@@ -709,13 +813,30 @@ fn encode_destack_process_fd_process_fd_try_wait_result(
                         Ok(vm::Value::uint(value.pid.0 as u64, 32));
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.signal.0 as u64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("process::ProcessWaitStoppedStatus")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
         })
         .and_then(|value| value)
@@ -742,6 +863,7 @@ fn encode_destack_process_fd_process_fd_wait_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessWaitStatusVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| match value {
             ProcessWaitStatusVm::ProcessWaitContinuedStatus(value) => {
@@ -750,13 +872,27 @@ fn encode_destack_process_fd_process_fd_wait_result(
                     let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                     let field_1: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("process::ProcessWaitContinuedStatus")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             ProcessWaitStatusVm::ProcessWaitExitedStatus(value) => {
                 let tag_value = vm::Value::uint(4060872876u64, 32);
@@ -766,13 +902,30 @@ fn encode_destack_process_fd_process_fd_wait_result(
                         Ok(vm::Value::uint(value.pid.0 as u64, 32));
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::int(value.exit_code as i64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("process::ProcessWaitExitedStatus")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             ProcessWaitStatusVm::ProcessWaitRunningStatus(value) => {
                 let tag_value = vm::Value::uint(2787154895u64, 32);
@@ -780,13 +933,27 @@ fn encode_destack_process_fd_process_fd_wait_result(
                     let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                     let field_1: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("process::ProcessWaitRunningStatus")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             ProcessWaitStatusVm::ProcessWaitSignaledStatus(value) => {
                 let tag_value = vm::Value::uint(2483179112u64, 32);
@@ -797,13 +964,33 @@ fn encode_destack_process_fd_process_fd_wait_result(
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.signal.0 as u64, 32));
                     let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.core_dumped));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("process::ProcessWaitSignaledStatus")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(3, field_3?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             ProcessWaitStatusVm::ProcessWaitStoppedStatus(value) => {
                 let tag_value = vm::Value::uint(116212971u64, 32);
@@ -813,13 +1000,30 @@ fn encode_destack_process_fd_process_fd_wait_result(
                         Ok(vm::Value::uint(value.pid.0 as u64, 32));
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.signal.0 as u64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("process::ProcessWaitStoppedStatus")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
         })
         .and_then(|value| value)
@@ -853,6 +1057,7 @@ fn decode_destack_process_fd_signal_fd_open_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(VmSlice<Signal>, SignalFdFlags)> {
+    let context = &context.read();
     let signals_value = arg_value(args, 0, "signals", "Slice<Signal>")?;
     let signals = decode_slice::<Signal>(context, signals_value, "signals", "Slice<Signal>")?;
     let flags_value = arg_value(args, 1, "flags", "SignalFdFlags")?;
@@ -891,13 +1096,21 @@ fn encode_destack_process_fd_signal_fd_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SignalEventVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.signal.0 as u64, 32));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("process::SignalEvent")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -908,6 +1121,7 @@ fn decode_destack_process_fd_signal_fd_set_mask_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SignalFdHandle, VmSlice<Signal>)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "SignalFdHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SignalFdHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -945,13 +1159,21 @@ fn encode_destack_process_fd_signal_fd_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SignalEventVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.signal.0 as u64, 32));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("process::SignalEvent")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -992,11 +1214,12 @@ fn encode_destack_process_fd_stdio_stdout_result(
 /// Decode arguments for destack.process.group.cgroupGetLimit.
 #[inline]
 fn decode_destack_process_group_cgroup_get_limit_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle, ProcessLimitResource)> {
+    let context = &context.read();
     let path_value = arg_value(args, 0, "path", "string")?;
-    let path = decode_string(path_value, "path", "string")?;
+    let path = decode_string(context, path_value, "path", "string")?;
     let resource_value = arg_value(args, 1, "resource", "ProcessLimitResource")?;
     let resource_inner = decode_uint32(resource_value, "resource_inner", "ProcessLimitResource")?;
     let resource = ProcessLimitResource(resource_inner);
@@ -1009,13 +1232,21 @@ fn encode_destack_process_group_cgroup_get_limit_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessLimitVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.soft, 64));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.hard, 64));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("process::ProcessLimit")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -1023,11 +1254,12 @@ fn encode_destack_process_group_cgroup_get_limit_result(
 /// Decode arguments for destack.process.group.cgroupJoin.
 #[inline]
 fn decode_destack_process_group_cgroup_join_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
+    let context = &context.read();
     let path_value = arg_value(args, 0, "path", "string")?;
-    let path = decode_string(path_value, "path", "string")?;
+    let path = decode_string(context, path_value, "path", "string")?;
     Ok((path,))
 }
 
@@ -1046,37 +1278,14 @@ fn decode_destack_process_group_cgroup_set_limit_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle, ProcessLimitResource, ProcessLimitVm)> {
+    let context = &context.read();
     let path_value = arg_value(args, 0, "path", "string")?;
-    let path = decode_string(path_value, "path", "string")?;
+    let path = decode_string(context, path_value, "path", "string")?;
     let resource_value = arg_value(args, 1, "resource", "ProcessLimitResource")?;
     let resource_inner = decode_uint32(resource_value, "resource_inner", "ProcessLimitResource")?;
     let resource = ProcessLimitResource(resource_inner);
     let limit_value = arg_value(args, 2, "limit", "ProcessLimit")?;
-    let limit = {
-        if limit_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "limit",
-                "ProcessLimit",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(limit_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "limit",
-                "expected 2 fields",
-            ))
-            .boxed());
-        }
-        let limit_soft = decode_uint64(slots[0], "limit_soft", "soft")?;
-        let limit_hard = decode_uint64(slots[1], "limit_hard", "hard")?;
-        ProcessLimitVm {
-            soft: limit_soft,
-            hard: limit_hard,
-        }
-    };
+    let limit = <ProcessLimitVm as VmAggregateCodec>::decode_with_context(context, limit_value)?;
     Ok((path, resource, limit))
 }
 
@@ -1095,8 +1304,9 @@ fn decode_destack_process_group_job_assign_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle, VmSlice<ProcessId>)> {
+    let context = &context.read();
     let name_value = arg_value(args, 0, "name", "string")?;
-    let name = decode_string(name_value, "name", "string")?;
+    let name = decode_string(context, name_value, "name", "string")?;
     let pids_value = arg_value(args, 1, "pids", "Slice<ProcessId>")?;
     let pids = decode_slice::<ProcessId>(context, pids_value, "pids", "Slice<ProcessId>")?;
     Ok((name, pids))
@@ -1117,37 +1327,14 @@ fn decode_destack_process_group_job_set_limit_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle, ProcessLimitResource, ProcessLimitVm)> {
+    let context = &context.read();
     let name_value = arg_value(args, 0, "name", "string")?;
-    let name = decode_string(name_value, "name", "string")?;
+    let name = decode_string(context, name_value, "name", "string")?;
     let resource_value = arg_value(args, 1, "resource", "ProcessLimitResource")?;
     let resource_inner = decode_uint32(resource_value, "resource_inner", "ProcessLimitResource")?;
     let resource = ProcessLimitResource(resource_inner);
     let limit_value = arg_value(args, 2, "limit", "ProcessLimit")?;
-    let limit = {
-        if limit_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "limit",
-                "ProcessLimit",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(limit_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "limit",
-                "expected 2 fields",
-            ))
-            .boxed());
-        }
-        let limit_soft = decode_uint64(slots[0], "limit_soft", "soft")?;
-        let limit_hard = decode_uint64(slots[1], "limit_hard", "hard")?;
-        ProcessLimitVm {
-            soft: limit_soft,
-            hard: limit_hard,
-        }
-    };
+    let limit = <ProcessLimitVm as VmAggregateCodec>::decode_with_context(context, limit_value)?;
     Ok((name, resource, limit))
 }
 
@@ -1199,15 +1386,26 @@ fn encode_destack_process_ids_group_ids_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessGroupIdsVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.real.0 as u64, 32));
             let field_1: RuntimeResult<vm::Value> =
                 Ok(vm::Value::uint(value.effective.0 as u64, 32));
             let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.saved.0 as u64, 32));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("process::ProcessGroupIds")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -1218,6 +1416,7 @@ fn encode_destack_process_ids_groups_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<GroupId>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -1314,37 +1513,9 @@ fn decode_destack_process_ids_set_group_ids_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ProcessGroupIdsVm,)> {
+    let context = &context.read();
     let ids_value = arg_value(args, 0, "ids", "ProcessGroupIds")?;
-    let ids = {
-        if ids_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "ids",
-                "ProcessGroupIds",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(ids_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "ids",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let ids_real_inner = decode_uint32(slots[0], "ids_real_inner", "real")?;
-        let ids_real = GroupId(ids_real_inner);
-        let ids_effective_inner = decode_uint32(slots[1], "ids_effective_inner", "effective")?;
-        let ids_effective = GroupId(ids_effective_inner);
-        let ids_saved_inner = decode_uint32(slots[2], "ids_saved_inner", "saved")?;
-        let ids_saved = GroupId(ids_saved_inner);
-        ProcessGroupIdsVm {
-            real: ids_real,
-            effective: ids_effective,
-            saved: ids_saved,
-        }
-    };
+    let ids = <ProcessGroupIdsVm as VmAggregateCodec>::decode_with_context(context, ids_value)?;
     Ok((ids,))
 }
 
@@ -1363,6 +1534,7 @@ fn decode_destack_process_ids_set_groups_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(VmSlice<GroupId>,)> {
+    let context = &context.read();
     let groups_value = arg_value(args, 0, "groups", "Slice<GroupId>")?;
     let groups = decode_slice::<GroupId>(context, groups_value, "groups", "Slice<GroupId>")?;
     Ok((groups,))
@@ -1404,37 +1576,9 @@ fn decode_destack_process_ids_set_user_ids_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ProcessUserIdsVm,)> {
+    let context = &context.read();
     let ids_value = arg_value(args, 0, "ids", "ProcessUserIds")?;
-    let ids = {
-        if ids_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "ids",
-                "ProcessUserIds",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(ids_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "ids",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let ids_real_inner = decode_uint32(slots[0], "ids_real_inner", "real")?;
-        let ids_real = UserId(ids_real_inner);
-        let ids_effective_inner = decode_uint32(slots[1], "ids_effective_inner", "effective")?;
-        let ids_effective = UserId(ids_effective_inner);
-        let ids_saved_inner = decode_uint32(slots[2], "ids_saved_inner", "saved")?;
-        let ids_saved = UserId(ids_saved_inner);
-        ProcessUserIdsVm {
-            real: ids_real,
-            effective: ids_effective,
-            saved: ids_saved,
-        }
-    };
+    let ids = <ProcessUserIdsVm as VmAggregateCodec>::decode_with_context(context, ids_value)?;
     Ok((ids,))
 }
 
@@ -1464,15 +1608,26 @@ fn encode_destack_process_ids_user_ids_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessUserIdsVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.real.0 as u64, 32));
             let field_1: RuntimeResult<vm::Value> =
                 Ok(vm::Value::uint(value.effective.0 as u64, 32));
             let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.saved.0 as u64, 32));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("process::ProcessUserIds")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -1483,6 +1638,7 @@ fn decode_destack_process_isolation_chroot_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(fs::OsPathVm,)> {
+    let context = &context.read();
     let path_value = arg_value(args, 0, "path", "OsPath")?;
     let path = <fs::OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     Ok((path,))
@@ -1503,6 +1659,7 @@ fn decode_destack_process_isolation_install_syscall_filter_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(VmArray<u8>, SyscallFilterFlags)> {
+    let context = &context.read();
     let program_value = arg_value(args, 0, "program", "uint8[]")?;
     let program = decode_array::<u8>(context, program_value, "program", "uint8[]")?;
     let flags_value = arg_value(args, 1, "flags", "SyscallFilterFlags")?;
@@ -1523,11 +1680,12 @@ fn encode_destack_process_isolation_install_syscall_filter_result(
 /// Decode arguments for destack.process.isolation.setHostName.
 #[inline]
 fn decode_destack_process_isolation_set_host_name_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
+    let context = &context.read();
     let name_value = arg_value(args, 0, "name", "string")?;
-    let name = decode_string(name_value, "name", "string")?;
+    let name = decode_string(context, name_value, "name", "string")?;
     Ok((name,))
 }
 
@@ -1546,6 +1704,7 @@ fn decode_destack_process_isolation_set_network_namespace_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(fs::OsPathVm,)> {
+    let context = &context.read();
     let path_value = arg_value(args, 0, "path", "OsPath")?;
     let path = <fs::OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     Ok((path,))
@@ -1639,13 +1798,21 @@ fn encode_destack_process_limits_get_limit_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessLimitVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.soft, 64));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.hard, 64));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("process::ProcessLimit")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -1656,35 +1823,12 @@ fn decode_destack_process_limits_set_limit_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ProcessLimitResource, ProcessLimitVm)> {
+    let context = &context.read();
     let resource_value = arg_value(args, 0, "resource", "ProcessLimitResource")?;
     let resource_inner = decode_uint32(resource_value, "resource_inner", "ProcessLimitResource")?;
     let resource = ProcessLimitResource(resource_inner);
     let limit_value = arg_value(args, 1, "limit", "ProcessLimit")?;
-    let limit = {
-        if limit_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "limit",
-                "ProcessLimit",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(limit_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "limit",
-                "expected 2 fields",
-            ))
-            .boxed());
-        }
-        let limit_soft = decode_uint64(slots[0], "limit_soft", "soft")?;
-        let limit_hard = decode_uint64(slots[1], "limit_hard", "hard")?;
-        ProcessLimitVm {
-            soft: limit_soft,
-            hard: limit_hard,
-        }
-    };
+    let limit = <ProcessLimitVm as VmAggregateCodec>::decode_with_context(context, limit_value)?;
     Ok((resource, limit))
 }
 
@@ -1715,12 +1859,17 @@ fn encode_destack_process_sched_get_affinity_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<thread::ThreadCpuSetVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = value.cpus.to_value(context);
-            context
-                .allocate_aggregate(vec![field_0?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("thread::ThreadCpuSet")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -1766,15 +1915,26 @@ fn encode_destack_process_sched_get_scheduler_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessSchedulerConfigVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> =
                 Ok(vm::Value::int(value.policy as i32 as i64, 32));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.priority as i64, 32));
             let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.flags as u64, 32));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("process::ProcessSchedulerConfig")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -1785,32 +1945,13 @@ fn decode_destack_process_sched_set_affinity_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ProcessId, thread::ThreadCpuSetVm)> {
+    let context = &context.read();
     let pid_value = arg_value(args, 0, "pid", "ProcessId")?;
     let pid_inner = decode_uint32(pid_value, "pid_inner", "ProcessId")?;
     let pid = ProcessId(pid_inner);
     let cpus_value = arg_value(args, 1, "cpus", "ThreadCpuSet")?;
-    let cpus = {
-        if cpus_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "cpus",
-                "ThreadCpuSet",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(cpus_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 1 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "cpus",
-                "expected 1 fields",
-            ))
-            .boxed());
-        }
-        let cpus_cpus =
-            decode_array::<thread::ThreadCpuVm>(context, slots[0], "cpus_cpus", "cpus")?;
-        thread::ThreadCpuSetVm { cpus: cpus_cpus }
-    };
+    let cpus =
+        <thread::ThreadCpuSetVm as VmAggregateCodec>::decode_with_context(context, cpus_value)?;
     Ok((pid, cpus))
 }
 
@@ -1852,52 +1993,13 @@ fn decode_destack_process_sched_set_scheduler_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ProcessId, ProcessSchedulerConfigVm)> {
+    let context = &context.read();
     let pid_value = arg_value(args, 0, "pid", "ProcessId")?;
     let pid_inner = decode_uint32(pid_value, "pid_inner", "ProcessId")?;
     let pid = ProcessId(pid_inner);
     let config_value = arg_value(args, 1, "config", "ProcessSchedulerConfig")?;
-    let config = {
-        if config_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "config",
-                "ProcessSchedulerConfig",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(config_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "config",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let config_policy_raw = decode_int32(slots[0], "config_policy_raw", "policy")?;
-        let config_policy = match config_policy_raw {
-            1i32 => ProcessSchedulerPolicy::Other,
-            2i32 => ProcessSchedulerPolicy::Fifo,
-            3i32 => ProcessSchedulerPolicy::RoundRobin,
-            4i32 => ProcessSchedulerPolicy::Batch,
-            5i32 => ProcessSchedulerPolicy::Idle,
-            6i32 => ProcessSchedulerPolicy::Deadline,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "config_policy",
-                    "unknown ProcessSchedulerPolicy value",
-                ))
-                .boxed());
-            }
-        };
-        let config_priority = decode_int32(slots[1], "config_priority", "priority")?;
-        let config_flags = decode_uint32(slots[2], "config_flags", "flags")?;
-        ProcessSchedulerConfigVm {
-            policy: config_policy,
-            priority: config_priority,
-            flags: config_flags,
-        }
-    };
+    let config =
+        <ProcessSchedulerConfigVm as VmAggregateCodec>::decode_with_context(context, config_value)?;
     Ok((pid, config))
 }
 
@@ -2007,6 +2109,7 @@ fn encode_destack_process_signals_signal_mask_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<Signal>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -2018,6 +2121,7 @@ fn decode_destack_process_signals_signal_mask_update_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(SignalMaskHow, VmSlice<Signal>)> {
+    let context = &context.read();
     let how_value = arg_value(args, 0, "how", "SignalMaskHow")?;
     let how_raw = decode_int32(how_value, "how_raw", "SignalMaskHow")?;
     let how = match how_raw {
@@ -2065,13 +2169,21 @@ fn encode_destack_process_signals_signal_receive_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SignalEventVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.signal.0 as u64, 32));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("process::SignalEvent")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -2118,13 +2230,21 @@ fn encode_destack_process_signals_signal_try_receive_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SignalEventVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.signal.0 as u64, 32));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("process::SignalEvent")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -2135,6 +2255,7 @@ fn decode_destack_process_signals_signal_try_wait_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(VmSlice<Signal>,)> {
+    let context = &context.read();
     let signals_value = arg_value(args, 0, "signals", "Slice<Signal>")?;
     let signals = decode_slice::<Signal>(context, signals_value, "signals", "Slice<Signal>")?;
     Ok((signals,))
@@ -2146,13 +2267,21 @@ fn encode_destack_process_signals_signal_try_wait_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SignalEventVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.signal.0 as u64, 32));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("process::SignalEvent")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -2185,6 +2314,7 @@ fn decode_destack_process_signals_signal_wait_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(VmSlice<Signal>,)> {
+    let context = &context.read();
     let signals_value = arg_value(args, 0, "signals", "Slice<Signal>")?;
     let signals = decode_slice::<Signal>(context, signals_value, "signals", "Slice<Signal>")?;
     Ok((signals,))
@@ -2196,13 +2326,21 @@ fn encode_destack_process_signals_signal_wait_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SignalEventVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.signal.0 as u64, 32));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("process::SignalEvent")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -2218,6 +2356,7 @@ fn decode_destack_process_spawn_start_args(
     VmSlice<vm::StringHandle>,
     ProcessSpawnOptionsVm,
 )> {
+    let context = &context.read();
     let command_value = arg_value(args, 0, "command", "OsPath")?;
     let command = <fs::OsPathVm as VmAggregateCodec>::decode_with_context(context, command_value)?;
     let arguments_value = arg_value(args, 1, "arguments", "Slice<string>")?;
@@ -2231,37 +2370,8 @@ fn decode_destack_process_spawn_start_args(
         "Slice<string>",
     )?;
     let options_value = arg_value(args, 3, "options", "ProcessSpawnOptions")?;
-    let options = {
-        if options_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "options",
-                "ProcessSpawnOptions",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(options_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "options",
-                "expected 4 fields",
-            ))
-            .boxed());
-        }
-        let options_cwd =
-            <fs::OsPathVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let options_detached = decode_bool(slots[1], "options_detached", "detached")?;
-        let options_reset_signals = decode_bool(slots[2], "options_reset_signals", "resetSignals")?;
-        let options_new_process_group =
-            decode_bool(slots[3], "options_new_process_group", "newProcessGroup")?;
-        ProcessSpawnOptionsVm {
-            cwd: options_cwd,
-            detached: options_detached,
-            reset_signals: options_reset_signals,
-            new_process_group: options_new_process_group,
-        }
-    };
+    let options =
+        <ProcessSpawnOptionsVm as VmAggregateCodec>::decode_with_context(context, options_value)?;
     Ok((command, arguments, environment, options))
 }
 
@@ -2289,6 +2399,7 @@ fn decode_destack_process_spawn_with_actions_args(
     VmSlice<ProcessStdioVm>,
     VmSlice<ProcessFdActionVm>,
 )> {
+    let context = &context.read();
     let command_value = arg_value(args, 0, "command", "OsPath")?;
     let command = <fs::OsPathVm as VmAggregateCodec>::decode_with_context(context, command_value)?;
     let arguments_value = arg_value(args, 1, "arguments", "Slice<string>")?;
@@ -2302,37 +2413,8 @@ fn decode_destack_process_spawn_with_actions_args(
         "Slice<string>",
     )?;
     let options_value = arg_value(args, 3, "options", "ProcessSpawnOptions")?;
-    let options = {
-        if options_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "options",
-                "ProcessSpawnOptions",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(options_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "options",
-                "expected 4 fields",
-            ))
-            .boxed());
-        }
-        let options_cwd =
-            <fs::OsPathVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let options_detached = decode_bool(slots[1], "options_detached", "detached")?;
-        let options_reset_signals = decode_bool(slots[2], "options_reset_signals", "resetSignals")?;
-        let options_new_process_group =
-            decode_bool(slots[3], "options_new_process_group", "newProcessGroup")?;
-        ProcessSpawnOptionsVm {
-            cwd: options_cwd,
-            detached: options_detached,
-            reset_signals: options_reset_signals,
-            new_process_group: options_new_process_group,
-        }
-    };
+    let options =
+        <ProcessSpawnOptionsVm as VmAggregateCodec>::decode_with_context(context, options_value)?;
     let stdio_value = arg_value(args, 4, "stdio", "Slice<ProcessStdio>")?;
     let stdio =
         decode_slice::<ProcessStdioVm>(context, stdio_value, "stdio", "Slice<ProcessStdio>")?;
@@ -2401,6 +2483,7 @@ fn encode_destack_process_wait_handle_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessWaitStatusVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| match value {
             ProcessWaitStatusVm::ProcessWaitContinuedStatus(value) => {
@@ -2409,13 +2492,27 @@ fn encode_destack_process_wait_handle_result(
                     let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                     let field_1: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("process::ProcessWaitContinuedStatus")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             ProcessWaitStatusVm::ProcessWaitExitedStatus(value) => {
                 let tag_value = vm::Value::uint(4060872876u64, 32);
@@ -2425,13 +2522,30 @@ fn encode_destack_process_wait_handle_result(
                         Ok(vm::Value::uint(value.pid.0 as u64, 32));
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::int(value.exit_code as i64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("process::ProcessWaitExitedStatus")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             ProcessWaitStatusVm::ProcessWaitRunningStatus(value) => {
                 let tag_value = vm::Value::uint(2787154895u64, 32);
@@ -2439,13 +2553,27 @@ fn encode_destack_process_wait_handle_result(
                     let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                     let field_1: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("process::ProcessWaitRunningStatus")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             ProcessWaitStatusVm::ProcessWaitSignaledStatus(value) => {
                 let tag_value = vm::Value::uint(2483179112u64, 32);
@@ -2456,13 +2584,33 @@ fn encode_destack_process_wait_handle_result(
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.signal.0 as u64, 32));
                     let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.core_dumped));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("process::ProcessWaitSignaledStatus")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(3, field_3?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             ProcessWaitStatusVm::ProcessWaitStoppedStatus(value) => {
                 let tag_value = vm::Value::uint(116212971u64, 32);
@@ -2472,13 +2620,30 @@ fn encode_destack_process_wait_handle_result(
                         Ok(vm::Value::uint(value.pid.0 as u64, 32));
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.signal.0 as u64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("process::ProcessWaitStoppedStatus")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
         })
         .and_then(|value| value)
@@ -2505,6 +2670,7 @@ fn encode_destack_process_wait_pid_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessWaitStatusVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| match value {
             ProcessWaitStatusVm::ProcessWaitContinuedStatus(value) => {
@@ -2513,13 +2679,27 @@ fn encode_destack_process_wait_pid_result(
                     let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                     let field_1: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("process::ProcessWaitContinuedStatus")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             ProcessWaitStatusVm::ProcessWaitExitedStatus(value) => {
                 let tag_value = vm::Value::uint(4060872876u64, 32);
@@ -2529,13 +2709,30 @@ fn encode_destack_process_wait_pid_result(
                         Ok(vm::Value::uint(value.pid.0 as u64, 32));
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::int(value.exit_code as i64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("process::ProcessWaitExitedStatus")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             ProcessWaitStatusVm::ProcessWaitRunningStatus(value) => {
                 let tag_value = vm::Value::uint(2787154895u64, 32);
@@ -2543,13 +2740,27 @@ fn encode_destack_process_wait_pid_result(
                     let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                     let field_1: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("process::ProcessWaitRunningStatus")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             ProcessWaitStatusVm::ProcessWaitSignaledStatus(value) => {
                 let tag_value = vm::Value::uint(2483179112u64, 32);
@@ -2560,13 +2771,33 @@ fn encode_destack_process_wait_pid_result(
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.signal.0 as u64, 32));
                     let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.core_dumped));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("process::ProcessWaitSignaledStatus")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(3, field_3?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             ProcessWaitStatusVm::ProcessWaitStoppedStatus(value) => {
                 let tag_value = vm::Value::uint(116212971u64, 32);
@@ -2576,13 +2807,30 @@ fn encode_destack_process_wait_pid_result(
                         Ok(vm::Value::uint(value.pid.0 as u64, 32));
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.signal.0 as u64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("process::ProcessWaitStoppedStatus")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
         })
         .and_then(|value| value)
@@ -2607,6 +2855,7 @@ fn encode_destack_process_wait_try_wait_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessWaitStatusVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| match value {
             ProcessWaitStatusVm::ProcessWaitContinuedStatus(value) => {
@@ -2615,13 +2864,27 @@ fn encode_destack_process_wait_try_wait_result(
                     let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                     let field_1: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("process::ProcessWaitContinuedStatus")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             ProcessWaitStatusVm::ProcessWaitExitedStatus(value) => {
                 let tag_value = vm::Value::uint(4060872876u64, 32);
@@ -2631,13 +2894,30 @@ fn encode_destack_process_wait_try_wait_result(
                         Ok(vm::Value::uint(value.pid.0 as u64, 32));
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::int(value.exit_code as i64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("process::ProcessWaitExitedStatus")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             ProcessWaitStatusVm::ProcessWaitRunningStatus(value) => {
                 let tag_value = vm::Value::uint(2787154895u64, 32);
@@ -2645,13 +2925,27 @@ fn encode_destack_process_wait_try_wait_result(
                     let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                     let field_1: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("process::ProcessWaitRunningStatus")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             ProcessWaitStatusVm::ProcessWaitSignaledStatus(value) => {
                 let tag_value = vm::Value::uint(2483179112u64, 32);
@@ -2662,13 +2956,33 @@ fn encode_destack_process_wait_try_wait_result(
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.signal.0 as u64, 32));
                     let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.core_dumped));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("process::ProcessWaitSignaledStatus")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(3, field_3?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             ProcessWaitStatusVm::ProcessWaitStoppedStatus(value) => {
                 let tag_value = vm::Value::uint(116212971u64, 32);
@@ -2678,13 +2992,30 @@ fn encode_destack_process_wait_try_wait_result(
                         Ok(vm::Value::uint(value.pid.0 as u64, 32));
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.signal.0 as u64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("process::ProcessWaitStoppedStatus")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
         })
         .and_then(|value| value)
@@ -5407,8 +5738,9 @@ fn destack_process_args_list_replay(
         |result| {
             if let Ok(()) = result {
                 let result_value: NativeStringSlice = unsafe { out.read() };
-                let mut result_recorded = Vec::new();
-                for result_recorded_item in unsafe { result_value.as_slice()? }.iter() {
+                let result_recorded_slice = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_slice.len());
+                for result_recorded_item in result_recorded_slice.iter() {
                     let result_recorded_item_recorded =
                         unsafe { result_recorded_item.as_str()? }.to_string();
                     result_recorded.push(result_recorded_item_recorded);
@@ -5433,12 +5765,14 @@ fn destack_process_args_list_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut value_native_values = Vec::new();
-                    for value in value.iter() {
-                        let value = binding.store_string(value.as_str());
-                        value_native_values.push(value);
-                    }
-                    let value_native = binding.store_string_slice(value_native_values);
+                    let value_native =
+                        binding.store_string_slice_with(value.len(), |value_native_values| {
+                            for value in value {
+                                let value = binding.store_string_owned(value);
+                                value_native_values.push(value);
+                            }
+                            Ok(())
+                        })?;
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -5516,9 +5850,15 @@ fn destack_process_cwd_get_replay(
                     fs::OsPath::OsPathBytes(value) => {
                         let result_recorded_os_path_bytes_kind =
                             unsafe { value.kind.as_str()? }.to_string();
-                        let mut result_recorded_os_path_bytes_bytes_inner = Vec::new();
+                        let result_recorded_os_path_bytes_bytes_inner_slice =
+                            unsafe { value.bytes.0.as_slice()? };
+                        let mut result_recorded_os_path_bytes_bytes_inner = Vec::with_capacity(
+                            result_recorded_os_path_bytes_bytes_inner_slice.len(),
+                        );
                         for result_recorded_os_path_bytes_bytes_inner_item in
-                            unsafe { value.bytes.0.as_slice()? }.iter().cloned()
+                            result_recorded_os_path_bytes_bytes_inner_slice
+                                .iter()
+                                .cloned()
                         {
                             let result_recorded_os_path_bytes_bytes_inner_item_recorded =
                                 result_recorded_os_path_bytes_bytes_inner_item;
@@ -5536,9 +5876,15 @@ fn destack_process_cwd_get_replay(
                     fs::OsPath::OsPathUtf16(value) => {
                         let result_recorded_os_path_utf16_kind =
                             unsafe { value.kind.as_str()? }.to_string();
-                        let mut result_recorded_os_path_utf16_utf16_inner = Vec::new();
+                        let result_recorded_os_path_utf16_utf16_inner_slice =
+                            unsafe { value.utf16.0.as_slice()? };
+                        let mut result_recorded_os_path_utf16_utf16_inner = Vec::with_capacity(
+                            result_recorded_os_path_utf16_utf16_inner_slice.len(),
+                        );
                         for result_recorded_os_path_utf16_utf16_inner_item in
-                            unsafe { value.utf16.0.as_slice()? }.iter().cloned()
+                            result_recorded_os_path_utf16_utf16_inner_slice
+                                .iter()
+                                .cloned()
                         {
                             let result_recorded_os_path_utf16_utf16_inner_item_recorded =
                                 result_recorded_os_path_utf16_utf16_inner_item;
@@ -5577,18 +5923,19 @@ fn destack_process_cwd_get_replay(
                     let value_native = match value {
                         fs::OspathReplayRecord::OsPathBytes(value) => {
                             let value_native_os_path_bytes_kind =
-                                binding.store_string(value.kind.as_str());
-                            let mut value_native_os_path_bytes_bytes_inner_values = Vec::new();
-                            for value_native_os_path_bytes_bytes_inner_item in
-                                value.bytes.iter().cloned()
-                            {
-                                let value_native_os_path_bytes_bytes_inner_decoded =
-                                    value_native_os_path_bytes_bytes_inner_item;
-                                value_native_os_path_bytes_bytes_inner_values
-                                    .push(value_native_os_path_bytes_bytes_inner_decoded);
-                            }
-                            let value_native_os_path_bytes_bytes_inner =
-                                binding.store_array(value_native_os_path_bytes_bytes_inner_values);
+                                binding.store_string_owned(value.kind);
+                            let value_native_os_path_bytes_bytes_inner = binding.store_array_with(
+                                value.bytes.len(),
+                                |value_native_os_path_bytes_bytes_inner_values| {
+                                    for value_native_os_path_bytes_bytes_inner_item in value.bytes {
+                                        let value_native_os_path_bytes_bytes_inner_decoded =
+                                            value_native_os_path_bytes_bytes_inner_item;
+                                        value_native_os_path_bytes_bytes_inner_values
+                                            .push(value_native_os_path_bytes_bytes_inner_decoded);
+                                    }
+                                    Ok(())
+                                },
+                            )?;
                             let value_native_os_path_bytes_bytes =
                                 platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(
                                     value_native_os_path_bytes_bytes_inner,
@@ -5601,18 +5948,19 @@ fn destack_process_cwd_get_replay(
                         }
                         fs::OspathReplayRecord::OsPathUtf16(value) => {
                             let value_native_os_path_utf16_kind =
-                                binding.store_string(value.kind.as_str());
-                            let mut value_native_os_path_utf16_utf16_inner_values = Vec::new();
-                            for value_native_os_path_utf16_utf16_inner_item in
-                                value.utf16.iter().cloned()
-                            {
-                                let value_native_os_path_utf16_utf16_inner_decoded =
-                                    value_native_os_path_utf16_utf16_inner_item;
-                                value_native_os_path_utf16_utf16_inner_values
-                                    .push(value_native_os_path_utf16_utf16_inner_decoded);
-                            }
-                            let value_native_os_path_utf16_utf16_inner =
-                                binding.store_array(value_native_os_path_utf16_utf16_inner_values);
+                                binding.store_string_owned(value.kind);
+                            let value_native_os_path_utf16_utf16_inner = binding.store_array_with(
+                                value.utf16.len(),
+                                |value_native_os_path_utf16_utf16_inner_values| {
+                                    for value_native_os_path_utf16_utf16_inner_item in value.utf16 {
+                                        let value_native_os_path_utf16_utf16_inner_decoded =
+                                            value_native_os_path_utf16_utf16_inner_item;
+                                        value_native_os_path_utf16_utf16_inner_values
+                                            .push(value_native_os_path_utf16_utf16_inner_decoded);
+                                    }
+                                    Ok(())
+                                },
+                            )?;
                             let value_native_os_path_utf16_utf16 =
                                 platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(
                                     value_native_os_path_utf16_utf16_inner,
@@ -5773,7 +6121,7 @@ fn destack_process_env_get_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native = binding.store_string(value.as_str());
+                    let value_native = binding.store_string_owned(value);
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -5806,8 +6154,9 @@ fn destack_process_env_get_bytes_replay(
         |result| {
             if let Ok(()) = result {
                 let result_value: NativeArray<u8> = unsafe { out.read() };
-                let mut result_recorded = Vec::new();
-                for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
+                let result_recorded_slice = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_slice.len());
+                for result_recorded_item in result_recorded_slice.iter().cloned() {
                     let result_recorded_item_recorded = result_recorded_item;
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -5831,12 +6180,14 @@ fn destack_process_env_get_bytes_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut value_native_values = Vec::new();
-                    for value_native_item in value.iter().cloned() {
-                        let value_native_decoded = value_native_item;
-                        value_native_values.push(value_native_decoded);
-                    }
-                    let value_native = binding.store_array(value_native_values);
+                    let value_native =
+                        binding.store_array_with(value.len(), |value_native_values| {
+                            for value_native_item in value {
+                                let value_native_decoded = value_native_item;
+                                value_native_values.push(value_native_decoded);
+                            }
+                            Ok(())
+                        })?;
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -6453,7 +6804,7 @@ fn destack_process_fd_process_fd_try_wait_replay(
                     let value_native = match value {
                         ProcesswaitstatusReplayRecord::ProcessWaitContinuedStatus(value) => {
                             let value_native_process_wait_continued_status_kind =
-                                binding.store_string(value.kind.as_str());
+                                binding.store_string_owned(value.kind);
                             let value_native_process_wait_continued_status_pid = value.pid;
                             let value_native_process_wait_continued_status =
                                 ProcessWaitContinuedStatus {
@@ -6466,7 +6817,7 @@ fn destack_process_fd_process_fd_try_wait_replay(
                         }
                         ProcesswaitstatusReplayRecord::ProcessWaitExitedStatus(value) => {
                             let value_native_process_wait_exited_status_kind =
-                                binding.store_string(value.kind.as_str());
+                                binding.store_string_owned(value.kind);
                             let value_native_process_wait_exited_status_pid = value.pid;
                             let value_native_process_wait_exited_status_exit_code = value.exit_code;
                             let value_native_process_wait_exited_status = ProcessWaitExitedStatus {
@@ -6480,7 +6831,7 @@ fn destack_process_fd_process_fd_try_wait_replay(
                         }
                         ProcesswaitstatusReplayRecord::ProcessWaitRunningStatus(value) => {
                             let value_native_process_wait_running_status_kind =
-                                binding.store_string(value.kind.as_str());
+                                binding.store_string_owned(value.kind);
                             let value_native_process_wait_running_status_pid = value.pid;
                             let value_native_process_wait_running_status =
                                 ProcessWaitRunningStatus {
@@ -6493,7 +6844,7 @@ fn destack_process_fd_process_fd_try_wait_replay(
                         }
                         ProcesswaitstatusReplayRecord::ProcessWaitSignaledStatus(value) => {
                             let value_native_process_wait_signaled_status_kind =
-                                binding.store_string(value.kind.as_str());
+                                binding.store_string_owned(value.kind);
                             let value_native_process_wait_signaled_status_pid = value.pid;
                             let value_native_process_wait_signaled_status_signal = value.signal;
                             let value_native_process_wait_signaled_status_core_dumped =
@@ -6512,7 +6863,7 @@ fn destack_process_fd_process_fd_try_wait_replay(
                         }
                         ProcesswaitstatusReplayRecord::ProcessWaitStoppedStatus(value) => {
                             let value_native_process_wait_stopped_status_kind =
-                                binding.store_string(value.kind.as_str());
+                                binding.store_string_owned(value.kind);
                             let value_native_process_wait_stopped_status_pid = value.pid;
                             let value_native_process_wait_stopped_status_signal = value.signal;
                             let value_native_process_wait_stopped_status =
@@ -6661,7 +7012,7 @@ fn destack_process_fd_process_fd_wait_replay(
                     let value_native = match value {
                         ProcesswaitstatusReplayRecord::ProcessWaitContinuedStatus(value) => {
                             let value_native_process_wait_continued_status_kind =
-                                binding.store_string(value.kind.as_str());
+                                binding.store_string_owned(value.kind);
                             let value_native_process_wait_continued_status_pid = value.pid;
                             let value_native_process_wait_continued_status =
                                 ProcessWaitContinuedStatus {
@@ -6674,7 +7025,7 @@ fn destack_process_fd_process_fd_wait_replay(
                         }
                         ProcesswaitstatusReplayRecord::ProcessWaitExitedStatus(value) => {
                             let value_native_process_wait_exited_status_kind =
-                                binding.store_string(value.kind.as_str());
+                                binding.store_string_owned(value.kind);
                             let value_native_process_wait_exited_status_pid = value.pid;
                             let value_native_process_wait_exited_status_exit_code = value.exit_code;
                             let value_native_process_wait_exited_status = ProcessWaitExitedStatus {
@@ -6688,7 +7039,7 @@ fn destack_process_fd_process_fd_wait_replay(
                         }
                         ProcesswaitstatusReplayRecord::ProcessWaitRunningStatus(value) => {
                             let value_native_process_wait_running_status_kind =
-                                binding.store_string(value.kind.as_str());
+                                binding.store_string_owned(value.kind);
                             let value_native_process_wait_running_status_pid = value.pid;
                             let value_native_process_wait_running_status =
                                 ProcessWaitRunningStatus {
@@ -6701,7 +7052,7 @@ fn destack_process_fd_process_fd_wait_replay(
                         }
                         ProcesswaitstatusReplayRecord::ProcessWaitSignaledStatus(value) => {
                             let value_native_process_wait_signaled_status_kind =
-                                binding.store_string(value.kind.as_str());
+                                binding.store_string_owned(value.kind);
                             let value_native_process_wait_signaled_status_pid = value.pid;
                             let value_native_process_wait_signaled_status_signal = value.signal;
                             let value_native_process_wait_signaled_status_core_dumped =
@@ -6720,7 +7071,7 @@ fn destack_process_fd_process_fd_wait_replay(
                         }
                         ProcesswaitstatusReplayRecord::ProcessWaitStoppedStatus(value) => {
                             let value_native_process_wait_stopped_status_kind =
-                                binding.store_string(value.kind.as_str());
+                                binding.store_string_owned(value.kind);
                             let value_native_process_wait_stopped_status_pid = value.pid;
                             let value_native_process_wait_stopped_status_signal = value.signal;
                             let value_native_process_wait_stopped_status =
@@ -7403,8 +7754,9 @@ fn destack_process_ids_groups_replay(
         |result| {
             if let Ok(()) = result {
                 let result_value: NativeSlice<GroupId> = unsafe { out.read() };
-                let mut result_recorded = Vec::new();
-                for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
+                let result_recorded_slice = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_slice.len());
+                for result_recorded_item in result_recorded_slice.iter().cloned() {
                     let result_recorded_item_recorded = result_recorded_item;
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -7428,12 +7780,14 @@ fn destack_process_ids_groups_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut value_native_values = Vec::new();
-                    for value_native_item in value.iter().cloned() {
-                        let value_native_decoded = value_native_item;
-                        value_native_values.push(value_native_decoded);
-                    }
-                    let value_native = binding.store_slice(value_native_values);
+                    let value_native =
+                        binding.store_slice_with(value.len(), |value_native_values| {
+                            for value_native_item in value {
+                                let value_native_decoded = value_native_item;
+                                value_native_values.push(value_native_decoded);
+                            }
+                            Ok(())
+                        })?;
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -8124,10 +8478,9 @@ fn destack_process_sched_get_affinity_replay(
         |result| {
             if let Ok(()) = result {
                 let result_value: thread::ThreadCpuSet = unsafe { out.read() };
-                let mut result_recorded_cpus = Vec::new();
-                for result_recorded_cpus_item in
-                    unsafe { result_value.cpus.as_slice()? }.iter().cloned()
-                {
+                let result_recorded_cpus_slice = unsafe { result_value.cpus.as_slice()? };
+                let mut result_recorded_cpus = Vec::with_capacity(result_recorded_cpus_slice.len());
+                for result_recorded_cpus_item in result_recorded_cpus_slice.iter().cloned() {
                     let result_recorded_cpus_item_recorded_group = result_recorded_cpus_item.group;
                     let result_recorded_cpus_item_recorded_cpu = result_recorded_cpus_item.cpu;
                     let result_recorded_cpus_item_recorded = thread::ThreadCpu {
@@ -8159,17 +8512,19 @@ fn destack_process_sched_get_affinity_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut value_native_cpus_values = Vec::new();
-                    for value_native_cpus_item in value.cpus.iter().cloned() {
-                        let value_native_cpus_decoded_group = value_native_cpus_item.group;
-                        let value_native_cpus_decoded_cpu = value_native_cpus_item.cpu;
-                        let value_native_cpus_decoded = thread::ThreadCpu {
-                            group: value_native_cpus_decoded_group,
-                            cpu: value_native_cpus_decoded_cpu,
-                        };
-                        value_native_cpus_values.push(value_native_cpus_decoded);
-                    }
-                    let value_native_cpus = binding.store_array(value_native_cpus_values);
+                    let value_native_cpus =
+                        binding.store_array_with(value.cpus.len(), |value_native_cpus_values| {
+                            for value_native_cpus_item in value.cpus {
+                                let value_native_cpus_decoded_group = value_native_cpus_item.group;
+                                let value_native_cpus_decoded_cpu = value_native_cpus_item.cpu;
+                                let value_native_cpus_decoded = thread::ThreadCpu {
+                                    group: value_native_cpus_decoded_group,
+                                    cpu: value_native_cpus_decoded_cpu,
+                                };
+                                value_native_cpus_values.push(value_native_cpus_decoded);
+                            }
+                            Ok(())
+                        })?;
                     let value_native = thread::ThreadCpuSet {
                         cpus: value_native_cpus,
                     };
@@ -8712,8 +9067,9 @@ fn destack_process_signals_signal_mask_read_replay(
         |result| {
             if let Ok(()) = result {
                 let result_value: NativeArray<Signal> = unsafe { out.read() };
-                let mut result_recorded = Vec::new();
-                for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
+                let result_recorded_slice = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_slice.len());
+                for result_recorded_item in result_recorded_slice.iter().cloned() {
                     let result_recorded_item_recorded = result_recorded_item;
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -8737,12 +9093,14 @@ fn destack_process_signals_signal_mask_read_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut value_native_values = Vec::new();
-                    for value_native_item in value.iter().cloned() {
-                        let value_native_decoded = value_native_item;
-                        value_native_values.push(value_native_decoded);
-                    }
-                    let value_native = binding.store_array(value_native_values);
+                    let value_native =
+                        binding.store_array_with(value.len(), |value_native_values| {
+                            for value_native_item in value {
+                                let value_native_decoded = value_native_item;
+                                value_native_values.push(value_native_decoded);
+                            }
+                            Ok(())
+                        })?;
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -9490,7 +9848,7 @@ fn destack_process_wait_handle_replay(
                     let value_native = match value {
                         ProcesswaitstatusReplayRecord::ProcessWaitContinuedStatus(value) => {
                             let value_native_process_wait_continued_status_kind =
-                                binding.store_string(value.kind.as_str());
+                                binding.store_string_owned(value.kind);
                             let value_native_process_wait_continued_status_pid = value.pid;
                             let value_native_process_wait_continued_status =
                                 ProcessWaitContinuedStatus {
@@ -9503,7 +9861,7 @@ fn destack_process_wait_handle_replay(
                         }
                         ProcesswaitstatusReplayRecord::ProcessWaitExitedStatus(value) => {
                             let value_native_process_wait_exited_status_kind =
-                                binding.store_string(value.kind.as_str());
+                                binding.store_string_owned(value.kind);
                             let value_native_process_wait_exited_status_pid = value.pid;
                             let value_native_process_wait_exited_status_exit_code = value.exit_code;
                             let value_native_process_wait_exited_status = ProcessWaitExitedStatus {
@@ -9517,7 +9875,7 @@ fn destack_process_wait_handle_replay(
                         }
                         ProcesswaitstatusReplayRecord::ProcessWaitRunningStatus(value) => {
                             let value_native_process_wait_running_status_kind =
-                                binding.store_string(value.kind.as_str());
+                                binding.store_string_owned(value.kind);
                             let value_native_process_wait_running_status_pid = value.pid;
                             let value_native_process_wait_running_status =
                                 ProcessWaitRunningStatus {
@@ -9530,7 +9888,7 @@ fn destack_process_wait_handle_replay(
                         }
                         ProcesswaitstatusReplayRecord::ProcessWaitSignaledStatus(value) => {
                             let value_native_process_wait_signaled_status_kind =
-                                binding.store_string(value.kind.as_str());
+                                binding.store_string_owned(value.kind);
                             let value_native_process_wait_signaled_status_pid = value.pid;
                             let value_native_process_wait_signaled_status_signal = value.signal;
                             let value_native_process_wait_signaled_status_core_dumped =
@@ -9549,7 +9907,7 @@ fn destack_process_wait_handle_replay(
                         }
                         ProcesswaitstatusReplayRecord::ProcessWaitStoppedStatus(value) => {
                             let value_native_process_wait_stopped_status_kind =
-                                binding.store_string(value.kind.as_str());
+                                binding.store_string_owned(value.kind);
                             let value_native_process_wait_stopped_status_pid = value.pid;
                             let value_native_process_wait_stopped_status_signal = value.signal;
                             let value_native_process_wait_stopped_status =
@@ -9696,7 +10054,7 @@ fn destack_process_wait_pid_replay(
                     let value_native = match value {
                         ProcesswaitstatusReplayRecord::ProcessWaitContinuedStatus(value) => {
                             let value_native_process_wait_continued_status_kind =
-                                binding.store_string(value.kind.as_str());
+                                binding.store_string_owned(value.kind);
                             let value_native_process_wait_continued_status_pid = value.pid;
                             let value_native_process_wait_continued_status =
                                 ProcessWaitContinuedStatus {
@@ -9709,7 +10067,7 @@ fn destack_process_wait_pid_replay(
                         }
                         ProcesswaitstatusReplayRecord::ProcessWaitExitedStatus(value) => {
                             let value_native_process_wait_exited_status_kind =
-                                binding.store_string(value.kind.as_str());
+                                binding.store_string_owned(value.kind);
                             let value_native_process_wait_exited_status_pid = value.pid;
                             let value_native_process_wait_exited_status_exit_code = value.exit_code;
                             let value_native_process_wait_exited_status = ProcessWaitExitedStatus {
@@ -9723,7 +10081,7 @@ fn destack_process_wait_pid_replay(
                         }
                         ProcesswaitstatusReplayRecord::ProcessWaitRunningStatus(value) => {
                             let value_native_process_wait_running_status_kind =
-                                binding.store_string(value.kind.as_str());
+                                binding.store_string_owned(value.kind);
                             let value_native_process_wait_running_status_pid = value.pid;
                             let value_native_process_wait_running_status =
                                 ProcessWaitRunningStatus {
@@ -9736,7 +10094,7 @@ fn destack_process_wait_pid_replay(
                         }
                         ProcesswaitstatusReplayRecord::ProcessWaitSignaledStatus(value) => {
                             let value_native_process_wait_signaled_status_kind =
-                                binding.store_string(value.kind.as_str());
+                                binding.store_string_owned(value.kind);
                             let value_native_process_wait_signaled_status_pid = value.pid;
                             let value_native_process_wait_signaled_status_signal = value.signal;
                             let value_native_process_wait_signaled_status_core_dumped =
@@ -9755,7 +10113,7 @@ fn destack_process_wait_pid_replay(
                         }
                         ProcesswaitstatusReplayRecord::ProcessWaitStoppedStatus(value) => {
                             let value_native_process_wait_stopped_status_kind =
-                                binding.store_string(value.kind.as_str());
+                                binding.store_string_owned(value.kind);
                             let value_native_process_wait_stopped_status_pid = value.pid;
                             let value_native_process_wait_stopped_status_signal = value.signal;
                             let value_native_process_wait_stopped_status =
@@ -9901,7 +10259,7 @@ fn destack_process_wait_try_wait_replay(
                     let value_native = match value {
                         ProcesswaitstatusReplayRecord::ProcessWaitContinuedStatus(value) => {
                             let value_native_process_wait_continued_status_kind =
-                                binding.store_string(value.kind.as_str());
+                                binding.store_string_owned(value.kind);
                             let value_native_process_wait_continued_status_pid = value.pid;
                             let value_native_process_wait_continued_status =
                                 ProcessWaitContinuedStatus {
@@ -9914,7 +10272,7 @@ fn destack_process_wait_try_wait_replay(
                         }
                         ProcesswaitstatusReplayRecord::ProcessWaitExitedStatus(value) => {
                             let value_native_process_wait_exited_status_kind =
-                                binding.store_string(value.kind.as_str());
+                                binding.store_string_owned(value.kind);
                             let value_native_process_wait_exited_status_pid = value.pid;
                             let value_native_process_wait_exited_status_exit_code = value.exit_code;
                             let value_native_process_wait_exited_status = ProcessWaitExitedStatus {
@@ -9928,7 +10286,7 @@ fn destack_process_wait_try_wait_replay(
                         }
                         ProcesswaitstatusReplayRecord::ProcessWaitRunningStatus(value) => {
                             let value_native_process_wait_running_status_kind =
-                                binding.store_string(value.kind.as_str());
+                                binding.store_string_owned(value.kind);
                             let value_native_process_wait_running_status_pid = value.pid;
                             let value_native_process_wait_running_status =
                                 ProcessWaitRunningStatus {
@@ -9941,7 +10299,7 @@ fn destack_process_wait_try_wait_replay(
                         }
                         ProcesswaitstatusReplayRecord::ProcessWaitSignaledStatus(value) => {
                             let value_native_process_wait_signaled_status_kind =
-                                binding.store_string(value.kind.as_str());
+                                binding.store_string_owned(value.kind);
                             let value_native_process_wait_signaled_status_pid = value.pid;
                             let value_native_process_wait_signaled_status_signal = value.signal;
                             let value_native_process_wait_signaled_status_core_dumped =
@@ -9960,7 +10318,7 @@ fn destack_process_wait_try_wait_replay(
                         }
                         ProcesswaitstatusReplayRecord::ProcessWaitStoppedStatus(value) => {
                             let value_native_process_wait_stopped_status_kind =
-                                binding.store_string(value.kind.as_str());
+                                binding.store_string_owned(value.kind);
                             let value_native_process_wait_stopped_status_pid = value.pid;
                             let value_native_process_wait_stopped_status_signal = value.signal;
                             let value_native_process_wait_stopped_status =
@@ -11342,14 +11700,18 @@ fn destack_process_args_list_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<vm::StringHandle> = value.clone();
                 let result_recorded_raw = result_value.raw_values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
-                    let result_recorded_item =
-                        decode_string(result_recorded_item_value, "result_recorded_item", "item")?;
+                    let result_recorded_item = decode_string(
+                        context,
+                        result_recorded_item_value,
+                        "result_recorded_item",
+                        "item",
+                    )?;
                     let result_recorded_item_recorded = {
                         let result_recorded_item_recorded_ref = context
                             .string_ref(result_recorded_item)
@@ -11375,12 +11737,12 @@ fn destack_process_args_list_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
-                    for vm_result_item in value.iter() {
+                    for vm_result_item in value {
                         let vm_result_item_value = context
                             .string_handle(vm_result_item.as_str())
                             .map_err(Box::<RuntimeError>::from)?;
@@ -11414,8 +11776,7 @@ fn destack_process_cwd_chdir_vm_replay(
                 platform_simulation_vm::destack_process_chdir(binding, context, path)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = ProcessCwdChdirReplayRecord {
@@ -11434,8 +11795,7 @@ fn destack_process_cwd_chdir_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -11464,7 +11824,7 @@ fn destack_process_cwd_get_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: fs::OsPathVm = value.clone();
                 let result_recorded = match result_value {
@@ -11535,7 +11895,7 @@ fn destack_process_cwd_get_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -11562,9 +11922,7 @@ fn destack_process_cwd_get_vm_replay(
                                 .map_err(Box::<RuntimeError>::from)?;
                             let mut vm_result_os_path_utf16_utf16_inner_values =
                                 Vec::with_capacity(value.utf16.len());
-                            for vm_result_os_path_utf16_utf16_inner_item in
-                                value.utf16.iter().cloned()
-                            {
+                            for vm_result_os_path_utf16_utf16_inner_item in value.utf16 {
                                 let vm_result_os_path_utf16_utf16_inner_item_value =
                                     vm_result_os_path_utf16_utf16_inner_item;
                                 vm_result_os_path_utf16_utf16_inner_values
@@ -11612,8 +11970,7 @@ fn destack_process_env_delete_vm_replay(
                 platform_simulation_vm::destack_process_env_delete(binding, context, name)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = ProcessEnvDeleteReplayRecord {
@@ -11632,8 +11989,7 @@ fn destack_process_env_delete_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -11664,8 +12020,7 @@ fn destack_process_env_delete_bytes_vm_replay(
                 platform_simulation_vm::destack_process_env_delete_bytes(binding, context, name)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = ProcessEnvDeleteBytesReplayRecord {
@@ -11684,8 +12039,7 @@ fn destack_process_env_delete_bytes_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -11715,7 +12069,7 @@ fn destack_process_env_get_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: vm::StringHandle = value.clone();
                 let result_recorded = {
@@ -11741,7 +12095,7 @@ fn destack_process_env_get_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -11778,7 +12132,7 @@ fn destack_process_env_get_bytes_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmArray<u8> = value.clone();
                 let result_recorded = result_value.read_bytes(context)?;
@@ -11799,7 +12153,7 @@ fn destack_process_env_get_bytes_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -11837,8 +12191,7 @@ fn destack_process_env_set_vm_replay(
                 argument_value,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = ProcessEnvSetReplayRecord {
@@ -11857,8 +12210,7 @@ fn destack_process_env_set_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -11893,8 +12245,7 @@ fn destack_process_env_set_bytes_vm_replay(
                 argument_value,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = ProcessEnvSetBytesReplayRecord {
@@ -11913,8 +12264,7 @@ fn destack_process_env_set_bytes_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -11955,8 +12305,7 @@ fn destack_process_exec_fexec_vm_replay(
                 environment,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = ProcessExecFexecReplayRecord {
@@ -11975,8 +12324,7 @@ fn destack_process_exec_fexec_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -12013,8 +12361,7 @@ fn destack_process_exec_path_vm_replay(
                 environment,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = ProcessExecPathReplayRecord {
@@ -12033,8 +12380,7 @@ fn destack_process_exec_path_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -12081,8 +12427,7 @@ fn destack_process_exec_pathat_vm_replay(
                 flags,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = ProcessExecPathatReplayRecord {
@@ -12101,8 +12446,7 @@ fn destack_process_exec_pathat_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -12131,8 +12475,7 @@ fn destack_process_exit_terminate_vm_replay(
                 platform_simulation_vm::destack_process_exit(binding, context, code)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = ProcessExitTerminateReplayRecord {
@@ -12151,8 +12494,7 @@ fn destack_process_exit_terminate_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -12183,8 +12525,7 @@ fn destack_process_fd_process_fd_close_vm_replay(
                 platform_simulation_vm::destack_process_process_fd_close(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = ProcessFdProcessFdCloseReplayRecord {
@@ -12203,8 +12544,7 @@ fn destack_process_fd_process_fd_close_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -12236,8 +12576,7 @@ fn destack_process_fd_process_fd_open_vm_replay(
                 binding, context, pid, flags,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::ProcessFdHandle = value.clone();
                 let result_recorded = result_value;
@@ -12257,8 +12596,7 @@ fn destack_process_fd_process_fd_open_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -12296,8 +12634,7 @@ fn destack_process_fd_process_fd_send_signal_vm_replay(
                 )
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = ProcessFdProcessFdSendSignalReplayRecord {
@@ -12316,8 +12653,7 @@ fn destack_process_fd_process_fd_send_signal_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -12351,7 +12687,7 @@ fn destack_process_fd_process_fd_try_wait_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: ProcessWaitStatusVm = value.clone();
                 let result_recorded = match result_value {
@@ -12478,7 +12814,7 @@ fn destack_process_fd_process_fd_try_wait_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -12593,7 +12929,7 @@ fn destack_process_fd_process_fd_wait_vm_replay(
             ),
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: ProcessWaitStatusVm = value.clone();
                 let result_recorded = match result_value {
@@ -12720,7 +13056,7 @@ fn destack_process_fd_process_fd_wait_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -12833,8 +13169,7 @@ fn destack_process_fd_signal_fd_close_vm_replay(
                 platform_simulation_vm::destack_process_signal_fd_close(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = ProcessFdSignalFdCloseReplayRecord {
@@ -12853,8 +13188,7 @@ fn destack_process_fd_signal_fd_close_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -12886,8 +13220,7 @@ fn destack_process_fd_signal_fd_open_vm_replay(
                 binding, context, signals, flags,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::SignalFdHandle = value.clone();
                 let result_recorded = result_value;
@@ -12907,8 +13240,7 @@ fn destack_process_fd_signal_fd_open_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -12942,8 +13274,7 @@ fn destack_process_fd_signal_fd_read_vm_replay(
                 platform_simulation_vm::destack_process_signal_fd_read(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: SignalEventVm = value.clone();
                 let result_recorded_signal = result_value.signal;
@@ -12968,8 +13299,7 @@ fn destack_process_fd_signal_fd_read_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -13009,8 +13339,7 @@ fn destack_process_fd_signal_fd_set_mask_vm_replay(
                 binding, context, handle, signals,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = ProcessFdSignalFdSetMaskReplayRecord {
@@ -13029,8 +13358,7 @@ fn destack_process_fd_signal_fd_set_mask_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -13061,8 +13389,7 @@ fn destack_process_fd_signal_fd_try_read_vm_replay(
                 platform_simulation_vm::destack_process_signal_fd_try_read(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: SignalEventVm = value.clone();
                 let result_recorded_signal = result_value.signal;
@@ -13087,8 +13414,7 @@ fn destack_process_fd_signal_fd_try_read_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -13124,8 +13450,7 @@ fn destack_process_fd_stdio_stderr_vm_replay(
                 platform_simulation_vm::destack_process_stdio_stderr(binding, context)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::FileHandle = value.clone();
                 let result_recorded = result_value;
@@ -13145,8 +13470,7 @@ fn destack_process_fd_stdio_stderr_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -13177,8 +13501,7 @@ fn destack_process_fd_stdio_stdin_vm_replay(
                 platform_simulation_vm::destack_process_stdio_stdin(binding, context)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::FileHandle = value.clone();
                 let result_recorded = result_value;
@@ -13198,8 +13521,7 @@ fn destack_process_fd_stdio_stdin_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -13230,8 +13552,7 @@ fn destack_process_fd_stdio_stdout_vm_replay(
                 platform_simulation_vm::destack_process_stdio_stdout(binding, context)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::FileHandle = value.clone();
                 let result_recorded = result_value;
@@ -13251,8 +13572,7 @@ fn destack_process_fd_stdio_stdout_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -13283,8 +13603,7 @@ fn destack_process_ids_egid_vm_replay(
                 platform_simulation_vm::destack_process_egid(binding, context)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: GroupId = value.clone();
                 let result_recorded = result_value;
@@ -13304,8 +13623,7 @@ fn destack_process_ids_egid_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -13336,8 +13654,7 @@ fn destack_process_ids_euid_vm_replay(
                 platform_simulation_vm::destack_process_euid(binding, context)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: UserId = value.clone();
                 let result_recorded = result_value;
@@ -13357,8 +13674,7 @@ fn destack_process_ids_euid_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -13389,8 +13705,7 @@ fn destack_process_ids_gid_vm_replay(
                 platform_simulation_vm::destack_process_gid(binding, context)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: GroupId = value.clone();
                 let result_recorded = result_value;
@@ -13410,8 +13725,7 @@ fn destack_process_ids_gid_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -13442,8 +13756,7 @@ fn destack_process_ids_group_ids_vm_replay(
                 platform_simulation_vm::destack_process_group_ids(binding, context)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: ProcessGroupIdsVm = value.clone();
                 let result_recorded_real = result_value.real;
@@ -13470,8 +13783,7 @@ fn destack_process_ids_group_ids_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -13510,7 +13822,7 @@ fn destack_process_ids_groups_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<GroupId> = value.clone();
                 let result_recorded_raw = result_value.raw_values(context)?;
@@ -13542,12 +13854,12 @@ fn destack_process_ids_groups_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
-                    for vm_result_item in value.iter().cloned() {
+                    for vm_result_item in value {
                         let vm_result_item_value = vm_result_item;
                         vm_result_values.push(vm_result_item_value);
                     }
@@ -13578,8 +13890,7 @@ fn destack_process_ids_pid_vm_replay(
                 platform_simulation_vm::destack_process_pid(binding, context)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: ProcessId = value.clone();
                 let result_recorded = result_value;
@@ -13599,8 +13910,7 @@ fn destack_process_ids_pid_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -13631,8 +13941,7 @@ fn destack_process_ids_ppid_vm_replay(
                 platform_simulation_vm::destack_process_ppid(binding, context)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: ProcessId = value.clone();
                 let result_recorded = result_value;
@@ -13652,8 +13961,7 @@ fn destack_process_ids_ppid_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -13685,8 +13993,7 @@ fn destack_process_ids_set_egid_vm_replay(
                 platform_simulation_vm::destack_process_set_egid(binding, context, groupid)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = ProcessIdsSetEgidReplayRecord {
@@ -13705,8 +14012,7 @@ fn destack_process_ids_set_egid_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -13735,8 +14041,7 @@ fn destack_process_ids_set_euid_vm_replay(
                 platform_simulation_vm::destack_process_set_euid(binding, context, userid)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = ProcessIdsSetEuidReplayRecord {
@@ -13755,8 +14060,7 @@ fn destack_process_ids_set_euid_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -13785,8 +14089,7 @@ fn destack_process_ids_set_gid_vm_replay(
                 platform_simulation_vm::destack_process_set_gid(binding, context, groupid)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = ProcessIdsSetGidReplayRecord {
@@ -13805,8 +14108,7 @@ fn destack_process_ids_set_gid_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -13835,8 +14137,7 @@ fn destack_process_ids_set_group_ids_vm_replay(
                 platform_simulation_vm::destack_process_set_group_ids(binding, context, ids)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = ProcessIdsSetGroupIdsReplayRecord {
@@ -13855,8 +14156,7 @@ fn destack_process_ids_set_group_ids_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -13885,8 +14185,7 @@ fn destack_process_ids_set_groups_vm_replay(
                 platform_simulation_vm::destack_process_set_groups(binding, context, groups)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = ProcessIdsSetGroupsReplayRecord {
@@ -13905,8 +14204,7 @@ fn destack_process_ids_set_groups_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -13935,8 +14233,7 @@ fn destack_process_ids_set_uid_vm_replay(
                 platform_simulation_vm::destack_process_set_uid(binding, context, userid)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = ProcessIdsSetUidReplayRecord {
@@ -13955,8 +14252,7 @@ fn destack_process_ids_set_uid_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -13985,8 +14281,7 @@ fn destack_process_ids_set_user_ids_vm_replay(
                 platform_simulation_vm::destack_process_set_user_ids(binding, context, ids)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = ProcessIdsSetUserIdsReplayRecord {
@@ -14005,8 +14300,7 @@ fn destack_process_ids_set_user_ids_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -14034,8 +14328,7 @@ fn destack_process_ids_uid_vm_replay(
                 platform_simulation_vm::destack_process_uid(binding, context)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: UserId = value.clone();
                 let result_recorded = result_value;
@@ -14055,8 +14348,7 @@ fn destack_process_ids_uid_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -14087,8 +14379,7 @@ fn destack_process_ids_user_ids_vm_replay(
                 platform_simulation_vm::destack_process_user_ids(binding, context)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: ProcessUserIdsVm = value.clone();
                 let result_recorded_real = result_value.real;
@@ -14115,8 +14406,7 @@ fn destack_process_ids_user_ids_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -14157,8 +14447,7 @@ fn destack_process_limits_get_limit_vm_replay(
                 platform_simulation_vm::destack_process_get_limit(binding, context, resource)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: ProcessLimitVm = value.clone();
                 let result_recorded_soft = result_value.soft;
@@ -14183,8 +14472,7 @@ fn destack_process_limits_get_limit_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -14224,8 +14512,7 @@ fn destack_process_limits_set_limit_vm_replay(
                 platform_simulation_vm::destack_process_set_limit(binding, context, resource, limit)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = ProcessLimitsSetLimitReplayRecord {
@@ -14244,8 +14531,7 @@ fn destack_process_limits_set_limit_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -14275,39 +14561,17 @@ fn destack_process_sched_get_affinity_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: thread::ThreadCpuSetVm = value.clone();
                 let result_recorded_cpus_raw = result_value.cpus.raw_values(context)?;
                 let mut result_recorded_cpus = Vec::with_capacity(result_recorded_cpus_raw.len());
                 for result_recorded_cpus_item_value in result_recorded_cpus_raw {
-                    let result_recorded_cpus_item = {
-                        if result_recorded_cpus_item_value.tag() != vm::ValueTag::Aggregate {
-                            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                                "result_recorded_cpus_item",
-                                "item",
-                            ))
-                            .boxed());
-                        }
-                        let slots = context
-                            .aggregate_slots(result_recorded_cpus_item_value)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        if slots.len() != 2 {
-                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                                "result_recorded_cpus_item",
-                                "expected 2 fields",
-                            ))
-                            .boxed());
-                        }
-                        let result_recorded_cpus_item_group =
-                            decode_uint16(slots[0], "result_recorded_cpus_item_group", "group")?;
-                        let result_recorded_cpus_item_cpu =
-                            decode_uint16(slots[1], "result_recorded_cpus_item_cpu", "cpu")?;
-                        thread::ThreadCpuVm {
-                            group: result_recorded_cpus_item_group,
-                            cpu: result_recorded_cpus_item_cpu,
-                        }
-                    };
+                    let result_recorded_cpus_item =
+                        <thread::ThreadCpuVm as VmAggregateCodec>::decode_with_context(
+                            context,
+                            result_recorded_cpus_item_value,
+                        )?;
                     let result_recorded_cpus_item_recorded_group = result_recorded_cpus_item.group;
                     let result_recorded_cpus_item_recorded_cpu = result_recorded_cpus_item.cpu;
                     let result_recorded_cpus_item_recorded = thread::ThreadCpu {
@@ -14336,12 +14600,12 @@ fn destack_process_sched_get_affinity_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
                     let mut vm_result_cpus_values = Vec::with_capacity(value.cpus.len());
-                    for vm_result_cpus_item in value.cpus.iter().cloned() {
+                    for vm_result_cpus_item in value.cpus {
                         let vm_result_cpus_item_value_group = vm_result_cpus_item.group;
                         let vm_result_cpus_item_value_cpu = vm_result_cpus_item.cpu;
                         let vm_result_cpus_item_value = thread::ThreadCpu {
@@ -14381,8 +14645,7 @@ fn destack_process_sched_get_priority_vm_replay(
                 platform_simulation_vm::destack_process_get_priority(binding, context, pid)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: i32 = value.clone();
                 let result_recorded = result_value;
@@ -14402,8 +14665,7 @@ fn destack_process_sched_get_priority_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -14435,8 +14697,7 @@ fn destack_process_sched_get_scheduler_vm_replay(
                 platform_simulation_vm::destack_process_get_scheduler(binding, context, pid)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: ProcessSchedulerConfigVm = value.clone();
                 let result_recorded_policy = result_value.policy;
@@ -14463,8 +14724,7 @@ fn destack_process_sched_get_scheduler_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -14506,8 +14766,7 @@ fn destack_process_sched_set_affinity_vm_replay(
                 platform_simulation_vm::destack_process_set_affinity(binding, context, pid, cpus)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = ProcessSchedSetAffinityReplayRecord {
@@ -14526,8 +14785,7 @@ fn destack_process_sched_set_affinity_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -14559,8 +14817,7 @@ fn destack_process_sched_set_priority_vm_replay(
                 binding, context, pid, priority,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = ProcessSchedSetPriorityReplayRecord {
@@ -14579,8 +14836,7 @@ fn destack_process_sched_set_priority_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -14612,8 +14868,7 @@ fn destack_process_sched_set_scheduler_vm_replay(
                 platform_simulation_vm::destack_process_set_scheduler(binding, context, pid, config)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = ProcessSchedSetSchedulerReplayRecord {
@@ -14632,8 +14887,7 @@ fn destack_process_sched_set_scheduler_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -14661,8 +14915,7 @@ fn destack_process_sched_yield_now_vm_replay(
                 platform_simulation_vm::destack_process_yield_now(binding, context)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = ProcessSchedYieldNowReplayRecord {
@@ -14681,8 +14934,7 @@ fn destack_process_sched_yield_now_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -14711,8 +14963,7 @@ fn destack_process_session_getpgid_vm_replay(
                 platform_simulation_vm::destack_process_getpgid(binding, context, pid)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: ProcessId = value.clone();
                 let result_recorded = result_value;
@@ -14732,8 +14983,7 @@ fn destack_process_session_getpgid_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -14766,8 +15016,7 @@ fn destack_process_session_setpgid_vm_replay(
                 platform_simulation_vm::destack_process_setpgid(binding, context, pid, pgid)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = ProcessSessionSetpgidReplayRecord {
@@ -14786,8 +15035,7 @@ fn destack_process_session_setpgid_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -14815,8 +15063,7 @@ fn destack_process_session_setsid_vm_replay(
                 platform_simulation_vm::destack_process_setsid(binding, context)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: ProcessId = value.clone();
                 let result_recorded = result_value;
@@ -14836,8 +15083,7 @@ fn destack_process_session_setsid_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -14870,8 +15116,7 @@ fn destack_process_signals_kill_vm_replay(
                 platform_simulation_vm::destack_process_kill(binding, context, pid, signal)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = ProcessSignalsKillReplayRecord {
@@ -14890,8 +15135,7 @@ fn destack_process_signals_kill_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -14920,7 +15164,7 @@ fn destack_process_signals_signal_mask_read_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmArray<Signal> = value.clone();
                 let result_recorded_raw = result_value.raw_values(context)?;
@@ -14952,12 +15196,12 @@ fn destack_process_signals_signal_mask_read_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
-                    for vm_result_item in value.iter().cloned() {
+                    for vm_result_item in value {
                         let vm_result_item_value = vm_result_item;
                         vm_result_values.push(vm_result_item_value);
                     }
@@ -14992,8 +15236,7 @@ fn destack_process_signals_signal_mask_update_vm_replay(
                 binding, context, how, signals,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = ProcessSignalsSignalMaskUpdateReplayRecord {
@@ -15012,8 +15255,7 @@ fn destack_process_signals_signal_mask_update_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -15044,8 +15286,7 @@ fn destack_process_signals_signal_receive_vm_replay(
                 platform_simulation_vm::destack_process_signal_receive(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: SignalEventVm = value.clone();
                 let result_recorded_signal = result_value.signal;
@@ -15070,8 +15311,7 @@ fn destack_process_signals_signal_receive_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -15110,8 +15350,7 @@ fn destack_process_signals_signal_subscribe_vm_replay(
                 platform_simulation_vm::destack_process_signal_subscribe(binding, context, signal)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::SignalHandle = value.clone();
                 let result_recorded = result_value;
@@ -15131,8 +15370,7 @@ fn destack_process_signals_signal_subscribe_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -15166,8 +15404,7 @@ fn destack_process_signals_signal_try_receive_vm_replay(
                 platform_simulation_vm::destack_process_signal_try_receive(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: SignalEventVm = value.clone();
                 let result_recorded_signal = result_value.signal;
@@ -15192,8 +15429,7 @@ fn destack_process_signals_signal_try_receive_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -15232,8 +15468,7 @@ fn destack_process_signals_signal_try_wait_vm_replay(
                 platform_simulation_vm::destack_process_signal_try_wait(binding, context, signals)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: SignalEventVm = value.clone();
                 let result_recorded_signal = result_value.signal;
@@ -15258,8 +15493,7 @@ fn destack_process_signals_signal_try_wait_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -15298,8 +15532,7 @@ fn destack_process_signals_signal_unsubscribe_vm_replay(
                 platform_simulation_vm::destack_process_signal_unsubscribe(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = ProcessSignalsSignalUnsubscribeReplayRecord {
@@ -15318,8 +15551,7 @@ fn destack_process_signals_signal_unsubscribe_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -15350,8 +15582,7 @@ fn destack_process_signals_signal_wait_vm_replay(
                 platform_simulation_vm::destack_process_signal_wait(binding, context, signals)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: SignalEventVm = value.clone();
                 let result_recorded_signal = result_value.signal;
@@ -15376,8 +15607,7 @@ fn destack_process_signals_signal_wait_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -15429,8 +15659,7 @@ fn destack_process_spawn_start_vm_replay(
                 options,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::ProcessHandle = value.clone();
                 let result_recorded = result_value;
@@ -15450,8 +15679,7 @@ fn destack_process_spawn_start_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -15504,8 +15732,7 @@ fn destack_process_spawn_with_actions_vm_replay(
                 actions,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::ProcessHandle = value.clone();
                 let result_recorded = result_value;
@@ -15525,8 +15752,7 @@ fn destack_process_spawn_with_actions_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -15558,8 +15784,7 @@ fn destack_process_umask_set_vm_replay(
                 platform_simulation_vm::destack_process_umask(binding, context, mask)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u32 = value.clone();
                 let result_recorded = result_value;
@@ -15579,8 +15804,7 @@ fn destack_process_umask_set_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -15616,7 +15840,7 @@ fn destack_process_wait_handle_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: ProcessWaitStatusVm = value.clone();
                 let result_recorded = match result_value {
@@ -15743,7 +15967,7 @@ fn destack_process_wait_handle_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -15858,7 +16082,7 @@ fn destack_process_wait_pid_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: ProcessWaitStatusVm = value.clone();
                 let result_recorded = match result_value {
@@ -15985,7 +16209,7 @@ fn destack_process_wait_pid_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -16097,7 +16321,7 @@ fn destack_process_wait_try_wait_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: ProcessWaitStatusVm = value.clone();
                 let result_recorded = match result_value {
@@ -16224,7 +16448,7 @@ fn destack_process_wait_try_wait_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -18008,6 +18232,7 @@ pub(crate) fn register_process_vm_bindings(registry: &mut BindingRegistry, isola
 
 /// Install VM bindings for process.
 pub(crate) fn install_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+    super::abi_generated::register_process_vm_storage_types(isolate);
     register_process_vm_bindings(registry, isolate);
 }
 

@@ -118,7 +118,7 @@ fn decode_uint64(
 /// Decode an array argument.
 #[allow(dead_code)]
 fn decode_array<T>(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &vm::ExternalReadContext<'_, '_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
@@ -226,12 +226,17 @@ fn encode_destack_thread_sched_get_affinity_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ThreadCpuSetVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = value.cpus.to_value(context);
-            context
-                .allocate_aggregate(vec![field_0?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("thread::ThreadCpuSet")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -266,32 +271,13 @@ fn decode_destack_thread_sched_set_affinity_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ThreadHandle, ThreadCpuSetVm)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "ThreadHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "ThreadHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::ThreadHandle(handle_inner);
     let cpus_value = arg_value(args, 1, "cpus", "ThreadCpuSet")?;
-    let cpus = {
-        if cpus_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "cpus",
-                "ThreadCpuSet",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(cpus_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 1 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "cpus",
-                "expected 1 fields",
-            ))
-            .boxed());
-        }
-        let cpus_cpus = decode_array::<ThreadCpuVm>(context, slots[0], "cpus_cpus", "cpus")?;
-        ThreadCpuSetVm { cpus: cpus_cpus }
-    };
+    let cpus = <ThreadCpuSetVm as VmAggregateCodec>::decode_with_context(context, cpus_value)?;
     Ok((handle, cpus))
 }
 
@@ -380,6 +366,7 @@ fn decode_destack_thread_spawn_start_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ThreadEntryHandle, u64, ThreadOptionsVm)> {
+    let context = &context.read();
     let entry_value = arg_value(args, 0, "entry", "ThreadEntryHandle")?;
     let entry_inner_inner = decode_uint64(entry_value, "entry_inner_inner", "ThreadEntryHandle")?;
     let entry_inner = resource::ResourceId(entry_inner_inner);
@@ -387,31 +374,8 @@ fn decode_destack_thread_spawn_start_args(
     let argument_value = arg_value(args, 1, "argument", "uint64")?;
     let argument = decode_uint64(argument_value, "argument", "uint64")?;
     let options_value = arg_value(args, 2, "options", "ThreadOptions")?;
-    let options = {
-        if options_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "options",
-                "ThreadOptions",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(options_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "options",
-                "expected 2 fields",
-            ))
-            .boxed());
-        }
-        let options_stack_bytes = decode_uint64(slots[0], "options_stack_bytes", "stackBytes")?;
-        let options_flags = decode_uint32(slots[1], "options_flags", "flags")?;
-        ThreadOptionsVm {
-            stack_bytes: options_stack_bytes,
-            flags: options_flags,
-        }
-    };
+    let options =
+        <ThreadOptionsVm as VmAggregateCodec>::decode_with_context(context, options_value)?;
     Ok((entry, argument, options))
 }
 
@@ -1691,6 +1655,7 @@ pub(crate) fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolat
 
 /// Install VM bindings for thread.
 pub(crate) fn install_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+    super::abi_generated::register_thread_vm_storage_types(isolate);
     register_thread_vm_bindings(registry, isolate);
 }
 

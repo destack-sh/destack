@@ -99,6 +99,7 @@ impl<'call> OsHarnessContext<'call> {
     {
         match self.generated_vm_context_mut() {
             Some(context) => {
+                let context = &mut context.write();
                 let value = Vm::from_value(context, value)?;
                 Ok(HarnessValue::Vm(value))
             }
@@ -128,6 +129,7 @@ impl<'call> OsHarnessContext<'call> {
                     ))
                     .boxed()
                 })?;
+                let context = &context.read();
                 value.into_value(context)
             }
         }
@@ -136,11 +138,6 @@ impl<'call> OsHarnessContext<'call> {
     /// Report completion for one scheduled background-task execution.
     ///
     /// Submit final execution status for one scheduled task execution token.
-    /// Success finalizes this execution.
-    /// Retry asks the host to retry this one execution sooner than the next scheduled occurrence when supported.
-    /// Failure finalizes this execution without an earlier retry.
-    /// One-shot registrations end after one definitive success or failure.
-    /// Recurring registrations continue on their regular schedule after one definitive success or failure.
     ///
     /// # Platform
     /// Unix and Windows.

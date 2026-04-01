@@ -144,7 +144,7 @@ fn decode_uint64(
 /// Decode a slice argument.
 #[allow(dead_code)]
 fn decode_slice<T>(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &vm::ExternalReadContext<'_, '_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
@@ -237,6 +237,7 @@ fn decode_destack_tty_io_read_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TtyHandle, VmSlice<u8>)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "TtyHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TtyHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -263,6 +264,7 @@ fn decode_destack_tty_io_write_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TtyHandle, VmSlice<u8>)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "TtyHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TtyHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -302,15 +304,29 @@ fn encode_destack_tty_mode_get_mode_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<TtyModeVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.input_flags, 64));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.output_flags, 64));
             let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.control_flags, 64));
             let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.local_flags, 64));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("tty::TtyMode")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(3, field_3?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -321,39 +337,13 @@ fn decode_destack_tty_mode_set_mode_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TtyHandle, TtyModeVm)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "TtyHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TtyHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::TtyHandle(handle_inner);
     let mode_value = arg_value(args, 1, "mode", "TtyMode")?;
-    let mode = {
-        if mode_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "mode", "TtyMode",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(mode_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "mode",
-                "expected 4 fields",
-            ))
-            .boxed());
-        }
-        let mode_input_flags = decode_uint64(slots[0], "mode_input_flags", "inputFlags")?;
-        let mode_output_flags = decode_uint64(slots[1], "mode_output_flags", "outputFlags")?;
-        let mode_control_flags = decode_uint64(slots[2], "mode_control_flags", "controlFlags")?;
-        let mode_local_flags = decode_uint64(slots[3], "mode_local_flags", "localFlags")?;
-        TtyModeVm {
-            input_flags: mode_input_flags,
-            output_flags: mode_output_flags,
-            control_flags: mode_control_flags,
-            local_flags: mode_local_flags,
-        }
-    };
+    let mode = <TtyModeVm as VmAggregateCodec>::decode_with_context(context, mode_value)?;
     Ok((handle, mode))
 }
 
@@ -433,13 +423,21 @@ fn encode_destack_tty_pty_open_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<PtyPairVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.controller.0.0, 64));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.worker.0.0, 64));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("tty::PtyPair")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -463,15 +461,29 @@ fn encode_destack_tty_size_get_size_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<TtySizeVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.rows as u64, 32));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.columns as u64, 32));
             let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.x_pixels as u64, 32));
             let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.y_pixels as u64, 32));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("tty::TtySize")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(3, field_3?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -482,39 +494,13 @@ fn decode_destack_tty_size_set_size_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TtyHandle, TtySizeVm)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "TtyHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TtyHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::TtyHandle(handle_inner);
     let size_value = arg_value(args, 1, "size", "TtySize")?;
-    let size = {
-        if size_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "size", "TtySize",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(size_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "size",
-                "expected 4 fields",
-            ))
-            .boxed());
-        }
-        let size_rows = decode_uint32(slots[0], "size_rows", "rows")?;
-        let size_columns = decode_uint32(slots[1], "size_columns", "columns")?;
-        let size_x_pixels = decode_uint32(slots[2], "size_x_pixels", "xPixels")?;
-        let size_y_pixels = decode_uint32(slots[3], "size_y_pixels", "yPixels")?;
-        TtySizeVm {
-            rows: size_rows,
-            columns: size_columns,
-            x_pixels: size_x_pixels,
-            y_pixels: size_y_pixels,
-        }
-    };
+    let size = <TtySizeVm as VmAggregateCodec>::decode_with_context(context, size_value)?;
     Ok((handle, size))
 }
 
@@ -641,6 +627,7 @@ fn encode_destack_tty_termios_get_attributes_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<TtyTermiosAttributesVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.input_flags, 64));
@@ -651,11 +638,31 @@ fn encode_destack_tty_termios_get_attributes_result(
             let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.input_speed_code, 64));
             let field_6: RuntimeResult<vm::Value> =
                 Ok(vm::Value::uint(value.output_speed_code, 64));
-            context
-                .allocate_aggregate(vec![
-                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
-                ])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("tty::TtyTermiosAttributes")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(3, field_3?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(4, field_4?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(5, field_5?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(6, field_6?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -718,57 +725,16 @@ fn decode_destack_tty_termios_set_attributes_args(
     TtyTermiosAttributesVm,
     TtyTermiosSetAction,
 )> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "TtyHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TtyHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::TtyHandle(handle_inner);
     let attributes_value = arg_value(args, 1, "attributes", "TtyTermiosAttributes")?;
-    let attributes = {
-        if attributes_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "attributes",
-                "TtyTermiosAttributes",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(attributes_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 7 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "attributes",
-                "expected 7 fields",
-            ))
-            .boxed());
-        }
-        let attributes_input_flags =
-            decode_uint64(slots[0], "attributes_input_flags", "inputFlags")?;
-        let attributes_output_flags =
-            decode_uint64(slots[1], "attributes_output_flags", "outputFlags")?;
-        let attributes_control_flags =
-            decode_uint64(slots[2], "attributes_control_flags", "controlFlags")?;
-        let attributes_local_flags =
-            decode_uint64(slots[3], "attributes_local_flags", "localFlags")?;
-        let attributes_control_characters = decode_slice::<u8>(
-            context,
-            slots[4],
-            "attributes_control_characters",
-            "controlCharacters",
-        )?;
-        let attributes_input_speed_code =
-            decode_uint64(slots[5], "attributes_input_speed_code", "inputSpeedCode")?;
-        let attributes_output_speed_code =
-            decode_uint64(slots[6], "attributes_output_speed_code", "outputSpeedCode")?;
-        TtyTermiosAttributesVm {
-            input_flags: attributes_input_flags,
-            output_flags: attributes_output_flags,
-            control_flags: attributes_control_flags,
-            local_flags: attributes_local_flags,
-            control_characters: attributes_control_characters,
-            input_speed_code: attributes_input_speed_code,
-            output_speed_code: attributes_output_speed_code,
-        }
-    };
+    let attributes = <TtyTermiosAttributesVm as VmAggregateCodec>::decode_with_context(
+        context,
+        attributes_value,
+    )?;
     let action_value = arg_value(args, 2, "action", "TtyTermiosSetAction")?;
     let action_raw = decode_int32(action_value, "action_raw", "TtyTermiosSetAction")?;
     let action = match action_raw {
@@ -2487,11 +2453,12 @@ fn destack_tty_termios_get_attributes_replay(
                 let result_recorded_output_flags = result_value.output_flags;
                 let result_recorded_control_flags = result_value.control_flags;
                 let result_recorded_local_flags = result_value.local_flags;
-                let mut result_recorded_control_characters = Vec::new();
+                let result_recorded_control_characters_slice =
+                    unsafe { result_value.control_characters.as_slice()? };
+                let mut result_recorded_control_characters =
+                    Vec::with_capacity(result_recorded_control_characters_slice.len());
                 for result_recorded_control_characters_item in
-                    unsafe { result_value.control_characters.as_slice()? }
-                        .iter()
-                        .cloned()
+                    result_recorded_control_characters_slice.iter().cloned()
                 {
                     let result_recorded_control_characters_item_recorded =
                         result_recorded_control_characters_item;
@@ -2533,17 +2500,18 @@ fn destack_tty_termios_get_attributes_replay(
                     let value_native_output_flags = value.output_flags;
                     let value_native_control_flags = value.control_flags;
                     let value_native_local_flags = value.local_flags;
-                    let mut value_native_control_characters_values = Vec::new();
-                    for value_native_control_characters_item in
-                        value.control_characters.iter().cloned()
-                    {
-                        let value_native_control_characters_decoded =
-                            value_native_control_characters_item;
-                        value_native_control_characters_values
-                            .push(value_native_control_characters_decoded);
-                    }
-                    let value_native_control_characters =
-                        binding.store_slice(value_native_control_characters_values);
+                    let value_native_control_characters = binding.store_slice_with(
+                        value.control_characters.len(),
+                        |value_native_control_characters_values| {
+                            for value_native_control_characters_item in value.control_characters {
+                                let value_native_control_characters_decoded =
+                                    value_native_control_characters_item;
+                                value_native_control_characters_values
+                                    .push(value_native_control_characters_decoded);
+                            }
+                            Ok(())
+                        },
+                    )?;
                     let value_native_input_speed_code = value.input_speed_code;
                     let value_native_output_speed_code = value.output_speed_code;
                     let value_native = TtyTermiosAttributes {
@@ -3137,8 +3105,7 @@ fn destack_tty_handle_close_vm_replay(
                 platform_simulation_vm::destack_tty_close(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = TtyHandleCloseReplayRecord {
@@ -3157,8 +3124,7 @@ fn destack_tty_handle_close_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -3189,8 +3155,7 @@ fn destack_tty_handle_is_terminal_file_vm_replay(
                 platform_simulation_vm::destack_tty_is_terminal_file(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: bool = value.clone();
                 let result_recorded = result_value;
@@ -3210,8 +3175,7 @@ fn destack_tty_handle_is_terminal_file_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -3242,8 +3206,7 @@ fn destack_tty_handle_stdio_stderr_vm_replay(
                 platform_simulation_vm::destack_tty_stdio_stderr(binding, context)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::TtyHandle = value.clone();
                 let result_recorded = result_value;
@@ -3263,8 +3226,7 @@ fn destack_tty_handle_stdio_stderr_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -3295,8 +3257,7 @@ fn destack_tty_handle_stdio_stdin_vm_replay(
                 platform_simulation_vm::destack_tty_stdio_stdin(binding, context)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::TtyHandle = value.clone();
                 let result_recorded = result_value;
@@ -3316,8 +3277,7 @@ fn destack_tty_handle_stdio_stdin_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -3348,8 +3308,7 @@ fn destack_tty_handle_stdio_stdout_vm_replay(
                 platform_simulation_vm::destack_tty_stdio_stdout(binding, context)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::TtyHandle = value.clone();
                 let result_recorded = result_value;
@@ -3369,8 +3328,7 @@ fn destack_tty_handle_stdio_stdout_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -3403,8 +3361,7 @@ fn destack_tty_io_read_vm_replay(
                 platform_simulation_vm::destack_tty_read(binding, context, handle, buffer)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u64 = value.clone();
                 let result_recorded = result_value;
@@ -3424,8 +3381,7 @@ fn destack_tty_io_read_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -3458,8 +3414,7 @@ fn destack_tty_io_write_vm_replay(
                 platform_simulation_vm::destack_tty_write(binding, context, handle, buffer)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u64 = value.clone();
                 let result_recorded = result_value;
@@ -3479,8 +3434,7 @@ fn destack_tty_io_write_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -3512,8 +3466,7 @@ fn destack_tty_mode_get_mode_vm_replay(
                 platform_simulation_vm::destack_tty_get_mode(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: TtyModeVm = value.clone();
                 let result_recorded_input_flags = result_value.input_flags;
@@ -3542,8 +3495,7 @@ fn destack_tty_mode_get_mode_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -3585,8 +3537,7 @@ fn destack_tty_mode_set_mode_vm_replay(
                 platform_simulation_vm::destack_tty_set_mode(binding, context, handle, mode)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = TtyModeSetModeReplayRecord {
@@ -3605,8 +3556,7 @@ fn destack_tty_mode_set_mode_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -3638,8 +3588,7 @@ fn destack_tty_mode_set_raw_mode_vm_replay(
                 platform_simulation_vm::destack_tty_set_raw_mode(binding, context, handle, enabled)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = TtyModeSetRawModeReplayRecord {
@@ -3658,8 +3607,7 @@ fn destack_tty_mode_set_raw_mode_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -3688,8 +3636,7 @@ fn destack_tty_pty_close_vm_replay(
                 platform_simulation_vm::destack_tty_pty_close(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = TtyPtyCloseReplayRecord {
@@ -3708,8 +3655,7 @@ fn destack_tty_pty_close_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -3742,8 +3688,7 @@ fn destack_tty_pty_open_vm_replay(
                 platform_simulation_vm::destack_tty_pty_open(binding, context, rows, columns, flags)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: PtyPairVm = value.clone();
                 let result_recorded_controller = result_value.controller;
@@ -3768,8 +3713,7 @@ fn destack_tty_pty_open_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -3806,8 +3750,7 @@ fn destack_tty_size_get_size_vm_replay(
                 platform_simulation_vm::destack_tty_get_size(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: TtySizeVm = value.clone();
                 let result_recorded_rows = result_value.rows;
@@ -3836,8 +3779,7 @@ fn destack_tty_size_get_size_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -3879,8 +3821,7 @@ fn destack_tty_size_set_size_vm_replay(
                 platform_simulation_vm::destack_tty_set_size(binding, context, handle, size)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = TtySizeSetSizeReplayRecord {
@@ -3899,8 +3840,7 @@ fn destack_tty_size_set_size_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -3929,8 +3869,7 @@ fn destack_tty_termios_drain_vm_replay(
                 platform_simulation_vm::destack_tty_termios_drain(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = TtyTermiosDrainReplayRecord {
@@ -3949,8 +3888,7 @@ fn destack_tty_termios_drain_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -3982,8 +3920,7 @@ fn destack_tty_termios_flow_vm_replay(
                 platform_simulation_vm::destack_tty_termios_flow(binding, context, handle, action)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = TtyTermiosFlowReplayRecord {
@@ -4002,8 +3939,7 @@ fn destack_tty_termios_flow_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -4035,8 +3971,7 @@ fn destack_tty_termios_flush_vm_replay(
                 platform_simulation_vm::destack_tty_termios_flush(binding, context, handle, queue)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = TtyTermiosFlushReplayRecord {
@@ -4055,8 +3990,7 @@ fn destack_tty_termios_flush_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -4088,7 +4022,7 @@ fn destack_tty_termios_get_attributes_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: TtyTermiosAttributesVm = value.clone();
                 let result_recorded_input_flags = result_value.input_flags;
@@ -4125,7 +4059,7 @@ fn destack_tty_termios_get_attributes_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -4177,8 +4111,7 @@ fn destack_tty_termios_get_process_group_vm_replay(
                 )
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: process::ProcessId = value.clone();
                 let result_recorded = result_value;
@@ -4198,8 +4131,7 @@ fn destack_tty_termios_get_process_group_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -4234,8 +4166,7 @@ fn destack_tty_termios_send_break_vm_replay(
                 binding, context, handle, duration,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = TtyTermiosSendBreakReplayRecord {
@@ -4254,8 +4185,7 @@ fn destack_tty_termios_send_break_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -4288,8 +4218,7 @@ fn destack_tty_termios_set_attributes_vm_replay(
                 binding, context, handle, attributes, action,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = TtyTermiosSetAttributesReplayRecord {
@@ -4308,8 +4237,7 @@ fn destack_tty_termios_set_attributes_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -4349,8 +4277,7 @@ fn destack_tty_termios_set_process_group_vm_replay(
                 )
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = TtyTermiosSetProcessGroupReplayRecord {
@@ -4369,8 +4296,7 @@ fn destack_tty_termios_set_process_group_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -4784,6 +4710,7 @@ pub(crate) fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: 
 
 /// Install VM bindings for tty.
 pub(crate) fn install_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+    super::abi_generated::register_tty_vm_storage_types(isolate);
     register_tty_vm_bindings(registry, isolate);
 }
 

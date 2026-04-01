@@ -108,7 +108,7 @@ pub(crate) fn decode_permission_entries_value(
             let vm_context = vm_context_pointer(context).expect("vm context should be available");
             let vm_context = unsafe { &mut *(vm_context as *mut ExternalCallContext<'_>) };
 
-            value.read_values(vm_context)
+            value.read_values(&vm_context.read())
         }
     }
 }
@@ -146,7 +146,7 @@ pub(crate) fn decode_mount_entries_value(
             // decode the VM mount entries through the active VM context
             let vm_context = vm_context_pointer(context).expect("vm context should be available");
             let vm_context = unsafe { &mut *(vm_context as *mut ExternalCallContext<'_>) };
-            let values = value.read_values(vm_context)?;
+            let values = value.read_values(&vm_context.read())?;
             let mut entries = Vec::with_capacity(values.len());
 
             for value in values {
@@ -220,11 +220,11 @@ fn vm_os_path_is_empty(
 ) -> RuntimeResult<bool> {
     match path {
         fs::OsPathVm::OsPathBytes(path) => {
-            let bytes = path.bytes.0.read_bytes(context)?;
+            let bytes = path.bytes.0.read_bytes(&context.read())?;
             Ok(bytes.is_empty())
         }
         fs::OsPathVm::OsPathUtf16(path) => {
-            let utf16 = path.utf16.0.read_values(context)?;
+            let utf16 = path.utf16.0.read_values(&context.read())?;
             Ok(utf16.is_empty())
         }
     }

@@ -197,23 +197,20 @@ fn decode_uint64(
 /// Decode a string argument.
 #[allow(dead_code)]
 fn decode_string(
+    context: &vm::ExternalReadContext<'_, '_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
 ) -> RuntimeResult<vm::StringHandle> {
-    if value.tag() != vm::ValueTag::String {
-        return Err(
-            RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed(),
-        );
-    }
-
-    Ok(vm::StringHandle::new(value))
+    context.string_handle_from_value(value).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
+    })
 }
 
 /// Decode a slice argument.
 #[allow(dead_code)]
 fn decode_slice<T>(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &vm::ExternalReadContext<'_, '_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
@@ -224,7 +221,7 @@ fn decode_slice<T>(
 /// Decode an array argument.
 #[allow(dead_code)]
 fn decode_array<T>(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &vm::ExternalReadContext<'_, '_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
@@ -242,6 +239,7 @@ fn decode_destack_crypto_agreement_derive_key_args(
     resource::CryptoKeyHandle,
     CryptoAgreementDeriveKeyRequestVm,
 )> {
+    let context = &context.read();
     let privatekey_value = arg_value(args, 0, "privatekey", "CryptoKeyHandle")?;
     let privatekey_inner_inner = decode_uint64(
         privatekey_value,
@@ -259,71 +257,10 @@ fn decode_destack_crypto_agreement_derive_key_args(
     let peerpublickey_inner = resource::ResourceId(peerpublickey_inner_inner);
     let peerpublickey = resource::CryptoKeyHandle(peerpublickey_inner);
     let request_value = arg_value(args, 2, "request", "CryptoAgreementDeriveKeyRequest")?;
-    let request = {
-        if request_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "request",
-                "CryptoAgreementDeriveKeyRequest",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(request_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "request",
-                "expected 5 fields",
-            ))
-            .boxed());
-        }
-        let request_algorithm_raw = decode_int32(slots[0], "request_algorithm_raw", "algorithm")?;
-        let request_algorithm = match request_algorithm_raw {
-            0i32 => CryptoKeyAgreementAlgorithm::Unknown,
-            1i32 => CryptoKeyAgreementAlgorithm::Ecdh,
-            2i32 => CryptoKeyAgreementAlgorithm::X25519,
-            3i32 => CryptoKeyAgreementAlgorithm::X448,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "request_algorithm",
-                    "unknown CryptoKeyAgreementAlgorithm value",
-                ))
-                .boxed());
-            }
-        };
-        let request_digest_raw = decode_int32(slots[1], "request_digest_raw", "digest")?;
-        let request_digest = match request_digest_raw {
-            0i32 => CryptoDigestAlgorithm::Unknown,
-            1i32 => CryptoDigestAlgorithm::Sha1,
-            2i32 => CryptoDigestAlgorithm::Sha224,
-            3i32 => CryptoDigestAlgorithm::Sha256,
-            4i32 => CryptoDigestAlgorithm::Sha384,
-            5i32 => CryptoDigestAlgorithm::Sha512,
-            6i32 => CryptoDigestAlgorithm::Sha3_256,
-            7i32 => CryptoDigestAlgorithm::Sha3_384,
-            8i32 => CryptoDigestAlgorithm::Sha3_512,
-            9i32 => CryptoDigestAlgorithm::Blake2b512,
-            10i32 => CryptoDigestAlgorithm::Blake2s256,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "request_digest",
-                    "unknown CryptoDigestAlgorithm value",
-                ))
-                .boxed());
-            }
-        };
-        let request_salt = decode_slice::<u8>(context, slots[2], "request_salt", "salt")?;
-        let request_info = decode_slice::<u8>(context, slots[3], "request_info", "info")?;
-        let request_output_length =
-            decode_uint32(slots[4], "request_output_length", "outputLength")?;
-        CryptoAgreementDeriveKeyRequestVm {
-            algorithm: request_algorithm,
-            digest: request_digest,
-            salt: request_salt,
-            info: request_info,
-            output_length: request_output_length,
-        }
-    };
+    let request = <CryptoAgreementDeriveKeyRequestVm as VmAggregateCodec>::decode_with_context(
+        context,
+        request_value,
+    )?;
     Ok((privatekey, peerpublickey, request))
 }
 
@@ -333,6 +270,7 @@ fn encode_destack_crypto_agreement_derive_key_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -392,6 +330,7 @@ fn encode_destack_crypto_agreement_derive_shared_secret_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -446,6 +385,7 @@ fn encode_destack_crypto_certificate_descriptor_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CryptoCertificateDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(value.subject.value());
@@ -459,9 +399,16 @@ fn encode_destack_crypto_certificate_descriptor_result(
                     Ok(vm::Value::uint(value.validity.not_before_unix_seconds, 64));
                 let field_1: RuntimeResult<vm::Value> =
                     Ok(vm::Value::uint(value.validity.not_after_unix_seconds, 64));
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("crypto::CryptoCertificateValidity")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, field_0?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, field_1?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             };
             let field_6: RuntimeResult<vm::Value> =
                 Ok(vm::Value::bool(value.is_certificate_authority));
@@ -483,20 +430,59 @@ fn encode_destack_crypto_certificate_descriptor_result(
                             Some(value) => Ok(value.value()),
                             None => Ok(vm::Value::VOID),
                         };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("crypto::CryptoStoreIdentity")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 };
-                context
-                    .allocate_aggregate(vec![field_0?])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("crypto::CryptoStoreProvenance")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, field_0?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             };
-            context
-                .allocate_aggregate(vec![
-                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                    field_8?,
-                ])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("crypto::CryptoCertificateDescriptor")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(3, field_3?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(4, field_4?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(5, field_5?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(6, field_6?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(7, field_7?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(8, field_8?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -537,6 +523,7 @@ fn encode_destack_crypto_certificate_export_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -552,6 +539,7 @@ fn decode_destack_crypto_certificate_import_args(
     CryptoCertificateFormat,
     VmSlice<u8>,
 )> {
+    let context = &context.read();
     let store_value = arg_value(args, 0, "store", "CryptoStoreHandle")?;
     let store_inner_inner = decode_uint64(store_value, "store_inner_inner", "CryptoStoreHandle")?;
     let store_inner = resource::ResourceId(store_inner_inner);
@@ -592,139 +580,12 @@ fn decode_destack_crypto_certificate_verify_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(CryptoCertificateVerifyRequestVm,)> {
+    let context = &context.read();
     let request_value = arg_value(args, 0, "request", "CryptoCertificateVerifyRequest")?;
-    let request = {
-        if request_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "request",
-                "CryptoCertificateVerifyRequest",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(request_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 8 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "request",
-                "expected 8 fields",
-            ))
-            .boxed());
-        }
-        let request_leaf_inner_inner = decode_uint64(slots[0], "request_leaf_inner_inner", "leaf")?;
-        let request_leaf_inner = resource::ResourceId(request_leaf_inner_inner);
-        let request_leaf = resource::CryptoCertificateHandle(request_leaf_inner);
-        let request_intermediates = decode_slice::<resource::CryptoCertificateHandle>(
-            context,
-            slots[1],
-            "request_intermediates",
-            "intermediates",
-        )?;
-        let request_trust_anchors = decode_slice::<resource::CryptoCertificateHandle>(
-            context,
-            slots[2],
-            "request_trust_anchors",
-            "trustAnchors",
-        )?;
-        let request_use_system_trust_anchors = decode_bool(
-            slots[3],
-            "request_use_system_trust_anchors",
-            "useSystemTrustAnchors",
-        )?;
-        let request_purpose_raw = decode_int32(slots[4], "request_purpose_raw", "purpose")?;
-        let request_purpose = match request_purpose_raw {
-            1i32 => CryptoCertificatePurpose::ServerAuth,
-            2i32 => CryptoCertificatePurpose::ClientAuth,
-            3i32 => CryptoCertificatePurpose::CodeSigning,
-            4i32 => CryptoCertificatePurpose::EmailProtection,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "request_purpose",
-                    "unknown CryptoCertificatePurpose value",
-                ))
-                .boxed());
-            }
-        };
-        let request_identity = if slots[5].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let request_identity_inner = {
-                if slots[5].tag() != vm::ValueTag::Aggregate {
-                    return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                        "request_identity_inner",
-                        "identity",
-                    ))
-                    .boxed());
-                }
-                let slots = context
-                    .aggregate_slots(slots[5])
-                    .map_err(|error| RuntimeError::from(error).boxed())?;
-                if slots.len() != 2 {
-                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                        "request_identity_inner",
-                        "expected 2 fields",
-                    ))
-                    .boxed());
-                }
-                let request_identity_inner_kind_raw =
-                    decode_int32(slots[0], "request_identity_inner_kind_raw", "kind")?;
-                let request_identity_inner_kind = match request_identity_inner_kind_raw {
-                    1i32 => CryptoCertificateIdentityKind::DnsName,
-                    2i32 => CryptoCertificateIdentityKind::IpAddress,
-                    3i32 => CryptoCertificateIdentityKind::Uri,
-                    4i32 => CryptoCertificateIdentityKind::EmailAddress,
-                    _ => {
-                        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                            "request_identity_inner_kind",
-                            "unknown CryptoCertificateIdentityKind value",
-                        ))
-                        .boxed());
-                    }
-                };
-                let request_identity_inner_value =
-                    decode_string(slots[1], "request_identity_inner_value", "value")?;
-                CryptoCertificateVerifyIdentityVm {
-                    kind: request_identity_inner_kind,
-                    value: request_identity_inner_value,
-                }
-            };
-            Some(request_identity_inner)
-        };
-        let request_verification_unix_seconds = if slots[6].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let request_verification_unix_seconds_inner = decode_uint64(
-                slots[6],
-                "request_verification_unix_seconds_inner",
-                "verificationUnixSeconds",
-            )?;
-            Some(request_verification_unix_seconds_inner)
-        };
-        let request_revocation_mode_raw =
-            decode_int32(slots[7], "request_revocation_mode_raw", "revocationMode")?;
-        let request_revocation_mode = match request_revocation_mode_raw {
-            1i32 => CryptoCertificateRevocationMode::Default,
-            2i32 => CryptoCertificateRevocationMode::Strict,
-            3i32 => CryptoCertificateRevocationMode::Disabled,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "request_revocation_mode",
-                    "unknown CryptoCertificateRevocationMode value",
-                ))
-                .boxed());
-            }
-        };
-        CryptoCertificateVerifyRequestVm {
-            leaf: request_leaf,
-            intermediates: request_intermediates,
-            trust_anchors: request_trust_anchors,
-            use_system_trust_anchors: request_use_system_trust_anchors,
-            purpose: request_purpose,
-            identity: request_identity,
-            verification_unix_seconds: request_verification_unix_seconds,
-            revocation_mode: request_revocation_mode,
-        }
-    };
+    let request = <CryptoCertificateVerifyRequestVm as VmAggregateCodec>::decode_with_context(
+        context,
+        request_value,
+    )?;
     Ok((request,))
 }
 
@@ -734,6 +595,7 @@ fn encode_destack_crypto_certificate_verify_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CryptoCertificateVerifyResultVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.valid));
@@ -753,11 +615,31 @@ fn encode_destack_crypto_certificate_verify_result(
                 Ok(vm::Value::uint(value.chain_length as u64, 32));
             let field_6: RuntimeResult<vm::Value> =
                 Ok(vm::Value::bool(value.used_system_trust_anchor));
-            context
-                .allocate_aggregate(vec![
-                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
-                ])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("crypto::CryptoCertificateVerifyResult")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(3, field_3?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(4, field_4?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(5, field_5?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(6, field_6?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -795,71 +677,16 @@ fn decode_destack_crypto_cipher_decrypt_args(
     CryptoCipherParametersVm,
     VmSlice<u8>,
 )> {
+    let context = &context.read();
     let key_value = arg_value(args, 0, "key", "CryptoKeyHandle")?;
     let key_inner_inner = decode_uint64(key_value, "key_inner_inner", "CryptoKeyHandle")?;
     let key_inner = resource::ResourceId(key_inner_inner);
     let key = resource::CryptoKeyHandle(key_inner);
     let parameters_value = arg_value(args, 1, "parameters", "CryptoCipherParameters")?;
-    let parameters = {
-        if parameters_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "parameters",
-                "CryptoCipherParameters",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(parameters_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "parameters",
-                "expected 5 fields",
-            ))
-            .boxed());
-        }
-        let parameters_algorithm_raw =
-            decode_int32(slots[0], "parameters_algorithm_raw", "algorithm")?;
-        let parameters_algorithm = match parameters_algorithm_raw {
-            0i32 => CryptoCipherAlgorithm::Unknown,
-            1i32 => CryptoCipherAlgorithm::AesGcm,
-            2i32 => CryptoCipherAlgorithm::AesCtr,
-            3i32 => CryptoCipherAlgorithm::AesCbc,
-            4i32 => CryptoCipherAlgorithm::ChaCha20Poly1305,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "parameters_algorithm",
-                    "unknown CryptoCipherAlgorithm value",
-                ))
-                .boxed());
-            }
-        };
-        let parameters_nonce = decode_slice::<u8>(context, slots[1], "parameters_nonce", "nonce")?;
-        let parameters_additional_data = decode_slice::<u8>(
-            context,
-            slots[2],
-            "parameters_additional_data",
-            "additionalData",
-        )?;
-        let parameters_tag = decode_slice::<u8>(context, slots[3], "parameters_tag", "tag")?;
-        let parameters_tag_length_bytes = if slots[4].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let parameters_tag_length_bytes_inner = decode_uint32(
-                slots[4],
-                "parameters_tag_length_bytes_inner",
-                "tagLengthBytes",
-            )?;
-            Some(parameters_tag_length_bytes_inner)
-        };
-        CryptoCipherParametersVm {
-            algorithm: parameters_algorithm,
-            nonce: parameters_nonce,
-            additional_data: parameters_additional_data,
-            tag: parameters_tag,
-            tag_length_bytes: parameters_tag_length_bytes,
-        }
-    };
+    let parameters = <CryptoCipherParametersVm as VmAggregateCodec>::decode_with_context(
+        context,
+        parameters_value,
+    )?;
     let argument_payload_value = arg_value(args, 2, "argument_payload", "Slice<uint8>")?;
     let argument_payload = decode_slice::<u8>(
         context,
@@ -876,6 +703,7 @@ fn encode_destack_crypto_cipher_decrypt_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -891,71 +719,16 @@ fn decode_destack_crypto_cipher_encrypt_args(
     CryptoCipherParametersVm,
     VmSlice<u8>,
 )> {
+    let context = &context.read();
     let key_value = arg_value(args, 0, "key", "CryptoKeyHandle")?;
     let key_inner_inner = decode_uint64(key_value, "key_inner_inner", "CryptoKeyHandle")?;
     let key_inner = resource::ResourceId(key_inner_inner);
     let key = resource::CryptoKeyHandle(key_inner);
     let parameters_value = arg_value(args, 1, "parameters", "CryptoCipherParameters")?;
-    let parameters = {
-        if parameters_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "parameters",
-                "CryptoCipherParameters",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(parameters_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "parameters",
-                "expected 5 fields",
-            ))
-            .boxed());
-        }
-        let parameters_algorithm_raw =
-            decode_int32(slots[0], "parameters_algorithm_raw", "algorithm")?;
-        let parameters_algorithm = match parameters_algorithm_raw {
-            0i32 => CryptoCipherAlgorithm::Unknown,
-            1i32 => CryptoCipherAlgorithm::AesGcm,
-            2i32 => CryptoCipherAlgorithm::AesCtr,
-            3i32 => CryptoCipherAlgorithm::AesCbc,
-            4i32 => CryptoCipherAlgorithm::ChaCha20Poly1305,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "parameters_algorithm",
-                    "unknown CryptoCipherAlgorithm value",
-                ))
-                .boxed());
-            }
-        };
-        let parameters_nonce = decode_slice::<u8>(context, slots[1], "parameters_nonce", "nonce")?;
-        let parameters_additional_data = decode_slice::<u8>(
-            context,
-            slots[2],
-            "parameters_additional_data",
-            "additionalData",
-        )?;
-        let parameters_tag = decode_slice::<u8>(context, slots[3], "parameters_tag", "tag")?;
-        let parameters_tag_length_bytes = if slots[4].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let parameters_tag_length_bytes_inner = decode_uint32(
-                slots[4],
-                "parameters_tag_length_bytes_inner",
-                "tagLengthBytes",
-            )?;
-            Some(parameters_tag_length_bytes_inner)
-        };
-        CryptoCipherParametersVm {
-            algorithm: parameters_algorithm,
-            nonce: parameters_nonce,
-            additional_data: parameters_additional_data,
-            tag: parameters_tag,
-            tag_length_bytes: parameters_tag_length_bytes,
-        }
-    };
+    let parameters = <CryptoCipherParametersVm as VmAggregateCodec>::decode_with_context(
+        context,
+        parameters_value,
+    )?;
     let argument_payload_value = arg_value(args, 2, "argument_payload", "Slice<uint8>")?;
     let argument_payload = decode_slice::<u8>(
         context,
@@ -972,13 +745,21 @@ fn encode_destack_crypto_cipher_encrypt_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CryptoCipherOutputVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = value.bytes.to_value(context);
             let field_1: RuntimeResult<vm::Value> = value.tag.to_value(context);
-            context
-                .allocate_aggregate(vec![field_0?, field_1?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("crypto::CryptoCipherOutput")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -989,6 +770,7 @@ fn decode_destack_crypto_cipher_finish_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::CryptoCipherHandle, VmSlice<u8>)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "CryptoCipherHandle")?;
     let handle_inner_inner =
         decode_uint64(handle_value, "handle_inner_inner", "CryptoCipherHandle")?;
@@ -1006,13 +788,21 @@ fn encode_destack_crypto_cipher_finish_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CryptoCipherOutputVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = value.bytes.to_value(context);
             let field_1: RuntimeResult<vm::Value> = value.tag.to_value(context);
-            context
-                .allocate_aggregate(vec![field_0?, field_1?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("crypto::CryptoCipherOutput")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -1027,6 +817,7 @@ fn decode_destack_crypto_cipher_open_args(
     CryptoCipherDirection,
     CryptoCipherParametersVm,
 )> {
+    let context = &context.read();
     let key_value = arg_value(args, 0, "key", "CryptoKeyHandle")?;
     let key_inner_inner = decode_uint64(key_value, "key_inner_inner", "CryptoKeyHandle")?;
     let key_inner = resource::ResourceId(key_inner_inner);
@@ -1045,66 +836,10 @@ fn decode_destack_crypto_cipher_open_args(
         }
     };
     let parameters_value = arg_value(args, 2, "parameters", "CryptoCipherParameters")?;
-    let parameters = {
-        if parameters_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "parameters",
-                "CryptoCipherParameters",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(parameters_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "parameters",
-                "expected 5 fields",
-            ))
-            .boxed());
-        }
-        let parameters_algorithm_raw =
-            decode_int32(slots[0], "parameters_algorithm_raw", "algorithm")?;
-        let parameters_algorithm = match parameters_algorithm_raw {
-            0i32 => CryptoCipherAlgorithm::Unknown,
-            1i32 => CryptoCipherAlgorithm::AesGcm,
-            2i32 => CryptoCipherAlgorithm::AesCtr,
-            3i32 => CryptoCipherAlgorithm::AesCbc,
-            4i32 => CryptoCipherAlgorithm::ChaCha20Poly1305,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "parameters_algorithm",
-                    "unknown CryptoCipherAlgorithm value",
-                ))
-                .boxed());
-            }
-        };
-        let parameters_nonce = decode_slice::<u8>(context, slots[1], "parameters_nonce", "nonce")?;
-        let parameters_additional_data = decode_slice::<u8>(
-            context,
-            slots[2],
-            "parameters_additional_data",
-            "additionalData",
-        )?;
-        let parameters_tag = decode_slice::<u8>(context, slots[3], "parameters_tag", "tag")?;
-        let parameters_tag_length_bytes = if slots[4].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let parameters_tag_length_bytes_inner = decode_uint32(
-                slots[4],
-                "parameters_tag_length_bytes_inner",
-                "tagLengthBytes",
-            )?;
-            Some(parameters_tag_length_bytes_inner)
-        };
-        CryptoCipherParametersVm {
-            algorithm: parameters_algorithm,
-            nonce: parameters_nonce,
-            additional_data: parameters_additional_data,
-            tag: parameters_tag,
-            tag_length_bytes: parameters_tag_length_bytes,
-        }
-    };
+    let parameters = <CryptoCipherParametersVm as VmAggregateCodec>::decode_with_context(
+        context,
+        parameters_value,
+    )?;
     Ok((key, direction, parameters))
 }
 
@@ -1125,72 +860,17 @@ fn decode_destack_crypto_cipher_reset_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::CryptoCipherHandle, CryptoCipherParametersVm)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "CryptoCipherHandle")?;
     let handle_inner_inner =
         decode_uint64(handle_value, "handle_inner_inner", "CryptoCipherHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::CryptoCipherHandle(handle_inner);
     let parameters_value = arg_value(args, 1, "parameters", "CryptoCipherParameters")?;
-    let parameters = {
-        if parameters_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "parameters",
-                "CryptoCipherParameters",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(parameters_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "parameters",
-                "expected 5 fields",
-            ))
-            .boxed());
-        }
-        let parameters_algorithm_raw =
-            decode_int32(slots[0], "parameters_algorithm_raw", "algorithm")?;
-        let parameters_algorithm = match parameters_algorithm_raw {
-            0i32 => CryptoCipherAlgorithm::Unknown,
-            1i32 => CryptoCipherAlgorithm::AesGcm,
-            2i32 => CryptoCipherAlgorithm::AesCtr,
-            3i32 => CryptoCipherAlgorithm::AesCbc,
-            4i32 => CryptoCipherAlgorithm::ChaCha20Poly1305,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "parameters_algorithm",
-                    "unknown CryptoCipherAlgorithm value",
-                ))
-                .boxed());
-            }
-        };
-        let parameters_nonce = decode_slice::<u8>(context, slots[1], "parameters_nonce", "nonce")?;
-        let parameters_additional_data = decode_slice::<u8>(
-            context,
-            slots[2],
-            "parameters_additional_data",
-            "additionalData",
-        )?;
-        let parameters_tag = decode_slice::<u8>(context, slots[3], "parameters_tag", "tag")?;
-        let parameters_tag_length_bytes = if slots[4].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let parameters_tag_length_bytes_inner = decode_uint32(
-                slots[4],
-                "parameters_tag_length_bytes_inner",
-                "tagLengthBytes",
-            )?;
-            Some(parameters_tag_length_bytes_inner)
-        };
-        CryptoCipherParametersVm {
-            algorithm: parameters_algorithm,
-            nonce: parameters_nonce,
-            additional_data: parameters_additional_data,
-            tag: parameters_tag,
-            tag_length_bytes: parameters_tag_length_bytes,
-        }
-    };
+    let parameters = <CryptoCipherParametersVm as VmAggregateCodec>::decode_with_context(
+        context,
+        parameters_value,
+    )?;
     Ok((handle, parameters))
 }
 
@@ -1209,6 +889,7 @@ fn decode_destack_crypto_cipher_update_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::CryptoCipherHandle, VmSlice<u8>)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "CryptoCipherHandle")?;
     let handle_inner_inner =
         decode_uint64(handle_value, "handle_inner_inner", "CryptoCipherHandle")?;
@@ -1230,6 +911,7 @@ fn encode_destack_crypto_cipher_update_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -1241,6 +923,7 @@ fn decode_destack_crypto_cipher_update_additional_data_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::CryptoCipherHandle, VmSlice<u8>)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "CryptoCipherHandle")?;
     let handle_inner_inner =
         decode_uint64(handle_value, "handle_inner_inner", "CryptoCipherHandle")?;
@@ -1294,6 +977,7 @@ fn decode_destack_crypto_digest_compute_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(CryptoDigestAlgorithm, VmSlice<u8>)> {
+    let context = &context.read();
     let algorithm_value = arg_value(args, 0, "algorithm", "CryptoDigestAlgorithm")?;
     let algorithm_raw = decode_int32(algorithm_value, "algorithm_raw", "CryptoDigestAlgorithm")?;
     let algorithm = match algorithm_raw {
@@ -1332,6 +1016,7 @@ fn encode_destack_crypto_digest_compute_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -1357,6 +1042,7 @@ fn encode_destack_crypto_digest_finish_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -1433,6 +1119,7 @@ fn decode_destack_crypto_digest_update_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::CryptoDigestHandle, VmSlice<u8>)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "CryptoDigestHandle")?;
     let handle_inner_inner =
         decode_uint64(handle_value, "handle_inner_inner", "CryptoDigestHandle")?;
@@ -1463,50 +1150,10 @@ fn decode_destack_crypto_kdf_argon2id_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(CryptoArgon2idRequestVm,)> {
+    let context = &context.read();
     let request_value = arg_value(args, 0, "request", "CryptoArgon2idRequest")?;
-    let request = {
-        if request_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "request",
-                "CryptoArgon2idRequest",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(request_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 8 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "request",
-                "expected 8 fields",
-            ))
-            .boxed());
-        }
-        let request_password =
-            decode_slice::<u8>(context, slots[0], "request_password", "password")?;
-        let request_salt = decode_slice::<u8>(context, slots[1], "request_salt", "salt")?;
-        let request_associated_data = decode_slice::<u8>(
-            context,
-            slots[2],
-            "request_associated_data",
-            "associatedData",
-        )?;
-        let request_secret = decode_slice::<u8>(context, slots[3], "request_secret", "secret")?;
-        let request_iterations = decode_uint32(slots[4], "request_iterations", "iterations")?;
-        let request_memory_ki_b = decode_uint32(slots[5], "request_memory_ki_b", "memoryKiB")?;
-        let request_parallelism = decode_uint32(slots[6], "request_parallelism", "parallelism")?;
-        let request_length = decode_uint32(slots[7], "request_length", "length")?;
-        CryptoArgon2idRequestVm {
-            password: request_password,
-            salt: request_salt,
-            associated_data: request_associated_data,
-            secret: request_secret,
-            iterations: request_iterations,
-            memory_ki_b: request_memory_ki_b,
-            parallelism: request_parallelism,
-            length: request_length,
-        }
-    };
+    let request =
+        <CryptoArgon2idRequestVm as VmAggregateCodec>::decode_with_context(context, request_value)?;
     Ok((request,))
 }
 
@@ -1516,6 +1163,7 @@ fn encode_destack_crypto_kdf_argon2id_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -1527,63 +1175,10 @@ fn decode_destack_crypto_kdf_hkdf_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(CryptoHkdfRequestVm,)> {
+    let context = &context.read();
     let request_value = arg_value(args, 0, "request", "CryptoHkdfRequest")?;
-    let request = {
-        if request_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "request",
-                "CryptoHkdfRequest",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(request_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "request",
-                "expected 5 fields",
-            ))
-            .boxed());
-        }
-        let request_digest_raw = decode_int32(slots[0], "request_digest_raw", "digest")?;
-        let request_digest = match request_digest_raw {
-            0i32 => CryptoDigestAlgorithm::Unknown,
-            1i32 => CryptoDigestAlgorithm::Sha1,
-            2i32 => CryptoDigestAlgorithm::Sha224,
-            3i32 => CryptoDigestAlgorithm::Sha256,
-            4i32 => CryptoDigestAlgorithm::Sha384,
-            5i32 => CryptoDigestAlgorithm::Sha512,
-            6i32 => CryptoDigestAlgorithm::Sha3_256,
-            7i32 => CryptoDigestAlgorithm::Sha3_384,
-            8i32 => CryptoDigestAlgorithm::Sha3_512,
-            9i32 => CryptoDigestAlgorithm::Blake2b512,
-            10i32 => CryptoDigestAlgorithm::Blake2s256,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "request_digest",
-                    "unknown CryptoDigestAlgorithm value",
-                ))
-                .boxed());
-            }
-        };
-        let request_input_key_material = decode_slice::<u8>(
-            context,
-            slots[1],
-            "request_input_key_material",
-            "inputKeyMaterial",
-        )?;
-        let request_salt = decode_slice::<u8>(context, slots[2], "request_salt", "salt")?;
-        let request_info = decode_slice::<u8>(context, slots[3], "request_info", "info")?;
-        let request_length = decode_uint32(slots[4], "request_length", "length")?;
-        CryptoHkdfRequestVm {
-            digest: request_digest,
-            input_key_material: request_input_key_material,
-            salt: request_salt,
-            info: request_info,
-            length: request_length,
-        }
-    };
+    let request =
+        <CryptoHkdfRequestVm as VmAggregateCodec>::decode_with_context(context, request_value)?;
     Ok((request,))
 }
 
@@ -1593,6 +1188,7 @@ fn encode_destack_crypto_kdf_hkdf_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -1604,59 +1200,10 @@ fn decode_destack_crypto_kdf_pbkdf2_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(CryptoPbkdf2RequestVm,)> {
+    let context = &context.read();
     let request_value = arg_value(args, 0, "request", "CryptoPbkdf2Request")?;
-    let request = {
-        if request_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "request",
-                "CryptoPbkdf2Request",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(request_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "request",
-                "expected 5 fields",
-            ))
-            .boxed());
-        }
-        let request_digest_raw = decode_int32(slots[0], "request_digest_raw", "digest")?;
-        let request_digest = match request_digest_raw {
-            0i32 => CryptoDigestAlgorithm::Unknown,
-            1i32 => CryptoDigestAlgorithm::Sha1,
-            2i32 => CryptoDigestAlgorithm::Sha224,
-            3i32 => CryptoDigestAlgorithm::Sha256,
-            4i32 => CryptoDigestAlgorithm::Sha384,
-            5i32 => CryptoDigestAlgorithm::Sha512,
-            6i32 => CryptoDigestAlgorithm::Sha3_256,
-            7i32 => CryptoDigestAlgorithm::Sha3_384,
-            8i32 => CryptoDigestAlgorithm::Sha3_512,
-            9i32 => CryptoDigestAlgorithm::Blake2b512,
-            10i32 => CryptoDigestAlgorithm::Blake2s256,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "request_digest",
-                    "unknown CryptoDigestAlgorithm value",
-                ))
-                .boxed());
-            }
-        };
-        let request_password =
-            decode_slice::<u8>(context, slots[1], "request_password", "password")?;
-        let request_salt = decode_slice::<u8>(context, slots[2], "request_salt", "salt")?;
-        let request_iterations = decode_uint32(slots[3], "request_iterations", "iterations")?;
-        let request_length = decode_uint32(slots[4], "request_length", "length")?;
-        CryptoPbkdf2RequestVm {
-            digest: request_digest,
-            password: request_password,
-            salt: request_salt,
-            iterations: request_iterations,
-            length: request_length,
-        }
-    };
+    let request =
+        <CryptoPbkdf2RequestVm as VmAggregateCodec>::decode_with_context(context, request_value)?;
     Ok((request,))
 }
 
@@ -1666,6 +1213,7 @@ fn encode_destack_crypto_kdf_pbkdf2_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -1677,45 +1225,10 @@ fn decode_destack_crypto_kdf_scrypt_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(CryptoScryptRequestVm,)> {
+    let context = &context.read();
     let request_value = arg_value(args, 0, "request", "CryptoScryptRequest")?;
-    let request = {
-        if request_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "request",
-                "CryptoScryptRequest",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(request_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 7 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "request",
-                "expected 7 fields",
-            ))
-            .boxed());
-        }
-        let request_password =
-            decode_slice::<u8>(context, slots[0], "request_password", "password")?;
-        let request_salt = decode_slice::<u8>(context, slots[1], "request_salt", "salt")?;
-        let request_cost = decode_uint32(slots[2], "request_cost", "cost")?;
-        let request_block_size = decode_uint32(slots[3], "request_block_size", "blockSize")?;
-        let request_parallelization =
-            decode_uint32(slots[4], "request_parallelization", "parallelization")?;
-        let request_max_memory_bytes =
-            decode_uint64(slots[5], "request_max_memory_bytes", "maxMemoryBytes")?;
-        let request_length = decode_uint32(slots[6], "request_length", "length")?;
-        CryptoScryptRequestVm {
-            password: request_password,
-            salt: request_salt,
-            cost: request_cost,
-            block_size: request_block_size,
-            parallelization: request_parallelization,
-            max_memory_bytes: request_max_memory_bytes,
-            length: request_length,
-        }
-    };
+    let request =
+        <CryptoScryptRequestVm as VmAggregateCodec>::decode_with_context(context, request_value)?;
     Ok((request,))
 }
 
@@ -1725,6 +1238,7 @@ fn encode_destack_crypto_kdf_scrypt_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -1740,6 +1254,7 @@ fn decode_destack_crypto_key_decrypt_args(
     CryptoAsymmetricEncryptionParametersVm,
     VmSlice<u8>,
 )> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "CryptoKeyHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "CryptoKeyHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -1750,72 +1265,11 @@ fn decode_destack_crypto_key_decrypt_args(
         "parameters",
         "CryptoAsymmetricEncryptionParameters",
     )?;
-    let parameters = {
-        if parameters_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "parameters",
-                "CryptoAsymmetricEncryptionParameters",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(parameters_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "parameters",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let parameters_algorithm_raw =
-            decode_int32(slots[0], "parameters_algorithm_raw", "algorithm")?;
-        let parameters_algorithm = match parameters_algorithm_raw {
-            0i32 => CryptoAsymmetricEncryptionAlgorithm::Unknown,
-            1i32 => CryptoAsymmetricEncryptionAlgorithm::RsaPkcs1v15,
-            2i32 => CryptoAsymmetricEncryptionAlgorithm::RsaOaep,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "parameters_algorithm",
-                    "unknown CryptoAsymmetricEncryptionAlgorithm value",
-                ))
-                .boxed());
-            }
-        };
-        let parameters_digest = if slots[1].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let parameters_digest_inner_raw =
-                decode_int32(slots[1], "parameters_digest_inner_raw", "digest")?;
-            let parameters_digest_inner = match parameters_digest_inner_raw {
-                0i32 => CryptoDigestAlgorithm::Unknown,
-                1i32 => CryptoDigestAlgorithm::Sha1,
-                2i32 => CryptoDigestAlgorithm::Sha224,
-                3i32 => CryptoDigestAlgorithm::Sha256,
-                4i32 => CryptoDigestAlgorithm::Sha384,
-                5i32 => CryptoDigestAlgorithm::Sha512,
-                6i32 => CryptoDigestAlgorithm::Sha3_256,
-                7i32 => CryptoDigestAlgorithm::Sha3_384,
-                8i32 => CryptoDigestAlgorithm::Sha3_512,
-                9i32 => CryptoDigestAlgorithm::Blake2b512,
-                10i32 => CryptoDigestAlgorithm::Blake2s256,
-                _ => {
-                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                        "parameters_digest_inner",
-                        "unknown CryptoDigestAlgorithm value",
-                    ))
-                    .boxed());
-                }
-            };
-            Some(parameters_digest_inner)
-        };
-        let parameters_label = decode_slice::<u8>(context, slots[2], "parameters_label", "label")?;
-        CryptoAsymmetricEncryptionParametersVm {
-            algorithm: parameters_algorithm,
-            digest: parameters_digest,
-            label: parameters_label,
-        }
-    };
+    let parameters =
+        <CryptoAsymmetricEncryptionParametersVm as VmAggregateCodec>::decode_with_context(
+            context,
+            parameters_value,
+        )?;
     let argument_payload_value = arg_value(args, 2, "argument_payload", "Slice<uint8>")?;
     let argument_payload = decode_slice::<u8>(
         context,
@@ -1832,6 +1286,7 @@ fn encode_destack_crypto_key_decrypt_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -1878,6 +1333,7 @@ fn encode_destack_crypto_key_descriptor_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CryptoKeyDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| match value {
             CryptoKeyDescriptorVm::CryptoKeyDescriptorAes(value) => {
@@ -1915,24 +1371,73 @@ fn encode_destack_crypto_key_descriptor_result(
                                     Some(value) => Ok(value.value()),
                                     None => Ok(vm::Value::VOID),
                                 };
-                            context
-                                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                                .map_err(Box::<RuntimeError>::from)
+                            let mut value_builder = context
+                                .begin_named_storage_value_builder("crypto::CryptoStoreIdentity")
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(0, field_0?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(1, field_1?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(2, field_2?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
-                        context
-                            .allocate_aggregate(vec![field_0?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("crypto::CryptoStoreProvenance")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
-                            field_7?, field_8?, field_9?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("crypto::CryptoKeyDescriptorAes")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(3, field_3?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(4, field_4?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(5, field_5?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(6, field_6?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(7, field_7?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(8, field_8?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(9, field_9?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("crypto::CryptoKeyDescriptor")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             CryptoKeyDescriptorVm::CryptoKeyDescriptorChaCha20(value) => {
                 let tag_value = vm::Value::uint(2610676967u64, 32);
@@ -1969,24 +1474,73 @@ fn encode_destack_crypto_key_descriptor_result(
                                     Some(value) => Ok(value.value()),
                                     None => Ok(vm::Value::VOID),
                                 };
-                            context
-                                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                                .map_err(Box::<RuntimeError>::from)
+                            let mut value_builder = context
+                                .begin_named_storage_value_builder("crypto::CryptoStoreIdentity")
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(0, field_0?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(1, field_1?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(2, field_2?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
-                        context
-                            .allocate_aggregate(vec![field_0?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("crypto::CryptoStoreProvenance")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
-                            field_7?, field_8?, field_9?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("crypto::CryptoKeyDescriptorChaCha20")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(3, field_3?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(4, field_4?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(5, field_5?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(6, field_6?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(7, field_7?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(8, field_8?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(9, field_9?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("crypto::CryptoKeyDescriptor")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             CryptoKeyDescriptorVm::CryptoKeyDescriptorEc(value) => {
                 let tag_value = vm::Value::uint(4256206084u64, 32);
@@ -2023,24 +1577,73 @@ fn encode_destack_crypto_key_descriptor_result(
                                     Some(value) => Ok(value.value()),
                                     None => Ok(vm::Value::VOID),
                                 };
-                            context
-                                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                                .map_err(Box::<RuntimeError>::from)
+                            let mut value_builder = context
+                                .begin_named_storage_value_builder("crypto::CryptoStoreIdentity")
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(0, field_0?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(1, field_1?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(2, field_2?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
-                        context
-                            .allocate_aggregate(vec![field_0?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("crypto::CryptoStoreProvenance")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
-                            field_7?, field_8?, field_9?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("crypto::CryptoKeyDescriptorEc")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(3, field_3?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(4, field_4?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(5, field_5?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(6, field_6?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(7, field_7?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(8, field_8?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(9, field_9?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("crypto::CryptoKeyDescriptor")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             CryptoKeyDescriptorVm::CryptoKeyDescriptorEd25519(value) => {
                 let tag_value = vm::Value::uint(2715380390u64, 32);
@@ -2073,24 +1676,70 @@ fn encode_destack_crypto_key_descriptor_result(
                                     Some(value) => Ok(value.value()),
                                     None => Ok(vm::Value::VOID),
                                 };
-                            context
-                                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                                .map_err(Box::<RuntimeError>::from)
+                            let mut value_builder = context
+                                .begin_named_storage_value_builder("crypto::CryptoStoreIdentity")
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(0, field_0?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(1, field_1?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(2, field_2?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
-                        context
-                            .allocate_aggregate(vec![field_0?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("crypto::CryptoStoreProvenance")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
-                            field_7?, field_8?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("crypto::CryptoKeyDescriptorEd25519")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(3, field_3?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(4, field_4?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(5, field_5?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(6, field_6?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(7, field_7?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(8, field_8?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("crypto::CryptoKeyDescriptor")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             CryptoKeyDescriptorVm::CryptoKeyDescriptorEd448(value) => {
                 let tag_value = vm::Value::uint(1419371965u64, 32);
@@ -2123,24 +1772,70 @@ fn encode_destack_crypto_key_descriptor_result(
                                     Some(value) => Ok(value.value()),
                                     None => Ok(vm::Value::VOID),
                                 };
-                            context
-                                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                                .map_err(Box::<RuntimeError>::from)
+                            let mut value_builder = context
+                                .begin_named_storage_value_builder("crypto::CryptoStoreIdentity")
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(0, field_0?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(1, field_1?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(2, field_2?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
-                        context
-                            .allocate_aggregate(vec![field_0?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("crypto::CryptoStoreProvenance")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
-                            field_7?, field_8?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("crypto::CryptoKeyDescriptorEd448")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(3, field_3?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(4, field_4?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(5, field_5?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(6, field_6?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(7, field_7?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(8, field_8?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("crypto::CryptoKeyDescriptor")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             CryptoKeyDescriptorVm::CryptoKeyDescriptorHmac(value) => {
                 let tag_value = vm::Value::uint(2590550128u64, 32);
@@ -2181,24 +1876,76 @@ fn encode_destack_crypto_key_descriptor_result(
                                     Some(value) => Ok(value.value()),
                                     None => Ok(vm::Value::VOID),
                                 };
-                            context
-                                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                                .map_err(Box::<RuntimeError>::from)
+                            let mut value_builder = context
+                                .begin_named_storage_value_builder("crypto::CryptoStoreIdentity")
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(0, field_0?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(1, field_1?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(2, field_2?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
-                        context
-                            .allocate_aggregate(vec![field_0?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("crypto::CryptoStoreProvenance")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
-                            field_7?, field_8?, field_9?, field_10?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("crypto::CryptoKeyDescriptorHmac")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(3, field_3?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(4, field_4?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(5, field_5?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(6, field_6?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(7, field_7?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(8, field_8?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(9, field_9?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(10, field_10?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("crypto::CryptoKeyDescriptor")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             CryptoKeyDescriptorVm::CryptoKeyDescriptorRsa(value) => {
                 let tag_value = vm::Value::uint(3734490529u64, 32);
@@ -2243,24 +1990,79 @@ fn encode_destack_crypto_key_descriptor_result(
                                     Some(value) => Ok(value.value()),
                                     None => Ok(vm::Value::VOID),
                                 };
-                            context
-                                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                                .map_err(Box::<RuntimeError>::from)
+                            let mut value_builder = context
+                                .begin_named_storage_value_builder("crypto::CryptoStoreIdentity")
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(0, field_0?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(1, field_1?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(2, field_2?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
-                        context
-                            .allocate_aggregate(vec![field_0?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("crypto::CryptoStoreProvenance")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
-                            field_7?, field_8?, field_9?, field_10?, field_11?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("crypto::CryptoKeyDescriptorRsa")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(3, field_3?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(4, field_4?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(5, field_5?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(6, field_6?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(7, field_7?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(8, field_8?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(9, field_9?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(10, field_10?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(11, field_11?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("crypto::CryptoKeyDescriptor")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             CryptoKeyDescriptorVm::CryptoKeyDescriptorX25519(value) => {
                 let tag_value = vm::Value::uint(2316288397u64, 32);
@@ -2293,24 +2095,70 @@ fn encode_destack_crypto_key_descriptor_result(
                                     Some(value) => Ok(value.value()),
                                     None => Ok(vm::Value::VOID),
                                 };
-                            context
-                                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                                .map_err(Box::<RuntimeError>::from)
+                            let mut value_builder = context
+                                .begin_named_storage_value_builder("crypto::CryptoStoreIdentity")
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(0, field_0?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(1, field_1?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(2, field_2?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
-                        context
-                            .allocate_aggregate(vec![field_0?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("crypto::CryptoStoreProvenance")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
-                            field_7?, field_8?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("crypto::CryptoKeyDescriptorX25519")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(3, field_3?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(4, field_4?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(5, field_5?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(6, field_6?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(7, field_7?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(8, field_8?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("crypto::CryptoKeyDescriptor")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             CryptoKeyDescriptorVm::CryptoKeyDescriptorX448(value) => {
                 let tag_value = vm::Value::uint(1911697504u64, 32);
@@ -2343,24 +2191,70 @@ fn encode_destack_crypto_key_descriptor_result(
                                     Some(value) => Ok(value.value()),
                                     None => Ok(vm::Value::VOID),
                                 };
-                            context
-                                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                                .map_err(Box::<RuntimeError>::from)
+                            let mut value_builder = context
+                                .begin_named_storage_value_builder("crypto::CryptoStoreIdentity")
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(0, field_0?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(1, field_1?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(2, field_2?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
-                        context
-                            .allocate_aggregate(vec![field_0?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("crypto::CryptoStoreProvenance")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
-                            field_7?, field_8?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("crypto::CryptoKeyDescriptorX448")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(3, field_3?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(4, field_4?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(5, field_5?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(6, field_6?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(7, field_7?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(8, field_8?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("crypto::CryptoKeyDescriptor")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
         })
         .and_then(|value| value)
@@ -2376,6 +2270,7 @@ fn decode_destack_crypto_key_encrypt_args(
     CryptoAsymmetricEncryptionParametersVm,
     VmSlice<u8>,
 )> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "CryptoKeyHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "CryptoKeyHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -2386,72 +2281,11 @@ fn decode_destack_crypto_key_encrypt_args(
         "parameters",
         "CryptoAsymmetricEncryptionParameters",
     )?;
-    let parameters = {
-        if parameters_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "parameters",
-                "CryptoAsymmetricEncryptionParameters",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(parameters_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "parameters",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let parameters_algorithm_raw =
-            decode_int32(slots[0], "parameters_algorithm_raw", "algorithm")?;
-        let parameters_algorithm = match parameters_algorithm_raw {
-            0i32 => CryptoAsymmetricEncryptionAlgorithm::Unknown,
-            1i32 => CryptoAsymmetricEncryptionAlgorithm::RsaPkcs1v15,
-            2i32 => CryptoAsymmetricEncryptionAlgorithm::RsaOaep,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "parameters_algorithm",
-                    "unknown CryptoAsymmetricEncryptionAlgorithm value",
-                ))
-                .boxed());
-            }
-        };
-        let parameters_digest = if slots[1].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let parameters_digest_inner_raw =
-                decode_int32(slots[1], "parameters_digest_inner_raw", "digest")?;
-            let parameters_digest_inner = match parameters_digest_inner_raw {
-                0i32 => CryptoDigestAlgorithm::Unknown,
-                1i32 => CryptoDigestAlgorithm::Sha1,
-                2i32 => CryptoDigestAlgorithm::Sha224,
-                3i32 => CryptoDigestAlgorithm::Sha256,
-                4i32 => CryptoDigestAlgorithm::Sha384,
-                5i32 => CryptoDigestAlgorithm::Sha512,
-                6i32 => CryptoDigestAlgorithm::Sha3_256,
-                7i32 => CryptoDigestAlgorithm::Sha3_384,
-                8i32 => CryptoDigestAlgorithm::Sha3_512,
-                9i32 => CryptoDigestAlgorithm::Blake2b512,
-                10i32 => CryptoDigestAlgorithm::Blake2s256,
-                _ => {
-                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                        "parameters_digest_inner",
-                        "unknown CryptoDigestAlgorithm value",
-                    ))
-                    .boxed());
-                }
-            };
-            Some(parameters_digest_inner)
-        };
-        let parameters_label = decode_slice::<u8>(context, slots[2], "parameters_label", "label")?;
-        CryptoAsymmetricEncryptionParametersVm {
-            algorithm: parameters_algorithm,
-            digest: parameters_digest,
-            label: parameters_label,
-        }
-    };
+    let parameters =
+        <CryptoAsymmetricEncryptionParametersVm as VmAggregateCodec>::decode_with_context(
+            context,
+            parameters_value,
+        )?;
     let argument_payload_value = arg_value(args, 2, "argument_payload", "Slice<uint8>")?;
     let argument_payload = decode_slice::<u8>(
         context,
@@ -2468,6 +2302,7 @@ fn encode_destack_crypto_key_encrypt_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -2479,57 +2314,16 @@ fn decode_destack_crypto_key_export_private_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::CryptoKeyHandle, CryptoPrivateKeyExportRequestVm)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "CryptoKeyHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "CryptoKeyHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::CryptoKeyHandle(handle_inner);
     let request_value = arg_value(args, 1, "request", "CryptoPrivateKeyExportRequest")?;
-    let request = {
-        if request_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "request",
-                "CryptoPrivateKeyExportRequest",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(request_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "request",
-                "expected 2 fields",
-            ))
-            .boxed());
-        }
-        let request_format_raw = decode_int32(slots[0], "request_format_raw", "format")?;
-        let request_format = match request_format_raw {
-            0i32 => CryptoKeyFormat::Unknown,
-            1i32 => CryptoKeyFormat::Pkcs8Pem,
-            2i32 => CryptoKeyFormat::Pkcs8Der,
-            3i32 => CryptoKeyFormat::SpkiPem,
-            4i32 => CryptoKeyFormat::SpkiDer,
-            5i32 => CryptoKeyFormat::Jwk,
-            6i32 => CryptoKeyFormat::Raw,
-            7i32 => CryptoKeyFormat::Sec1Pem,
-            8i32 => CryptoKeyFormat::Sec1Der,
-            9i32 => CryptoKeyFormat::Pkcs8EncryptedPem,
-            10i32 => CryptoKeyFormat::Pkcs8EncryptedDer,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "request_format",
-                    "unknown CryptoKeyFormat value",
-                ))
-                .boxed());
-            }
-        };
-        let request_passphrase =
-            decode_slice::<u8>(context, slots[1], "request_passphrase", "passphrase")?;
-        CryptoPrivateKeyExportRequestVm {
-            format: request_format,
-            passphrase: request_passphrase,
-        }
-    };
+    let request = <CryptoPrivateKeyExportRequestVm as VmAggregateCodec>::decode_with_context(
+        context,
+        request_value,
+    )?;
     Ok((handle, request))
 }
 
@@ -2539,6 +2333,7 @@ fn encode_destack_crypto_key_export_private_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -2585,6 +2380,7 @@ fn encode_destack_crypto_key_export_public_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -2631,6 +2427,7 @@ fn encode_destack_crypto_key_export_secret_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -2642,6 +2439,7 @@ fn decode_destack_crypto_key_generate_pair_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::CryptoStoreHandle, CryptoKeyGenerationRequestVm)> {
+    let context = &context.read();
     let store_value = arg_value(args, 0, "store", "CryptoStoreHandle")?;
     let store_inner_inner = decode_uint64(store_value, "store_inner_inner", "CryptoStoreHandle")?;
     let store_inner = resource::ResourceId(store_inner_inner);
@@ -2660,13 +2458,21 @@ fn encode_destack_crypto_key_generate_pair_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CryptoKeyPairVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.public_key.0.0, 64));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.private_key.0.0, 64));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("crypto::CryptoKeyPair")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -2677,6 +2483,7 @@ fn decode_destack_crypto_key_generate_secret_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::CryptoStoreHandle, CryptoKeyGenerationRequestVm)> {
+    let context = &context.read();
     let store_value = arg_value(args, 0, "store", "CryptoStoreHandle")?;
     let store_inner_inner = decode_uint64(store_value, "store_inner_inner", "CryptoStoreHandle")?;
     let store_inner = resource::ResourceId(store_inner_inner);
@@ -2706,6 +2513,7 @@ fn decode_destack_crypto_key_import_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::CryptoStoreHandle, CryptoKeyImportRequestVm)> {
+    let context = &context.read();
     let store_value = arg_value(args, 0, "store", "CryptoStoreHandle")?;
     let store_inner_inner = decode_uint64(store_value, "store_inner_inner", "CryptoStoreHandle")?;
     let store_inner = resource::ResourceId(store_inner_inner);
@@ -2739,89 +2547,16 @@ fn decode_destack_crypto_key_sign_args(
     CryptoSignatureParametersVm,
     VmSlice<u8>,
 )> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "CryptoKeyHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "CryptoKeyHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::CryptoKeyHandle(handle_inner);
     let parameters_value = arg_value(args, 1, "parameters", "CryptoSignatureParameters")?;
-    let parameters = {
-        if parameters_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "parameters",
-                "CryptoSignatureParameters",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(parameters_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "parameters",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let parameters_algorithm_raw =
-            decode_int32(slots[0], "parameters_algorithm_raw", "algorithm")?;
-        let parameters_algorithm = match parameters_algorithm_raw {
-            0i32 => CryptoSignatureAlgorithm::Unknown,
-            1i32 => CryptoSignatureAlgorithm::RsaPkcs1v15,
-            2i32 => CryptoSignatureAlgorithm::RsaPss,
-            3i32 => CryptoSignatureAlgorithm::Ecdsa,
-            4i32 => CryptoSignatureAlgorithm::Ed25519,
-            5i32 => CryptoSignatureAlgorithm::Ed448,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "parameters_algorithm",
-                    "unknown CryptoSignatureAlgorithm value",
-                ))
-                .boxed());
-            }
-        };
-        let parameters_digest = if slots[1].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let parameters_digest_inner_raw =
-                decode_int32(slots[1], "parameters_digest_inner_raw", "digest")?;
-            let parameters_digest_inner = match parameters_digest_inner_raw {
-                0i32 => CryptoDigestAlgorithm::Unknown,
-                1i32 => CryptoDigestAlgorithm::Sha1,
-                2i32 => CryptoDigestAlgorithm::Sha224,
-                3i32 => CryptoDigestAlgorithm::Sha256,
-                4i32 => CryptoDigestAlgorithm::Sha384,
-                5i32 => CryptoDigestAlgorithm::Sha512,
-                6i32 => CryptoDigestAlgorithm::Sha3_256,
-                7i32 => CryptoDigestAlgorithm::Sha3_384,
-                8i32 => CryptoDigestAlgorithm::Sha3_512,
-                9i32 => CryptoDigestAlgorithm::Blake2b512,
-                10i32 => CryptoDigestAlgorithm::Blake2s256,
-                _ => {
-                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                        "parameters_digest_inner",
-                        "unknown CryptoDigestAlgorithm value",
-                    ))
-                    .boxed());
-                }
-            };
-            Some(parameters_digest_inner)
-        };
-        let parameters_salt_length_bytes = if slots[2].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let parameters_salt_length_bytes_inner = decode_uint32(
-                slots[2],
-                "parameters_salt_length_bytes_inner",
-                "saltLengthBytes",
-            )?;
-            Some(parameters_salt_length_bytes_inner)
-        };
-        CryptoSignatureParametersVm {
-            algorithm: parameters_algorithm,
-            digest: parameters_digest,
-            salt_length_bytes: parameters_salt_length_bytes,
-        }
-    };
+    let parameters = <CryptoSignatureParametersVm as VmAggregateCodec>::decode_with_context(
+        context,
+        parameters_value,
+    )?;
     let argument_payload_value = arg_value(args, 2, "argument_payload", "Slice<uint8>")?;
     let argument_payload = decode_slice::<u8>(
         context,
@@ -2838,6 +2573,7 @@ fn encode_destack_crypto_key_sign_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -2855,6 +2591,7 @@ fn decode_destack_crypto_key_unwrap_args(
     CryptoKeyWrapParametersVm,
     CryptoKeyImportRequestVm,
 )> {
+    let context = &context.read();
     let store_value = arg_value(args, 0, "store", "CryptoStoreHandle")?;
     let store_inner_inner = decode_uint64(store_value, "store_inner_inner", "CryptoStoreHandle")?;
     let store_inner = resource::ResourceId(store_inner_inner);
@@ -2870,73 +2607,10 @@ fn decode_destack_crypto_key_unwrap_args(
     let wrappedkey_value = arg_value(args, 2, "wrappedkey", "Slice<uint8>")?;
     let wrappedkey = decode_slice::<u8>(context, wrappedkey_value, "wrappedkey", "Slice<uint8>")?;
     let parameters_value = arg_value(args, 3, "parameters", "CryptoKeyWrapParameters")?;
-    let parameters = {
-        if parameters_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "parameters",
-                "CryptoKeyWrapParameters",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(parameters_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "parameters",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let parameters_algorithm_raw =
-            decode_int32(slots[0], "parameters_algorithm_raw", "algorithm")?;
-        let parameters_algorithm = match parameters_algorithm_raw {
-            0i32 => CryptoKeyWrapAlgorithm::Unknown,
-            1i32 => CryptoKeyWrapAlgorithm::RsaOaep,
-            2i32 => CryptoKeyWrapAlgorithm::AesKw,
-            3i32 => CryptoKeyWrapAlgorithm::AesKwp,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "parameters_algorithm",
-                    "unknown CryptoKeyWrapAlgorithm value",
-                ))
-                .boxed());
-            }
-        };
-        let parameters_digest = if slots[1].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let parameters_digest_inner_raw =
-                decode_int32(slots[1], "parameters_digest_inner_raw", "digest")?;
-            let parameters_digest_inner = match parameters_digest_inner_raw {
-                0i32 => CryptoDigestAlgorithm::Unknown,
-                1i32 => CryptoDigestAlgorithm::Sha1,
-                2i32 => CryptoDigestAlgorithm::Sha224,
-                3i32 => CryptoDigestAlgorithm::Sha256,
-                4i32 => CryptoDigestAlgorithm::Sha384,
-                5i32 => CryptoDigestAlgorithm::Sha512,
-                6i32 => CryptoDigestAlgorithm::Sha3_256,
-                7i32 => CryptoDigestAlgorithm::Sha3_384,
-                8i32 => CryptoDigestAlgorithm::Sha3_512,
-                9i32 => CryptoDigestAlgorithm::Blake2b512,
-                10i32 => CryptoDigestAlgorithm::Blake2s256,
-                _ => {
-                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                        "parameters_digest_inner",
-                        "unknown CryptoDigestAlgorithm value",
-                    ))
-                    .boxed());
-                }
-            };
-            Some(parameters_digest_inner)
-        };
-        let parameters_label = decode_slice::<u8>(context, slots[2], "parameters_label", "label")?;
-        CryptoKeyWrapParametersVm {
-            algorithm: parameters_algorithm,
-            digest: parameters_digest,
-            label: parameters_label,
-        }
-    };
+    let parameters = <CryptoKeyWrapParametersVm as VmAggregateCodec>::decode_with_context(
+        context,
+        parameters_value,
+    )?;
     let request_value = arg_value(args, 4, "request", "CryptoKeyImportRequest")?;
     let request = <CryptoKeyImportRequestVm as VmAggregateCodec>::decode_with_context(
         context,
@@ -2967,89 +2641,16 @@ fn decode_destack_crypto_key_verify_args(
     VmSlice<u8>,
     VmSlice<u8>,
 )> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "CryptoKeyHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "CryptoKeyHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::CryptoKeyHandle(handle_inner);
     let parameters_value = arg_value(args, 1, "parameters", "CryptoSignatureParameters")?;
-    let parameters = {
-        if parameters_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "parameters",
-                "CryptoSignatureParameters",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(parameters_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "parameters",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let parameters_algorithm_raw =
-            decode_int32(slots[0], "parameters_algorithm_raw", "algorithm")?;
-        let parameters_algorithm = match parameters_algorithm_raw {
-            0i32 => CryptoSignatureAlgorithm::Unknown,
-            1i32 => CryptoSignatureAlgorithm::RsaPkcs1v15,
-            2i32 => CryptoSignatureAlgorithm::RsaPss,
-            3i32 => CryptoSignatureAlgorithm::Ecdsa,
-            4i32 => CryptoSignatureAlgorithm::Ed25519,
-            5i32 => CryptoSignatureAlgorithm::Ed448,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "parameters_algorithm",
-                    "unknown CryptoSignatureAlgorithm value",
-                ))
-                .boxed());
-            }
-        };
-        let parameters_digest = if slots[1].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let parameters_digest_inner_raw =
-                decode_int32(slots[1], "parameters_digest_inner_raw", "digest")?;
-            let parameters_digest_inner = match parameters_digest_inner_raw {
-                0i32 => CryptoDigestAlgorithm::Unknown,
-                1i32 => CryptoDigestAlgorithm::Sha1,
-                2i32 => CryptoDigestAlgorithm::Sha224,
-                3i32 => CryptoDigestAlgorithm::Sha256,
-                4i32 => CryptoDigestAlgorithm::Sha384,
-                5i32 => CryptoDigestAlgorithm::Sha512,
-                6i32 => CryptoDigestAlgorithm::Sha3_256,
-                7i32 => CryptoDigestAlgorithm::Sha3_384,
-                8i32 => CryptoDigestAlgorithm::Sha3_512,
-                9i32 => CryptoDigestAlgorithm::Blake2b512,
-                10i32 => CryptoDigestAlgorithm::Blake2s256,
-                _ => {
-                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                        "parameters_digest_inner",
-                        "unknown CryptoDigestAlgorithm value",
-                    ))
-                    .boxed());
-                }
-            };
-            Some(parameters_digest_inner)
-        };
-        let parameters_salt_length_bytes = if slots[2].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let parameters_salt_length_bytes_inner = decode_uint32(
-                slots[2],
-                "parameters_salt_length_bytes_inner",
-                "saltLengthBytes",
-            )?;
-            Some(parameters_salt_length_bytes_inner)
-        };
-        CryptoSignatureParametersVm {
-            algorithm: parameters_algorithm,
-            digest: parameters_digest,
-            salt_length_bytes: parameters_salt_length_bytes,
-        }
-    };
+    let parameters = <CryptoSignatureParametersVm as VmAggregateCodec>::decode_with_context(
+        context,
+        parameters_value,
+    )?;
     let argument_payload_value = arg_value(args, 2, "argument_payload", "Slice<uint8>")?;
     let argument_payload = decode_slice::<u8>(
         context,
@@ -3084,6 +2685,7 @@ fn decode_destack_crypto_key_wrap_args(
     CryptoKeyFormat,
     CryptoKeyWrapParametersVm,
 )> {
+    let context = &context.read();
     let wrappingkey_value = arg_value(args, 0, "wrappingkey", "CryptoKeyHandle")?;
     let wrappingkey_inner_inner = decode_uint64(
         wrappingkey_value,
@@ -3120,73 +2722,10 @@ fn decode_destack_crypto_key_wrap_args(
         }
     };
     let parameters_value = arg_value(args, 3, "parameters", "CryptoKeyWrapParameters")?;
-    let parameters = {
-        if parameters_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "parameters",
-                "CryptoKeyWrapParameters",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(parameters_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "parameters",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let parameters_algorithm_raw =
-            decode_int32(slots[0], "parameters_algorithm_raw", "algorithm")?;
-        let parameters_algorithm = match parameters_algorithm_raw {
-            0i32 => CryptoKeyWrapAlgorithm::Unknown,
-            1i32 => CryptoKeyWrapAlgorithm::RsaOaep,
-            2i32 => CryptoKeyWrapAlgorithm::AesKw,
-            3i32 => CryptoKeyWrapAlgorithm::AesKwp,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "parameters_algorithm",
-                    "unknown CryptoKeyWrapAlgorithm value",
-                ))
-                .boxed());
-            }
-        };
-        let parameters_digest = if slots[1].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let parameters_digest_inner_raw =
-                decode_int32(slots[1], "parameters_digest_inner_raw", "digest")?;
-            let parameters_digest_inner = match parameters_digest_inner_raw {
-                0i32 => CryptoDigestAlgorithm::Unknown,
-                1i32 => CryptoDigestAlgorithm::Sha1,
-                2i32 => CryptoDigestAlgorithm::Sha224,
-                3i32 => CryptoDigestAlgorithm::Sha256,
-                4i32 => CryptoDigestAlgorithm::Sha384,
-                5i32 => CryptoDigestAlgorithm::Sha512,
-                6i32 => CryptoDigestAlgorithm::Sha3_256,
-                7i32 => CryptoDigestAlgorithm::Sha3_384,
-                8i32 => CryptoDigestAlgorithm::Sha3_512,
-                9i32 => CryptoDigestAlgorithm::Blake2b512,
-                10i32 => CryptoDigestAlgorithm::Blake2s256,
-                _ => {
-                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                        "parameters_digest_inner",
-                        "unknown CryptoDigestAlgorithm value",
-                    ))
-                    .boxed());
-                }
-            };
-            Some(parameters_digest_inner)
-        };
-        let parameters_label = decode_slice::<u8>(context, slots[2], "parameters_label", "label")?;
-        CryptoKeyWrapParametersVm {
-            algorithm: parameters_algorithm,
-            digest: parameters_digest,
-            label: parameters_label,
-        }
-    };
+    let parameters = <CryptoKeyWrapParametersVm as VmAggregateCodec>::decode_with_context(
+        context,
+        parameters_value,
+    )?;
     Ok((wrappingkey, keytowrap, format, parameters))
 }
 
@@ -3196,6 +2735,7 @@ fn encode_destack_crypto_key_wrap_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -3233,79 +2773,16 @@ fn decode_destack_crypto_mac_compute_args(
     CryptoMacParametersVm,
     VmSlice<u8>,
 )> {
+    let context = &context.read();
     let key_value = arg_value(args, 0, "key", "CryptoKeyHandle")?;
     let key_inner_inner = decode_uint64(key_value, "key_inner_inner", "CryptoKeyHandle")?;
     let key_inner = resource::ResourceId(key_inner_inner);
     let key = resource::CryptoKeyHandle(key_inner);
     let parameters_value = arg_value(args, 1, "parameters", "CryptoMacParameters")?;
-    let parameters = {
-        if parameters_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "parameters",
-                "CryptoMacParameters",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(parameters_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "parameters",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let parameters_algorithm_raw =
-            decode_int32(slots[0], "parameters_algorithm_raw", "algorithm")?;
-        let parameters_algorithm = match parameters_algorithm_raw {
-            0i32 => CryptoMacAlgorithm::Unknown,
-            1i32 => CryptoMacAlgorithm::Hmac,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "parameters_algorithm",
-                    "unknown CryptoMacAlgorithm value",
-                ))
-                .boxed());
-            }
-        };
-        let parameters_digest_raw = decode_int32(slots[1], "parameters_digest_raw", "digest")?;
-        let parameters_digest = match parameters_digest_raw {
-            0i32 => CryptoDigestAlgorithm::Unknown,
-            1i32 => CryptoDigestAlgorithm::Sha1,
-            2i32 => CryptoDigestAlgorithm::Sha224,
-            3i32 => CryptoDigestAlgorithm::Sha256,
-            4i32 => CryptoDigestAlgorithm::Sha384,
-            5i32 => CryptoDigestAlgorithm::Sha512,
-            6i32 => CryptoDigestAlgorithm::Sha3_256,
-            7i32 => CryptoDigestAlgorithm::Sha3_384,
-            8i32 => CryptoDigestAlgorithm::Sha3_512,
-            9i32 => CryptoDigestAlgorithm::Blake2b512,
-            10i32 => CryptoDigestAlgorithm::Blake2s256,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "parameters_digest",
-                    "unknown CryptoDigestAlgorithm value",
-                ))
-                .boxed());
-            }
-        };
-        let parameters_tag_length_bytes = if slots[2].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let parameters_tag_length_bytes_inner = decode_uint32(
-                slots[2],
-                "parameters_tag_length_bytes_inner",
-                "tagLengthBytes",
-            )?;
-            Some(parameters_tag_length_bytes_inner)
-        };
-        CryptoMacParametersVm {
-            algorithm: parameters_algorithm,
-            digest: parameters_digest,
-            tag_length_bytes: parameters_tag_length_bytes,
-        }
-    };
+    let parameters = <CryptoMacParametersVm as VmAggregateCodec>::decode_with_context(
+        context,
+        parameters_value,
+    )?;
     let argument_payload_value = arg_value(args, 2, "argument_payload", "Slice<uint8>")?;
     let argument_payload = decode_slice::<u8>(
         context,
@@ -3322,6 +2799,7 @@ fn encode_destack_crypto_mac_compute_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -3346,6 +2824,7 @@ fn encode_destack_crypto_mac_finish_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -3357,79 +2836,16 @@ fn decode_destack_crypto_mac_open_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::CryptoKeyHandle, CryptoMacParametersVm)> {
+    let context = &context.read();
     let key_value = arg_value(args, 0, "key", "CryptoKeyHandle")?;
     let key_inner_inner = decode_uint64(key_value, "key_inner_inner", "CryptoKeyHandle")?;
     let key_inner = resource::ResourceId(key_inner_inner);
     let key = resource::CryptoKeyHandle(key_inner);
     let parameters_value = arg_value(args, 1, "parameters", "CryptoMacParameters")?;
-    let parameters = {
-        if parameters_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "parameters",
-                "CryptoMacParameters",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(parameters_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "parameters",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let parameters_algorithm_raw =
-            decode_int32(slots[0], "parameters_algorithm_raw", "algorithm")?;
-        let parameters_algorithm = match parameters_algorithm_raw {
-            0i32 => CryptoMacAlgorithm::Unknown,
-            1i32 => CryptoMacAlgorithm::Hmac,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "parameters_algorithm",
-                    "unknown CryptoMacAlgorithm value",
-                ))
-                .boxed());
-            }
-        };
-        let parameters_digest_raw = decode_int32(slots[1], "parameters_digest_raw", "digest")?;
-        let parameters_digest = match parameters_digest_raw {
-            0i32 => CryptoDigestAlgorithm::Unknown,
-            1i32 => CryptoDigestAlgorithm::Sha1,
-            2i32 => CryptoDigestAlgorithm::Sha224,
-            3i32 => CryptoDigestAlgorithm::Sha256,
-            4i32 => CryptoDigestAlgorithm::Sha384,
-            5i32 => CryptoDigestAlgorithm::Sha512,
-            6i32 => CryptoDigestAlgorithm::Sha3_256,
-            7i32 => CryptoDigestAlgorithm::Sha3_384,
-            8i32 => CryptoDigestAlgorithm::Sha3_512,
-            9i32 => CryptoDigestAlgorithm::Blake2b512,
-            10i32 => CryptoDigestAlgorithm::Blake2s256,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "parameters_digest",
-                    "unknown CryptoDigestAlgorithm value",
-                ))
-                .boxed());
-            }
-        };
-        let parameters_tag_length_bytes = if slots[2].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let parameters_tag_length_bytes_inner = decode_uint32(
-                slots[2],
-                "parameters_tag_length_bytes_inner",
-                "tagLengthBytes",
-            )?;
-            Some(parameters_tag_length_bytes_inner)
-        };
-        CryptoMacParametersVm {
-            algorithm: parameters_algorithm,
-            digest: parameters_digest,
-            tag_length_bytes: parameters_tag_length_bytes,
-        }
-    };
+    let parameters = <CryptoMacParametersVm as VmAggregateCodec>::decode_with_context(
+        context,
+        parameters_value,
+    )?;
     Ok((key, parameters))
 }
 
@@ -3472,6 +2888,7 @@ fn decode_destack_crypto_mac_update_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::CryptoMacHandle, VmSlice<u8>)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "CryptoMacHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "CryptoMacHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -3506,79 +2923,16 @@ fn decode_destack_crypto_mac_verify_args(
     VmSlice<u8>,
     VmSlice<u8>,
 )> {
+    let context = &context.read();
     let key_value = arg_value(args, 0, "key", "CryptoKeyHandle")?;
     let key_inner_inner = decode_uint64(key_value, "key_inner_inner", "CryptoKeyHandle")?;
     let key_inner = resource::ResourceId(key_inner_inner);
     let key = resource::CryptoKeyHandle(key_inner);
     let parameters_value = arg_value(args, 1, "parameters", "CryptoMacParameters")?;
-    let parameters = {
-        if parameters_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "parameters",
-                "CryptoMacParameters",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(parameters_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "parameters",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let parameters_algorithm_raw =
-            decode_int32(slots[0], "parameters_algorithm_raw", "algorithm")?;
-        let parameters_algorithm = match parameters_algorithm_raw {
-            0i32 => CryptoMacAlgorithm::Unknown,
-            1i32 => CryptoMacAlgorithm::Hmac,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "parameters_algorithm",
-                    "unknown CryptoMacAlgorithm value",
-                ))
-                .boxed());
-            }
-        };
-        let parameters_digest_raw = decode_int32(slots[1], "parameters_digest_raw", "digest")?;
-        let parameters_digest = match parameters_digest_raw {
-            0i32 => CryptoDigestAlgorithm::Unknown,
-            1i32 => CryptoDigestAlgorithm::Sha1,
-            2i32 => CryptoDigestAlgorithm::Sha224,
-            3i32 => CryptoDigestAlgorithm::Sha256,
-            4i32 => CryptoDigestAlgorithm::Sha384,
-            5i32 => CryptoDigestAlgorithm::Sha512,
-            6i32 => CryptoDigestAlgorithm::Sha3_256,
-            7i32 => CryptoDigestAlgorithm::Sha3_384,
-            8i32 => CryptoDigestAlgorithm::Sha3_512,
-            9i32 => CryptoDigestAlgorithm::Blake2b512,
-            10i32 => CryptoDigestAlgorithm::Blake2s256,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "parameters_digest",
-                    "unknown CryptoDigestAlgorithm value",
-                ))
-                .boxed());
-            }
-        };
-        let parameters_tag_length_bytes = if slots[2].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let parameters_tag_length_bytes_inner = decode_uint32(
-                slots[2],
-                "parameters_tag_length_bytes_inner",
-                "tagLengthBytes",
-            )?;
-            Some(parameters_tag_length_bytes_inner)
-        };
-        CryptoMacParametersVm {
-            algorithm: parameters_algorithm,
-            digest: parameters_digest,
-            tag_length_bytes: parameters_tag_length_bytes,
-        }
-    };
+    let parameters = <CryptoMacParametersVm as VmAggregateCodec>::decode_with_context(
+        context,
+        parameters_value,
+    )?;
     let argument_payload_value = arg_value(args, 2, "argument_payload", "Slice<uint8>")?;
     let argument_payload = decode_slice::<u8>(
         context,
@@ -3608,6 +2962,7 @@ fn encode_destack_crypto_probe_agreement_algorithms_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<CryptoKeyAgreementAlgorithm>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -3619,6 +2974,7 @@ fn encode_destack_crypto_probe_cipher_algorithms_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<CryptoCipherAlgorithm>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -3630,6 +2986,7 @@ fn encode_destack_crypto_probe_digest_algorithms_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<CryptoDigestAlgorithm>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -3641,6 +2998,7 @@ fn encode_destack_crypto_probe_kdf_algorithms_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<CryptoKdfAlgorithm>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -3652,6 +3010,7 @@ fn encode_destack_crypto_probe_key_algorithms_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<CryptoKeyAlgorithm>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -3663,6 +3022,7 @@ fn encode_destack_crypto_probe_key_formats_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<CryptoKeyFormat>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -3674,6 +3034,7 @@ fn encode_destack_crypto_probe_key_residencies_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<CryptoKeyResidency>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -3685,6 +3046,7 @@ fn encode_destack_crypto_probe_key_wrap_algorithms_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<CryptoKeyWrapAlgorithm>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -3696,6 +3058,7 @@ fn encode_destack_crypto_probe_mac_algorithms_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<CryptoMacAlgorithm>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -3707,6 +3070,7 @@ fn encode_destack_crypto_probe_named_curves_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<CryptoNamedCurve>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -3718,6 +3082,7 @@ fn encode_destack_crypto_probe_signature_algorithms_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<CryptoSignatureAlgorithm>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -3740,6 +3105,7 @@ fn encode_destack_crypto_random_bytes_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -3751,6 +3117,7 @@ fn decode_destack_crypto_random_fill_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(VmSlice<u8>,)> {
+    let context = &context.read();
     let buffer_value = arg_value(args, 0, "buffer", "Slice<uint8>")?;
     let buffer = decode_slice::<u8>(context, buffer_value, "buffer", "Slice<uint8>")?;
     Ok((buffer,))
@@ -3794,59 +3161,15 @@ fn decode_destack_crypto_store_list_certificates_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::CryptoStoreHandle, CryptoCertificateQueryVm)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "CryptoStoreHandle")?;
     let handle_inner_inner =
         decode_uint64(handle_value, "handle_inner_inner", "CryptoStoreHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::CryptoStoreHandle(handle_inner);
     let query_value = arg_value(args, 1, "query", "CryptoCertificateQuery")?;
-    let query = {
-        if query_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "query",
-                "CryptoCertificateQuery",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(query_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "query",
-                "expected 5 fields",
-            ))
-            .boxed());
-        }
-        let query_subject_contains =
-            decode_string(slots[0], "query_subject_contains", "subjectContains")?;
-        let query_issuer_contains =
-            decode_string(slots[1], "query_issuer_contains", "issuerContains")?;
-        let query_subject_alternative_name = decode_string(
-            slots[2],
-            "query_subject_alternative_name",
-            "subjectAlternativeName",
-        )?;
-        let query_cursor = if slots[3].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let query_cursor_inner = decode_string(slots[3], "query_cursor_inner", "cursor")?;
-            Some(query_cursor_inner)
-        };
-        let query_limit = if slots[4].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let query_limit_inner = decode_uint32(slots[4], "query_limit_inner", "limit")?;
-            Some(query_limit_inner)
-        };
-        CryptoCertificateQueryVm {
-            subject_contains: query_subject_contains,
-            issuer_contains: query_issuer_contains,
-            subject_alternative_name: query_subject_alternative_name,
-            cursor: query_cursor,
-            limit: query_limit,
-        }
-    };
+    let query =
+        <CryptoCertificateQueryVm as VmAggregateCodec>::decode_with_context(context, query_value)?;
     Ok((handle, query))
 }
 
@@ -3856,6 +3179,7 @@ fn encode_destack_crypto_store_list_certificates_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CryptoCertificateListPageVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = value.entries.to_value(context);
@@ -3863,9 +3187,16 @@ fn encode_destack_crypto_store_list_certificates_result(
                 Some(value) => Ok(value.value()),
                 None => Ok(vm::Value::VOID),
             };
-            context
-                .allocate_aggregate(vec![field_0?, field_1?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("crypto::CryptoCertificateListPage")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -3876,85 +3207,14 @@ fn decode_destack_crypto_store_list_keys_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::CryptoStoreHandle, CryptoKeyQueryVm)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "CryptoStoreHandle")?;
     let handle_inner_inner =
         decode_uint64(handle_value, "handle_inner_inner", "CryptoStoreHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::CryptoStoreHandle(handle_inner);
     let query_value = arg_value(args, 1, "query", "CryptoKeyQuery")?;
-    let query = {
-        if query_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "query",
-                "CryptoKeyQuery",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(query_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "query",
-                "expected 5 fields",
-            ))
-            .boxed());
-        }
-        let query_label_prefix = decode_string(slots[0], "query_label_prefix", "labelPrefix")?;
-        let query_algorithm = if slots[1].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let query_algorithm_inner_raw =
-                decode_int32(slots[1], "query_algorithm_inner_raw", "algorithm")?;
-            let query_algorithm_inner = match query_algorithm_inner_raw {
-                0i32 => CryptoKeyAlgorithm::Unknown,
-                1i32 => CryptoKeyAlgorithm::Rsa,
-                2i32 => CryptoKeyAlgorithm::Ec,
-                3i32 => CryptoKeyAlgorithm::Ed25519,
-                4i32 => CryptoKeyAlgorithm::Ed448,
-                5i32 => CryptoKeyAlgorithm::X25519,
-                6i32 => CryptoKeyAlgorithm::X448,
-                7i32 => CryptoKeyAlgorithm::Aes,
-                8i32 => CryptoKeyAlgorithm::ChaCha20,
-                9i32 => CryptoKeyAlgorithm::Hmac,
-                _ => {
-                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                        "query_algorithm_inner",
-                        "unknown CryptoKeyAlgorithm value",
-                    ))
-                    .boxed());
-                }
-            };
-            Some(query_algorithm_inner)
-        };
-        let query_usage_mask = if slots[2].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let query_usage_mask_inner_inner =
-                decode_uint32(slots[2], "query_usage_mask_inner_inner", "usageMask")?;
-            let query_usage_mask_inner = CryptoKeyUsageMask(query_usage_mask_inner_inner);
-            Some(query_usage_mask_inner)
-        };
-        let query_cursor = if slots[3].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let query_cursor_inner = decode_string(slots[3], "query_cursor_inner", "cursor")?;
-            Some(query_cursor_inner)
-        };
-        let query_limit = if slots[4].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let query_limit_inner = decode_uint32(slots[4], "query_limit_inner", "limit")?;
-            Some(query_limit_inner)
-        };
-        CryptoKeyQueryVm {
-            label_prefix: query_label_prefix,
-            algorithm: query_algorithm,
-            usage_mask: query_usage_mask,
-            cursor: query_cursor,
-            limit: query_limit,
-        }
-    };
+    let query = <CryptoKeyQueryVm as VmAggregateCodec>::decode_with_context(context, query_value)?;
     Ok((handle, query))
 }
 
@@ -3964,6 +3224,7 @@ fn encode_destack_crypto_store_list_keys_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CryptoKeyListPageVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = value.entries.to_value(context);
@@ -3971,9 +3232,16 @@ fn encode_destack_crypto_store_list_keys_result(
                 Some(value) => Ok(value.value()),
                 None => Ok(vm::Value::VOID),
             };
-            context
-                .allocate_aggregate(vec![field_0?, field_1?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("crypto::CryptoKeyListPage")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -3984,70 +3252,10 @@ fn decode_destack_crypto_store_open_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(CryptoStoreOptionsVm,)> {
+    let context = &context.read();
     let options_value = arg_value(args, 0, "options", "CryptoStoreOptions")?;
-    let options = {
-        if options_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "options",
-                "CryptoStoreOptions",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(options_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "options",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let options_kind_raw = decode_int32(slots[0], "options_kind_raw", "kind")?;
-        let options_kind = match options_kind_raw {
-            0i32 => CryptoStoreKind::System,
-            1i32 => CryptoStoreKind::User,
-            2i32 => CryptoStoreKind::Machine,
-            3i32 => CryptoStoreKind::Provider,
-            4i32 => CryptoStoreKind::Ephemeral,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "options_kind",
-                    "unknown CryptoStoreKind value",
-                ))
-                .boxed());
-            }
-        };
-        let options_provider = if slots[1].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let options_provider_inner_raw =
-                decode_int32(slots[1], "options_provider_inner_raw", "provider")?;
-            let options_provider_inner = match options_provider_inner_raw {
-                1i32 => CryptoStoreProvider::OpenSsl,
-                _ => {
-                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                        "options_provider_inner",
-                        "unknown CryptoStoreProvider value",
-                    ))
-                    .boxed());
-                }
-            };
-            Some(options_provider_inner)
-        };
-        let options_namespace = if slots[2].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let options_namespace_inner =
-                decode_string(slots[2], "options_namespace_inner", "namespace")?;
-            Some(options_namespace_inner)
-        };
-        CryptoStoreOptionsVm {
-            kind: options_kind,
-            provider: options_provider,
-            namespace: options_namespace,
-        }
-    };
+    let options =
+        <CryptoStoreOptionsVm as VmAggregateCodec>::decode_with_context(context, options_value)?;
     Ok((options,))
 }
 
@@ -4111,6 +3319,7 @@ fn encode_destack_crypto_store_probe_capability_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CryptoStoreCapabilityVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = {
@@ -4124,9 +3333,19 @@ fn encode_destack_crypto_store_probe_capability_result(
                     Some(value) => Ok(value.value()),
                     None => Ok(vm::Value::VOID),
                 };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("crypto::CryptoStoreIdentity")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, field_0?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, field_1?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(2, field_2?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             };
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_available));
             let field_2: RuntimeResult<vm::Value> =
@@ -4165,19 +3384,81 @@ fn encode_destack_crypto_store_probe_capability_result(
                 let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::bool(
                     value.certificate_capabilities.supports_system_trust_anchors,
                 ));
-                context
-                    .allocate_aggregate(vec![
-                        field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                    ])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("crypto::CryptoStoreCertificateCapability")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, field_0?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, field_1?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(2, field_2?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(3, field_3?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(4, field_4?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(5, field_5?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             };
-            context
-                .allocate_aggregate(vec![
-                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                    field_8?, field_9?, field_10?, field_11?, field_12?, field_13?, field_14?,
-                    field_15?,
-                ])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("crypto::CryptoStoreCapability")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(3, field_3?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(4, field_4?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(5, field_5?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(6, field_6?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(7, field_7?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(8, field_8?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(9, field_9?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(10, field_10?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(11, field_11?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(12, field_12?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(13, field_13?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(14, field_14?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(15, field_15?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -4188,6 +3469,7 @@ fn encode_destack_crypto_store_probe_kinds_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<CryptoStoreKind>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -5799,8 +5081,9 @@ fn destack_crypto_probe_agreement_algorithms_replay(
         |result| {
             if let Ok(()) = result {
                 let result_value: NativeSlice<CryptoKeyAgreementAlgorithm> = unsafe { out.read() };
-                let mut result_recorded = Vec::new();
-                for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
+                let result_recorded_slice = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_slice.len());
+                for result_recorded_item in result_recorded_slice.iter().cloned() {
                     let result_recorded_item_recorded = result_recorded_item;
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -5824,12 +5107,14 @@ fn destack_crypto_probe_agreement_algorithms_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut value_native_values = Vec::new();
-                    for value_native_item in value.iter().cloned() {
-                        let value_native_decoded = value_native_item;
-                        value_native_values.push(value_native_decoded);
-                    }
-                    let value_native = binding.store_slice(value_native_values);
+                    let value_native =
+                        binding.store_slice_with(value.len(), |value_native_values| {
+                            for value_native_item in value {
+                                let value_native_decoded = value_native_item;
+                                value_native_values.push(value_native_decoded);
+                            }
+                            Ok(())
+                        })?;
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -5859,8 +5144,9 @@ fn destack_crypto_probe_cipher_algorithms_replay(
         |result| {
             if let Ok(()) = result {
                 let result_value: NativeSlice<CryptoCipherAlgorithm> = unsafe { out.read() };
-                let mut result_recorded = Vec::new();
-                for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
+                let result_recorded_slice = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_slice.len());
+                for result_recorded_item in result_recorded_slice.iter().cloned() {
                     let result_recorded_item_recorded = result_recorded_item;
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -5884,12 +5170,14 @@ fn destack_crypto_probe_cipher_algorithms_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut value_native_values = Vec::new();
-                    for value_native_item in value.iter().cloned() {
-                        let value_native_decoded = value_native_item;
-                        value_native_values.push(value_native_decoded);
-                    }
-                    let value_native = binding.store_slice(value_native_values);
+                    let value_native =
+                        binding.store_slice_with(value.len(), |value_native_values| {
+                            for value_native_item in value {
+                                let value_native_decoded = value_native_item;
+                                value_native_values.push(value_native_decoded);
+                            }
+                            Ok(())
+                        })?;
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -5919,8 +5207,9 @@ fn destack_crypto_probe_digest_algorithms_replay(
         |result| {
             if let Ok(()) = result {
                 let result_value: NativeSlice<CryptoDigestAlgorithm> = unsafe { out.read() };
-                let mut result_recorded = Vec::new();
-                for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
+                let result_recorded_slice = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_slice.len());
+                for result_recorded_item in result_recorded_slice.iter().cloned() {
                     let result_recorded_item_recorded = result_recorded_item;
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -5944,12 +5233,14 @@ fn destack_crypto_probe_digest_algorithms_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut value_native_values = Vec::new();
-                    for value_native_item in value.iter().cloned() {
-                        let value_native_decoded = value_native_item;
-                        value_native_values.push(value_native_decoded);
-                    }
-                    let value_native = binding.store_slice(value_native_values);
+                    let value_native =
+                        binding.store_slice_with(value.len(), |value_native_values| {
+                            for value_native_item in value {
+                                let value_native_decoded = value_native_item;
+                                value_native_values.push(value_native_decoded);
+                            }
+                            Ok(())
+                        })?;
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -5979,8 +5270,9 @@ fn destack_crypto_probe_kdf_algorithms_replay(
         |result| {
             if let Ok(()) = result {
                 let result_value: NativeSlice<CryptoKdfAlgorithm> = unsafe { out.read() };
-                let mut result_recorded = Vec::new();
-                for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
+                let result_recorded_slice = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_slice.len());
+                for result_recorded_item in result_recorded_slice.iter().cloned() {
                     let result_recorded_item_recorded = result_recorded_item;
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -6004,12 +5296,14 @@ fn destack_crypto_probe_kdf_algorithms_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut value_native_values = Vec::new();
-                    for value_native_item in value.iter().cloned() {
-                        let value_native_decoded = value_native_item;
-                        value_native_values.push(value_native_decoded);
-                    }
-                    let value_native = binding.store_slice(value_native_values);
+                    let value_native =
+                        binding.store_slice_with(value.len(), |value_native_values| {
+                            for value_native_item in value {
+                                let value_native_decoded = value_native_item;
+                                value_native_values.push(value_native_decoded);
+                            }
+                            Ok(())
+                        })?;
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -6039,8 +5333,9 @@ fn destack_crypto_probe_key_algorithms_replay(
         |result| {
             if let Ok(()) = result {
                 let result_value: NativeSlice<CryptoKeyAlgorithm> = unsafe { out.read() };
-                let mut result_recorded = Vec::new();
-                for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
+                let result_recorded_slice = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_slice.len());
+                for result_recorded_item in result_recorded_slice.iter().cloned() {
                     let result_recorded_item_recorded = result_recorded_item;
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -6064,12 +5359,14 @@ fn destack_crypto_probe_key_algorithms_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut value_native_values = Vec::new();
-                    for value_native_item in value.iter().cloned() {
-                        let value_native_decoded = value_native_item;
-                        value_native_values.push(value_native_decoded);
-                    }
-                    let value_native = binding.store_slice(value_native_values);
+                    let value_native =
+                        binding.store_slice_with(value.len(), |value_native_values| {
+                            for value_native_item in value {
+                                let value_native_decoded = value_native_item;
+                                value_native_values.push(value_native_decoded);
+                            }
+                            Ok(())
+                        })?;
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -6099,8 +5396,9 @@ fn destack_crypto_probe_key_formats_replay(
         |result| {
             if let Ok(()) = result {
                 let result_value: NativeSlice<CryptoKeyFormat> = unsafe { out.read() };
-                let mut result_recorded = Vec::new();
-                for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
+                let result_recorded_slice = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_slice.len());
+                for result_recorded_item in result_recorded_slice.iter().cloned() {
                     let result_recorded_item_recorded = result_recorded_item;
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -6124,12 +5422,14 @@ fn destack_crypto_probe_key_formats_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut value_native_values = Vec::new();
-                    for value_native_item in value.iter().cloned() {
-                        let value_native_decoded = value_native_item;
-                        value_native_values.push(value_native_decoded);
-                    }
-                    let value_native = binding.store_slice(value_native_values);
+                    let value_native =
+                        binding.store_slice_with(value.len(), |value_native_values| {
+                            for value_native_item in value {
+                                let value_native_decoded = value_native_item;
+                                value_native_values.push(value_native_decoded);
+                            }
+                            Ok(())
+                        })?;
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -6159,8 +5459,9 @@ fn destack_crypto_probe_key_residencies_replay(
         |result| {
             if let Ok(()) = result {
                 let result_value: NativeSlice<CryptoKeyResidency> = unsafe { out.read() };
-                let mut result_recorded = Vec::new();
-                for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
+                let result_recorded_slice = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_slice.len());
+                for result_recorded_item in result_recorded_slice.iter().cloned() {
                     let result_recorded_item_recorded = result_recorded_item;
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -6184,12 +5485,14 @@ fn destack_crypto_probe_key_residencies_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut value_native_values = Vec::new();
-                    for value_native_item in value.iter().cloned() {
-                        let value_native_decoded = value_native_item;
-                        value_native_values.push(value_native_decoded);
-                    }
-                    let value_native = binding.store_slice(value_native_values);
+                    let value_native =
+                        binding.store_slice_with(value.len(), |value_native_values| {
+                            for value_native_item in value {
+                                let value_native_decoded = value_native_item;
+                                value_native_values.push(value_native_decoded);
+                            }
+                            Ok(())
+                        })?;
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -6219,8 +5522,9 @@ fn destack_crypto_probe_key_wrap_algorithms_replay(
         |result| {
             if let Ok(()) = result {
                 let result_value: NativeSlice<CryptoKeyWrapAlgorithm> = unsafe { out.read() };
-                let mut result_recorded = Vec::new();
-                for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
+                let result_recorded_slice = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_slice.len());
+                for result_recorded_item in result_recorded_slice.iter().cloned() {
                     let result_recorded_item_recorded = result_recorded_item;
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -6244,12 +5548,14 @@ fn destack_crypto_probe_key_wrap_algorithms_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut value_native_values = Vec::new();
-                    for value_native_item in value.iter().cloned() {
-                        let value_native_decoded = value_native_item;
-                        value_native_values.push(value_native_decoded);
-                    }
-                    let value_native = binding.store_slice(value_native_values);
+                    let value_native =
+                        binding.store_slice_with(value.len(), |value_native_values| {
+                            for value_native_item in value {
+                                let value_native_decoded = value_native_item;
+                                value_native_values.push(value_native_decoded);
+                            }
+                            Ok(())
+                        })?;
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -6279,8 +5585,9 @@ fn destack_crypto_probe_mac_algorithms_replay(
         |result| {
             if let Ok(()) = result {
                 let result_value: NativeSlice<CryptoMacAlgorithm> = unsafe { out.read() };
-                let mut result_recorded = Vec::new();
-                for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
+                let result_recorded_slice = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_slice.len());
+                for result_recorded_item in result_recorded_slice.iter().cloned() {
                     let result_recorded_item_recorded = result_recorded_item;
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -6304,12 +5611,14 @@ fn destack_crypto_probe_mac_algorithms_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut value_native_values = Vec::new();
-                    for value_native_item in value.iter().cloned() {
-                        let value_native_decoded = value_native_item;
-                        value_native_values.push(value_native_decoded);
-                    }
-                    let value_native = binding.store_slice(value_native_values);
+                    let value_native =
+                        binding.store_slice_with(value.len(), |value_native_values| {
+                            for value_native_item in value {
+                                let value_native_decoded = value_native_item;
+                                value_native_values.push(value_native_decoded);
+                            }
+                            Ok(())
+                        })?;
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -6339,8 +5648,9 @@ fn destack_crypto_probe_named_curves_replay(
         |result| {
             if let Ok(()) = result {
                 let result_value: NativeSlice<CryptoNamedCurve> = unsafe { out.read() };
-                let mut result_recorded = Vec::new();
-                for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
+                let result_recorded_slice = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_slice.len());
+                for result_recorded_item in result_recorded_slice.iter().cloned() {
                     let result_recorded_item_recorded = result_recorded_item;
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -6364,12 +5674,14 @@ fn destack_crypto_probe_named_curves_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut value_native_values = Vec::new();
-                    for value_native_item in value.iter().cloned() {
-                        let value_native_decoded = value_native_item;
-                        value_native_values.push(value_native_decoded);
-                    }
-                    let value_native = binding.store_slice(value_native_values);
+                    let value_native =
+                        binding.store_slice_with(value.len(), |value_native_values| {
+                            for value_native_item in value {
+                                let value_native_decoded = value_native_item;
+                                value_native_values.push(value_native_decoded);
+                            }
+                            Ok(())
+                        })?;
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -6399,8 +5711,9 @@ fn destack_crypto_probe_signature_algorithms_replay(
         |result| {
             if let Ok(()) = result {
                 let result_value: NativeSlice<CryptoSignatureAlgorithm> = unsafe { out.read() };
-                let mut result_recorded = Vec::new();
-                for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
+                let result_recorded_slice = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_slice.len());
+                for result_recorded_item in result_recorded_slice.iter().cloned() {
                     let result_recorded_item_recorded = result_recorded_item;
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -6424,12 +5737,14 @@ fn destack_crypto_probe_signature_algorithms_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut value_native_values = Vec::new();
-                    for value_native_item in value.iter().cloned() {
-                        let value_native_decoded = value_native_item;
-                        value_native_values.push(value_native_decoded);
-                    }
-                    let value_native = binding.store_slice(value_native_values);
+                    let value_native =
+                        binding.store_slice_with(value.len(), |value_native_values| {
+                            for value_native_item in value {
+                                let value_native_decoded = value_native_item;
+                                value_native_values.push(value_native_decoded);
+                            }
+                            Ok(())
+                        })?;
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -6481,23 +5796,27 @@ fn destack_crypto_store_probe_capability_replay(
                 let result_recorded_supports_hardware_backed = result_value.supports_hardware_backed;
                 let result_recorded_supports_persistent = result_value.supports_persistent;
                 let result_recorded_supports_key_export = result_value.supports_key_export;
-                let mut result_recorded_supported_key_algorithms = Vec::new();
-                for result_recorded_supported_key_algorithms_item in unsafe { result_value.supported_key_algorithms.as_slice()? }.iter().cloned() {
+                let result_recorded_supported_key_algorithms_slice = unsafe { result_value.supported_key_algorithms.as_slice()? };
+                let mut result_recorded_supported_key_algorithms = Vec::with_capacity(result_recorded_supported_key_algorithms_slice.len());
+                for result_recorded_supported_key_algorithms_item in result_recorded_supported_key_algorithms_slice.iter().cloned() {
                     let result_recorded_supported_key_algorithms_item_recorded = result_recorded_supported_key_algorithms_item;
                     result_recorded_supported_key_algorithms.push(result_recorded_supported_key_algorithms_item_recorded);
                 }
-                let mut result_recorded_supported_key_formats = Vec::new();
-                for result_recorded_supported_key_formats_item in unsafe { result_value.supported_key_formats.as_slice()? }.iter().cloned() {
+                let result_recorded_supported_key_formats_slice = unsafe { result_value.supported_key_formats.as_slice()? };
+                let mut result_recorded_supported_key_formats = Vec::with_capacity(result_recorded_supported_key_formats_slice.len());
+                for result_recorded_supported_key_formats_item in result_recorded_supported_key_formats_slice.iter().cloned() {
                     let result_recorded_supported_key_formats_item_recorded = result_recorded_supported_key_formats_item;
                     result_recorded_supported_key_formats.push(result_recorded_supported_key_formats_item_recorded);
                 }
-                let mut result_recorded_supported_key_residencies = Vec::new();
-                for result_recorded_supported_key_residencies_item in unsafe { result_value.supported_key_residencies.as_slice()? }.iter().cloned() {
+                let result_recorded_supported_key_residencies_slice = unsafe { result_value.supported_key_residencies.as_slice()? };
+                let mut result_recorded_supported_key_residencies = Vec::with_capacity(result_recorded_supported_key_residencies_slice.len());
+                for result_recorded_supported_key_residencies_item in result_recorded_supported_key_residencies_slice.iter().cloned() {
                     let result_recorded_supported_key_residencies_item_recorded = result_recorded_supported_key_residencies_item;
                     result_recorded_supported_key_residencies.push(result_recorded_supported_key_residencies_item_recorded);
                 }
-                let mut result_recorded_key_capabilities = Vec::new();
-                for result_recorded_key_capabilities_item in unsafe { result_value.key_capabilities.as_slice()? }.iter().cloned() {
+                let result_recorded_key_capabilities_slice = unsafe { result_value.key_capabilities.as_slice()? };
+                let mut result_recorded_key_capabilities = Vec::with_capacity(result_recorded_key_capabilities_slice.len());
+                for result_recorded_key_capabilities_item in result_recorded_key_capabilities_slice.iter().cloned() {
                     let result_recorded_key_capabilities_item_recorded_algorithm = result_recorded_key_capabilities_item.algorithm;
                     let result_recorded_key_capabilities_item_recorded_residency = result_recorded_key_capabilities_item.residency;
                     let result_recorded_key_capabilities_item_recorded_supports_generate_secret = result_recorded_key_capabilities_item.supports_generate_secret;
@@ -6507,13 +5826,15 @@ fn destack_crypto_store_probe_capability_replay(
                     let result_recorded_key_capabilities_item_recorded_supports_export_private = result_recorded_key_capabilities_item.supports_export_private;
                     let result_recorded_key_capabilities_item_recorded_supports_export_secret = result_recorded_key_capabilities_item.supports_export_secret;
                     let result_recorded_key_capabilities_item_recorded_supported_usage_mask = result_recorded_key_capabilities_item.supported_usage_mask;
-                    let mut result_recorded_key_capabilities_item_recorded_supported_import_formats = Vec::new();
-                    for result_recorded_key_capabilities_item_recorded_supported_import_formats_item in unsafe { result_recorded_key_capabilities_item.supported_import_formats.as_slice()? }.iter().cloned() {
+                    let result_recorded_key_capabilities_item_recorded_supported_import_formats_slice = unsafe { result_recorded_key_capabilities_item.supported_import_formats.as_slice()? };
+                    let mut result_recorded_key_capabilities_item_recorded_supported_import_formats = Vec::with_capacity(result_recorded_key_capabilities_item_recorded_supported_import_formats_slice.len());
+                    for result_recorded_key_capabilities_item_recorded_supported_import_formats_item in result_recorded_key_capabilities_item_recorded_supported_import_formats_slice.iter().cloned() {
                         let result_recorded_key_capabilities_item_recorded_supported_import_formats_item_recorded = result_recorded_key_capabilities_item_recorded_supported_import_formats_item;
                         result_recorded_key_capabilities_item_recorded_supported_import_formats.push(result_recorded_key_capabilities_item_recorded_supported_import_formats_item_recorded);
                     }
-                    let mut result_recorded_key_capabilities_item_recorded_supported_export_formats = Vec::new();
-                    for result_recorded_key_capabilities_item_recorded_supported_export_formats_item in unsafe { result_recorded_key_capabilities_item.supported_export_formats.as_slice()? }.iter().cloned() {
+                    let result_recorded_key_capabilities_item_recorded_supported_export_formats_slice = unsafe { result_recorded_key_capabilities_item.supported_export_formats.as_slice()? };
+                    let mut result_recorded_key_capabilities_item_recorded_supported_export_formats = Vec::with_capacity(result_recorded_key_capabilities_item_recorded_supported_export_formats_slice.len());
+                    for result_recorded_key_capabilities_item_recorded_supported_export_formats_item in result_recorded_key_capabilities_item_recorded_supported_export_formats_slice.iter().cloned() {
                         let result_recorded_key_capabilities_item_recorded_supported_export_formats_item_recorded = result_recorded_key_capabilities_item_recorded_supported_export_formats_item;
                         result_recorded_key_capabilities_item_recorded_supported_export_formats.push(result_recorded_key_capabilities_item_recorded_supported_export_formats_item_recorded);
                     }
@@ -6532,14 +5853,16 @@ fn destack_crypto_store_probe_capability_replay(
                     };
                     result_recorded_key_capabilities.push(result_recorded_key_capabilities_item_recorded);
                 }
-                let mut result_recorded_signature_capabilities = Vec::new();
-                for result_recorded_signature_capabilities_item in unsafe { result_value.signature_capabilities.as_slice()? }.iter().cloned() {
+                let result_recorded_signature_capabilities_slice = unsafe { result_value.signature_capabilities.as_slice()? };
+                let mut result_recorded_signature_capabilities = Vec::with_capacity(result_recorded_signature_capabilities_slice.len());
+                for result_recorded_signature_capabilities_item in result_recorded_signature_capabilities_slice.iter().cloned() {
                     let result_recorded_signature_capabilities_item_recorded_key_algorithm = result_recorded_signature_capabilities_item.key_algorithm;
                     let result_recorded_signature_capabilities_item_recorded_signature_algorithm = result_recorded_signature_capabilities_item.signature_algorithm;
                     let result_recorded_signature_capabilities_item_recorded_supports_sign = result_recorded_signature_capabilities_item.supports_sign;
                     let result_recorded_signature_capabilities_item_recorded_supports_verify = result_recorded_signature_capabilities_item.supports_verify;
-                    let mut result_recorded_signature_capabilities_item_recorded_supported_digests = Vec::new();
-                    for result_recorded_signature_capabilities_item_recorded_supported_digests_item in unsafe { result_recorded_signature_capabilities_item.supported_digests.as_slice()? }.iter().cloned() {
+                    let result_recorded_signature_capabilities_item_recorded_supported_digests_slice = unsafe { result_recorded_signature_capabilities_item.supported_digests.as_slice()? };
+                    let mut result_recorded_signature_capabilities_item_recorded_supported_digests = Vec::with_capacity(result_recorded_signature_capabilities_item_recorded_supported_digests_slice.len());
+                    for result_recorded_signature_capabilities_item_recorded_supported_digests_item in result_recorded_signature_capabilities_item_recorded_supported_digests_slice.iter().cloned() {
                         let result_recorded_signature_capabilities_item_recorded_supported_digests_item_recorded = result_recorded_signature_capabilities_item_recorded_supported_digests_item;
                         result_recorded_signature_capabilities_item_recorded_supported_digests.push(result_recorded_signature_capabilities_item_recorded_supported_digests_item_recorded);
                     }
@@ -6552,14 +5875,16 @@ fn destack_crypto_store_probe_capability_replay(
                     };
                     result_recorded_signature_capabilities.push(result_recorded_signature_capabilities_item_recorded);
                 }
-                let mut result_recorded_asymmetric_encryption_capabilities = Vec::new();
-                for result_recorded_asymmetric_encryption_capabilities_item in unsafe { result_value.asymmetric_encryption_capabilities.as_slice()? }.iter().cloned() {
+                let result_recorded_asymmetric_encryption_capabilities_slice = unsafe { result_value.asymmetric_encryption_capabilities.as_slice()? };
+                let mut result_recorded_asymmetric_encryption_capabilities = Vec::with_capacity(result_recorded_asymmetric_encryption_capabilities_slice.len());
+                for result_recorded_asymmetric_encryption_capabilities_item in result_recorded_asymmetric_encryption_capabilities_slice.iter().cloned() {
                     let result_recorded_asymmetric_encryption_capabilities_item_recorded_key_algorithm = result_recorded_asymmetric_encryption_capabilities_item.key_algorithm;
                     let result_recorded_asymmetric_encryption_capabilities_item_recorded_algorithm = result_recorded_asymmetric_encryption_capabilities_item.algorithm;
                     let result_recorded_asymmetric_encryption_capabilities_item_recorded_supports_encrypt = result_recorded_asymmetric_encryption_capabilities_item.supports_encrypt;
                     let result_recorded_asymmetric_encryption_capabilities_item_recorded_supports_decrypt = result_recorded_asymmetric_encryption_capabilities_item.supports_decrypt;
-                    let mut result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests = Vec::new();
-                    for result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests_item in unsafe { result_recorded_asymmetric_encryption_capabilities_item.supported_digests.as_slice()? }.iter().cloned() {
+                    let result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests_slice = unsafe { result_recorded_asymmetric_encryption_capabilities_item.supported_digests.as_slice()? };
+                    let mut result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests = Vec::with_capacity(result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests_slice.len());
+                    for result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests_item in result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests_slice.iter().cloned() {
                         let result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests_item_recorded = result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests_item;
                         result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests.push(result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests_item_recorded);
                     }
@@ -6572,14 +5897,16 @@ fn destack_crypto_store_probe_capability_replay(
                     };
                     result_recorded_asymmetric_encryption_capabilities.push(result_recorded_asymmetric_encryption_capabilities_item_recorded);
                 }
-                let mut result_recorded_key_wrap_capabilities = Vec::new();
-                for result_recorded_key_wrap_capabilities_item in unsafe { result_value.key_wrap_capabilities.as_slice()? }.iter().cloned() {
+                let result_recorded_key_wrap_capabilities_slice = unsafe { result_value.key_wrap_capabilities.as_slice()? };
+                let mut result_recorded_key_wrap_capabilities = Vec::with_capacity(result_recorded_key_wrap_capabilities_slice.len());
+                for result_recorded_key_wrap_capabilities_item in result_recorded_key_wrap_capabilities_slice.iter().cloned() {
                     let result_recorded_key_wrap_capabilities_item_recorded_wrapping_key_algorithm = result_recorded_key_wrap_capabilities_item.wrapping_key_algorithm;
                     let result_recorded_key_wrap_capabilities_item_recorded_algorithm = result_recorded_key_wrap_capabilities_item.algorithm;
                     let result_recorded_key_wrap_capabilities_item_recorded_supports_wrap = result_recorded_key_wrap_capabilities_item.supports_wrap;
                     let result_recorded_key_wrap_capabilities_item_recorded_supports_unwrap = result_recorded_key_wrap_capabilities_item.supports_unwrap;
-                    let mut result_recorded_key_wrap_capabilities_item_recorded_supported_digests = Vec::new();
-                    for result_recorded_key_wrap_capabilities_item_recorded_supported_digests_item in unsafe { result_recorded_key_wrap_capabilities_item.supported_digests.as_slice()? }.iter().cloned() {
+                    let result_recorded_key_wrap_capabilities_item_recorded_supported_digests_slice = unsafe { result_recorded_key_wrap_capabilities_item.supported_digests.as_slice()? };
+                    let mut result_recorded_key_wrap_capabilities_item_recorded_supported_digests = Vec::with_capacity(result_recorded_key_wrap_capabilities_item_recorded_supported_digests_slice.len());
+                    for result_recorded_key_wrap_capabilities_item_recorded_supported_digests_item in result_recorded_key_wrap_capabilities_item_recorded_supported_digests_slice.iter().cloned() {
                         let result_recorded_key_wrap_capabilities_item_recorded_supported_digests_item_recorded = result_recorded_key_wrap_capabilities_item_recorded_supported_digests_item;
                         result_recorded_key_wrap_capabilities_item_recorded_supported_digests.push(result_recorded_key_wrap_capabilities_item_recorded_supported_digests_item_recorded);
                     }
@@ -6592,8 +5919,9 @@ fn destack_crypto_store_probe_capability_replay(
                     };
                     result_recorded_key_wrap_capabilities.push(result_recorded_key_wrap_capabilities_item_recorded);
                 }
-                let mut result_recorded_cipher_capabilities = Vec::new();
-                for result_recorded_cipher_capabilities_item in unsafe { result_value.cipher_capabilities.as_slice()? }.iter().cloned() {
+                let result_recorded_cipher_capabilities_slice = unsafe { result_value.cipher_capabilities.as_slice()? };
+                let mut result_recorded_cipher_capabilities = Vec::with_capacity(result_recorded_cipher_capabilities_slice.len());
+                for result_recorded_cipher_capabilities_item in result_recorded_cipher_capabilities_slice.iter().cloned() {
                     let result_recorded_cipher_capabilities_item_recorded_key_algorithm = result_recorded_cipher_capabilities_item.key_algorithm;
                     let result_recorded_cipher_capabilities_item_recorded_algorithm = result_recorded_cipher_capabilities_item.algorithm;
                     let result_recorded_cipher_capabilities_item_recorded_supports_one_shot = result_recorded_cipher_capabilities_item.supports_one_shot;
@@ -6614,14 +5942,16 @@ fn destack_crypto_store_probe_capability_replay(
                     };
                     result_recorded_cipher_capabilities.push(result_recorded_cipher_capabilities_item_recorded);
                 }
-                let mut result_recorded_mac_capabilities = Vec::new();
-                for result_recorded_mac_capabilities_item in unsafe { result_value.mac_capabilities.as_slice()? }.iter().cloned() {
+                let result_recorded_mac_capabilities_slice = unsafe { result_value.mac_capabilities.as_slice()? };
+                let mut result_recorded_mac_capabilities = Vec::with_capacity(result_recorded_mac_capabilities_slice.len());
+                for result_recorded_mac_capabilities_item in result_recorded_mac_capabilities_slice.iter().cloned() {
                     let result_recorded_mac_capabilities_item_recorded_key_algorithm = result_recorded_mac_capabilities_item.key_algorithm;
                     let result_recorded_mac_capabilities_item_recorded_algorithm = result_recorded_mac_capabilities_item.algorithm;
                     let result_recorded_mac_capabilities_item_recorded_supports_one_shot = result_recorded_mac_capabilities_item.supports_one_shot;
                     let result_recorded_mac_capabilities_item_recorded_supports_streaming = result_recorded_mac_capabilities_item.supports_streaming;
-                    let mut result_recorded_mac_capabilities_item_recorded_supported_digests = Vec::new();
-                    for result_recorded_mac_capabilities_item_recorded_supported_digests_item in unsafe { result_recorded_mac_capabilities_item.supported_digests.as_slice()? }.iter().cloned() {
+                    let result_recorded_mac_capabilities_item_recorded_supported_digests_slice = unsafe { result_recorded_mac_capabilities_item.supported_digests.as_slice()? };
+                    let mut result_recorded_mac_capabilities_item_recorded_supported_digests = Vec::with_capacity(result_recorded_mac_capabilities_item_recorded_supported_digests_slice.len());
+                    for result_recorded_mac_capabilities_item_recorded_supported_digests_item in result_recorded_mac_capabilities_item_recorded_supported_digests_slice.iter().cloned() {
                         let result_recorded_mac_capabilities_item_recorded_supported_digests_item_recorded = result_recorded_mac_capabilities_item_recorded_supported_digests_item;
                         result_recorded_mac_capabilities_item_recorded_supported_digests.push(result_recorded_mac_capabilities_item_recorded_supported_digests_item_recorded);
                     }
@@ -6638,8 +5968,9 @@ fn destack_crypto_store_probe_capability_replay(
                     };
                     result_recorded_mac_capabilities.push(result_recorded_mac_capabilities_item_recorded);
                 }
-                let mut result_recorded_agreement_capabilities = Vec::new();
-                for result_recorded_agreement_capabilities_item in unsafe { result_value.agreement_capabilities.as_slice()? }.iter().cloned() {
+                let result_recorded_agreement_capabilities_slice = unsafe { result_value.agreement_capabilities.as_slice()? };
+                let mut result_recorded_agreement_capabilities = Vec::with_capacity(result_recorded_agreement_capabilities_slice.len());
+                for result_recorded_agreement_capabilities_item in result_recorded_agreement_capabilities_slice.iter().cloned() {
                     let result_recorded_agreement_capabilities_item_recorded_private_key_algorithm = result_recorded_agreement_capabilities_item.private_key_algorithm;
                     let result_recorded_agreement_capabilities_item_recorded_peer_public_key_algorithm = result_recorded_agreement_capabilities_item.peer_public_key_algorithm;
                     let result_recorded_agreement_capabilities_item_recorded_algorithm = result_recorded_agreement_capabilities_item.algorithm;
@@ -6716,7 +6047,7 @@ fn destack_crypto_store_probe_capability_replay(
                         None
                     };
                     let value_native_identity_namespace = if let Some(value) = value.identity.namespace {
-                        let value_native_identity_namespace_inner = binding.store_string(value.as_str());
+                        let value_native_identity_namespace_inner = binding.store_string_owned(value);
                         Some(value_native_identity_namespace_inner)
                     } else {
                         None
@@ -6730,195 +6061,211 @@ fn destack_crypto_store_probe_capability_replay(
                     let value_native_supports_hardware_backed = value.supports_hardware_backed;
                     let value_native_supports_persistent = value.supports_persistent;
                     let value_native_supports_key_export = value.supports_key_export;
-                    let mut value_native_supported_key_algorithms_values = Vec::new();
-                    for value_native_supported_key_algorithms_item in value.supported_key_algorithms.iter().cloned() {
-                        let value_native_supported_key_algorithms_decoded = value_native_supported_key_algorithms_item;
-                        value_native_supported_key_algorithms_values.push(value_native_supported_key_algorithms_decoded);
-                    }
-                    let value_native_supported_key_algorithms = binding.store_array(value_native_supported_key_algorithms_values);
-                    let mut value_native_supported_key_formats_values = Vec::new();
-                    for value_native_supported_key_formats_item in value.supported_key_formats.iter().cloned() {
-                        let value_native_supported_key_formats_decoded = value_native_supported_key_formats_item;
-                        value_native_supported_key_formats_values.push(value_native_supported_key_formats_decoded);
-                    }
-                    let value_native_supported_key_formats = binding.store_array(value_native_supported_key_formats_values);
-                    let mut value_native_supported_key_residencies_values = Vec::new();
-                    for value_native_supported_key_residencies_item in value.supported_key_residencies.iter().cloned() {
-                        let value_native_supported_key_residencies_decoded = value_native_supported_key_residencies_item;
-                        value_native_supported_key_residencies_values.push(value_native_supported_key_residencies_decoded);
-                    }
-                    let value_native_supported_key_residencies = binding.store_array(value_native_supported_key_residencies_values);
-                    let mut value_native_key_capabilities_values = Vec::new();
-                    for value_native_key_capabilities_item in value.key_capabilities.iter().cloned() {
-                        let value_native_key_capabilities_decoded_algorithm = value_native_key_capabilities_item.algorithm;
-                        let value_native_key_capabilities_decoded_residency = value_native_key_capabilities_item.residency;
-                        let value_native_key_capabilities_decoded_supports_generate_secret = value_native_key_capabilities_item.supports_generate_secret;
-                        let value_native_key_capabilities_decoded_supports_generate_pair = value_native_key_capabilities_item.supports_generate_pair;
-                        let value_native_key_capabilities_decoded_supports_import = value_native_key_capabilities_item.supports_import;
-                        let value_native_key_capabilities_decoded_supports_export_public = value_native_key_capabilities_item.supports_export_public;
-                        let value_native_key_capabilities_decoded_supports_export_private = value_native_key_capabilities_item.supports_export_private;
-                        let value_native_key_capabilities_decoded_supports_export_secret = value_native_key_capabilities_item.supports_export_secret;
-                        let value_native_key_capabilities_decoded_supported_usage_mask = value_native_key_capabilities_item.supported_usage_mask;
-                        let mut value_native_key_capabilities_decoded_supported_import_formats_values = Vec::new();
-                        for value_native_key_capabilities_decoded_supported_import_formats_item in value_native_key_capabilities_item.supported_import_formats.iter().cloned() {
-                            let value_native_key_capabilities_decoded_supported_import_formats_decoded = value_native_key_capabilities_decoded_supported_import_formats_item;
-                            value_native_key_capabilities_decoded_supported_import_formats_values.push(value_native_key_capabilities_decoded_supported_import_formats_decoded);
+                    let value_native_supported_key_algorithms = binding.store_array_with(value.supported_key_algorithms.len(), |value_native_supported_key_algorithms_values| {
+                        for value_native_supported_key_algorithms_item in value.supported_key_algorithms {
+                            let value_native_supported_key_algorithms_decoded = value_native_supported_key_algorithms_item;
+                            value_native_supported_key_algorithms_values.push(value_native_supported_key_algorithms_decoded);
                         }
-                        let value_native_key_capabilities_decoded_supported_import_formats = binding.store_slice(value_native_key_capabilities_decoded_supported_import_formats_values);
-                        let mut value_native_key_capabilities_decoded_supported_export_formats_values = Vec::new();
-                        for value_native_key_capabilities_decoded_supported_export_formats_item in value_native_key_capabilities_item.supported_export_formats.iter().cloned() {
-                            let value_native_key_capabilities_decoded_supported_export_formats_decoded = value_native_key_capabilities_decoded_supported_export_formats_item;
-                            value_native_key_capabilities_decoded_supported_export_formats_values.push(value_native_key_capabilities_decoded_supported_export_formats_decoded);
+                        Ok(())
+                    })?;
+                    let value_native_supported_key_formats = binding.store_array_with(value.supported_key_formats.len(), |value_native_supported_key_formats_values| {
+                        for value_native_supported_key_formats_item in value.supported_key_formats {
+                            let value_native_supported_key_formats_decoded = value_native_supported_key_formats_item;
+                            value_native_supported_key_formats_values.push(value_native_supported_key_formats_decoded);
                         }
-                        let value_native_key_capabilities_decoded_supported_export_formats = binding.store_slice(value_native_key_capabilities_decoded_supported_export_formats_values);
-                        let value_native_key_capabilities_decoded = CryptoStoreKeyCapability {
-                            algorithm: value_native_key_capabilities_decoded_algorithm,
-                            residency: value_native_key_capabilities_decoded_residency,
-                            supports_generate_secret: value_native_key_capabilities_decoded_supports_generate_secret,
-                            supports_generate_pair: value_native_key_capabilities_decoded_supports_generate_pair,
-                            supports_import: value_native_key_capabilities_decoded_supports_import,
-                            supports_export_public: value_native_key_capabilities_decoded_supports_export_public,
-                            supports_export_private: value_native_key_capabilities_decoded_supports_export_private,
-                            supports_export_secret: value_native_key_capabilities_decoded_supports_export_secret,
-                            supported_usage_mask: value_native_key_capabilities_decoded_supported_usage_mask,
-                            supported_import_formats: value_native_key_capabilities_decoded_supported_import_formats,
-                            supported_export_formats: value_native_key_capabilities_decoded_supported_export_formats,
-                        };
-                        value_native_key_capabilities_values.push(value_native_key_capabilities_decoded);
-                    }
-                    let value_native_key_capabilities = binding.store_array(value_native_key_capabilities_values);
-                    let mut value_native_signature_capabilities_values = Vec::new();
-                    for value_native_signature_capabilities_item in value.signature_capabilities.iter().cloned() {
-                        let value_native_signature_capabilities_decoded_key_algorithm = value_native_signature_capabilities_item.key_algorithm;
-                        let value_native_signature_capabilities_decoded_signature_algorithm = value_native_signature_capabilities_item.signature_algorithm;
-                        let value_native_signature_capabilities_decoded_supports_sign = value_native_signature_capabilities_item.supports_sign;
-                        let value_native_signature_capabilities_decoded_supports_verify = value_native_signature_capabilities_item.supports_verify;
-                        let mut value_native_signature_capabilities_decoded_supported_digests_values = Vec::new();
-                        for value_native_signature_capabilities_decoded_supported_digests_item in value_native_signature_capabilities_item.supported_digests.iter().cloned() {
-                            let value_native_signature_capabilities_decoded_supported_digests_decoded = value_native_signature_capabilities_decoded_supported_digests_item;
-                            value_native_signature_capabilities_decoded_supported_digests_values.push(value_native_signature_capabilities_decoded_supported_digests_decoded);
+                        Ok(())
+                    })?;
+                    let value_native_supported_key_residencies = binding.store_array_with(value.supported_key_residencies.len(), |value_native_supported_key_residencies_values| {
+                        for value_native_supported_key_residencies_item in value.supported_key_residencies {
+                            let value_native_supported_key_residencies_decoded = value_native_supported_key_residencies_item;
+                            value_native_supported_key_residencies_values.push(value_native_supported_key_residencies_decoded);
                         }
-                        let value_native_signature_capabilities_decoded_supported_digests = binding.store_slice(value_native_signature_capabilities_decoded_supported_digests_values);
-                        let value_native_signature_capabilities_decoded = CryptoStoreSignatureCapability {
-                            key_algorithm: value_native_signature_capabilities_decoded_key_algorithm,
-                            signature_algorithm: value_native_signature_capabilities_decoded_signature_algorithm,
-                            supports_sign: value_native_signature_capabilities_decoded_supports_sign,
-                            supports_verify: value_native_signature_capabilities_decoded_supports_verify,
-                            supported_digests: value_native_signature_capabilities_decoded_supported_digests,
-                        };
-                        value_native_signature_capabilities_values.push(value_native_signature_capabilities_decoded);
-                    }
-                    let value_native_signature_capabilities = binding.store_array(value_native_signature_capabilities_values);
-                    let mut value_native_asymmetric_encryption_capabilities_values = Vec::new();
-                    for value_native_asymmetric_encryption_capabilities_item in value.asymmetric_encryption_capabilities.iter().cloned() {
-                        let value_native_asymmetric_encryption_capabilities_decoded_key_algorithm = value_native_asymmetric_encryption_capabilities_item.key_algorithm;
-                        let value_native_asymmetric_encryption_capabilities_decoded_algorithm = value_native_asymmetric_encryption_capabilities_item.algorithm;
-                        let value_native_asymmetric_encryption_capabilities_decoded_supports_encrypt = value_native_asymmetric_encryption_capabilities_item.supports_encrypt;
-                        let value_native_asymmetric_encryption_capabilities_decoded_supports_decrypt = value_native_asymmetric_encryption_capabilities_item.supports_decrypt;
-                        let mut value_native_asymmetric_encryption_capabilities_decoded_supported_digests_values = Vec::new();
-                        for value_native_asymmetric_encryption_capabilities_decoded_supported_digests_item in value_native_asymmetric_encryption_capabilities_item.supported_digests.iter().cloned() {
-                            let value_native_asymmetric_encryption_capabilities_decoded_supported_digests_decoded = value_native_asymmetric_encryption_capabilities_decoded_supported_digests_item;
-                            value_native_asymmetric_encryption_capabilities_decoded_supported_digests_values.push(value_native_asymmetric_encryption_capabilities_decoded_supported_digests_decoded);
+                        Ok(())
+                    })?;
+                    let value_native_key_capabilities = binding.store_array_with(value.key_capabilities.len(), |value_native_key_capabilities_values| {
+                        for value_native_key_capabilities_item in value.key_capabilities {
+                            let value_native_key_capabilities_decoded_algorithm = value_native_key_capabilities_item.algorithm;
+                            let value_native_key_capabilities_decoded_residency = value_native_key_capabilities_item.residency;
+                            let value_native_key_capabilities_decoded_supports_generate_secret = value_native_key_capabilities_item.supports_generate_secret;
+                            let value_native_key_capabilities_decoded_supports_generate_pair = value_native_key_capabilities_item.supports_generate_pair;
+                            let value_native_key_capabilities_decoded_supports_import = value_native_key_capabilities_item.supports_import;
+                            let value_native_key_capabilities_decoded_supports_export_public = value_native_key_capabilities_item.supports_export_public;
+                            let value_native_key_capabilities_decoded_supports_export_private = value_native_key_capabilities_item.supports_export_private;
+                            let value_native_key_capabilities_decoded_supports_export_secret = value_native_key_capabilities_item.supports_export_secret;
+                            let value_native_key_capabilities_decoded_supported_usage_mask = value_native_key_capabilities_item.supported_usage_mask;
+                            let value_native_key_capabilities_decoded_supported_import_formats = binding.store_slice_with(value_native_key_capabilities_item.supported_import_formats.len(), |value_native_key_capabilities_decoded_supported_import_formats_values| {
+                                for value_native_key_capabilities_decoded_supported_import_formats_item in value_native_key_capabilities_item.supported_import_formats {
+                                    let value_native_key_capabilities_decoded_supported_import_formats_decoded = value_native_key_capabilities_decoded_supported_import_formats_item;
+                                    value_native_key_capabilities_decoded_supported_import_formats_values.push(value_native_key_capabilities_decoded_supported_import_formats_decoded);
+                                }
+                                Ok(())
+                            })?;
+                            let value_native_key_capabilities_decoded_supported_export_formats = binding.store_slice_with(value_native_key_capabilities_item.supported_export_formats.len(), |value_native_key_capabilities_decoded_supported_export_formats_values| {
+                                for value_native_key_capabilities_decoded_supported_export_formats_item in value_native_key_capabilities_item.supported_export_formats {
+                                    let value_native_key_capabilities_decoded_supported_export_formats_decoded = value_native_key_capabilities_decoded_supported_export_formats_item;
+                                    value_native_key_capabilities_decoded_supported_export_formats_values.push(value_native_key_capabilities_decoded_supported_export_formats_decoded);
+                                }
+                                Ok(())
+                            })?;
+                            let value_native_key_capabilities_decoded = CryptoStoreKeyCapability {
+                                algorithm: value_native_key_capabilities_decoded_algorithm,
+                                residency: value_native_key_capabilities_decoded_residency,
+                                supports_generate_secret: value_native_key_capabilities_decoded_supports_generate_secret,
+                                supports_generate_pair: value_native_key_capabilities_decoded_supports_generate_pair,
+                                supports_import: value_native_key_capabilities_decoded_supports_import,
+                                supports_export_public: value_native_key_capabilities_decoded_supports_export_public,
+                                supports_export_private: value_native_key_capabilities_decoded_supports_export_private,
+                                supports_export_secret: value_native_key_capabilities_decoded_supports_export_secret,
+                                supported_usage_mask: value_native_key_capabilities_decoded_supported_usage_mask,
+                                supported_import_formats: value_native_key_capabilities_decoded_supported_import_formats,
+                                supported_export_formats: value_native_key_capabilities_decoded_supported_export_formats,
+                            };
+                            value_native_key_capabilities_values.push(value_native_key_capabilities_decoded);
                         }
-                        let value_native_asymmetric_encryption_capabilities_decoded_supported_digests = binding.store_slice(value_native_asymmetric_encryption_capabilities_decoded_supported_digests_values);
-                        let value_native_asymmetric_encryption_capabilities_decoded = CryptoStoreAsymmetricEncryptionCapability {
-                            key_algorithm: value_native_asymmetric_encryption_capabilities_decoded_key_algorithm,
-                            algorithm: value_native_asymmetric_encryption_capabilities_decoded_algorithm,
-                            supports_encrypt: value_native_asymmetric_encryption_capabilities_decoded_supports_encrypt,
-                            supports_decrypt: value_native_asymmetric_encryption_capabilities_decoded_supports_decrypt,
-                            supported_digests: value_native_asymmetric_encryption_capabilities_decoded_supported_digests,
-                        };
-                        value_native_asymmetric_encryption_capabilities_values.push(value_native_asymmetric_encryption_capabilities_decoded);
-                    }
-                    let value_native_asymmetric_encryption_capabilities = binding.store_array(value_native_asymmetric_encryption_capabilities_values);
-                    let mut value_native_key_wrap_capabilities_values = Vec::new();
-                    for value_native_key_wrap_capabilities_item in value.key_wrap_capabilities.iter().cloned() {
-                        let value_native_key_wrap_capabilities_decoded_wrapping_key_algorithm = value_native_key_wrap_capabilities_item.wrapping_key_algorithm;
-                        let value_native_key_wrap_capabilities_decoded_algorithm = value_native_key_wrap_capabilities_item.algorithm;
-                        let value_native_key_wrap_capabilities_decoded_supports_wrap = value_native_key_wrap_capabilities_item.supports_wrap;
-                        let value_native_key_wrap_capabilities_decoded_supports_unwrap = value_native_key_wrap_capabilities_item.supports_unwrap;
-                        let mut value_native_key_wrap_capabilities_decoded_supported_digests_values = Vec::new();
-                        for value_native_key_wrap_capabilities_decoded_supported_digests_item in value_native_key_wrap_capabilities_item.supported_digests.iter().cloned() {
-                            let value_native_key_wrap_capabilities_decoded_supported_digests_decoded = value_native_key_wrap_capabilities_decoded_supported_digests_item;
-                            value_native_key_wrap_capabilities_decoded_supported_digests_values.push(value_native_key_wrap_capabilities_decoded_supported_digests_decoded);
+                        Ok(())
+                    })?;
+                    let value_native_signature_capabilities = binding.store_array_with(value.signature_capabilities.len(), |value_native_signature_capabilities_values| {
+                        for value_native_signature_capabilities_item in value.signature_capabilities {
+                            let value_native_signature_capabilities_decoded_key_algorithm = value_native_signature_capabilities_item.key_algorithm;
+                            let value_native_signature_capabilities_decoded_signature_algorithm = value_native_signature_capabilities_item.signature_algorithm;
+                            let value_native_signature_capabilities_decoded_supports_sign = value_native_signature_capabilities_item.supports_sign;
+                            let value_native_signature_capabilities_decoded_supports_verify = value_native_signature_capabilities_item.supports_verify;
+                            let value_native_signature_capabilities_decoded_supported_digests = binding.store_slice_with(value_native_signature_capabilities_item.supported_digests.len(), |value_native_signature_capabilities_decoded_supported_digests_values| {
+                                for value_native_signature_capabilities_decoded_supported_digests_item in value_native_signature_capabilities_item.supported_digests {
+                                    let value_native_signature_capabilities_decoded_supported_digests_decoded = value_native_signature_capabilities_decoded_supported_digests_item;
+                                    value_native_signature_capabilities_decoded_supported_digests_values.push(value_native_signature_capabilities_decoded_supported_digests_decoded);
+                                }
+                                Ok(())
+                            })?;
+                            let value_native_signature_capabilities_decoded = CryptoStoreSignatureCapability {
+                                key_algorithm: value_native_signature_capabilities_decoded_key_algorithm,
+                                signature_algorithm: value_native_signature_capabilities_decoded_signature_algorithm,
+                                supports_sign: value_native_signature_capabilities_decoded_supports_sign,
+                                supports_verify: value_native_signature_capabilities_decoded_supports_verify,
+                                supported_digests: value_native_signature_capabilities_decoded_supported_digests,
+                            };
+                            value_native_signature_capabilities_values.push(value_native_signature_capabilities_decoded);
                         }
-                        let value_native_key_wrap_capabilities_decoded_supported_digests = binding.store_slice(value_native_key_wrap_capabilities_decoded_supported_digests_values);
-                        let value_native_key_wrap_capabilities_decoded = CryptoStoreKeyWrapCapability {
-                            wrapping_key_algorithm: value_native_key_wrap_capabilities_decoded_wrapping_key_algorithm,
-                            algorithm: value_native_key_wrap_capabilities_decoded_algorithm,
-                            supports_wrap: value_native_key_wrap_capabilities_decoded_supports_wrap,
-                            supports_unwrap: value_native_key_wrap_capabilities_decoded_supports_unwrap,
-                            supported_digests: value_native_key_wrap_capabilities_decoded_supported_digests,
-                        };
-                        value_native_key_wrap_capabilities_values.push(value_native_key_wrap_capabilities_decoded);
-                    }
-                    let value_native_key_wrap_capabilities = binding.store_array(value_native_key_wrap_capabilities_values);
-                    let mut value_native_cipher_capabilities_values = Vec::new();
-                    for value_native_cipher_capabilities_item in value.cipher_capabilities.iter().cloned() {
-                        let value_native_cipher_capabilities_decoded_key_algorithm = value_native_cipher_capabilities_item.key_algorithm;
-                        let value_native_cipher_capabilities_decoded_algorithm = value_native_cipher_capabilities_item.algorithm;
-                        let value_native_cipher_capabilities_decoded_supports_one_shot = value_native_cipher_capabilities_item.supports_one_shot;
-                        let value_native_cipher_capabilities_decoded_supports_streaming = value_native_cipher_capabilities_item.supports_streaming;
-                        let value_native_cipher_capabilities_decoded_supports_additional_data = value_native_cipher_capabilities_item.supports_additional_data;
-                        let value_native_cipher_capabilities_decoded_supports_detached_tag = value_native_cipher_capabilities_item.supports_detached_tag;
-                        let value_native_cipher_capabilities_decoded_min_tag_length_bytes = value_native_cipher_capabilities_item.min_tag_length_bytes;
-                        let value_native_cipher_capabilities_decoded_max_tag_length_bytes = value_native_cipher_capabilities_item.max_tag_length_bytes;
-                        let value_native_cipher_capabilities_decoded = CryptoStoreCipherCapability {
-                            key_algorithm: value_native_cipher_capabilities_decoded_key_algorithm,
-                            algorithm: value_native_cipher_capabilities_decoded_algorithm,
-                            supports_one_shot: value_native_cipher_capabilities_decoded_supports_one_shot,
-                            supports_streaming: value_native_cipher_capabilities_decoded_supports_streaming,
-                            supports_additional_data: value_native_cipher_capabilities_decoded_supports_additional_data,
-                            supports_detached_tag: value_native_cipher_capabilities_decoded_supports_detached_tag,
-                            min_tag_length_bytes: value_native_cipher_capabilities_decoded_min_tag_length_bytes,
-                            max_tag_length_bytes: value_native_cipher_capabilities_decoded_max_tag_length_bytes,
-                        };
-                        value_native_cipher_capabilities_values.push(value_native_cipher_capabilities_decoded);
-                    }
-                    let value_native_cipher_capabilities = binding.store_array(value_native_cipher_capabilities_values);
-                    let mut value_native_mac_capabilities_values = Vec::new();
-                    for value_native_mac_capabilities_item in value.mac_capabilities.iter().cloned() {
-                        let value_native_mac_capabilities_decoded_key_algorithm = value_native_mac_capabilities_item.key_algorithm;
-                        let value_native_mac_capabilities_decoded_algorithm = value_native_mac_capabilities_item.algorithm;
-                        let value_native_mac_capabilities_decoded_supports_one_shot = value_native_mac_capabilities_item.supports_one_shot;
-                        let value_native_mac_capabilities_decoded_supports_streaming = value_native_mac_capabilities_item.supports_streaming;
-                        let mut value_native_mac_capabilities_decoded_supported_digests_values = Vec::new();
-                        for value_native_mac_capabilities_decoded_supported_digests_item in value_native_mac_capabilities_item.supported_digests.iter().cloned() {
-                            let value_native_mac_capabilities_decoded_supported_digests_decoded = value_native_mac_capabilities_decoded_supported_digests_item;
-                            value_native_mac_capabilities_decoded_supported_digests_values.push(value_native_mac_capabilities_decoded_supported_digests_decoded);
+                        Ok(())
+                    })?;
+                    let value_native_asymmetric_encryption_capabilities = binding.store_array_with(value.asymmetric_encryption_capabilities.len(), |value_native_asymmetric_encryption_capabilities_values| {
+                        for value_native_asymmetric_encryption_capabilities_item in value.asymmetric_encryption_capabilities {
+                            let value_native_asymmetric_encryption_capabilities_decoded_key_algorithm = value_native_asymmetric_encryption_capabilities_item.key_algorithm;
+                            let value_native_asymmetric_encryption_capabilities_decoded_algorithm = value_native_asymmetric_encryption_capabilities_item.algorithm;
+                            let value_native_asymmetric_encryption_capabilities_decoded_supports_encrypt = value_native_asymmetric_encryption_capabilities_item.supports_encrypt;
+                            let value_native_asymmetric_encryption_capabilities_decoded_supports_decrypt = value_native_asymmetric_encryption_capabilities_item.supports_decrypt;
+                            let value_native_asymmetric_encryption_capabilities_decoded_supported_digests = binding.store_slice_with(value_native_asymmetric_encryption_capabilities_item.supported_digests.len(), |value_native_asymmetric_encryption_capabilities_decoded_supported_digests_values| {
+                                for value_native_asymmetric_encryption_capabilities_decoded_supported_digests_item in value_native_asymmetric_encryption_capabilities_item.supported_digests {
+                                    let value_native_asymmetric_encryption_capabilities_decoded_supported_digests_decoded = value_native_asymmetric_encryption_capabilities_decoded_supported_digests_item;
+                                    value_native_asymmetric_encryption_capabilities_decoded_supported_digests_values.push(value_native_asymmetric_encryption_capabilities_decoded_supported_digests_decoded);
+                                }
+                                Ok(())
+                            })?;
+                            let value_native_asymmetric_encryption_capabilities_decoded = CryptoStoreAsymmetricEncryptionCapability {
+                                key_algorithm: value_native_asymmetric_encryption_capabilities_decoded_key_algorithm,
+                                algorithm: value_native_asymmetric_encryption_capabilities_decoded_algorithm,
+                                supports_encrypt: value_native_asymmetric_encryption_capabilities_decoded_supports_encrypt,
+                                supports_decrypt: value_native_asymmetric_encryption_capabilities_decoded_supports_decrypt,
+                                supported_digests: value_native_asymmetric_encryption_capabilities_decoded_supported_digests,
+                            };
+                            value_native_asymmetric_encryption_capabilities_values.push(value_native_asymmetric_encryption_capabilities_decoded);
                         }
-                        let value_native_mac_capabilities_decoded_supported_digests = binding.store_slice(value_native_mac_capabilities_decoded_supported_digests_values);
-                        let value_native_mac_capabilities_decoded_min_tag_length_bytes = value_native_mac_capabilities_item.min_tag_length_bytes;
-                        let value_native_mac_capabilities_decoded_max_tag_length_bytes = value_native_mac_capabilities_item.max_tag_length_bytes;
-                        let value_native_mac_capabilities_decoded = CryptoStoreMacCapability {
-                            key_algorithm: value_native_mac_capabilities_decoded_key_algorithm,
-                            algorithm: value_native_mac_capabilities_decoded_algorithm,
-                            supports_one_shot: value_native_mac_capabilities_decoded_supports_one_shot,
-                            supports_streaming: value_native_mac_capabilities_decoded_supports_streaming,
-                            supported_digests: value_native_mac_capabilities_decoded_supported_digests,
-                            min_tag_length_bytes: value_native_mac_capabilities_decoded_min_tag_length_bytes,
-                            max_tag_length_bytes: value_native_mac_capabilities_decoded_max_tag_length_bytes,
-                        };
-                        value_native_mac_capabilities_values.push(value_native_mac_capabilities_decoded);
-                    }
-                    let value_native_mac_capabilities = binding.store_array(value_native_mac_capabilities_values);
-                    let mut value_native_agreement_capabilities_values = Vec::new();
-                    for value_native_agreement_capabilities_item in value.agreement_capabilities.iter().cloned() {
-                        let value_native_agreement_capabilities_decoded_private_key_algorithm = value_native_agreement_capabilities_item.private_key_algorithm;
-                        let value_native_agreement_capabilities_decoded_peer_public_key_algorithm = value_native_agreement_capabilities_item.peer_public_key_algorithm;
-                        let value_native_agreement_capabilities_decoded_algorithm = value_native_agreement_capabilities_item.algorithm;
-                        let value_native_agreement_capabilities_decoded_supports_derive_shared_secret = value_native_agreement_capabilities_item.supports_derive_shared_secret;
-                        let value_native_agreement_capabilities_decoded_supports_derive_key = value_native_agreement_capabilities_item.supports_derive_key;
-                        let value_native_agreement_capabilities_decoded = CryptoStoreAgreementCapability {
-                            private_key_algorithm: value_native_agreement_capabilities_decoded_private_key_algorithm,
-                            peer_public_key_algorithm: value_native_agreement_capabilities_decoded_peer_public_key_algorithm,
-                            algorithm: value_native_agreement_capabilities_decoded_algorithm,
-                            supports_derive_shared_secret: value_native_agreement_capabilities_decoded_supports_derive_shared_secret,
-                            supports_derive_key: value_native_agreement_capabilities_decoded_supports_derive_key,
-                        };
-                        value_native_agreement_capabilities_values.push(value_native_agreement_capabilities_decoded);
-                    }
-                    let value_native_agreement_capabilities = binding.store_array(value_native_agreement_capabilities_values);
+                        Ok(())
+                    })?;
+                    let value_native_key_wrap_capabilities = binding.store_array_with(value.key_wrap_capabilities.len(), |value_native_key_wrap_capabilities_values| {
+                        for value_native_key_wrap_capabilities_item in value.key_wrap_capabilities {
+                            let value_native_key_wrap_capabilities_decoded_wrapping_key_algorithm = value_native_key_wrap_capabilities_item.wrapping_key_algorithm;
+                            let value_native_key_wrap_capabilities_decoded_algorithm = value_native_key_wrap_capabilities_item.algorithm;
+                            let value_native_key_wrap_capabilities_decoded_supports_wrap = value_native_key_wrap_capabilities_item.supports_wrap;
+                            let value_native_key_wrap_capabilities_decoded_supports_unwrap = value_native_key_wrap_capabilities_item.supports_unwrap;
+                            let value_native_key_wrap_capabilities_decoded_supported_digests = binding.store_slice_with(value_native_key_wrap_capabilities_item.supported_digests.len(), |value_native_key_wrap_capabilities_decoded_supported_digests_values| {
+                                for value_native_key_wrap_capabilities_decoded_supported_digests_item in value_native_key_wrap_capabilities_item.supported_digests {
+                                    let value_native_key_wrap_capabilities_decoded_supported_digests_decoded = value_native_key_wrap_capabilities_decoded_supported_digests_item;
+                                    value_native_key_wrap_capabilities_decoded_supported_digests_values.push(value_native_key_wrap_capabilities_decoded_supported_digests_decoded);
+                                }
+                                Ok(())
+                            })?;
+                            let value_native_key_wrap_capabilities_decoded = CryptoStoreKeyWrapCapability {
+                                wrapping_key_algorithm: value_native_key_wrap_capabilities_decoded_wrapping_key_algorithm,
+                                algorithm: value_native_key_wrap_capabilities_decoded_algorithm,
+                                supports_wrap: value_native_key_wrap_capabilities_decoded_supports_wrap,
+                                supports_unwrap: value_native_key_wrap_capabilities_decoded_supports_unwrap,
+                                supported_digests: value_native_key_wrap_capabilities_decoded_supported_digests,
+                            };
+                            value_native_key_wrap_capabilities_values.push(value_native_key_wrap_capabilities_decoded);
+                        }
+                        Ok(())
+                    })?;
+                    let value_native_cipher_capabilities = binding.store_array_with(value.cipher_capabilities.len(), |value_native_cipher_capabilities_values| {
+                        for value_native_cipher_capabilities_item in value.cipher_capabilities {
+                            let value_native_cipher_capabilities_decoded_key_algorithm = value_native_cipher_capabilities_item.key_algorithm;
+                            let value_native_cipher_capabilities_decoded_algorithm = value_native_cipher_capabilities_item.algorithm;
+                            let value_native_cipher_capabilities_decoded_supports_one_shot = value_native_cipher_capabilities_item.supports_one_shot;
+                            let value_native_cipher_capabilities_decoded_supports_streaming = value_native_cipher_capabilities_item.supports_streaming;
+                            let value_native_cipher_capabilities_decoded_supports_additional_data = value_native_cipher_capabilities_item.supports_additional_data;
+                            let value_native_cipher_capabilities_decoded_supports_detached_tag = value_native_cipher_capabilities_item.supports_detached_tag;
+                            let value_native_cipher_capabilities_decoded_min_tag_length_bytes = value_native_cipher_capabilities_item.min_tag_length_bytes;
+                            let value_native_cipher_capabilities_decoded_max_tag_length_bytes = value_native_cipher_capabilities_item.max_tag_length_bytes;
+                            let value_native_cipher_capabilities_decoded = CryptoStoreCipherCapability {
+                                key_algorithm: value_native_cipher_capabilities_decoded_key_algorithm,
+                                algorithm: value_native_cipher_capabilities_decoded_algorithm,
+                                supports_one_shot: value_native_cipher_capabilities_decoded_supports_one_shot,
+                                supports_streaming: value_native_cipher_capabilities_decoded_supports_streaming,
+                                supports_additional_data: value_native_cipher_capabilities_decoded_supports_additional_data,
+                                supports_detached_tag: value_native_cipher_capabilities_decoded_supports_detached_tag,
+                                min_tag_length_bytes: value_native_cipher_capabilities_decoded_min_tag_length_bytes,
+                                max_tag_length_bytes: value_native_cipher_capabilities_decoded_max_tag_length_bytes,
+                            };
+                            value_native_cipher_capabilities_values.push(value_native_cipher_capabilities_decoded);
+                        }
+                        Ok(())
+                    })?;
+                    let value_native_mac_capabilities = binding.store_array_with(value.mac_capabilities.len(), |value_native_mac_capabilities_values| {
+                        for value_native_mac_capabilities_item in value.mac_capabilities {
+                            let value_native_mac_capabilities_decoded_key_algorithm = value_native_mac_capabilities_item.key_algorithm;
+                            let value_native_mac_capabilities_decoded_algorithm = value_native_mac_capabilities_item.algorithm;
+                            let value_native_mac_capabilities_decoded_supports_one_shot = value_native_mac_capabilities_item.supports_one_shot;
+                            let value_native_mac_capabilities_decoded_supports_streaming = value_native_mac_capabilities_item.supports_streaming;
+                            let value_native_mac_capabilities_decoded_supported_digests = binding.store_slice_with(value_native_mac_capabilities_item.supported_digests.len(), |value_native_mac_capabilities_decoded_supported_digests_values| {
+                                for value_native_mac_capabilities_decoded_supported_digests_item in value_native_mac_capabilities_item.supported_digests {
+                                    let value_native_mac_capabilities_decoded_supported_digests_decoded = value_native_mac_capabilities_decoded_supported_digests_item;
+                                    value_native_mac_capabilities_decoded_supported_digests_values.push(value_native_mac_capabilities_decoded_supported_digests_decoded);
+                                }
+                                Ok(())
+                            })?;
+                            let value_native_mac_capabilities_decoded_min_tag_length_bytes = value_native_mac_capabilities_item.min_tag_length_bytes;
+                            let value_native_mac_capabilities_decoded_max_tag_length_bytes = value_native_mac_capabilities_item.max_tag_length_bytes;
+                            let value_native_mac_capabilities_decoded = CryptoStoreMacCapability {
+                                key_algorithm: value_native_mac_capabilities_decoded_key_algorithm,
+                                algorithm: value_native_mac_capabilities_decoded_algorithm,
+                                supports_one_shot: value_native_mac_capabilities_decoded_supports_one_shot,
+                                supports_streaming: value_native_mac_capabilities_decoded_supports_streaming,
+                                supported_digests: value_native_mac_capabilities_decoded_supported_digests,
+                                min_tag_length_bytes: value_native_mac_capabilities_decoded_min_tag_length_bytes,
+                                max_tag_length_bytes: value_native_mac_capabilities_decoded_max_tag_length_bytes,
+                            };
+                            value_native_mac_capabilities_values.push(value_native_mac_capabilities_decoded);
+                        }
+                        Ok(())
+                    })?;
+                    let value_native_agreement_capabilities = binding.store_array_with(value.agreement_capabilities.len(), |value_native_agreement_capabilities_values| {
+                        for value_native_agreement_capabilities_item in value.agreement_capabilities {
+                            let value_native_agreement_capabilities_decoded_private_key_algorithm = value_native_agreement_capabilities_item.private_key_algorithm;
+                            let value_native_agreement_capabilities_decoded_peer_public_key_algorithm = value_native_agreement_capabilities_item.peer_public_key_algorithm;
+                            let value_native_agreement_capabilities_decoded_algorithm = value_native_agreement_capabilities_item.algorithm;
+                            let value_native_agreement_capabilities_decoded_supports_derive_shared_secret = value_native_agreement_capabilities_item.supports_derive_shared_secret;
+                            let value_native_agreement_capabilities_decoded_supports_derive_key = value_native_agreement_capabilities_item.supports_derive_key;
+                            let value_native_agreement_capabilities_decoded = CryptoStoreAgreementCapability {
+                                private_key_algorithm: value_native_agreement_capabilities_decoded_private_key_algorithm,
+                                peer_public_key_algorithm: value_native_agreement_capabilities_decoded_peer_public_key_algorithm,
+                                algorithm: value_native_agreement_capabilities_decoded_algorithm,
+                                supports_derive_shared_secret: value_native_agreement_capabilities_decoded_supports_derive_shared_secret,
+                                supports_derive_key: value_native_agreement_capabilities_decoded_supports_derive_key,
+                            };
+                            value_native_agreement_capabilities_values.push(value_native_agreement_capabilities_decoded);
+                        }
+                        Ok(())
+                    })?;
                     let value_native_certificate_capabilities_supports_import = value.certificate_capabilities.supports_import;
                     let value_native_certificate_capabilities_supports_export = value.certificate_capabilities.supports_export;
                     let value_native_certificate_capabilities_supports_descriptor = value.certificate_capabilities.supports_descriptor;
@@ -6980,8 +6327,9 @@ fn destack_crypto_store_probe_kinds_replay(
         |result| {
             if let Ok(()) = result {
                 let result_value: NativeArray<CryptoStoreKind> = unsafe { out.read() };
-                let mut result_recorded = Vec::new();
-                for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
+                let result_recorded_slice = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_slice.len());
+                for result_recorded_item in result_recorded_slice.iter().cloned() {
                     let result_recorded_item_recorded = result_recorded_item;
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -7005,12 +6353,14 @@ fn destack_crypto_store_probe_kinds_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut value_native_values = Vec::new();
-                    for value_native_item in value.iter().cloned() {
-                        let value_native_decoded = value_native_item;
-                        value_native_values.push(value_native_decoded);
-                    }
-                    let value_native = binding.store_array(value_native_values);
+                    let value_native =
+                        binding.store_array_with(value.len(), |value_native_values| {
+                            for value_native_item in value {
+                                let value_native_decoded = value_native_item;
+                                value_native_values.push(value_native_decoded);
+                            }
+                            Ok(())
+                        })?;
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -8856,7 +8206,7 @@ fn destack_crypto_probe_agreement_algorithms_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<CryptoKeyAgreementAlgorithm> = value.clone();
                 let result_recorded_raw = result_value.raw_values(context)?;
@@ -8900,12 +8250,12 @@ fn destack_crypto_probe_agreement_algorithms_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
-                    for vm_result_item in value.iter().cloned() {
+                    for vm_result_item in value {
                         let vm_result_item_value = vm_result_item;
                         vm_result_values.push(vm_result_item_value);
                     }
@@ -8939,7 +8289,7 @@ fn destack_crypto_probe_cipher_algorithms_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<CryptoCipherAlgorithm> = value.clone();
                 let result_recorded_raw = result_value.raw_values(context)?;
@@ -8984,12 +8334,12 @@ fn destack_crypto_probe_cipher_algorithms_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
-                    for vm_result_item in value.iter().cloned() {
+                    for vm_result_item in value {
                         let vm_result_item_value = vm_result_item;
                         vm_result_values.push(vm_result_item_value);
                     }
@@ -9023,7 +8373,7 @@ fn destack_crypto_probe_digest_algorithms_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<CryptoDigestAlgorithm> = value.clone();
                 let result_recorded_raw = result_value.raw_values(context)?;
@@ -9074,12 +8424,12 @@ fn destack_crypto_probe_digest_algorithms_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
-                    for vm_result_item in value.iter().cloned() {
+                    for vm_result_item in value {
                         let vm_result_item_value = vm_result_item;
                         vm_result_values.push(vm_result_item_value);
                     }
@@ -9113,7 +8463,7 @@ fn destack_crypto_probe_kdf_algorithms_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<CryptoKdfAlgorithm> = value.clone();
                 let result_recorded_raw = result_value.raw_values(context)?;
@@ -9158,12 +8508,12 @@ fn destack_crypto_probe_kdf_algorithms_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
-                    for vm_result_item in value.iter().cloned() {
+                    for vm_result_item in value {
                         let vm_result_item_value = vm_result_item;
                         vm_result_values.push(vm_result_item_value);
                     }
@@ -9197,7 +8547,7 @@ fn destack_crypto_probe_key_algorithms_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<CryptoKeyAlgorithm> = value.clone();
                 let result_recorded_raw = result_value.raw_values(context)?;
@@ -9247,12 +8597,12 @@ fn destack_crypto_probe_key_algorithms_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
-                    for vm_result_item in value.iter().cloned() {
+                    for vm_result_item in value {
                         let vm_result_item_value = vm_result_item;
                         vm_result_values.push(vm_result_item_value);
                     }
@@ -9284,7 +8634,7 @@ fn destack_crypto_probe_key_formats_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<CryptoKeyFormat> = value.clone();
                 let result_recorded_raw = result_value.raw_values(context)?;
@@ -9335,12 +8685,12 @@ fn destack_crypto_probe_key_formats_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
-                    for vm_result_item in value.iter().cloned() {
+                    for vm_result_item in value {
                         let vm_result_item_value = vm_result_item;
                         vm_result_values.push(vm_result_item_value);
                     }
@@ -9374,7 +8724,7 @@ fn destack_crypto_probe_key_residencies_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<CryptoKeyResidency> = value.clone();
                 let result_recorded_raw = result_value.raw_values(context)?;
@@ -9418,12 +8768,12 @@ fn destack_crypto_probe_key_residencies_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
-                    for vm_result_item in value.iter().cloned() {
+                    for vm_result_item in value {
                         let vm_result_item_value = vm_result_item;
                         vm_result_values.push(vm_result_item_value);
                     }
@@ -9457,7 +8807,7 @@ fn destack_crypto_probe_key_wrap_algorithms_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<CryptoKeyWrapAlgorithm> = value.clone();
                 let result_recorded_raw = result_value.raw_values(context)?;
@@ -9501,12 +8851,12 @@ fn destack_crypto_probe_key_wrap_algorithms_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
-                    for vm_result_item in value.iter().cloned() {
+                    for vm_result_item in value {
                         let vm_result_item_value = vm_result_item;
                         vm_result_values.push(vm_result_item_value);
                     }
@@ -9540,7 +8890,7 @@ fn destack_crypto_probe_mac_algorithms_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<CryptoMacAlgorithm> = value.clone();
                 let result_recorded_raw = result_value.raw_values(context)?;
@@ -9582,12 +8932,12 @@ fn destack_crypto_probe_mac_algorithms_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
-                    for vm_result_item in value.iter().cloned() {
+                    for vm_result_item in value {
                         let vm_result_item_value = vm_result_item;
                         vm_result_values.push(vm_result_item_value);
                     }
@@ -9619,7 +8969,7 @@ fn destack_crypto_probe_named_curves_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<CryptoNamedCurve> = value.clone();
                 let result_recorded_raw = result_value.raw_values(context)?;
@@ -9668,12 +9018,12 @@ fn destack_crypto_probe_named_curves_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
-                    for vm_result_item in value.iter().cloned() {
+                    for vm_result_item in value {
                         let vm_result_item_value = vm_result_item;
                         vm_result_values.push(vm_result_item_value);
                     }
@@ -9707,7 +9057,7 @@ fn destack_crypto_probe_signature_algorithms_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<CryptoSignatureAlgorithm> = value.clone();
                 let result_recorded_raw = result_value.raw_values(context)?;
@@ -9753,12 +9103,12 @@ fn destack_crypto_probe_signature_algorithms_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
-                    for vm_result_item in value.iter().cloned() {
+                    for vm_result_item in value {
                         let vm_result_item_value = vm_result_item;
                         vm_result_values.push(vm_result_item_value);
                     }
@@ -9792,7 +9142,7 @@ fn destack_crypto_store_probe_capability_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: CryptoStoreCapabilityVm = value.clone();
                 let result_recorded_identity_kind = result_value.identity.kind;
@@ -9847,38 +9197,7 @@ fn destack_crypto_store_probe_capability_vm_replay(
                 let result_recorded_key_capabilities_raw = result_value.key_capabilities.raw_values(context)?;
                 let mut result_recorded_key_capabilities = Vec::with_capacity(result_recorded_key_capabilities_raw.len());
                 for result_recorded_key_capabilities_item_value in result_recorded_key_capabilities_raw {
-                    let result_recorded_key_capabilities_item = {
-                        if result_recorded_key_capabilities_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_key_capabilities_item", "item")).boxed()); }
-                        let slots = context.aggregate_slots(result_recorded_key_capabilities_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
-                        if slots.len() != 11 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_key_capabilities_item", "expected 11 fields")).boxed()); }
-                        let result_recorded_key_capabilities_item_algorithm_raw = decode_int32(slots[0], "result_recorded_key_capabilities_item_algorithm_raw", "algorithm")?;
-                        let result_recorded_key_capabilities_item_algorithm = match result_recorded_key_capabilities_item_algorithm_raw { 0i32 => CryptoKeyAlgorithm::Unknown, 1i32 => CryptoKeyAlgorithm::Rsa, 2i32 => CryptoKeyAlgorithm::Ec, 3i32 => CryptoKeyAlgorithm::Ed25519, 4i32 => CryptoKeyAlgorithm::Ed448, 5i32 => CryptoKeyAlgorithm::X25519, 6i32 => CryptoKeyAlgorithm::X448, 7i32 => CryptoKeyAlgorithm::Aes, 8i32 => CryptoKeyAlgorithm::ChaCha20, 9i32 => CryptoKeyAlgorithm::Hmac , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_key_capabilities_item_algorithm", "unknown CryptoKeyAlgorithm value")).boxed()), };
-                        let result_recorded_key_capabilities_item_residency_raw = decode_int32(slots[1], "result_recorded_key_capabilities_item_residency_raw", "residency")?;
-                        let result_recorded_key_capabilities_item_residency = match result_recorded_key_capabilities_item_residency_raw { 0i32 => CryptoKeyResidency::Unknown, 1i32 => CryptoKeyResidency::SoftwareExportable, 2i32 => CryptoKeyResidency::SoftwareNonExportable, 3i32 => CryptoKeyResidency::HardwareOpaque , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_key_capabilities_item_residency", "unknown CryptoKeyResidency value")).boxed()), };
-                        let result_recorded_key_capabilities_item_supports_generate_secret = decode_bool(slots[2], "result_recorded_key_capabilities_item_supports_generate_secret", "supportsGenerateSecret")?;
-                        let result_recorded_key_capabilities_item_supports_generate_pair = decode_bool(slots[3], "result_recorded_key_capabilities_item_supports_generate_pair", "supportsGeneratePair")?;
-                        let result_recorded_key_capabilities_item_supports_import = decode_bool(slots[4], "result_recorded_key_capabilities_item_supports_import", "supportsImport")?;
-                        let result_recorded_key_capabilities_item_supports_export_public = decode_bool(slots[5], "result_recorded_key_capabilities_item_supports_export_public", "supportsExportPublic")?;
-                        let result_recorded_key_capabilities_item_supports_export_private = decode_bool(slots[6], "result_recorded_key_capabilities_item_supports_export_private", "supportsExportPrivate")?;
-                        let result_recorded_key_capabilities_item_supports_export_secret = decode_bool(slots[7], "result_recorded_key_capabilities_item_supports_export_secret", "supportsExportSecret")?;
-                        let result_recorded_key_capabilities_item_supported_usage_mask_inner = decode_uint32(slots[8], "result_recorded_key_capabilities_item_supported_usage_mask_inner", "supportedUsageMask")?;
-                        let result_recorded_key_capabilities_item_supported_usage_mask = CryptoKeyUsageMask(result_recorded_key_capabilities_item_supported_usage_mask_inner);
-                        let result_recorded_key_capabilities_item_supported_import_formats = decode_slice::<CryptoKeyFormat>(context, slots[9], "result_recorded_key_capabilities_item_supported_import_formats", "supportedImportFormats")?;
-                        let result_recorded_key_capabilities_item_supported_export_formats = decode_slice::<CryptoKeyFormat>(context, slots[10], "result_recorded_key_capabilities_item_supported_export_formats", "supportedExportFormats")?;
-                        CryptoStoreKeyCapabilityVm {
-                            algorithm: result_recorded_key_capabilities_item_algorithm,
-                            residency: result_recorded_key_capabilities_item_residency,
-                            supports_generate_secret: result_recorded_key_capabilities_item_supports_generate_secret,
-                            supports_generate_pair: result_recorded_key_capabilities_item_supports_generate_pair,
-                            supports_import: result_recorded_key_capabilities_item_supports_import,
-                            supports_export_public: result_recorded_key_capabilities_item_supports_export_public,
-                            supports_export_private: result_recorded_key_capabilities_item_supports_export_private,
-                            supports_export_secret: result_recorded_key_capabilities_item_supports_export_secret,
-                            supported_usage_mask: result_recorded_key_capabilities_item_supported_usage_mask,
-                            supported_import_formats: result_recorded_key_capabilities_item_supported_import_formats,
-                            supported_export_formats: result_recorded_key_capabilities_item_supported_export_formats,
-                        }
-                    };
+                    let result_recorded_key_capabilities_item = <CryptoStoreKeyCapabilityVm as VmAggregateCodec>::decode_with_context(context, result_recorded_key_capabilities_item_value)?;
                     let result_recorded_key_capabilities_item_recorded_algorithm = result_recorded_key_capabilities_item.algorithm;
                     let result_recorded_key_capabilities_item_recorded_residency = result_recorded_key_capabilities_item.residency;
                     let result_recorded_key_capabilities_item_recorded_supports_generate_secret = result_recorded_key_capabilities_item.supports_generate_secret;
@@ -9922,25 +9241,7 @@ fn destack_crypto_store_probe_capability_vm_replay(
                 let result_recorded_signature_capabilities_raw = result_value.signature_capabilities.raw_values(context)?;
                 let mut result_recorded_signature_capabilities = Vec::with_capacity(result_recorded_signature_capabilities_raw.len());
                 for result_recorded_signature_capabilities_item_value in result_recorded_signature_capabilities_raw {
-                    let result_recorded_signature_capabilities_item = {
-                        if result_recorded_signature_capabilities_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_signature_capabilities_item", "item")).boxed()); }
-                        let slots = context.aggregate_slots(result_recorded_signature_capabilities_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
-                        if slots.len() != 5 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_signature_capabilities_item", "expected 5 fields")).boxed()); }
-                        let result_recorded_signature_capabilities_item_key_algorithm_raw = decode_int32(slots[0], "result_recorded_signature_capabilities_item_key_algorithm_raw", "keyAlgorithm")?;
-                        let result_recorded_signature_capabilities_item_key_algorithm = match result_recorded_signature_capabilities_item_key_algorithm_raw { 0i32 => CryptoKeyAlgorithm::Unknown, 1i32 => CryptoKeyAlgorithm::Rsa, 2i32 => CryptoKeyAlgorithm::Ec, 3i32 => CryptoKeyAlgorithm::Ed25519, 4i32 => CryptoKeyAlgorithm::Ed448, 5i32 => CryptoKeyAlgorithm::X25519, 6i32 => CryptoKeyAlgorithm::X448, 7i32 => CryptoKeyAlgorithm::Aes, 8i32 => CryptoKeyAlgorithm::ChaCha20, 9i32 => CryptoKeyAlgorithm::Hmac , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_signature_capabilities_item_key_algorithm", "unknown CryptoKeyAlgorithm value")).boxed()), };
-                        let result_recorded_signature_capabilities_item_signature_algorithm_raw = decode_int32(slots[1], "result_recorded_signature_capabilities_item_signature_algorithm_raw", "signatureAlgorithm")?;
-                        let result_recorded_signature_capabilities_item_signature_algorithm = match result_recorded_signature_capabilities_item_signature_algorithm_raw { 0i32 => CryptoSignatureAlgorithm::Unknown, 1i32 => CryptoSignatureAlgorithm::RsaPkcs1v15, 2i32 => CryptoSignatureAlgorithm::RsaPss, 3i32 => CryptoSignatureAlgorithm::Ecdsa, 4i32 => CryptoSignatureAlgorithm::Ed25519, 5i32 => CryptoSignatureAlgorithm::Ed448 , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_signature_capabilities_item_signature_algorithm", "unknown CryptoSignatureAlgorithm value")).boxed()), };
-                        let result_recorded_signature_capabilities_item_supports_sign = decode_bool(slots[2], "result_recorded_signature_capabilities_item_supports_sign", "supportsSign")?;
-                        let result_recorded_signature_capabilities_item_supports_verify = decode_bool(slots[3], "result_recorded_signature_capabilities_item_supports_verify", "supportsVerify")?;
-                        let result_recorded_signature_capabilities_item_supported_digests = decode_slice::<CryptoDigestAlgorithm>(context, slots[4], "result_recorded_signature_capabilities_item_supported_digests", "supportedDigests")?;
-                        CryptoStoreSignatureCapabilityVm {
-                            key_algorithm: result_recorded_signature_capabilities_item_key_algorithm,
-                            signature_algorithm: result_recorded_signature_capabilities_item_signature_algorithm,
-                            supports_sign: result_recorded_signature_capabilities_item_supports_sign,
-                            supports_verify: result_recorded_signature_capabilities_item_supports_verify,
-                            supported_digests: result_recorded_signature_capabilities_item_supported_digests,
-                        }
-                    };
+                    let result_recorded_signature_capabilities_item = <CryptoStoreSignatureCapabilityVm as VmAggregateCodec>::decode_with_context(context, result_recorded_signature_capabilities_item_value)?;
                     let result_recorded_signature_capabilities_item_recorded_key_algorithm = result_recorded_signature_capabilities_item.key_algorithm;
                     let result_recorded_signature_capabilities_item_recorded_signature_algorithm = result_recorded_signature_capabilities_item.signature_algorithm;
                     let result_recorded_signature_capabilities_item_recorded_supports_sign = result_recorded_signature_capabilities_item.supports_sign;
@@ -9965,25 +9266,7 @@ fn destack_crypto_store_probe_capability_vm_replay(
                 let result_recorded_asymmetric_encryption_capabilities_raw = result_value.asymmetric_encryption_capabilities.raw_values(context)?;
                 let mut result_recorded_asymmetric_encryption_capabilities = Vec::with_capacity(result_recorded_asymmetric_encryption_capabilities_raw.len());
                 for result_recorded_asymmetric_encryption_capabilities_item_value in result_recorded_asymmetric_encryption_capabilities_raw {
-                    let result_recorded_asymmetric_encryption_capabilities_item = {
-                        if result_recorded_asymmetric_encryption_capabilities_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_asymmetric_encryption_capabilities_item", "item")).boxed()); }
-                        let slots = context.aggregate_slots(result_recorded_asymmetric_encryption_capabilities_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
-                        if slots.len() != 5 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_asymmetric_encryption_capabilities_item", "expected 5 fields")).boxed()); }
-                        let result_recorded_asymmetric_encryption_capabilities_item_key_algorithm_raw = decode_int32(slots[0], "result_recorded_asymmetric_encryption_capabilities_item_key_algorithm_raw", "keyAlgorithm")?;
-                        let result_recorded_asymmetric_encryption_capabilities_item_key_algorithm = match result_recorded_asymmetric_encryption_capabilities_item_key_algorithm_raw { 0i32 => CryptoKeyAlgorithm::Unknown, 1i32 => CryptoKeyAlgorithm::Rsa, 2i32 => CryptoKeyAlgorithm::Ec, 3i32 => CryptoKeyAlgorithm::Ed25519, 4i32 => CryptoKeyAlgorithm::Ed448, 5i32 => CryptoKeyAlgorithm::X25519, 6i32 => CryptoKeyAlgorithm::X448, 7i32 => CryptoKeyAlgorithm::Aes, 8i32 => CryptoKeyAlgorithm::ChaCha20, 9i32 => CryptoKeyAlgorithm::Hmac , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_asymmetric_encryption_capabilities_item_key_algorithm", "unknown CryptoKeyAlgorithm value")).boxed()), };
-                        let result_recorded_asymmetric_encryption_capabilities_item_algorithm_raw = decode_int32(slots[1], "result_recorded_asymmetric_encryption_capabilities_item_algorithm_raw", "algorithm")?;
-                        let result_recorded_asymmetric_encryption_capabilities_item_algorithm = match result_recorded_asymmetric_encryption_capabilities_item_algorithm_raw { 0i32 => CryptoAsymmetricEncryptionAlgorithm::Unknown, 1i32 => CryptoAsymmetricEncryptionAlgorithm::RsaPkcs1v15, 2i32 => CryptoAsymmetricEncryptionAlgorithm::RsaOaep , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_asymmetric_encryption_capabilities_item_algorithm", "unknown CryptoAsymmetricEncryptionAlgorithm value")).boxed()), };
-                        let result_recorded_asymmetric_encryption_capabilities_item_supports_encrypt = decode_bool(slots[2], "result_recorded_asymmetric_encryption_capabilities_item_supports_encrypt", "supportsEncrypt")?;
-                        let result_recorded_asymmetric_encryption_capabilities_item_supports_decrypt = decode_bool(slots[3], "result_recorded_asymmetric_encryption_capabilities_item_supports_decrypt", "supportsDecrypt")?;
-                        let result_recorded_asymmetric_encryption_capabilities_item_supported_digests = decode_slice::<CryptoDigestAlgorithm>(context, slots[4], "result_recorded_asymmetric_encryption_capabilities_item_supported_digests", "supportedDigests")?;
-                        CryptoStoreAsymmetricEncryptionCapabilityVm {
-                            key_algorithm: result_recorded_asymmetric_encryption_capabilities_item_key_algorithm,
-                            algorithm: result_recorded_asymmetric_encryption_capabilities_item_algorithm,
-                            supports_encrypt: result_recorded_asymmetric_encryption_capabilities_item_supports_encrypt,
-                            supports_decrypt: result_recorded_asymmetric_encryption_capabilities_item_supports_decrypt,
-                            supported_digests: result_recorded_asymmetric_encryption_capabilities_item_supported_digests,
-                        }
-                    };
+                    let result_recorded_asymmetric_encryption_capabilities_item = <CryptoStoreAsymmetricEncryptionCapabilityVm as VmAggregateCodec>::decode_with_context(context, result_recorded_asymmetric_encryption_capabilities_item_value)?;
                     let result_recorded_asymmetric_encryption_capabilities_item_recorded_key_algorithm = result_recorded_asymmetric_encryption_capabilities_item.key_algorithm;
                     let result_recorded_asymmetric_encryption_capabilities_item_recorded_algorithm = result_recorded_asymmetric_encryption_capabilities_item.algorithm;
                     let result_recorded_asymmetric_encryption_capabilities_item_recorded_supports_encrypt = result_recorded_asymmetric_encryption_capabilities_item.supports_encrypt;
@@ -10008,25 +9291,7 @@ fn destack_crypto_store_probe_capability_vm_replay(
                 let result_recorded_key_wrap_capabilities_raw = result_value.key_wrap_capabilities.raw_values(context)?;
                 let mut result_recorded_key_wrap_capabilities = Vec::with_capacity(result_recorded_key_wrap_capabilities_raw.len());
                 for result_recorded_key_wrap_capabilities_item_value in result_recorded_key_wrap_capabilities_raw {
-                    let result_recorded_key_wrap_capabilities_item = {
-                        if result_recorded_key_wrap_capabilities_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_key_wrap_capabilities_item", "item")).boxed()); }
-                        let slots = context.aggregate_slots(result_recorded_key_wrap_capabilities_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
-                        if slots.len() != 5 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_key_wrap_capabilities_item", "expected 5 fields")).boxed()); }
-                        let result_recorded_key_wrap_capabilities_item_wrapping_key_algorithm_raw = decode_int32(slots[0], "result_recorded_key_wrap_capabilities_item_wrapping_key_algorithm_raw", "wrappingKeyAlgorithm")?;
-                        let result_recorded_key_wrap_capabilities_item_wrapping_key_algorithm = match result_recorded_key_wrap_capabilities_item_wrapping_key_algorithm_raw { 0i32 => CryptoKeyAlgorithm::Unknown, 1i32 => CryptoKeyAlgorithm::Rsa, 2i32 => CryptoKeyAlgorithm::Ec, 3i32 => CryptoKeyAlgorithm::Ed25519, 4i32 => CryptoKeyAlgorithm::Ed448, 5i32 => CryptoKeyAlgorithm::X25519, 6i32 => CryptoKeyAlgorithm::X448, 7i32 => CryptoKeyAlgorithm::Aes, 8i32 => CryptoKeyAlgorithm::ChaCha20, 9i32 => CryptoKeyAlgorithm::Hmac , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_key_wrap_capabilities_item_wrapping_key_algorithm", "unknown CryptoKeyAlgorithm value")).boxed()), };
-                        let result_recorded_key_wrap_capabilities_item_algorithm_raw = decode_int32(slots[1], "result_recorded_key_wrap_capabilities_item_algorithm_raw", "algorithm")?;
-                        let result_recorded_key_wrap_capabilities_item_algorithm = match result_recorded_key_wrap_capabilities_item_algorithm_raw { 0i32 => CryptoKeyWrapAlgorithm::Unknown, 1i32 => CryptoKeyWrapAlgorithm::RsaOaep, 2i32 => CryptoKeyWrapAlgorithm::AesKw, 3i32 => CryptoKeyWrapAlgorithm::AesKwp , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_key_wrap_capabilities_item_algorithm", "unknown CryptoKeyWrapAlgorithm value")).boxed()), };
-                        let result_recorded_key_wrap_capabilities_item_supports_wrap = decode_bool(slots[2], "result_recorded_key_wrap_capabilities_item_supports_wrap", "supportsWrap")?;
-                        let result_recorded_key_wrap_capabilities_item_supports_unwrap = decode_bool(slots[3], "result_recorded_key_wrap_capabilities_item_supports_unwrap", "supportsUnwrap")?;
-                        let result_recorded_key_wrap_capabilities_item_supported_digests = decode_slice::<CryptoDigestAlgorithm>(context, slots[4], "result_recorded_key_wrap_capabilities_item_supported_digests", "supportedDigests")?;
-                        CryptoStoreKeyWrapCapabilityVm {
-                            wrapping_key_algorithm: result_recorded_key_wrap_capabilities_item_wrapping_key_algorithm,
-                            algorithm: result_recorded_key_wrap_capabilities_item_algorithm,
-                            supports_wrap: result_recorded_key_wrap_capabilities_item_supports_wrap,
-                            supports_unwrap: result_recorded_key_wrap_capabilities_item_supports_unwrap,
-                            supported_digests: result_recorded_key_wrap_capabilities_item_supported_digests,
-                        }
-                    };
+                    let result_recorded_key_wrap_capabilities_item = <CryptoStoreKeyWrapCapabilityVm as VmAggregateCodec>::decode_with_context(context, result_recorded_key_wrap_capabilities_item_value)?;
                     let result_recorded_key_wrap_capabilities_item_recorded_wrapping_key_algorithm = result_recorded_key_wrap_capabilities_item.wrapping_key_algorithm;
                     let result_recorded_key_wrap_capabilities_item_recorded_algorithm = result_recorded_key_wrap_capabilities_item.algorithm;
                     let result_recorded_key_wrap_capabilities_item_recorded_supports_wrap = result_recorded_key_wrap_capabilities_item.supports_wrap;
@@ -10051,31 +9316,7 @@ fn destack_crypto_store_probe_capability_vm_replay(
                 let result_recorded_cipher_capabilities_raw = result_value.cipher_capabilities.raw_values(context)?;
                 let mut result_recorded_cipher_capabilities = Vec::with_capacity(result_recorded_cipher_capabilities_raw.len());
                 for result_recorded_cipher_capabilities_item_value in result_recorded_cipher_capabilities_raw {
-                    let result_recorded_cipher_capabilities_item = {
-                        if result_recorded_cipher_capabilities_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_cipher_capabilities_item", "item")).boxed()); }
-                        let slots = context.aggregate_slots(result_recorded_cipher_capabilities_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
-                        if slots.len() != 8 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_cipher_capabilities_item", "expected 8 fields")).boxed()); }
-                        let result_recorded_cipher_capabilities_item_key_algorithm_raw = decode_int32(slots[0], "result_recorded_cipher_capabilities_item_key_algorithm_raw", "keyAlgorithm")?;
-                        let result_recorded_cipher_capabilities_item_key_algorithm = match result_recorded_cipher_capabilities_item_key_algorithm_raw { 0i32 => CryptoKeyAlgorithm::Unknown, 1i32 => CryptoKeyAlgorithm::Rsa, 2i32 => CryptoKeyAlgorithm::Ec, 3i32 => CryptoKeyAlgorithm::Ed25519, 4i32 => CryptoKeyAlgorithm::Ed448, 5i32 => CryptoKeyAlgorithm::X25519, 6i32 => CryptoKeyAlgorithm::X448, 7i32 => CryptoKeyAlgorithm::Aes, 8i32 => CryptoKeyAlgorithm::ChaCha20, 9i32 => CryptoKeyAlgorithm::Hmac , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_cipher_capabilities_item_key_algorithm", "unknown CryptoKeyAlgorithm value")).boxed()), };
-                        let result_recorded_cipher_capabilities_item_algorithm_raw = decode_int32(slots[1], "result_recorded_cipher_capabilities_item_algorithm_raw", "algorithm")?;
-                        let result_recorded_cipher_capabilities_item_algorithm = match result_recorded_cipher_capabilities_item_algorithm_raw { 0i32 => CryptoCipherAlgorithm::Unknown, 1i32 => CryptoCipherAlgorithm::AesGcm, 2i32 => CryptoCipherAlgorithm::AesCtr, 3i32 => CryptoCipherAlgorithm::AesCbc, 4i32 => CryptoCipherAlgorithm::ChaCha20Poly1305 , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_cipher_capabilities_item_algorithm", "unknown CryptoCipherAlgorithm value")).boxed()), };
-                        let result_recorded_cipher_capabilities_item_supports_one_shot = decode_bool(slots[2], "result_recorded_cipher_capabilities_item_supports_one_shot", "supportsOneShot")?;
-                        let result_recorded_cipher_capabilities_item_supports_streaming = decode_bool(slots[3], "result_recorded_cipher_capabilities_item_supports_streaming", "supportsStreaming")?;
-                        let result_recorded_cipher_capabilities_item_supports_additional_data = decode_bool(slots[4], "result_recorded_cipher_capabilities_item_supports_additional_data", "supportsAdditionalData")?;
-                        let result_recorded_cipher_capabilities_item_supports_detached_tag = decode_bool(slots[5], "result_recorded_cipher_capabilities_item_supports_detached_tag", "supportsDetachedTag")?;
-                        let result_recorded_cipher_capabilities_item_min_tag_length_bytes = decode_uint32(slots[6], "result_recorded_cipher_capabilities_item_min_tag_length_bytes", "minTagLengthBytes")?;
-                        let result_recorded_cipher_capabilities_item_max_tag_length_bytes = decode_uint32(slots[7], "result_recorded_cipher_capabilities_item_max_tag_length_bytes", "maxTagLengthBytes")?;
-                        CryptoStoreCipherCapabilityVm {
-                            key_algorithm: result_recorded_cipher_capabilities_item_key_algorithm,
-                            algorithm: result_recorded_cipher_capabilities_item_algorithm,
-                            supports_one_shot: result_recorded_cipher_capabilities_item_supports_one_shot,
-                            supports_streaming: result_recorded_cipher_capabilities_item_supports_streaming,
-                            supports_additional_data: result_recorded_cipher_capabilities_item_supports_additional_data,
-                            supports_detached_tag: result_recorded_cipher_capabilities_item_supports_detached_tag,
-                            min_tag_length_bytes: result_recorded_cipher_capabilities_item_min_tag_length_bytes,
-                            max_tag_length_bytes: result_recorded_cipher_capabilities_item_max_tag_length_bytes,
-                        }
-                    };
+                    let result_recorded_cipher_capabilities_item = <CryptoStoreCipherCapabilityVm as VmAggregateCodec>::decode_with_context(context, result_recorded_cipher_capabilities_item_value)?;
                     let result_recorded_cipher_capabilities_item_recorded_key_algorithm = result_recorded_cipher_capabilities_item.key_algorithm;
                     let result_recorded_cipher_capabilities_item_recorded_algorithm = result_recorded_cipher_capabilities_item.algorithm;
                     let result_recorded_cipher_capabilities_item_recorded_supports_one_shot = result_recorded_cipher_capabilities_item.supports_one_shot;
@@ -10099,29 +9340,7 @@ fn destack_crypto_store_probe_capability_vm_replay(
                 let result_recorded_mac_capabilities_raw = result_value.mac_capabilities.raw_values(context)?;
                 let mut result_recorded_mac_capabilities = Vec::with_capacity(result_recorded_mac_capabilities_raw.len());
                 for result_recorded_mac_capabilities_item_value in result_recorded_mac_capabilities_raw {
-                    let result_recorded_mac_capabilities_item = {
-                        if result_recorded_mac_capabilities_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_mac_capabilities_item", "item")).boxed()); }
-                        let slots = context.aggregate_slots(result_recorded_mac_capabilities_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
-                        if slots.len() != 7 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_mac_capabilities_item", "expected 7 fields")).boxed()); }
-                        let result_recorded_mac_capabilities_item_key_algorithm_raw = decode_int32(slots[0], "result_recorded_mac_capabilities_item_key_algorithm_raw", "keyAlgorithm")?;
-                        let result_recorded_mac_capabilities_item_key_algorithm = match result_recorded_mac_capabilities_item_key_algorithm_raw { 0i32 => CryptoKeyAlgorithm::Unknown, 1i32 => CryptoKeyAlgorithm::Rsa, 2i32 => CryptoKeyAlgorithm::Ec, 3i32 => CryptoKeyAlgorithm::Ed25519, 4i32 => CryptoKeyAlgorithm::Ed448, 5i32 => CryptoKeyAlgorithm::X25519, 6i32 => CryptoKeyAlgorithm::X448, 7i32 => CryptoKeyAlgorithm::Aes, 8i32 => CryptoKeyAlgorithm::ChaCha20, 9i32 => CryptoKeyAlgorithm::Hmac , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_mac_capabilities_item_key_algorithm", "unknown CryptoKeyAlgorithm value")).boxed()), };
-                        let result_recorded_mac_capabilities_item_algorithm_raw = decode_int32(slots[1], "result_recorded_mac_capabilities_item_algorithm_raw", "algorithm")?;
-                        let result_recorded_mac_capabilities_item_algorithm = match result_recorded_mac_capabilities_item_algorithm_raw { 0i32 => CryptoMacAlgorithm::Unknown, 1i32 => CryptoMacAlgorithm::Hmac , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_mac_capabilities_item_algorithm", "unknown CryptoMacAlgorithm value")).boxed()), };
-                        let result_recorded_mac_capabilities_item_supports_one_shot = decode_bool(slots[2], "result_recorded_mac_capabilities_item_supports_one_shot", "supportsOneShot")?;
-                        let result_recorded_mac_capabilities_item_supports_streaming = decode_bool(slots[3], "result_recorded_mac_capabilities_item_supports_streaming", "supportsStreaming")?;
-                        let result_recorded_mac_capabilities_item_supported_digests = decode_slice::<CryptoDigestAlgorithm>(context, slots[4], "result_recorded_mac_capabilities_item_supported_digests", "supportedDigests")?;
-                        let result_recorded_mac_capabilities_item_min_tag_length_bytes = decode_uint32(slots[5], "result_recorded_mac_capabilities_item_min_tag_length_bytes", "minTagLengthBytes")?;
-                        let result_recorded_mac_capabilities_item_max_tag_length_bytes = decode_uint32(slots[6], "result_recorded_mac_capabilities_item_max_tag_length_bytes", "maxTagLengthBytes")?;
-                        CryptoStoreMacCapabilityVm {
-                            key_algorithm: result_recorded_mac_capabilities_item_key_algorithm,
-                            algorithm: result_recorded_mac_capabilities_item_algorithm,
-                            supports_one_shot: result_recorded_mac_capabilities_item_supports_one_shot,
-                            supports_streaming: result_recorded_mac_capabilities_item_supports_streaming,
-                            supported_digests: result_recorded_mac_capabilities_item_supported_digests,
-                            min_tag_length_bytes: result_recorded_mac_capabilities_item_min_tag_length_bytes,
-                            max_tag_length_bytes: result_recorded_mac_capabilities_item_max_tag_length_bytes,
-                        }
-                    };
+                    let result_recorded_mac_capabilities_item = <CryptoStoreMacCapabilityVm as VmAggregateCodec>::decode_with_context(context, result_recorded_mac_capabilities_item_value)?;
                     let result_recorded_mac_capabilities_item_recorded_key_algorithm = result_recorded_mac_capabilities_item.key_algorithm;
                     let result_recorded_mac_capabilities_item_recorded_algorithm = result_recorded_mac_capabilities_item.algorithm;
                     let result_recorded_mac_capabilities_item_recorded_supports_one_shot = result_recorded_mac_capabilities_item.supports_one_shot;
@@ -10150,26 +9369,7 @@ fn destack_crypto_store_probe_capability_vm_replay(
                 let result_recorded_agreement_capabilities_raw = result_value.agreement_capabilities.raw_values(context)?;
                 let mut result_recorded_agreement_capabilities = Vec::with_capacity(result_recorded_agreement_capabilities_raw.len());
                 for result_recorded_agreement_capabilities_item_value in result_recorded_agreement_capabilities_raw {
-                    let result_recorded_agreement_capabilities_item = {
-                        if result_recorded_agreement_capabilities_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_agreement_capabilities_item", "item")).boxed()); }
-                        let slots = context.aggregate_slots(result_recorded_agreement_capabilities_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
-                        if slots.len() != 5 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_agreement_capabilities_item", "expected 5 fields")).boxed()); }
-                        let result_recorded_agreement_capabilities_item_private_key_algorithm_raw = decode_int32(slots[0], "result_recorded_agreement_capabilities_item_private_key_algorithm_raw", "privateKeyAlgorithm")?;
-                        let result_recorded_agreement_capabilities_item_private_key_algorithm = match result_recorded_agreement_capabilities_item_private_key_algorithm_raw { 0i32 => CryptoKeyAlgorithm::Unknown, 1i32 => CryptoKeyAlgorithm::Rsa, 2i32 => CryptoKeyAlgorithm::Ec, 3i32 => CryptoKeyAlgorithm::Ed25519, 4i32 => CryptoKeyAlgorithm::Ed448, 5i32 => CryptoKeyAlgorithm::X25519, 6i32 => CryptoKeyAlgorithm::X448, 7i32 => CryptoKeyAlgorithm::Aes, 8i32 => CryptoKeyAlgorithm::ChaCha20, 9i32 => CryptoKeyAlgorithm::Hmac , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_agreement_capabilities_item_private_key_algorithm", "unknown CryptoKeyAlgorithm value")).boxed()), };
-                        let result_recorded_agreement_capabilities_item_peer_public_key_algorithm_raw = decode_int32(slots[1], "result_recorded_agreement_capabilities_item_peer_public_key_algorithm_raw", "peerPublicKeyAlgorithm")?;
-                        let result_recorded_agreement_capabilities_item_peer_public_key_algorithm = match result_recorded_agreement_capabilities_item_peer_public_key_algorithm_raw { 0i32 => CryptoKeyAlgorithm::Unknown, 1i32 => CryptoKeyAlgorithm::Rsa, 2i32 => CryptoKeyAlgorithm::Ec, 3i32 => CryptoKeyAlgorithm::Ed25519, 4i32 => CryptoKeyAlgorithm::Ed448, 5i32 => CryptoKeyAlgorithm::X25519, 6i32 => CryptoKeyAlgorithm::X448, 7i32 => CryptoKeyAlgorithm::Aes, 8i32 => CryptoKeyAlgorithm::ChaCha20, 9i32 => CryptoKeyAlgorithm::Hmac , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_agreement_capabilities_item_peer_public_key_algorithm", "unknown CryptoKeyAlgorithm value")).boxed()), };
-                        let result_recorded_agreement_capabilities_item_algorithm_raw = decode_int32(slots[2], "result_recorded_agreement_capabilities_item_algorithm_raw", "algorithm")?;
-                        let result_recorded_agreement_capabilities_item_algorithm = match result_recorded_agreement_capabilities_item_algorithm_raw { 0i32 => CryptoKeyAgreementAlgorithm::Unknown, 1i32 => CryptoKeyAgreementAlgorithm::Ecdh, 2i32 => CryptoKeyAgreementAlgorithm::X25519, 3i32 => CryptoKeyAgreementAlgorithm::X448 , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_agreement_capabilities_item_algorithm", "unknown CryptoKeyAgreementAlgorithm value")).boxed()), };
-                        let result_recorded_agreement_capabilities_item_supports_derive_shared_secret = decode_bool(slots[3], "result_recorded_agreement_capabilities_item_supports_derive_shared_secret", "supportsDeriveSharedSecret")?;
-                        let result_recorded_agreement_capabilities_item_supports_derive_key = decode_bool(slots[4], "result_recorded_agreement_capabilities_item_supports_derive_key", "supportsDeriveKey")?;
-                        CryptoStoreAgreementCapabilityVm {
-                            private_key_algorithm: result_recorded_agreement_capabilities_item_private_key_algorithm,
-                            peer_public_key_algorithm: result_recorded_agreement_capabilities_item_peer_public_key_algorithm,
-                            algorithm: result_recorded_agreement_capabilities_item_algorithm,
-                            supports_derive_shared_secret: result_recorded_agreement_capabilities_item_supports_derive_shared_secret,
-                            supports_derive_key: result_recorded_agreement_capabilities_item_supports_derive_key,
-                        }
-                    };
+                    let result_recorded_agreement_capabilities_item = <CryptoStoreAgreementCapabilityVm as VmAggregateCodec>::decode_with_context(context, result_recorded_agreement_capabilities_item_value)?;
                     let result_recorded_agreement_capabilities_item_recorded_private_key_algorithm = result_recorded_agreement_capabilities_item.private_key_algorithm;
                     let result_recorded_agreement_capabilities_item_recorded_peer_public_key_algorithm = result_recorded_agreement_capabilities_item.peer_public_key_algorithm;
                     let result_recorded_agreement_capabilities_item_recorded_algorithm = result_recorded_agreement_capabilities_item.algorithm;
@@ -10235,7 +9435,7 @@ fn destack_crypto_store_probe_capability_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -10262,25 +9462,25 @@ fn destack_crypto_store_probe_capability_vm_replay(
                     let vm_result_supports_persistent = value.supports_persistent;
                     let vm_result_supports_key_export = value.supports_key_export;
                     let mut vm_result_supported_key_algorithms_values = Vec::with_capacity(value.supported_key_algorithms.len());
-                    for vm_result_supported_key_algorithms_item in value.supported_key_algorithms.iter().cloned() {
+                    for vm_result_supported_key_algorithms_item in value.supported_key_algorithms {
                         let vm_result_supported_key_algorithms_item_value = vm_result_supported_key_algorithms_item;
                         vm_result_supported_key_algorithms_values.push(vm_result_supported_key_algorithms_item_value);
                     }
                     let vm_result_supported_key_algorithms = VmArray::from_values(context, &vm_result_supported_key_algorithms_values)?;
                     let mut vm_result_supported_key_formats_values = Vec::with_capacity(value.supported_key_formats.len());
-                    for vm_result_supported_key_formats_item in value.supported_key_formats.iter().cloned() {
+                    for vm_result_supported_key_formats_item in value.supported_key_formats {
                         let vm_result_supported_key_formats_item_value = vm_result_supported_key_formats_item;
                         vm_result_supported_key_formats_values.push(vm_result_supported_key_formats_item_value);
                     }
                     let vm_result_supported_key_formats = VmArray::from_values(context, &vm_result_supported_key_formats_values)?;
                     let mut vm_result_supported_key_residencies_values = Vec::with_capacity(value.supported_key_residencies.len());
-                    for vm_result_supported_key_residencies_item in value.supported_key_residencies.iter().cloned() {
+                    for vm_result_supported_key_residencies_item in value.supported_key_residencies {
                         let vm_result_supported_key_residencies_item_value = vm_result_supported_key_residencies_item;
                         vm_result_supported_key_residencies_values.push(vm_result_supported_key_residencies_item_value);
                     }
                     let vm_result_supported_key_residencies = VmArray::from_values(context, &vm_result_supported_key_residencies_values)?;
                     let mut vm_result_key_capabilities_values = Vec::with_capacity(value.key_capabilities.len());
-                    for vm_result_key_capabilities_item in value.key_capabilities.iter().cloned() {
+                    for vm_result_key_capabilities_item in value.key_capabilities {
                         let vm_result_key_capabilities_item_value_algorithm = vm_result_key_capabilities_item.algorithm;
                         let vm_result_key_capabilities_item_value_residency = vm_result_key_capabilities_item.residency;
                         let vm_result_key_capabilities_item_value_supports_generate_secret = vm_result_key_capabilities_item.supports_generate_secret;
@@ -10291,13 +9491,13 @@ fn destack_crypto_store_probe_capability_vm_replay(
                         let vm_result_key_capabilities_item_value_supports_export_secret = vm_result_key_capabilities_item.supports_export_secret;
                         let vm_result_key_capabilities_item_value_supported_usage_mask = vm_result_key_capabilities_item.supported_usage_mask;
                         let mut vm_result_key_capabilities_item_value_supported_import_formats_values = Vec::with_capacity(vm_result_key_capabilities_item.supported_import_formats.len());
-                        for vm_result_key_capabilities_item_value_supported_import_formats_item in vm_result_key_capabilities_item.supported_import_formats.iter().cloned() {
+                        for vm_result_key_capabilities_item_value_supported_import_formats_item in vm_result_key_capabilities_item.supported_import_formats {
                             let vm_result_key_capabilities_item_value_supported_import_formats_item_value = vm_result_key_capabilities_item_value_supported_import_formats_item;
                             vm_result_key_capabilities_item_value_supported_import_formats_values.push(vm_result_key_capabilities_item_value_supported_import_formats_item_value);
                         }
                         let vm_result_key_capabilities_item_value_supported_import_formats = VmSlice::from_values(context, &vm_result_key_capabilities_item_value_supported_import_formats_values)?;
                         let mut vm_result_key_capabilities_item_value_supported_export_formats_values = Vec::with_capacity(vm_result_key_capabilities_item.supported_export_formats.len());
-                        for vm_result_key_capabilities_item_value_supported_export_formats_item in vm_result_key_capabilities_item.supported_export_formats.iter().cloned() {
+                        for vm_result_key_capabilities_item_value_supported_export_formats_item in vm_result_key_capabilities_item.supported_export_formats {
                             let vm_result_key_capabilities_item_value_supported_export_formats_item_value = vm_result_key_capabilities_item_value_supported_export_formats_item;
                             vm_result_key_capabilities_item_value_supported_export_formats_values.push(vm_result_key_capabilities_item_value_supported_export_formats_item_value);
                         }
@@ -10319,13 +9519,13 @@ fn destack_crypto_store_probe_capability_vm_replay(
                     }
                     let vm_result_key_capabilities = VmArray::from_values(context, &vm_result_key_capabilities_values)?;
                     let mut vm_result_signature_capabilities_values = Vec::with_capacity(value.signature_capabilities.len());
-                    for vm_result_signature_capabilities_item in value.signature_capabilities.iter().cloned() {
+                    for vm_result_signature_capabilities_item in value.signature_capabilities {
                         let vm_result_signature_capabilities_item_value_key_algorithm = vm_result_signature_capabilities_item.key_algorithm;
                         let vm_result_signature_capabilities_item_value_signature_algorithm = vm_result_signature_capabilities_item.signature_algorithm;
                         let vm_result_signature_capabilities_item_value_supports_sign = vm_result_signature_capabilities_item.supports_sign;
                         let vm_result_signature_capabilities_item_value_supports_verify = vm_result_signature_capabilities_item.supports_verify;
                         let mut vm_result_signature_capabilities_item_value_supported_digests_values = Vec::with_capacity(vm_result_signature_capabilities_item.supported_digests.len());
-                        for vm_result_signature_capabilities_item_value_supported_digests_item in vm_result_signature_capabilities_item.supported_digests.iter().cloned() {
+                        for vm_result_signature_capabilities_item_value_supported_digests_item in vm_result_signature_capabilities_item.supported_digests {
                             let vm_result_signature_capabilities_item_value_supported_digests_item_value = vm_result_signature_capabilities_item_value_supported_digests_item;
                             vm_result_signature_capabilities_item_value_supported_digests_values.push(vm_result_signature_capabilities_item_value_supported_digests_item_value);
                         }
@@ -10341,13 +9541,13 @@ fn destack_crypto_store_probe_capability_vm_replay(
                     }
                     let vm_result_signature_capabilities = VmArray::from_values(context, &vm_result_signature_capabilities_values)?;
                     let mut vm_result_asymmetric_encryption_capabilities_values = Vec::with_capacity(value.asymmetric_encryption_capabilities.len());
-                    for vm_result_asymmetric_encryption_capabilities_item in value.asymmetric_encryption_capabilities.iter().cloned() {
+                    for vm_result_asymmetric_encryption_capabilities_item in value.asymmetric_encryption_capabilities {
                         let vm_result_asymmetric_encryption_capabilities_item_value_key_algorithm = vm_result_asymmetric_encryption_capabilities_item.key_algorithm;
                         let vm_result_asymmetric_encryption_capabilities_item_value_algorithm = vm_result_asymmetric_encryption_capabilities_item.algorithm;
                         let vm_result_asymmetric_encryption_capabilities_item_value_supports_encrypt = vm_result_asymmetric_encryption_capabilities_item.supports_encrypt;
                         let vm_result_asymmetric_encryption_capabilities_item_value_supports_decrypt = vm_result_asymmetric_encryption_capabilities_item.supports_decrypt;
                         let mut vm_result_asymmetric_encryption_capabilities_item_value_supported_digests_values = Vec::with_capacity(vm_result_asymmetric_encryption_capabilities_item.supported_digests.len());
-                        for vm_result_asymmetric_encryption_capabilities_item_value_supported_digests_item in vm_result_asymmetric_encryption_capabilities_item.supported_digests.iter().cloned() {
+                        for vm_result_asymmetric_encryption_capabilities_item_value_supported_digests_item in vm_result_asymmetric_encryption_capabilities_item.supported_digests {
                             let vm_result_asymmetric_encryption_capabilities_item_value_supported_digests_item_value = vm_result_asymmetric_encryption_capabilities_item_value_supported_digests_item;
                             vm_result_asymmetric_encryption_capabilities_item_value_supported_digests_values.push(vm_result_asymmetric_encryption_capabilities_item_value_supported_digests_item_value);
                         }
@@ -10363,13 +9563,13 @@ fn destack_crypto_store_probe_capability_vm_replay(
                     }
                     let vm_result_asymmetric_encryption_capabilities = VmArray::from_values(context, &vm_result_asymmetric_encryption_capabilities_values)?;
                     let mut vm_result_key_wrap_capabilities_values = Vec::with_capacity(value.key_wrap_capabilities.len());
-                    for vm_result_key_wrap_capabilities_item in value.key_wrap_capabilities.iter().cloned() {
+                    for vm_result_key_wrap_capabilities_item in value.key_wrap_capabilities {
                         let vm_result_key_wrap_capabilities_item_value_wrapping_key_algorithm = vm_result_key_wrap_capabilities_item.wrapping_key_algorithm;
                         let vm_result_key_wrap_capabilities_item_value_algorithm = vm_result_key_wrap_capabilities_item.algorithm;
                         let vm_result_key_wrap_capabilities_item_value_supports_wrap = vm_result_key_wrap_capabilities_item.supports_wrap;
                         let vm_result_key_wrap_capabilities_item_value_supports_unwrap = vm_result_key_wrap_capabilities_item.supports_unwrap;
                         let mut vm_result_key_wrap_capabilities_item_value_supported_digests_values = Vec::with_capacity(vm_result_key_wrap_capabilities_item.supported_digests.len());
-                        for vm_result_key_wrap_capabilities_item_value_supported_digests_item in vm_result_key_wrap_capabilities_item.supported_digests.iter().cloned() {
+                        for vm_result_key_wrap_capabilities_item_value_supported_digests_item in vm_result_key_wrap_capabilities_item.supported_digests {
                             let vm_result_key_wrap_capabilities_item_value_supported_digests_item_value = vm_result_key_wrap_capabilities_item_value_supported_digests_item;
                             vm_result_key_wrap_capabilities_item_value_supported_digests_values.push(vm_result_key_wrap_capabilities_item_value_supported_digests_item_value);
                         }
@@ -10385,7 +9585,7 @@ fn destack_crypto_store_probe_capability_vm_replay(
                     }
                     let vm_result_key_wrap_capabilities = VmArray::from_values(context, &vm_result_key_wrap_capabilities_values)?;
                     let mut vm_result_cipher_capabilities_values = Vec::with_capacity(value.cipher_capabilities.len());
-                    for vm_result_cipher_capabilities_item in value.cipher_capabilities.iter().cloned() {
+                    for vm_result_cipher_capabilities_item in value.cipher_capabilities {
                         let vm_result_cipher_capabilities_item_value_key_algorithm = vm_result_cipher_capabilities_item.key_algorithm;
                         let vm_result_cipher_capabilities_item_value_algorithm = vm_result_cipher_capabilities_item.algorithm;
                         let vm_result_cipher_capabilities_item_value_supports_one_shot = vm_result_cipher_capabilities_item.supports_one_shot;
@@ -10408,13 +9608,13 @@ fn destack_crypto_store_probe_capability_vm_replay(
                     }
                     let vm_result_cipher_capabilities = VmArray::from_values(context, &vm_result_cipher_capabilities_values)?;
                     let mut vm_result_mac_capabilities_values = Vec::with_capacity(value.mac_capabilities.len());
-                    for vm_result_mac_capabilities_item in value.mac_capabilities.iter().cloned() {
+                    for vm_result_mac_capabilities_item in value.mac_capabilities {
                         let vm_result_mac_capabilities_item_value_key_algorithm = vm_result_mac_capabilities_item.key_algorithm;
                         let vm_result_mac_capabilities_item_value_algorithm = vm_result_mac_capabilities_item.algorithm;
                         let vm_result_mac_capabilities_item_value_supports_one_shot = vm_result_mac_capabilities_item.supports_one_shot;
                         let vm_result_mac_capabilities_item_value_supports_streaming = vm_result_mac_capabilities_item.supports_streaming;
                         let mut vm_result_mac_capabilities_item_value_supported_digests_values = Vec::with_capacity(vm_result_mac_capabilities_item.supported_digests.len());
-                        for vm_result_mac_capabilities_item_value_supported_digests_item in vm_result_mac_capabilities_item.supported_digests.iter().cloned() {
+                        for vm_result_mac_capabilities_item_value_supported_digests_item in vm_result_mac_capabilities_item.supported_digests {
                             let vm_result_mac_capabilities_item_value_supported_digests_item_value = vm_result_mac_capabilities_item_value_supported_digests_item;
                             vm_result_mac_capabilities_item_value_supported_digests_values.push(vm_result_mac_capabilities_item_value_supported_digests_item_value);
                         }
@@ -10434,7 +9634,7 @@ fn destack_crypto_store_probe_capability_vm_replay(
                     }
                     let vm_result_mac_capabilities = VmArray::from_values(context, &vm_result_mac_capabilities_values)?;
                     let mut vm_result_agreement_capabilities_values = Vec::with_capacity(value.agreement_capabilities.len());
-                    for vm_result_agreement_capabilities_item in value.agreement_capabilities.iter().cloned() {
+                    for vm_result_agreement_capabilities_item in value.agreement_capabilities {
                         let vm_result_agreement_capabilities_item_value_private_key_algorithm = vm_result_agreement_capabilities_item.private_key_algorithm;
                         let vm_result_agreement_capabilities_item_value_peer_public_key_algorithm = vm_result_agreement_capabilities_item.peer_public_key_algorithm;
                         let vm_result_agreement_capabilities_item_value_algorithm = vm_result_agreement_capabilities_item.algorithm;
@@ -10509,7 +9709,7 @@ fn destack_crypto_store_probe_kinds_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmArray<CryptoStoreKind> = value.clone();
                 let result_recorded_raw = result_value.raw_values(context)?;
@@ -10554,12 +9754,12 @@ fn destack_crypto_store_probe_kinds_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
-                    for vm_result_item in value.iter().cloned() {
+                    for vm_result_item in value {
                         let vm_result_item_value = vm_result_item;
                         vm_result_values.push(vm_result_item_value);
                     }
@@ -12530,6 +11730,7 @@ pub(crate) fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolat
 
 /// Install VM bindings for crypto.
 pub(crate) fn install_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+    super::abi_generated::register_crypto_vm_storage_types(isolate);
     register_crypto_vm_bindings(registry, isolate);
 }
 

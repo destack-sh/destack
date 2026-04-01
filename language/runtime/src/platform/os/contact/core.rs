@@ -68,7 +68,7 @@ pub(crate) fn page_vm(
     context: &mut vm::ExternalCallContext<'_>,
     page: ContactPageValue,
 ) -> RuntimeResult<ContactPageVm> {
-    ContactPageVm::from_value(context, page)
+    ContactPageVm::from_value(&mut context.write(), page)
 }
 
 /// Encode one contact into one VM value.
@@ -76,7 +76,7 @@ pub(crate) fn contact_vm(
     context: &mut vm::ExternalCallContext<'_>,
     contact: ContactValue,
 ) -> RuntimeResult<ContactVm> {
-    ContactVm::from_value(context, contact)
+    ContactVm::from_value(&mut context.write(), contact)
 }
 
 /// Encode one identifier into one VM string handle.
@@ -84,5 +84,5 @@ pub(crate) fn id_vm(
     context: &mut vm::ExternalCallContext<'_>,
     id: &str,
 ) -> RuntimeResult<vm::StringHandle> {
-    <vm::StringHandle as VmAbiCodec>::from_value(context, id.to_string())
+    <vm::StringHandle as VmAbiCodec>::from_value(&mut context.write(), id.to_string())
 }

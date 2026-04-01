@@ -253,7 +253,7 @@ where
         Some(listed) => listed,
         None => return Ok(()),
     };
-    let listed = listed.read_values(vm_context)?;
+    let listed = listed.read_values(&vm_context.read())?;
 
     // prefer built-in or host-local cameras before external continuity paths
     for is_external in [false, true] {
@@ -285,7 +285,7 @@ where
                     device_handle,
                 );
             let listed_capabilities = match listed_capabilities {
-                Ok(capabilities) => capabilities.read_values(vm_context)?,
+                Ok(capabilities) => capabilities.read_values(&vm_context.read())?,
                 Err(_) => {
                     let _ = device_vm::destack_device_camera_device_close(
                         context.call_context,
@@ -297,7 +297,7 @@ where
             };
 
             for capability in listed_capabilities {
-                let capability = capability.into_value(vm_context)?;
+                let capability = capability.into_value(&vm_context.read())?;
                 let opened = device_vm::destack_device_camera_stream_open(
                     context.call_context,
                     vm_context,

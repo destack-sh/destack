@@ -393,7 +393,7 @@ pub(crate) unsafe fn destack_net_list_interfaces(
                 addresses.push(SocketAddress {
                     family,
                     length: socket_address.iSockaddrLength as u32,
-                    bytes: binding.store_array(bytes.to_vec()),
+                    bytes: binding.store_array_copy(bytes),
                 });
             }
 
@@ -402,7 +402,7 @@ pub(crate) unsafe fn destack_net_list_interfaces(
 
         // encode and append one interface row
         interfaces.push(NetInterface {
-            name: binding.store_string(&name),
+            name: binding.store_string_owned(name),
             index,
             flags: NetInterfaceFlags(flags),
             mtu: entry.Mtu,
@@ -617,7 +617,7 @@ pub(crate) unsafe fn destack_net_resolve_raw(
             addresses.push(SocketAddress {
                 family,
                 length: info.ai_addrlen as u32,
-                bytes: binding.store_array(bytes.to_vec()),
+                bytes: binding.store_array_copy(bytes),
             });
         }
         current = info.ai_next;

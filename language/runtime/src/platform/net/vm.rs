@@ -369,7 +369,7 @@ pub fn destack_net_recv_mmsg(
     max_control_bytes: u32,
 ) -> RuntimeResult<VmArray<SocketRecvMessageVm>> {
     // decode the per message request values
-    let requests = requests.read_values(context)?;
+    let requests = requests.read_values(&context.read())?;
     let mut messages = Vec::with_capacity(requests.len());
 
     // receive each requested message through the host lane
@@ -392,7 +392,7 @@ pub fn destack_net_recv_mmsg(
         messages.push(socket_recv_message_to_vm(context, message)?);
     }
 
-    VmArray::from_values(context, &messages)
+    VmArray::from_values(&mut context.write(), &messages)
 }
 
 /// Send a message with ancillary data.
@@ -518,7 +518,7 @@ pub fn destack_net_send_mmsg(
     messages: VmSlice<SocketSendBatchEntryVm>,
 ) -> RuntimeResult<u64> {
     // decode the per message send entries
-    let messages = messages.read_values(context)?;
+    let messages = messages.read_values(&context.read())?;
     let mut sent_count = 0u64;
 
     // send each entry via the host lane

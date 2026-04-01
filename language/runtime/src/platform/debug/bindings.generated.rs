@@ -139,23 +139,20 @@ fn decode_uint64(
 /// Decode a string argument.
 #[allow(dead_code)]
 fn decode_string(
+    context: &vm::ExternalReadContext<'_, '_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
 ) -> RuntimeResult<vm::StringHandle> {
-    if value.tag() != vm::ValueTag::String {
-        return Err(
-            RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed(),
-        );
-    }
-
-    Ok(vm::StringHandle::new(value))
+    context.string_handle_from_value(value).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
+    })
 }
 
 /// Decode an array argument.
 #[allow(dead_code)]
 fn decode_array<T>(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &vm::ExternalReadContext<'_, '_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
@@ -175,11 +172,12 @@ fn encode_destack_debug_core_break_now_result(
 /// Decode arguments for destack.debug.core.mark.
 #[inline]
 fn decode_destack_debug_core_mark_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
+    let context = &context.read();
     let label_value = arg_value(args, 0, "label", "string")?;
-    let label = decode_string(label_value, "label", "string")?;
+    let label = decode_string(context, label_value, "label", "string")?;
     Ok((label,))
 }
 
@@ -211,14 +209,22 @@ fn encode_destack_debug_inspector_endpoint_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<InspectorEndpointVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(value.url.value());
             let field_1: RuntimeResult<vm::Value> =
                 Ok(vm::Value::uint(value.process_id as u64, 32));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("debug::InspectorEndpoint")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -226,11 +232,12 @@ fn encode_destack_debug_inspector_endpoint_result(
 /// Decode arguments for destack.debug.inspector.start.
 #[inline]
 fn decode_destack_debug_inspector_start_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle, u16)> {
+    let context = &context.read();
     let host_value = arg_value(args, 0, "host", "string")?;
-    let host = decode_string(host_value, "host", "string")?;
+    let host = decode_string(context, host_value, "host", "string")?;
     let port_value = arg_value(args, 1, "port", "uint16")?;
     let port = decode_uint16(port_value, "port", "uint16")?;
     Ok((host, port))
@@ -288,6 +295,7 @@ fn encode_destack_debug_profile_snapshot_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<u8>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -352,15 +360,16 @@ fn encode_destack_debug_profile_stop_result(
 /// Decode arguments for destack.debug.trace.emit.
 #[inline]
 fn decode_destack_debug_trace_emit_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle, vm::StringHandle, vm::StringHandle)> {
+    let context = &context.read();
     let category_value = arg_value(args, 0, "category", "string")?;
-    let category = decode_string(category_value, "category", "string")?;
+    let category = decode_string(context, category_value, "category", "string")?;
     let name_value = arg_value(args, 1, "name", "string")?;
-    let name = decode_string(name_value, "name", "string")?;
+    let name = decode_string(context, name_value, "name", "string")?;
     let payloadjson_value = arg_value(args, 2, "payloadjson", "string")?;
-    let payloadjson = decode_string(payloadjson_value, "payloadjson", "string")?;
+    let payloadjson = decode_string(context, payloadjson_value, "payloadjson", "string")?;
     Ok((category, name, payloadjson))
 }
 
@@ -376,9 +385,10 @@ fn encode_destack_debug_trace_emit_result(
 /// Decode arguments for destack.debug.trace.start.
 #[inline]
 fn decode_destack_debug_trace_start_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(TraceLevel, vm::StringHandle)> {
+    let context = &context.read();
     let level_value = arg_value(args, 0, "level", "TraceLevel")?;
     let level_raw = decode_int32(level_value, "level_raw", "TraceLevel")?;
     let level = match level_raw {
@@ -395,7 +405,7 @@ fn decode_destack_debug_trace_start_args(
         }
     };
     let destination_value = arg_value(args, 1, "destination", "string")?;
-    let destination = decode_string(destination_value, "destination", "string")?;
+    let destination = decode_string(context, destination_value, "destination", "string")?;
     Ok((level, destination))
 }
 
@@ -949,7 +959,7 @@ fn destack_debug_inspector_endpoint_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native_url = binding.store_string(value.url.as_str());
+                    let value_native_url = binding.store_string_owned(value.url);
                     let value_native_process_id = value.process_id;
                     let value_native = InspectorEndpoint {
                         url: value_native_url,
@@ -1067,8 +1077,9 @@ fn destack_debug_profile_snapshot_replay(
         |result| {
             if let Ok(()) = result {
                 let result_value: NativeArray<u8> = unsafe { out.read() };
-                let mut result_recorded = Vec::new();
-                for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
+                let result_recorded_slice = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_slice.len());
+                for result_recorded_item in result_recorded_slice.iter().cloned() {
                     let result_recorded_item_recorded = result_recorded_item;
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -1092,12 +1103,14 @@ fn destack_debug_profile_snapshot_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut value_native_values = Vec::new();
-                    for value_native_item in value.iter().cloned() {
-                        let value_native_decoded = value_native_item;
-                        value_native_values.push(value_native_decoded);
-                    }
-                    let value_native = binding.store_array(value_native_values);
+                    let value_native =
+                        binding.store_array_with(value.len(), |value_native_values| {
+                            for value_native_item in value {
+                                let value_native_decoded = value_native_item;
+                                value_native_values.push(value_native_decoded);
+                            }
+                            Ok(())
+                        })?;
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -1486,8 +1499,7 @@ fn destack_debug_core_break_now_vm_replay(
         binding.replay_payload_for(DEBUG_CORE_BREAK_NOW)?,
         context,
         |context| platform_runtime_vm::destack_debug_break_now(binding, context),
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = DebugCoreBreakNowReplayRecord {
@@ -1506,8 +1518,7 @@ fn destack_debug_core_break_now_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -1530,8 +1541,7 @@ fn destack_debug_core_mark_vm_replay(
         binding.replay_payload_for(DEBUG_CORE_MARK)?,
         context,
         |context| platform_runtime_vm::destack_debug_mark(binding, context, label),
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = DebugCoreMarkReplayRecord {
@@ -1550,8 +1560,7 @@ fn destack_debug_core_mark_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -1575,7 +1584,7 @@ fn destack_debug_inspector_endpoint_vm_replay(
         context,
         |context| platform_runtime_vm::destack_debug_inspector_endpoint(binding, context, handle),
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: InspectorEndpointVm = value.clone();
                 let result_recorded_url = {
@@ -1606,7 +1615,7 @@ fn destack_debug_inspector_endpoint_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -1640,8 +1649,7 @@ fn destack_debug_inspector_start_vm_replay(
         binding.replay_payload_for(DEBUG_INSPECTOR_START)?,
         context,
         |context| platform_runtime_vm::destack_debug_inspector_start(binding, context, host, port),
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::InspectorHandle = value.clone();
                 let result_recorded = result_value;
@@ -1661,8 +1669,7 @@ fn destack_debug_inspector_start_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -1688,8 +1695,7 @@ fn destack_debug_inspector_stop_vm_replay(
         binding.replay_payload_for(DEBUG_INSPECTOR_STOP)?,
         context,
         |context| platform_runtime_vm::destack_debug_inspector_stop(binding, context, handle),
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = DebugInspectorStopReplayRecord {
@@ -1708,8 +1714,7 @@ fn destack_debug_inspector_stop_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -1733,7 +1738,7 @@ fn destack_debug_profile_snapshot_vm_replay(
         context,
         |context| platform_runtime_vm::destack_debug_profile_snapshot(binding, context, handle),
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmArray<u8> = value.clone();
                 let result_recorded = result_value.read_bytes(context)?;
@@ -1754,7 +1759,7 @@ fn destack_debug_profile_snapshot_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -1780,8 +1785,7 @@ fn destack_debug_profile_start_vm_replay(
         binding.replay_payload_for(DEBUG_PROFILE_START)?,
         context,
         |context| platform_runtime_vm::destack_debug_profile_start(binding, context, kind),
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::ProfileHandle = value.clone();
                 let result_recorded = result_value;
@@ -1801,8 +1805,7 @@ fn destack_debug_profile_start_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -1828,8 +1831,7 @@ fn destack_debug_profile_stop_vm_replay(
         binding.replay_payload_for(DEBUG_PROFILE_STOP)?,
         context,
         |context| platform_runtime_vm::destack_debug_profile_stop(binding, context, handle),
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = DebugProfileStopReplayRecord {
@@ -1848,8 +1850,7 @@ fn destack_debug_profile_stop_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -1882,8 +1883,7 @@ fn destack_debug_trace_emit_vm_replay(
                 payloadjson,
             )
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = DebugTraceEmitReplayRecord {
@@ -1902,8 +1902,7 @@ fn destack_debug_trace_emit_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -1929,8 +1928,7 @@ fn destack_debug_trace_start_vm_replay(
         |context| {
             platform_runtime_vm::destack_debug_trace_start(binding, context, level, destination)
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::TraceHandle = value.clone();
                 let result_recorded = result_value;
@@ -1950,8 +1948,7 @@ fn destack_debug_trace_start_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -1977,8 +1974,7 @@ fn destack_debug_trace_stop_vm_replay(
         binding.replay_payload_for(DEBUG_TRACE_STOP)?,
         context,
         |context| platform_runtime_vm::destack_debug_trace_stop(binding, context, handle),
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = DebugTraceStopReplayRecord {
@@ -1997,8 +1993,7 @@ fn destack_debug_trace_stop_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -2199,6 +2194,7 @@ pub(crate) fn register_debug_vm_bindings(registry: &mut BindingRegistry, isolate
 
 /// Install VM bindings for debug.
 pub(crate) fn install_debug_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+    super::abi_generated::register_debug_vm_storage_types(isolate);
     register_debug_vm_bindings(registry, isolate);
 }
 

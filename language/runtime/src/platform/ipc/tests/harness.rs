@@ -45,7 +45,7 @@ impl<'call> IpcHarnessContext<'call> {
     ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
         match self.vm_context_mut() {
             Some(context) => {
-                let bytes = VmSlice::from_bytes(context, bytes)?;
+                let bytes = VmSlice::from_bytes(&mut context.write(), bytes)?;
                 Ok(self.harness_value_vm(bytes))
             }
             None => {
@@ -65,7 +65,7 @@ impl<'call> IpcHarnessContext<'call> {
     ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
         match self.vm_context_mut() {
             Some(context) => {
-                let bytes = VmSlice::from_bytes(context, bytes)?;
+                let bytes = VmSlice::from_bytes(&mut context.write(), bytes)?;
                 Ok(self.harness_value_vm(bytes))
             }
             None => {
@@ -96,7 +96,7 @@ impl<'call> IpcHarnessContext<'call> {
                     ))
                     .boxed()
                 })?;
-                value.read_bytes(context)
+                value.read_bytes(&context.read())
             }
         }
     }
@@ -113,7 +113,7 @@ impl<'call> IpcHarnessContext<'call> {
     > {
         match self.vm_context_mut() {
             Some(context) => {
-                let handles = VmSlice::from_values(context, handles)?;
+                let handles = VmSlice::from_values(&mut context.write(), handles)?;
                 Ok(self.harness_value_vm(handles))
             }
             None => {
@@ -160,7 +160,7 @@ impl<'call> IpcHarnessContext<'call> {
                     ))
                     .boxed()
                 })?;
-                let handles = value.handles.read_values(context)?;
+                let handles = value.handles.read_values(&context.read())?;
                 Ok((value.bytes, handles, value.credentials))
             }
         }

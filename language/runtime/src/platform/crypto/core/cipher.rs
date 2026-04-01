@@ -308,9 +308,9 @@ fn cipher_finish_host_secret(
     // materialize runtime parameters from buffered host-stream state
     let parameters = CryptoCipherParameters {
         algorithm,
-        nonce: binding.store_slice(nonce.to_vec()),
-        additional_data: binding.store_slice(additional_data.to_vec()),
-        tag: binding.store_slice(decrypt_tag.to_vec()),
+        nonce: binding.store_slice_copy(nonce),
+        additional_data: binding.store_slice_copy(additional_data),
+        tag: binding.store_slice_copy(decrypt_tag),
         tag_length_bytes: Some(tag_length_bytes),
     };
 

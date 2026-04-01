@@ -87,7 +87,7 @@ fn test_device_camera_vm_open_queries_stream_metadata_when_devices_are_present()
                     vm_context,
                     stream_handle,
                 )?;
-                let active_config = VmAbiCodec::into_value(active_config, vm_context)?;
+                let active_config = VmAbiCodec::into_value(active_config, &vm_context.read())?;
                 assert_eq!(active_config, capability.config);
                 assert!(
                     capability.color_spaces.contains(
@@ -111,7 +111,7 @@ fn test_device_camera_vm_open_queries_stream_metadata_when_devices_are_present()
                 );
                 let frame = assert_camera_frame_or_would_block(frame)?;
                 if let Some(frame) = frame {
-                    drop(frame.into_value(vm_context)?);
+                    drop(frame.into_value(&vm_context.read())?);
                 }
 
                 device_vm::destack_device_camera_stream_stop(

@@ -188,7 +188,7 @@ pub(crate) fn decode_monitor_list(
                 .boxed());
             };
             let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
-            let values = values.read_values(vm_context)?;
+            let values = values.read_values(&vm_context.read())?;
             let mut decoded = Vec::with_capacity(values.len());
 
             for value in values {
@@ -228,7 +228,7 @@ pub(crate) fn decode_monitor_modes(
                 .boxed());
             };
             let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
-            Ok(values.read_values(vm_context)?)
+            Ok(values.read_values(&vm_context.read())?)
         }
     }
 }
@@ -755,15 +755,15 @@ pub(crate) fn harness_window_icon_set(
 
     if let Some(vm_context) = context.vm_context {
         let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
-        let pixels_vm =
-            VmSlice::from_bytes(vm_context, &pixels).expect("vm test byte slice should allocate");
+        let pixels_vm = VmSlice::from_bytes(&mut vm_context.write(), &pixels)
+            .expect("vm test byte slice should allocate");
         let image_vm = display::WindowIconImageVm {
             width: 2,
             height: 2,
             pixel_format: display::WindowIconPixelFormat::Rgba8,
             pixels: pixels_vm,
         };
-        let images_vm = VmSlice::from_values(vm_context, &[image_vm])?;
+        let images_vm = VmSlice::from_values(&mut vm_context.write(), &[image_vm])?;
         let icon_set_vm = display::WindowIconSetVm { images: images_vm };
 
         return Ok(HarnessValue::Vm(Some(icon_set_vm)));

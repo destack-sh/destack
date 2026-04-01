@@ -333,7 +333,7 @@ fn writable_byte_vectors_from_vm(
     context: &mut ExternalCallContext<'_>,
     values: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<(VmByteVectorList, NativeByteVectors)> {
-    let vm_values = values.read_values(context)?;
+    let vm_values = values.read_values(&context.read())?;
     let mut native = Vec::with_capacity(vm_values.len());
     for value in &vm_values {
         native.push(binding.store_slice(vec![0u8; value.len as usize]));
@@ -357,7 +357,7 @@ fn copy_written_vectors_to_vm(
         let copy_len = remaining.min(native_bytes.len());
         let mut vm_bytes = vec![0u8; vm_value.len as usize];
         vm_bytes[..copy_len].copy_from_slice(&native_bytes[..copy_len]);
-        vm_value.write_bytes(context, &vm_bytes)?;
+        vm_value.write_bytes(&mut context.write(), &vm_bytes)?;
 
         remaining = remaining.saturating_sub(copy_len);
         if remaining == 0 {

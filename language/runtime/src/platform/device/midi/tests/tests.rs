@@ -389,13 +389,14 @@ pub(crate) fn harness_output_records(
                     data_format: value.data_format,
                     protocol: value.protocol,
                     framing: value.framing,
-                    data: VmSlice::from_bytes(vm_context, data)
+                    data: VmSlice::from_bytes(&mut vm_context.write(), data)
                         .expect("vm test byte slice should allocate"),
                 });
             }
 
             Ok(HarnessValue::Vm(VmArray::from_values(
-                vm_context, &vm_values,
+                &mut vm_context.write(),
+                &vm_values,
             )?))
         }
         None => Ok(HarnessValue::Native(
@@ -638,7 +639,7 @@ pub(crate) fn decode_backend_descriptors_full(
                 .boxed());
             };
 
-            let values = values.read_values(vm_context)?;
+            let values = values.read_values(&vm_context.read())?;
             let mut decoded = Vec::with_capacity(values.len());
 
             for value in values {
@@ -990,7 +991,7 @@ pub(crate) fn decode_port_descriptor_identities(
                 .boxed());
             };
 
-            let values = values.read_values(vm_context)?;
+            let values = values.read_values(&vm_context.read())?;
             let mut decoded = Vec::with_capacity(values.len());
 
             for value in values {
@@ -1049,7 +1050,7 @@ pub(crate) fn decode_port_descriptors(
                 .boxed());
             };
 
-            let values = values.read_values(vm_context)?;
+            let values = values.read_values(&vm_context.read())?;
             let mut decoded = Vec::with_capacity(values.len());
 
             for value in values {
@@ -1125,7 +1126,7 @@ pub(crate) fn decode_input_record(
                 source_id,
                 value.data_format,
                 value.protocol,
-                value.data.read_bytes(vm_context)?,
+                value.data.read_bytes(&vm_context.read())?,
             ))
         }
     }
@@ -1281,7 +1282,7 @@ pub(crate) fn decode_events(
                 .boxed());
             };
 
-            let values = values.read_values(vm_context)?;
+            let values = values.read_values(&vm_context.read())?;
             let mut decoded = Vec::with_capacity(values.len());
 
             for value in values {

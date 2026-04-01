@@ -296,12 +296,13 @@ fn decode_background_task_descriptors(
                     .expect("vm background descriptor decode requires one vm context")
                     as *mut ExternalCallContext<'_>)
             };
-            let descriptors = descriptors.read_values(vm_context)?;
+            let descriptors = descriptors.read_values(&vm_context.read())?;
             let mut decoded = Vec::with_capacity(descriptors.len());
 
             for descriptor in descriptors {
                 decoded.push(BackgroundTaskDescriptorVm::into_value(
-                    descriptor, vm_context,
+                    descriptor,
+                    &vm_context.read(),
                 )?);
             }
 

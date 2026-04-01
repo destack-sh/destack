@@ -141,23 +141,20 @@ fn decode_uint64(
 /// Decode a string argument.
 #[allow(dead_code)]
 fn decode_string(
+    context: &vm::ExternalReadContext<'_, '_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
 ) -> RuntimeResult<vm::StringHandle> {
-    if value.tag() != vm::ValueTag::String {
-        return Err(
-            RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed(),
-        );
-    }
-
-    Ok(vm::StringHandle::new(value))
+    context.string_handle_from_value(value).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
+    })
 }
 
 /// Decode a slice argument.
 #[allow(dead_code)]
 fn decode_slice<T>(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &vm::ExternalReadContext<'_, '_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
@@ -193,78 +190,10 @@ fn decode_destack_tls_context_open_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(TlsContextOptionsVm,)> {
+    let context = &context.read();
     let options_value = arg_value(args, 0, "options", "TlsContextOptions")?;
-    let options = {
-        if options_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "options",
-                "TlsContextOptions",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(options_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "options",
-                "expected 5 fields",
-            ))
-            .boxed());
-        }
-        let options_role_raw = decode_int32(slots[0], "options_role_raw", "role")?;
-        let options_role = match options_role_raw {
-            0i32 => TlsRole::Client,
-            1i32 => TlsRole::Server,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "options_role",
-                    "unknown TlsRole value",
-                ))
-                .boxed());
-            }
-        };
-        let options_min_version_raw =
-            decode_int32(slots[1], "options_min_version_raw", "minVersion")?;
-        let options_min_version = match options_min_version_raw {
-            771i32 => TlsVersion::Tls12,
-            772i32 => TlsVersion::Tls13,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "options_min_version",
-                    "unknown TlsVersion value",
-                ))
-                .boxed());
-            }
-        };
-        let options_max_version_raw =
-            decode_int32(slots[2], "options_max_version_raw", "maxVersion")?;
-        let options_max_version = match options_max_version_raw {
-            771i32 => TlsVersion::Tls12,
-            772i32 => TlsVersion::Tls13,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "options_max_version",
-                    "unknown TlsVersion value",
-                ))
-                .boxed());
-            }
-        };
-        let options_verify_peer = decode_bool(slots[3], "options_verify_peer", "verifyPeer")?;
-        let options_alpn_protocols = decode_slice::<VmSlice<u8>>(
-            context,
-            slots[4],
-            "options_alpn_protocols",
-            "alpnProtocols",
-        )?;
-        TlsContextOptionsVm {
-            role: options_role,
-            min_version: options_min_version,
-            max_version: options_max_version,
-            verify_peer: options_verify_peer,
-            alpn_protocols: options_alpn_protocols,
-        }
-    };
+    let options =
+        <TlsContextOptionsVm as VmAggregateCodec>::decode_with_context(context, options_value)?;
     Ok((options,))
 }
 
@@ -285,6 +214,7 @@ fn decode_destack_tls_context_set_cipher_suites_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TlsContextHandle, VmSlice<vm::StringHandle>)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "TlsContextHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TlsContextHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -310,6 +240,7 @@ fn decode_destack_tls_context_set_groups_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TlsContextHandle, VmSlice<vm::StringHandle>)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "TlsContextHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TlsContextHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -371,6 +302,7 @@ fn decode_destack_tls_context_set_identity_pem_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TlsContextHandle, VmSlice<u8>, VmSlice<u8>)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "TlsContextHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TlsContextHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -444,6 +376,7 @@ fn decode_destack_tls_context_set_signature_algorithms_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TlsContextHandle, VmSlice<vm::StringHandle>)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "TlsContextHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TlsContextHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -469,6 +402,7 @@ fn decode_destack_tls_context_set_trust_anchors_pem_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TlsContextHandle, VmSlice<u8>)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "TlsContextHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TlsContextHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -525,12 +459,13 @@ fn decode_destack_tls_session_export_keying_material_args(
     VmSlice<u8>,
     u32,
 )> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "TlsSessionHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TlsSessionHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::TlsSessionHandle(handle_inner);
     let label_value = arg_value(args, 1, "label", "string")?;
-    let label = decode_string(label_value, "label", "string")?;
+    let label = decode_string(context, label_value, "label", "string")?;
     let argument_context_value = arg_value(args, 2, "argument_context", "Slice<uint8>")?;
     let argument_context = decode_slice::<u8>(
         context,
@@ -549,6 +484,7 @@ fn encode_destack_tls_session_export_keying_material_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -597,6 +533,7 @@ fn encode_destack_tls_session_negotiated_alpn_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -605,13 +542,14 @@ fn encode_destack_tls_session_negotiated_alpn_result(
 /// Decode arguments for destack.tls.session.open.
 #[inline]
 fn decode_destack_tls_session_open_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
     resource::TlsContextHandle,
     resource::SocketHandle,
     vm::StringHandle,
 )> {
+    let context = &context.read();
     let argument_context_value = arg_value(args, 0, "argument_context", "TlsContextHandle")?;
     let argument_context_inner_inner = decode_uint64(
         argument_context_value,
@@ -625,7 +563,7 @@ fn decode_destack_tls_session_open_args(
     let socket_inner = resource::ResourceId(socket_inner_inner);
     let socket = resource::SocketHandle(socket_inner);
     let servername_value = arg_value(args, 2, "servername", "string")?;
-    let servername = decode_string(servername_value, "servername", "string")?;
+    let servername = decode_string(context, servername_value, "servername", "string")?;
     Ok((argument_context, socket, servername))
 }
 
@@ -659,6 +597,7 @@ fn encode_destack_tls_session_peer_certificates_pem_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -670,6 +609,7 @@ fn decode_destack_tls_session_read_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TlsSessionHandle, VmSlice<u8>)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "TlsSessionHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TlsSessionHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -742,6 +682,7 @@ fn decode_destack_tls_session_write_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TlsSessionHandle, VmSlice<u8>)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "TlsSessionHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TlsSessionHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -1456,8 +1397,9 @@ fn destack_tls_session_negotiated_alpn_replay(
         |result| {
             if let Ok(()) = result {
                 let result_value: NativeSlice<u8> = unsafe { out.read() };
-                let mut result_recorded = Vec::new();
-                for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
+                let result_recorded_slice = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_slice.len());
+                for result_recorded_item in result_recorded_slice.iter().cloned() {
                     let result_recorded_item_recorded = result_recorded_item;
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -1481,12 +1423,14 @@ fn destack_tls_session_negotiated_alpn_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut value_native_values = Vec::new();
-                    for value_native_item in value.iter().cloned() {
-                        let value_native_decoded = value_native_item;
-                        value_native_values.push(value_native_decoded);
-                    }
-                    let value_native = binding.store_slice(value_native_values);
+                    let value_native =
+                        binding.store_slice_with(value.len(), |value_native_values| {
+                            for value_native_item in value {
+                                let value_native_decoded = value_native_item;
+                                value_native_values.push(value_native_decoded);
+                            }
+                            Ok(())
+                        })?;
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -2136,8 +2080,7 @@ fn destack_tls_context_close_vm_replay(
                 platform_simulation_vm::destack_tls_context_close(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = TlsContextCloseReplayRecord {
@@ -2156,8 +2099,7 @@ fn destack_tls_context_close_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -2186,8 +2128,7 @@ fn destack_tls_context_open_vm_replay(
                 platform_simulation_vm::destack_tls_context_open(binding, context, options)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::TlsContextHandle = value.clone();
                 let result_recorded = result_value;
@@ -2207,8 +2148,7 @@ fn destack_tls_context_open_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -2240,8 +2180,7 @@ fn destack_tls_session_close_vm_replay(
                 platform_simulation_vm::destack_tls_session_close(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = TlsSessionCloseReplayRecord {
@@ -2260,8 +2199,7 @@ fn destack_tls_session_close_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -2292,8 +2230,7 @@ fn destack_tls_session_handshake_vm_replay(
                 platform_simulation_vm::destack_tls_session_handshake(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: TlsHandshakeStatus = value.clone();
                 let result_recorded = result_value;
@@ -2313,8 +2250,7 @@ fn destack_tls_session_handshake_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -2351,7 +2287,7 @@ fn destack_tls_session_negotiated_alpn_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<u8> = value.clone();
                 let result_recorded = result_value.read_bytes(context)?;
@@ -2372,7 +2308,7 @@ fn destack_tls_session_negotiated_alpn_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -2416,8 +2352,7 @@ fn destack_tls_session_open_vm_replay(
                 servername,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::TlsSessionHandle = value.clone();
                 let result_recorded = result_value;
@@ -2437,8 +2372,7 @@ fn destack_tls_session_open_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -2474,8 +2408,7 @@ fn destack_tls_session_resumption_state_vm_replay(
                 )
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: TlsSessionResumptionState = value.clone();
                 let result_recorded = result_value;
@@ -2495,8 +2428,7 @@ fn destack_tls_session_resumption_state_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -2530,8 +2462,7 @@ fn destack_tls_session_shutdown_vm_replay(
                 platform_simulation_vm::destack_tls_session_shutdown(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = TlsSessionShutdownReplayRecord {
@@ -2550,8 +2481,7 @@ fn destack_tls_session_shutdown_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -3085,6 +3015,7 @@ pub(crate) fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: 
 
 /// Install VM bindings for tls.
 pub(crate) fn install_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+    super::abi_generated::register_tls_vm_storage_types(isolate);
     register_tls_vm_bindings(registry, isolate);
 }
 

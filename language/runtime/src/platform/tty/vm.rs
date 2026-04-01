@@ -25,7 +25,8 @@ fn termios_attributes_to_vm(
 ) -> RuntimeResult<TtyTermiosAttributesVm> {
     // decode native control characters and move them into VM memory
     let control_characters = unsafe { attributes.control_characters.as_slice()? };
-    let control_characters = VmSlice::from_bytes(context, control_characters)?;
+    let mut write = context.write();
+    let control_characters = VmSlice::from_bytes(&mut write, control_characters)?;
 
     // return one projected VM termios payload
     Ok(TtyTermiosAttributesVm {
@@ -46,7 +47,8 @@ fn termios_attributes_from_vm(
     attributes: TtyTermiosAttributesVm,
 ) -> RuntimeResult<TtyTermiosAttributes> {
     // copy VM control characters into binding-owned native memory
-    let control_characters = attributes.control_characters.read_bytes(context)?;
+    let read = context.read();
+    let control_characters = attributes.control_characters.read_bytes(&read)?;
     let control_characters = binding.store_slice(control_characters);
 
     // return one projected native termios payload
@@ -210,7 +212,8 @@ pub(crate) fn destack_tty_read(
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
     // copy one vm buffer into mutable host memory for the read call
-    let mut bytes = buffer.read_bytes(context)?;
+    let read = context.read();
+    let mut bytes = buffer.read_bytes(&read)?;
 
     // forward to host implementation and capture written count
     let read = call_out(|out| {
@@ -219,7 +222,8 @@ pub(crate) fn destack_tty_read(
     })?;
 
     // write host memory back into the vm buffer
-    buffer.write_bytes(context, &bytes)?;
+    let mut write = context.write();
+    buffer.write_bytes(&mut write, &bytes)?;
 
     Ok(read)
 }
@@ -248,7 +252,8 @@ pub(crate) fn destack_tty_write(
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
     // copy one vm buffer into host memory for the write call
-    let mut bytes = buffer.read_bytes(context)?;
+    let read = context.read();
+    let mut bytes = buffer.read_bytes(&read)?;
 
     // forward to host implementation
     let written = call_out(|out| {

@@ -58,12 +58,12 @@ impl<'a> NativeStringStore<'a> {
 
     /// Store a byte array.
     fn bytes(&self, data: &[u8]) -> NativeArray<u8> {
-        self.context.store_array(data.to_vec())
+        self.context.store_array_copy(data)
     }
 
     /// Store a utf16 unit array.
     fn utf16(&self, data: &[u16]) -> NativeArray<u16> {
-        self.context.store_array(data.to_vec())
+        self.context.store_array_copy(data)
     }
 }
 
@@ -97,12 +97,16 @@ impl<'a, 'ctx> VmStringStore<'a, 'ctx> {
 
     /// Store a byte array.
     fn bytes(&mut self, data: &[u8]) -> RuntimeResult<VmArray<u8>> {
-        VmArray::from_bytes(self.context, data)
+        let mut context = self.context.write();
+
+        VmArray::from_bytes(&mut context, data)
     }
 
     /// Store a utf16 unit array.
     fn utf16(&mut self, data: &[u16]) -> RuntimeResult<VmArray<u16>> {
-        VmArray::from_values(self.context, data)
+        let mut context = self.context.write();
+
+        VmArray::from_values(&mut context, data)
     }
 }
 

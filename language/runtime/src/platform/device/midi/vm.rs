@@ -91,7 +91,7 @@ fn output_records_from_vm(
     context: &mut vm::ExternalCallContext<'_>,
     records: VmArray<MidiOutputRecordVm>,
 ) -> RuntimeResult<Vec<midi_core::MidiOutputRecordValue>> {
-    let records = records.read_values(context)?;
+    let records = records.read_values(&context.read())?;
     let mut decoded = Vec::with_capacity(records.len());
 
     // decode each record into owned bytes

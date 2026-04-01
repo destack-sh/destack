@@ -741,7 +741,7 @@ pub(super) fn decode_xattr_list_bytes(
         if entry.is_empty() {
             continue;
         }
-        names.push(binding.store_array(entry.to_vec()));
+        names.push(binding.store_array_copy(entry));
     }
 
     Ok(binding.store_array(names))

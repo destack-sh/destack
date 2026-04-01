@@ -190,7 +190,7 @@ fn test_device_bluetooth_vm_session_open_closes_one_discovered_device_when_prese
             Some(listed) => listed,
             None => return Ok(()),
         };
-        let listed = listed.read_values(vm_context)?;
+        let listed = listed.read_values(&vm_context.read())?;
         let Some(adapter) = listed.first() else {
             return Ok(());
         };
@@ -222,7 +222,7 @@ fn test_device_bluetooth_vm_session_open_closes_one_discovered_device_when_prese
                 return Ok(());
             }
         };
-        let discovered = discovered.into_value(vm_context)?;
+        let discovered = discovered.into_value(&vm_context.read())?;
         let device_id =
             vm::StringHandle::new(vm_context.intern_string(scan_event_device_id(&discovered))?);
 
@@ -260,7 +260,7 @@ fn test_device_bluetooth_vm_session_descriptor_reads_one_opened_device_when_pres
             Some(listed) => listed,
             None => return Ok(()),
         };
-        let listed = listed.read_values(vm_context)?;
+        let listed = listed.read_values(&vm_context.read())?;
         let Some(adapter) = listed.first() else {
             return Ok(());
         };
@@ -292,7 +292,7 @@ fn test_device_bluetooth_vm_session_descriptor_reads_one_opened_device_when_pres
                 return Ok(());
             }
         };
-        let discovered = discovered.into_value(vm_context)?;
+        let discovered = discovered.into_value(&vm_context.read())?;
         let device_id = scan_event_device_id(&discovered).to_string();
         let device_handle = vm::StringHandle::new(vm_context.intern_string(&device_id)?);
 
@@ -308,7 +308,7 @@ fn test_device_bluetooth_vm_session_descriptor_reads_one_opened_device_when_pres
             vm_context,
             handle,
         )?;
-        let descriptor = descriptor.into_value(vm_context)?;
+        let descriptor = descriptor.into_value(&vm_context.read())?;
         assert_eq!(descriptor.id, device_id);
 
         device_vm::destack_device_bluetooth_close(context.call_context, vm_context, handle)?;

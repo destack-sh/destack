@@ -4176,8 +4176,8 @@ pub(super) fn gamepad_state_for_raw_input_device(
         battery,
         supports_rumble: device.supports_rumble,
         supports_trigger_rumble: false,
-        axes: binding.store_array(decoded.axes.to_vec()),
-        buttons: binding.store_array(decoded.buttons.to_vec()),
+        axes: binding.store_array_copy(&decoded.axes),
+        buttons: binding.store_array_copy(&decoded.buttons),
         touches: binding.store_array(Vec::new()),
     })
 }

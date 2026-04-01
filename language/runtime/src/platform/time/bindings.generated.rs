@@ -138,6 +138,7 @@ fn encode_destack_time_clock_metadata_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ClockMetadataVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.id as u8 as u64, 8));
@@ -145,9 +146,22 @@ fn encode_destack_time_clock_metadata_result(
                 Ok(vm::Value::uint(value.source as u8 as u64, 8));
             let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.resolution_ns, 64));
             let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_monotonic));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("time::ClockMetadata")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(3, field_3?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -345,46 +359,12 @@ fn decode_destack_time_timer_at_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, TimerOptionsVm)> {
+    let context = &context.read();
     let deadlinens_value = arg_value(args, 0, "deadlinens", "uint64")?;
     let deadlinens = decode_uint64(deadlinens_value, "deadlinens", "uint64")?;
     let options_value = arg_value(args, 1, "options", "TimerOptions")?;
-    let options = {
-        if options_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "options",
-                "TimerOptions",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(options_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "options",
-                "expected 2 fields",
-            ))
-            .boxed());
-        }
-        let options_clock_raw = decode_uint8(slots[0], "options_clock_raw", "clock")?;
-        let options_clock = match options_clock_raw {
-            1u8 => TimerClock::Wall,
-            2u8 => TimerClock::Monotonic,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "options_clock",
-                    "unknown TimerClock value",
-                ))
-                .boxed());
-            }
-        };
-        let options_flags_inner = decode_uint32(slots[1], "options_flags_inner", "flags")?;
-        let options_flags = TimerFlags(options_flags_inner);
-        TimerOptionsVm {
-            clock: options_clock,
-            flags: options_flags,
-        }
-    };
+    let options =
+        <TimerOptionsVm as VmAggregateCodec>::decode_with_context(context, options_value)?;
     Ok((deadlinens, options))
 }
 
@@ -427,46 +407,12 @@ fn decode_destack_time_timer_interval_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, TimerOptionsVm)> {
+    let context = &context.read();
     let periodns_value = arg_value(args, 0, "periodns", "uint64")?;
     let periodns = decode_uint64(periodns_value, "periodns", "uint64")?;
     let options_value = arg_value(args, 1, "options", "TimerOptions")?;
-    let options = {
-        if options_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "options",
-                "TimerOptions",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(options_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "options",
-                "expected 2 fields",
-            ))
-            .boxed());
-        }
-        let options_clock_raw = decode_uint8(slots[0], "options_clock_raw", "clock")?;
-        let options_clock = match options_clock_raw {
-            1u8 => TimerClock::Wall,
-            2u8 => TimerClock::Monotonic,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "options_clock",
-                    "unknown TimerClock value",
-                ))
-                .boxed());
-            }
-        };
-        let options_flags_inner = decode_uint32(slots[1], "options_flags_inner", "flags")?;
-        let options_flags = TimerFlags(options_flags_inner);
-        TimerOptionsVm {
-            clock: options_clock,
-            flags: options_flags,
-        }
-    };
+    let options =
+        <TimerOptionsVm as VmAggregateCodec>::decode_with_context(context, options_value)?;
     Ok((periodns, options))
 }
 
@@ -511,46 +457,12 @@ fn decode_destack_time_timer_once_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, TimerOptionsVm)> {
+    let context = &context.read();
     let delayns_value = arg_value(args, 0, "delayns", "uint64")?;
     let delayns = decode_uint64(delayns_value, "delayns", "uint64")?;
     let options_value = arg_value(args, 1, "options", "TimerOptions")?;
-    let options = {
-        if options_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "options",
-                "TimerOptions",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(options_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "options",
-                "expected 2 fields",
-            ))
-            .boxed());
-        }
-        let options_clock_raw = decode_uint8(slots[0], "options_clock_raw", "clock")?;
-        let options_clock = match options_clock_raw {
-            1u8 => TimerClock::Wall,
-            2u8 => TimerClock::Monotonic,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "options_clock",
-                    "unknown TimerClock value",
-                ))
-                .boxed());
-            }
-        };
-        let options_flags_inner = decode_uint32(slots[1], "options_flags_inner", "flags")?;
-        let options_flags = TimerFlags(options_flags_inner);
-        TimerOptionsVm {
-            clock: options_clock,
-            flags: options_flags,
-        }
-    };
+    let options =
+        <TimerOptionsVm as VmAggregateCodec>::decode_with_context(context, options_value)?;
     Ok((delayns, options))
 }
 
@@ -2492,8 +2404,7 @@ fn destack_time_clock_metadata_vm_replay(
         binding.replay_payload_for(TIME_CLOCK_METADATA)?,
         context,
         |context| platform_runtime_vm::destack_time_clock_metadata(binding, context, clock),
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: ClockMetadataVm = value.clone();
                 let result_recorded_id = result_value.id;
@@ -2522,8 +2433,7 @@ fn destack_time_clock_metadata_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -2558,8 +2468,7 @@ fn destack_time_clock_now_ns_vm_replay(
         binding.replay_payload_for(TIME_CLOCK_NOW_NS)?,
         context,
         |context| platform_runtime_vm::destack_time_now_ns(binding, context, clock),
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u64 = value.clone();
                 let result_recorded = result_value;
@@ -2579,8 +2488,7 @@ fn destack_time_clock_now_ns_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -2605,8 +2513,7 @@ fn destack_time_clock_process_cpu_ns_vm_replay(
         binding.replay_payload_for(TIME_CLOCK_PROCESS_CPU_NS)?,
         context,
         |context| platform_runtime_vm::destack_time_process_cpu_ns(binding, context),
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u64 = value.clone();
                 let result_recorded = result_value;
@@ -2626,8 +2533,7 @@ fn destack_time_clock_process_cpu_ns_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -2652,8 +2558,7 @@ fn destack_time_clock_thread_cpu_ns_vm_replay(
         binding.replay_payload_for(TIME_CLOCK_THREAD_CPU_NS)?,
         context,
         |context| platform_runtime_vm::destack_time_thread_cpu_ns(binding, context),
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u64 = value.clone();
                 let result_recorded = result_value;
@@ -2673,8 +2578,7 @@ fn destack_time_clock_thread_cpu_ns_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -2700,8 +2604,7 @@ fn destack_time_sleep_ns_vm_replay(
         binding.replay_payload_for(TIME_SLEEP_NS)?,
         context,
         |context| platform_runtime_vm::destack_time_sleep_ns(binding, context, duration),
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = TimeSleepNsReplayRecord {
@@ -2720,8 +2623,7 @@ fn destack_time_sleep_ns_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -2745,8 +2647,7 @@ fn destack_time_sleep_on_ns_vm_replay(
         binding.replay_payload_for(TIME_SLEEP_ON_NS)?,
         context,
         |context| platform_runtime_vm::destack_time_sleep_on_ns(binding, context, duration, clock),
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = TimeSleepOnNsReplayRecord {
@@ -2765,8 +2666,7 @@ fn destack_time_sleep_on_ns_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -2789,8 +2689,7 @@ fn destack_time_sleep_until_ns_vm_replay(
         binding.replay_payload_for(TIME_SLEEP_UNTIL_NS)?,
         context,
         |context| platform_runtime_vm::destack_time_sleep_until_ns(binding, context, deadline),
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = TimeSleepUntilNsReplayRecord {
@@ -2809,8 +2708,7 @@ fn destack_time_sleep_until_ns_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -2836,8 +2734,7 @@ fn destack_time_sleep_until_on_ns_vm_replay(
         |context| {
             platform_runtime_vm::destack_time_sleep_until_on_ns(binding, context, deadline, clock)
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = TimeSleepUntilOnNsReplayRecord {
@@ -2856,8 +2753,7 @@ fn destack_time_sleep_until_on_ns_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -2881,8 +2777,7 @@ fn destack_time_timer_at_vm_replay(
         binding.replay_payload_for(TIME_TIMER_AT)?,
         context,
         |context| platform_runtime_vm::destack_time_timer_at(binding, context, deadlinens, options),
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::TimerHandle = value.clone();
                 let result_recorded = result_value;
@@ -2902,8 +2797,7 @@ fn destack_time_timer_at_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -2929,8 +2823,7 @@ fn destack_time_timer_cancel_vm_replay(
         binding.replay_payload_for(TIME_TIMER_CANCEL)?,
         context,
         |context| platform_runtime_vm::destack_time_timer_cancel(binding, context, handle),
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = TimeTimerCancelReplayRecord {
@@ -2949,8 +2842,7 @@ fn destack_time_timer_cancel_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -2976,8 +2868,7 @@ fn destack_time_timer_interval_vm_replay(
         |context| {
             platform_runtime_vm::destack_time_timer_interval(binding, context, periodns, options)
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::TimerHandle = value.clone();
                 let result_recorded = result_value;
@@ -2997,8 +2888,7 @@ fn destack_time_timer_interval_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -3024,8 +2914,7 @@ fn destack_time_timer_is_active_vm_replay(
         binding.replay_payload_for(TIME_TIMER_IS_ACTIVE)?,
         context,
         |context| platform_runtime_vm::destack_time_timer_is_active(binding, context, handle),
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: bool = value.clone();
                 let result_recorded = result_value;
@@ -3045,8 +2934,7 @@ fn destack_time_timer_is_active_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -3073,8 +2961,7 @@ fn destack_time_timer_once_vm_replay(
         binding.replay_payload_for(TIME_TIMER_ONCE)?,
         context,
         |context| platform_runtime_vm::destack_time_timer_once(binding, context, delayns, options),
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::TimerHandle = value.clone();
                 let result_recorded = result_value;
@@ -3094,8 +2981,7 @@ fn destack_time_timer_once_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -3121,8 +3007,7 @@ fn destack_time_timer_pause_vm_replay(
         binding.replay_payload_for(TIME_TIMER_PAUSE)?,
         context,
         |context| platform_runtime_vm::destack_time_timer_pause(binding, context, handle),
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = TimeTimerPauseReplayRecord {
@@ -3141,8 +3026,7 @@ fn destack_time_timer_pause_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -3165,8 +3049,7 @@ fn destack_time_timer_remaining_ns_vm_replay(
         binding.replay_payload_for(TIME_TIMER_REMAINING_NS)?,
         context,
         |context| platform_runtime_vm::destack_time_timer_remaining_ns(binding, context, handle),
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u64 = value.clone();
                 let result_recorded = result_value;
@@ -3186,8 +3069,7 @@ fn destack_time_timer_remaining_ns_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -3214,8 +3096,7 @@ fn destack_time_timer_reset_vm_replay(
         binding.replay_payload_for(TIME_TIMER_RESET)?,
         context,
         |context| platform_runtime_vm::destack_time_timer_reset(binding, context, handle, delayns),
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = TimeTimerResetReplayRecord {
@@ -3234,8 +3115,7 @@ fn destack_time_timer_reset_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -3258,8 +3138,7 @@ fn destack_time_timer_resume_vm_replay(
         binding.replay_payload_for(TIME_TIMER_RESUME)?,
         context,
         |context| platform_runtime_vm::destack_time_timer_resume(binding, context, handle),
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = TimeTimerResumeReplayRecord {
@@ -3278,8 +3157,7 @@ fn destack_time_timer_resume_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -3307,8 +3185,7 @@ fn destack_time_timer_update_interval_vm_replay(
                 binding, context, handle, periodns,
             )
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = TimeTimerUpdateIntervalReplayRecord {
@@ -3327,8 +3204,7 @@ fn destack_time_timer_update_interval_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -3688,6 +3564,7 @@ pub(crate) fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate:
 
 /// Install VM bindings for time.
 pub(crate) fn install_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+    super::abi_generated::register_time_vm_storage_types(isolate);
     register_time_vm_bindings(registry, isolate);
 }
 

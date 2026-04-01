@@ -16,7 +16,7 @@ fn harness_permissions(
     match context.vm_context {
         Some(vm_context) => {
             let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
-            let values = VmArray::from_values(vm_context, values)?;
+            let values = VmArray::from_values(&mut vm_context.write(), values)?;
 
             Ok(HarnessValue::Vm(values))
         }

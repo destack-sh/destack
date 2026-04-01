@@ -131,7 +131,7 @@ pub(crate) fn normalize_optional_string(value: Option<String>) -> Option<String>
 
 /// Decode one VM string argument into owned text.
 pub(crate) fn decode_vm_string(
-    context: &vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     argument: vm::StringHandle,
     field: &str,
 ) -> RuntimeResult<String> {
@@ -148,11 +148,11 @@ pub(crate) fn decode_vm_string(
 
 /// Decode one VM byte slice argument into owned bytes.
 pub(crate) fn decode_vm_bytes(
-    context: &vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     bytes: VmSlice<u8>,
     field: &str,
 ) -> RuntimeResult<Vec<u8>> {
-    let bytes = bytes.read_bytes(context).map_err(|_| {
+    let bytes = bytes.read_bytes(&context.read()).map_err(|_| {
         RuntimeError::from(PlatformError::invalid_argument_value(
             field,
             "slice argument was invalid",
@@ -182,7 +182,7 @@ pub(crate) fn decode_native_query(query: CredentialQuery) -> RuntimeResult<Crede
 
 /// Decode one VM credential query into owned data.
 pub(crate) fn decode_vm_query(
-    context: &vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     query: CredentialQueryVm,
 ) -> RuntimeResult<CredentialQueryOwned> {
     let service = decode_vm_string(context, query.service, "query.service")?;
@@ -229,7 +229,7 @@ pub(crate) fn decode_native_write_options(
 
 /// Decode one VM credential write request into owned data.
 pub(crate) fn decode_vm_write_options(
-    context: &vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     options: CredentialWriteOptionsVm,
 ) -> RuntimeResult<CredentialWriteOptionsOwned> {
     let service = decode_vm_string(context, options.service, "options.service")?;
@@ -273,7 +273,7 @@ pub(crate) fn decode_native_authentication_options(
 
 /// Decode one VM authentication request into owned data.
 pub(crate) fn decode_vm_authentication_options(
-    context: &vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     options: CredentialAuthenticationOptionsVm,
 ) -> RuntimeResult<CredentialAuthenticationOptionsOwned> {
     let title = decode_vm_string(context, options.title, "options.title")?;
@@ -314,7 +314,7 @@ pub(crate) fn store_vm_record(
         account: context
             .string_handle(&record.account)
             .map_err(Box::<RuntimeError>::from)?,
-        bytes: VmSlice::from_bytes(context, &record.bytes)?,
+        bytes: VmSlice::from_bytes(&mut context.write(), &record.bytes)?,
         created_unix_ns: record.created_unix_ns,
         modified_unix_ns: record.modified_unix_ns,
     })

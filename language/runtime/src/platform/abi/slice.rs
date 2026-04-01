@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::marker::PhantomData;
 
 use destack_vm as vm;
@@ -19,26 +20,43 @@ pub struct VmSlice<T> {
     pub _marker: PhantomData<T>,
 }
 
+/// Narrow one decoded VM collection length to `u32`.
+fn vm_len_u32(len: u64, name: &str, expected: &str) -> RuntimeResult<u32> {
+    u32::try_from(len).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            name,
+            format!("{expected} length exceeds u32"),
+        ))
+        .boxed()
+    })
+}
+
+/// Narrow one encoded VM collection length to `u32`.
+fn abi_len_u32(len: usize, label: &str) -> RuntimeResult<u32> {
+    u32::try_from(len).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            label,
+            format!("{label} length exceeds u32"),
+        ))
+        .boxed()
+    })
+}
+
 impl<T> VmSlice<T> {
-    /// Decode a VM slice from an aggregate value.
+    /// Decode a VM slice from one typed slice value.
     pub fn from_value(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
         name: &str,
         expected: &str,
     ) -> RuntimeResult<Self> {
-        // value must be an aggregate pair
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed(),
-            );
-        }
+        let value_ref = context.value_ref(value).map_err(|_error| {
+            RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
+        })?;
 
-        // unpack aggregate slots
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
+        // validate the aggregate arity first
+        let field_count = value_ref.component_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 name,
                 format!("expected {expected} with 2 fields"),
@@ -47,10 +65,17 @@ impl<T> VmSlice<T> {
         }
 
         // decode pointer + length
-        let data = slots[0].as_raw_pointer().ok_or_else(|| {
+        let data_value = value_ref.component_value(0).map_err(|_error| {
             RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
         })?;
-        let (len, width) = slots[1].as_uint_with_width().ok_or_else(|| {
+        let len_value = value_ref.component_value(1).map_err(|_error| {
+            RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
+        })?;
+
+        let data = data_value.as_raw_pointer().ok_or_else(|| {
+            RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
+        })?;
+        let (len, width) = len_value.as_uint_with_width().ok_or_else(|| {
             RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
         })?;
         if width != 32 {
@@ -61,24 +86,25 @@ impl<T> VmSlice<T> {
 
         Ok(Self {
             data,
-            len: len as u32,
+            len: vm_len_u32(len, name, expected)?,
             _marker: PhantomData,
         })
     }
 
-    /// Encode this VM slice into an aggregate value.
-    pub fn to_value(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
-        let data = vm::Value::raw_pointer(self.data);
-        let len = vm::Value::uint(self.len as u64, 32);
+    /// Encode this VM slice into one typed slice value.
+    pub fn to_value(
+        self,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
+    ) -> RuntimeResult<vm::Value> {
         context
-            .allocate_pair(data, len)
+            .materialize_builtin_slice_value(self.data, self.len)
             .map_err(|error| RuntimeError::from(error).boxed())
     }
 
     /// Read the raw VM values stored in this slice.
     pub fn raw_values(
         &self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<Vec<vm::Value>> {
         let values = context
             .raw_values(self.data)
@@ -124,9 +150,76 @@ fn values_from_byte_vec<T: VmCollectionElement>(bytes: Vec<u8>) -> Option<Vec<T>
 }
 
 impl<T: VmCollectionElement> VmSlice<T> {
+    /// Visit each decoded VM slice value with context access.
+    pub fn try_for_each_value_with_context(
+        &self,
+        context: &vm::ExternalReadContext<'_, '_>,
+        mut visit: impl FnMut(&vm::ExternalReadContext<'_, '_>, T) -> RuntimeResult<()>,
+    ) -> RuntimeResult<()> {
+        // route byte payloads through raw byte storage
+        if is_byte_element_type::<T>() {
+            let bytes = VmSlice::<u8> {
+                data: self.data,
+                len: self.len,
+                _marker: PhantomData,
+            }
+            .read_bytes(context)?;
+
+            // safety: the type check above guarantees `T` is exactly `u8`
+            for byte in bytes {
+                let value = unsafe { std::mem::transmute_copy::<u8, T>(&byte) };
+                visit(context, value)?;
+            }
+
+            return Ok(());
+        }
+
+        // validate the packed raw byte length first
+        let expected_byte_len = (self.len as usize)
+            .checked_mul(vm::Value::BYTE_LEN)
+            .ok_or_else(|| {
+                RuntimeError::from(PlatformError::invalid_argument_value(
+                    "slice",
+                    "slice byte length overflow",
+                ))
+                .boxed()
+            })?;
+        let byte_len = context
+            .raw_byte_len(self.data)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+
+        if byte_len != expected_byte_len {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "slice",
+                "slice length mismatch",
+            ))
+            .boxed());
+        }
+
+        // decode each packed value lane directly
+        for index in 0..self.len as usize {
+            let value = context
+                .raw_value_at(self.data, index)
+                .map_err(|error| RuntimeError::from(error).boxed())?;
+            let value = T::decode_with_context(context, value)?;
+            visit(context, value)?;
+        }
+
+        Ok(())
+    }
+
+    /// Visit each decoded VM slice value without allocating an intermediate Vec.
+    pub fn try_for_each_value(
+        &self,
+        context: &vm::ExternalReadContext<'_, '_>,
+        mut visit: impl FnMut(T) -> RuntimeResult<()>,
+    ) -> RuntimeResult<()> {
+        self.try_for_each_value_with_context(context, |_context, value| visit(value))
+    }
+
     /// Allocate a VM slice from decoded values.
     pub fn from_values(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         values: &[T],
     ) -> RuntimeResult<Self> {
         // route byte payloads through raw byte storage
@@ -140,24 +233,28 @@ impl<T: VmCollectionElement> VmSlice<T> {
             });
         }
 
-        // encode packed element values for non-byte slices
-        let mut encoded = Vec::with_capacity(values.len());
-        for value in values {
-            encoded.push(T::encode_with_context(*value, context)?);
-        }
+        // allocate packed element storage once
         let data = context
-            .allocate_raw_values(encoded)
+            .allocate_raw_value_slots(values.len())
             .map_err(|error| RuntimeError::from(error).boxed())?;
+
+        // encode each packed element directly into the final raw storage
+        for (index, value) in values.iter().copied().enumerate() {
+            let encoded = T::encode_with_context(value, context)?;
+            context
+                .write_raw_value(data, index, encoded)
+                .map_err(|error| RuntimeError::from(error).boxed())?;
+        }
 
         Ok(Self {
             data,
-            len: values.len() as u32,
+            len: abi_len_u32(values.len(), "slice")?,
             _marker: PhantomData,
         })
     }
 
     /// Read the VM slice into a Vec of decoded values.
-    pub fn read_values(&self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<Vec<T>> {
+    pub fn read_values(&self, context: &vm::ExternalReadContext<'_, '_>) -> RuntimeResult<Vec<T>> {
         // route byte payloads through raw byte storage
         if is_byte_element_type::<T>() {
             let bytes = VmSlice::<u8> {
@@ -178,25 +275,12 @@ impl<T: VmCollectionElement> VmSlice<T> {
             return Ok(values);
         }
 
-        // read raw values from the heap
-        let values = context
-            .raw_values(self.data)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
+        let mut decoded = Vec::with_capacity(self.len as usize);
 
-        // validate length
-        if values.len() != self.len as usize {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "slice",
-                "slice length mismatch",
-            ))
-            .boxed());
-        }
-
-        // decode each value
-        let mut decoded = Vec::with_capacity(values.len());
-        for value in values {
-            decoded.push(T::decode_with_context(context, value)?);
-        }
+        self.try_for_each_value(context, |value| {
+            decoded.push(value);
+            Ok(())
+        })?;
 
         Ok(decoded)
     }
@@ -204,7 +288,7 @@ impl<T: VmCollectionElement> VmSlice<T> {
     /// Write decoded values into the VM slice.
     pub fn write_values(
         &self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         values: &[T],
     ) -> RuntimeResult<()> {
         // route byte payloads through raw byte storage
@@ -226,29 +310,51 @@ impl<T: VmCollectionElement> VmSlice<T> {
             .boxed());
         }
 
-        // encode packed element values for non-byte slices
-        let mut encoded = Vec::with_capacity(values.len());
-        for value in values {
-            encoded.push(T::encode_with_context(*value, context)?);
+        // encode each packed element directly into the existing raw storage
+        for (index, value) in values.iter().copied().enumerate() {
+            let encoded = T::encode_with_context(value, context)?;
+            context
+                .write_raw_value(self.data, index, encoded)
+                .map_err(|error| RuntimeError::from(error).boxed())?;
         }
-        context
-            .write_raw_values(self.data, &encoded)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
+
         Ok(())
     }
 }
 
 impl<T: Copy> VmAggregateCodec for VmSlice<T> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
         VmSlice::from_value(context, value, "value", "slice")
     }
 
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        if value_ref.component_count() != 2 {
+            return Err(
+                RuntimeError::from(PlatformError::invalid_argument_type("value", "slice")).boxed(),
+            );
+        }
+
+        let data = <vm::RawPointer as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
+        let len = <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+
+        Ok(Self {
+            data,
+            len,
+            _marker: PhantomData,
+        })
+    }
+
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         self.to_value(context)
     }
@@ -259,22 +365,26 @@ impl<T: Copy> VmCollectionElement for VmSlice<T> {}
 impl VmSlice<u8> {
     /// Allocate a VM slice from raw bytes.
     pub fn from_bytes(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         bytes: &[u8],
     ) -> RuntimeResult<Self> {
         let data = context
             .allocate_raw_bytes(bytes)
             .map_err(|error| RuntimeError::from(error).boxed())?;
+        let len = abi_len_u32(bytes.len(), "slice")?;
 
         Ok(Self {
             data,
-            len: bytes.len() as u32,
+            len,
             _marker: PhantomData,
         })
     }
 
-    /// Read a byte slice from the VM.
-    pub fn read_bytes(&self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<Vec<u8>> {
+    /// Borrow or copy a byte slice from the VM.
+    pub fn bytes<'a>(
+        &self,
+        context: &'a vm::ExternalReadContext<'_, '_>,
+    ) -> RuntimeResult<Cow<'a, [u8]>> {
         let expected_len = self.len as usize;
 
         // prefer true byte storage when the raw allocation size matches
@@ -282,18 +392,23 @@ impl VmSlice<u8> {
             && byte_len == expected_len
         {
             return context
-                .raw_bytes(self.data)
+                .raw_bytes_ref(self.data)
                 .map_err(|error| RuntimeError::from(error).boxed());
         }
 
         // compatibility: some older callers encoded byte slices as packed values
-        self.read_values(context)
+        Ok(Cow::Owned(self.read_values(context)?))
+    }
+
+    /// Read a byte slice from the VM.
+    pub fn read_bytes(&self, context: &vm::ExternalReadContext<'_, '_>) -> RuntimeResult<Vec<u8>> {
+        Ok(self.bytes(context)?.into_owned())
     }
 
     /// Write a byte slice into the VM.
     pub fn write_bytes(
         &self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         bytes: &[u8],
     ) -> RuntimeResult<()> {
         let expected_len = self.len as usize;

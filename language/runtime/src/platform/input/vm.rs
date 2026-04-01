@@ -102,14 +102,14 @@ fn native_string_to_vm(
 /// Decode one VM binding payload into one native binding payload.
 fn native_value_from_vm<Native, Vm>(
     binding: &BindingCallContext,
-    context: &destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     value: Vm,
 ) -> RuntimeResult<Native>
 where
     Native: NativeAbiCodec<Value = Vm::Value>,
     Vm: VmAbiCodec,
 {
-    let value = value.into_value(context)?;
+    let value = value.into_value(&context.read())?;
 
     Ok(Native::from_value(binding, value))
 }
@@ -125,7 +125,7 @@ where
 {
     let value = unsafe { value.into_value()? };
 
-    Vm::from_value(context, value)
+    Vm::from_value(&mut context.write(), value)
 }
 
 /// Convert one native capabilities payload into its VM shape.
@@ -1392,7 +1392,7 @@ pub(crate) fn destack_input_clipboard_read_item_bytes(
         )
     })?;
 
-    VmSlice::from_bytes(context, unsafe { value.as_slice()? })
+    VmSlice::from_bytes(&mut context.write(), unsafe { value.as_slice()? })
 }
 
 /// Read one clipboard item as one path.

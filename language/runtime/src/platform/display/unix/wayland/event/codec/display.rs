@@ -248,8 +248,8 @@ pub(crate) fn display_event_from_record(
                 value.dropped_count,
             ),
             payload: DisplayPrimaryPayload {
-                previous_id: previous_id.map(|value| context.store_string(value.as_str())),
-                current_id: current_id.map(|value| context.store_string(value.as_str())),
+                previous_id: previous_id.map(|value| context.store_string_owned(value)),
+                current_id: current_id.map(|value| context.store_string_owned(value)),
             },
         }),
         DisplayEventRecordKind::DescriptorChanged {

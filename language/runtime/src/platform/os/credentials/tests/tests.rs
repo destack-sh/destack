@@ -194,7 +194,7 @@ pub(super) fn decode_credential_record_value(
                 .map_err(|error| RuntimeError::from(error).boxed())?
                 .as_str()
                 .to_string();
-            let bytes = value.bytes.read_bytes(vm_context)?.to_vec();
+            let bytes = value.bytes.read_bytes(&vm_context.read())?.to_vec();
 
             Ok((service, account, bytes))
         }

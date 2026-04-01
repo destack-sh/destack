@@ -485,7 +485,7 @@ pub(crate) unsafe fn destack_net_recv_msg(
 
     // decode raw ancillary payload
     let control_len = (message.Control.len as usize).min(control.len());
-    let control = binding.store_array(control[..control_len].to_vec());
+    let control = binding.store_array_copy(&control[..control_len]);
     let fds: Vec<TransferredHandle> = Vec::new();
     let fds = binding.store_array(fds);
 

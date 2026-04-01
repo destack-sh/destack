@@ -217,7 +217,7 @@ fn decode_background_event_value(
                     as *mut ExternalCallContext<'_>)
             };
 
-            BackgroundEventVm::into_value(event, vm_context)?
+            BackgroundEventVm::into_value(event, &vm_context.read())?
         }
     })
 }

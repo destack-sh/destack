@@ -291,16 +291,24 @@ mod tests {
             earliest_begin_unix_ns: None,
             repeat_interval_ns: Some(300_000_000_000),
         };
+
+        // bracket the scheduler call with one wall clock range
+        let before_unix_ns = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system time should be after the unix epoch")
+            .as_nanos()
+            .min(u128::from(u64::MAX)) as u64;
         let first_run_unix_ns =
             background_first_run_unix_ns(&schedule).expect("recurring first run should resolve");
-        let now_unix_ns = std::time::SystemTime::now()
+        let after_unix_ns = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .expect("system time should be after the unix epoch")
             .as_nanos()
             .min(u128::from(u64::MAX)) as u64;
 
-        assert!(first_run_unix_ns >= now_unix_ns);
-        assert!(first_run_unix_ns < now_unix_ns.saturating_add(300_000_000_000));
+        assert!(first_run_unix_ns >= before_unix_ns);
+        assert!(first_run_unix_ns <= after_unix_ns);
+        assert!(first_run_unix_ns < after_unix_ns.saturating_add(300_000_000_000));
     }
 
     /// Build one desktop background options payload for validation tests.

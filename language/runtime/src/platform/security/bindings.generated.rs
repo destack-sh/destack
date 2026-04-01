@@ -92,23 +92,20 @@ fn decode_uint64(
 /// Decode a string argument.
 #[allow(dead_code)]
 fn decode_string(
+    context: &vm::ExternalReadContext<'_, '_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
 ) -> RuntimeResult<vm::StringHandle> {
-    if value.tag() != vm::ValueTag::String {
-        return Err(
-            RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed(),
-        );
-    }
-
-    Ok(vm::StringHandle::new(value))
+    context.string_handle_from_value(value).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
+    })
 }
 
 /// Decode a slice argument.
 #[allow(dead_code)]
 fn decode_slice<T>(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &vm::ExternalReadContext<'_, '_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
@@ -119,11 +116,17 @@ fn decode_slice<T>(
 /// Decode arguments for destack.security.capability.has.
 #[inline]
 fn decode_destack_security_capability_has_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
+    let context = &context.read();
     let capability_value = arg_value(args, 0, "capability", "PlatformCapability")?;
-    let capability = decode_string(capability_value, "capability", "PlatformCapability")?;
+    let capability = decode_string(
+        context,
+        capability_value,
+        "capability",
+        "PlatformCapability",
+    )?;
     Ok((capability,))
 }
 
@@ -144,6 +147,7 @@ fn encode_destack_security_capability_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<vm::StringHandle>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -177,6 +181,7 @@ fn decode_destack_security_enforce_sandbox_set_capabilities_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SandboxHandle, VmSlice<vm::StringHandle>)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "SandboxHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SandboxHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -223,11 +228,12 @@ fn encode_destack_security_enforce_set_write_xor_execute_result(
 /// Decode arguments for destack.security.policy.get.
 #[inline]
 fn decode_destack_security_policy_get_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
+    let context = &context.read();
     let scope_value = arg_value(args, 0, "scope", "string")?;
-    let scope = decode_string(scope_value, "scope", "string")?;
+    let scope = decode_string(context, scope_value, "scope", "string")?;
     Ok((scope,))
 }
 
@@ -237,6 +243,7 @@ fn encode_destack_security_policy_get_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<vm::StringHandle>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -245,11 +252,12 @@ fn encode_destack_security_policy_get_result(
 /// Decode arguments for destack.security.policy.getRules.
 #[inline]
 fn decode_destack_security_policy_get_rules_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
+    let context = &context.read();
     let scope_value = arg_value(args, 0, "scope", "string")?;
-    let scope = decode_string(scope_value, "scope", "string")?;
+    let scope = decode_string(context, scope_value, "scope", "string")?;
     Ok((scope,))
 }
 
@@ -259,6 +267,7 @@ fn encode_destack_security_policy_get_rules_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<SecurityPolicyRuleVm>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -270,8 +279,9 @@ fn decode_destack_security_policy_set_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle, VmSlice<vm::StringHandle>)> {
+    let context = &context.read();
     let scope_value = arg_value(args, 0, "scope", "string")?;
-    let scope = decode_string(scope_value, "scope", "string")?;
+    let scope = decode_string(context, scope_value, "scope", "string")?;
     let capabilities_value = arg_value(args, 1, "capabilities", "Slice<PlatformCapability>")?;
     let capabilities = decode_slice::<vm::StringHandle>(
         context,
@@ -297,8 +307,9 @@ fn decode_destack_security_policy_set_rules_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle, VmSlice<SecurityPolicyRuleVm>)> {
+    let context = &context.read();
     let scope_value = arg_value(args, 0, "scope", "string")?;
-    let scope = decode_string(scope_value, "scope", "string")?;
+    let scope = decode_string(context, scope_value, "scope", "string")?;
     let rules_value = arg_value(args, 1, "rules", "Slice<SecurityPolicyRule>")?;
     let rules = decode_slice::<SecurityPolicyRuleVm>(
         context,
@@ -321,11 +332,12 @@ fn encode_destack_security_policy_set_rules_result(
 /// Decode arguments for destack.security.sandbox.enter.
 #[inline]
 fn decode_destack_security_sandbox_enter_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
+    let context = &context.read();
     let name_value = arg_value(args, 0, "name", "string")?;
-    let name = decode_string(name_value, "name", "string")?;
+    let name = decode_string(context, name_value, "name", "string")?;
     Ok((name,))
 }
 
@@ -933,8 +945,7 @@ fn destack_security_sandbox_enter_vm_replay(
         binding.replay_payload_for(SECURITY_SANDBOX_ENTER)?,
         context,
         |context| platform_runtime_vm::destack_security_sandbox_enter(binding, context, name),
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::SandboxHandle = value.clone();
                 let result_recorded = result_value;
@@ -954,8 +965,7 @@ fn destack_security_sandbox_enter_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -981,8 +991,7 @@ fn destack_security_sandbox_exit_vm_replay(
         binding.replay_payload_for(SECURITY_SANDBOX_EXIT)?,
         context,
         |context| platform_runtime_vm::destack_security_sandbox_exit(binding, context, handle),
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = SecuritySandboxExitReplayRecord {
@@ -1001,8 +1010,7 @@ fn destack_security_sandbox_exit_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -1274,6 +1282,7 @@ pub(crate) fn register_security_vm_bindings(registry: &mut BindingRegistry, isol
 
 /// Install VM bindings for security.
 pub(crate) fn install_security_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+    super::abi_generated::register_security_vm_storage_types(isolate);
     register_security_vm_bindings(registry, isolate);
 }
 

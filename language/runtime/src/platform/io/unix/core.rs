@@ -349,7 +349,7 @@ pub(crate) fn host_control_ioctl(
 
     // encode the fixed-size output lane requested by the caller
     let output_len = request.output_size as usize;
-    let output = binding.store_slice(lane[..output_len].to_vec());
+    let output = binding.store_slice_copy(&lane[..output_len]);
 
     Ok(DescriptorResult {
         return_value: result as i64,

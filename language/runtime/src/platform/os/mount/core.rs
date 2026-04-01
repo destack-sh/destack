@@ -52,7 +52,7 @@ pub(crate) fn read_mount_entries_vm(
         .map(|entry| vm_mount_entry(context, entry))
         .collect::<RuntimeResult<Vec<_>>>()?;
 
-    VmArray::from_values(context, &entries)
+    VmArray::from_values(&mut context.write(), &entries)
 }
 
 /// Encode one mount entry for the native ABI.
@@ -95,7 +95,7 @@ fn vm_mount_entry(
 /// Encode one native path payload from a host path.
 #[cfg(unix)]
 fn native_os_path_from_path(binding: &BindingCallContext, path: &Path) -> fs::OsPath {
-    let bytes = PathBytesAbi(binding.store_array(path.as_os_str().as_bytes().to_vec()));
+    let bytes = PathBytesAbi(binding.store_array_copy(path.as_os_str().as_bytes()));
 
     core_fs::path_ref_from_bytes(bytes)
 }
@@ -112,7 +112,7 @@ fn native_os_path_from_path(binding: &BindingCallContext, path: &Path) -> fs::Os
 /// Encode one native path payload from a host path.
 #[cfg(not(any(unix, windows)))]
 fn native_os_path_from_path(binding: &BindingCallContext, path: &Path) -> fs::OsPath {
-    let bytes = PathBytesAbi(binding.store_array(path.to_string_lossy().as_bytes().to_vec()));
+    let bytes = PathBytesAbi(binding.store_array_copy(path.to_string_lossy().as_bytes()));
 
     core_fs::path_ref_from_bytes(bytes)
 }
@@ -123,7 +123,10 @@ fn vm_os_path_from_path(
     context: &mut vm::ExternalCallContext<'_>,
     path: &Path,
 ) -> RuntimeResult<fs::OsPathVm> {
-    let bytes = PathBytesAbi::<VmAbi>(VmArray::from_bytes(context, path.as_os_str().as_bytes())?);
+    let bytes = PathBytesAbi::<VmAbi>(VmArray::from_bytes(
+        &mut context.write(),
+        path.as_os_str().as_bytes(),
+    )?);
     let kind = vm::StringHandle::new(context.intern_string("bytes")?);
 
     Ok(fs::OsPathVm::OsPathBytes(fs::OsPathBytesVm { kind, bytes }))
@@ -136,7 +139,7 @@ fn vm_os_path_from_path(
     path: &Path,
 ) -> RuntimeResult<fs::OsPathVm> {
     let units = path.as_os_str().encode_wide().collect::<Vec<_>>();
-    let utf16 = PathUtf16Abi::<VmAbi>(VmArray::from_values(context, &units)?);
+    let utf16 = PathUtf16Abi::<VmAbi>(VmArray::from_values(&mut context.write(), &units)?);
     let kind = vm::StringHandle::new(context.intern_string("utf16")?);
 
     Ok(fs::OsPathVm::OsPathUtf16(fs::OsPathUtf16Vm { kind, utf16 }))
@@ -149,7 +152,7 @@ fn vm_os_path_from_path(
     path: &Path,
 ) -> RuntimeResult<fs::OsPathVm> {
     let text = path.to_string_lossy();
-    let bytes = PathBytesAbi::<VmAbi>(VmArray::from_bytes(context, text.as_bytes())?);
+    let bytes = PathBytesAbi::<VmAbi>(VmArray::from_bytes(&mut context.write(), text.as_bytes())?);
     let kind = vm::StringHandle::new(context.intern_string("bytes")?);
 
     Ok(fs::OsPathVm::OsPathBytes(fs::OsPathBytesVm { kind, bytes }))

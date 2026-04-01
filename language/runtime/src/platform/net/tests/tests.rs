@@ -257,7 +257,7 @@ fn vm_slice_of_slices(
 ) -> VmSlice<VmSlice<u8>> {
     let values = slices
         .iter()
-        .map(|slice| slice.to_value(context))
+        .map(|slice| slice.to_value(&mut context.write()))
         .collect::<RuntimeResult<Vec<_>>>()
         .expect("vm test slice values should encode");
     let data = vm_test_raw_values(context, values);
@@ -283,7 +283,7 @@ fn socket_address_raw_vm(
     context: &mut vm::ExternalCallContext<'_>,
     address: SocketAddressVm,
 ) -> RuntimeResult<(u16, Vec<u8>)> {
-    let bytes = address.bytes.read_bytes(context)?;
+    let bytes = address.bytes.read_bytes(&context.read())?;
     Ok((address.family, bytes))
 }
 
@@ -303,11 +303,11 @@ fn socket_addresses_vm(
     context: &mut vm::ExternalCallContext<'_>,
     addresses: VmArray<SocketAddressVm>,
 ) -> RuntimeResult<Vec<(String, u16, SocketFamily)>> {
-    let values = addresses.raw_values(context)?;
+    let values = addresses.raw_values(&context.read())?;
     let mut decoded = Vec::with_capacity(values.len());
     for value in values {
         let address = socket_address_vm_from_value(context, value)?;
-        let bytes = address.bytes.read_bytes(context)?;
+        let bytes = address.bytes.read_bytes(&context.read())?;
         decoded.push(socket_address_from_raw(address.family, &bytes)?);
     }
     Ok(decoded)
@@ -360,11 +360,11 @@ fn reverse_lookup_records_vm(
     context: &mut vm::ExternalCallContext<'_>,
     values: VmArray<platform_net::ReverseLookupNameVm>,
 ) -> RuntimeResult<Vec<(String, String)>> {
-    let values = values.raw_values(context)?;
+    let values = values.raw_values(&context.read())?;
     let mut decoded = Vec::with_capacity(values.len());
     for value in values {
         let slots = context
-            .aggregate_slots(value)
+            .decode_component_values(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
@@ -397,7 +397,7 @@ fn udp_receive_vm(
     context: &mut vm::ExternalCallContext<'_>,
     receive: UdpReceiveVm,
 ) -> RuntimeResult<(String, u16, SocketFamily, u64, u32)> {
-    let bytes = receive.address.bytes.read_bytes(context)?;
+    let bytes = receive.address.bytes.read_bytes(&context.read())?;
     let (host, port, family) = socket_address_from_raw(receive.address.family, &bytes)?;
     Ok((host, port, family, receive.bytes, receive.recv_flags.0))
 }
@@ -771,7 +771,7 @@ fn socket_address_vm_from_host_port(
     family: SocketFamily,
 ) -> RuntimeResult<SocketAddressVm> {
     let address = socket_address_native_from_host_port(binding, host, port, family)?;
-    let bytes = VmArray::from_bytes(context, address.bytes()).map_err(|error| {
+    let bytes = VmArray::from_bytes(&mut context.write(), address.bytes()).map_err(|error| {
         RuntimeError::from(PlatformError::invalid_argument_value(
             "address.bytes",
             format!("failed to encode vm byte array: {error}"),
@@ -812,15 +812,8 @@ fn socket_address_vm_from_value(
     value: vm::Value,
 ) -> RuntimeResult<SocketAddressVm> {
     // decode aggregate fields
-    if value.tag() != vm::ValueTag::Aggregate {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-            "address",
-            "SocketAddress",
-        ))
-        .boxed());
-    }
     let slots = context
-        .aggregate_slots(value)
+        .decode_component_values(value)
         .map_err(|error| RuntimeError::from(error).boxed())?;
     if slots.len() != 3 {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
@@ -833,7 +826,8 @@ fn socket_address_vm_from_value(
     // decode family, length, and bytes
     let family = <u16 as VmValueCodec>::decode(slots[0])?;
     let length = <u32 as VmValueCodec>::decode(slots[1])?;
-    let bytes = VmArray::<u8>::from_value(context, slots[2], "address.bytes", "VmArray<u8>")?;
+    let bytes =
+        VmArray::<u8>::from_value(&context.read(), slots[2], "address.bytes", "VmArray<u8>")?;
 
     Ok(SocketAddressVm {
         family,
@@ -847,8 +841,8 @@ fn path_ref_vm(context: &mut vm::ExternalCallContext<'_>, path: &std::path::Path
     {
         use std::os::unix::ffi::OsStrExt;
         let bytes = path.as_os_str().as_bytes();
-        let array =
-            VmArray::from_bytes(context, bytes).expect("vm test byte array should allocate");
+        let array = VmArray::from_bytes(&mut context.write(), bytes)
+            .expect("vm test byte array should allocate");
         let kind = vm::StringHandle::new(
             context
                 .intern_string("bytes")
@@ -866,7 +860,8 @@ fn path_ref_vm(context: &mut vm::ExternalCallContext<'_>, path: &std::path::Path
     {
         use std::os::windows::ffi::OsStrExt;
         let units: Vec<u16> = path.as_os_str().encode_wide().collect();
-        let array = VmArray::from_values(context, &units).expect("vm utf16 path should encode");
+        let array = VmArray::from_values(&mut context.write(), &units)
+            .expect("vm utf16 path should encode");
         let kind = vm::StringHandle::new(
             context
                 .intern_string("utf16")
@@ -892,7 +887,8 @@ fn path_ref_vm_utf16(
     let bytes = path.as_os_str().as_bytes();
     let text = std::str::from_utf8(bytes).expect("test path should be valid utf8");
     let units: Vec<u16> = text.encode_utf16().collect();
-    let array = VmArray::from_values(context, &units).expect("vm utf16 path should encode");
+    let array =
+        VmArray::from_values(&mut context.write(), &units).expect("vm utf16 path should encode");
     let kind = vm::StringHandle::new(
         context
             .intern_string("utf16")

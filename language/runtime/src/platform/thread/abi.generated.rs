@@ -33,28 +33,31 @@ pub type ThreadCpuVm = ThreadCpu;
 
 impl VmAggregateCodec for ThreadCpu {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "ThreadCpu",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_group = <u16 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_cpu = <u16 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_group =
+            <u16 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let field_cpu =
+            <u16 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
         Ok(Self {
             group: field_group,
             cpu: field_cpu,
@@ -63,15 +66,20 @@ impl VmAggregateCodec for ThreadCpu {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <u16 as VmAggregateCodec>::encode_with_context(self.group, context)?,
-            <u16 as VmAggregateCodec>::encode_with_context(self.cpu, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("thread::ThreadCpu")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <u16 as VmAggregateCodec>::encode_with_context(self.group, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <u16 as VmAggregateCodec>::encode_with_context(self.cpu, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -95,13 +103,13 @@ impl VmAbiCodec for ThreadCpu {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -143,41 +151,46 @@ impl Clone for ThreadCpuSetAbi<VmAbi> {
 
 impl VmAggregateCodec for ThreadCpuSetAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "ThreadCpuSet",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 1 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 1 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 1 fields",
             ))
             .boxed());
         }
-        let field_cpus =
-            <VmArray<ThreadCpuVm> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_cpus = <VmArray<ThreadCpuVm> as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
         Ok(Self { cpus: field_cpus })
     }
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <VmArray<ThreadCpuVm> as VmAggregateCodec>::encode_with_context(self.cpus, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("thread::ThreadCpuSet")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <VmArray<ThreadCpuVm> as VmAggregateCodec>::encode_with_context(self.cpus, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -211,7 +224,7 @@ impl VmAbiCodec for ThreadCpuSetAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(ThreadCpuSetValue {
             cpus: <VmArray<ThreadCpuVm> as VmAbiCodec>::into_value(self.cpus, context)?,
@@ -219,7 +232,7 @@ impl VmAbiCodec for ThreadCpuSetAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -242,28 +255,31 @@ pub type ThreadOptionsVm = ThreadOptions;
 
 impl VmAggregateCodec for ThreadOptions {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "ThreadOptions",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_stack_bytes = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_stack_bytes =
+            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let field_flags =
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
         Ok(Self {
             stack_bytes: field_stack_bytes,
             flags: field_flags,
@@ -272,15 +288,21 @@ impl VmAggregateCodec for ThreadOptions {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <u64 as VmAggregateCodec>::encode_with_context(self.stack_bytes, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("thread::ThreadOptions")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u64 as VmAggregateCodec>::encode_with_context(self.stack_bytes, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -304,13 +326,13 @@ impl VmAbiCodec for ThreadOptions {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -324,4 +346,11 @@ impl VmCollectionElement for ThreadOptions {}
 pub struct ThreadcpusetReplayRecord {
     /// Logical processors in the affinity set.
     pub cpus: Vec<ThreadCpu>,
+}
+
+/// Register VM storage schemas for thread.
+pub(crate) fn register_thread_vm_storage_types(isolate: &mut vm::Isolate) {
+    isolate.register_named_storage_type("thread::ThreadCpu", 2);
+    isolate.register_named_storage_type("thread::ThreadCpuSet", 1);
+    isolate.register_named_storage_type("thread::ThreadOptions", 2);
 }

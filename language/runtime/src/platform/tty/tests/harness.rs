@@ -25,7 +25,7 @@ impl<'call> TtyHarnessContext<'call> {
     ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
         match self.vm_context_mut() {
             Some(context) => {
-                let bytes = VmSlice::from_bytes(context, bytes)?;
+                let bytes = VmSlice::from_bytes(&mut context.write(), bytes)?;
                 Ok(self.harness_value_vm(bytes))
             }
             None => {
@@ -45,7 +45,7 @@ impl<'call> TtyHarnessContext<'call> {
     ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
         match self.vm_context_mut() {
             Some(context) => {
-                let bytes = VmSlice::from_bytes(context, bytes)?;
+                let bytes = VmSlice::from_bytes(&mut context.write(), bytes)?;
                 Ok(self.harness_value_vm(bytes))
             }
             None => {
@@ -76,7 +76,7 @@ impl<'call> TtyHarnessContext<'call> {
                     ))
                     .boxed()
                 })?;
-                value.read_bytes(context)
+                value.read_bytes(&context.read())
             }
         }
     }

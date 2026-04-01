@@ -237,7 +237,7 @@ fn vm_path_to_utf8(
 ) -> RuntimeResult<String> {
     match path {
         fs::OsPathVm::OsPathBytes(path) => {
-            let bytes = path.bytes.0.read_bytes(context)?;
+            let bytes = path.bytes.0.read_bytes(&context.read())?;
             String::from_utf8(bytes).map_err(|_| {
                 RuntimeError::from(PlatformError::invalid_argument_value(
                     "path",
@@ -247,7 +247,7 @@ fn vm_path_to_utf8(
             })
         }
         fs::OsPathVm::OsPathUtf16(path) => {
-            let utf16 = path.utf16.0.read_values(context)?;
+            let utf16 = path.utf16.0.read_values(&context.read())?;
             String::from_utf16(&utf16).map_err(|_| {
                 RuntimeError::from(PlatformError::invalid_argument_value(
                     "path",
@@ -272,7 +272,7 @@ fn vm_path_from_utf8(
     #[cfg(unix)]
     {
         let bytes = fs::PathBytesAbi::<VmAbi>(
-            VmArray::from_bytes(context, value.as_bytes())
+            VmArray::from_bytes(&mut context.write(), value.as_bytes())
                 .expect("vm test byte array should allocate"),
         );
         let kind = vm::StringHandle::new(
@@ -286,7 +286,8 @@ fn vm_path_from_utf8(
     #[cfg(windows)]
     {
         let utf16_values = value.encode_utf16().collect::<Vec<_>>();
-        let utf16 = fs::PathUtf16Abi::<VmAbi>(VmArray::from_values(context, &utf16_values)?);
+        let utf16 =
+            fs::PathUtf16Abi::<VmAbi>(VmArray::from_values(&mut context.write(), &utf16_values)?);
         let kind = vm::StringHandle::new(
             context
                 .intern_string("utf16")
@@ -298,7 +299,7 @@ fn vm_path_from_utf8(
     #[cfg(not(any(unix, windows)))]
     {
         let bytes = fs::PathBytesAbi::<VmAbi>(
-            VmArray::from_bytes(context, value.as_bytes())
+            VmArray::from_bytes(&mut context.write(), value.as_bytes())
                 .expect("vm test byte array should allocate"),
         );
         let kind = vm::StringHandle::new(
@@ -325,7 +326,7 @@ fn vm_string_slice(
             )
         })
         .collect::<Vec<_>>();
-    VmSlice::from_values(context, &handles)
+    VmSlice::from_values(&mut context.write(), &handles)
 }
 
 /// Build one VM stdio slice from test specs.
@@ -402,7 +403,7 @@ fn vm_process_stdio_slice(
         encoded.push(encoded_value);
     }
 
-    VmSlice::from_values(context, &encoded)
+    VmSlice::from_values(&mut context.write(), &encoded)
 }
 
 /// Build one VM fd-action slice from test specs.
@@ -460,7 +461,7 @@ fn vm_process_fd_action_slice(
         encoded.push(encoded_value);
     }
 
-    VmSlice::from_values(context, &encoded)
+    VmSlice::from_values(&mut context.write(), &encoded)
 }
 
 /// Return true when the runtime error is `ioWouldBlock`.

@@ -56,6 +56,7 @@ impl<'call> MidiHarnessContext<'call> {
     {
         match self.generated_vm_context_mut() {
             Some(context) => {
+                let context = &mut context.write();
                 let value = Vm::from_value(context, value)?;
                 Ok(HarnessValue::Vm(value))
             }
@@ -85,6 +86,7 @@ impl<'call> MidiHarnessContext<'call> {
                     ))
                     .boxed()
                 })?;
+                let context = &context.read();
                 value.into_value(context)
             }
         }

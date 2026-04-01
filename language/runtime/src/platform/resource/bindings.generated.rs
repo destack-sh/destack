@@ -441,8 +441,7 @@ fn destack_resource_id_close_vm_replay(
         binding.replay_payload_for(RESOURCE_ID_CLOSE)?,
         context,
         |context| platform_runtime_vm::destack_resource_close(binding, context, id),
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = ResourceIdCloseReplayRecord {
@@ -461,8 +460,7 @@ fn destack_resource_id_close_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -559,6 +557,7 @@ pub(crate) fn register_resource_vm_bindings(registry: &mut BindingRegistry, isol
 
 /// Install VM bindings for resource.
 pub(crate) fn install_resource_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+    super::abi_generated::register_resource_vm_storage_types(isolate);
     register_resource_vm_bindings(registry, isolate);
 }
 

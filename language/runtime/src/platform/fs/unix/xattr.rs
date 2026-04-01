@@ -19,7 +19,7 @@ fn xattr_name_slice_from_string(
     let name = unsafe { name.as_str()? };
 
     // store a stable raw name slice
-    Ok(binding.store_slice(name.as_bytes().to_vec()))
+    Ok(binding.store_slice_copy(name.as_bytes()))
 }
 
 fn xattr_name_strings_from_bytes(

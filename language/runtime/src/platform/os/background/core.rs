@@ -90,11 +90,11 @@ pub(crate) fn list_vm(
     // encode one descriptor per registered background task
     for descriptor in descriptors {
         let encoded_descriptor =
-            BackgroundTaskDescriptorVm::from_value(context, descriptor.clone())?;
+            BackgroundTaskDescriptorVm::from_value(&mut context.write(), descriptor.clone())?;
         encoded_descriptors.push(encoded_descriptor);
     }
 
-    VmArray::from_values(context, &encoded_descriptors)
+    VmArray::from_values(&mut context.write(), &encoded_descriptors)
 }
 
 /// Encode one background event into one VM value.
@@ -102,5 +102,5 @@ pub(crate) fn event_vm(
     context: &mut vm::ExternalCallContext<'_>,
     event: BackgroundEventValue,
 ) -> RuntimeResult<BackgroundEventVm> {
-    BackgroundEventVm::from_value(context, event)
+    BackgroundEventVm::from_value(&mut context.write(), event)
 }

@@ -75,7 +75,7 @@ pub(super) fn notification_request_harness_value(
     match context.vm_context {
         Some(vm_context) => {
             let vm_context = unsafe { &mut *(vm_context as *mut ExternalCallContext<'_>) };
-            let request = NotificationRequestVm::from_value(vm_context, request)
+            let request = NotificationRequestVm::from_value(&mut vm_context.write(), request)
                 .expect("request should encode");
 
             HarnessValue::Vm(request)
@@ -99,9 +99,11 @@ pub(super) fn categories_harness_value(
             let categories = categories
                 .iter()
                 .cloned()
-                .map(|category| NotificationCategoryVm::from_value(vm_context, category))
+                .map(|category| {
+                    NotificationCategoryVm::from_value(&mut vm_context.write(), category)
+                })
                 .collect::<RuntimeResult<Vec<_>>>()?;
-            let categories = VmArray::from_values(vm_context, &categories)?;
+            let categories = VmArray::from_values(&mut vm_context.write(), &categories)?;
 
             Ok(HarnessValue::Vm(categories))
         }
@@ -165,11 +167,14 @@ pub(super) fn decode_notification_categories(
                     as *mut ExternalCallContext<'_>)
             };
 
-            let categories = categories.read_values(vm_context)?;
+            let categories = categories.read_values(&vm_context.read())?;
             let mut decoded = Vec::with_capacity(categories.len());
 
             for category in categories {
-                decoded.push(NotificationCategoryVm::into_value(category, vm_context)?);
+                decoded.push(NotificationCategoryVm::into_value(
+                    category,
+                    &vm_context.read(),
+                )?);
             }
 
             Ok(decoded)
@@ -204,12 +209,13 @@ pub(super) fn decode_notification_pending_list(
                     as *mut ExternalCallContext<'_>)
             };
 
-            let pending = pending.read_values(vm_context)?;
+            let pending = pending.read_values(&vm_context.read())?;
             let mut decoded = Vec::with_capacity(pending.len());
 
             for descriptor in pending {
                 decoded.push(NotificationScheduledDescriptorVm::into_value(
-                    descriptor, vm_context,
+                    descriptor,
+                    &vm_context.read(),
                 )?);
             }
 
@@ -251,7 +257,7 @@ pub(super) fn decode_notification_event_value(
                     as *mut ExternalCallContext<'_>)
             };
 
-            NotificationEventVm::into_value(event, vm_context)?
+            NotificationEventVm::into_value(event, &vm_context.read())?
         }
     })
 }

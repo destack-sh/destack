@@ -95,23 +95,20 @@ fn decode_uint64(
 /// Decode a string argument.
 #[allow(dead_code)]
 fn decode_string(
+    context: &vm::ExternalReadContext<'_, '_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
 ) -> RuntimeResult<vm::StringHandle> {
-    if value.tag() != vm::ValueTag::String {
-        return Err(
-            RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed(),
-        );
-    }
-
-    Ok(vm::StringHandle::new(value))
+    context.string_handle_from_value(value).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
+    })
 }
 
 /// Decode a slice argument.
 #[allow(dead_code)]
 fn decode_slice<T>(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &vm::ExternalReadContext<'_, '_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
@@ -122,7 +119,7 @@ fn decode_slice<T>(
 /// Decode an array argument.
 #[allow(dead_code)]
 fn decode_array<T>(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &vm::ExternalReadContext<'_, '_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
@@ -136,6 +133,7 @@ fn decode_destack_ffi_call_invoke_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SymbolHandle, u32, u32, VmSlice<u8>, u32)> {
+    let context = &context.read();
     let symbol_value = arg_value(args, 0, "symbol", "SymbolHandle")?;
     let symbol_inner_inner = decode_uint64(symbol_value, "symbol_inner_inner", "SymbolHandle")?;
     let symbol_inner = resource::ResourceId(symbol_inner_inner);
@@ -157,6 +155,7 @@ fn encode_destack_ffi_call_invoke_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -190,6 +189,7 @@ fn decode_destack_ffi_library_open_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(fs::OsPathVm, u32)> {
+    let context = &context.read();
     let path_value = arg_value(args, 0, "path", "OsPath")?;
     let path = <fs::OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let flags_value = arg_value(args, 1, "flags", "uint32")?;
@@ -280,15 +280,16 @@ fn encode_destack_ffi_symbol_address_result(
 /// Decode arguments for destack.ffi.symbol.lookup.
 #[inline]
 fn decode_destack_ffi_symbol_lookup_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::LibraryHandle, vm::StringHandle)> {
+    let context = &context.read();
     let library_value = arg_value(args, 0, "library", "LibraryHandle")?;
     let library_inner_inner = decode_uint64(library_value, "library_inner_inner", "LibraryHandle")?;
     let library_inner = resource::ResourceId(library_inner_inner);
     let library = resource::LibraryHandle(library_inner);
     let name_value = arg_value(args, 1, "name", "string")?;
-    let name = decode_string(name_value, "name", "string")?;
+    let name = decode_string(context, name_value, "name", "string")?;
     Ok((library, name))
 }
 
@@ -908,6 +909,7 @@ pub(crate) fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: 
 
 /// Install VM bindings for ffi.
 pub(crate) fn install_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+    super::abi_generated::register_ffi_vm_storage_types(isolate);
     register_ffi_vm_bindings(registry, isolate);
 }
 

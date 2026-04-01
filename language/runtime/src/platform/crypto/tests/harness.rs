@@ -140,7 +140,7 @@ fn key_wrap_rows_from_vm(
 ) -> RuntimeResult<Vec<HarnessStoreKeyWrapCapability>> {
     let mut decoded = Vec::with_capacity(rows.len());
     for row in rows {
-        let digests = row.supported_digests.read_values(context)?;
+        let digests = row.supported_digests.read_values(&context.read())?;
         decoded.push(HarnessStoreKeyWrapCapability {
             wrapping_key_algorithm: row.wrapping_key_algorithm,
             algorithm: row.algorithm,
@@ -193,8 +193,8 @@ fn key_rows_from_vm(
             supports_export_public: row.supports_export_public,
             supports_export_private: row.supports_export_private,
             supports_export_secret: row.supports_export_secret,
-            supported_import_formats: row.supported_import_formats.read_values(context)?,
-            supported_export_formats: row.supported_export_formats.read_values(context)?,
+            supported_import_formats: row.supported_import_formats.read_values(&context.read())?,
+            supported_export_formats: row.supported_export_formats.read_values(&context.read())?,
             supported_usage_mask: row.supported_usage_mask,
         });
     }
@@ -239,7 +239,7 @@ fn vm_bytes_from_native(
     let value = unsafe { value.as_slice()? };
 
     // copy bytes into vm slice storage
-    let value = VmSlice::from_bytes(context, value)?;
+    let value = VmSlice::from_bytes(&mut context.write(), value)?;
 
     Ok(value)
 }
@@ -269,7 +269,7 @@ fn vm_slice_from_native<T: Copy + VmValueCodec + VmCollectionElement>(
     let value = unsafe { value.as_slice()? };
 
     // copy values into vm slice storage
-    let value = VmSlice::from_values(context, value)?;
+    let value = VmSlice::from_values(&mut context.write(), value)?;
 
     Ok(value)
 }
@@ -341,7 +341,7 @@ impl<'call> CryptoHarnessContext<'call> {
         // route slice allocation to the active engine
         match self.vm_context_mut() {
             Some(context) => {
-                let bytes = VmSlice::from_bytes(context, bytes)?;
+                let bytes = VmSlice::from_bytes(&mut context.write(), bytes)?;
                 Ok(self.harness_value_vm(bytes))
             }
             None => Ok(self.harness_value(self.call_context.store_slice(bytes.to_vec()))),
@@ -364,7 +364,7 @@ impl<'call> CryptoHarnessContext<'call> {
                 let context = self
                     .vm_context_mut()
                     .expect("vm context required for vm byte-slice value");
-                value.read_bytes(context)
+                value.read_bytes(&context.read())
             }
         }
     }
@@ -428,7 +428,7 @@ impl<'call> CryptoHarnessContext<'call> {
                     ))
                     .boxed()
                 })?;
-                value.read_values(context)
+                value.read_values(&context.read())
             }
         }
     }
@@ -453,7 +453,7 @@ impl<'call> CryptoHarnessContext<'call> {
                     ))
                     .boxed()
                 })?;
-                value.read_values(context)
+                value.read_values(&context.read())
             }
         }
     }
@@ -479,8 +479,8 @@ impl<'call> CryptoHarnessContext<'call> {
                     ))
                     .boxed()
                 })?;
-                let bytes = value.bytes.read_bytes(context)?;
-                let tag = value.tag.read_bytes(context)?;
+                let bytes = value.bytes.read_bytes(&context.read())?;
+                let tag = value.tag.read_bytes(&context.read())?;
                 Ok((bytes, tag))
             }
         }
@@ -833,7 +833,7 @@ impl<'call> CryptoHarnessContext<'call> {
                     ))
                     .boxed()
                 })?;
-                let entries = value.entries.raw_values(context)?;
+                let entries = value.entries.raw_values(&context.read())?;
                 Ok(entries.len())
             }
         }
@@ -864,7 +864,7 @@ impl<'call> CryptoHarnessContext<'call> {
                     ))
                     .boxed()
                 })?;
-                let entries = value.entries.read_values(context)?;
+                let entries = value.entries.read_values(&context.read())?;
                 let mut handles = Vec::with_capacity(entries.len());
                 for entry in &entries {
                     handles.push(entry.handle);
@@ -895,7 +895,7 @@ impl<'call> CryptoHarnessContext<'call> {
                     ))
                     .boxed()
                 })?;
-                let entries = value.entries.raw_values(context)?;
+                let entries = value.entries.raw_values(&context.read())?;
                 Ok(entries.len())
             }
         }
@@ -925,7 +925,7 @@ impl<'call> CryptoHarnessContext<'call> {
                     ))
                     .boxed()
                 })?;
-                let entries = value.entries.read_values(context)?;
+                let entries = value.entries.read_values(&context.read())?;
                 let mut handles = Vec::with_capacity(entries.len());
                 for entry in &entries {
                     handles.push(entry.handle);
@@ -983,17 +983,21 @@ impl<'call> CryptoHarnessContext<'call> {
                     ))
                     .boxed()
                 })?;
-                let supported_key_algorithms =
-                    value.supported_key_algorithms.read_values(context)?;
-                let supported_key_formats = value.supported_key_formats.read_values(context)?;
-                let supported_key_residencies =
-                    value.supported_key_residencies.read_values(context)?;
-                let key_capabilities =
-                    key_rows_from_vm(context, &value.key_capabilities.read_values(context)?)?;
-                let key_wrap_capabilities = key_wrap_rows_from_vm(
-                    context,
-                    &value.key_wrap_capabilities.read_values(context)?,
-                )?;
+                let supported_key_algorithms = value
+                    .supported_key_algorithms
+                    .read_values(&context.read())?;
+                let supported_key_formats =
+                    value.supported_key_formats.read_values(&context.read())?;
+                let supported_key_residencies = value
+                    .supported_key_residencies
+                    .read_values(&context.read())?;
+                let key_capability_values = value.key_capabilities.read_values(&context.read())?;
+                let key_capabilities = key_rows_from_vm(context, &key_capability_values)?;
+
+                let key_wrap_capability_values =
+                    value.key_wrap_capabilities.read_values(&context.read())?;
+                let key_wrap_capabilities =
+                    key_wrap_rows_from_vm(context, &key_wrap_capability_values)?;
                 Ok(HarnessStoreCapability {
                     kind: value.identity.kind,
                     provider: store_provider_or_default(value.identity.provider),

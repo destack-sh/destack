@@ -205,23 +205,20 @@ fn decode_float64(
 /// Decode a string argument.
 #[allow(dead_code)]
 fn decode_string(
+    context: &vm::ExternalReadContext<'_, '_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
 ) -> RuntimeResult<vm::StringHandle> {
-    if value.tag() != vm::ValueTag::String {
-        return Err(
-            RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed(),
-        );
-    }
-
-    Ok(vm::StringHandle::new(value))
+    context.string_handle_from_value(value).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
+    })
 }
 
 /// Decode a slice argument.
 #[allow(dead_code)]
 fn decode_slice<T>(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &vm::ExternalReadContext<'_, '_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
@@ -232,7 +229,7 @@ fn decode_slice<T>(
 /// Decode an array argument.
 #[allow(dead_code)]
 fn decode_array<T>(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &vm::ExternalReadContext<'_, '_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
@@ -246,6 +243,7 @@ fn encode_destack_audio_backend_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<AudioBackendDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -321,6 +319,7 @@ fn encode_destack_audio_clock_stream_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<AudioClockSnapshotVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.stream_frames, 64));
@@ -352,12 +351,46 @@ fn encode_destack_audio_clock_stream_result(
             let field_10: RuntimeResult<vm::Value> =
                 Ok(vm::Value::int(value.device_quality as i32 as i64, 32));
             let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.monotonic_ns, 64));
-            context
-                .allocate_aggregate(vec![
-                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                    field_8?, field_9?, field_10?, field_11?,
-                ])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("audio::AudioClockSnapshot")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(3, field_3?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(4, field_4?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(5, field_5?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(6, field_6?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(7, field_7?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(8, field_8?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(9, field_9?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(10, field_10?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(11, field_11?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -483,6 +516,7 @@ fn encode_destack_audio_device_descriptor_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<AudioDeviceDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(value.id.value());
@@ -544,15 +578,100 @@ fn encode_destack_audio_device_descriptor_result(
                 Ok(vm::Value::uint(value.format_mask as u64, 32));
             let field_29: RuntimeResult<vm::Value> =
                 Ok(vm::Value::uint(value.share_mode_mask as u64, 32));
-            context
-                .allocate_aggregate(vec![
-                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                    field_8?, field_9?, field_10?, field_11?, field_12?, field_13?, field_14?,
-                    field_15?, field_16?, field_17?, field_18?, field_19?, field_20?, field_21?,
-                    field_22?, field_23?, field_24?, field_25?, field_26?, field_27?, field_28?,
-                    field_29?,
-                ])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("audio::AudioDeviceDescriptor")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(3, field_3?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(4, field_4?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(5, field_5?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(6, field_6?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(7, field_7?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(8, field_8?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(9, field_9?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(10, field_10?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(11, field_11?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(12, field_12?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(13, field_13?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(14, field_14?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(15, field_15?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(16, field_16?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(17, field_17?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(18, field_18?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(19, field_19?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(20, field_20?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(21, field_21?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(22, field_22?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(23, field_23?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(24, field_24?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(25, field_25?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(26, field_26?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(27, field_27?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(28, field_28?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(29, field_29?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -563,82 +682,12 @@ fn decode_destack_audio_device_list_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(AudioDeviceListRequestVm,)> {
+    let context = &context.read();
     let request_value = arg_value(args, 0, "request", "AudioDeviceListRequest")?;
-    let request = {
-        if request_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "request",
-                "AudioDeviceListRequest",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(request_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "request",
-                "expected 4 fields",
-            ))
-            .boxed());
-        }
-        let request_direction_raw = decode_int32(slots[0], "request_direction_raw", "direction")?;
-        let request_direction = match request_direction_raw {
-            1i32 => AudioDeviceDirection::Playback,
-            2i32 => AudioDeviceDirection::Capture,
-            3i32 => AudioDeviceDirection::Duplex,
-            4i32 => AudioDeviceDirection::Loopback,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "request_direction",
-                    "unknown AudioDeviceDirection value",
-                ))
-                .boxed());
-            }
-        };
-        let request_backend_raw = decode_int32(slots[1], "request_backend_raw", "backend")?;
-        let request_backend = match request_backend_raw {
-            0i32 => AudioBackend::Auto,
-            1i32 => AudioBackend::Alsa,
-            2i32 => AudioBackend::PulseAudio,
-            3i32 => AudioBackend::PipeWire,
-            4i32 => AudioBackend::CoreAudio,
-            5i32 => AudioBackend::Wasapi,
-            6i32 => AudioBackend::AAudio,
-            7i32 => AudioBackend::OpenSLES,
-            8i32 => AudioBackend::Jack,
-            9i32 => AudioBackend::Asio,
-            255i32 => AudioBackend::Null,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "request_backend",
-                    "unknown AudioBackend value",
-                ))
-                .boxed());
-            }
-        };
-        let request_backend_policy_raw =
-            decode_int32(slots[2], "request_backend_policy_raw", "backendPolicy")?;
-        let request_backend_policy = match request_backend_policy_raw {
-            1i32 => AudioBackendSelectionPolicy::Strict,
-            2i32 => AudioBackendSelectionPolicy::AllowFallback,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "request_backend_policy",
-                    "unknown AudioBackendSelectionPolicy value",
-                ))
-                .boxed());
-            }
-        };
-        let request_flags_inner = decode_uint32(slots[3], "request_flags_inner", "flags")?;
-        let request_flags = AudioDeviceListFlags(request_flags_inner);
-        AudioDeviceListRequestVm {
-            direction: request_direction,
-            backend: request_backend,
-            backend_policy: request_backend_policy,
-            flags: request_flags,
-        }
-    };
+    let request = <AudioDeviceListRequestVm as VmAggregateCodec>::decode_with_context(
+        context,
+        request_value,
+    )?;
     Ok((request,))
 }
 
@@ -648,6 +697,7 @@ fn encode_destack_audio_device_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<AudioDeviceDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -659,97 +709,14 @@ fn decode_destack_audio_device_open_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle, AudioDeviceOpenOptionsVm)> {
+    let context = &context.read();
     let id_value = arg_value(args, 0, "id", "string")?;
-    let id = decode_string(id_value, "id", "string")?;
+    let id = decode_string(context, id_value, "id", "string")?;
     let options_value = arg_value(args, 1, "options", "AudioDeviceOpenOptions")?;
-    let options = {
-        if options_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "options",
-                "AudioDeviceOpenOptions",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(options_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "options",
-                "expected 5 fields",
-            ))
-            .boxed());
-        }
-        let options_direction_raw = decode_int32(slots[0], "options_direction_raw", "direction")?;
-        let options_direction = match options_direction_raw {
-            1i32 => AudioDeviceDirection::Playback,
-            2i32 => AudioDeviceDirection::Capture,
-            3i32 => AudioDeviceDirection::Duplex,
-            4i32 => AudioDeviceDirection::Loopback,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "options_direction",
-                    "unknown AudioDeviceDirection value",
-                ))
-                .boxed());
-            }
-        };
-        let options_backend_raw = decode_int32(slots[1], "options_backend_raw", "backend")?;
-        let options_backend = match options_backend_raw {
-            0i32 => AudioBackend::Auto,
-            1i32 => AudioBackend::Alsa,
-            2i32 => AudioBackend::PulseAudio,
-            3i32 => AudioBackend::PipeWire,
-            4i32 => AudioBackend::CoreAudio,
-            5i32 => AudioBackend::Wasapi,
-            6i32 => AudioBackend::AAudio,
-            7i32 => AudioBackend::OpenSLES,
-            8i32 => AudioBackend::Jack,
-            9i32 => AudioBackend::Asio,
-            255i32 => AudioBackend::Null,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "options_backend",
-                    "unknown AudioBackend value",
-                ))
-                .boxed());
-            }
-        };
-        let options_backend_policy_raw =
-            decode_int32(slots[2], "options_backend_policy_raw", "backendPolicy")?;
-        let options_backend_policy = match options_backend_policy_raw {
-            1i32 => AudioBackendSelectionPolicy::Strict,
-            2i32 => AudioBackendSelectionPolicy::AllowFallback,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "options_backend_policy",
-                    "unknown AudioBackendSelectionPolicy value",
-                ))
-                .boxed());
-            }
-        };
-        let options_share_mode_raw = decode_int32(slots[3], "options_share_mode_raw", "shareMode")?;
-        let options_share_mode = match options_share_mode_raw {
-            1i32 => AudioShareMode::Shared,
-            2i32 => AudioShareMode::Exclusive,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "options_share_mode",
-                    "unknown AudioShareMode value",
-                ))
-                .boxed());
-            }
-        };
-        let options_flags_inner = decode_uint32(slots[4], "options_flags_inner", "flags")?;
-        let options_flags = AudioDeviceOpenFlags(options_flags_inner);
-        AudioDeviceOpenOptionsVm {
-            direction: options_direction,
-            backend: options_backend,
-            backend_policy: options_backend_policy,
-            share_mode: options_share_mode,
-            flags: options_flags,
-        }
-    };
+    let options = <AudioDeviceOpenOptionsVm as VmAggregateCodec>::decode_with_context(
+        context,
+        options_value,
+    )?;
     Ok((id, options))
 }
 
@@ -849,113 +816,12 @@ fn decode_destack_audio_event_open_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(AudioEventSubscriptionOptionsVm,)> {
+    let context = &context.read();
     let options_value = arg_value(args, 0, "options", "AudioEventSubscriptionOptions")?;
-    let options = {
-        if options_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "options",
-                "AudioEventSubscriptionOptions",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(options_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 8 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "options",
-                "expected 8 fields",
-            ))
-            .boxed());
-        }
-        let options_backend_raw = decode_int32(slots[0], "options_backend_raw", "backend")?;
-        let options_backend = match options_backend_raw {
-            0i32 => AudioBackend::Auto,
-            1i32 => AudioBackend::Alsa,
-            2i32 => AudioBackend::PulseAudio,
-            3i32 => AudioBackend::PipeWire,
-            4i32 => AudioBackend::CoreAudio,
-            5i32 => AudioBackend::Wasapi,
-            6i32 => AudioBackend::AAudio,
-            7i32 => AudioBackend::OpenSLES,
-            8i32 => AudioBackend::Jack,
-            9i32 => AudioBackend::Asio,
-            255i32 => AudioBackend::Null,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "options_backend",
-                    "unknown AudioBackend value",
-                ))
-                .boxed());
-            }
-        };
-        let options_backend_policy_raw =
-            decode_int32(slots[1], "options_backend_policy_raw", "backendPolicy")?;
-        let options_backend_policy = match options_backend_policy_raw {
-            1i32 => AudioBackendSelectionPolicy::Strict,
-            2i32 => AudioBackendSelectionPolicy::AllowFallback,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "options_backend_policy",
-                    "unknown AudioBackendSelectionPolicy value",
-                ))
-                .boxed());
-            }
-        };
-        let options_flags_inner = decode_uint32(slots[2], "options_flags_inner", "flags")?;
-        let options_flags = AudioEventSubscriptionFlags(options_flags_inner);
-        let options_delivery_mode_raw =
-            decode_int32(slots[3], "options_delivery_mode_raw", "deliveryMode")?;
-        let options_delivery_mode = match options_delivery_mode_raw {
-            1i32 => AudioEventDeliveryMode::Auto,
-            2i32 => AudioEventDeliveryMode::NativeOnly,
-            3i32 => AudioEventDeliveryMode::PollOnly,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "options_delivery_mode",
-                    "unknown AudioEventDeliveryMode value",
-                ))
-                .boxed());
-            }
-        };
-        let options_overflow_policy_raw =
-            decode_int32(slots[4], "options_overflow_policy_raw", "overflowPolicy")?;
-        let options_overflow_policy = match options_overflow_policy_raw {
-            1i32 => AudioEventOverflowPolicy::DropOldest,
-            2i32 => AudioEventOverflowPolicy::DropNewest,
-            3i32 => AudioEventOverflowPolicy::Error,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "options_overflow_policy",
-                    "unknown AudioEventOverflowPolicy value",
-                ))
-                .boxed());
-            }
-        };
-        let options_stream = if slots[5].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let options_stream_inner_inner_inner =
-                decode_uint64(slots[5], "options_stream_inner_inner_inner", "stream")?;
-            let options_stream_inner_inner = resource::ResourceId(options_stream_inner_inner_inner);
-            let options_stream_inner = resource::AudioStreamHandle(options_stream_inner_inner);
-            Some(options_stream_inner)
-        };
-        let options_queue_capacity =
-            decode_uint32(slots[6], "options_queue_capacity", "queueCapacity")?;
-        let options_poll_interval_ns =
-            decode_uint64(slots[7], "options_poll_interval_ns", "pollIntervalNs")?;
-        AudioEventSubscriptionOptionsVm {
-            backend: options_backend,
-            backend_policy: options_backend_policy,
-            flags: options_flags,
-            delivery_mode: options_delivery_mode,
-            overflow_policy: options_overflow_policy,
-            stream: options_stream,
-            queue_capacity: options_queue_capacity,
-            poll_interval_ns: options_poll_interval_ns,
-        }
-    };
+    let options = <AudioEventSubscriptionOptionsVm as VmAggregateCodec>::decode_with_context(
+        context,
+        options_value,
+    )?;
     Ok((options,))
 }
 
@@ -991,6 +857,7 @@ fn encode_destack_audio_event_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<AudioEventVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| match value {
             AudioEventVm::AudioBackendDisconnectedEvent(value) => {
@@ -1010,23 +877,57 @@ fn encode_destack_audio_event_read_result(
                             Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = match value.stream {
                         Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
                         None => Ok(vm::Value::VOID),
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("audio::AudioBackendDisconnectedEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AudioEventVm::AudioBackendResetEvent(value) => {
                 let tag_value = vm::Value::uint(882086390u64, 32);
@@ -1045,23 +946,57 @@ fn encode_destack_audio_event_read_result(
                             Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = match value.stream {
                         Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
                         None => Ok(vm::Value::VOID),
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("audio::AudioBackendResetEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AudioEventVm::AudioDefaultCaptureChangedEvent(value) => {
                 let tag_value = vm::Value::uint(3898931457u64, 32);
@@ -1080,23 +1015,57 @@ fn encode_destack_audio_event_read_result(
                             Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = match value.device_id {
                         Some(value) => Ok(value.value()),
                         None => Ok(vm::Value::VOID),
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("audio::AudioDefaultCaptureChangedEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AudioEventVm::AudioDefaultLoopbackChangedEvent(value) => {
                 let tag_value = vm::Value::uint(148848279u64, 32);
@@ -1115,23 +1084,59 @@ fn encode_destack_audio_event_read_result(
                             Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = match value.device_id {
                         Some(value) => Ok(value.value()),
                         None => Ok(vm::Value::VOID),
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "audio::AudioDefaultLoopbackChangedEvent",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AudioEventVm::AudioDefaultPlaybackChangedEvent(value) => {
                 let tag_value = vm::Value::uint(3146923047u64, 32);
@@ -1150,23 +1155,59 @@ fn encode_destack_audio_event_read_result(
                             Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = match value.device_id {
                         Some(value) => Ok(value.value()),
                         None => Ok(vm::Value::VOID),
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "audio::AudioDefaultPlaybackChangedEvent",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AudioEventVm::AudioDeviceAddedEvent(value) => {
                 let tag_value = vm::Value::uint(4188441349u64, 32);
@@ -1185,23 +1226,57 @@ fn encode_destack_audio_event_read_result(
                             Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = match value.device_id {
                         Some(value) => Ok(value.value()),
                         None => Ok(vm::Value::VOID),
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("audio::AudioDeviceAddedEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AudioEventVm::AudioDeviceFormatChangedEvent(value) => {
                 let tag_value = vm::Value::uint(3233210258u64, 32);
@@ -1220,23 +1295,57 @@ fn encode_destack_audio_event_read_result(
                             Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = match value.device_id {
                         Some(value) => Ok(value.value()),
                         None => Ok(vm::Value::VOID),
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("audio::AudioDeviceFormatChangedEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AudioEventVm::AudioDeviceRemovedEvent(value) => {
                 let tag_value = vm::Value::uint(4161309046u64, 32);
@@ -1255,23 +1364,57 @@ fn encode_destack_audio_event_read_result(
                             Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = match value.device_id {
                         Some(value) => Ok(value.value()),
                         None => Ok(vm::Value::VOID),
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("audio::AudioDeviceRemovedEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AudioEventVm::AudioDeviceReroutedEvent(value) => {
                 let tag_value = vm::Value::uint(3459080735u64, 32);
@@ -1290,23 +1433,57 @@ fn encode_destack_audio_event_read_result(
                             Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = match value.device_id {
                         Some(value) => Ok(value.value()),
                         None => Ok(vm::Value::VOID),
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("audio::AudioDeviceReroutedEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AudioEventVm::AudioInterruptionBeganEvent(value) => {
                 let tag_value = vm::Value::uint(1214582496u64, 32);
@@ -1325,23 +1502,57 @@ fn encode_destack_audio_event_read_result(
                             Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = match value.stream {
                         Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
                         None => Ok(vm::Value::VOID),
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("audio::AudioInterruptionBeganEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AudioEventVm::AudioInterruptionEndedEvent(value) => {
                 let tag_value = vm::Value::uint(2799812553u64, 32);
@@ -1360,23 +1571,57 @@ fn encode_destack_audio_event_read_result(
                             Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = match value.stream {
                         Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
                         None => Ok(vm::Value::VOID),
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("audio::AudioInterruptionEndedEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AudioEventVm::AudioStreamDeviceChangedEvent(value) => {
                 let tag_value = vm::Value::uint(3694639736u64, 32);
@@ -1395,11 +1640,28 @@ fn encode_destack_audio_event_read_result(
                             Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = match value.stream {
                         Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
@@ -1411,13 +1673,36 @@ fn encode_destack_audio_event_read_result(
                         Some(value) => Ok(value.value()),
                         None => Ok(vm::Value::VOID),
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("audio::AudioStreamDeviceChangedEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(3, field_3?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(4, field_4?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AudioEventVm::AudioStreamStateChangedEvent(value) => {
                 let tag_value = vm::Value::uint(1303591687u64, 32);
@@ -1436,11 +1721,28 @@ fn encode_destack_audio_event_read_result(
                             Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = match value.stream {
                         Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
@@ -1448,13 +1750,33 @@ fn encode_destack_audio_event_read_result(
                     };
                     let field_3: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.status_flags.0 as u64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("audio::AudioStreamStateChangedEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(3, field_3?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AudioEventVm::AudioStreamXRunEvent(value) => {
                 let tag_value = vm::Value::uint(3186589411u64, 32);
@@ -1473,11 +1795,28 @@ fn encode_destack_audio_event_read_result(
                             Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = match value.stream {
                         Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
@@ -1491,15 +1830,39 @@ fn encode_destack_audio_event_read_result(
                         Some(value) => Ok(value.value()),
                         None => Ok(vm::Value::VOID),
                     };
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("audio::AudioStreamXRunEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(3, field_3?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(4, field_4?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(5, field_5?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
         })
         .and_then(|value| value)
@@ -1528,6 +1891,7 @@ fn encode_destack_audio_event_read_batch_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<AudioEventVm>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -1552,6 +1916,7 @@ fn encode_destack_audio_event_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<AudioEventVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| match value {
             AudioEventVm::AudioBackendDisconnectedEvent(value) => {
@@ -1571,23 +1936,57 @@ fn encode_destack_audio_event_try_read_result(
                             Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = match value.stream {
                         Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
                         None => Ok(vm::Value::VOID),
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("audio::AudioBackendDisconnectedEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AudioEventVm::AudioBackendResetEvent(value) => {
                 let tag_value = vm::Value::uint(882086390u64, 32);
@@ -1606,23 +2005,57 @@ fn encode_destack_audio_event_try_read_result(
                             Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = match value.stream {
                         Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
                         None => Ok(vm::Value::VOID),
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("audio::AudioBackendResetEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AudioEventVm::AudioDefaultCaptureChangedEvent(value) => {
                 let tag_value = vm::Value::uint(3898931457u64, 32);
@@ -1641,23 +2074,57 @@ fn encode_destack_audio_event_try_read_result(
                             Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = match value.device_id {
                         Some(value) => Ok(value.value()),
                         None => Ok(vm::Value::VOID),
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("audio::AudioDefaultCaptureChangedEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AudioEventVm::AudioDefaultLoopbackChangedEvent(value) => {
                 let tag_value = vm::Value::uint(148848279u64, 32);
@@ -1676,23 +2143,59 @@ fn encode_destack_audio_event_try_read_result(
                             Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = match value.device_id {
                         Some(value) => Ok(value.value()),
                         None => Ok(vm::Value::VOID),
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "audio::AudioDefaultLoopbackChangedEvent",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AudioEventVm::AudioDefaultPlaybackChangedEvent(value) => {
                 let tag_value = vm::Value::uint(3146923047u64, 32);
@@ -1711,23 +2214,59 @@ fn encode_destack_audio_event_try_read_result(
                             Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = match value.device_id {
                         Some(value) => Ok(value.value()),
                         None => Ok(vm::Value::VOID),
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "audio::AudioDefaultPlaybackChangedEvent",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AudioEventVm::AudioDeviceAddedEvent(value) => {
                 let tag_value = vm::Value::uint(4188441349u64, 32);
@@ -1746,23 +2285,57 @@ fn encode_destack_audio_event_try_read_result(
                             Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = match value.device_id {
                         Some(value) => Ok(value.value()),
                         None => Ok(vm::Value::VOID),
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("audio::AudioDeviceAddedEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AudioEventVm::AudioDeviceFormatChangedEvent(value) => {
                 let tag_value = vm::Value::uint(3233210258u64, 32);
@@ -1781,23 +2354,57 @@ fn encode_destack_audio_event_try_read_result(
                             Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = match value.device_id {
                         Some(value) => Ok(value.value()),
                         None => Ok(vm::Value::VOID),
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("audio::AudioDeviceFormatChangedEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AudioEventVm::AudioDeviceRemovedEvent(value) => {
                 let tag_value = vm::Value::uint(4161309046u64, 32);
@@ -1816,23 +2423,57 @@ fn encode_destack_audio_event_try_read_result(
                             Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = match value.device_id {
                         Some(value) => Ok(value.value()),
                         None => Ok(vm::Value::VOID),
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("audio::AudioDeviceRemovedEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AudioEventVm::AudioDeviceReroutedEvent(value) => {
                 let tag_value = vm::Value::uint(3459080735u64, 32);
@@ -1851,23 +2492,57 @@ fn encode_destack_audio_event_try_read_result(
                             Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = match value.device_id {
                         Some(value) => Ok(value.value()),
                         None => Ok(vm::Value::VOID),
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("audio::AudioDeviceReroutedEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AudioEventVm::AudioInterruptionBeganEvent(value) => {
                 let tag_value = vm::Value::uint(1214582496u64, 32);
@@ -1886,23 +2561,57 @@ fn encode_destack_audio_event_try_read_result(
                             Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = match value.stream {
                         Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
                         None => Ok(vm::Value::VOID),
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("audio::AudioInterruptionBeganEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AudioEventVm::AudioInterruptionEndedEvent(value) => {
                 let tag_value = vm::Value::uint(2799812553u64, 32);
@@ -1921,23 +2630,57 @@ fn encode_destack_audio_event_try_read_result(
                             Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = match value.stream {
                         Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
                         None => Ok(vm::Value::VOID),
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("audio::AudioInterruptionEndedEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AudioEventVm::AudioStreamDeviceChangedEvent(value) => {
                 let tag_value = vm::Value::uint(3694639736u64, 32);
@@ -1956,11 +2699,28 @@ fn encode_destack_audio_event_try_read_result(
                             Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = match value.stream {
                         Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
@@ -1972,13 +2732,36 @@ fn encode_destack_audio_event_try_read_result(
                         Some(value) => Ok(value.value()),
                         None => Ok(vm::Value::VOID),
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("audio::AudioStreamDeviceChangedEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(3, field_3?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(4, field_4?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AudioEventVm::AudioStreamStateChangedEvent(value) => {
                 let tag_value = vm::Value::uint(1303591687u64, 32);
@@ -1997,11 +2780,28 @@ fn encode_destack_audio_event_try_read_result(
                             Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = match value.stream {
                         Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
@@ -2009,13 +2809,33 @@ fn encode_destack_audio_event_try_read_result(
                     };
                     let field_3: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.status_flags.0 as u64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("audio::AudioStreamStateChangedEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(3, field_3?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AudioEventVm::AudioStreamXRunEvent(value) => {
                 let tag_value = vm::Value::uint(3186589411u64, 32);
@@ -2034,11 +2854,28 @@ fn encode_destack_audio_event_try_read_result(
                             Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = match value.stream {
                         Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
@@ -2052,15 +2889,39 @@ fn encode_destack_audio_event_try_read_result(
                         Some(value) => Ok(value.value()),
                         None => Ok(vm::Value::VOID),
                     };
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("audio::AudioStreamXRunEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(3, field_3?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(4, field_4?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(5, field_5?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
         })
         .and_then(|value| value)
@@ -2087,6 +2948,7 @@ fn encode_destack_audio_event_try_read_batch_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<AudioEventVm>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -2135,6 +2997,7 @@ fn encode_destack_audio_stream_availability_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<AudioStreamAvailabilityVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.readable_frames, 64));
@@ -2144,9 +3007,25 @@ fn encode_destack_audio_stream_availability_result(
             let field_3: RuntimeResult<vm::Value> =
                 Ok(vm::Value::uint(value.max_transfer_frames as u64, 32));
             let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.timestamp_ns, 64));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("audio::AudioStreamAvailability")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(3, field_3?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(4, field_4?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -2194,6 +3073,7 @@ fn encode_destack_audio_stream_descriptor_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<AudioStreamDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> =
@@ -2233,14 +3113,79 @@ fn encode_destack_audio_stream_descriptor_result(
             let field_21: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.supports_mute));
             let field_22: RuntimeResult<vm::Value> =
                 Ok(vm::Value::bool(value.supports_hardware_timestamps));
-            context
-                .allocate_aggregate(vec![
-                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                    field_8?, field_9?, field_10?, field_11?, field_12?, field_13?, field_14?,
-                    field_15?, field_16?, field_17?, field_18?, field_19?, field_20?, field_21?,
-                    field_22?,
-                ])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("audio::AudioStreamDescriptor")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(3, field_3?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(4, field_4?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(5, field_5?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(6, field_6?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(7, field_7?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(8, field_8?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(9, field_9?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(10, field_10?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(11, field_11?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(12, field_12?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(13, field_13?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(14, field_14?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(15, field_15?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(16, field_16?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(17, field_17?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(18, field_18?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(19, field_19?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(20, field_20?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(21, field_21?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(22, field_22?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -2303,121 +3248,20 @@ fn decode_destack_audio_stream_open_args(
     AudioStreamConfigVm,
     AudioStreamOpenOptionsVm,
 )> {
+    let context = &context.read();
     let device_value = arg_value(args, 0, "device", "AudioDeviceHandle")?;
     let device_inner_inner =
         decode_uint64(device_value, "device_inner_inner", "AudioDeviceHandle")?;
     let device_inner = resource::ResourceId(device_inner_inner);
     let device = resource::AudioDeviceHandle(device_inner);
     let config_value = arg_value(args, 1, "config", "AudioStreamConfig")?;
-    let config = {
-        if config_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "config",
-                "AudioStreamConfig",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(config_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 7 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "config",
-                "expected 7 fields",
-            ))
-            .boxed());
-        }
-        let config_sample_rate = decode_uint32(slots[0], "config_sample_rate", "sampleRate")?;
-        let config_channels = decode_uint16(slots[1], "config_channels", "channels")?;
-        let config_channel_layout_raw =
-            decode_int32(slots[2], "config_channel_layout_raw", "channelLayout")?;
-        let config_channel_layout = match config_channel_layout_raw {
-            0i32 => AudioChannelLayout::Unknown,
-            1i32 => AudioChannelLayout::Mono,
-            2i32 => AudioChannelLayout::Stereo,
-            3i32 => AudioChannelLayout::Quad,
-            4i32 => AudioChannelLayout::Surround41,
-            5i32 => AudioChannelLayout::Surround51,
-            6i32 => AudioChannelLayout::Surround61,
-            7i32 => AudioChannelLayout::Surround71,
-            255i32 => AudioChannelLayout::Custom,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "config_channel_layout",
-                    "unknown AudioChannelLayout value",
-                ))
-                .boxed());
-            }
-        };
-        let config_channel_mask = decode_uint64(slots[3], "config_channel_mask", "channelMask")?;
-        let config_format_raw = decode_int32(slots[4], "config_format_raw", "format")?;
-        let config_format = match config_format_raw {
-            1i32 => AudioSampleFormat::U8,
-            2i32 => AudioSampleFormat::S16,
-            3i32 => AudioSampleFormat::S24,
-            4i32 => AudioSampleFormat::S32,
-            5i32 => AudioSampleFormat::F32,
-            6i32 => AudioSampleFormat::F64,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "config_format",
-                    "unknown AudioSampleFormat value",
-                ))
-                .boxed());
-            }
-        };
-        let config_period_frames = decode_uint32(slots[5], "config_period_frames", "periodFrames")?;
-        let config_transfer_mode_raw =
-            decode_int32(slots[6], "config_transfer_mode_raw", "transferMode")?;
-        let config_transfer_mode = match config_transfer_mode_raw {
-            1i32 => AudioStreamTransferMode::Push,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "config_transfer_mode",
-                    "unknown AudioStreamTransferMode value",
-                ))
-                .boxed());
-            }
-        };
-        AudioStreamConfigVm {
-            sample_rate: config_sample_rate,
-            channels: config_channels,
-            channel_layout: config_channel_layout,
-            channel_mask: config_channel_mask,
-            format: config_format,
-            period_frames: config_period_frames,
-            transfer_mode: config_transfer_mode,
-        }
-    };
+    let config =
+        <AudioStreamConfigVm as VmAggregateCodec>::decode_with_context(context, config_value)?;
     let options_value = arg_value(args, 2, "options", "AudioStreamOpenOptions")?;
-    let options = {
-        if options_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "options",
-                "AudioStreamOpenOptions",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(options_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "options",
-                "expected 2 fields",
-            ))
-            .boxed());
-        }
-        let options_flags_inner = decode_uint32(slots[0], "options_flags_inner", "flags")?;
-        let options_flags = AudioStreamFlags(options_flags_inner);
-        let options_requirements_inner =
-            decode_uint32(slots[1], "options_requirements_inner", "requirements")?;
-        let options_requirements = AudioStreamRequirementFlags(options_requirements_inner);
-        AudioStreamOpenOptionsVm {
-            flags: options_flags,
-            requirements: options_requirements,
-        }
-    };
+    let options = <AudioStreamOpenOptionsVm as VmAggregateCodec>::decode_with_context(
+        context,
+        options_value,
+    )?;
     Ok((device, config, options))
 }
 
@@ -2479,6 +3323,7 @@ fn encode_destack_audio_stream_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -2490,6 +3335,7 @@ fn decode_destack_audio_stream_readv_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::AudioStreamHandle, VmSlice<VmSlice<u8>>)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
     let handle_inner_inner =
         decode_uint64(handle_value, "handle_inner_inner", "AudioStreamHandle")?;
@@ -2540,16 +3386,17 @@ fn encode_destack_audio_stream_set_mute_result(
 /// Decode arguments for destack.audio.stream.setName.
 #[inline]
 fn decode_destack_audio_stream_set_name_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::AudioStreamHandle, vm::StringHandle)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
     let handle_inner_inner =
         decode_uint64(handle_value, "handle_inner_inner", "AudioStreamHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::AudioStreamHandle(handle_inner);
     let name_value = arg_value(args, 1, "name", "string")?;
-    let name = decode_string(name_value, "name", "string")?;
+    let name = decode_string(context, name_value, "name", "string")?;
     Ok((handle, name))
 }
 
@@ -2630,6 +3477,7 @@ fn encode_destack_audio_stream_state_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<AudioStreamStateVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> =
@@ -2654,12 +3502,52 @@ fn encode_destack_audio_stream_state_result(
                 Ok(vm::Value::uint(value.output_overflow_count, 64));
             let field_13: RuntimeResult<vm::Value> =
                 Ok(vm::Value::float64(value.callback_cpu_load));
-            context
-                .allocate_aggregate(vec![
-                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                    field_8?, field_9?, field_10?, field_11?, field_12?, field_13?,
-                ])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("audio::AudioStreamState")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(3, field_3?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(4, field_4?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(5, field_5?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(6, field_6?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(7, field_7?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(8, field_8?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(9, field_9?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(10, field_10?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(11, field_11?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(12, field_12?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(13, field_13?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -2697,121 +3585,20 @@ fn decode_destack_audio_stream_support_args(
     AudioStreamConfigVm,
     AudioStreamOpenOptionsVm,
 )> {
+    let context = &context.read();
     let device_value = arg_value(args, 0, "device", "AudioDeviceHandle")?;
     let device_inner_inner =
         decode_uint64(device_value, "device_inner_inner", "AudioDeviceHandle")?;
     let device_inner = resource::ResourceId(device_inner_inner);
     let device = resource::AudioDeviceHandle(device_inner);
     let config_value = arg_value(args, 1, "config", "AudioStreamConfig")?;
-    let config = {
-        if config_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "config",
-                "AudioStreamConfig",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(config_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 7 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "config",
-                "expected 7 fields",
-            ))
-            .boxed());
-        }
-        let config_sample_rate = decode_uint32(slots[0], "config_sample_rate", "sampleRate")?;
-        let config_channels = decode_uint16(slots[1], "config_channels", "channels")?;
-        let config_channel_layout_raw =
-            decode_int32(slots[2], "config_channel_layout_raw", "channelLayout")?;
-        let config_channel_layout = match config_channel_layout_raw {
-            0i32 => AudioChannelLayout::Unknown,
-            1i32 => AudioChannelLayout::Mono,
-            2i32 => AudioChannelLayout::Stereo,
-            3i32 => AudioChannelLayout::Quad,
-            4i32 => AudioChannelLayout::Surround41,
-            5i32 => AudioChannelLayout::Surround51,
-            6i32 => AudioChannelLayout::Surround61,
-            7i32 => AudioChannelLayout::Surround71,
-            255i32 => AudioChannelLayout::Custom,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "config_channel_layout",
-                    "unknown AudioChannelLayout value",
-                ))
-                .boxed());
-            }
-        };
-        let config_channel_mask = decode_uint64(slots[3], "config_channel_mask", "channelMask")?;
-        let config_format_raw = decode_int32(slots[4], "config_format_raw", "format")?;
-        let config_format = match config_format_raw {
-            1i32 => AudioSampleFormat::U8,
-            2i32 => AudioSampleFormat::S16,
-            3i32 => AudioSampleFormat::S24,
-            4i32 => AudioSampleFormat::S32,
-            5i32 => AudioSampleFormat::F32,
-            6i32 => AudioSampleFormat::F64,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "config_format",
-                    "unknown AudioSampleFormat value",
-                ))
-                .boxed());
-            }
-        };
-        let config_period_frames = decode_uint32(slots[5], "config_period_frames", "periodFrames")?;
-        let config_transfer_mode_raw =
-            decode_int32(slots[6], "config_transfer_mode_raw", "transferMode")?;
-        let config_transfer_mode = match config_transfer_mode_raw {
-            1i32 => AudioStreamTransferMode::Push,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "config_transfer_mode",
-                    "unknown AudioStreamTransferMode value",
-                ))
-                .boxed());
-            }
-        };
-        AudioStreamConfigVm {
-            sample_rate: config_sample_rate,
-            channels: config_channels,
-            channel_layout: config_channel_layout,
-            channel_mask: config_channel_mask,
-            format: config_format,
-            period_frames: config_period_frames,
-            transfer_mode: config_transfer_mode,
-        }
-    };
+    let config =
+        <AudioStreamConfigVm as VmAggregateCodec>::decode_with_context(context, config_value)?;
     let options_value = arg_value(args, 2, "options", "AudioStreamOpenOptions")?;
-    let options = {
-        if options_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "options",
-                "AudioStreamOpenOptions",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(options_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "options",
-                "expected 2 fields",
-            ))
-            .boxed());
-        }
-        let options_flags_inner = decode_uint32(slots[0], "options_flags_inner", "flags")?;
-        let options_flags = AudioStreamFlags(options_flags_inner);
-        let options_requirements_inner =
-            decode_uint32(slots[1], "options_requirements_inner", "requirements")?;
-        let options_requirements = AudioStreamRequirementFlags(options_requirements_inner);
-        AudioStreamOpenOptionsVm {
-            flags: options_flags,
-            requirements: options_requirements,
-        }
-    };
+    let options = <AudioStreamOpenOptionsVm as VmAggregateCodec>::decode_with_context(
+        context,
+        options_value,
+    )?;
     Ok((device, config, options))
 }
 
@@ -2821,6 +3608,7 @@ fn encode_destack_audio_stream_support_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<AudioStreamSupportVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.supported));
@@ -2884,22 +3672,100 @@ fn encode_destack_audio_stream_support_result(
                 let field_22: RuntimeResult<vm::Value> = Ok(vm::Value::bool(
                     value.descriptor.supports_hardware_timestamps,
                 ));
-                context
-                    .allocate_aggregate(vec![
-                        field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
-                        field_7?, field_8?, field_9?, field_10?, field_11?, field_12?, field_13?,
-                        field_14?, field_15?, field_16?, field_17?, field_18?, field_19?,
-                        field_20?, field_21?, field_22?,
-                    ])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("audio::AudioStreamDescriptor")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, field_0?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, field_1?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(2, field_2?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(3, field_3?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(4, field_4?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(5, field_5?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(6, field_6?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(7, field_7?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(8, field_8?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(9, field_9?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(10, field_10?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(11, field_11?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(12, field_12?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(13, field_13?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(14, field_14?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(15, field_15?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(16, field_16?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(17, field_17?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(18, field_18?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(19, field_19?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(20, field_20?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(21, field_21?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(22, field_22?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             };
             let field_2: RuntimeResult<vm::Value> =
                 Ok(vm::Value::uint(value.satisfied_requirements.0 as u64, 32));
             let field_3: RuntimeResult<vm::Value> =
                 Ok(vm::Value::uint(value.unsatisfied_requirements.0 as u64, 32));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("audio::AudioStreamSupport")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(3, field_3?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -2924,6 +3790,7 @@ fn encode_destack_audio_stream_timing_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<AudioStreamTimingVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.stream_frames, 64));
@@ -2948,12 +3815,37 @@ fn encode_destack_audio_stream_timing_result(
                 Ok(vm::Value::uint(value.monotonic_clock_ns, 64));
             let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.drift_ppm));
             let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.callback_cpu_load));
-            context
-                .allocate_aggregate(vec![
-                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                    field_8?,
-                ])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("audio::AudioStreamTiming")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(3, field_3?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(4, field_4?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(5, field_5?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(6, field_6?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(7, field_7?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(8, field_8?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -2980,6 +3872,7 @@ fn encode_destack_audio_stream_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -2991,6 +3884,7 @@ fn decode_destack_audio_stream_try_readv_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::AudioStreamHandle, VmSlice<VmSlice<u8>>)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
     let handle_inner_inner =
         decode_uint64(handle_value, "handle_inner_inner", "AudioStreamHandle")?;
@@ -3019,6 +3913,7 @@ fn decode_destack_audio_stream_try_write_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::AudioStreamHandle, VmSlice<u8>)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
     let handle_inner_inner =
         decode_uint64(handle_value, "handle_inner_inner", "AudioStreamHandle")?;
@@ -3046,6 +3941,7 @@ fn decode_destack_audio_stream_try_writev_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::AudioStreamHandle, VmSlice<VmSlice<u8>>)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
     let handle_inner_inner =
         decode_uint64(handle_value, "handle_inner_inner", "AudioStreamHandle")?;
@@ -3074,6 +3970,7 @@ fn decode_destack_audio_stream_write_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::AudioStreamHandle, VmSlice<u8>)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
     let handle_inner_inner =
         decode_uint64(handle_value, "handle_inner_inner", "AudioStreamHandle")?;
@@ -3101,6 +3998,7 @@ fn decode_destack_audio_stream_write_at_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::AudioStreamHandle, VmSlice<u8>, u64)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
     let handle_inner_inner =
         decode_uint64(handle_value, "handle_inner_inner", "AudioStreamHandle")?;
@@ -3131,6 +4029,7 @@ fn decode_destack_audio_stream_write_atv_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::AudioStreamHandle, VmSlice<VmSlice<u8>>, u64)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
     let handle_inner_inner =
         decode_uint64(handle_value, "handle_inner_inner", "AudioStreamHandle")?;
@@ -3162,6 +4061,7 @@ fn decode_destack_audio_stream_writev_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::AudioStreamHandle, VmSlice<VmSlice<u8>>)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
     let handle_inner_inner =
         decode_uint64(handle_value, "handle_inner_inner", "AudioStreamHandle")?;
@@ -4418,8 +5318,9 @@ fn destack_audio_backend_list_replay(
         |result| {
             if let Ok(()) = result {
                 let result_value: NativeSlice<AudioBackendDescriptor> = unsafe { out.read() };
-                let mut result_recorded = Vec::new();
-                for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
+                let result_recorded_slice = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_slice.len());
+                for result_recorded_item in result_recorded_slice.iter().cloned() {
                     let result_recorded_item_recorded_backend = result_recorded_item.backend;
                     let result_recorded_item_recorded_name =
                         unsafe { result_recorded_item.name.as_str()? }.to_string();
@@ -4480,48 +5381,51 @@ fn destack_audio_backend_list_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut value_native_values = Vec::new();
-                    for value_native_item in value.iter().cloned() {
-                        let value_native_decoded_backend = value_native_item.backend;
-                        let value_native_decoded_name =
-                            binding.store_string(value_native_item.name.as_str());
-                        let value_native_decoded_support = value_native_item.support;
-                        let value_native_decoded_priority = value_native_item.priority;
-                        let value_native_decoded_capability_flags =
-                            value_native_item.capability_flags;
-                        let value_native_decoded_supported_device_list_flags =
-                            value_native_item.supported_device_list_flags;
-                        let value_native_decoded_supported_device_open_flags =
-                            value_native_item.supported_device_open_flags;
-                        let value_native_decoded_supported_stream_flags =
-                            value_native_item.supported_stream_flags;
-                        let value_native_decoded_supported_stream_requirement_flags =
-                            value_native_item.supported_stream_requirement_flags;
-                        let value_native_decoded_supported_event_subscription_flags =
-                            value_native_item.supported_event_subscription_flags;
-                        let value_native_decoded_supported_stream_clock_domains =
-                            value_native_item.supported_stream_clock_domains;
-                        let value_native_decoded = AudioBackendDescriptor {
-                            backend: value_native_decoded_backend,
-                            name: value_native_decoded_name,
-                            support: value_native_decoded_support,
-                            priority: value_native_decoded_priority,
-                            capability_flags: value_native_decoded_capability_flags,
-                            supported_device_list_flags:
-                                value_native_decoded_supported_device_list_flags,
-                            supported_device_open_flags:
-                                value_native_decoded_supported_device_open_flags,
-                            supported_stream_flags: value_native_decoded_supported_stream_flags,
-                            supported_stream_requirement_flags:
-                                value_native_decoded_supported_stream_requirement_flags,
-                            supported_event_subscription_flags:
-                                value_native_decoded_supported_event_subscription_flags,
-                            supported_stream_clock_domains:
-                                value_native_decoded_supported_stream_clock_domains,
-                        };
-                        value_native_values.push(value_native_decoded);
-                    }
-                    let value_native = binding.store_slice(value_native_values);
+                    let value_native =
+                        binding.store_slice_with(value.len(), |value_native_values| {
+                            for value_native_item in value {
+                                let value_native_decoded_backend = value_native_item.backend;
+                                let value_native_decoded_name =
+                                    binding.store_string_owned(value_native_item.name);
+                                let value_native_decoded_support = value_native_item.support;
+                                let value_native_decoded_priority = value_native_item.priority;
+                                let value_native_decoded_capability_flags =
+                                    value_native_item.capability_flags;
+                                let value_native_decoded_supported_device_list_flags =
+                                    value_native_item.supported_device_list_flags;
+                                let value_native_decoded_supported_device_open_flags =
+                                    value_native_item.supported_device_open_flags;
+                                let value_native_decoded_supported_stream_flags =
+                                    value_native_item.supported_stream_flags;
+                                let value_native_decoded_supported_stream_requirement_flags =
+                                    value_native_item.supported_stream_requirement_flags;
+                                let value_native_decoded_supported_event_subscription_flags =
+                                    value_native_item.supported_event_subscription_flags;
+                                let value_native_decoded_supported_stream_clock_domains =
+                                    value_native_item.supported_stream_clock_domains;
+                                let value_native_decoded = AudioBackendDescriptor {
+                                    backend: value_native_decoded_backend,
+                                    name: value_native_decoded_name,
+                                    support: value_native_decoded_support,
+                                    priority: value_native_decoded_priority,
+                                    capability_flags: value_native_decoded_capability_flags,
+                                    supported_device_list_flags:
+                                        value_native_decoded_supported_device_list_flags,
+                                    supported_device_open_flags:
+                                        value_native_decoded_supported_device_open_flags,
+                                    supported_stream_flags:
+                                        value_native_decoded_supported_stream_flags,
+                                    supported_stream_requirement_flags:
+                                        value_native_decoded_supported_stream_requirement_flags,
+                                    supported_event_subscription_flags:
+                                        value_native_decoded_supported_event_subscription_flags,
+                                    supported_stream_clock_domains:
+                                        value_native_decoded_supported_stream_clock_domains,
+                                };
+                                value_native_values.push(value_native_decoded);
+                            }
+                            Ok(())
+                        })?;
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -4836,7 +5740,7 @@ fn destack_audio_device_default_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native = binding.store_string(value.as_str());
+                    let value_native = binding.store_string_owned(value);
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -4959,10 +5863,10 @@ fn destack_audio_device_descriptor_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native_id = binding.store_string(value.id.as_str());
-                    let value_native_group_id = binding.store_string(value.group_id.as_str());
-                    let value_native_name = binding.store_string(value.name.as_str());
-                    let value_native_transport = binding.store_string(value.transport.as_str());
+                    let value_native_id = binding.store_string_owned(value.id);
+                    let value_native_group_id = binding.store_string_owned(value.group_id);
+                    let value_native_name = binding.store_string_owned(value.name);
+                    let value_native_transport = binding.store_string_owned(value.transport);
                     let value_native_backend = value.backend;
                     let value_native_direction = value.direction;
                     let value_native_connected = value.connected;
@@ -5059,8 +5963,9 @@ fn destack_audio_device_list_replay(
         |result| {
             if let Ok(()) = result {
                 let result_value: NativeSlice<AudioDeviceDescriptor> = unsafe { out.read() };
-                let mut result_recorded = Vec::new();
-                for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
+                let result_recorded_slice = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_slice.len());
+                for result_recorded_item in result_recorded_slice.iter().cloned() {
                     let result_recorded_item_recorded_id =
                         unsafe { result_recorded_item.id.as_str()? }.to_string();
                     let result_recorded_item_recorded_group_id =
@@ -5179,100 +6084,110 @@ fn destack_audio_device_list_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut value_native_values = Vec::new();
-                    for value_native_item in value.iter().cloned() {
-                        let value_native_decoded_id =
-                            binding.store_string(value_native_item.id.as_str());
-                        let value_native_decoded_group_id =
-                            binding.store_string(value_native_item.group_id.as_str());
-                        let value_native_decoded_name =
-                            binding.store_string(value_native_item.name.as_str());
-                        let value_native_decoded_transport =
-                            binding.store_string(value_native_item.transport.as_str());
-                        let value_native_decoded_backend = value_native_item.backend;
-                        let value_native_decoded_direction = value_native_item.direction;
-                        let value_native_decoded_connected = value_native_item.connected;
-                        let value_native_decoded_is_raw = value_native_item.is_raw;
-                        let value_native_decoded_is_default_playback =
-                            value_native_item.is_default_playback;
-                        let value_native_decoded_is_default_capture =
-                            value_native_item.is_default_capture;
-                        let value_native_decoded_is_default_loopback =
-                            value_native_item.is_default_loopback;
-                        let value_native_decoded_capability_flags =
-                            value_native_item.capability_flags;
-                        let value_native_decoded_supported_device_open_flags =
-                            value_native_item.supported_device_open_flags;
-                        let value_native_decoded_supported_stream_flags =
-                            value_native_item.supported_stream_flags;
-                        let value_native_decoded_supported_stream_requirement_flags =
-                            value_native_item.supported_stream_requirement_flags;
-                        let value_native_decoded_supported_event_subscription_flags =
-                            value_native_item.supported_event_subscription_flags;
-                        let value_native_decoded_supported_stream_clock_domains =
-                            value_native_item.supported_stream_clock_domains;
-                        let value_native_decoded_preferred_sample_rate =
-                            value_native_item.preferred_sample_rate;
-                        let value_native_decoded_min_sample_rate =
-                            value_native_item.min_sample_rate;
-                        let value_native_decoded_max_sample_rate =
-                            value_native_item.max_sample_rate;
-                        let value_native_decoded_preferred_period_frames =
-                            value_native_item.preferred_period_frames;
-                        let value_native_decoded_min_channels = value_native_item.min_channels;
-                        let value_native_decoded_max_channels = value_native_item.max_channels;
-                        let value_native_decoded_preferred_layout =
-                            value_native_item.preferred_layout;
-                        let value_native_decoded_preferred_channel_mask =
-                            value_native_item.preferred_channel_mask;
-                        let value_native_decoded_supported_channel_mask =
-                            value_native_item.supported_channel_mask;
-                        let value_native_decoded_min_period_frames =
-                            value_native_item.min_period_frames;
-                        let value_native_decoded_max_period_frames =
-                            value_native_item.max_period_frames;
-                        let value_native_decoded_format_mask = value_native_item.format_mask;
-                        let value_native_decoded_share_mode_mask =
-                            value_native_item.share_mode_mask;
-                        let value_native_decoded = AudioDeviceDescriptor {
-                            id: value_native_decoded_id,
-                            group_id: value_native_decoded_group_id,
-                            name: value_native_decoded_name,
-                            transport: value_native_decoded_transport,
-                            backend: value_native_decoded_backend,
-                            direction: value_native_decoded_direction,
-                            connected: value_native_decoded_connected,
-                            is_raw: value_native_decoded_is_raw,
-                            is_default_playback: value_native_decoded_is_default_playback,
-                            is_default_capture: value_native_decoded_is_default_capture,
-                            is_default_loopback: value_native_decoded_is_default_loopback,
-                            capability_flags: value_native_decoded_capability_flags,
-                            supported_device_open_flags:
-                                value_native_decoded_supported_device_open_flags,
-                            supported_stream_flags: value_native_decoded_supported_stream_flags,
-                            supported_stream_requirement_flags:
-                                value_native_decoded_supported_stream_requirement_flags,
-                            supported_event_subscription_flags:
-                                value_native_decoded_supported_event_subscription_flags,
-                            supported_stream_clock_domains:
-                                value_native_decoded_supported_stream_clock_domains,
-                            preferred_sample_rate: value_native_decoded_preferred_sample_rate,
-                            min_sample_rate: value_native_decoded_min_sample_rate,
-                            max_sample_rate: value_native_decoded_max_sample_rate,
-                            preferred_period_frames: value_native_decoded_preferred_period_frames,
-                            min_channels: value_native_decoded_min_channels,
-                            max_channels: value_native_decoded_max_channels,
-                            preferred_layout: value_native_decoded_preferred_layout,
-                            preferred_channel_mask: value_native_decoded_preferred_channel_mask,
-                            supported_channel_mask: value_native_decoded_supported_channel_mask,
-                            min_period_frames: value_native_decoded_min_period_frames,
-                            max_period_frames: value_native_decoded_max_period_frames,
-                            format_mask: value_native_decoded_format_mask,
-                            share_mode_mask: value_native_decoded_share_mode_mask,
-                        };
-                        value_native_values.push(value_native_decoded);
-                    }
-                    let value_native = binding.store_slice(value_native_values);
+                    let value_native =
+                        binding.store_slice_with(value.len(), |value_native_values| {
+                            for value_native_item in value {
+                                let value_native_decoded_id =
+                                    binding.store_string_owned(value_native_item.id);
+                                let value_native_decoded_group_id =
+                                    binding.store_string_owned(value_native_item.group_id);
+                                let value_native_decoded_name =
+                                    binding.store_string_owned(value_native_item.name);
+                                let value_native_decoded_transport =
+                                    binding.store_string_owned(value_native_item.transport);
+                                let value_native_decoded_backend = value_native_item.backend;
+                                let value_native_decoded_direction = value_native_item.direction;
+                                let value_native_decoded_connected = value_native_item.connected;
+                                let value_native_decoded_is_raw = value_native_item.is_raw;
+                                let value_native_decoded_is_default_playback =
+                                    value_native_item.is_default_playback;
+                                let value_native_decoded_is_default_capture =
+                                    value_native_item.is_default_capture;
+                                let value_native_decoded_is_default_loopback =
+                                    value_native_item.is_default_loopback;
+                                let value_native_decoded_capability_flags =
+                                    value_native_item.capability_flags;
+                                let value_native_decoded_supported_device_open_flags =
+                                    value_native_item.supported_device_open_flags;
+                                let value_native_decoded_supported_stream_flags =
+                                    value_native_item.supported_stream_flags;
+                                let value_native_decoded_supported_stream_requirement_flags =
+                                    value_native_item.supported_stream_requirement_flags;
+                                let value_native_decoded_supported_event_subscription_flags =
+                                    value_native_item.supported_event_subscription_flags;
+                                let value_native_decoded_supported_stream_clock_domains =
+                                    value_native_item.supported_stream_clock_domains;
+                                let value_native_decoded_preferred_sample_rate =
+                                    value_native_item.preferred_sample_rate;
+                                let value_native_decoded_min_sample_rate =
+                                    value_native_item.min_sample_rate;
+                                let value_native_decoded_max_sample_rate =
+                                    value_native_item.max_sample_rate;
+                                let value_native_decoded_preferred_period_frames =
+                                    value_native_item.preferred_period_frames;
+                                let value_native_decoded_min_channels =
+                                    value_native_item.min_channels;
+                                let value_native_decoded_max_channels =
+                                    value_native_item.max_channels;
+                                let value_native_decoded_preferred_layout =
+                                    value_native_item.preferred_layout;
+                                let value_native_decoded_preferred_channel_mask =
+                                    value_native_item.preferred_channel_mask;
+                                let value_native_decoded_supported_channel_mask =
+                                    value_native_item.supported_channel_mask;
+                                let value_native_decoded_min_period_frames =
+                                    value_native_item.min_period_frames;
+                                let value_native_decoded_max_period_frames =
+                                    value_native_item.max_period_frames;
+                                let value_native_decoded_format_mask =
+                                    value_native_item.format_mask;
+                                let value_native_decoded_share_mode_mask =
+                                    value_native_item.share_mode_mask;
+                                let value_native_decoded = AudioDeviceDescriptor {
+                                    id: value_native_decoded_id,
+                                    group_id: value_native_decoded_group_id,
+                                    name: value_native_decoded_name,
+                                    transport: value_native_decoded_transport,
+                                    backend: value_native_decoded_backend,
+                                    direction: value_native_decoded_direction,
+                                    connected: value_native_decoded_connected,
+                                    is_raw: value_native_decoded_is_raw,
+                                    is_default_playback: value_native_decoded_is_default_playback,
+                                    is_default_capture: value_native_decoded_is_default_capture,
+                                    is_default_loopback: value_native_decoded_is_default_loopback,
+                                    capability_flags: value_native_decoded_capability_flags,
+                                    supported_device_open_flags:
+                                        value_native_decoded_supported_device_open_flags,
+                                    supported_stream_flags:
+                                        value_native_decoded_supported_stream_flags,
+                                    supported_stream_requirement_flags:
+                                        value_native_decoded_supported_stream_requirement_flags,
+                                    supported_event_subscription_flags:
+                                        value_native_decoded_supported_event_subscription_flags,
+                                    supported_stream_clock_domains:
+                                        value_native_decoded_supported_stream_clock_domains,
+                                    preferred_sample_rate:
+                                        value_native_decoded_preferred_sample_rate,
+                                    min_sample_rate: value_native_decoded_min_sample_rate,
+                                    max_sample_rate: value_native_decoded_max_sample_rate,
+                                    preferred_period_frames:
+                                        value_native_decoded_preferred_period_frames,
+                                    min_channels: value_native_decoded_min_channels,
+                                    max_channels: value_native_decoded_max_channels,
+                                    preferred_layout: value_native_decoded_preferred_layout,
+                                    preferred_channel_mask:
+                                        value_native_decoded_preferred_channel_mask,
+                                    supported_channel_mask:
+                                        value_native_decoded_supported_channel_mask,
+                                    min_period_frames: value_native_decoded_min_period_frames,
+                                    max_period_frames: value_native_decoded_max_period_frames,
+                                    format_mask: value_native_decoded_format_mask,
+                                    share_mode_mask: value_native_decoded_share_mode_mask,
+                                };
+                                value_native_values.push(value_native_decoded);
+                            }
+                            Ok(())
+                        })?;
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -5964,7 +6879,7 @@ fn destack_audio_event_read_replay(
                 Ok(value) => {
                     let value_native = match value {
                         AudioeventReplayRecord::AudioBackendDisconnectedEvent(value) => {
-                            let value_native_audio_backend_disconnected_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_audio_backend_disconnected_event_kind = binding.store_string_owned(value.kind);
                             let value_native_audio_backend_disconnected_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_backend_disconnected_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_backend_disconnected_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -5993,7 +6908,7 @@ fn destack_audio_event_read_replay(
                             AudioEvent::AudioBackendDisconnectedEvent(value_native_audio_backend_disconnected_event)
                         }
                         AudioeventReplayRecord::AudioBackendResetEvent(value) => {
-                            let value_native_audio_backend_reset_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_audio_backend_reset_event_kind = binding.store_string_owned(value.kind);
                             let value_native_audio_backend_reset_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_backend_reset_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_backend_reset_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -6022,7 +6937,7 @@ fn destack_audio_event_read_replay(
                             AudioEvent::AudioBackendResetEvent(value_native_audio_backend_reset_event)
                         }
                         AudioeventReplayRecord::AudioDefaultCaptureChangedEvent(value) => {
-                            let value_native_audio_default_capture_changed_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_audio_default_capture_changed_event_kind = binding.store_string_owned(value.kind);
                             let value_native_audio_default_capture_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_default_capture_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_default_capture_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -6038,7 +6953,7 @@ fn destack_audio_event_read_replay(
                                 flags: value_native_audio_default_capture_changed_event_metadata_flags,
                             };
                             let value_native_audio_default_capture_changed_event_device_id = if let Some(value) = value.device_id {
-                                let value_native_audio_default_capture_changed_event_device_id_inner = binding.store_string(value.as_str());
+                                let value_native_audio_default_capture_changed_event_device_id_inner = binding.store_string_owned(value);
                                 Some(value_native_audio_default_capture_changed_event_device_id_inner)
                             } else {
                                 None
@@ -6051,7 +6966,7 @@ fn destack_audio_event_read_replay(
                             AudioEvent::AudioDefaultCaptureChangedEvent(value_native_audio_default_capture_changed_event)
                         }
                         AudioeventReplayRecord::AudioDefaultLoopbackChangedEvent(value) => {
-                            let value_native_audio_default_loopback_changed_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_audio_default_loopback_changed_event_kind = binding.store_string_owned(value.kind);
                             let value_native_audio_default_loopback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_default_loopback_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_default_loopback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -6067,7 +6982,7 @@ fn destack_audio_event_read_replay(
                                 flags: value_native_audio_default_loopback_changed_event_metadata_flags,
                             };
                             let value_native_audio_default_loopback_changed_event_device_id = if let Some(value) = value.device_id {
-                                let value_native_audio_default_loopback_changed_event_device_id_inner = binding.store_string(value.as_str());
+                                let value_native_audio_default_loopback_changed_event_device_id_inner = binding.store_string_owned(value);
                                 Some(value_native_audio_default_loopback_changed_event_device_id_inner)
                             } else {
                                 None
@@ -6080,7 +6995,7 @@ fn destack_audio_event_read_replay(
                             AudioEvent::AudioDefaultLoopbackChangedEvent(value_native_audio_default_loopback_changed_event)
                         }
                         AudioeventReplayRecord::AudioDefaultPlaybackChangedEvent(value) => {
-                            let value_native_audio_default_playback_changed_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_audio_default_playback_changed_event_kind = binding.store_string_owned(value.kind);
                             let value_native_audio_default_playback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_default_playback_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_default_playback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -6096,7 +7011,7 @@ fn destack_audio_event_read_replay(
                                 flags: value_native_audio_default_playback_changed_event_metadata_flags,
                             };
                             let value_native_audio_default_playback_changed_event_device_id = if let Some(value) = value.device_id {
-                                let value_native_audio_default_playback_changed_event_device_id_inner = binding.store_string(value.as_str());
+                                let value_native_audio_default_playback_changed_event_device_id_inner = binding.store_string_owned(value);
                                 Some(value_native_audio_default_playback_changed_event_device_id_inner)
                             } else {
                                 None
@@ -6109,7 +7024,7 @@ fn destack_audio_event_read_replay(
                             AudioEvent::AudioDefaultPlaybackChangedEvent(value_native_audio_default_playback_changed_event)
                         }
                         AudioeventReplayRecord::AudioDeviceAddedEvent(value) => {
-                            let value_native_audio_device_added_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_audio_device_added_event_kind = binding.store_string_owned(value.kind);
                             let value_native_audio_device_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_device_added_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_device_added_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -6125,7 +7040,7 @@ fn destack_audio_event_read_replay(
                                 flags: value_native_audio_device_added_event_metadata_flags,
                             };
                             let value_native_audio_device_added_event_device_id = if let Some(value) = value.device_id {
-                                let value_native_audio_device_added_event_device_id_inner = binding.store_string(value.as_str());
+                                let value_native_audio_device_added_event_device_id_inner = binding.store_string_owned(value);
                                 Some(value_native_audio_device_added_event_device_id_inner)
                             } else {
                                 None
@@ -6138,7 +7053,7 @@ fn destack_audio_event_read_replay(
                             AudioEvent::AudioDeviceAddedEvent(value_native_audio_device_added_event)
                         }
                         AudioeventReplayRecord::AudioDeviceFormatChangedEvent(value) => {
-                            let value_native_audio_device_format_changed_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_audio_device_format_changed_event_kind = binding.store_string_owned(value.kind);
                             let value_native_audio_device_format_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_device_format_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_device_format_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -6154,7 +7069,7 @@ fn destack_audio_event_read_replay(
                                 flags: value_native_audio_device_format_changed_event_metadata_flags,
                             };
                             let value_native_audio_device_format_changed_event_device_id = if let Some(value) = value.device_id {
-                                let value_native_audio_device_format_changed_event_device_id_inner = binding.store_string(value.as_str());
+                                let value_native_audio_device_format_changed_event_device_id_inner = binding.store_string_owned(value);
                                 Some(value_native_audio_device_format_changed_event_device_id_inner)
                             } else {
                                 None
@@ -6167,7 +7082,7 @@ fn destack_audio_event_read_replay(
                             AudioEvent::AudioDeviceFormatChangedEvent(value_native_audio_device_format_changed_event)
                         }
                         AudioeventReplayRecord::AudioDeviceRemovedEvent(value) => {
-                            let value_native_audio_device_removed_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_audio_device_removed_event_kind = binding.store_string_owned(value.kind);
                             let value_native_audio_device_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_device_removed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_device_removed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -6183,7 +7098,7 @@ fn destack_audio_event_read_replay(
                                 flags: value_native_audio_device_removed_event_metadata_flags,
                             };
                             let value_native_audio_device_removed_event_device_id = if let Some(value) = value.device_id {
-                                let value_native_audio_device_removed_event_device_id_inner = binding.store_string(value.as_str());
+                                let value_native_audio_device_removed_event_device_id_inner = binding.store_string_owned(value);
                                 Some(value_native_audio_device_removed_event_device_id_inner)
                             } else {
                                 None
@@ -6196,7 +7111,7 @@ fn destack_audio_event_read_replay(
                             AudioEvent::AudioDeviceRemovedEvent(value_native_audio_device_removed_event)
                         }
                         AudioeventReplayRecord::AudioDeviceReroutedEvent(value) => {
-                            let value_native_audio_device_rerouted_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_audio_device_rerouted_event_kind = binding.store_string_owned(value.kind);
                             let value_native_audio_device_rerouted_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_device_rerouted_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_device_rerouted_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -6212,7 +7127,7 @@ fn destack_audio_event_read_replay(
                                 flags: value_native_audio_device_rerouted_event_metadata_flags,
                             };
                             let value_native_audio_device_rerouted_event_device_id = if let Some(value) = value.device_id {
-                                let value_native_audio_device_rerouted_event_device_id_inner = binding.store_string(value.as_str());
+                                let value_native_audio_device_rerouted_event_device_id_inner = binding.store_string_owned(value);
                                 Some(value_native_audio_device_rerouted_event_device_id_inner)
                             } else {
                                 None
@@ -6225,7 +7140,7 @@ fn destack_audio_event_read_replay(
                             AudioEvent::AudioDeviceReroutedEvent(value_native_audio_device_rerouted_event)
                         }
                         AudioeventReplayRecord::AudioInterruptionBeganEvent(value) => {
-                            let value_native_audio_interruption_began_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_audio_interruption_began_event_kind = binding.store_string_owned(value.kind);
                             let value_native_audio_interruption_began_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_interruption_began_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_interruption_began_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -6254,7 +7169,7 @@ fn destack_audio_event_read_replay(
                             AudioEvent::AudioInterruptionBeganEvent(value_native_audio_interruption_began_event)
                         }
                         AudioeventReplayRecord::AudioInterruptionEndedEvent(value) => {
-                            let value_native_audio_interruption_ended_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_audio_interruption_ended_event_kind = binding.store_string_owned(value.kind);
                             let value_native_audio_interruption_ended_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_interruption_ended_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_interruption_ended_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -6283,7 +7198,7 @@ fn destack_audio_event_read_replay(
                             AudioEvent::AudioInterruptionEndedEvent(value_native_audio_interruption_ended_event)
                         }
                         AudioeventReplayRecord::AudioStreamDeviceChangedEvent(value) => {
-                            let value_native_audio_stream_device_changed_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_audio_stream_device_changed_event_kind = binding.store_string_owned(value.kind);
                             let value_native_audio_stream_device_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_stream_device_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_stream_device_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -6306,7 +7221,7 @@ fn destack_audio_event_read_replay(
                             };
                             let value_native_audio_stream_device_changed_event_status_flags = value.status_flags;
                             let value_native_audio_stream_device_changed_event_device_id = if let Some(value) = value.device_id {
-                                let value_native_audio_stream_device_changed_event_device_id_inner = binding.store_string(value.as_str());
+                                let value_native_audio_stream_device_changed_event_device_id_inner = binding.store_string_owned(value);
                                 Some(value_native_audio_stream_device_changed_event_device_id_inner)
                             } else {
                                 None
@@ -6321,7 +7236,7 @@ fn destack_audio_event_read_replay(
                             AudioEvent::AudioStreamDeviceChangedEvent(value_native_audio_stream_device_changed_event)
                         }
                         AudioeventReplayRecord::AudioStreamStateChangedEvent(value) => {
-                            let value_native_audio_stream_state_changed_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_audio_stream_state_changed_event_kind = binding.store_string_owned(value.kind);
                             let value_native_audio_stream_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_stream_state_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_stream_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -6352,7 +7267,7 @@ fn destack_audio_event_read_replay(
                             AudioEvent::AudioStreamStateChangedEvent(value_native_audio_stream_state_changed_event)
                         }
                         AudioeventReplayRecord::AudioStreamXRunEvent(value) => {
-                            let value_native_audio_stream_x_run_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_audio_stream_x_run_event_kind = binding.store_string_owned(value.kind);
                             let value_native_audio_stream_x_run_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_stream_x_run_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_stream_x_run_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -6376,7 +7291,7 @@ fn destack_audio_event_read_replay(
                             let value_native_audio_stream_x_run_event_status_flags = value.status_flags;
                             let value_native_audio_stream_x_run_event_xrun_count_delta = value.xrun_count_delta;
                             let value_native_audio_stream_x_run_event_device_id = if let Some(value) = value.device_id {
-                                let value_native_audio_stream_x_run_event_device_id_inner = binding.store_string(value.as_str());
+                                let value_native_audio_stream_x_run_event_device_id_inner = binding.store_string_owned(value);
                                 Some(value_native_audio_stream_x_run_event_device_id_inner)
                             } else {
                                 None
@@ -6422,8 +7337,9 @@ fn destack_audio_event_read_batch_replay(
         |result| {
             if let Ok(()) = result {
                 let result_value: NativeSlice<AudioEvent> = unsafe { out.read() };
-                let mut result_recorded = Vec::new();
-                for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
+                let result_recorded_slice = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_slice.len());
+                for result_recorded_item in result_recorded_slice.iter().cloned() {
                     let result_recorded_item_recorded = match result_recorded_item {
                         AudioEvent::AudioBackendDisconnectedEvent(value) => {
                             let result_recorded_item_recorded_audio_backend_disconnected_event_kind = unsafe { value.kind.as_str()? }.to_string();
@@ -6878,441 +7794,442 @@ fn destack_audio_event_read_batch_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut value_native_values = Vec::new();
-                    for value_native_item in value.iter().cloned() {
-                        let value_native_decoded = match value_native_item {
-                            AudioeventReplayRecord::AudioBackendDisconnectedEvent(value) => {
-                                let value_native_decoded_audio_backend_disconnected_event_kind = binding.store_string(value.kind.as_str());
-                                let value_native_decoded_audio_backend_disconnected_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                                let value_native_decoded_audio_backend_disconnected_event_metadata_sequence = value.metadata.sequence;
-                                let value_native_decoded_audio_backend_disconnected_event_metadata_dropped_count = value.metadata.dropped_count;
-                                let value_native_decoded_audio_backend_disconnected_event_metadata_source = value.metadata.source;
-                                let value_native_decoded_audio_backend_disconnected_event_metadata_backend = value.metadata.backend;
-                                let value_native_decoded_audio_backend_disconnected_event_metadata_flags = value.metadata.flags;
-                                let value_native_decoded_audio_backend_disconnected_event_metadata = AudioEventMetadata {
-                                    timestamp_ns: value_native_decoded_audio_backend_disconnected_event_metadata_timestamp_ns,
-                                    sequence: value_native_decoded_audio_backend_disconnected_event_metadata_sequence,
-                                    dropped_count: value_native_decoded_audio_backend_disconnected_event_metadata_dropped_count,
-                                    source: value_native_decoded_audio_backend_disconnected_event_metadata_source,
-                                    backend: value_native_decoded_audio_backend_disconnected_event_metadata_backend,
-                                    flags: value_native_decoded_audio_backend_disconnected_event_metadata_flags,
-                                };
-                                let value_native_decoded_audio_backend_disconnected_event_stream = if let Some(value) = value.stream {
-                                    let value_native_decoded_audio_backend_disconnected_event_stream_inner = value;
-                                    Some(value_native_decoded_audio_backend_disconnected_event_stream_inner)
-                                } else {
-                                    None
-                                };
-                                let value_native_decoded_audio_backend_disconnected_event = AudioBackendDisconnectedEvent {
-                                    kind: value_native_decoded_audio_backend_disconnected_event_kind,
-                                    metadata: value_native_decoded_audio_backend_disconnected_event_metadata,
-                                    stream: value_native_decoded_audio_backend_disconnected_event_stream,
-                                };
-                                AudioEvent::AudioBackendDisconnectedEvent(value_native_decoded_audio_backend_disconnected_event)
-                            }
-                            AudioeventReplayRecord::AudioBackendResetEvent(value) => {
-                                let value_native_decoded_audio_backend_reset_event_kind = binding.store_string(value.kind.as_str());
-                                let value_native_decoded_audio_backend_reset_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                                let value_native_decoded_audio_backend_reset_event_metadata_sequence = value.metadata.sequence;
-                                let value_native_decoded_audio_backend_reset_event_metadata_dropped_count = value.metadata.dropped_count;
-                                let value_native_decoded_audio_backend_reset_event_metadata_source = value.metadata.source;
-                                let value_native_decoded_audio_backend_reset_event_metadata_backend = value.metadata.backend;
-                                let value_native_decoded_audio_backend_reset_event_metadata_flags = value.metadata.flags;
-                                let value_native_decoded_audio_backend_reset_event_metadata = AudioEventMetadata {
-                                    timestamp_ns: value_native_decoded_audio_backend_reset_event_metadata_timestamp_ns,
-                                    sequence: value_native_decoded_audio_backend_reset_event_metadata_sequence,
-                                    dropped_count: value_native_decoded_audio_backend_reset_event_metadata_dropped_count,
-                                    source: value_native_decoded_audio_backend_reset_event_metadata_source,
-                                    backend: value_native_decoded_audio_backend_reset_event_metadata_backend,
-                                    flags: value_native_decoded_audio_backend_reset_event_metadata_flags,
-                                };
-                                let value_native_decoded_audio_backend_reset_event_stream = if let Some(value) = value.stream {
-                                    let value_native_decoded_audio_backend_reset_event_stream_inner = value;
-                                    Some(value_native_decoded_audio_backend_reset_event_stream_inner)
-                                } else {
-                                    None
-                                };
-                                let value_native_decoded_audio_backend_reset_event = AudioBackendResetEvent {
-                                    kind: value_native_decoded_audio_backend_reset_event_kind,
-                                    metadata: value_native_decoded_audio_backend_reset_event_metadata,
-                                    stream: value_native_decoded_audio_backend_reset_event_stream,
-                                };
-                                AudioEvent::AudioBackendResetEvent(value_native_decoded_audio_backend_reset_event)
-                            }
-                            AudioeventReplayRecord::AudioDefaultCaptureChangedEvent(value) => {
-                                let value_native_decoded_audio_default_capture_changed_event_kind = binding.store_string(value.kind.as_str());
-                                let value_native_decoded_audio_default_capture_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                                let value_native_decoded_audio_default_capture_changed_event_metadata_sequence = value.metadata.sequence;
-                                let value_native_decoded_audio_default_capture_changed_event_metadata_dropped_count = value.metadata.dropped_count;
-                                let value_native_decoded_audio_default_capture_changed_event_metadata_source = value.metadata.source;
-                                let value_native_decoded_audio_default_capture_changed_event_metadata_backend = value.metadata.backend;
-                                let value_native_decoded_audio_default_capture_changed_event_metadata_flags = value.metadata.flags;
-                                let value_native_decoded_audio_default_capture_changed_event_metadata = AudioEventMetadata {
-                                    timestamp_ns: value_native_decoded_audio_default_capture_changed_event_metadata_timestamp_ns,
-                                    sequence: value_native_decoded_audio_default_capture_changed_event_metadata_sequence,
-                                    dropped_count: value_native_decoded_audio_default_capture_changed_event_metadata_dropped_count,
-                                    source: value_native_decoded_audio_default_capture_changed_event_metadata_source,
-                                    backend: value_native_decoded_audio_default_capture_changed_event_metadata_backend,
-                                    flags: value_native_decoded_audio_default_capture_changed_event_metadata_flags,
-                                };
-                                let value_native_decoded_audio_default_capture_changed_event_device_id = if let Some(value) = value.device_id {
-                                    let value_native_decoded_audio_default_capture_changed_event_device_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_audio_default_capture_changed_event_device_id_inner)
-                                } else {
-                                    None
-                                };
-                                let value_native_decoded_audio_default_capture_changed_event = AudioDefaultCaptureChangedEvent {
-                                    kind: value_native_decoded_audio_default_capture_changed_event_kind,
-                                    metadata: value_native_decoded_audio_default_capture_changed_event_metadata,
-                                    device_id: value_native_decoded_audio_default_capture_changed_event_device_id,
-                                };
-                                AudioEvent::AudioDefaultCaptureChangedEvent(value_native_decoded_audio_default_capture_changed_event)
-                            }
-                            AudioeventReplayRecord::AudioDefaultLoopbackChangedEvent(value) => {
-                                let value_native_decoded_audio_default_loopback_changed_event_kind = binding.store_string(value.kind.as_str());
-                                let value_native_decoded_audio_default_loopback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                                let value_native_decoded_audio_default_loopback_changed_event_metadata_sequence = value.metadata.sequence;
-                                let value_native_decoded_audio_default_loopback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
-                                let value_native_decoded_audio_default_loopback_changed_event_metadata_source = value.metadata.source;
-                                let value_native_decoded_audio_default_loopback_changed_event_metadata_backend = value.metadata.backend;
-                                let value_native_decoded_audio_default_loopback_changed_event_metadata_flags = value.metadata.flags;
-                                let value_native_decoded_audio_default_loopback_changed_event_metadata = AudioEventMetadata {
-                                    timestamp_ns: value_native_decoded_audio_default_loopback_changed_event_metadata_timestamp_ns,
-                                    sequence: value_native_decoded_audio_default_loopback_changed_event_metadata_sequence,
-                                    dropped_count: value_native_decoded_audio_default_loopback_changed_event_metadata_dropped_count,
-                                    source: value_native_decoded_audio_default_loopback_changed_event_metadata_source,
-                                    backend: value_native_decoded_audio_default_loopback_changed_event_metadata_backend,
-                                    flags: value_native_decoded_audio_default_loopback_changed_event_metadata_flags,
-                                };
-                                let value_native_decoded_audio_default_loopback_changed_event_device_id = if let Some(value) = value.device_id {
-                                    let value_native_decoded_audio_default_loopback_changed_event_device_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_audio_default_loopback_changed_event_device_id_inner)
-                                } else {
-                                    None
-                                };
-                                let value_native_decoded_audio_default_loopback_changed_event = AudioDefaultLoopbackChangedEvent {
-                                    kind: value_native_decoded_audio_default_loopback_changed_event_kind,
-                                    metadata: value_native_decoded_audio_default_loopback_changed_event_metadata,
-                                    device_id: value_native_decoded_audio_default_loopback_changed_event_device_id,
-                                };
-                                AudioEvent::AudioDefaultLoopbackChangedEvent(value_native_decoded_audio_default_loopback_changed_event)
-                            }
-                            AudioeventReplayRecord::AudioDefaultPlaybackChangedEvent(value) => {
-                                let value_native_decoded_audio_default_playback_changed_event_kind = binding.store_string(value.kind.as_str());
-                                let value_native_decoded_audio_default_playback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                                let value_native_decoded_audio_default_playback_changed_event_metadata_sequence = value.metadata.sequence;
-                                let value_native_decoded_audio_default_playback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
-                                let value_native_decoded_audio_default_playback_changed_event_metadata_source = value.metadata.source;
-                                let value_native_decoded_audio_default_playback_changed_event_metadata_backend = value.metadata.backend;
-                                let value_native_decoded_audio_default_playback_changed_event_metadata_flags = value.metadata.flags;
-                                let value_native_decoded_audio_default_playback_changed_event_metadata = AudioEventMetadata {
-                                    timestamp_ns: value_native_decoded_audio_default_playback_changed_event_metadata_timestamp_ns,
-                                    sequence: value_native_decoded_audio_default_playback_changed_event_metadata_sequence,
-                                    dropped_count: value_native_decoded_audio_default_playback_changed_event_metadata_dropped_count,
-                                    source: value_native_decoded_audio_default_playback_changed_event_metadata_source,
-                                    backend: value_native_decoded_audio_default_playback_changed_event_metadata_backend,
-                                    flags: value_native_decoded_audio_default_playback_changed_event_metadata_flags,
-                                };
-                                let value_native_decoded_audio_default_playback_changed_event_device_id = if let Some(value) = value.device_id {
-                                    let value_native_decoded_audio_default_playback_changed_event_device_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_audio_default_playback_changed_event_device_id_inner)
-                                } else {
-                                    None
-                                };
-                                let value_native_decoded_audio_default_playback_changed_event = AudioDefaultPlaybackChangedEvent {
-                                    kind: value_native_decoded_audio_default_playback_changed_event_kind,
-                                    metadata: value_native_decoded_audio_default_playback_changed_event_metadata,
-                                    device_id: value_native_decoded_audio_default_playback_changed_event_device_id,
-                                };
-                                AudioEvent::AudioDefaultPlaybackChangedEvent(value_native_decoded_audio_default_playback_changed_event)
-                            }
-                            AudioeventReplayRecord::AudioDeviceAddedEvent(value) => {
-                                let value_native_decoded_audio_device_added_event_kind = binding.store_string(value.kind.as_str());
-                                let value_native_decoded_audio_device_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                                let value_native_decoded_audio_device_added_event_metadata_sequence = value.metadata.sequence;
-                                let value_native_decoded_audio_device_added_event_metadata_dropped_count = value.metadata.dropped_count;
-                                let value_native_decoded_audio_device_added_event_metadata_source = value.metadata.source;
-                                let value_native_decoded_audio_device_added_event_metadata_backend = value.metadata.backend;
-                                let value_native_decoded_audio_device_added_event_metadata_flags = value.metadata.flags;
-                                let value_native_decoded_audio_device_added_event_metadata = AudioEventMetadata {
-                                    timestamp_ns: value_native_decoded_audio_device_added_event_metadata_timestamp_ns,
-                                    sequence: value_native_decoded_audio_device_added_event_metadata_sequence,
-                                    dropped_count: value_native_decoded_audio_device_added_event_metadata_dropped_count,
-                                    source: value_native_decoded_audio_device_added_event_metadata_source,
-                                    backend: value_native_decoded_audio_device_added_event_metadata_backend,
-                                    flags: value_native_decoded_audio_device_added_event_metadata_flags,
-                                };
-                                let value_native_decoded_audio_device_added_event_device_id = if let Some(value) = value.device_id {
-                                    let value_native_decoded_audio_device_added_event_device_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_audio_device_added_event_device_id_inner)
-                                } else {
-                                    None
-                                };
-                                let value_native_decoded_audio_device_added_event = AudioDeviceAddedEvent {
-                                    kind: value_native_decoded_audio_device_added_event_kind,
-                                    metadata: value_native_decoded_audio_device_added_event_metadata,
-                                    device_id: value_native_decoded_audio_device_added_event_device_id,
-                                };
-                                AudioEvent::AudioDeviceAddedEvent(value_native_decoded_audio_device_added_event)
-                            }
-                            AudioeventReplayRecord::AudioDeviceFormatChangedEvent(value) => {
-                                let value_native_decoded_audio_device_format_changed_event_kind = binding.store_string(value.kind.as_str());
-                                let value_native_decoded_audio_device_format_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                                let value_native_decoded_audio_device_format_changed_event_metadata_sequence = value.metadata.sequence;
-                                let value_native_decoded_audio_device_format_changed_event_metadata_dropped_count = value.metadata.dropped_count;
-                                let value_native_decoded_audio_device_format_changed_event_metadata_source = value.metadata.source;
-                                let value_native_decoded_audio_device_format_changed_event_metadata_backend = value.metadata.backend;
-                                let value_native_decoded_audio_device_format_changed_event_metadata_flags = value.metadata.flags;
-                                let value_native_decoded_audio_device_format_changed_event_metadata = AudioEventMetadata {
-                                    timestamp_ns: value_native_decoded_audio_device_format_changed_event_metadata_timestamp_ns,
-                                    sequence: value_native_decoded_audio_device_format_changed_event_metadata_sequence,
-                                    dropped_count: value_native_decoded_audio_device_format_changed_event_metadata_dropped_count,
-                                    source: value_native_decoded_audio_device_format_changed_event_metadata_source,
-                                    backend: value_native_decoded_audio_device_format_changed_event_metadata_backend,
-                                    flags: value_native_decoded_audio_device_format_changed_event_metadata_flags,
-                                };
-                                let value_native_decoded_audio_device_format_changed_event_device_id = if let Some(value) = value.device_id {
-                                    let value_native_decoded_audio_device_format_changed_event_device_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_audio_device_format_changed_event_device_id_inner)
-                                } else {
-                                    None
-                                };
-                                let value_native_decoded_audio_device_format_changed_event = AudioDeviceFormatChangedEvent {
-                                    kind: value_native_decoded_audio_device_format_changed_event_kind,
-                                    metadata: value_native_decoded_audio_device_format_changed_event_metadata,
-                                    device_id: value_native_decoded_audio_device_format_changed_event_device_id,
-                                };
-                                AudioEvent::AudioDeviceFormatChangedEvent(value_native_decoded_audio_device_format_changed_event)
-                            }
-                            AudioeventReplayRecord::AudioDeviceRemovedEvent(value) => {
-                                let value_native_decoded_audio_device_removed_event_kind = binding.store_string(value.kind.as_str());
-                                let value_native_decoded_audio_device_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                                let value_native_decoded_audio_device_removed_event_metadata_sequence = value.metadata.sequence;
-                                let value_native_decoded_audio_device_removed_event_metadata_dropped_count = value.metadata.dropped_count;
-                                let value_native_decoded_audio_device_removed_event_metadata_source = value.metadata.source;
-                                let value_native_decoded_audio_device_removed_event_metadata_backend = value.metadata.backend;
-                                let value_native_decoded_audio_device_removed_event_metadata_flags = value.metadata.flags;
-                                let value_native_decoded_audio_device_removed_event_metadata = AudioEventMetadata {
-                                    timestamp_ns: value_native_decoded_audio_device_removed_event_metadata_timestamp_ns,
-                                    sequence: value_native_decoded_audio_device_removed_event_metadata_sequence,
-                                    dropped_count: value_native_decoded_audio_device_removed_event_metadata_dropped_count,
-                                    source: value_native_decoded_audio_device_removed_event_metadata_source,
-                                    backend: value_native_decoded_audio_device_removed_event_metadata_backend,
-                                    flags: value_native_decoded_audio_device_removed_event_metadata_flags,
-                                };
-                                let value_native_decoded_audio_device_removed_event_device_id = if let Some(value) = value.device_id {
-                                    let value_native_decoded_audio_device_removed_event_device_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_audio_device_removed_event_device_id_inner)
-                                } else {
-                                    None
-                                };
-                                let value_native_decoded_audio_device_removed_event = AudioDeviceRemovedEvent {
-                                    kind: value_native_decoded_audio_device_removed_event_kind,
-                                    metadata: value_native_decoded_audio_device_removed_event_metadata,
-                                    device_id: value_native_decoded_audio_device_removed_event_device_id,
-                                };
-                                AudioEvent::AudioDeviceRemovedEvent(value_native_decoded_audio_device_removed_event)
-                            }
-                            AudioeventReplayRecord::AudioDeviceReroutedEvent(value) => {
-                                let value_native_decoded_audio_device_rerouted_event_kind = binding.store_string(value.kind.as_str());
-                                let value_native_decoded_audio_device_rerouted_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                                let value_native_decoded_audio_device_rerouted_event_metadata_sequence = value.metadata.sequence;
-                                let value_native_decoded_audio_device_rerouted_event_metadata_dropped_count = value.metadata.dropped_count;
-                                let value_native_decoded_audio_device_rerouted_event_metadata_source = value.metadata.source;
-                                let value_native_decoded_audio_device_rerouted_event_metadata_backend = value.metadata.backend;
-                                let value_native_decoded_audio_device_rerouted_event_metadata_flags = value.metadata.flags;
-                                let value_native_decoded_audio_device_rerouted_event_metadata = AudioEventMetadata {
-                                    timestamp_ns: value_native_decoded_audio_device_rerouted_event_metadata_timestamp_ns,
-                                    sequence: value_native_decoded_audio_device_rerouted_event_metadata_sequence,
-                                    dropped_count: value_native_decoded_audio_device_rerouted_event_metadata_dropped_count,
-                                    source: value_native_decoded_audio_device_rerouted_event_metadata_source,
-                                    backend: value_native_decoded_audio_device_rerouted_event_metadata_backend,
-                                    flags: value_native_decoded_audio_device_rerouted_event_metadata_flags,
-                                };
-                                let value_native_decoded_audio_device_rerouted_event_device_id = if let Some(value) = value.device_id {
-                                    let value_native_decoded_audio_device_rerouted_event_device_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_audio_device_rerouted_event_device_id_inner)
-                                } else {
-                                    None
-                                };
-                                let value_native_decoded_audio_device_rerouted_event = AudioDeviceReroutedEvent {
-                                    kind: value_native_decoded_audio_device_rerouted_event_kind,
-                                    metadata: value_native_decoded_audio_device_rerouted_event_metadata,
-                                    device_id: value_native_decoded_audio_device_rerouted_event_device_id,
-                                };
-                                AudioEvent::AudioDeviceReroutedEvent(value_native_decoded_audio_device_rerouted_event)
-                            }
-                            AudioeventReplayRecord::AudioInterruptionBeganEvent(value) => {
-                                let value_native_decoded_audio_interruption_began_event_kind = binding.store_string(value.kind.as_str());
-                                let value_native_decoded_audio_interruption_began_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                                let value_native_decoded_audio_interruption_began_event_metadata_sequence = value.metadata.sequence;
-                                let value_native_decoded_audio_interruption_began_event_metadata_dropped_count = value.metadata.dropped_count;
-                                let value_native_decoded_audio_interruption_began_event_metadata_source = value.metadata.source;
-                                let value_native_decoded_audio_interruption_began_event_metadata_backend = value.metadata.backend;
-                                let value_native_decoded_audio_interruption_began_event_metadata_flags = value.metadata.flags;
-                                let value_native_decoded_audio_interruption_began_event_metadata = AudioEventMetadata {
-                                    timestamp_ns: value_native_decoded_audio_interruption_began_event_metadata_timestamp_ns,
-                                    sequence: value_native_decoded_audio_interruption_began_event_metadata_sequence,
-                                    dropped_count: value_native_decoded_audio_interruption_began_event_metadata_dropped_count,
-                                    source: value_native_decoded_audio_interruption_began_event_metadata_source,
-                                    backend: value_native_decoded_audio_interruption_began_event_metadata_backend,
-                                    flags: value_native_decoded_audio_interruption_began_event_metadata_flags,
-                                };
-                                let value_native_decoded_audio_interruption_began_event_stream = if let Some(value) = value.stream {
-                                    let value_native_decoded_audio_interruption_began_event_stream_inner = value;
-                                    Some(value_native_decoded_audio_interruption_began_event_stream_inner)
-                                } else {
-                                    None
-                                };
-                                let value_native_decoded_audio_interruption_began_event = AudioInterruptionBeganEvent {
-                                    kind: value_native_decoded_audio_interruption_began_event_kind,
-                                    metadata: value_native_decoded_audio_interruption_began_event_metadata,
-                                    stream: value_native_decoded_audio_interruption_began_event_stream,
-                                };
-                                AudioEvent::AudioInterruptionBeganEvent(value_native_decoded_audio_interruption_began_event)
-                            }
-                            AudioeventReplayRecord::AudioInterruptionEndedEvent(value) => {
-                                let value_native_decoded_audio_interruption_ended_event_kind = binding.store_string(value.kind.as_str());
-                                let value_native_decoded_audio_interruption_ended_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                                let value_native_decoded_audio_interruption_ended_event_metadata_sequence = value.metadata.sequence;
-                                let value_native_decoded_audio_interruption_ended_event_metadata_dropped_count = value.metadata.dropped_count;
-                                let value_native_decoded_audio_interruption_ended_event_metadata_source = value.metadata.source;
-                                let value_native_decoded_audio_interruption_ended_event_metadata_backend = value.metadata.backend;
-                                let value_native_decoded_audio_interruption_ended_event_metadata_flags = value.metadata.flags;
-                                let value_native_decoded_audio_interruption_ended_event_metadata = AudioEventMetadata {
-                                    timestamp_ns: value_native_decoded_audio_interruption_ended_event_metadata_timestamp_ns,
-                                    sequence: value_native_decoded_audio_interruption_ended_event_metadata_sequence,
-                                    dropped_count: value_native_decoded_audio_interruption_ended_event_metadata_dropped_count,
-                                    source: value_native_decoded_audio_interruption_ended_event_metadata_source,
-                                    backend: value_native_decoded_audio_interruption_ended_event_metadata_backend,
-                                    flags: value_native_decoded_audio_interruption_ended_event_metadata_flags,
-                                };
-                                let value_native_decoded_audio_interruption_ended_event_stream = if let Some(value) = value.stream {
-                                    let value_native_decoded_audio_interruption_ended_event_stream_inner = value;
-                                    Some(value_native_decoded_audio_interruption_ended_event_stream_inner)
-                                } else {
-                                    None
-                                };
-                                let value_native_decoded_audio_interruption_ended_event = AudioInterruptionEndedEvent {
-                                    kind: value_native_decoded_audio_interruption_ended_event_kind,
-                                    metadata: value_native_decoded_audio_interruption_ended_event_metadata,
-                                    stream: value_native_decoded_audio_interruption_ended_event_stream,
-                                };
-                                AudioEvent::AudioInterruptionEndedEvent(value_native_decoded_audio_interruption_ended_event)
-                            }
-                            AudioeventReplayRecord::AudioStreamDeviceChangedEvent(value) => {
-                                let value_native_decoded_audio_stream_device_changed_event_kind = binding.store_string(value.kind.as_str());
-                                let value_native_decoded_audio_stream_device_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                                let value_native_decoded_audio_stream_device_changed_event_metadata_sequence = value.metadata.sequence;
-                                let value_native_decoded_audio_stream_device_changed_event_metadata_dropped_count = value.metadata.dropped_count;
-                                let value_native_decoded_audio_stream_device_changed_event_metadata_source = value.metadata.source;
-                                let value_native_decoded_audio_stream_device_changed_event_metadata_backend = value.metadata.backend;
-                                let value_native_decoded_audio_stream_device_changed_event_metadata_flags = value.metadata.flags;
-                                let value_native_decoded_audio_stream_device_changed_event_metadata = AudioEventMetadata {
-                                    timestamp_ns: value_native_decoded_audio_stream_device_changed_event_metadata_timestamp_ns,
-                                    sequence: value_native_decoded_audio_stream_device_changed_event_metadata_sequence,
-                                    dropped_count: value_native_decoded_audio_stream_device_changed_event_metadata_dropped_count,
-                                    source: value_native_decoded_audio_stream_device_changed_event_metadata_source,
-                                    backend: value_native_decoded_audio_stream_device_changed_event_metadata_backend,
-                                    flags: value_native_decoded_audio_stream_device_changed_event_metadata_flags,
-                                };
-                                let value_native_decoded_audio_stream_device_changed_event_stream = if let Some(value) = value.stream {
-                                    let value_native_decoded_audio_stream_device_changed_event_stream_inner = value;
-                                    Some(value_native_decoded_audio_stream_device_changed_event_stream_inner)
-                                } else {
-                                    None
-                                };
-                                let value_native_decoded_audio_stream_device_changed_event_status_flags = value.status_flags;
-                                let value_native_decoded_audio_stream_device_changed_event_device_id = if let Some(value) = value.device_id {
-                                    let value_native_decoded_audio_stream_device_changed_event_device_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_audio_stream_device_changed_event_device_id_inner)
-                                } else {
-                                    None
-                                };
-                                let value_native_decoded_audio_stream_device_changed_event = AudioStreamDeviceChangedEvent {
-                                    kind: value_native_decoded_audio_stream_device_changed_event_kind,
-                                    metadata: value_native_decoded_audio_stream_device_changed_event_metadata,
-                                    stream: value_native_decoded_audio_stream_device_changed_event_stream,
-                                    status_flags: value_native_decoded_audio_stream_device_changed_event_status_flags,
-                                    device_id: value_native_decoded_audio_stream_device_changed_event_device_id,
-                                };
-                                AudioEvent::AudioStreamDeviceChangedEvent(value_native_decoded_audio_stream_device_changed_event)
-                            }
-                            AudioeventReplayRecord::AudioStreamStateChangedEvent(value) => {
-                                let value_native_decoded_audio_stream_state_changed_event_kind = binding.store_string(value.kind.as_str());
-                                let value_native_decoded_audio_stream_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                                let value_native_decoded_audio_stream_state_changed_event_metadata_sequence = value.metadata.sequence;
-                                let value_native_decoded_audio_stream_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
-                                let value_native_decoded_audio_stream_state_changed_event_metadata_source = value.metadata.source;
-                                let value_native_decoded_audio_stream_state_changed_event_metadata_backend = value.metadata.backend;
-                                let value_native_decoded_audio_stream_state_changed_event_metadata_flags = value.metadata.flags;
-                                let value_native_decoded_audio_stream_state_changed_event_metadata = AudioEventMetadata {
-                                    timestamp_ns: value_native_decoded_audio_stream_state_changed_event_metadata_timestamp_ns,
-                                    sequence: value_native_decoded_audio_stream_state_changed_event_metadata_sequence,
-                                    dropped_count: value_native_decoded_audio_stream_state_changed_event_metadata_dropped_count,
-                                    source: value_native_decoded_audio_stream_state_changed_event_metadata_source,
-                                    backend: value_native_decoded_audio_stream_state_changed_event_metadata_backend,
-                                    flags: value_native_decoded_audio_stream_state_changed_event_metadata_flags,
-                                };
-                                let value_native_decoded_audio_stream_state_changed_event_stream = if let Some(value) = value.stream {
-                                    let value_native_decoded_audio_stream_state_changed_event_stream_inner = value;
-                                    Some(value_native_decoded_audio_stream_state_changed_event_stream_inner)
-                                } else {
-                                    None
-                                };
-                                let value_native_decoded_audio_stream_state_changed_event_status_flags = value.status_flags;
-                                let value_native_decoded_audio_stream_state_changed_event = AudioStreamStateChangedEvent {
-                                    kind: value_native_decoded_audio_stream_state_changed_event_kind,
-                                    metadata: value_native_decoded_audio_stream_state_changed_event_metadata,
-                                    stream: value_native_decoded_audio_stream_state_changed_event_stream,
-                                    status_flags: value_native_decoded_audio_stream_state_changed_event_status_flags,
-                                };
-                                AudioEvent::AudioStreamStateChangedEvent(value_native_decoded_audio_stream_state_changed_event)
-                            }
-                            AudioeventReplayRecord::AudioStreamXRunEvent(value) => {
-                                let value_native_decoded_audio_stream_x_run_event_kind = binding.store_string(value.kind.as_str());
-                                let value_native_decoded_audio_stream_x_run_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                                let value_native_decoded_audio_stream_x_run_event_metadata_sequence = value.metadata.sequence;
-                                let value_native_decoded_audio_stream_x_run_event_metadata_dropped_count = value.metadata.dropped_count;
-                                let value_native_decoded_audio_stream_x_run_event_metadata_source = value.metadata.source;
-                                let value_native_decoded_audio_stream_x_run_event_metadata_backend = value.metadata.backend;
-                                let value_native_decoded_audio_stream_x_run_event_metadata_flags = value.metadata.flags;
-                                let value_native_decoded_audio_stream_x_run_event_metadata = AudioEventMetadata {
-                                    timestamp_ns: value_native_decoded_audio_stream_x_run_event_metadata_timestamp_ns,
-                                    sequence: value_native_decoded_audio_stream_x_run_event_metadata_sequence,
-                                    dropped_count: value_native_decoded_audio_stream_x_run_event_metadata_dropped_count,
-                                    source: value_native_decoded_audio_stream_x_run_event_metadata_source,
-                                    backend: value_native_decoded_audio_stream_x_run_event_metadata_backend,
-                                    flags: value_native_decoded_audio_stream_x_run_event_metadata_flags,
-                                };
-                                let value_native_decoded_audio_stream_x_run_event_stream = if let Some(value) = value.stream {
-                                    let value_native_decoded_audio_stream_x_run_event_stream_inner = value;
-                                    Some(value_native_decoded_audio_stream_x_run_event_stream_inner)
-                                } else {
-                                    None
-                                };
-                                let value_native_decoded_audio_stream_x_run_event_status_flags = value.status_flags;
-                                let value_native_decoded_audio_stream_x_run_event_xrun_count_delta = value.xrun_count_delta;
-                                let value_native_decoded_audio_stream_x_run_event_device_id = if let Some(value) = value.device_id {
-                                    let value_native_decoded_audio_stream_x_run_event_device_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_audio_stream_x_run_event_device_id_inner)
-                                } else {
-                                    None
-                                };
-                                let value_native_decoded_audio_stream_x_run_event = AudioStreamXRunEvent {
-                                    kind: value_native_decoded_audio_stream_x_run_event_kind,
-                                    metadata: value_native_decoded_audio_stream_x_run_event_metadata,
-                                    stream: value_native_decoded_audio_stream_x_run_event_stream,
-                                    status_flags: value_native_decoded_audio_stream_x_run_event_status_flags,
-                                    xrun_count_delta: value_native_decoded_audio_stream_x_run_event_xrun_count_delta,
-                                    device_id: value_native_decoded_audio_stream_x_run_event_device_id,
-                                };
-                                AudioEvent::AudioStreamXRunEvent(value_native_decoded_audio_stream_x_run_event)
-                            }
-                        };
-                        value_native_values.push(value_native_decoded);
-                    }
-                    let value_native = binding.store_slice(value_native_values);
+                    let value_native = binding.store_slice_with(value.len(), |value_native_values| {
+                        for value_native_item in value {
+                            let value_native_decoded = match value_native_item {
+                                AudioeventReplayRecord::AudioBackendDisconnectedEvent(value) => {
+                                    let value_native_decoded_audio_backend_disconnected_event_kind = binding.store_string_owned(value.kind);
+                                    let value_native_decoded_audio_backend_disconnected_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                    let value_native_decoded_audio_backend_disconnected_event_metadata_sequence = value.metadata.sequence;
+                                    let value_native_decoded_audio_backend_disconnected_event_metadata_dropped_count = value.metadata.dropped_count;
+                                    let value_native_decoded_audio_backend_disconnected_event_metadata_source = value.metadata.source;
+                                    let value_native_decoded_audio_backend_disconnected_event_metadata_backend = value.metadata.backend;
+                                    let value_native_decoded_audio_backend_disconnected_event_metadata_flags = value.metadata.flags;
+                                    let value_native_decoded_audio_backend_disconnected_event_metadata = AudioEventMetadata {
+                                        timestamp_ns: value_native_decoded_audio_backend_disconnected_event_metadata_timestamp_ns,
+                                        sequence: value_native_decoded_audio_backend_disconnected_event_metadata_sequence,
+                                        dropped_count: value_native_decoded_audio_backend_disconnected_event_metadata_dropped_count,
+                                        source: value_native_decoded_audio_backend_disconnected_event_metadata_source,
+                                        backend: value_native_decoded_audio_backend_disconnected_event_metadata_backend,
+                                        flags: value_native_decoded_audio_backend_disconnected_event_metadata_flags,
+                                    };
+                                    let value_native_decoded_audio_backend_disconnected_event_stream = if let Some(value) = value.stream {
+                                        let value_native_decoded_audio_backend_disconnected_event_stream_inner = value;
+                                        Some(value_native_decoded_audio_backend_disconnected_event_stream_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_decoded_audio_backend_disconnected_event = AudioBackendDisconnectedEvent {
+                                        kind: value_native_decoded_audio_backend_disconnected_event_kind,
+                                        metadata: value_native_decoded_audio_backend_disconnected_event_metadata,
+                                        stream: value_native_decoded_audio_backend_disconnected_event_stream,
+                                    };
+                                    AudioEvent::AudioBackendDisconnectedEvent(value_native_decoded_audio_backend_disconnected_event)
+                                }
+                                AudioeventReplayRecord::AudioBackendResetEvent(value) => {
+                                    let value_native_decoded_audio_backend_reset_event_kind = binding.store_string_owned(value.kind);
+                                    let value_native_decoded_audio_backend_reset_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                    let value_native_decoded_audio_backend_reset_event_metadata_sequence = value.metadata.sequence;
+                                    let value_native_decoded_audio_backend_reset_event_metadata_dropped_count = value.metadata.dropped_count;
+                                    let value_native_decoded_audio_backend_reset_event_metadata_source = value.metadata.source;
+                                    let value_native_decoded_audio_backend_reset_event_metadata_backend = value.metadata.backend;
+                                    let value_native_decoded_audio_backend_reset_event_metadata_flags = value.metadata.flags;
+                                    let value_native_decoded_audio_backend_reset_event_metadata = AudioEventMetadata {
+                                        timestamp_ns: value_native_decoded_audio_backend_reset_event_metadata_timestamp_ns,
+                                        sequence: value_native_decoded_audio_backend_reset_event_metadata_sequence,
+                                        dropped_count: value_native_decoded_audio_backend_reset_event_metadata_dropped_count,
+                                        source: value_native_decoded_audio_backend_reset_event_metadata_source,
+                                        backend: value_native_decoded_audio_backend_reset_event_metadata_backend,
+                                        flags: value_native_decoded_audio_backend_reset_event_metadata_flags,
+                                    };
+                                    let value_native_decoded_audio_backend_reset_event_stream = if let Some(value) = value.stream {
+                                        let value_native_decoded_audio_backend_reset_event_stream_inner = value;
+                                        Some(value_native_decoded_audio_backend_reset_event_stream_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_decoded_audio_backend_reset_event = AudioBackendResetEvent {
+                                        kind: value_native_decoded_audio_backend_reset_event_kind,
+                                        metadata: value_native_decoded_audio_backend_reset_event_metadata,
+                                        stream: value_native_decoded_audio_backend_reset_event_stream,
+                                    };
+                                    AudioEvent::AudioBackendResetEvent(value_native_decoded_audio_backend_reset_event)
+                                }
+                                AudioeventReplayRecord::AudioDefaultCaptureChangedEvent(value) => {
+                                    let value_native_decoded_audio_default_capture_changed_event_kind = binding.store_string_owned(value.kind);
+                                    let value_native_decoded_audio_default_capture_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                    let value_native_decoded_audio_default_capture_changed_event_metadata_sequence = value.metadata.sequence;
+                                    let value_native_decoded_audio_default_capture_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                    let value_native_decoded_audio_default_capture_changed_event_metadata_source = value.metadata.source;
+                                    let value_native_decoded_audio_default_capture_changed_event_metadata_backend = value.metadata.backend;
+                                    let value_native_decoded_audio_default_capture_changed_event_metadata_flags = value.metadata.flags;
+                                    let value_native_decoded_audio_default_capture_changed_event_metadata = AudioEventMetadata {
+                                        timestamp_ns: value_native_decoded_audio_default_capture_changed_event_metadata_timestamp_ns,
+                                        sequence: value_native_decoded_audio_default_capture_changed_event_metadata_sequence,
+                                        dropped_count: value_native_decoded_audio_default_capture_changed_event_metadata_dropped_count,
+                                        source: value_native_decoded_audio_default_capture_changed_event_metadata_source,
+                                        backend: value_native_decoded_audio_default_capture_changed_event_metadata_backend,
+                                        flags: value_native_decoded_audio_default_capture_changed_event_metadata_flags,
+                                    };
+                                    let value_native_decoded_audio_default_capture_changed_event_device_id = if let Some(value) = value.device_id {
+                                        let value_native_decoded_audio_default_capture_changed_event_device_id_inner = binding.store_string_owned(value);
+                                        Some(value_native_decoded_audio_default_capture_changed_event_device_id_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_decoded_audio_default_capture_changed_event = AudioDefaultCaptureChangedEvent {
+                                        kind: value_native_decoded_audio_default_capture_changed_event_kind,
+                                        metadata: value_native_decoded_audio_default_capture_changed_event_metadata,
+                                        device_id: value_native_decoded_audio_default_capture_changed_event_device_id,
+                                    };
+                                    AudioEvent::AudioDefaultCaptureChangedEvent(value_native_decoded_audio_default_capture_changed_event)
+                                }
+                                AudioeventReplayRecord::AudioDefaultLoopbackChangedEvent(value) => {
+                                    let value_native_decoded_audio_default_loopback_changed_event_kind = binding.store_string_owned(value.kind);
+                                    let value_native_decoded_audio_default_loopback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                    let value_native_decoded_audio_default_loopback_changed_event_metadata_sequence = value.metadata.sequence;
+                                    let value_native_decoded_audio_default_loopback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                    let value_native_decoded_audio_default_loopback_changed_event_metadata_source = value.metadata.source;
+                                    let value_native_decoded_audio_default_loopback_changed_event_metadata_backend = value.metadata.backend;
+                                    let value_native_decoded_audio_default_loopback_changed_event_metadata_flags = value.metadata.flags;
+                                    let value_native_decoded_audio_default_loopback_changed_event_metadata = AudioEventMetadata {
+                                        timestamp_ns: value_native_decoded_audio_default_loopback_changed_event_metadata_timestamp_ns,
+                                        sequence: value_native_decoded_audio_default_loopback_changed_event_metadata_sequence,
+                                        dropped_count: value_native_decoded_audio_default_loopback_changed_event_metadata_dropped_count,
+                                        source: value_native_decoded_audio_default_loopback_changed_event_metadata_source,
+                                        backend: value_native_decoded_audio_default_loopback_changed_event_metadata_backend,
+                                        flags: value_native_decoded_audio_default_loopback_changed_event_metadata_flags,
+                                    };
+                                    let value_native_decoded_audio_default_loopback_changed_event_device_id = if let Some(value) = value.device_id {
+                                        let value_native_decoded_audio_default_loopback_changed_event_device_id_inner = binding.store_string_owned(value);
+                                        Some(value_native_decoded_audio_default_loopback_changed_event_device_id_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_decoded_audio_default_loopback_changed_event = AudioDefaultLoopbackChangedEvent {
+                                        kind: value_native_decoded_audio_default_loopback_changed_event_kind,
+                                        metadata: value_native_decoded_audio_default_loopback_changed_event_metadata,
+                                        device_id: value_native_decoded_audio_default_loopback_changed_event_device_id,
+                                    };
+                                    AudioEvent::AudioDefaultLoopbackChangedEvent(value_native_decoded_audio_default_loopback_changed_event)
+                                }
+                                AudioeventReplayRecord::AudioDefaultPlaybackChangedEvent(value) => {
+                                    let value_native_decoded_audio_default_playback_changed_event_kind = binding.store_string_owned(value.kind);
+                                    let value_native_decoded_audio_default_playback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                    let value_native_decoded_audio_default_playback_changed_event_metadata_sequence = value.metadata.sequence;
+                                    let value_native_decoded_audio_default_playback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                    let value_native_decoded_audio_default_playback_changed_event_metadata_source = value.metadata.source;
+                                    let value_native_decoded_audio_default_playback_changed_event_metadata_backend = value.metadata.backend;
+                                    let value_native_decoded_audio_default_playback_changed_event_metadata_flags = value.metadata.flags;
+                                    let value_native_decoded_audio_default_playback_changed_event_metadata = AudioEventMetadata {
+                                        timestamp_ns: value_native_decoded_audio_default_playback_changed_event_metadata_timestamp_ns,
+                                        sequence: value_native_decoded_audio_default_playback_changed_event_metadata_sequence,
+                                        dropped_count: value_native_decoded_audio_default_playback_changed_event_metadata_dropped_count,
+                                        source: value_native_decoded_audio_default_playback_changed_event_metadata_source,
+                                        backend: value_native_decoded_audio_default_playback_changed_event_metadata_backend,
+                                        flags: value_native_decoded_audio_default_playback_changed_event_metadata_flags,
+                                    };
+                                    let value_native_decoded_audio_default_playback_changed_event_device_id = if let Some(value) = value.device_id {
+                                        let value_native_decoded_audio_default_playback_changed_event_device_id_inner = binding.store_string_owned(value);
+                                        Some(value_native_decoded_audio_default_playback_changed_event_device_id_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_decoded_audio_default_playback_changed_event = AudioDefaultPlaybackChangedEvent {
+                                        kind: value_native_decoded_audio_default_playback_changed_event_kind,
+                                        metadata: value_native_decoded_audio_default_playback_changed_event_metadata,
+                                        device_id: value_native_decoded_audio_default_playback_changed_event_device_id,
+                                    };
+                                    AudioEvent::AudioDefaultPlaybackChangedEvent(value_native_decoded_audio_default_playback_changed_event)
+                                }
+                                AudioeventReplayRecord::AudioDeviceAddedEvent(value) => {
+                                    let value_native_decoded_audio_device_added_event_kind = binding.store_string_owned(value.kind);
+                                    let value_native_decoded_audio_device_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                    let value_native_decoded_audio_device_added_event_metadata_sequence = value.metadata.sequence;
+                                    let value_native_decoded_audio_device_added_event_metadata_dropped_count = value.metadata.dropped_count;
+                                    let value_native_decoded_audio_device_added_event_metadata_source = value.metadata.source;
+                                    let value_native_decoded_audio_device_added_event_metadata_backend = value.metadata.backend;
+                                    let value_native_decoded_audio_device_added_event_metadata_flags = value.metadata.flags;
+                                    let value_native_decoded_audio_device_added_event_metadata = AudioEventMetadata {
+                                        timestamp_ns: value_native_decoded_audio_device_added_event_metadata_timestamp_ns,
+                                        sequence: value_native_decoded_audio_device_added_event_metadata_sequence,
+                                        dropped_count: value_native_decoded_audio_device_added_event_metadata_dropped_count,
+                                        source: value_native_decoded_audio_device_added_event_metadata_source,
+                                        backend: value_native_decoded_audio_device_added_event_metadata_backend,
+                                        flags: value_native_decoded_audio_device_added_event_metadata_flags,
+                                    };
+                                    let value_native_decoded_audio_device_added_event_device_id = if let Some(value) = value.device_id {
+                                        let value_native_decoded_audio_device_added_event_device_id_inner = binding.store_string_owned(value);
+                                        Some(value_native_decoded_audio_device_added_event_device_id_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_decoded_audio_device_added_event = AudioDeviceAddedEvent {
+                                        kind: value_native_decoded_audio_device_added_event_kind,
+                                        metadata: value_native_decoded_audio_device_added_event_metadata,
+                                        device_id: value_native_decoded_audio_device_added_event_device_id,
+                                    };
+                                    AudioEvent::AudioDeviceAddedEvent(value_native_decoded_audio_device_added_event)
+                                }
+                                AudioeventReplayRecord::AudioDeviceFormatChangedEvent(value) => {
+                                    let value_native_decoded_audio_device_format_changed_event_kind = binding.store_string_owned(value.kind);
+                                    let value_native_decoded_audio_device_format_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                    let value_native_decoded_audio_device_format_changed_event_metadata_sequence = value.metadata.sequence;
+                                    let value_native_decoded_audio_device_format_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                    let value_native_decoded_audio_device_format_changed_event_metadata_source = value.metadata.source;
+                                    let value_native_decoded_audio_device_format_changed_event_metadata_backend = value.metadata.backend;
+                                    let value_native_decoded_audio_device_format_changed_event_metadata_flags = value.metadata.flags;
+                                    let value_native_decoded_audio_device_format_changed_event_metadata = AudioEventMetadata {
+                                        timestamp_ns: value_native_decoded_audio_device_format_changed_event_metadata_timestamp_ns,
+                                        sequence: value_native_decoded_audio_device_format_changed_event_metadata_sequence,
+                                        dropped_count: value_native_decoded_audio_device_format_changed_event_metadata_dropped_count,
+                                        source: value_native_decoded_audio_device_format_changed_event_metadata_source,
+                                        backend: value_native_decoded_audio_device_format_changed_event_metadata_backend,
+                                        flags: value_native_decoded_audio_device_format_changed_event_metadata_flags,
+                                    };
+                                    let value_native_decoded_audio_device_format_changed_event_device_id = if let Some(value) = value.device_id {
+                                        let value_native_decoded_audio_device_format_changed_event_device_id_inner = binding.store_string_owned(value);
+                                        Some(value_native_decoded_audio_device_format_changed_event_device_id_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_decoded_audio_device_format_changed_event = AudioDeviceFormatChangedEvent {
+                                        kind: value_native_decoded_audio_device_format_changed_event_kind,
+                                        metadata: value_native_decoded_audio_device_format_changed_event_metadata,
+                                        device_id: value_native_decoded_audio_device_format_changed_event_device_id,
+                                    };
+                                    AudioEvent::AudioDeviceFormatChangedEvent(value_native_decoded_audio_device_format_changed_event)
+                                }
+                                AudioeventReplayRecord::AudioDeviceRemovedEvent(value) => {
+                                    let value_native_decoded_audio_device_removed_event_kind = binding.store_string_owned(value.kind);
+                                    let value_native_decoded_audio_device_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                    let value_native_decoded_audio_device_removed_event_metadata_sequence = value.metadata.sequence;
+                                    let value_native_decoded_audio_device_removed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                    let value_native_decoded_audio_device_removed_event_metadata_source = value.metadata.source;
+                                    let value_native_decoded_audio_device_removed_event_metadata_backend = value.metadata.backend;
+                                    let value_native_decoded_audio_device_removed_event_metadata_flags = value.metadata.flags;
+                                    let value_native_decoded_audio_device_removed_event_metadata = AudioEventMetadata {
+                                        timestamp_ns: value_native_decoded_audio_device_removed_event_metadata_timestamp_ns,
+                                        sequence: value_native_decoded_audio_device_removed_event_metadata_sequence,
+                                        dropped_count: value_native_decoded_audio_device_removed_event_metadata_dropped_count,
+                                        source: value_native_decoded_audio_device_removed_event_metadata_source,
+                                        backend: value_native_decoded_audio_device_removed_event_metadata_backend,
+                                        flags: value_native_decoded_audio_device_removed_event_metadata_flags,
+                                    };
+                                    let value_native_decoded_audio_device_removed_event_device_id = if let Some(value) = value.device_id {
+                                        let value_native_decoded_audio_device_removed_event_device_id_inner = binding.store_string_owned(value);
+                                        Some(value_native_decoded_audio_device_removed_event_device_id_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_decoded_audio_device_removed_event = AudioDeviceRemovedEvent {
+                                        kind: value_native_decoded_audio_device_removed_event_kind,
+                                        metadata: value_native_decoded_audio_device_removed_event_metadata,
+                                        device_id: value_native_decoded_audio_device_removed_event_device_id,
+                                    };
+                                    AudioEvent::AudioDeviceRemovedEvent(value_native_decoded_audio_device_removed_event)
+                                }
+                                AudioeventReplayRecord::AudioDeviceReroutedEvent(value) => {
+                                    let value_native_decoded_audio_device_rerouted_event_kind = binding.store_string_owned(value.kind);
+                                    let value_native_decoded_audio_device_rerouted_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                    let value_native_decoded_audio_device_rerouted_event_metadata_sequence = value.metadata.sequence;
+                                    let value_native_decoded_audio_device_rerouted_event_metadata_dropped_count = value.metadata.dropped_count;
+                                    let value_native_decoded_audio_device_rerouted_event_metadata_source = value.metadata.source;
+                                    let value_native_decoded_audio_device_rerouted_event_metadata_backend = value.metadata.backend;
+                                    let value_native_decoded_audio_device_rerouted_event_metadata_flags = value.metadata.flags;
+                                    let value_native_decoded_audio_device_rerouted_event_metadata = AudioEventMetadata {
+                                        timestamp_ns: value_native_decoded_audio_device_rerouted_event_metadata_timestamp_ns,
+                                        sequence: value_native_decoded_audio_device_rerouted_event_metadata_sequence,
+                                        dropped_count: value_native_decoded_audio_device_rerouted_event_metadata_dropped_count,
+                                        source: value_native_decoded_audio_device_rerouted_event_metadata_source,
+                                        backend: value_native_decoded_audio_device_rerouted_event_metadata_backend,
+                                        flags: value_native_decoded_audio_device_rerouted_event_metadata_flags,
+                                    };
+                                    let value_native_decoded_audio_device_rerouted_event_device_id = if let Some(value) = value.device_id {
+                                        let value_native_decoded_audio_device_rerouted_event_device_id_inner = binding.store_string_owned(value);
+                                        Some(value_native_decoded_audio_device_rerouted_event_device_id_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_decoded_audio_device_rerouted_event = AudioDeviceReroutedEvent {
+                                        kind: value_native_decoded_audio_device_rerouted_event_kind,
+                                        metadata: value_native_decoded_audio_device_rerouted_event_metadata,
+                                        device_id: value_native_decoded_audio_device_rerouted_event_device_id,
+                                    };
+                                    AudioEvent::AudioDeviceReroutedEvent(value_native_decoded_audio_device_rerouted_event)
+                                }
+                                AudioeventReplayRecord::AudioInterruptionBeganEvent(value) => {
+                                    let value_native_decoded_audio_interruption_began_event_kind = binding.store_string_owned(value.kind);
+                                    let value_native_decoded_audio_interruption_began_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                    let value_native_decoded_audio_interruption_began_event_metadata_sequence = value.metadata.sequence;
+                                    let value_native_decoded_audio_interruption_began_event_metadata_dropped_count = value.metadata.dropped_count;
+                                    let value_native_decoded_audio_interruption_began_event_metadata_source = value.metadata.source;
+                                    let value_native_decoded_audio_interruption_began_event_metadata_backend = value.metadata.backend;
+                                    let value_native_decoded_audio_interruption_began_event_metadata_flags = value.metadata.flags;
+                                    let value_native_decoded_audio_interruption_began_event_metadata = AudioEventMetadata {
+                                        timestamp_ns: value_native_decoded_audio_interruption_began_event_metadata_timestamp_ns,
+                                        sequence: value_native_decoded_audio_interruption_began_event_metadata_sequence,
+                                        dropped_count: value_native_decoded_audio_interruption_began_event_metadata_dropped_count,
+                                        source: value_native_decoded_audio_interruption_began_event_metadata_source,
+                                        backend: value_native_decoded_audio_interruption_began_event_metadata_backend,
+                                        flags: value_native_decoded_audio_interruption_began_event_metadata_flags,
+                                    };
+                                    let value_native_decoded_audio_interruption_began_event_stream = if let Some(value) = value.stream {
+                                        let value_native_decoded_audio_interruption_began_event_stream_inner = value;
+                                        Some(value_native_decoded_audio_interruption_began_event_stream_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_decoded_audio_interruption_began_event = AudioInterruptionBeganEvent {
+                                        kind: value_native_decoded_audio_interruption_began_event_kind,
+                                        metadata: value_native_decoded_audio_interruption_began_event_metadata,
+                                        stream: value_native_decoded_audio_interruption_began_event_stream,
+                                    };
+                                    AudioEvent::AudioInterruptionBeganEvent(value_native_decoded_audio_interruption_began_event)
+                                }
+                                AudioeventReplayRecord::AudioInterruptionEndedEvent(value) => {
+                                    let value_native_decoded_audio_interruption_ended_event_kind = binding.store_string_owned(value.kind);
+                                    let value_native_decoded_audio_interruption_ended_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                    let value_native_decoded_audio_interruption_ended_event_metadata_sequence = value.metadata.sequence;
+                                    let value_native_decoded_audio_interruption_ended_event_metadata_dropped_count = value.metadata.dropped_count;
+                                    let value_native_decoded_audio_interruption_ended_event_metadata_source = value.metadata.source;
+                                    let value_native_decoded_audio_interruption_ended_event_metadata_backend = value.metadata.backend;
+                                    let value_native_decoded_audio_interruption_ended_event_metadata_flags = value.metadata.flags;
+                                    let value_native_decoded_audio_interruption_ended_event_metadata = AudioEventMetadata {
+                                        timestamp_ns: value_native_decoded_audio_interruption_ended_event_metadata_timestamp_ns,
+                                        sequence: value_native_decoded_audio_interruption_ended_event_metadata_sequence,
+                                        dropped_count: value_native_decoded_audio_interruption_ended_event_metadata_dropped_count,
+                                        source: value_native_decoded_audio_interruption_ended_event_metadata_source,
+                                        backend: value_native_decoded_audio_interruption_ended_event_metadata_backend,
+                                        flags: value_native_decoded_audio_interruption_ended_event_metadata_flags,
+                                    };
+                                    let value_native_decoded_audio_interruption_ended_event_stream = if let Some(value) = value.stream {
+                                        let value_native_decoded_audio_interruption_ended_event_stream_inner = value;
+                                        Some(value_native_decoded_audio_interruption_ended_event_stream_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_decoded_audio_interruption_ended_event = AudioInterruptionEndedEvent {
+                                        kind: value_native_decoded_audio_interruption_ended_event_kind,
+                                        metadata: value_native_decoded_audio_interruption_ended_event_metadata,
+                                        stream: value_native_decoded_audio_interruption_ended_event_stream,
+                                    };
+                                    AudioEvent::AudioInterruptionEndedEvent(value_native_decoded_audio_interruption_ended_event)
+                                }
+                                AudioeventReplayRecord::AudioStreamDeviceChangedEvent(value) => {
+                                    let value_native_decoded_audio_stream_device_changed_event_kind = binding.store_string_owned(value.kind);
+                                    let value_native_decoded_audio_stream_device_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                    let value_native_decoded_audio_stream_device_changed_event_metadata_sequence = value.metadata.sequence;
+                                    let value_native_decoded_audio_stream_device_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                    let value_native_decoded_audio_stream_device_changed_event_metadata_source = value.metadata.source;
+                                    let value_native_decoded_audio_stream_device_changed_event_metadata_backend = value.metadata.backend;
+                                    let value_native_decoded_audio_stream_device_changed_event_metadata_flags = value.metadata.flags;
+                                    let value_native_decoded_audio_stream_device_changed_event_metadata = AudioEventMetadata {
+                                        timestamp_ns: value_native_decoded_audio_stream_device_changed_event_metadata_timestamp_ns,
+                                        sequence: value_native_decoded_audio_stream_device_changed_event_metadata_sequence,
+                                        dropped_count: value_native_decoded_audio_stream_device_changed_event_metadata_dropped_count,
+                                        source: value_native_decoded_audio_stream_device_changed_event_metadata_source,
+                                        backend: value_native_decoded_audio_stream_device_changed_event_metadata_backend,
+                                        flags: value_native_decoded_audio_stream_device_changed_event_metadata_flags,
+                                    };
+                                    let value_native_decoded_audio_stream_device_changed_event_stream = if let Some(value) = value.stream {
+                                        let value_native_decoded_audio_stream_device_changed_event_stream_inner = value;
+                                        Some(value_native_decoded_audio_stream_device_changed_event_stream_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_decoded_audio_stream_device_changed_event_status_flags = value.status_flags;
+                                    let value_native_decoded_audio_stream_device_changed_event_device_id = if let Some(value) = value.device_id {
+                                        let value_native_decoded_audio_stream_device_changed_event_device_id_inner = binding.store_string_owned(value);
+                                        Some(value_native_decoded_audio_stream_device_changed_event_device_id_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_decoded_audio_stream_device_changed_event = AudioStreamDeviceChangedEvent {
+                                        kind: value_native_decoded_audio_stream_device_changed_event_kind,
+                                        metadata: value_native_decoded_audio_stream_device_changed_event_metadata,
+                                        stream: value_native_decoded_audio_stream_device_changed_event_stream,
+                                        status_flags: value_native_decoded_audio_stream_device_changed_event_status_flags,
+                                        device_id: value_native_decoded_audio_stream_device_changed_event_device_id,
+                                    };
+                                    AudioEvent::AudioStreamDeviceChangedEvent(value_native_decoded_audio_stream_device_changed_event)
+                                }
+                                AudioeventReplayRecord::AudioStreamStateChangedEvent(value) => {
+                                    let value_native_decoded_audio_stream_state_changed_event_kind = binding.store_string_owned(value.kind);
+                                    let value_native_decoded_audio_stream_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                    let value_native_decoded_audio_stream_state_changed_event_metadata_sequence = value.metadata.sequence;
+                                    let value_native_decoded_audio_stream_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                    let value_native_decoded_audio_stream_state_changed_event_metadata_source = value.metadata.source;
+                                    let value_native_decoded_audio_stream_state_changed_event_metadata_backend = value.metadata.backend;
+                                    let value_native_decoded_audio_stream_state_changed_event_metadata_flags = value.metadata.flags;
+                                    let value_native_decoded_audio_stream_state_changed_event_metadata = AudioEventMetadata {
+                                        timestamp_ns: value_native_decoded_audio_stream_state_changed_event_metadata_timestamp_ns,
+                                        sequence: value_native_decoded_audio_stream_state_changed_event_metadata_sequence,
+                                        dropped_count: value_native_decoded_audio_stream_state_changed_event_metadata_dropped_count,
+                                        source: value_native_decoded_audio_stream_state_changed_event_metadata_source,
+                                        backend: value_native_decoded_audio_stream_state_changed_event_metadata_backend,
+                                        flags: value_native_decoded_audio_stream_state_changed_event_metadata_flags,
+                                    };
+                                    let value_native_decoded_audio_stream_state_changed_event_stream = if let Some(value) = value.stream {
+                                        let value_native_decoded_audio_stream_state_changed_event_stream_inner = value;
+                                        Some(value_native_decoded_audio_stream_state_changed_event_stream_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_decoded_audio_stream_state_changed_event_status_flags = value.status_flags;
+                                    let value_native_decoded_audio_stream_state_changed_event = AudioStreamStateChangedEvent {
+                                        kind: value_native_decoded_audio_stream_state_changed_event_kind,
+                                        metadata: value_native_decoded_audio_stream_state_changed_event_metadata,
+                                        stream: value_native_decoded_audio_stream_state_changed_event_stream,
+                                        status_flags: value_native_decoded_audio_stream_state_changed_event_status_flags,
+                                    };
+                                    AudioEvent::AudioStreamStateChangedEvent(value_native_decoded_audio_stream_state_changed_event)
+                                }
+                                AudioeventReplayRecord::AudioStreamXRunEvent(value) => {
+                                    let value_native_decoded_audio_stream_x_run_event_kind = binding.store_string_owned(value.kind);
+                                    let value_native_decoded_audio_stream_x_run_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                    let value_native_decoded_audio_stream_x_run_event_metadata_sequence = value.metadata.sequence;
+                                    let value_native_decoded_audio_stream_x_run_event_metadata_dropped_count = value.metadata.dropped_count;
+                                    let value_native_decoded_audio_stream_x_run_event_metadata_source = value.metadata.source;
+                                    let value_native_decoded_audio_stream_x_run_event_metadata_backend = value.metadata.backend;
+                                    let value_native_decoded_audio_stream_x_run_event_metadata_flags = value.metadata.flags;
+                                    let value_native_decoded_audio_stream_x_run_event_metadata = AudioEventMetadata {
+                                        timestamp_ns: value_native_decoded_audio_stream_x_run_event_metadata_timestamp_ns,
+                                        sequence: value_native_decoded_audio_stream_x_run_event_metadata_sequence,
+                                        dropped_count: value_native_decoded_audio_stream_x_run_event_metadata_dropped_count,
+                                        source: value_native_decoded_audio_stream_x_run_event_metadata_source,
+                                        backend: value_native_decoded_audio_stream_x_run_event_metadata_backend,
+                                        flags: value_native_decoded_audio_stream_x_run_event_metadata_flags,
+                                    };
+                                    let value_native_decoded_audio_stream_x_run_event_stream = if let Some(value) = value.stream {
+                                        let value_native_decoded_audio_stream_x_run_event_stream_inner = value;
+                                        Some(value_native_decoded_audio_stream_x_run_event_stream_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_decoded_audio_stream_x_run_event_status_flags = value.status_flags;
+                                    let value_native_decoded_audio_stream_x_run_event_xrun_count_delta = value.xrun_count_delta;
+                                    let value_native_decoded_audio_stream_x_run_event_device_id = if let Some(value) = value.device_id {
+                                        let value_native_decoded_audio_stream_x_run_event_device_id_inner = binding.store_string_owned(value);
+                                        Some(value_native_decoded_audio_stream_x_run_event_device_id_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_decoded_audio_stream_x_run_event = AudioStreamXRunEvent {
+                                        kind: value_native_decoded_audio_stream_x_run_event_kind,
+                                        metadata: value_native_decoded_audio_stream_x_run_event_metadata,
+                                        stream: value_native_decoded_audio_stream_x_run_event_stream,
+                                        status_flags: value_native_decoded_audio_stream_x_run_event_status_flags,
+                                        xrun_count_delta: value_native_decoded_audio_stream_x_run_event_xrun_count_delta,
+                                        device_id: value_native_decoded_audio_stream_x_run_event_device_id,
+                                    };
+                                    AudioEvent::AudioStreamXRunEvent(value_native_decoded_audio_stream_x_run_event)
+                                }
+                            };
+                            value_native_values.push(value_native_decoded);
+                        }
+                        Ok(())
+                    })?;
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -7795,7 +8712,7 @@ fn destack_audio_event_try_read_replay(
                 Ok(value) => {
                     let value_native = match value {
                         AudioeventReplayRecord::AudioBackendDisconnectedEvent(value) => {
-                            let value_native_audio_backend_disconnected_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_audio_backend_disconnected_event_kind = binding.store_string_owned(value.kind);
                             let value_native_audio_backend_disconnected_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_backend_disconnected_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_backend_disconnected_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -7824,7 +8741,7 @@ fn destack_audio_event_try_read_replay(
                             AudioEvent::AudioBackendDisconnectedEvent(value_native_audio_backend_disconnected_event)
                         }
                         AudioeventReplayRecord::AudioBackendResetEvent(value) => {
-                            let value_native_audio_backend_reset_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_audio_backend_reset_event_kind = binding.store_string_owned(value.kind);
                             let value_native_audio_backend_reset_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_backend_reset_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_backend_reset_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -7853,7 +8770,7 @@ fn destack_audio_event_try_read_replay(
                             AudioEvent::AudioBackendResetEvent(value_native_audio_backend_reset_event)
                         }
                         AudioeventReplayRecord::AudioDefaultCaptureChangedEvent(value) => {
-                            let value_native_audio_default_capture_changed_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_audio_default_capture_changed_event_kind = binding.store_string_owned(value.kind);
                             let value_native_audio_default_capture_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_default_capture_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_default_capture_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -7869,7 +8786,7 @@ fn destack_audio_event_try_read_replay(
                                 flags: value_native_audio_default_capture_changed_event_metadata_flags,
                             };
                             let value_native_audio_default_capture_changed_event_device_id = if let Some(value) = value.device_id {
-                                let value_native_audio_default_capture_changed_event_device_id_inner = binding.store_string(value.as_str());
+                                let value_native_audio_default_capture_changed_event_device_id_inner = binding.store_string_owned(value);
                                 Some(value_native_audio_default_capture_changed_event_device_id_inner)
                             } else {
                                 None
@@ -7882,7 +8799,7 @@ fn destack_audio_event_try_read_replay(
                             AudioEvent::AudioDefaultCaptureChangedEvent(value_native_audio_default_capture_changed_event)
                         }
                         AudioeventReplayRecord::AudioDefaultLoopbackChangedEvent(value) => {
-                            let value_native_audio_default_loopback_changed_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_audio_default_loopback_changed_event_kind = binding.store_string_owned(value.kind);
                             let value_native_audio_default_loopback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_default_loopback_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_default_loopback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -7898,7 +8815,7 @@ fn destack_audio_event_try_read_replay(
                                 flags: value_native_audio_default_loopback_changed_event_metadata_flags,
                             };
                             let value_native_audio_default_loopback_changed_event_device_id = if let Some(value) = value.device_id {
-                                let value_native_audio_default_loopback_changed_event_device_id_inner = binding.store_string(value.as_str());
+                                let value_native_audio_default_loopback_changed_event_device_id_inner = binding.store_string_owned(value);
                                 Some(value_native_audio_default_loopback_changed_event_device_id_inner)
                             } else {
                                 None
@@ -7911,7 +8828,7 @@ fn destack_audio_event_try_read_replay(
                             AudioEvent::AudioDefaultLoopbackChangedEvent(value_native_audio_default_loopback_changed_event)
                         }
                         AudioeventReplayRecord::AudioDefaultPlaybackChangedEvent(value) => {
-                            let value_native_audio_default_playback_changed_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_audio_default_playback_changed_event_kind = binding.store_string_owned(value.kind);
                             let value_native_audio_default_playback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_default_playback_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_default_playback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -7927,7 +8844,7 @@ fn destack_audio_event_try_read_replay(
                                 flags: value_native_audio_default_playback_changed_event_metadata_flags,
                             };
                             let value_native_audio_default_playback_changed_event_device_id = if let Some(value) = value.device_id {
-                                let value_native_audio_default_playback_changed_event_device_id_inner = binding.store_string(value.as_str());
+                                let value_native_audio_default_playback_changed_event_device_id_inner = binding.store_string_owned(value);
                                 Some(value_native_audio_default_playback_changed_event_device_id_inner)
                             } else {
                                 None
@@ -7940,7 +8857,7 @@ fn destack_audio_event_try_read_replay(
                             AudioEvent::AudioDefaultPlaybackChangedEvent(value_native_audio_default_playback_changed_event)
                         }
                         AudioeventReplayRecord::AudioDeviceAddedEvent(value) => {
-                            let value_native_audio_device_added_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_audio_device_added_event_kind = binding.store_string_owned(value.kind);
                             let value_native_audio_device_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_device_added_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_device_added_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -7956,7 +8873,7 @@ fn destack_audio_event_try_read_replay(
                                 flags: value_native_audio_device_added_event_metadata_flags,
                             };
                             let value_native_audio_device_added_event_device_id = if let Some(value) = value.device_id {
-                                let value_native_audio_device_added_event_device_id_inner = binding.store_string(value.as_str());
+                                let value_native_audio_device_added_event_device_id_inner = binding.store_string_owned(value);
                                 Some(value_native_audio_device_added_event_device_id_inner)
                             } else {
                                 None
@@ -7969,7 +8886,7 @@ fn destack_audio_event_try_read_replay(
                             AudioEvent::AudioDeviceAddedEvent(value_native_audio_device_added_event)
                         }
                         AudioeventReplayRecord::AudioDeviceFormatChangedEvent(value) => {
-                            let value_native_audio_device_format_changed_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_audio_device_format_changed_event_kind = binding.store_string_owned(value.kind);
                             let value_native_audio_device_format_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_device_format_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_device_format_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -7985,7 +8902,7 @@ fn destack_audio_event_try_read_replay(
                                 flags: value_native_audio_device_format_changed_event_metadata_flags,
                             };
                             let value_native_audio_device_format_changed_event_device_id = if let Some(value) = value.device_id {
-                                let value_native_audio_device_format_changed_event_device_id_inner = binding.store_string(value.as_str());
+                                let value_native_audio_device_format_changed_event_device_id_inner = binding.store_string_owned(value);
                                 Some(value_native_audio_device_format_changed_event_device_id_inner)
                             } else {
                                 None
@@ -7998,7 +8915,7 @@ fn destack_audio_event_try_read_replay(
                             AudioEvent::AudioDeviceFormatChangedEvent(value_native_audio_device_format_changed_event)
                         }
                         AudioeventReplayRecord::AudioDeviceRemovedEvent(value) => {
-                            let value_native_audio_device_removed_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_audio_device_removed_event_kind = binding.store_string_owned(value.kind);
                             let value_native_audio_device_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_device_removed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_device_removed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -8014,7 +8931,7 @@ fn destack_audio_event_try_read_replay(
                                 flags: value_native_audio_device_removed_event_metadata_flags,
                             };
                             let value_native_audio_device_removed_event_device_id = if let Some(value) = value.device_id {
-                                let value_native_audio_device_removed_event_device_id_inner = binding.store_string(value.as_str());
+                                let value_native_audio_device_removed_event_device_id_inner = binding.store_string_owned(value);
                                 Some(value_native_audio_device_removed_event_device_id_inner)
                             } else {
                                 None
@@ -8027,7 +8944,7 @@ fn destack_audio_event_try_read_replay(
                             AudioEvent::AudioDeviceRemovedEvent(value_native_audio_device_removed_event)
                         }
                         AudioeventReplayRecord::AudioDeviceReroutedEvent(value) => {
-                            let value_native_audio_device_rerouted_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_audio_device_rerouted_event_kind = binding.store_string_owned(value.kind);
                             let value_native_audio_device_rerouted_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_device_rerouted_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_device_rerouted_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -8043,7 +8960,7 @@ fn destack_audio_event_try_read_replay(
                                 flags: value_native_audio_device_rerouted_event_metadata_flags,
                             };
                             let value_native_audio_device_rerouted_event_device_id = if let Some(value) = value.device_id {
-                                let value_native_audio_device_rerouted_event_device_id_inner = binding.store_string(value.as_str());
+                                let value_native_audio_device_rerouted_event_device_id_inner = binding.store_string_owned(value);
                                 Some(value_native_audio_device_rerouted_event_device_id_inner)
                             } else {
                                 None
@@ -8056,7 +8973,7 @@ fn destack_audio_event_try_read_replay(
                             AudioEvent::AudioDeviceReroutedEvent(value_native_audio_device_rerouted_event)
                         }
                         AudioeventReplayRecord::AudioInterruptionBeganEvent(value) => {
-                            let value_native_audio_interruption_began_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_audio_interruption_began_event_kind = binding.store_string_owned(value.kind);
                             let value_native_audio_interruption_began_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_interruption_began_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_interruption_began_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -8085,7 +9002,7 @@ fn destack_audio_event_try_read_replay(
                             AudioEvent::AudioInterruptionBeganEvent(value_native_audio_interruption_began_event)
                         }
                         AudioeventReplayRecord::AudioInterruptionEndedEvent(value) => {
-                            let value_native_audio_interruption_ended_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_audio_interruption_ended_event_kind = binding.store_string_owned(value.kind);
                             let value_native_audio_interruption_ended_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_interruption_ended_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_interruption_ended_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -8114,7 +9031,7 @@ fn destack_audio_event_try_read_replay(
                             AudioEvent::AudioInterruptionEndedEvent(value_native_audio_interruption_ended_event)
                         }
                         AudioeventReplayRecord::AudioStreamDeviceChangedEvent(value) => {
-                            let value_native_audio_stream_device_changed_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_audio_stream_device_changed_event_kind = binding.store_string_owned(value.kind);
                             let value_native_audio_stream_device_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_stream_device_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_stream_device_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -8137,7 +9054,7 @@ fn destack_audio_event_try_read_replay(
                             };
                             let value_native_audio_stream_device_changed_event_status_flags = value.status_flags;
                             let value_native_audio_stream_device_changed_event_device_id = if let Some(value) = value.device_id {
-                                let value_native_audio_stream_device_changed_event_device_id_inner = binding.store_string(value.as_str());
+                                let value_native_audio_stream_device_changed_event_device_id_inner = binding.store_string_owned(value);
                                 Some(value_native_audio_stream_device_changed_event_device_id_inner)
                             } else {
                                 None
@@ -8152,7 +9069,7 @@ fn destack_audio_event_try_read_replay(
                             AudioEvent::AudioStreamDeviceChangedEvent(value_native_audio_stream_device_changed_event)
                         }
                         AudioeventReplayRecord::AudioStreamStateChangedEvent(value) => {
-                            let value_native_audio_stream_state_changed_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_audio_stream_state_changed_event_kind = binding.store_string_owned(value.kind);
                             let value_native_audio_stream_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_stream_state_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_stream_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -8183,7 +9100,7 @@ fn destack_audio_event_try_read_replay(
                             AudioEvent::AudioStreamStateChangedEvent(value_native_audio_stream_state_changed_event)
                         }
                         AudioeventReplayRecord::AudioStreamXRunEvent(value) => {
-                            let value_native_audio_stream_x_run_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_audio_stream_x_run_event_kind = binding.store_string_owned(value.kind);
                             let value_native_audio_stream_x_run_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_stream_x_run_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_stream_x_run_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -8207,7 +9124,7 @@ fn destack_audio_event_try_read_replay(
                             let value_native_audio_stream_x_run_event_status_flags = value.status_flags;
                             let value_native_audio_stream_x_run_event_xrun_count_delta = value.xrun_count_delta;
                             let value_native_audio_stream_x_run_event_device_id = if let Some(value) = value.device_id {
-                                let value_native_audio_stream_x_run_event_device_id_inner = binding.store_string(value.as_str());
+                                let value_native_audio_stream_x_run_event_device_id_inner = binding.store_string_owned(value);
                                 Some(value_native_audio_stream_x_run_event_device_id_inner)
                             } else {
                                 None
@@ -8252,8 +9169,9 @@ fn destack_audio_event_try_read_batch_replay(
         |result| {
             if let Ok(()) = result {
                 let result_value: NativeSlice<AudioEvent> = unsafe { out.read() };
-                let mut result_recorded = Vec::new();
-                for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
+                let result_recorded_slice = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_slice.len());
+                for result_recorded_item in result_recorded_slice.iter().cloned() {
                     let result_recorded_item_recorded = match result_recorded_item {
                         AudioEvent::AudioBackendDisconnectedEvent(value) => {
                             let result_recorded_item_recorded_audio_backend_disconnected_event_kind = unsafe { value.kind.as_str()? }.to_string();
@@ -8708,441 +9626,442 @@ fn destack_audio_event_try_read_batch_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut value_native_values = Vec::new();
-                    for value_native_item in value.iter().cloned() {
-                        let value_native_decoded = match value_native_item {
-                            AudioeventReplayRecord::AudioBackendDisconnectedEvent(value) => {
-                                let value_native_decoded_audio_backend_disconnected_event_kind = binding.store_string(value.kind.as_str());
-                                let value_native_decoded_audio_backend_disconnected_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                                let value_native_decoded_audio_backend_disconnected_event_metadata_sequence = value.metadata.sequence;
-                                let value_native_decoded_audio_backend_disconnected_event_metadata_dropped_count = value.metadata.dropped_count;
-                                let value_native_decoded_audio_backend_disconnected_event_metadata_source = value.metadata.source;
-                                let value_native_decoded_audio_backend_disconnected_event_metadata_backend = value.metadata.backend;
-                                let value_native_decoded_audio_backend_disconnected_event_metadata_flags = value.metadata.flags;
-                                let value_native_decoded_audio_backend_disconnected_event_metadata = AudioEventMetadata {
-                                    timestamp_ns: value_native_decoded_audio_backend_disconnected_event_metadata_timestamp_ns,
-                                    sequence: value_native_decoded_audio_backend_disconnected_event_metadata_sequence,
-                                    dropped_count: value_native_decoded_audio_backend_disconnected_event_metadata_dropped_count,
-                                    source: value_native_decoded_audio_backend_disconnected_event_metadata_source,
-                                    backend: value_native_decoded_audio_backend_disconnected_event_metadata_backend,
-                                    flags: value_native_decoded_audio_backend_disconnected_event_metadata_flags,
-                                };
-                                let value_native_decoded_audio_backend_disconnected_event_stream = if let Some(value) = value.stream {
-                                    let value_native_decoded_audio_backend_disconnected_event_stream_inner = value;
-                                    Some(value_native_decoded_audio_backend_disconnected_event_stream_inner)
-                                } else {
-                                    None
-                                };
-                                let value_native_decoded_audio_backend_disconnected_event = AudioBackendDisconnectedEvent {
-                                    kind: value_native_decoded_audio_backend_disconnected_event_kind,
-                                    metadata: value_native_decoded_audio_backend_disconnected_event_metadata,
-                                    stream: value_native_decoded_audio_backend_disconnected_event_stream,
-                                };
-                                AudioEvent::AudioBackendDisconnectedEvent(value_native_decoded_audio_backend_disconnected_event)
-                            }
-                            AudioeventReplayRecord::AudioBackendResetEvent(value) => {
-                                let value_native_decoded_audio_backend_reset_event_kind = binding.store_string(value.kind.as_str());
-                                let value_native_decoded_audio_backend_reset_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                                let value_native_decoded_audio_backend_reset_event_metadata_sequence = value.metadata.sequence;
-                                let value_native_decoded_audio_backend_reset_event_metadata_dropped_count = value.metadata.dropped_count;
-                                let value_native_decoded_audio_backend_reset_event_metadata_source = value.metadata.source;
-                                let value_native_decoded_audio_backend_reset_event_metadata_backend = value.metadata.backend;
-                                let value_native_decoded_audio_backend_reset_event_metadata_flags = value.metadata.flags;
-                                let value_native_decoded_audio_backend_reset_event_metadata = AudioEventMetadata {
-                                    timestamp_ns: value_native_decoded_audio_backend_reset_event_metadata_timestamp_ns,
-                                    sequence: value_native_decoded_audio_backend_reset_event_metadata_sequence,
-                                    dropped_count: value_native_decoded_audio_backend_reset_event_metadata_dropped_count,
-                                    source: value_native_decoded_audio_backend_reset_event_metadata_source,
-                                    backend: value_native_decoded_audio_backend_reset_event_metadata_backend,
-                                    flags: value_native_decoded_audio_backend_reset_event_metadata_flags,
-                                };
-                                let value_native_decoded_audio_backend_reset_event_stream = if let Some(value) = value.stream {
-                                    let value_native_decoded_audio_backend_reset_event_stream_inner = value;
-                                    Some(value_native_decoded_audio_backend_reset_event_stream_inner)
-                                } else {
-                                    None
-                                };
-                                let value_native_decoded_audio_backend_reset_event = AudioBackendResetEvent {
-                                    kind: value_native_decoded_audio_backend_reset_event_kind,
-                                    metadata: value_native_decoded_audio_backend_reset_event_metadata,
-                                    stream: value_native_decoded_audio_backend_reset_event_stream,
-                                };
-                                AudioEvent::AudioBackendResetEvent(value_native_decoded_audio_backend_reset_event)
-                            }
-                            AudioeventReplayRecord::AudioDefaultCaptureChangedEvent(value) => {
-                                let value_native_decoded_audio_default_capture_changed_event_kind = binding.store_string(value.kind.as_str());
-                                let value_native_decoded_audio_default_capture_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                                let value_native_decoded_audio_default_capture_changed_event_metadata_sequence = value.metadata.sequence;
-                                let value_native_decoded_audio_default_capture_changed_event_metadata_dropped_count = value.metadata.dropped_count;
-                                let value_native_decoded_audio_default_capture_changed_event_metadata_source = value.metadata.source;
-                                let value_native_decoded_audio_default_capture_changed_event_metadata_backend = value.metadata.backend;
-                                let value_native_decoded_audio_default_capture_changed_event_metadata_flags = value.metadata.flags;
-                                let value_native_decoded_audio_default_capture_changed_event_metadata = AudioEventMetadata {
-                                    timestamp_ns: value_native_decoded_audio_default_capture_changed_event_metadata_timestamp_ns,
-                                    sequence: value_native_decoded_audio_default_capture_changed_event_metadata_sequence,
-                                    dropped_count: value_native_decoded_audio_default_capture_changed_event_metadata_dropped_count,
-                                    source: value_native_decoded_audio_default_capture_changed_event_metadata_source,
-                                    backend: value_native_decoded_audio_default_capture_changed_event_metadata_backend,
-                                    flags: value_native_decoded_audio_default_capture_changed_event_metadata_flags,
-                                };
-                                let value_native_decoded_audio_default_capture_changed_event_device_id = if let Some(value) = value.device_id {
-                                    let value_native_decoded_audio_default_capture_changed_event_device_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_audio_default_capture_changed_event_device_id_inner)
-                                } else {
-                                    None
-                                };
-                                let value_native_decoded_audio_default_capture_changed_event = AudioDefaultCaptureChangedEvent {
-                                    kind: value_native_decoded_audio_default_capture_changed_event_kind,
-                                    metadata: value_native_decoded_audio_default_capture_changed_event_metadata,
-                                    device_id: value_native_decoded_audio_default_capture_changed_event_device_id,
-                                };
-                                AudioEvent::AudioDefaultCaptureChangedEvent(value_native_decoded_audio_default_capture_changed_event)
-                            }
-                            AudioeventReplayRecord::AudioDefaultLoopbackChangedEvent(value) => {
-                                let value_native_decoded_audio_default_loopback_changed_event_kind = binding.store_string(value.kind.as_str());
-                                let value_native_decoded_audio_default_loopback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                                let value_native_decoded_audio_default_loopback_changed_event_metadata_sequence = value.metadata.sequence;
-                                let value_native_decoded_audio_default_loopback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
-                                let value_native_decoded_audio_default_loopback_changed_event_metadata_source = value.metadata.source;
-                                let value_native_decoded_audio_default_loopback_changed_event_metadata_backend = value.metadata.backend;
-                                let value_native_decoded_audio_default_loopback_changed_event_metadata_flags = value.metadata.flags;
-                                let value_native_decoded_audio_default_loopback_changed_event_metadata = AudioEventMetadata {
-                                    timestamp_ns: value_native_decoded_audio_default_loopback_changed_event_metadata_timestamp_ns,
-                                    sequence: value_native_decoded_audio_default_loopback_changed_event_metadata_sequence,
-                                    dropped_count: value_native_decoded_audio_default_loopback_changed_event_metadata_dropped_count,
-                                    source: value_native_decoded_audio_default_loopback_changed_event_metadata_source,
-                                    backend: value_native_decoded_audio_default_loopback_changed_event_metadata_backend,
-                                    flags: value_native_decoded_audio_default_loopback_changed_event_metadata_flags,
-                                };
-                                let value_native_decoded_audio_default_loopback_changed_event_device_id = if let Some(value) = value.device_id {
-                                    let value_native_decoded_audio_default_loopback_changed_event_device_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_audio_default_loopback_changed_event_device_id_inner)
-                                } else {
-                                    None
-                                };
-                                let value_native_decoded_audio_default_loopback_changed_event = AudioDefaultLoopbackChangedEvent {
-                                    kind: value_native_decoded_audio_default_loopback_changed_event_kind,
-                                    metadata: value_native_decoded_audio_default_loopback_changed_event_metadata,
-                                    device_id: value_native_decoded_audio_default_loopback_changed_event_device_id,
-                                };
-                                AudioEvent::AudioDefaultLoopbackChangedEvent(value_native_decoded_audio_default_loopback_changed_event)
-                            }
-                            AudioeventReplayRecord::AudioDefaultPlaybackChangedEvent(value) => {
-                                let value_native_decoded_audio_default_playback_changed_event_kind = binding.store_string(value.kind.as_str());
-                                let value_native_decoded_audio_default_playback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                                let value_native_decoded_audio_default_playback_changed_event_metadata_sequence = value.metadata.sequence;
-                                let value_native_decoded_audio_default_playback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
-                                let value_native_decoded_audio_default_playback_changed_event_metadata_source = value.metadata.source;
-                                let value_native_decoded_audio_default_playback_changed_event_metadata_backend = value.metadata.backend;
-                                let value_native_decoded_audio_default_playback_changed_event_metadata_flags = value.metadata.flags;
-                                let value_native_decoded_audio_default_playback_changed_event_metadata = AudioEventMetadata {
-                                    timestamp_ns: value_native_decoded_audio_default_playback_changed_event_metadata_timestamp_ns,
-                                    sequence: value_native_decoded_audio_default_playback_changed_event_metadata_sequence,
-                                    dropped_count: value_native_decoded_audio_default_playback_changed_event_metadata_dropped_count,
-                                    source: value_native_decoded_audio_default_playback_changed_event_metadata_source,
-                                    backend: value_native_decoded_audio_default_playback_changed_event_metadata_backend,
-                                    flags: value_native_decoded_audio_default_playback_changed_event_metadata_flags,
-                                };
-                                let value_native_decoded_audio_default_playback_changed_event_device_id = if let Some(value) = value.device_id {
-                                    let value_native_decoded_audio_default_playback_changed_event_device_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_audio_default_playback_changed_event_device_id_inner)
-                                } else {
-                                    None
-                                };
-                                let value_native_decoded_audio_default_playback_changed_event = AudioDefaultPlaybackChangedEvent {
-                                    kind: value_native_decoded_audio_default_playback_changed_event_kind,
-                                    metadata: value_native_decoded_audio_default_playback_changed_event_metadata,
-                                    device_id: value_native_decoded_audio_default_playback_changed_event_device_id,
-                                };
-                                AudioEvent::AudioDefaultPlaybackChangedEvent(value_native_decoded_audio_default_playback_changed_event)
-                            }
-                            AudioeventReplayRecord::AudioDeviceAddedEvent(value) => {
-                                let value_native_decoded_audio_device_added_event_kind = binding.store_string(value.kind.as_str());
-                                let value_native_decoded_audio_device_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                                let value_native_decoded_audio_device_added_event_metadata_sequence = value.metadata.sequence;
-                                let value_native_decoded_audio_device_added_event_metadata_dropped_count = value.metadata.dropped_count;
-                                let value_native_decoded_audio_device_added_event_metadata_source = value.metadata.source;
-                                let value_native_decoded_audio_device_added_event_metadata_backend = value.metadata.backend;
-                                let value_native_decoded_audio_device_added_event_metadata_flags = value.metadata.flags;
-                                let value_native_decoded_audio_device_added_event_metadata = AudioEventMetadata {
-                                    timestamp_ns: value_native_decoded_audio_device_added_event_metadata_timestamp_ns,
-                                    sequence: value_native_decoded_audio_device_added_event_metadata_sequence,
-                                    dropped_count: value_native_decoded_audio_device_added_event_metadata_dropped_count,
-                                    source: value_native_decoded_audio_device_added_event_metadata_source,
-                                    backend: value_native_decoded_audio_device_added_event_metadata_backend,
-                                    flags: value_native_decoded_audio_device_added_event_metadata_flags,
-                                };
-                                let value_native_decoded_audio_device_added_event_device_id = if let Some(value) = value.device_id {
-                                    let value_native_decoded_audio_device_added_event_device_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_audio_device_added_event_device_id_inner)
-                                } else {
-                                    None
-                                };
-                                let value_native_decoded_audio_device_added_event = AudioDeviceAddedEvent {
-                                    kind: value_native_decoded_audio_device_added_event_kind,
-                                    metadata: value_native_decoded_audio_device_added_event_metadata,
-                                    device_id: value_native_decoded_audio_device_added_event_device_id,
-                                };
-                                AudioEvent::AudioDeviceAddedEvent(value_native_decoded_audio_device_added_event)
-                            }
-                            AudioeventReplayRecord::AudioDeviceFormatChangedEvent(value) => {
-                                let value_native_decoded_audio_device_format_changed_event_kind = binding.store_string(value.kind.as_str());
-                                let value_native_decoded_audio_device_format_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                                let value_native_decoded_audio_device_format_changed_event_metadata_sequence = value.metadata.sequence;
-                                let value_native_decoded_audio_device_format_changed_event_metadata_dropped_count = value.metadata.dropped_count;
-                                let value_native_decoded_audio_device_format_changed_event_metadata_source = value.metadata.source;
-                                let value_native_decoded_audio_device_format_changed_event_metadata_backend = value.metadata.backend;
-                                let value_native_decoded_audio_device_format_changed_event_metadata_flags = value.metadata.flags;
-                                let value_native_decoded_audio_device_format_changed_event_metadata = AudioEventMetadata {
-                                    timestamp_ns: value_native_decoded_audio_device_format_changed_event_metadata_timestamp_ns,
-                                    sequence: value_native_decoded_audio_device_format_changed_event_metadata_sequence,
-                                    dropped_count: value_native_decoded_audio_device_format_changed_event_metadata_dropped_count,
-                                    source: value_native_decoded_audio_device_format_changed_event_metadata_source,
-                                    backend: value_native_decoded_audio_device_format_changed_event_metadata_backend,
-                                    flags: value_native_decoded_audio_device_format_changed_event_metadata_flags,
-                                };
-                                let value_native_decoded_audio_device_format_changed_event_device_id = if let Some(value) = value.device_id {
-                                    let value_native_decoded_audio_device_format_changed_event_device_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_audio_device_format_changed_event_device_id_inner)
-                                } else {
-                                    None
-                                };
-                                let value_native_decoded_audio_device_format_changed_event = AudioDeviceFormatChangedEvent {
-                                    kind: value_native_decoded_audio_device_format_changed_event_kind,
-                                    metadata: value_native_decoded_audio_device_format_changed_event_metadata,
-                                    device_id: value_native_decoded_audio_device_format_changed_event_device_id,
-                                };
-                                AudioEvent::AudioDeviceFormatChangedEvent(value_native_decoded_audio_device_format_changed_event)
-                            }
-                            AudioeventReplayRecord::AudioDeviceRemovedEvent(value) => {
-                                let value_native_decoded_audio_device_removed_event_kind = binding.store_string(value.kind.as_str());
-                                let value_native_decoded_audio_device_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                                let value_native_decoded_audio_device_removed_event_metadata_sequence = value.metadata.sequence;
-                                let value_native_decoded_audio_device_removed_event_metadata_dropped_count = value.metadata.dropped_count;
-                                let value_native_decoded_audio_device_removed_event_metadata_source = value.metadata.source;
-                                let value_native_decoded_audio_device_removed_event_metadata_backend = value.metadata.backend;
-                                let value_native_decoded_audio_device_removed_event_metadata_flags = value.metadata.flags;
-                                let value_native_decoded_audio_device_removed_event_metadata = AudioEventMetadata {
-                                    timestamp_ns: value_native_decoded_audio_device_removed_event_metadata_timestamp_ns,
-                                    sequence: value_native_decoded_audio_device_removed_event_metadata_sequence,
-                                    dropped_count: value_native_decoded_audio_device_removed_event_metadata_dropped_count,
-                                    source: value_native_decoded_audio_device_removed_event_metadata_source,
-                                    backend: value_native_decoded_audio_device_removed_event_metadata_backend,
-                                    flags: value_native_decoded_audio_device_removed_event_metadata_flags,
-                                };
-                                let value_native_decoded_audio_device_removed_event_device_id = if let Some(value) = value.device_id {
-                                    let value_native_decoded_audio_device_removed_event_device_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_audio_device_removed_event_device_id_inner)
-                                } else {
-                                    None
-                                };
-                                let value_native_decoded_audio_device_removed_event = AudioDeviceRemovedEvent {
-                                    kind: value_native_decoded_audio_device_removed_event_kind,
-                                    metadata: value_native_decoded_audio_device_removed_event_metadata,
-                                    device_id: value_native_decoded_audio_device_removed_event_device_id,
-                                };
-                                AudioEvent::AudioDeviceRemovedEvent(value_native_decoded_audio_device_removed_event)
-                            }
-                            AudioeventReplayRecord::AudioDeviceReroutedEvent(value) => {
-                                let value_native_decoded_audio_device_rerouted_event_kind = binding.store_string(value.kind.as_str());
-                                let value_native_decoded_audio_device_rerouted_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                                let value_native_decoded_audio_device_rerouted_event_metadata_sequence = value.metadata.sequence;
-                                let value_native_decoded_audio_device_rerouted_event_metadata_dropped_count = value.metadata.dropped_count;
-                                let value_native_decoded_audio_device_rerouted_event_metadata_source = value.metadata.source;
-                                let value_native_decoded_audio_device_rerouted_event_metadata_backend = value.metadata.backend;
-                                let value_native_decoded_audio_device_rerouted_event_metadata_flags = value.metadata.flags;
-                                let value_native_decoded_audio_device_rerouted_event_metadata = AudioEventMetadata {
-                                    timestamp_ns: value_native_decoded_audio_device_rerouted_event_metadata_timestamp_ns,
-                                    sequence: value_native_decoded_audio_device_rerouted_event_metadata_sequence,
-                                    dropped_count: value_native_decoded_audio_device_rerouted_event_metadata_dropped_count,
-                                    source: value_native_decoded_audio_device_rerouted_event_metadata_source,
-                                    backend: value_native_decoded_audio_device_rerouted_event_metadata_backend,
-                                    flags: value_native_decoded_audio_device_rerouted_event_metadata_flags,
-                                };
-                                let value_native_decoded_audio_device_rerouted_event_device_id = if let Some(value) = value.device_id {
-                                    let value_native_decoded_audio_device_rerouted_event_device_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_audio_device_rerouted_event_device_id_inner)
-                                } else {
-                                    None
-                                };
-                                let value_native_decoded_audio_device_rerouted_event = AudioDeviceReroutedEvent {
-                                    kind: value_native_decoded_audio_device_rerouted_event_kind,
-                                    metadata: value_native_decoded_audio_device_rerouted_event_metadata,
-                                    device_id: value_native_decoded_audio_device_rerouted_event_device_id,
-                                };
-                                AudioEvent::AudioDeviceReroutedEvent(value_native_decoded_audio_device_rerouted_event)
-                            }
-                            AudioeventReplayRecord::AudioInterruptionBeganEvent(value) => {
-                                let value_native_decoded_audio_interruption_began_event_kind = binding.store_string(value.kind.as_str());
-                                let value_native_decoded_audio_interruption_began_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                                let value_native_decoded_audio_interruption_began_event_metadata_sequence = value.metadata.sequence;
-                                let value_native_decoded_audio_interruption_began_event_metadata_dropped_count = value.metadata.dropped_count;
-                                let value_native_decoded_audio_interruption_began_event_metadata_source = value.metadata.source;
-                                let value_native_decoded_audio_interruption_began_event_metadata_backend = value.metadata.backend;
-                                let value_native_decoded_audio_interruption_began_event_metadata_flags = value.metadata.flags;
-                                let value_native_decoded_audio_interruption_began_event_metadata = AudioEventMetadata {
-                                    timestamp_ns: value_native_decoded_audio_interruption_began_event_metadata_timestamp_ns,
-                                    sequence: value_native_decoded_audio_interruption_began_event_metadata_sequence,
-                                    dropped_count: value_native_decoded_audio_interruption_began_event_metadata_dropped_count,
-                                    source: value_native_decoded_audio_interruption_began_event_metadata_source,
-                                    backend: value_native_decoded_audio_interruption_began_event_metadata_backend,
-                                    flags: value_native_decoded_audio_interruption_began_event_metadata_flags,
-                                };
-                                let value_native_decoded_audio_interruption_began_event_stream = if let Some(value) = value.stream {
-                                    let value_native_decoded_audio_interruption_began_event_stream_inner = value;
-                                    Some(value_native_decoded_audio_interruption_began_event_stream_inner)
-                                } else {
-                                    None
-                                };
-                                let value_native_decoded_audio_interruption_began_event = AudioInterruptionBeganEvent {
-                                    kind: value_native_decoded_audio_interruption_began_event_kind,
-                                    metadata: value_native_decoded_audio_interruption_began_event_metadata,
-                                    stream: value_native_decoded_audio_interruption_began_event_stream,
-                                };
-                                AudioEvent::AudioInterruptionBeganEvent(value_native_decoded_audio_interruption_began_event)
-                            }
-                            AudioeventReplayRecord::AudioInterruptionEndedEvent(value) => {
-                                let value_native_decoded_audio_interruption_ended_event_kind = binding.store_string(value.kind.as_str());
-                                let value_native_decoded_audio_interruption_ended_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                                let value_native_decoded_audio_interruption_ended_event_metadata_sequence = value.metadata.sequence;
-                                let value_native_decoded_audio_interruption_ended_event_metadata_dropped_count = value.metadata.dropped_count;
-                                let value_native_decoded_audio_interruption_ended_event_metadata_source = value.metadata.source;
-                                let value_native_decoded_audio_interruption_ended_event_metadata_backend = value.metadata.backend;
-                                let value_native_decoded_audio_interruption_ended_event_metadata_flags = value.metadata.flags;
-                                let value_native_decoded_audio_interruption_ended_event_metadata = AudioEventMetadata {
-                                    timestamp_ns: value_native_decoded_audio_interruption_ended_event_metadata_timestamp_ns,
-                                    sequence: value_native_decoded_audio_interruption_ended_event_metadata_sequence,
-                                    dropped_count: value_native_decoded_audio_interruption_ended_event_metadata_dropped_count,
-                                    source: value_native_decoded_audio_interruption_ended_event_metadata_source,
-                                    backend: value_native_decoded_audio_interruption_ended_event_metadata_backend,
-                                    flags: value_native_decoded_audio_interruption_ended_event_metadata_flags,
-                                };
-                                let value_native_decoded_audio_interruption_ended_event_stream = if let Some(value) = value.stream {
-                                    let value_native_decoded_audio_interruption_ended_event_stream_inner = value;
-                                    Some(value_native_decoded_audio_interruption_ended_event_stream_inner)
-                                } else {
-                                    None
-                                };
-                                let value_native_decoded_audio_interruption_ended_event = AudioInterruptionEndedEvent {
-                                    kind: value_native_decoded_audio_interruption_ended_event_kind,
-                                    metadata: value_native_decoded_audio_interruption_ended_event_metadata,
-                                    stream: value_native_decoded_audio_interruption_ended_event_stream,
-                                };
-                                AudioEvent::AudioInterruptionEndedEvent(value_native_decoded_audio_interruption_ended_event)
-                            }
-                            AudioeventReplayRecord::AudioStreamDeviceChangedEvent(value) => {
-                                let value_native_decoded_audio_stream_device_changed_event_kind = binding.store_string(value.kind.as_str());
-                                let value_native_decoded_audio_stream_device_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                                let value_native_decoded_audio_stream_device_changed_event_metadata_sequence = value.metadata.sequence;
-                                let value_native_decoded_audio_stream_device_changed_event_metadata_dropped_count = value.metadata.dropped_count;
-                                let value_native_decoded_audio_stream_device_changed_event_metadata_source = value.metadata.source;
-                                let value_native_decoded_audio_stream_device_changed_event_metadata_backend = value.metadata.backend;
-                                let value_native_decoded_audio_stream_device_changed_event_metadata_flags = value.metadata.flags;
-                                let value_native_decoded_audio_stream_device_changed_event_metadata = AudioEventMetadata {
-                                    timestamp_ns: value_native_decoded_audio_stream_device_changed_event_metadata_timestamp_ns,
-                                    sequence: value_native_decoded_audio_stream_device_changed_event_metadata_sequence,
-                                    dropped_count: value_native_decoded_audio_stream_device_changed_event_metadata_dropped_count,
-                                    source: value_native_decoded_audio_stream_device_changed_event_metadata_source,
-                                    backend: value_native_decoded_audio_stream_device_changed_event_metadata_backend,
-                                    flags: value_native_decoded_audio_stream_device_changed_event_metadata_flags,
-                                };
-                                let value_native_decoded_audio_stream_device_changed_event_stream = if let Some(value) = value.stream {
-                                    let value_native_decoded_audio_stream_device_changed_event_stream_inner = value;
-                                    Some(value_native_decoded_audio_stream_device_changed_event_stream_inner)
-                                } else {
-                                    None
-                                };
-                                let value_native_decoded_audio_stream_device_changed_event_status_flags = value.status_flags;
-                                let value_native_decoded_audio_stream_device_changed_event_device_id = if let Some(value) = value.device_id {
-                                    let value_native_decoded_audio_stream_device_changed_event_device_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_audio_stream_device_changed_event_device_id_inner)
-                                } else {
-                                    None
-                                };
-                                let value_native_decoded_audio_stream_device_changed_event = AudioStreamDeviceChangedEvent {
-                                    kind: value_native_decoded_audio_stream_device_changed_event_kind,
-                                    metadata: value_native_decoded_audio_stream_device_changed_event_metadata,
-                                    stream: value_native_decoded_audio_stream_device_changed_event_stream,
-                                    status_flags: value_native_decoded_audio_stream_device_changed_event_status_flags,
-                                    device_id: value_native_decoded_audio_stream_device_changed_event_device_id,
-                                };
-                                AudioEvent::AudioStreamDeviceChangedEvent(value_native_decoded_audio_stream_device_changed_event)
-                            }
-                            AudioeventReplayRecord::AudioStreamStateChangedEvent(value) => {
-                                let value_native_decoded_audio_stream_state_changed_event_kind = binding.store_string(value.kind.as_str());
-                                let value_native_decoded_audio_stream_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                                let value_native_decoded_audio_stream_state_changed_event_metadata_sequence = value.metadata.sequence;
-                                let value_native_decoded_audio_stream_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
-                                let value_native_decoded_audio_stream_state_changed_event_metadata_source = value.metadata.source;
-                                let value_native_decoded_audio_stream_state_changed_event_metadata_backend = value.metadata.backend;
-                                let value_native_decoded_audio_stream_state_changed_event_metadata_flags = value.metadata.flags;
-                                let value_native_decoded_audio_stream_state_changed_event_metadata = AudioEventMetadata {
-                                    timestamp_ns: value_native_decoded_audio_stream_state_changed_event_metadata_timestamp_ns,
-                                    sequence: value_native_decoded_audio_stream_state_changed_event_metadata_sequence,
-                                    dropped_count: value_native_decoded_audio_stream_state_changed_event_metadata_dropped_count,
-                                    source: value_native_decoded_audio_stream_state_changed_event_metadata_source,
-                                    backend: value_native_decoded_audio_stream_state_changed_event_metadata_backend,
-                                    flags: value_native_decoded_audio_stream_state_changed_event_metadata_flags,
-                                };
-                                let value_native_decoded_audio_stream_state_changed_event_stream = if let Some(value) = value.stream {
-                                    let value_native_decoded_audio_stream_state_changed_event_stream_inner = value;
-                                    Some(value_native_decoded_audio_stream_state_changed_event_stream_inner)
-                                } else {
-                                    None
-                                };
-                                let value_native_decoded_audio_stream_state_changed_event_status_flags = value.status_flags;
-                                let value_native_decoded_audio_stream_state_changed_event = AudioStreamStateChangedEvent {
-                                    kind: value_native_decoded_audio_stream_state_changed_event_kind,
-                                    metadata: value_native_decoded_audio_stream_state_changed_event_metadata,
-                                    stream: value_native_decoded_audio_stream_state_changed_event_stream,
-                                    status_flags: value_native_decoded_audio_stream_state_changed_event_status_flags,
-                                };
-                                AudioEvent::AudioStreamStateChangedEvent(value_native_decoded_audio_stream_state_changed_event)
-                            }
-                            AudioeventReplayRecord::AudioStreamXRunEvent(value) => {
-                                let value_native_decoded_audio_stream_x_run_event_kind = binding.store_string(value.kind.as_str());
-                                let value_native_decoded_audio_stream_x_run_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                                let value_native_decoded_audio_stream_x_run_event_metadata_sequence = value.metadata.sequence;
-                                let value_native_decoded_audio_stream_x_run_event_metadata_dropped_count = value.metadata.dropped_count;
-                                let value_native_decoded_audio_stream_x_run_event_metadata_source = value.metadata.source;
-                                let value_native_decoded_audio_stream_x_run_event_metadata_backend = value.metadata.backend;
-                                let value_native_decoded_audio_stream_x_run_event_metadata_flags = value.metadata.flags;
-                                let value_native_decoded_audio_stream_x_run_event_metadata = AudioEventMetadata {
-                                    timestamp_ns: value_native_decoded_audio_stream_x_run_event_metadata_timestamp_ns,
-                                    sequence: value_native_decoded_audio_stream_x_run_event_metadata_sequence,
-                                    dropped_count: value_native_decoded_audio_stream_x_run_event_metadata_dropped_count,
-                                    source: value_native_decoded_audio_stream_x_run_event_metadata_source,
-                                    backend: value_native_decoded_audio_stream_x_run_event_metadata_backend,
-                                    flags: value_native_decoded_audio_stream_x_run_event_metadata_flags,
-                                };
-                                let value_native_decoded_audio_stream_x_run_event_stream = if let Some(value) = value.stream {
-                                    let value_native_decoded_audio_stream_x_run_event_stream_inner = value;
-                                    Some(value_native_decoded_audio_stream_x_run_event_stream_inner)
-                                } else {
-                                    None
-                                };
-                                let value_native_decoded_audio_stream_x_run_event_status_flags = value.status_flags;
-                                let value_native_decoded_audio_stream_x_run_event_xrun_count_delta = value.xrun_count_delta;
-                                let value_native_decoded_audio_stream_x_run_event_device_id = if let Some(value) = value.device_id {
-                                    let value_native_decoded_audio_stream_x_run_event_device_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_audio_stream_x_run_event_device_id_inner)
-                                } else {
-                                    None
-                                };
-                                let value_native_decoded_audio_stream_x_run_event = AudioStreamXRunEvent {
-                                    kind: value_native_decoded_audio_stream_x_run_event_kind,
-                                    metadata: value_native_decoded_audio_stream_x_run_event_metadata,
-                                    stream: value_native_decoded_audio_stream_x_run_event_stream,
-                                    status_flags: value_native_decoded_audio_stream_x_run_event_status_flags,
-                                    xrun_count_delta: value_native_decoded_audio_stream_x_run_event_xrun_count_delta,
-                                    device_id: value_native_decoded_audio_stream_x_run_event_device_id,
-                                };
-                                AudioEvent::AudioStreamXRunEvent(value_native_decoded_audio_stream_x_run_event)
-                            }
-                        };
-                        value_native_values.push(value_native_decoded);
-                    }
-                    let value_native = binding.store_slice(value_native_values);
+                    let value_native = binding.store_slice_with(value.len(), |value_native_values| {
+                        for value_native_item in value {
+                            let value_native_decoded = match value_native_item {
+                                AudioeventReplayRecord::AudioBackendDisconnectedEvent(value) => {
+                                    let value_native_decoded_audio_backend_disconnected_event_kind = binding.store_string_owned(value.kind);
+                                    let value_native_decoded_audio_backend_disconnected_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                    let value_native_decoded_audio_backend_disconnected_event_metadata_sequence = value.metadata.sequence;
+                                    let value_native_decoded_audio_backend_disconnected_event_metadata_dropped_count = value.metadata.dropped_count;
+                                    let value_native_decoded_audio_backend_disconnected_event_metadata_source = value.metadata.source;
+                                    let value_native_decoded_audio_backend_disconnected_event_metadata_backend = value.metadata.backend;
+                                    let value_native_decoded_audio_backend_disconnected_event_metadata_flags = value.metadata.flags;
+                                    let value_native_decoded_audio_backend_disconnected_event_metadata = AudioEventMetadata {
+                                        timestamp_ns: value_native_decoded_audio_backend_disconnected_event_metadata_timestamp_ns,
+                                        sequence: value_native_decoded_audio_backend_disconnected_event_metadata_sequence,
+                                        dropped_count: value_native_decoded_audio_backend_disconnected_event_metadata_dropped_count,
+                                        source: value_native_decoded_audio_backend_disconnected_event_metadata_source,
+                                        backend: value_native_decoded_audio_backend_disconnected_event_metadata_backend,
+                                        flags: value_native_decoded_audio_backend_disconnected_event_metadata_flags,
+                                    };
+                                    let value_native_decoded_audio_backend_disconnected_event_stream = if let Some(value) = value.stream {
+                                        let value_native_decoded_audio_backend_disconnected_event_stream_inner = value;
+                                        Some(value_native_decoded_audio_backend_disconnected_event_stream_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_decoded_audio_backend_disconnected_event = AudioBackendDisconnectedEvent {
+                                        kind: value_native_decoded_audio_backend_disconnected_event_kind,
+                                        metadata: value_native_decoded_audio_backend_disconnected_event_metadata,
+                                        stream: value_native_decoded_audio_backend_disconnected_event_stream,
+                                    };
+                                    AudioEvent::AudioBackendDisconnectedEvent(value_native_decoded_audio_backend_disconnected_event)
+                                }
+                                AudioeventReplayRecord::AudioBackendResetEvent(value) => {
+                                    let value_native_decoded_audio_backend_reset_event_kind = binding.store_string_owned(value.kind);
+                                    let value_native_decoded_audio_backend_reset_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                    let value_native_decoded_audio_backend_reset_event_metadata_sequence = value.metadata.sequence;
+                                    let value_native_decoded_audio_backend_reset_event_metadata_dropped_count = value.metadata.dropped_count;
+                                    let value_native_decoded_audio_backend_reset_event_metadata_source = value.metadata.source;
+                                    let value_native_decoded_audio_backend_reset_event_metadata_backend = value.metadata.backend;
+                                    let value_native_decoded_audio_backend_reset_event_metadata_flags = value.metadata.flags;
+                                    let value_native_decoded_audio_backend_reset_event_metadata = AudioEventMetadata {
+                                        timestamp_ns: value_native_decoded_audio_backend_reset_event_metadata_timestamp_ns,
+                                        sequence: value_native_decoded_audio_backend_reset_event_metadata_sequence,
+                                        dropped_count: value_native_decoded_audio_backend_reset_event_metadata_dropped_count,
+                                        source: value_native_decoded_audio_backend_reset_event_metadata_source,
+                                        backend: value_native_decoded_audio_backend_reset_event_metadata_backend,
+                                        flags: value_native_decoded_audio_backend_reset_event_metadata_flags,
+                                    };
+                                    let value_native_decoded_audio_backend_reset_event_stream = if let Some(value) = value.stream {
+                                        let value_native_decoded_audio_backend_reset_event_stream_inner = value;
+                                        Some(value_native_decoded_audio_backend_reset_event_stream_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_decoded_audio_backend_reset_event = AudioBackendResetEvent {
+                                        kind: value_native_decoded_audio_backend_reset_event_kind,
+                                        metadata: value_native_decoded_audio_backend_reset_event_metadata,
+                                        stream: value_native_decoded_audio_backend_reset_event_stream,
+                                    };
+                                    AudioEvent::AudioBackendResetEvent(value_native_decoded_audio_backend_reset_event)
+                                }
+                                AudioeventReplayRecord::AudioDefaultCaptureChangedEvent(value) => {
+                                    let value_native_decoded_audio_default_capture_changed_event_kind = binding.store_string_owned(value.kind);
+                                    let value_native_decoded_audio_default_capture_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                    let value_native_decoded_audio_default_capture_changed_event_metadata_sequence = value.metadata.sequence;
+                                    let value_native_decoded_audio_default_capture_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                    let value_native_decoded_audio_default_capture_changed_event_metadata_source = value.metadata.source;
+                                    let value_native_decoded_audio_default_capture_changed_event_metadata_backend = value.metadata.backend;
+                                    let value_native_decoded_audio_default_capture_changed_event_metadata_flags = value.metadata.flags;
+                                    let value_native_decoded_audio_default_capture_changed_event_metadata = AudioEventMetadata {
+                                        timestamp_ns: value_native_decoded_audio_default_capture_changed_event_metadata_timestamp_ns,
+                                        sequence: value_native_decoded_audio_default_capture_changed_event_metadata_sequence,
+                                        dropped_count: value_native_decoded_audio_default_capture_changed_event_metadata_dropped_count,
+                                        source: value_native_decoded_audio_default_capture_changed_event_metadata_source,
+                                        backend: value_native_decoded_audio_default_capture_changed_event_metadata_backend,
+                                        flags: value_native_decoded_audio_default_capture_changed_event_metadata_flags,
+                                    };
+                                    let value_native_decoded_audio_default_capture_changed_event_device_id = if let Some(value) = value.device_id {
+                                        let value_native_decoded_audio_default_capture_changed_event_device_id_inner = binding.store_string_owned(value);
+                                        Some(value_native_decoded_audio_default_capture_changed_event_device_id_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_decoded_audio_default_capture_changed_event = AudioDefaultCaptureChangedEvent {
+                                        kind: value_native_decoded_audio_default_capture_changed_event_kind,
+                                        metadata: value_native_decoded_audio_default_capture_changed_event_metadata,
+                                        device_id: value_native_decoded_audio_default_capture_changed_event_device_id,
+                                    };
+                                    AudioEvent::AudioDefaultCaptureChangedEvent(value_native_decoded_audio_default_capture_changed_event)
+                                }
+                                AudioeventReplayRecord::AudioDefaultLoopbackChangedEvent(value) => {
+                                    let value_native_decoded_audio_default_loopback_changed_event_kind = binding.store_string_owned(value.kind);
+                                    let value_native_decoded_audio_default_loopback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                    let value_native_decoded_audio_default_loopback_changed_event_metadata_sequence = value.metadata.sequence;
+                                    let value_native_decoded_audio_default_loopback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                    let value_native_decoded_audio_default_loopback_changed_event_metadata_source = value.metadata.source;
+                                    let value_native_decoded_audio_default_loopback_changed_event_metadata_backend = value.metadata.backend;
+                                    let value_native_decoded_audio_default_loopback_changed_event_metadata_flags = value.metadata.flags;
+                                    let value_native_decoded_audio_default_loopback_changed_event_metadata = AudioEventMetadata {
+                                        timestamp_ns: value_native_decoded_audio_default_loopback_changed_event_metadata_timestamp_ns,
+                                        sequence: value_native_decoded_audio_default_loopback_changed_event_metadata_sequence,
+                                        dropped_count: value_native_decoded_audio_default_loopback_changed_event_metadata_dropped_count,
+                                        source: value_native_decoded_audio_default_loopback_changed_event_metadata_source,
+                                        backend: value_native_decoded_audio_default_loopback_changed_event_metadata_backend,
+                                        flags: value_native_decoded_audio_default_loopback_changed_event_metadata_flags,
+                                    };
+                                    let value_native_decoded_audio_default_loopback_changed_event_device_id = if let Some(value) = value.device_id {
+                                        let value_native_decoded_audio_default_loopback_changed_event_device_id_inner = binding.store_string_owned(value);
+                                        Some(value_native_decoded_audio_default_loopback_changed_event_device_id_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_decoded_audio_default_loopback_changed_event = AudioDefaultLoopbackChangedEvent {
+                                        kind: value_native_decoded_audio_default_loopback_changed_event_kind,
+                                        metadata: value_native_decoded_audio_default_loopback_changed_event_metadata,
+                                        device_id: value_native_decoded_audio_default_loopback_changed_event_device_id,
+                                    };
+                                    AudioEvent::AudioDefaultLoopbackChangedEvent(value_native_decoded_audio_default_loopback_changed_event)
+                                }
+                                AudioeventReplayRecord::AudioDefaultPlaybackChangedEvent(value) => {
+                                    let value_native_decoded_audio_default_playback_changed_event_kind = binding.store_string_owned(value.kind);
+                                    let value_native_decoded_audio_default_playback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                    let value_native_decoded_audio_default_playback_changed_event_metadata_sequence = value.metadata.sequence;
+                                    let value_native_decoded_audio_default_playback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                    let value_native_decoded_audio_default_playback_changed_event_metadata_source = value.metadata.source;
+                                    let value_native_decoded_audio_default_playback_changed_event_metadata_backend = value.metadata.backend;
+                                    let value_native_decoded_audio_default_playback_changed_event_metadata_flags = value.metadata.flags;
+                                    let value_native_decoded_audio_default_playback_changed_event_metadata = AudioEventMetadata {
+                                        timestamp_ns: value_native_decoded_audio_default_playback_changed_event_metadata_timestamp_ns,
+                                        sequence: value_native_decoded_audio_default_playback_changed_event_metadata_sequence,
+                                        dropped_count: value_native_decoded_audio_default_playback_changed_event_metadata_dropped_count,
+                                        source: value_native_decoded_audio_default_playback_changed_event_metadata_source,
+                                        backend: value_native_decoded_audio_default_playback_changed_event_metadata_backend,
+                                        flags: value_native_decoded_audio_default_playback_changed_event_metadata_flags,
+                                    };
+                                    let value_native_decoded_audio_default_playback_changed_event_device_id = if let Some(value) = value.device_id {
+                                        let value_native_decoded_audio_default_playback_changed_event_device_id_inner = binding.store_string_owned(value);
+                                        Some(value_native_decoded_audio_default_playback_changed_event_device_id_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_decoded_audio_default_playback_changed_event = AudioDefaultPlaybackChangedEvent {
+                                        kind: value_native_decoded_audio_default_playback_changed_event_kind,
+                                        metadata: value_native_decoded_audio_default_playback_changed_event_metadata,
+                                        device_id: value_native_decoded_audio_default_playback_changed_event_device_id,
+                                    };
+                                    AudioEvent::AudioDefaultPlaybackChangedEvent(value_native_decoded_audio_default_playback_changed_event)
+                                }
+                                AudioeventReplayRecord::AudioDeviceAddedEvent(value) => {
+                                    let value_native_decoded_audio_device_added_event_kind = binding.store_string_owned(value.kind);
+                                    let value_native_decoded_audio_device_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                    let value_native_decoded_audio_device_added_event_metadata_sequence = value.metadata.sequence;
+                                    let value_native_decoded_audio_device_added_event_metadata_dropped_count = value.metadata.dropped_count;
+                                    let value_native_decoded_audio_device_added_event_metadata_source = value.metadata.source;
+                                    let value_native_decoded_audio_device_added_event_metadata_backend = value.metadata.backend;
+                                    let value_native_decoded_audio_device_added_event_metadata_flags = value.metadata.flags;
+                                    let value_native_decoded_audio_device_added_event_metadata = AudioEventMetadata {
+                                        timestamp_ns: value_native_decoded_audio_device_added_event_metadata_timestamp_ns,
+                                        sequence: value_native_decoded_audio_device_added_event_metadata_sequence,
+                                        dropped_count: value_native_decoded_audio_device_added_event_metadata_dropped_count,
+                                        source: value_native_decoded_audio_device_added_event_metadata_source,
+                                        backend: value_native_decoded_audio_device_added_event_metadata_backend,
+                                        flags: value_native_decoded_audio_device_added_event_metadata_flags,
+                                    };
+                                    let value_native_decoded_audio_device_added_event_device_id = if let Some(value) = value.device_id {
+                                        let value_native_decoded_audio_device_added_event_device_id_inner = binding.store_string_owned(value);
+                                        Some(value_native_decoded_audio_device_added_event_device_id_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_decoded_audio_device_added_event = AudioDeviceAddedEvent {
+                                        kind: value_native_decoded_audio_device_added_event_kind,
+                                        metadata: value_native_decoded_audio_device_added_event_metadata,
+                                        device_id: value_native_decoded_audio_device_added_event_device_id,
+                                    };
+                                    AudioEvent::AudioDeviceAddedEvent(value_native_decoded_audio_device_added_event)
+                                }
+                                AudioeventReplayRecord::AudioDeviceFormatChangedEvent(value) => {
+                                    let value_native_decoded_audio_device_format_changed_event_kind = binding.store_string_owned(value.kind);
+                                    let value_native_decoded_audio_device_format_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                    let value_native_decoded_audio_device_format_changed_event_metadata_sequence = value.metadata.sequence;
+                                    let value_native_decoded_audio_device_format_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                    let value_native_decoded_audio_device_format_changed_event_metadata_source = value.metadata.source;
+                                    let value_native_decoded_audio_device_format_changed_event_metadata_backend = value.metadata.backend;
+                                    let value_native_decoded_audio_device_format_changed_event_metadata_flags = value.metadata.flags;
+                                    let value_native_decoded_audio_device_format_changed_event_metadata = AudioEventMetadata {
+                                        timestamp_ns: value_native_decoded_audio_device_format_changed_event_metadata_timestamp_ns,
+                                        sequence: value_native_decoded_audio_device_format_changed_event_metadata_sequence,
+                                        dropped_count: value_native_decoded_audio_device_format_changed_event_metadata_dropped_count,
+                                        source: value_native_decoded_audio_device_format_changed_event_metadata_source,
+                                        backend: value_native_decoded_audio_device_format_changed_event_metadata_backend,
+                                        flags: value_native_decoded_audio_device_format_changed_event_metadata_flags,
+                                    };
+                                    let value_native_decoded_audio_device_format_changed_event_device_id = if let Some(value) = value.device_id {
+                                        let value_native_decoded_audio_device_format_changed_event_device_id_inner = binding.store_string_owned(value);
+                                        Some(value_native_decoded_audio_device_format_changed_event_device_id_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_decoded_audio_device_format_changed_event = AudioDeviceFormatChangedEvent {
+                                        kind: value_native_decoded_audio_device_format_changed_event_kind,
+                                        metadata: value_native_decoded_audio_device_format_changed_event_metadata,
+                                        device_id: value_native_decoded_audio_device_format_changed_event_device_id,
+                                    };
+                                    AudioEvent::AudioDeviceFormatChangedEvent(value_native_decoded_audio_device_format_changed_event)
+                                }
+                                AudioeventReplayRecord::AudioDeviceRemovedEvent(value) => {
+                                    let value_native_decoded_audio_device_removed_event_kind = binding.store_string_owned(value.kind);
+                                    let value_native_decoded_audio_device_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                    let value_native_decoded_audio_device_removed_event_metadata_sequence = value.metadata.sequence;
+                                    let value_native_decoded_audio_device_removed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                    let value_native_decoded_audio_device_removed_event_metadata_source = value.metadata.source;
+                                    let value_native_decoded_audio_device_removed_event_metadata_backend = value.metadata.backend;
+                                    let value_native_decoded_audio_device_removed_event_metadata_flags = value.metadata.flags;
+                                    let value_native_decoded_audio_device_removed_event_metadata = AudioEventMetadata {
+                                        timestamp_ns: value_native_decoded_audio_device_removed_event_metadata_timestamp_ns,
+                                        sequence: value_native_decoded_audio_device_removed_event_metadata_sequence,
+                                        dropped_count: value_native_decoded_audio_device_removed_event_metadata_dropped_count,
+                                        source: value_native_decoded_audio_device_removed_event_metadata_source,
+                                        backend: value_native_decoded_audio_device_removed_event_metadata_backend,
+                                        flags: value_native_decoded_audio_device_removed_event_metadata_flags,
+                                    };
+                                    let value_native_decoded_audio_device_removed_event_device_id = if let Some(value) = value.device_id {
+                                        let value_native_decoded_audio_device_removed_event_device_id_inner = binding.store_string_owned(value);
+                                        Some(value_native_decoded_audio_device_removed_event_device_id_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_decoded_audio_device_removed_event = AudioDeviceRemovedEvent {
+                                        kind: value_native_decoded_audio_device_removed_event_kind,
+                                        metadata: value_native_decoded_audio_device_removed_event_metadata,
+                                        device_id: value_native_decoded_audio_device_removed_event_device_id,
+                                    };
+                                    AudioEvent::AudioDeviceRemovedEvent(value_native_decoded_audio_device_removed_event)
+                                }
+                                AudioeventReplayRecord::AudioDeviceReroutedEvent(value) => {
+                                    let value_native_decoded_audio_device_rerouted_event_kind = binding.store_string_owned(value.kind);
+                                    let value_native_decoded_audio_device_rerouted_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                    let value_native_decoded_audio_device_rerouted_event_metadata_sequence = value.metadata.sequence;
+                                    let value_native_decoded_audio_device_rerouted_event_metadata_dropped_count = value.metadata.dropped_count;
+                                    let value_native_decoded_audio_device_rerouted_event_metadata_source = value.metadata.source;
+                                    let value_native_decoded_audio_device_rerouted_event_metadata_backend = value.metadata.backend;
+                                    let value_native_decoded_audio_device_rerouted_event_metadata_flags = value.metadata.flags;
+                                    let value_native_decoded_audio_device_rerouted_event_metadata = AudioEventMetadata {
+                                        timestamp_ns: value_native_decoded_audio_device_rerouted_event_metadata_timestamp_ns,
+                                        sequence: value_native_decoded_audio_device_rerouted_event_metadata_sequence,
+                                        dropped_count: value_native_decoded_audio_device_rerouted_event_metadata_dropped_count,
+                                        source: value_native_decoded_audio_device_rerouted_event_metadata_source,
+                                        backend: value_native_decoded_audio_device_rerouted_event_metadata_backend,
+                                        flags: value_native_decoded_audio_device_rerouted_event_metadata_flags,
+                                    };
+                                    let value_native_decoded_audio_device_rerouted_event_device_id = if let Some(value) = value.device_id {
+                                        let value_native_decoded_audio_device_rerouted_event_device_id_inner = binding.store_string_owned(value);
+                                        Some(value_native_decoded_audio_device_rerouted_event_device_id_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_decoded_audio_device_rerouted_event = AudioDeviceReroutedEvent {
+                                        kind: value_native_decoded_audio_device_rerouted_event_kind,
+                                        metadata: value_native_decoded_audio_device_rerouted_event_metadata,
+                                        device_id: value_native_decoded_audio_device_rerouted_event_device_id,
+                                    };
+                                    AudioEvent::AudioDeviceReroutedEvent(value_native_decoded_audio_device_rerouted_event)
+                                }
+                                AudioeventReplayRecord::AudioInterruptionBeganEvent(value) => {
+                                    let value_native_decoded_audio_interruption_began_event_kind = binding.store_string_owned(value.kind);
+                                    let value_native_decoded_audio_interruption_began_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                    let value_native_decoded_audio_interruption_began_event_metadata_sequence = value.metadata.sequence;
+                                    let value_native_decoded_audio_interruption_began_event_metadata_dropped_count = value.metadata.dropped_count;
+                                    let value_native_decoded_audio_interruption_began_event_metadata_source = value.metadata.source;
+                                    let value_native_decoded_audio_interruption_began_event_metadata_backend = value.metadata.backend;
+                                    let value_native_decoded_audio_interruption_began_event_metadata_flags = value.metadata.flags;
+                                    let value_native_decoded_audio_interruption_began_event_metadata = AudioEventMetadata {
+                                        timestamp_ns: value_native_decoded_audio_interruption_began_event_metadata_timestamp_ns,
+                                        sequence: value_native_decoded_audio_interruption_began_event_metadata_sequence,
+                                        dropped_count: value_native_decoded_audio_interruption_began_event_metadata_dropped_count,
+                                        source: value_native_decoded_audio_interruption_began_event_metadata_source,
+                                        backend: value_native_decoded_audio_interruption_began_event_metadata_backend,
+                                        flags: value_native_decoded_audio_interruption_began_event_metadata_flags,
+                                    };
+                                    let value_native_decoded_audio_interruption_began_event_stream = if let Some(value) = value.stream {
+                                        let value_native_decoded_audio_interruption_began_event_stream_inner = value;
+                                        Some(value_native_decoded_audio_interruption_began_event_stream_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_decoded_audio_interruption_began_event = AudioInterruptionBeganEvent {
+                                        kind: value_native_decoded_audio_interruption_began_event_kind,
+                                        metadata: value_native_decoded_audio_interruption_began_event_metadata,
+                                        stream: value_native_decoded_audio_interruption_began_event_stream,
+                                    };
+                                    AudioEvent::AudioInterruptionBeganEvent(value_native_decoded_audio_interruption_began_event)
+                                }
+                                AudioeventReplayRecord::AudioInterruptionEndedEvent(value) => {
+                                    let value_native_decoded_audio_interruption_ended_event_kind = binding.store_string_owned(value.kind);
+                                    let value_native_decoded_audio_interruption_ended_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                    let value_native_decoded_audio_interruption_ended_event_metadata_sequence = value.metadata.sequence;
+                                    let value_native_decoded_audio_interruption_ended_event_metadata_dropped_count = value.metadata.dropped_count;
+                                    let value_native_decoded_audio_interruption_ended_event_metadata_source = value.metadata.source;
+                                    let value_native_decoded_audio_interruption_ended_event_metadata_backend = value.metadata.backend;
+                                    let value_native_decoded_audio_interruption_ended_event_metadata_flags = value.metadata.flags;
+                                    let value_native_decoded_audio_interruption_ended_event_metadata = AudioEventMetadata {
+                                        timestamp_ns: value_native_decoded_audio_interruption_ended_event_metadata_timestamp_ns,
+                                        sequence: value_native_decoded_audio_interruption_ended_event_metadata_sequence,
+                                        dropped_count: value_native_decoded_audio_interruption_ended_event_metadata_dropped_count,
+                                        source: value_native_decoded_audio_interruption_ended_event_metadata_source,
+                                        backend: value_native_decoded_audio_interruption_ended_event_metadata_backend,
+                                        flags: value_native_decoded_audio_interruption_ended_event_metadata_flags,
+                                    };
+                                    let value_native_decoded_audio_interruption_ended_event_stream = if let Some(value) = value.stream {
+                                        let value_native_decoded_audio_interruption_ended_event_stream_inner = value;
+                                        Some(value_native_decoded_audio_interruption_ended_event_stream_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_decoded_audio_interruption_ended_event = AudioInterruptionEndedEvent {
+                                        kind: value_native_decoded_audio_interruption_ended_event_kind,
+                                        metadata: value_native_decoded_audio_interruption_ended_event_metadata,
+                                        stream: value_native_decoded_audio_interruption_ended_event_stream,
+                                    };
+                                    AudioEvent::AudioInterruptionEndedEvent(value_native_decoded_audio_interruption_ended_event)
+                                }
+                                AudioeventReplayRecord::AudioStreamDeviceChangedEvent(value) => {
+                                    let value_native_decoded_audio_stream_device_changed_event_kind = binding.store_string_owned(value.kind);
+                                    let value_native_decoded_audio_stream_device_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                    let value_native_decoded_audio_stream_device_changed_event_metadata_sequence = value.metadata.sequence;
+                                    let value_native_decoded_audio_stream_device_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                    let value_native_decoded_audio_stream_device_changed_event_metadata_source = value.metadata.source;
+                                    let value_native_decoded_audio_stream_device_changed_event_metadata_backend = value.metadata.backend;
+                                    let value_native_decoded_audio_stream_device_changed_event_metadata_flags = value.metadata.flags;
+                                    let value_native_decoded_audio_stream_device_changed_event_metadata = AudioEventMetadata {
+                                        timestamp_ns: value_native_decoded_audio_stream_device_changed_event_metadata_timestamp_ns,
+                                        sequence: value_native_decoded_audio_stream_device_changed_event_metadata_sequence,
+                                        dropped_count: value_native_decoded_audio_stream_device_changed_event_metadata_dropped_count,
+                                        source: value_native_decoded_audio_stream_device_changed_event_metadata_source,
+                                        backend: value_native_decoded_audio_stream_device_changed_event_metadata_backend,
+                                        flags: value_native_decoded_audio_stream_device_changed_event_metadata_flags,
+                                    };
+                                    let value_native_decoded_audio_stream_device_changed_event_stream = if let Some(value) = value.stream {
+                                        let value_native_decoded_audio_stream_device_changed_event_stream_inner = value;
+                                        Some(value_native_decoded_audio_stream_device_changed_event_stream_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_decoded_audio_stream_device_changed_event_status_flags = value.status_flags;
+                                    let value_native_decoded_audio_stream_device_changed_event_device_id = if let Some(value) = value.device_id {
+                                        let value_native_decoded_audio_stream_device_changed_event_device_id_inner = binding.store_string_owned(value);
+                                        Some(value_native_decoded_audio_stream_device_changed_event_device_id_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_decoded_audio_stream_device_changed_event = AudioStreamDeviceChangedEvent {
+                                        kind: value_native_decoded_audio_stream_device_changed_event_kind,
+                                        metadata: value_native_decoded_audio_stream_device_changed_event_metadata,
+                                        stream: value_native_decoded_audio_stream_device_changed_event_stream,
+                                        status_flags: value_native_decoded_audio_stream_device_changed_event_status_flags,
+                                        device_id: value_native_decoded_audio_stream_device_changed_event_device_id,
+                                    };
+                                    AudioEvent::AudioStreamDeviceChangedEvent(value_native_decoded_audio_stream_device_changed_event)
+                                }
+                                AudioeventReplayRecord::AudioStreamStateChangedEvent(value) => {
+                                    let value_native_decoded_audio_stream_state_changed_event_kind = binding.store_string_owned(value.kind);
+                                    let value_native_decoded_audio_stream_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                    let value_native_decoded_audio_stream_state_changed_event_metadata_sequence = value.metadata.sequence;
+                                    let value_native_decoded_audio_stream_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                    let value_native_decoded_audio_stream_state_changed_event_metadata_source = value.metadata.source;
+                                    let value_native_decoded_audio_stream_state_changed_event_metadata_backend = value.metadata.backend;
+                                    let value_native_decoded_audio_stream_state_changed_event_metadata_flags = value.metadata.flags;
+                                    let value_native_decoded_audio_stream_state_changed_event_metadata = AudioEventMetadata {
+                                        timestamp_ns: value_native_decoded_audio_stream_state_changed_event_metadata_timestamp_ns,
+                                        sequence: value_native_decoded_audio_stream_state_changed_event_metadata_sequence,
+                                        dropped_count: value_native_decoded_audio_stream_state_changed_event_metadata_dropped_count,
+                                        source: value_native_decoded_audio_stream_state_changed_event_metadata_source,
+                                        backend: value_native_decoded_audio_stream_state_changed_event_metadata_backend,
+                                        flags: value_native_decoded_audio_stream_state_changed_event_metadata_flags,
+                                    };
+                                    let value_native_decoded_audio_stream_state_changed_event_stream = if let Some(value) = value.stream {
+                                        let value_native_decoded_audio_stream_state_changed_event_stream_inner = value;
+                                        Some(value_native_decoded_audio_stream_state_changed_event_stream_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_decoded_audio_stream_state_changed_event_status_flags = value.status_flags;
+                                    let value_native_decoded_audio_stream_state_changed_event = AudioStreamStateChangedEvent {
+                                        kind: value_native_decoded_audio_stream_state_changed_event_kind,
+                                        metadata: value_native_decoded_audio_stream_state_changed_event_metadata,
+                                        stream: value_native_decoded_audio_stream_state_changed_event_stream,
+                                        status_flags: value_native_decoded_audio_stream_state_changed_event_status_flags,
+                                    };
+                                    AudioEvent::AudioStreamStateChangedEvent(value_native_decoded_audio_stream_state_changed_event)
+                                }
+                                AudioeventReplayRecord::AudioStreamXRunEvent(value) => {
+                                    let value_native_decoded_audio_stream_x_run_event_kind = binding.store_string_owned(value.kind);
+                                    let value_native_decoded_audio_stream_x_run_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                    let value_native_decoded_audio_stream_x_run_event_metadata_sequence = value.metadata.sequence;
+                                    let value_native_decoded_audio_stream_x_run_event_metadata_dropped_count = value.metadata.dropped_count;
+                                    let value_native_decoded_audio_stream_x_run_event_metadata_source = value.metadata.source;
+                                    let value_native_decoded_audio_stream_x_run_event_metadata_backend = value.metadata.backend;
+                                    let value_native_decoded_audio_stream_x_run_event_metadata_flags = value.metadata.flags;
+                                    let value_native_decoded_audio_stream_x_run_event_metadata = AudioEventMetadata {
+                                        timestamp_ns: value_native_decoded_audio_stream_x_run_event_metadata_timestamp_ns,
+                                        sequence: value_native_decoded_audio_stream_x_run_event_metadata_sequence,
+                                        dropped_count: value_native_decoded_audio_stream_x_run_event_metadata_dropped_count,
+                                        source: value_native_decoded_audio_stream_x_run_event_metadata_source,
+                                        backend: value_native_decoded_audio_stream_x_run_event_metadata_backend,
+                                        flags: value_native_decoded_audio_stream_x_run_event_metadata_flags,
+                                    };
+                                    let value_native_decoded_audio_stream_x_run_event_stream = if let Some(value) = value.stream {
+                                        let value_native_decoded_audio_stream_x_run_event_stream_inner = value;
+                                        Some(value_native_decoded_audio_stream_x_run_event_stream_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_decoded_audio_stream_x_run_event_status_flags = value.status_flags;
+                                    let value_native_decoded_audio_stream_x_run_event_xrun_count_delta = value.xrun_count_delta;
+                                    let value_native_decoded_audio_stream_x_run_event_device_id = if let Some(value) = value.device_id {
+                                        let value_native_decoded_audio_stream_x_run_event_device_id_inner = binding.store_string_owned(value);
+                                        Some(value_native_decoded_audio_stream_x_run_event_device_id_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_decoded_audio_stream_x_run_event = AudioStreamXRunEvent {
+                                        kind: value_native_decoded_audio_stream_x_run_event_kind,
+                                        metadata: value_native_decoded_audio_stream_x_run_event_metadata,
+                                        stream: value_native_decoded_audio_stream_x_run_event_stream,
+                                        status_flags: value_native_decoded_audio_stream_x_run_event_status_flags,
+                                        xrun_count_delta: value_native_decoded_audio_stream_x_run_event_xrun_count_delta,
+                                        device_id: value_native_decoded_audio_stream_x_run_event_device_id,
+                                    };
+                                    AudioEvent::AudioStreamXRunEvent(value_native_decoded_audio_stream_x_run_event)
+                                }
+                            };
+                            value_native_values.push(value_native_decoded);
+                        }
+                        Ok(())
+                    })?;
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -9420,8 +10339,8 @@ fn destack_audio_stream_descriptor_replay(
             match payload.result {
                 Ok(value) => {
                     let value_native_backend = value.backend;
-                    let value_native_backend_id = binding.store_string(value.backend_id.as_str());
-                    let value_native_device_id = binding.store_string(value.device_id.as_str());
+                    let value_native_backend_id = binding.store_string_owned(value.backend_id);
+                    let value_native_device_id = binding.store_string_owned(value.device_id);
                     let value_native_sample_rate = value.sample_rate;
                     let value_native_channels = value.channels;
                     let value_native_channel_layout = value.channel_layout;
@@ -9706,8 +10625,9 @@ fn destack_audio_stream_read_replay(
         |result| {
             if let Ok(()) = result {
                 let result_value: NativeSlice<u8> = unsafe { out.read() };
-                let mut result_recorded = Vec::new();
-                for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
+                let result_recorded_slice = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_slice.len());
+                for result_recorded_item in result_recorded_slice.iter().cloned() {
                     let result_recorded_item_recorded = result_recorded_item;
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -9731,12 +10651,14 @@ fn destack_audio_stream_read_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut value_native_values = Vec::new();
-                    for value_native_item in value.iter().cloned() {
-                        let value_native_decoded = value_native_item;
-                        value_native_values.push(value_native_decoded);
-                    }
-                    let value_native = binding.store_slice(value_native_values);
+                    let value_native =
+                        binding.store_slice_with(value.len(), |value_native_values| {
+                            for value_native_item in value {
+                                let value_native_decoded = value_native_item;
+                                value_native_values.push(value_native_decoded);
+                            }
+                            Ok(())
+                        })?;
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -10285,9 +11207,9 @@ fn destack_audio_stream_support_replay(
                     let value_native_supported = value.supported;
                     let value_native_descriptor_backend = value.descriptor.backend;
                     let value_native_descriptor_backend_id =
-                        binding.store_string(value.descriptor.backend_id.as_str());
+                        binding.store_string_owned(value.descriptor.backend_id);
                     let value_native_descriptor_device_id =
-                        binding.store_string(value.descriptor.device_id.as_str());
+                        binding.store_string_owned(value.descriptor.device_id);
                     let value_native_descriptor_sample_rate = value.descriptor.sample_rate;
                     let value_native_descriptor_channels = value.descriptor.channels;
                     let value_native_descriptor_channel_layout = value.descriptor.channel_layout;
@@ -10522,8 +11444,9 @@ fn destack_audio_stream_try_read_replay(
         |result| {
             if let Ok(()) = result {
                 let result_value: NativeSlice<u8> = unsafe { out.read() };
-                let mut result_recorded = Vec::new();
-                for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
+                let result_recorded_slice = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_slice.len());
+                for result_recorded_item in result_recorded_slice.iter().cloned() {
                     let result_recorded_item_recorded = result_recorded_item;
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -10547,12 +11470,14 @@ fn destack_audio_stream_try_read_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut value_native_values = Vec::new();
-                    for value_native_item in value.iter().cloned() {
-                        let value_native_decoded = value_native_item;
-                        value_native_values.push(value_native_decoded);
-                    }
-                    let value_native = binding.store_slice(value_native_values);
+                    let value_native =
+                        binding.store_slice_with(value.len(), |value_native_values| {
+                            for value_native_item in value {
+                                let value_native_decoded = value_native_item;
+                                value_native_values.push(value_native_decoded);
+                            }
+                            Ok(())
+                        })?;
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -11674,156 +12599,17 @@ fn destack_audio_backend_list_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<AudioBackendDescriptorVm> = value.clone();
                 let result_recorded_raw = result_value.raw_values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
-                    let result_recorded_item = {
-                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
-                            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                                "result_recorded_item",
-                                "item",
-                            ))
-                            .boxed());
-                        }
-                        let slots = context
-                            .aggregate_slots(result_recorded_item_value)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        if slots.len() != 11 {
-                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                                "result_recorded_item",
-                                "expected 11 fields",
-                            ))
-                            .boxed());
-                        }
-                        let result_recorded_item_backend_raw =
-                            decode_int32(slots[0], "result_recorded_item_backend_raw", "backend")?;
-                        let result_recorded_item_backend = match result_recorded_item_backend_raw {
-                            0i32 => AudioBackend::Auto,
-                            1i32 => AudioBackend::Alsa,
-                            2i32 => AudioBackend::PulseAudio,
-                            3i32 => AudioBackend::PipeWire,
-                            4i32 => AudioBackend::CoreAudio,
-                            5i32 => AudioBackend::Wasapi,
-                            6i32 => AudioBackend::AAudio,
-                            7i32 => AudioBackend::OpenSLES,
-                            8i32 => AudioBackend::Jack,
-                            9i32 => AudioBackend::Asio,
-                            255i32 => AudioBackend::Null,
-                            _ => {
-                                return Err(RuntimeError::from(
-                                    PlatformError::invalid_argument_value(
-                                        "result_recorded_item_backend",
-                                        "unknown AudioBackend value",
-                                    ),
-                                )
-                                .boxed());
-                            }
-                        };
-                        let result_recorded_item_name =
-                            decode_string(slots[1], "result_recorded_item_name", "name")?;
-                        let result_recorded_item_support_raw =
-                            decode_int32(slots[2], "result_recorded_item_support_raw", "support")?;
-                        let result_recorded_item_support = match result_recorded_item_support_raw {
-                            0i32 => core::BackendSupport::Available,
-                            1i32 => core::BackendSupport::UnsupportedTarget,
-                            2i32 => core::BackendSupport::DisabledByBuild,
-                            3i32 => core::BackendSupport::HostUnavailable,
-                            _ => {
-                                return Err(RuntimeError::from(
-                                    PlatformError::invalid_argument_value(
-                                        "result_recorded_item_support",
-                                        "unknown core::BackendSupport value",
-                                    ),
-                                )
-                                .boxed());
-                            }
-                        };
-                        let result_recorded_item_priority =
-                            decode_uint16(slots[3], "result_recorded_item_priority", "priority")?;
-                        let result_recorded_item_capability_flags_inner = decode_uint64(
-                            slots[4],
-                            "result_recorded_item_capability_flags_inner",
-                            "capabilityFlags",
+                    let result_recorded_item =
+                        <AudioBackendDescriptorVm as VmAggregateCodec>::decode_with_context(
+                            context,
+                            result_recorded_item_value,
                         )?;
-                        let result_recorded_item_capability_flags = AudioBackendCapabilityFlags(
-                            result_recorded_item_capability_flags_inner,
-                        );
-                        let result_recorded_item_supported_device_list_flags_inner = decode_uint32(
-                            slots[5],
-                            "result_recorded_item_supported_device_list_flags_inner",
-                            "supportedDeviceListFlags",
-                        )?;
-                        let result_recorded_item_supported_device_list_flags = AudioDeviceListFlags(
-                            result_recorded_item_supported_device_list_flags_inner,
-                        );
-                        let result_recorded_item_supported_device_open_flags_inner = decode_uint32(
-                            slots[6],
-                            "result_recorded_item_supported_device_open_flags_inner",
-                            "supportedDeviceOpenFlags",
-                        )?;
-                        let result_recorded_item_supported_device_open_flags = AudioDeviceOpenFlags(
-                            result_recorded_item_supported_device_open_flags_inner,
-                        );
-                        let result_recorded_item_supported_stream_flags_inner = decode_uint32(
-                            slots[7],
-                            "result_recorded_item_supported_stream_flags_inner",
-                            "supportedStreamFlags",
-                        )?;
-                        let result_recorded_item_supported_stream_flags = AudioSupportedStreamFlags(
-                            result_recorded_item_supported_stream_flags_inner,
-                        );
-                        let result_recorded_item_supported_stream_requirement_flags_inner =
-                            decode_uint32(
-                                slots[8],
-                                "result_recorded_item_supported_stream_requirement_flags_inner",
-                                "supportedStreamRequirementFlags",
-                            )?;
-                        let result_recorded_item_supported_stream_requirement_flags =
-                            AudioSupportedStreamRequirementFlags(
-                                result_recorded_item_supported_stream_requirement_flags_inner,
-                            );
-                        let result_recorded_item_supported_event_subscription_flags_inner =
-                            decode_uint32(
-                                slots[9],
-                                "result_recorded_item_supported_event_subscription_flags_inner",
-                                "supportedEventSubscriptionFlags",
-                            )?;
-                        let result_recorded_item_supported_event_subscription_flags =
-                            AudioSupportedEventSubscriptionFlags(
-                                result_recorded_item_supported_event_subscription_flags_inner,
-                            );
-                        let result_recorded_item_supported_stream_clock_domains_inner =
-                            decode_uint32(
-                                slots[10],
-                                "result_recorded_item_supported_stream_clock_domains_inner",
-                                "supportedStreamClockDomains",
-                            )?;
-                        let result_recorded_item_supported_stream_clock_domains =
-                            AudioSupportedStreamClockDomains(
-                                result_recorded_item_supported_stream_clock_domains_inner,
-                            );
-                        AudioBackendDescriptorVm {
-                            backend: result_recorded_item_backend,
-                            name: result_recorded_item_name,
-                            support: result_recorded_item_support,
-                            priority: result_recorded_item_priority,
-                            capability_flags: result_recorded_item_capability_flags,
-                            supported_device_list_flags:
-                                result_recorded_item_supported_device_list_flags,
-                            supported_device_open_flags:
-                                result_recorded_item_supported_device_open_flags,
-                            supported_stream_flags: result_recorded_item_supported_stream_flags,
-                            supported_stream_requirement_flags:
-                                result_recorded_item_supported_stream_requirement_flags,
-                            supported_event_subscription_flags:
-                                result_recorded_item_supported_event_subscription_flags,
-                            supported_stream_clock_domains:
-                                result_recorded_item_supported_stream_clock_domains,
-                        }
-                    };
                     let result_recorded_item_recorded_backend = result_recorded_item.backend;
                     let result_recorded_item_recorded_name = {
                         let result_recorded_item_recorded_name_ref = context
@@ -11885,12 +12671,12 @@ fn destack_audio_backend_list_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
-                    for vm_result_item in value.iter().cloned() {
+                    for vm_result_item in value {
                         let vm_result_item_value_backend = vm_result_item.backend;
                         let vm_result_item_value_name = context
                             .string_handle(vm_result_item.name.as_str())
@@ -11958,8 +12744,7 @@ fn destack_audio_clock_now_vm_replay(
                 platform_simulation_vm::destack_audio_clock_now(binding, context, domain)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u64 = value.clone();
                 let result_recorded = result_value;
@@ -11979,8 +12764,7 @@ fn destack_audio_clock_now_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -12015,8 +12799,7 @@ fn destack_audio_clock_stream_vm_replay(
                 platform_simulation_vm::destack_audio_stream_clock(binding, context, handle, domain)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: AudioClockSnapshotVm = value.clone();
                 let result_recorded_stream_frames = result_value.stream_frames;
@@ -12082,8 +12865,7 @@ fn destack_audio_clock_stream_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -12160,8 +12942,7 @@ fn destack_audio_device_close_vm_replay(
                 platform_simulation_vm::destack_audio_device_close(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = AudioDeviceCloseReplayRecord {
@@ -12180,8 +12961,7 @@ fn destack_audio_device_close_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -12223,7 +13003,7 @@ fn destack_audio_device_default_vm_replay(
             ),
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: vm::StringHandle = value.clone();
                 let result_recorded = {
@@ -12249,7 +13029,7 @@ fn destack_audio_device_default_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -12286,7 +13066,7 @@ fn destack_audio_device_descriptor_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: AudioDeviceDescriptorVm = value.clone();
                 let result_recorded_id = {
@@ -12394,7 +13174,7 @@ fn destack_audio_device_descriptor_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -12501,278 +13281,17 @@ fn destack_audio_device_list_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<AudioDeviceDescriptorVm> = value.clone();
                 let result_recorded_raw = result_value.raw_values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
-                    let result_recorded_item = {
-                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
-                            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                                "result_recorded_item",
-                                "item",
-                            ))
-                            .boxed());
-                        }
-                        let slots = context
-                            .aggregate_slots(result_recorded_item_value)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        if slots.len() != 30 {
-                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                                "result_recorded_item",
-                                "expected 30 fields",
-                            ))
-                            .boxed());
-                        }
-                        let result_recorded_item_id =
-                            decode_string(slots[0], "result_recorded_item_id", "id")?;
-                        let result_recorded_item_group_id =
-                            decode_string(slots[1], "result_recorded_item_group_id", "groupId")?;
-                        let result_recorded_item_name =
-                            decode_string(slots[2], "result_recorded_item_name", "name")?;
-                        let result_recorded_item_transport =
-                            decode_string(slots[3], "result_recorded_item_transport", "transport")?;
-                        let result_recorded_item_backend_raw =
-                            decode_int32(slots[4], "result_recorded_item_backend_raw", "backend")?;
-                        let result_recorded_item_backend = match result_recorded_item_backend_raw {
-                            0i32 => AudioBackend::Auto,
-                            1i32 => AudioBackend::Alsa,
-                            2i32 => AudioBackend::PulseAudio,
-                            3i32 => AudioBackend::PipeWire,
-                            4i32 => AudioBackend::CoreAudio,
-                            5i32 => AudioBackend::Wasapi,
-                            6i32 => AudioBackend::AAudio,
-                            7i32 => AudioBackend::OpenSLES,
-                            8i32 => AudioBackend::Jack,
-                            9i32 => AudioBackend::Asio,
-                            255i32 => AudioBackend::Null,
-                            _ => {
-                                return Err(RuntimeError::from(
-                                    PlatformError::invalid_argument_value(
-                                        "result_recorded_item_backend",
-                                        "unknown AudioBackend value",
-                                    ),
-                                )
-                                .boxed());
-                            }
-                        };
-                        let result_recorded_item_direction_raw = decode_int32(
-                            slots[5],
-                            "result_recorded_item_direction_raw",
-                            "direction",
+                    let result_recorded_item =
+                        <AudioDeviceDescriptorVm as VmAggregateCodec>::decode_with_context(
+                            context,
+                            result_recorded_item_value,
                         )?;
-                        let result_recorded_item_direction =
-                            match result_recorded_item_direction_raw {
-                                1i32 => AudioDeviceDirection::Playback,
-                                2i32 => AudioDeviceDirection::Capture,
-                                3i32 => AudioDeviceDirection::Duplex,
-                                4i32 => AudioDeviceDirection::Loopback,
-                                _ => {
-                                    return Err(RuntimeError::from(
-                                        PlatformError::invalid_argument_value(
-                                            "result_recorded_item_direction",
-                                            "unknown AudioDeviceDirection value",
-                                        ),
-                                    )
-                                    .boxed());
-                                }
-                            };
-                        let result_recorded_item_connected =
-                            decode_bool(slots[6], "result_recorded_item_connected", "connected")?;
-                        let result_recorded_item_is_raw =
-                            decode_bool(slots[7], "result_recorded_item_is_raw", "isRaw")?;
-                        let result_recorded_item_is_default_playback = decode_bool(
-                            slots[8],
-                            "result_recorded_item_is_default_playback",
-                            "isDefaultPlayback",
-                        )?;
-                        let result_recorded_item_is_default_capture = decode_bool(
-                            slots[9],
-                            "result_recorded_item_is_default_capture",
-                            "isDefaultCapture",
-                        )?;
-                        let result_recorded_item_is_default_loopback = decode_bool(
-                            slots[10],
-                            "result_recorded_item_is_default_loopback",
-                            "isDefaultLoopback",
-                        )?;
-                        let result_recorded_item_capability_flags_inner = decode_uint64(
-                            slots[11],
-                            "result_recorded_item_capability_flags_inner",
-                            "capabilityFlags",
-                        )?;
-                        let result_recorded_item_capability_flags =
-                            AudioDeviceCapabilityFlags(result_recorded_item_capability_flags_inner);
-                        let result_recorded_item_supported_device_open_flags_inner = decode_uint32(
-                            slots[12],
-                            "result_recorded_item_supported_device_open_flags_inner",
-                            "supportedDeviceOpenFlags",
-                        )?;
-                        let result_recorded_item_supported_device_open_flags = AudioDeviceOpenFlags(
-                            result_recorded_item_supported_device_open_flags_inner,
-                        );
-                        let result_recorded_item_supported_stream_flags_inner = decode_uint32(
-                            slots[13],
-                            "result_recorded_item_supported_stream_flags_inner",
-                            "supportedStreamFlags",
-                        )?;
-                        let result_recorded_item_supported_stream_flags = AudioSupportedStreamFlags(
-                            result_recorded_item_supported_stream_flags_inner,
-                        );
-                        let result_recorded_item_supported_stream_requirement_flags_inner =
-                            decode_uint32(
-                                slots[14],
-                                "result_recorded_item_supported_stream_requirement_flags_inner",
-                                "supportedStreamRequirementFlags",
-                            )?;
-                        let result_recorded_item_supported_stream_requirement_flags =
-                            AudioSupportedStreamRequirementFlags(
-                                result_recorded_item_supported_stream_requirement_flags_inner,
-                            );
-                        let result_recorded_item_supported_event_subscription_flags_inner =
-                            decode_uint32(
-                                slots[15],
-                                "result_recorded_item_supported_event_subscription_flags_inner",
-                                "supportedEventSubscriptionFlags",
-                            )?;
-                        let result_recorded_item_supported_event_subscription_flags =
-                            AudioSupportedEventSubscriptionFlags(
-                                result_recorded_item_supported_event_subscription_flags_inner,
-                            );
-                        let result_recorded_item_supported_stream_clock_domains_inner =
-                            decode_uint32(
-                                slots[16],
-                                "result_recorded_item_supported_stream_clock_domains_inner",
-                                "supportedStreamClockDomains",
-                            )?;
-                        let result_recorded_item_supported_stream_clock_domains =
-                            AudioSupportedStreamClockDomains(
-                                result_recorded_item_supported_stream_clock_domains_inner,
-                            );
-                        let result_recorded_item_preferred_sample_rate = decode_uint32(
-                            slots[17],
-                            "result_recorded_item_preferred_sample_rate",
-                            "preferredSampleRate",
-                        )?;
-                        let result_recorded_item_min_sample_rate = decode_uint32(
-                            slots[18],
-                            "result_recorded_item_min_sample_rate",
-                            "minSampleRate",
-                        )?;
-                        let result_recorded_item_max_sample_rate = decode_uint32(
-                            slots[19],
-                            "result_recorded_item_max_sample_rate",
-                            "maxSampleRate",
-                        )?;
-                        let result_recorded_item_preferred_period_frames = decode_uint32(
-                            slots[20],
-                            "result_recorded_item_preferred_period_frames",
-                            "preferredPeriodFrames",
-                        )?;
-                        let result_recorded_item_min_channels = decode_uint16(
-                            slots[21],
-                            "result_recorded_item_min_channels",
-                            "minChannels",
-                        )?;
-                        let result_recorded_item_max_channels = decode_uint16(
-                            slots[22],
-                            "result_recorded_item_max_channels",
-                            "maxChannels",
-                        )?;
-                        let result_recorded_item_preferred_layout_raw = decode_int32(
-                            slots[23],
-                            "result_recorded_item_preferred_layout_raw",
-                            "preferredLayout",
-                        )?;
-                        let result_recorded_item_preferred_layout =
-                            match result_recorded_item_preferred_layout_raw {
-                                0i32 => AudioChannelLayout::Unknown,
-                                1i32 => AudioChannelLayout::Mono,
-                                2i32 => AudioChannelLayout::Stereo,
-                                3i32 => AudioChannelLayout::Quad,
-                                4i32 => AudioChannelLayout::Surround41,
-                                5i32 => AudioChannelLayout::Surround51,
-                                6i32 => AudioChannelLayout::Surround61,
-                                7i32 => AudioChannelLayout::Surround71,
-                                255i32 => AudioChannelLayout::Custom,
-                                _ => {
-                                    return Err(RuntimeError::from(
-                                        PlatformError::invalid_argument_value(
-                                            "result_recorded_item_preferred_layout",
-                                            "unknown AudioChannelLayout value",
-                                        ),
-                                    )
-                                    .boxed());
-                                }
-                            };
-                        let result_recorded_item_preferred_channel_mask = decode_uint64(
-                            slots[24],
-                            "result_recorded_item_preferred_channel_mask",
-                            "preferredChannelMask",
-                        )?;
-                        let result_recorded_item_supported_channel_mask = decode_uint64(
-                            slots[25],
-                            "result_recorded_item_supported_channel_mask",
-                            "supportedChannelMask",
-                        )?;
-                        let result_recorded_item_min_period_frames = decode_uint32(
-                            slots[26],
-                            "result_recorded_item_min_period_frames",
-                            "minPeriodFrames",
-                        )?;
-                        let result_recorded_item_max_period_frames = decode_uint32(
-                            slots[27],
-                            "result_recorded_item_max_period_frames",
-                            "maxPeriodFrames",
-                        )?;
-                        let result_recorded_item_format_mask = decode_uint32(
-                            slots[28],
-                            "result_recorded_item_format_mask",
-                            "formatMask",
-                        )?;
-                        let result_recorded_item_share_mode_mask = decode_uint32(
-                            slots[29],
-                            "result_recorded_item_share_mode_mask",
-                            "shareModeMask",
-                        )?;
-                        AudioDeviceDescriptorVm {
-                            id: result_recorded_item_id,
-                            group_id: result_recorded_item_group_id,
-                            name: result_recorded_item_name,
-                            transport: result_recorded_item_transport,
-                            backend: result_recorded_item_backend,
-                            direction: result_recorded_item_direction,
-                            connected: result_recorded_item_connected,
-                            is_raw: result_recorded_item_is_raw,
-                            is_default_playback: result_recorded_item_is_default_playback,
-                            is_default_capture: result_recorded_item_is_default_capture,
-                            is_default_loopback: result_recorded_item_is_default_loopback,
-                            capability_flags: result_recorded_item_capability_flags,
-                            supported_device_open_flags:
-                                result_recorded_item_supported_device_open_flags,
-                            supported_stream_flags: result_recorded_item_supported_stream_flags,
-                            supported_stream_requirement_flags:
-                                result_recorded_item_supported_stream_requirement_flags,
-                            supported_event_subscription_flags:
-                                result_recorded_item_supported_event_subscription_flags,
-                            supported_stream_clock_domains:
-                                result_recorded_item_supported_stream_clock_domains,
-                            preferred_sample_rate: result_recorded_item_preferred_sample_rate,
-                            min_sample_rate: result_recorded_item_min_sample_rate,
-                            max_sample_rate: result_recorded_item_max_sample_rate,
-                            preferred_period_frames: result_recorded_item_preferred_period_frames,
-                            min_channels: result_recorded_item_min_channels,
-                            max_channels: result_recorded_item_max_channels,
-                            preferred_layout: result_recorded_item_preferred_layout,
-                            preferred_channel_mask: result_recorded_item_preferred_channel_mask,
-                            supported_channel_mask: result_recorded_item_supported_channel_mask,
-                            min_period_frames: result_recorded_item_min_period_frames,
-                            max_period_frames: result_recorded_item_max_period_frames,
-                            format_mask: result_recorded_item_format_mask,
-                            share_mode_mask: result_recorded_item_share_mode_mask,
-                        }
-                    };
                     let result_recorded_item_recorded_id = {
                         let result_recorded_item_recorded_id_ref = context
                             .string_ref(result_recorded_item.id)
@@ -12908,12 +13427,12 @@ fn destack_audio_device_list_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
-                    for vm_result_item in value.iter().cloned() {
+                    for vm_result_item in value {
                         let vm_result_item_value_id = context
                             .string_handle(vm_result_item.id.as_str())
                             .map_err(Box::<RuntimeError>::from)?;
@@ -13035,8 +13554,7 @@ fn destack_audio_device_open_vm_replay(
                 platform_simulation_vm::destack_audio_device_open(binding, context, id, options)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::AudioDeviceHandle = value.clone();
                 let result_recorded = result_value;
@@ -13056,8 +13574,7 @@ fn destack_audio_device_open_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -13095,8 +13612,7 @@ fn destack_audio_device_rescan_vm_replay(
                 backendpolicy,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = AudioDeviceRescanReplayRecord {
@@ -13115,8 +13631,7 @@ fn destack_audio_device_rescan_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -13145,8 +13660,7 @@ fn destack_audio_event_close_vm_replay(
                 platform_simulation_vm::destack_audio_event_close(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = AudioEventCloseReplayRecord {
@@ -13165,8 +13679,7 @@ fn destack_audio_event_close_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -13195,8 +13708,7 @@ fn destack_audio_event_open_vm_replay(
                 platform_simulation_vm::destack_audio_event_open(binding, context, options)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::AudioEventHandle = value.clone();
                 let result_recorded = result_value;
@@ -13216,8 +13728,7 @@ fn destack_audio_event_open_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -13251,7 +13762,7 @@ fn destack_audio_event_read_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: AudioEventVm = value.clone();
                 let result_recorded = match result_value {
@@ -13772,7 +14283,7 @@ fn destack_audio_event_read_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -14236,7 +14747,7 @@ fn destack_audio_event_read_batch_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<AudioEventVm> = value.clone();
                 let result_recorded_raw = result_value.raw_values(context)?;
@@ -14763,12 +15274,12 @@ fn destack_audio_event_read_batch_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
-                    for vm_result_item in value.iter().cloned() {
+                    for vm_result_item in value {
                         let vm_result_item_value = match vm_result_item {
                             AudioeventReplayRecord::AudioBackendDisconnectedEvent(value) => {
                                 let vm_result_item_value_audio_backend_disconnected_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
@@ -15230,7 +15741,7 @@ fn destack_audio_event_try_read_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: AudioEventVm = value.clone();
                 let result_recorded = match result_value {
@@ -15751,7 +16262,7 @@ fn destack_audio_event_try_read_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -16214,7 +16725,7 @@ fn destack_audio_event_try_read_batch_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<AudioEventVm> = value.clone();
                 let result_recorded_raw = result_value.raw_values(context)?;
@@ -16741,12 +17252,12 @@ fn destack_audio_event_try_read_batch_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
-                    for vm_result_item in value.iter().cloned() {
+                    for vm_result_item in value {
                         let vm_result_item_value = match vm_result_item {
                             AudioeventReplayRecord::AudioBackendDisconnectedEvent(value) => {
                                 let vm_result_item_value_audio_backend_disconnected_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
@@ -17207,8 +17718,7 @@ fn destack_audio_stream_abort_vm_replay(
                 platform_simulation_vm::destack_audio_stream_abort(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = AudioStreamAbortReplayRecord {
@@ -17227,8 +17737,7 @@ fn destack_audio_stream_abort_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -17259,8 +17768,7 @@ fn destack_audio_stream_availability_vm_replay(
                 platform_simulation_vm::destack_audio_stream_availability(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: AudioStreamAvailabilityVm = value.clone();
                 let result_recorded_readable_frames = result_value.readable_frames;
@@ -17291,8 +17799,7 @@ fn destack_audio_stream_availability_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -17335,8 +17842,7 @@ fn destack_audio_stream_close_vm_replay(
                 platform_simulation_vm::destack_audio_stream_close(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = AudioStreamCloseReplayRecord {
@@ -17355,8 +17861,7 @@ fn destack_audio_stream_close_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -17388,7 +17893,7 @@ fn destack_audio_stream_descriptor_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: AudioStreamDescriptorVm = value.clone();
                 let result_recorded_backend = result_value.backend;
@@ -17468,7 +17973,7 @@ fn destack_audio_stream_descriptor_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -17554,8 +18059,7 @@ fn destack_audio_stream_drain_vm_replay(
                 binding, context, handle, timeoutns,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = AudioStreamDrainReplayRecord {
@@ -17574,8 +18078,7 @@ fn destack_audio_stream_drain_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -17604,8 +18107,7 @@ fn destack_audio_stream_flush_vm_replay(
                 platform_simulation_vm::destack_audio_stream_flush(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = AudioStreamFlushReplayRecord {
@@ -17624,8 +18126,7 @@ fn destack_audio_stream_flush_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -17658,8 +18159,7 @@ fn destack_audio_stream_open_vm_replay(
                 binding, context, device, config, options,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::AudioStreamHandle = value.clone();
                 let result_recorded = result_value;
@@ -17679,8 +18179,7 @@ fn destack_audio_stream_open_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -17715,8 +18214,7 @@ fn destack_audio_stream_pause_vm_replay(
                 platform_simulation_vm::destack_audio_stream_pause(binding, context, handle, pause)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = AudioStreamPauseReplayRecord {
@@ -17735,8 +18233,7 @@ fn destack_audio_stream_pause_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -17769,7 +18266,7 @@ fn destack_audio_stream_read_vm_replay(
             ),
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<u8> = value.clone();
                 let result_recorded = result_value.read_bytes(context)?;
@@ -17790,7 +18287,7 @@ fn destack_audio_stream_read_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -17825,8 +18322,7 @@ fn destack_audio_stream_readv_vm_replay(
                 binding, context, handle, buffers,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u64 = value.clone();
                 let result_recorded = result_value;
@@ -17846,8 +18342,7 @@ fn destack_audio_stream_readv_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -17882,8 +18377,7 @@ fn destack_audio_stream_set_mute_vm_replay(
                 binding, context, handle, muted,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = AudioStreamSetMuteReplayRecord {
@@ -17902,8 +18396,7 @@ fn destack_audio_stream_set_mute_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -17935,8 +18428,7 @@ fn destack_audio_stream_set_name_vm_replay(
                 binding, context, handle, name,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = AudioStreamSetNameReplayRecord {
@@ -17955,8 +18447,7 @@ fn destack_audio_stream_set_name_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -17988,8 +18479,7 @@ fn destack_audio_stream_set_volume_vm_replay(
                 binding, context, handle, lineargain,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = AudioStreamSetVolumeReplayRecord {
@@ -18008,8 +18498,7 @@ fn destack_audio_stream_set_volume_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -18038,8 +18527,7 @@ fn destack_audio_stream_start_vm_replay(
                 platform_simulation_vm::destack_audio_stream_start(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = AudioStreamStartReplayRecord {
@@ -18058,8 +18546,7 @@ fn destack_audio_stream_start_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -18088,8 +18575,7 @@ fn destack_audio_stream_state_vm_replay(
                 platform_simulation_vm::destack_audio_stream_state(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: AudioStreamStateVm = value.clone();
                 let result_recorded_state = result_value.state;
@@ -18138,8 +18624,7 @@ fn destack_audio_stream_state_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -18200,8 +18685,7 @@ fn destack_audio_stream_stop_vm_replay(
                 platform_simulation_vm::destack_audio_stream_stop(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = AudioStreamStopReplayRecord {
@@ -18220,8 +18704,7 @@ fn destack_audio_stream_stop_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -18255,7 +18738,7 @@ fn destack_audio_stream_support_vm_replay(
             ),
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: AudioStreamSupportVm = value.clone();
                 let result_recorded_supported = result_value.supported;
@@ -18363,7 +18846,7 @@ fn destack_audio_stream_support_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -18462,8 +18945,7 @@ fn destack_audio_stream_timing_vm_replay(
                 platform_simulation_vm::destack_audio_stream_timing(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: AudioStreamTimingVm = value.clone();
                 let result_recorded_stream_frames = result_value.stream_frames;
@@ -18526,8 +19008,7 @@ fn destack_audio_stream_timing_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -18603,7 +19084,7 @@ fn destack_audio_stream_try_read_vm_replay(
             ),
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<u8> = value.clone();
                 let result_recorded = result_value.read_bytes(context)?;
@@ -18624,7 +19105,7 @@ fn destack_audio_stream_try_read_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -18659,8 +19140,7 @@ fn destack_audio_stream_try_readv_vm_replay(
                 binding, context, handle, buffers,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u64 = value.clone();
                 let result_recorded = result_value;
@@ -18680,8 +19160,7 @@ fn destack_audio_stream_try_readv_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -18716,8 +19195,7 @@ fn destack_audio_stream_try_write_vm_replay(
                 binding, context, handle, data,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u64 = value.clone();
                 let result_recorded = result_value;
@@ -18737,8 +19215,7 @@ fn destack_audio_stream_try_write_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -18773,8 +19250,7 @@ fn destack_audio_stream_try_writev_vm_replay(
                 binding, context, handle, buffers,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u64 = value.clone();
                 let result_recorded = result_value;
@@ -18794,8 +19270,7 @@ fn destack_audio_stream_try_writev_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -18830,8 +19305,7 @@ fn destack_audio_stream_write_vm_replay(
                 platform_simulation_vm::destack_audio_stream_write(binding, context, handle, data)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u64 = value.clone();
                 let result_recorded = result_value;
@@ -18851,8 +19325,7 @@ fn destack_audio_stream_write_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -18896,8 +19369,7 @@ fn destack_audio_stream_write_at_vm_replay(
                 presentationtimens,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u64 = value.clone();
                 let result_recorded = result_value;
@@ -18917,8 +19389,7 @@ fn destack_audio_stream_write_at_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -18962,8 +19433,7 @@ fn destack_audio_stream_write_atv_vm_replay(
                 presentationtimens,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u64 = value.clone();
                 let result_recorded = result_value;
@@ -18983,8 +19453,7 @@ fn destack_audio_stream_write_atv_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -19019,8 +19488,7 @@ fn destack_audio_stream_writev_vm_replay(
                 binding, context, handle, buffers,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u64 = value.clone();
                 let result_recorded = result_value;
@@ -19040,8 +19508,7 @@ fn destack_audio_stream_writev_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -19879,6 +20346,7 @@ pub(crate) fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate
 
 /// Install VM bindings for audio.
 pub(crate) fn install_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+    super::abi_generated::register_audio_vm_storage_types(isolate);
     register_audio_vm_bindings(registry, isolate);
 }
 

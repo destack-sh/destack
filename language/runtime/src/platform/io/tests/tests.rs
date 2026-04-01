@@ -111,7 +111,7 @@ impl<'call> IoHarnessContext<'call> {
         values: &[u8],
     ) -> RuntimeResult<harness::HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
         if let Some(vm_context) = self.vm_context_mut() {
-            let value = VmSlice::from_bytes(vm_context, values)?;
+            let value = VmSlice::from_bytes(&mut vm_context.write(), values)?;
             return Ok(self.harness_value_vm(value));
         }
 
@@ -137,7 +137,7 @@ impl<'call> IoHarnessContext<'call> {
         values: &[u64],
     ) -> RuntimeResult<harness::HarnessValue<NativeSlice<u64>, VmSlice<u64>>> {
         if let Some(vm_context) = self.vm_context_mut() {
-            let value = VmSlice::from_values(vm_context, values)?;
+            let value = VmSlice::from_values(&mut vm_context.write(), values)?;
             return Ok(self.harness_value_vm(value));
         }
 
@@ -152,7 +152,7 @@ impl<'call> IoHarnessContext<'call> {
         values: &[ResourceId],
     ) -> RuntimeResult<harness::HarnessValue<NativeSlice<ResourceId>, VmSlice<ResourceId>>> {
         if let Some(vm_context) = self.vm_context_mut() {
-            let value = VmSlice::from_values(vm_context, values)?;
+            let value = VmSlice::from_values(&mut vm_context.write(), values)?;
             return Ok(self.harness_value_vm(value));
         }
 
@@ -167,7 +167,7 @@ impl<'call> IoHarnessContext<'call> {
         values: &[u32],
     ) -> RuntimeResult<harness::HarnessValue<NativeSlice<u32>, VmSlice<u32>>> {
         if let Some(vm_context) = self.vm_context_mut() {
-            let value = VmSlice::from_values(vm_context, values)?;
+            let value = VmSlice::from_values(&mut vm_context.write(), values)?;
             return Ok(self.harness_value_vm(value));
         }
 
@@ -184,7 +184,7 @@ impl<'call> IoHarnessContext<'call> {
         flags: u32,
     ) -> RuntimeResult<harness::HarnessValue<DescriptorRequest, DescriptorRequestVm>> {
         if let Some(vm_context) = self.vm_context_mut() {
-            let input = VmSlice::from_bytes(vm_context, input)?;
+            let input = VmSlice::from_bytes(&mut vm_context.write(), input)?;
             let request = DescriptorRequestVm {
                 code,
                 input,
@@ -272,22 +272,13 @@ fn decode_vm_poll_events(
     value: VmArray<PollEventVm>,
 ) -> RuntimeResult<Vec<PollEvent>> {
     // read vm array payload
-    let values = value.raw_values(context)?;
+    let values = value.raw_values(&context.read())?;
     let mut events = Vec::with_capacity(values.len());
 
     for value in values {
-        // validate aggregate shape
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "event",
-                "PollEvent",
-            ))
-            .boxed());
-        }
-
         // decode aggregate fields
         let slots = context
-            .aggregate_slots(value)
+            .decode_component_values(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
@@ -351,22 +342,13 @@ fn decode_vm_completion_events(
     value: VmArray<CompletionEventVm>,
 ) -> RuntimeResult<Vec<CompletionEvent>> {
     // read vm array payload
-    let values = value.raw_values(context)?;
+    let values = value.raw_values(&context.read())?;
     let mut events = Vec::with_capacity(values.len());
 
     for value in values {
-        // validate aggregate shape
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "event",
-                "CompletionEvent",
-            ))
-            .boxed());
-        }
-
         // decode aggregate fields
         let slots = context
-            .aggregate_slots(value)
+            .decode_component_values(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
@@ -585,7 +567,8 @@ fn vm_path_from_utf8(
 ) -> RuntimeResult<fs::OsPathVm> {
     #[cfg(unix)]
     {
-        let bytes = fs::PathBytesAbi::<VmAbi>(VmArray::from_bytes(context, value.as_bytes())?);
+        let bytes =
+            fs::PathBytesAbi::<VmAbi>(VmArray::from_bytes(&mut context.write(), value.as_bytes())?);
         let kind = vm::StringHandle::new(context.intern_string("bytes")?);
         Ok(fs::OsPathVm::OsPathBytes(fs::OsPathBytesVm { kind, bytes }))
     }
@@ -593,14 +576,16 @@ fn vm_path_from_utf8(
     #[cfg(windows)]
     {
         let utf16_values = value.encode_utf16().collect::<Vec<_>>();
-        let utf16 = fs::PathUtf16Abi::<VmAbi>(VmArray::from_values(context, &utf16_values)?);
+        let utf16 =
+            fs::PathUtf16Abi::<VmAbi>(VmArray::from_values(&mut context.write(), &utf16_values)?);
         let kind = vm::StringHandle::new(context.intern_string("utf16")?);
         Ok(fs::OsPathVm::OsPathUtf16(fs::OsPathUtf16Vm { kind, utf16 }))
     }
 
     #[cfg(not(any(unix, windows)))]
     {
-        let bytes = fs::PathBytesAbi::<VmAbi>(VmArray::from_bytes(context, value.as_bytes()));
+        let bytes =
+            fs::PathBytesAbi::<VmAbi>(VmArray::from_bytes(&mut context.write(), value.as_bytes()));
         let kind = vm::StringHandle::new(context.intern_string("bytes"));
         Ok(fs::OsPathVm::OsPathBytes(fs::OsPathBytesVm { kind, bytes }))
     }

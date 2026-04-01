@@ -57,7 +57,7 @@ fn unspecified_socket_address(binding: &BindingCallContext, family: SocketFamily
             SocketAddress {
                 family: AF_INET,
                 length: mem::size_of::<SOCKADDR_IN>() as u32,
-                bytes: binding.store_array(bytes.to_vec()),
+                bytes: binding.store_array_copy(bytes),
             }
         }
         SocketFamily::IPv6 => {
@@ -80,7 +80,7 @@ fn unspecified_socket_address(binding: &BindingCallContext, family: SocketFamily
             SocketAddress {
                 family: AF_INET6,
                 length: mem::size_of::<SOCKADDR_IN6>() as u32,
-                bytes: binding.store_array(bytes.to_vec()),
+                bytes: binding.store_array_copy(bytes),
             }
         }
         SocketFamily::Unspecified => SocketAddress {

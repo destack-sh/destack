@@ -476,11 +476,11 @@ pub(crate) unsafe fn monitor_gamma_ramp(
     let id =
         display_resource::resolve_display_id(context, handle, "destack.display.monitor.gammaRamp")?;
     let gamma = read_monitor_gamma_ramp_by_id(&id, "destack.display.monitor.gammaRamp")?;
-    let red = context.store_slice(gamma[0..GAMMA_RAMP_CHANNEL_ENTRIES].to_vec());
+    let red = context.store_slice_copy(&gamma[0..GAMMA_RAMP_CHANNEL_ENTRIES]);
     let green = context
-        .store_slice(gamma[GAMMA_RAMP_CHANNEL_ENTRIES..(GAMMA_RAMP_CHANNEL_ENTRIES * 2)].to_vec());
+        .store_slice_copy(&gamma[GAMMA_RAMP_CHANNEL_ENTRIES..(GAMMA_RAMP_CHANNEL_ENTRIES * 2)]);
     let blue = context
-        .store_slice(gamma[(GAMMA_RAMP_CHANNEL_ENTRIES * 2)..GAMMA_RAMP_TOTAL_ENTRIES].to_vec());
+        .store_slice_copy(&gamma[(GAMMA_RAMP_CHANNEL_ENTRIES * 2)..GAMMA_RAMP_TOTAL_ENTRIES]);
     unsafe {
         *out = DisplayGammaRamp { red, green, blue };
     }

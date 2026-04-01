@@ -32,11 +32,11 @@ pub(crate) fn pick_vm(
 
     // encode one descriptor per picker result
     for value in values {
-        let descriptor = DocumentDescriptorVm::from_value(context, value)?;
+        let descriptor = DocumentDescriptorVm::from_value(&mut context.write(), value)?;
         descriptors.push(descriptor);
     }
 
-    VmArray::from_values(context, &descriptors)
+    VmArray::from_values(&mut context.write(), &descriptors)
 }
 
 /// Submit one document pick operation and decode the raw values.

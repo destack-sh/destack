@@ -256,7 +256,7 @@ pub(super) fn store_path_bytes(binding: &BindingCallContext, path_bytes: &[u8]) 
             capacity: 0,
         }
     } else {
-        binding.store_array(path_bytes.to_vec())
+        binding.store_array_copy(path_bytes)
     };
 
     path_ref_from_bytes(fs::PathBytesAbi::<NativeAbi>(path_bytes))
@@ -268,28 +268,28 @@ pub(super) fn serial_descriptor_from_info(
     info: &UnixSerialDescriptorInfo,
 ) -> SerialPortDescriptor {
     SerialPortDescriptor {
-        id: binding.store_string(info.id.as_str()),
+        id: binding.store_string_owned(info.id.clone()),
         transport: info.transport,
-        name: binding.store_string(info.name.as_str()),
+        name: binding.store_string_owned(info.name.clone()),
         manufacturer: info
             .manufacturer
             .as_ref()
-            .map(|value| binding.store_string(value.as_str())),
+            .map(|value| binding.store_string_owned(value.clone())),
         product: info
             .product
             .as_ref()
-            .map(|value| binding.store_string(value.as_str())),
+            .map(|value| binding.store_string_owned(value.clone())),
         serial_number: info
             .serial_number
             .as_ref()
-            .map(|value| binding.store_string(value.as_str())),
+            .map(|value| binding.store_string_owned(value.clone())),
         path: store_path_bytes(binding, &info.path_bytes),
         usb_vendor_id: info.usb_vendor_id,
         usb_product_id: info.usb_product_id,
         bluetooth_service_class_id: info
             .bluetooth_service_class_id
             .as_ref()
-            .map(|value| binding.store_string(value.as_str())),
+            .map(|value| binding.store_string_owned(value.clone())),
     }
 }
 

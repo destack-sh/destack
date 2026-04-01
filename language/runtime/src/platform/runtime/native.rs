@@ -1535,7 +1535,7 @@ pub(crate) unsafe fn destack_runtime_snapshot_read(
         ));
     }
 
-    unsafe { out.write(binding.store_array(entry.bytes.as_ref().to_vec())) };
+    unsafe { out.write(binding.store_array_copy(entry.bytes.as_ref())) };
 
     Ok(())
 }

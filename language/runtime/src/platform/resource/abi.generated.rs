@@ -60,13 +60,13 @@ impl VmAbiCodec for AccessibilityActionHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -115,13 +115,13 @@ impl VmAbiCodec for AccessibilityDocumentHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -170,13 +170,13 @@ impl VmAbiCodec for AudioDeviceHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -225,13 +225,13 @@ impl VmAbiCodec for AudioEventHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -280,13 +280,13 @@ impl VmAbiCodec for AudioStreamHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -335,13 +335,13 @@ impl VmAbiCodec for BackgroundEventHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -390,13 +390,13 @@ impl VmAbiCodec for BluetoothAdapterWatchHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -445,13 +445,13 @@ impl VmAbiCodec for BluetoothDeviceHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -500,13 +500,13 @@ impl VmAbiCodec for BluetoothScanHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -555,13 +555,13 @@ impl VmAbiCodec for BluetoothSubscriptionHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -610,13 +610,13 @@ impl VmAbiCodec for CameraDeviceHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -665,13 +665,13 @@ impl VmAbiCodec for CameraStreamHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -720,13 +720,13 @@ impl VmAbiCodec for CameraWatchHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -775,13 +775,13 @@ impl VmAbiCodec for CompletionHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -830,13 +830,13 @@ impl VmAbiCodec for CryptoCertificateHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -885,13 +885,13 @@ impl VmAbiCodec for CryptoCipherHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -940,13 +940,13 @@ impl VmAbiCodec for CryptoDigestHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -995,13 +995,13 @@ impl VmAbiCodec for CryptoKeyHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1050,13 +1050,13 @@ impl VmAbiCodec for CryptoMacHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1105,13 +1105,13 @@ impl VmAbiCodec for CryptoStoreHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1160,13 +1160,13 @@ impl VmAbiCodec for DeviceHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1215,13 +1215,13 @@ impl VmAbiCodec for DirectoryHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1270,13 +1270,13 @@ impl VmAbiCodec for DisplayBeginFrameHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1325,13 +1325,13 @@ impl VmAbiCodec for DisplayDragSessionHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1380,13 +1380,13 @@ impl VmAbiCodec for DisplayEventHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1435,13 +1435,13 @@ impl VmAbiCodec for DisplayHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1490,13 +1490,13 @@ impl VmAbiCodec for DocumentHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1545,13 +1545,13 @@ impl VmAbiCodec for DocumentPickHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1600,13 +1600,13 @@ impl VmAbiCodec for FileHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1655,13 +1655,13 @@ impl VmAbiCodec for GpuAdapterHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1710,13 +1710,13 @@ impl VmAbiCodec for GpuBindGroupHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1765,13 +1765,13 @@ impl VmAbiCodec for GpuBindGroupLayoutHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1820,13 +1820,13 @@ impl VmAbiCodec for GpuBufferHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1875,13 +1875,13 @@ impl VmAbiCodec for GpuCommandBufferHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1930,13 +1930,13 @@ impl VmAbiCodec for GpuCommandEncoderHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1985,13 +1985,13 @@ impl VmAbiCodec for GpuComputePassHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -2040,13 +2040,13 @@ impl VmAbiCodec for GpuDeviceHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -2095,13 +2095,13 @@ impl VmAbiCodec for GpuExternalTextureHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -2150,13 +2150,13 @@ impl VmAbiCodec for GpuFenceHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -2205,13 +2205,13 @@ impl VmAbiCodec for GpuMemoryHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -2260,13 +2260,13 @@ impl VmAbiCodec for GpuPipelineHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -2315,13 +2315,13 @@ impl VmAbiCodec for GpuPipelineLayoutHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -2370,13 +2370,13 @@ impl VmAbiCodec for GpuQuerySetHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -2425,13 +2425,13 @@ impl VmAbiCodec for GpuQueueHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -2480,13 +2480,13 @@ impl VmAbiCodec for GpuRenderBundleEncoderHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -2535,13 +2535,13 @@ impl VmAbiCodec for GpuRenderBundleHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -2590,13 +2590,13 @@ impl VmAbiCodec for GpuRenderPassHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -2645,13 +2645,13 @@ impl VmAbiCodec for GpuSamplerHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -2700,13 +2700,13 @@ impl VmAbiCodec for GpuShaderHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -2755,13 +2755,13 @@ impl VmAbiCodec for GpuSurfaceHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -2810,13 +2810,13 @@ impl VmAbiCodec for GpuSurfacePresentationHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -2865,13 +2865,13 @@ impl VmAbiCodec for GpuTextureHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -2920,13 +2920,13 @@ impl VmAbiCodec for GpuTextureViewHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -2975,13 +2975,13 @@ impl VmAbiCodec for InputDeviceHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -3030,13 +3030,13 @@ impl VmAbiCodec for InputMonitorHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -3085,13 +3085,13 @@ impl VmAbiCodec for InputTextSessionHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -3140,13 +3140,13 @@ impl VmAbiCodec for InspectorHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -3195,13 +3195,13 @@ impl VmAbiCodec for IntentHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -3250,13 +3250,13 @@ impl VmAbiCodec for LibraryHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -3305,13 +3305,13 @@ impl VmAbiCodec for LifecycleEventHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -3360,13 +3360,13 @@ impl VmAbiCodec for ListenerHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -3415,13 +3415,13 @@ impl VmAbiCodec for LocationWatchHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -3470,13 +3470,13 @@ impl VmAbiCodec for MessageQueueHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -3525,13 +3525,13 @@ impl VmAbiCodec for MidiEventHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -3580,13 +3580,13 @@ impl VmAbiCodec for MidiInputPortHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -3635,13 +3635,13 @@ impl VmAbiCodec for MidiOutputPortHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -3690,13 +3690,13 @@ impl VmAbiCodec for NetworkWatchHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -3745,13 +3745,13 @@ impl VmAbiCodec for NotificationEventHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -3800,13 +3800,13 @@ impl VmAbiCodec for NotificationPermissionRequestHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -3855,13 +3855,13 @@ impl VmAbiCodec for PermissionRequestHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -3910,13 +3910,13 @@ impl VmAbiCodec for PipeHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -3965,13 +3965,13 @@ impl VmAbiCodec for PollHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -4020,13 +4020,13 @@ impl VmAbiCodec for ProcessFdHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -4075,13 +4075,13 @@ impl VmAbiCodec for ProcessHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -4130,13 +4130,13 @@ impl VmAbiCodec for ProfileHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -4185,13 +4185,13 @@ impl VmAbiCodec for PtyHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -4240,13 +4240,13 @@ impl VmAbiCodec for ResourceId {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -4266,7 +4266,7 @@ pub type ResourceKindVm = ResourceKindAbi<VmAbi>;
 
 impl VmAggregateCodec for ResourceKindAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self(
@@ -4276,7 +4276,7 @@ impl VmAggregateCodec for ResourceKindAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.0, context)
     }
@@ -4313,7 +4313,7 @@ impl VmAbiCodec for ResourceKindAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(ResourceKindValue(
             <vm::StringHandle as VmAbiCodec>::into_value(self.0, context)?,
@@ -4321,7 +4321,7 @@ impl VmAbiCodec for ResourceKindAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self(<vm::StringHandle as VmAbiCodec>::from_value(
@@ -4372,13 +4372,13 @@ impl VmAbiCodec for SandboxHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -4427,13 +4427,13 @@ impl VmAbiCodec for SemaphoreHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -4482,13 +4482,13 @@ impl VmAbiCodec for SerialPortHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -4537,13 +4537,13 @@ impl VmAbiCodec for SerialWatchHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -4592,13 +4592,13 @@ impl VmAbiCodec for SharedMemoryHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -4647,13 +4647,13 @@ impl VmAbiCodec for SignalFdHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -4702,13 +4702,13 @@ impl VmAbiCodec for SignalHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -4757,13 +4757,13 @@ impl VmAbiCodec for SocketHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -4812,13 +4812,13 @@ impl VmAbiCodec for SymbolHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -4867,13 +4867,13 @@ impl VmAbiCodec for ThreadEntryHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -4922,13 +4922,13 @@ impl VmAbiCodec for ThreadHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -4977,13 +4977,13 @@ impl VmAbiCodec for ThreadLocalKey {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -5032,13 +5032,13 @@ impl VmAbiCodec for TimerFdHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -5087,13 +5087,13 @@ impl VmAbiCodec for TimerHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -5142,13 +5142,13 @@ impl VmAbiCodec for TlsContextHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -5197,13 +5197,13 @@ impl VmAbiCodec for TlsSessionHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -5252,13 +5252,13 @@ impl VmAbiCodec for TraceHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -5307,13 +5307,13 @@ impl VmAbiCodec for TransferredHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -5362,13 +5362,13 @@ impl VmAbiCodec for TtyHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -5417,13 +5417,13 @@ impl VmAbiCodec for UringHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -5472,13 +5472,13 @@ impl VmAbiCodec for UsbDeviceHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -5527,13 +5527,13 @@ impl VmAbiCodec for UsbWatchHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -5582,13 +5582,13 @@ impl VmAbiCodec for WatchHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -5637,13 +5637,13 @@ impl VmAbiCodec for WindowEventHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -5692,13 +5692,13 @@ impl VmAbiCodec for WindowHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -5759,15 +5759,20 @@ impl VmAbiCodec for ResourceOwnership {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
     }
+}
+
+/// Register VM storage schemas for resource.
+pub(crate) fn register_resource_vm_storage_types(isolate: &mut vm::Isolate) {
+    isolate.register_named_storage_type("resource::ResourceKind", 1);
 }

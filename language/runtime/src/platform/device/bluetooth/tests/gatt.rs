@@ -114,7 +114,7 @@ fn test_device_bluetooth_vm_gatt_lists_services_for_one_discovered_device_when_p
             Some(listed) => listed,
             None => return Ok(()),
         };
-        let listed = listed.read_values(vm_context)?;
+        let listed = listed.read_values(&vm_context.read())?;
         let Some(adapter) = listed.first() else {
             return Ok(());
         };
@@ -146,7 +146,7 @@ fn test_device_bluetooth_vm_gatt_lists_services_for_one_discovered_device_when_p
                 return Ok(());
             }
         };
-        let discovered = discovered.into_value(vm_context)?;
+        let discovered = discovered.into_value(&vm_context.read())?;
         let device_id =
             vm::StringHandle::new(vm_context.intern_string(scan_event_device_id(&discovered))?);
 
@@ -163,7 +163,7 @@ fn test_device_bluetooth_vm_gatt_lists_services_for_one_discovered_device_when_p
                 vm_context,
                 handle,
             )?;
-            drop(services.read_values(vm_context)?);
+            drop(services.read_values(&vm_context.read())?);
 
             Ok(())
         })();
