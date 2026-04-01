@@ -1,6 +1,6 @@
 use crate::{
-    Argument, BindingModifier, Expression, FunctionSignature, Key, LocalNodeId, Node, NodeType,
-    Parameter, Path, ScalarLiteral, StringId,
+    BindingModifier, Expression, FunctionSignature, Key, LocalNodeId, Node, NodeType, Parameter,
+    Path, ScalarLiteral, StringId,
 };
 
 /// A PrimitiveType is a primitive type node.
@@ -93,18 +93,106 @@ pub enum TypeBinaryOperator {
     Implements,
 }
 
+/// One mapped type modifier.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TypeModifier {
+    /// Add the modifier.
+    Add,
+    /// Remove the modifier.
+    Remove,
+    /// Leave the modifier unspecified.
+    None,
+}
+
+/// One mapped type modifier set.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TypeMappedModifiers {
+    /// The readonly modifier.
+    pub readonly: TypeModifier,
+    /// The optional modifier.
+    pub optional: TypeModifier,
+}
+
+/// One mapped type parameter.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TypeMappedParameter {
+    /// The parameter name.
+    pub name: StringId,
+    /// The parameter constraint.
+    pub constraint: LocalNodeId<Type>,
+    /// The optional key remap.
+    pub key_remap: Option<LocalNodeId<Type>>,
+}
+
+/// One type predicate subject.
+#[derive(Debug, Clone, PartialEq)]
+pub enum TypePredicateSubject {
+    /// One named subject.
+    Name(StringId),
+    /// The `this` subject.
+    This,
+}
+
+/// One type template literal.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TypeTemplateLiteral {
+    /// The raw template strings.
+    pub strings: Vec<StringId>,
+    /// The interpolated type spans.
+    pub spans: Vec<LocalNodeId<Type>>,
+}
+
 /// A Type is a Typescript type.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
     /// Scalar type literal.
     Scalar(TypeLiteral),
+    /// This type.
+    This,
     /// Path to something.
     Path {
         path: Path,
-        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        static_arguments: Option<Vec<LocalNodeId<Type>>>,
     },
     /// Expression (unevaluated).
     Expression(LocalNodeId<Expression>),
+    /// Conditional type.
+    Conditional {
+        left: LocalNodeId<Type>,
+        right: LocalNodeId<Type>,
+        then_type: LocalNodeId<Type>,
+        else_type: LocalNodeId<Type>,
+    },
+    /// Mapped type.
+    Mapped {
+        parameter: TypeMappedParameter,
+        modifiers: TypeMappedModifiers,
+        value: LocalNodeId<Type>,
+    },
+    /// Index access type.
+    Index {
+        left: LocalNodeId<Type>,
+        index: LocalNodeId<Type>,
+    },
+    /// Template literal type.
+    TemplateLiteral(TypeTemplateLiteral),
+    /// Import type.
+    Import {
+        target: StringId,
+        qualifier: Option<Path>,
+        static_arguments: Option<Vec<LocalNodeId<Type>>>,
+    },
+    /// Infer type binding.
+    Infer {
+        name: StringId,
+        constraint: Option<LocalNodeId<Type>>,
+    },
+    /// Type predicate.
+    Predicate {
+        asserts: bool,
+        subject: TypePredicateSubject,
+        target: Option<LocalNodeId<Type>>,
+    },
 
     /// Type unary operator.
     Unary {
@@ -176,6 +264,13 @@ pub enum TypeField {
         modifiers: Option<BindingModifier>,
         key: Option<Key>,
         signature: FunctionSignature,
+    },
+    /// Index signature (like `[key: string]: T`).
+    IndexSignature {
+        modifiers: Option<BindingModifier>,
+        name: StringId,
+        key_type: LocalNodeId<Type>,
+        value_type: LocalNodeId<Type>,
     },
 }
 

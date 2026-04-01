@@ -8,7 +8,8 @@ use destack_fir::prelude::*;
 use destack_fir::write;
 use destack_source::NodeSpanType;
 
-use crate::format::argument::list_like;
+use crate::format::argument::{format_type_parameter_list, list_like};
+use crate::format::function::format_function_signature_parameters;
 use crate::format::literal::{
     format_scalar_literal, format_string_literal_with_source_span, format_template_literal,
 };
@@ -60,6 +61,10 @@ fn format_expression_with_precedence<'ast>(
         write!(f, [token("(")])?;
     }
 
+    if !f.context().include_types() && expression.is_type_only(f.context().tree) {
+        return Ok(());
+    }
+
     match expression {
         Expression::Declaration { declaration } => {
             write!(f, [declaration])?;
@@ -83,11 +88,11 @@ fn format_expression_with_precedence<'ast>(
                     .and_then(|generics| generics.static_parameters.as_ref())
                 && !static_parameters.is_empty()
             {
-                write!(f, [list_like("<", ">", ",", static_parameters)])?;
+                format_type_parameter_list(static_parameters, f)?;
             }
 
-            // dynamic parameters
-            write!(f, [list_like("(", ")", ",", &signature.dynamic_parameters)])?;
+            // parameters
+            format_function_signature_parameters(signature, f)?;
 
             // return type
             if f.context().include_types()
@@ -98,7 +103,14 @@ fn format_expression_with_precedence<'ast>(
 
             // body
             write!(f, [space(), token("=>"), space()])?;
-            format_expression_id_with_precedence(*body, Precedence::Assignment, f)?;
+            match body {
+                crate::ArrowFunctionBody::Expression(body) => {
+                    format_expression_id_with_precedence(*body, Precedence::Assignment, f)?;
+                }
+                crate::ArrowFunctionBody::Block(body) => {
+                    write!(f, [body])?;
+                }
+            }
         }
         Expression::Path {
             path,
@@ -313,6 +325,16 @@ fn format_expression_with_precedence<'ast>(
             write!(f, [token("[")])?;
             format_expression_id_with_precedence(*right, Precedence::Lowest, f)?;
             write!(f, [token("]")])?;
+        }
+        Expression::Instantiation {
+            left,
+            static_arguments,
+        } => {
+            format_expression_id_with_precedence(*left, Precedence::Postfix, f)?;
+
+            if f.context().include_types() {
+                write!(f, [list_like("<", ">", ",", static_arguments)])?;
+            }
         }
         Expression::Call {
             position,

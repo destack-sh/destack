@@ -1,12 +1,15 @@
 use crate::{
     FunctionMode, Keyword, LocalNodeId, PrimitiveType, TupleElement, Type, TypeField, TypeLiteral,
+    TypeModifier, TypePredicateSubject,
 };
 use destack_fir::format::FormatResult;
 
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use crate::format::argument::list_like;
+use crate::format::argument::{format_type_parameter_list, list_like};
+use crate::format::function::format_function_signature_parameters;
+use crate::format::literal::format_string_literal_with_source_span;
 use crate::format::property::{
     format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
 };
@@ -82,14 +85,32 @@ impl<'ast> FormatNode<'ast, TypeField> for TypeField {
                     .and_then(|generics| generics.static_parameters.as_ref())
                     && !static_parameters.is_empty()
                 {
-                    write!(f, [list_like("<", ">", ",", static_parameters)])?;
+                    format_type_parameter_list(static_parameters, f)?;
                 }
-                // dynamic parameters
-                write!(f, [list_like("(", ")", ",", &signature.dynamic_parameters)])?;
+                // parameters
+                format_function_signature_parameters(signature, f)?;
                 // return type
                 if let Some(return_type) = signature.return_type {
-                    write!(f, [token(":"), space(), return_type])?;
+                    write!(f, [space(), token("=>"), space(), return_type])?;
                 }
+            }
+            TypeField::IndexSignature {
+                modifiers,
+                name,
+                key_type,
+                value_type,
+            } => {
+                // modifiers
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                // key
+                write!(
+                    f,
+                    [token("["), *name, token(":"), space(), key_type, token("]")]
+                )?;
+                // modifiers
+                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+                // value
+                write!(f, [token(":"), space(), value_type])?;
             }
         }
 
@@ -141,6 +162,9 @@ impl<'ast> FormatNode<'ast, Type> for Type {
             Type::Scalar(scalar) => {
                 write!(f, [scalar])?;
             }
+            Type::This => {
+                write!(f, [Keyword::This])?;
+            }
             Type::Path {
                 path,
                 static_arguments,
@@ -152,6 +176,132 @@ impl<'ast> FormatNode<'ast, Type> for Type {
             }
             Type::Expression(expression) => {
                 write!(f, [expression])?;
+            }
+            Type::Conditional {
+                left,
+                right,
+                then_type,
+                else_type,
+            } => {
+                write!(
+                    f,
+                    [
+                        left,
+                        space(),
+                        Keyword::Extends,
+                        space(),
+                        right,
+                        space(),
+                        token("?"),
+                        space(),
+                        then_type,
+                        space(),
+                        token(":"),
+                        space(),
+                        else_type
+                    ]
+                )?;
+            }
+            Type::Mapped {
+                parameter,
+                modifiers,
+                value,
+            } => {
+                write!(f, [token("{")])?;
+
+                match modifiers.readonly {
+                    TypeModifier::Add => {
+                        write!(f, [Keyword::Readonly, space()])?;
+                    }
+                    TypeModifier::Remove => {
+                        write!(f, [token("-"), Keyword::Readonly, space()])?;
+                    }
+                    TypeModifier::None => {}
+                }
+
+                write!(
+                    f,
+                    [
+                        token("["),
+                        parameter.name,
+                        space(),
+                        Keyword::In,
+                        space(),
+                        parameter.constraint
+                    ]
+                )?;
+
+                if let Some(key_remap) = parameter.key_remap {
+                    write!(f, [space(), Keyword::As, space(), key_remap])?;
+                }
+
+                write!(f, [token("]")])?;
+
+                match modifiers.optional {
+                    TypeModifier::Add => write!(f, [token("?")])?,
+                    TypeModifier::Remove => write!(f, [token("-?")])?,
+                    TypeModifier::None => {}
+                }
+
+                write!(f, [token(":"), space(), value, token("}")])?;
+            }
+            Type::Index { left, index } => {
+                write!(f, [left, token("["), index, token("]")])?;
+            }
+            Type::TemplateLiteral(template) => {
+                write!(f, [token("`")])?;
+
+                for (index, string) in template.strings.iter().enumerate() {
+                    write!(f, [text(f.context().strings.get(*string))])?;
+
+                    if let Some(span) = template.spans.get(index) {
+                        write!(f, [token("${"), span, token("}")])?;
+                    }
+                }
+
+                write!(f, [token("`")])?;
+            }
+            Type::Import {
+                target,
+                qualifier,
+                static_arguments,
+            } => {
+                write!(f, [Keyword::Import, token("(")])?;
+                format_string_literal_with_source_span(*target, None, f)?;
+                write!(f, [token(")")])?;
+
+                if let Some(qualifier) = qualifier {
+                    write!(f, [token("."), qualifier])?;
+                }
+
+                if let Some(static_arguments) = static_arguments {
+                    write!(f, [list_like("<", ">", ",", static_arguments)])?;
+                }
+            }
+            Type::Infer { name, constraint } => {
+                write!(f, [Keyword::Infer, space(), *name])?;
+
+                if let Some(constraint) = constraint {
+                    write!(f, [space(), Keyword::Extends, space(), constraint])?;
+                }
+            }
+            Type::Predicate {
+                asserts,
+                subject,
+                target,
+            } => {
+                if *asserts {
+                    write!(f, [Keyword::Asserts, space()])?;
+                }
+
+                match subject {
+                    TypePredicateSubject::Name(name) => write!(f, [*name])?,
+                    TypePredicateSubject::This => write!(f, [Keyword::This])?,
+                }
+
+                if let Some(target) = target {
+                    write!(f, [space(), Keyword::Is, space(), target])?;
+                }
             }
 
             Type::Unary { operator, right } => {
@@ -198,13 +348,13 @@ impl<'ast> FormatNode<'ast, Type> for Type {
                     .and_then(|generics| generics.static_parameters.as_ref())
                     && !static_parameters.is_empty()
                 {
-                    write!(f, [list_like("<", ">", ",", static_parameters)])?;
+                    format_type_parameter_list(static_parameters, f)?;
                 }
-                // dynamic parameters
-                write!(f, [list_like("(", ")", ",", &signature.dynamic_parameters)])?;
+                // parameters
+                format_function_signature_parameters(signature, f)?;
                 // return type
                 if let Some(return_type) = signature.return_type {
-                    write!(f, [token(":"), space(), return_type])?;
+                    write!(f, [space(), token("=>"), space(), return_type])?;
                 }
             }
 

@@ -9,16 +9,25 @@ pub(crate) fn format_block_of_statements<'ast>(
     f: &mut JsFormatter<'ast, '_>,
     statements: &Vec<LocalNodeId<Statement>>,
 ) -> FormatResult<()> {
+    let mut printed_any = false;
+
     // emit each statement with the pretty block separator
-    for (index, statement_id) in statements.iter().enumerate() {
-        if index > 0 {
+    for statement_id in statements.iter().copied() {
+        let statement = f.context().tree.get(statement_id);
+
+        // type only statements
+        if !f.context().include_types() && statement.is_type_only(f.context().tree) {
+            continue;
+        }
+
+        if printed_any {
             write!(f, [hard_line_break()])?;
         }
 
-        write!(f, [*statement_id])?;
+        write!(f, [statement_id])?;
+        printed_any = true;
 
         // terminate statements that require semicolons
-        let statement = f.context().tree.get(*statement_id);
         if statement.needs_semicolon() {
             write!(f, [token(";")])?;
         }

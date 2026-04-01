@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::{Argument, LocalNodeId, Node, NodeTree, NodeTreeImpl, Parameter};
+use crate::{Argument, Keyword, LocalNodeId, Node, NodeTree, NodeTreeImpl, Parameter};
 use destack_fir::format::{BestFittingMode, FormatResult};
 
 use crate::format::property::{
@@ -173,6 +173,107 @@ where
         elements,
         _phantom: PhantomData,
     }
+}
+
+/// Format one type parameter.
+pub(crate) fn format_type_parameter<'ast>(
+    parameter: &Parameter,
+    f: &mut JsFormatter<'ast, '_>,
+) -> FormatResult<()> {
+    match parameter {
+        Parameter::Named {
+            modifiers,
+            name,
+            ty,
+            default,
+        } => {
+            format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+            write!(f, [name])?;
+            format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+
+            if f.context().include_types()
+                && let Some(ty) = ty
+            {
+                write!(f, [space(), Keyword::Extends, space(), ty])?;
+            }
+
+            if let Some(default) = default {
+                write!(f, [space(), token("="), space(), default])?;
+            }
+        }
+        _ => match parameter {
+            Parameter::Pattern {
+                modifiers,
+                pattern,
+                ty,
+                default,
+            } => {
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                write!(f, [pattern])?;
+                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+
+                if f.context().include_types()
+                    && let Some(ty) = ty
+                {
+                    write!(f, [token(":"), space(), ty])?;
+                }
+
+                if let Some(default) = default {
+                    write!(f, [space(), token("="), space(), default])?;
+                }
+            }
+            Parameter::VariadicNamed {
+                modifiers,
+                name,
+                ty,
+            } => {
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                write!(f, [token("..."), name])?;
+
+                if f.context().include_types()
+                    && let Some(ty) = ty
+                {
+                    write!(f, [token(":"), space(), ty])?;
+                }
+            }
+            Parameter::VariadicPattern {
+                modifiers,
+                pattern,
+                ty,
+            } => {
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                write!(f, [token("..."), pattern])?;
+
+                if f.context().include_types()
+                    && let Some(ty) = ty
+                {
+                    write!(f, [token(":"), space(), ty])?;
+                }
+            }
+            Parameter::Named { .. } => unreachable!(),
+        },
+    }
+
+    Ok(())
+}
+
+/// Format one type parameter list.
+pub(crate) fn format_type_parameter_list<'ast>(
+    parameters: &[LocalNodeId<Parameter>],
+    f: &mut JsFormatter<'ast, '_>,
+) -> FormatResult<()> {
+    write!(f, [token("<")])?;
+
+    for (index, parameter_id) in parameters.iter().enumerate() {
+        if index > 0 {
+            write!(f, [token(","), space()])?;
+        }
+
+        let parameter = f.context().tree.get(*parameter_id);
+        format_type_parameter(parameter, f)?;
+    }
+
+    write!(f, [token(">")])
 }
 
 impl<'ast> FormatNode<'ast, Parameter> for Parameter {

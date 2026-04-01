@@ -6,6 +6,7 @@ mod declaration;
 mod declarator;
 mod dependency;
 mod expression;
+mod function;
 mod identifier;
 mod key;
 mod literal;

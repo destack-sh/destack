@@ -86,6 +86,24 @@ impl Node for Declaration {
     const TYPE: NodeType = NodeType::Declaration;
 }
 
+impl Declaration {
+    /// Return whether this declaration is type only in plain js output.
+    pub fn is_type_only(&self) -> bool {
+        match self {
+            Self::Global { descriptor, .. }
+            | Self::Namespace { descriptor, .. }
+            | Self::Type { descriptor, .. }
+            | Self::Class { descriptor, .. }
+            | Self::Interface { descriptor, .. }
+            | Self::Enum { descriptor, .. }
+            | Self::Function { descriptor, .. } => {
+                descriptor.kind == DeclarationKind::Declaration
+                    || matches!(self, Self::Type { .. } | Self::Interface { .. })
+            }
+        }
+    }
+}
+
 /// An EnumField is a named field of an enum declaration.
 #[derive(Debug, Clone, PartialEq)]
 pub struct EnumField {

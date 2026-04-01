@@ -1,7 +1,7 @@
 use crate::{
-    Argument, AssignOperator, BinaryOperator, Declaration, FunctionSignature, LocalNodeId, Node,
-    NodeType, Path, Property, ScalarLiteral, StringId, TemplateLiteral, TypeBinaryOperator,
-    TypeUnaryOperator, UnaryOperator,
+    Argument, AssignOperator, BinaryOperator, Block, Declaration, FunctionSignature, LocalNodeId,
+    Node, NodeType, Path, Property, ScalarLiteral, StringId, TemplateLiteral, Type,
+    TypeBinaryOperator, TypeUnaryOperator, UnaryOperator,
 };
 use destack_source::ModuleId;
 
@@ -25,7 +25,7 @@ pub enum Expression {
     /// Path.
     Path {
         path: Path,
-        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        static_arguments: Option<Vec<LocalNodeId<Type>>>,
     },
     /// Import meta expression.
     ImportMeta,
@@ -102,13 +102,13 @@ pub enum Expression {
     Member {
         left: LocalNodeId<Expression>,
         name: StringId,
-        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        static_arguments: Option<Vec<LocalNodeId<Type>>>,
     },
     /// Private member access.
     PrivateMember {
         left: LocalNodeId<Expression>,
         name: StringId,
-        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        static_arguments: Option<Vec<LocalNodeId<Type>>>,
     },
     /// Index.
     Index {
@@ -116,11 +116,16 @@ pub enum Expression {
         left: LocalNodeId<Expression>,
         right: LocalNodeId<Expression>,
     },
+    /// Instantiation expression.
+    Instantiation {
+        left: LocalNodeId<Expression>,
+        static_arguments: Vec<LocalNodeId<Type>>,
+    },
     /// Call.
     Call {
         position: PostfixPosition,
         left: LocalNodeId<Expression>,
-        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        static_arguments: Option<Vec<LocalNodeId<Type>>>,
         dynamic_arguments: Vec<LocalNodeId<Argument>>,
     },
     /// Dynamic import call.
@@ -139,13 +144,13 @@ pub enum Expression {
     /// New.
     New {
         left: LocalNodeId<Expression>,
-        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        static_arguments: Option<Vec<LocalNodeId<Type>>>,
         dynamic_arguments: Vec<LocalNodeId<Argument>>,
     },
     /// Arrow function expression.
     ArrowFunction {
         signature: FunctionSignature,
-        body: LocalNodeId<Expression>,
+        body: ArrowFunctionBody,
     },
     /// If ternary.
     IfTernary {
@@ -166,6 +171,15 @@ pub enum Expression {
 
 impl Node for Expression {
     const TYPE: NodeType = NodeType::Expression;
+}
+
+/// One arrow function body.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ArrowFunctionBody {
+    /// Expression body.
+    Expression(LocalNodeId<Expression>),
+    /// Block body.
+    Block(LocalNodeId<Block>),
 }
 
 /// One element in an array literal.
@@ -251,6 +265,16 @@ impl Precedence {
 }
 
 impl Expression {
+    /// Return whether this expression is type only in plain js output.
+    pub fn is_type_only(&self, tree: &crate::NodeTree) -> bool {
+        let Self::Declaration { declaration } = self else {
+            return false;
+        };
+        let declaration = tree.get(*declaration);
+
+        declaration.is_type_only()
+    }
+
     /// Return this expression without redundant explicit parentheses.
     pub(crate) fn without_parentheses<'a>(
         tree: &'a crate::NodeTree,
@@ -282,6 +306,7 @@ impl Expression {
             | Self::Member { .. }
             | Self::PrivateMember { .. }
             | Self::Index { .. }
+            | Self::Instantiation { .. }
             | Self::Call { .. }
             | Self::ImportCall { .. }
             | Self::New { .. } => Precedence::Postfix,

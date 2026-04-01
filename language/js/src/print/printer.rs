@@ -7,7 +7,7 @@ use crate::tree::Precedence;
 use crate::{
     Annotation, Argument, ArrayElement, Block, CatchClause, Declaration, Declarator,
     DependencyItem, EnumField, Expression, JsSourceMap, LocalNodeId, LocalNodeIdAny, Member,
-    NOOP_JS_SOURCE_MAP, NodeTree, Parameter, Pattern, PatternField, Property, Statement,
+    NOOP_JS_SOURCE_MAP, NodeTree, NodeType, Parameter, Pattern, PatternField, Property, Statement,
     SwitchCase, TupleElement, Type, TypeField,
 };
 
@@ -70,6 +70,42 @@ pub(crate) struct Printer<'a> {
 }
 
 impl<'a> Printer<'a> {
+    /// Return whether one declaration should be elided from plain js output.
+    pub(crate) fn declaration_is_elided(&self, declaration: &Declaration) -> bool {
+        !self.include_types && declaration.is_type_only()
+    }
+
+    /// Return whether one statement should be elided from plain js output.
+    pub(crate) fn statement_is_elided(&self, statement: &Statement) -> bool {
+        !self.include_types && statement.is_type_only(self.tree)
+    }
+
+    /// Return whether one root should be elided from plain js output.
+    pub(crate) fn root_is_elided(&self, root_id: LocalNodeIdAny) -> bool {
+        if self.include_types {
+            return false;
+        }
+
+        match root_id.ty {
+            NodeType::Declaration => {
+                let declaration_id = LocalNodeId::<Declaration>::new(root_id.id);
+                let declaration = self.tree.get(declaration_id);
+                declaration.is_type_only()
+            }
+            NodeType::Statement => {
+                let statement_id = LocalNodeId::<Statement>::new(root_id.id);
+                let statement = self.tree.get(statement_id);
+                statement.is_type_only(self.tree)
+            }
+            NodeType::Expression => {
+                let expression_id = LocalNodeId::<Expression>::new(root_id.id);
+                let expression = self.tree.get(expression_id);
+                expression.is_type_only(self.tree)
+            }
+            _ => false,
+        }
+    }
+
     /// Create one direct script printer.
     pub(crate) fn new(
         file_type: FileType,
@@ -106,10 +142,21 @@ impl<'a> Printer<'a> {
 
     /// Print all root nodes.
     pub(crate) fn print_roots(&mut self) -> JsPrintResult<()> {
-        for (index, root_id) in self.roots.iter().enumerate() {
-            self.print_root(*root_id)?;
+        for (index, root_id) in self.roots.iter().copied().enumerate() {
+            if self.root_is_elided(root_id) {
+                continue;
+            }
 
-            if self.root_needs_separator(*root_id, index + 1 < self.roots.len()) {
+            let has_next = self
+                .roots
+                .iter()
+                .copied()
+                .skip(index + 1)
+                .any(|next_root| !self.root_is_elided(next_root));
+
+            self.print_root(root_id)?;
+
+            if self.root_needs_separator(root_id, has_next) {
                 self.write_punct(";");
             }
         }
@@ -119,9 +166,17 @@ impl<'a> Printer<'a> {
 
     /// Return whether one root needs one trailing separator.
     pub(crate) fn root_needs_separator(&self, root_id: LocalNodeIdAny, has_next: bool) -> bool {
-        if root_id.ty == crate::NodeType::Statement {
+        if self.root_is_elided(root_id) {
+            return false;
+        }
+
+        if root_id.ty == NodeType::Statement {
             let statement_id = LocalNodeId::<Statement>::new(root_id.id);
             let statement = self.tree.get(statement_id);
+
+            if self.statement_is_elided(statement) {
+                return false;
+            }
             return has_next || statement.needs_semicolon();
         }
 
@@ -131,36 +186,26 @@ impl<'a> Printer<'a> {
     /// Print one root node.
     pub(crate) fn print_root(&mut self, root_id: LocalNodeIdAny) -> JsPrintResult<()> {
         match root_id.ty {
-            crate::NodeType::Block => self.print_block_id(LocalNodeId::new(root_id.id)),
-            crate::NodeType::CatchClause => {
-                self.print_catch_clause_id(LocalNodeId::new(root_id.id))
-            }
-            crate::NodeType::Statement => self.print_statement_id(LocalNodeId::new(root_id.id)),
-            crate::NodeType::Expression => self.print_expression_id(LocalNodeId::new(root_id.id)),
-            crate::NodeType::ArrayElement => {
-                self.print_array_element_id(LocalNodeId::new(root_id.id))
-            }
-            crate::NodeType::Declaration => self.print_declaration_id(LocalNodeId::new(root_id.id)),
-            crate::NodeType::Declarator => self.print_declarator_id(LocalNodeId::new(root_id.id)),
-            crate::NodeType::Property => self.print_property_id(LocalNodeId::new(root_id.id)),
-            crate::NodeType::Member => self.print_member_id(LocalNodeId::new(root_id.id)),
-            crate::NodeType::Type => self.print_type_id(LocalNodeId::new(root_id.id)),
-            crate::NodeType::TupleElement => {
-                self.print_tuple_element_id(LocalNodeId::new(root_id.id))
-            }
-            crate::NodeType::TypeField => self.print_type_field_id(LocalNodeId::new(root_id.id)),
-            crate::NodeType::EnumField => self.print_enum_field_id(LocalNodeId::new(root_id.id)),
-            crate::NodeType::DependencyItem => {
-                self.print_dependency_item_id(LocalNodeId::new(root_id.id))
-            }
-            crate::NodeType::SwitchCase => self.print_switch_case_id(LocalNodeId::new(root_id.id)),
-            crate::NodeType::Pattern => self.print_pattern_id(LocalNodeId::new(root_id.id)),
-            crate::NodeType::PatternField => {
-                self.print_pattern_field_id(LocalNodeId::new(root_id.id))
-            }
-            crate::NodeType::Parameter => self.print_parameter_id(LocalNodeId::new(root_id.id)),
-            crate::NodeType::Argument => self.print_argument_id(LocalNodeId::new(root_id.id)),
-            crate::NodeType::Annotation => self.print_annotation_id(LocalNodeId::new(root_id.id)),
+            NodeType::Block => self.print_block_id(LocalNodeId::new(root_id.id)),
+            NodeType::CatchClause => self.print_catch_clause_id(LocalNodeId::new(root_id.id)),
+            NodeType::Statement => self.print_statement_id(LocalNodeId::new(root_id.id)),
+            NodeType::Expression => self.print_expression_id(LocalNodeId::new(root_id.id)),
+            NodeType::ArrayElement => self.print_array_element_id(LocalNodeId::new(root_id.id)),
+            NodeType::Declaration => self.print_declaration_id(LocalNodeId::new(root_id.id)),
+            NodeType::Declarator => self.print_declarator_id(LocalNodeId::new(root_id.id)),
+            NodeType::Property => self.print_property_id(LocalNodeId::new(root_id.id)),
+            NodeType::Member => self.print_member_id(LocalNodeId::new(root_id.id)),
+            NodeType::Type => self.print_type_id(LocalNodeId::new(root_id.id)),
+            NodeType::TupleElement => self.print_tuple_element_id(LocalNodeId::new(root_id.id)),
+            NodeType::TypeField => self.print_type_field_id(LocalNodeId::new(root_id.id)),
+            NodeType::EnumField => self.print_enum_field_id(LocalNodeId::new(root_id.id)),
+            NodeType::DependencyItem => self.print_dependency_item_id(LocalNodeId::new(root_id.id)),
+            NodeType::SwitchCase => self.print_switch_case_id(LocalNodeId::new(root_id.id)),
+            NodeType::Pattern => self.print_pattern_id(LocalNodeId::new(root_id.id)),
+            NodeType::PatternField => self.print_pattern_field_id(LocalNodeId::new(root_id.id)),
+            NodeType::Parameter => self.print_parameter_id(LocalNodeId::new(root_id.id)),
+            NodeType::Argument => self.print_argument_id(LocalNodeId::new(root_id.id)),
+            NodeType::Annotation => self.print_annotation_id(LocalNodeId::new(root_id.id)),
         }
     }
 
@@ -190,11 +235,24 @@ impl<'a> Printer<'a> {
         &mut self,
         statements: &[LocalNodeId<Statement>],
     ) -> JsPrintResult<()> {
-        for (index, statement_id) in statements.iter().enumerate() {
-            self.print_statement_id(*statement_id)?;
+        for (index, statement_id) in statements.iter().copied().enumerate() {
+            let statement = self.tree.get(statement_id);
+            if self.statement_is_elided(statement) {
+                continue;
+            }
 
-            let statement = self.tree.get(*statement_id);
-            if index + 1 < statements.len() || statement.needs_semicolon() {
+            self.print_statement_id(statement_id)?;
+
+            let has_next = statements
+                .iter()
+                .copied()
+                .skip(index + 1)
+                .any(|next_statement_id| {
+                    let next_statement = self.tree.get(next_statement_id);
+                    !self.statement_is_elided(next_statement)
+                });
+
+            if has_next || statement.needs_semicolon() {
                 self.write_punct(";");
             }
         }
@@ -337,10 +395,10 @@ impl<'a> Printer<'a> {
     /// Print one generic type argument list.
     pub(crate) fn print_type_arguments(
         &mut self,
-        static_arguments: &[LocalNodeId<Argument>],
+        static_arguments: &[LocalNodeId<Type>],
     ) -> JsPrintResult<()> {
         self.write_punct("<");
-        self.print_argument_list(static_arguments)?;
+        self.print_type_list(static_arguments)?;
         self.write_punct(">");
         Ok(())
     }

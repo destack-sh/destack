@@ -7,8 +7,9 @@ use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
 
-use crate::format::argument::list_like;
+use crate::format::argument::format_type_parameter_list;
 use crate::format::block::format_block_of_statements;
+use crate::format::function::format_function_signature_parameters;
 use crate::{FormatNode, JsFormatContext, JsFormatter};
 
 /// Format a super type clause.
@@ -66,6 +67,10 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
         _node_id: LocalNodeId<Declaration>,
         f: &mut JsFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        if !f.context().include_types() && self.is_type_only() {
+            return Ok(());
+        }
+
         match self {
             Declaration::Global {
                 descriptor,
@@ -152,17 +157,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
 
                 // static parameters
                 if let Some(static_parameters) = static_parameters {
-                    write!(
-                        f,
-                        [
-                            token("<"),
-                            format_with(|f| f
-                                .join_with(&format_args![&token(","), space()])
-                                .entries(static_parameters)
-                                .finish()),
-                            token(">")
-                        ]
-                    )?;
+                    format_type_parameter_list(static_parameters, f)?;
                 }
 
                 // value
@@ -197,7 +192,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                     && let Some(static_parameters) = generics.static_parameters.as_ref()
                     && !static_parameters.is_empty()
                 {
-                    write!(f, [list_like("<", ">", ",", static_parameters)])?;
+                    format_type_parameter_list(static_parameters, f)?;
                 }
 
                 // extends types
@@ -254,7 +249,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 if let Some(static_parameters) = generics.static_parameters.as_ref()
                     && !static_parameters.is_empty()
                 {
-                    write!(f, [list_like("<", ">", ",", static_parameters)])?;
+                    format_type_parameter_list(static_parameters, f)?;
                 }
 
                 // extends types
@@ -346,11 +341,11 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                         .and_then(|generics| generics.static_parameters.as_ref())
                     && !static_parameters.is_empty()
                 {
-                    write!(f, [list_like("<", ">", ",", static_parameters)])?;
+                    format_type_parameter_list(static_parameters, f)?;
                 }
 
-                // dynamic parameters
-                write!(f, [list_like("(", ")", ",", &signature.dynamic_parameters)])?;
+                // parameters
+                format_function_signature_parameters(signature, f)?;
 
                 // return type
                 if f.context().include_types()

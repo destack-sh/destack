@@ -175,6 +175,30 @@ pub enum ForInitialization {
 }
 
 impl Statement {
+    /// Return whether this statement is type only in plain js output.
+    pub fn is_type_only(&self, tree: &crate::NodeTree) -> bool {
+        match self {
+            Self::Declaration { declaration } => {
+                let declaration = tree.get(*declaration);
+                declaration.is_type_only()
+            }
+            Self::Expression { expression } => {
+                let expression = tree.get(*expression);
+                expression.is_type_only(tree)
+            }
+            Self::Labelled { body, .. } => {
+                let body = tree.get(*body);
+                body.is_type_only(tree)
+            }
+            Self::Let { descriptor, .. }
+            | Self::Var { descriptor, .. }
+            | Self::Using { descriptor, .. } => {
+                descriptor.kind == crate::DeclarationKind::Declaration
+            }
+            _ => false,
+        }
+    }
+
     /// Returns true if this statement needs a trailing semicolon.
     pub fn needs_semicolon(&self) -> bool {
         match self {
