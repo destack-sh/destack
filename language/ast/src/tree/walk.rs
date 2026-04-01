@@ -388,7 +388,9 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
 
-        Expression::Path {
+        Expression::Identifier { name: _ } => {}
+
+        Expression::QualifiedReference {
             path: _,
             static_arguments,
         } => {
