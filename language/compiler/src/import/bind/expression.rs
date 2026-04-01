@@ -4,11 +4,12 @@ use destack_dir::{
     Argument, BindingCategory, DeclarationKind, Declarator, DependencyMode, DependencySource,
     Expression, ForEachBinding, ForEachKind, IfCondition, IfKind, LocalNodeId, LocalNodeIdAny,
     LocalScopeId, LocalScopeMark, LoopKind, MatchKind, MatchSource, ModuleBinding, Mutability,
-    NodeTree, NodeType, ScopeKind, StaticKey, SymbolBinding, SymbolKind, SymbolSpace,
+    NodeTree, NodeType, Path, ScopeKind, StaticKey, SymbolBinding, SymbolKind, SymbolSpace,
     SymbolSpaceOrder, SymbolTable, SymbolType, Type, TypeMappedParameterExpression,
     TypePredicateSubject, TypeTable, YieldCardinality,
 };
 use destack_workspace::Module;
+use smallvec::smallvec;
 
 use crate::Compiler;
 
@@ -1549,7 +1550,18 @@ impl Compiler {
                 Expression::Must { left }
             }
 
-            ast::Expression::Path {
+            ast::Expression::Identifier { name } => {
+                let path = Path {
+                    segments: smallvec![self.program.strings.intern_from(&ast.strings, *name)],
+                };
+                Expression::UnresolvedPath {
+                    path,
+                    static_arguments: None,
+                    space_order,
+                }
+            }
+
+            ast::Expression::QualifiedReference {
                 path,
                 static_arguments,
             } => {
