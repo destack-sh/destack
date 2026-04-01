@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_core::StringPool;
 use destack_mir::{self as mir};
-use destack_source::{ModuleId, ModuleVersion, TargetId};
+use destack_source::{ModuleId, TargetId};
 use serde::{Deserialize, Serialize};
 
 /// Base MIR payload before optimization.
@@ -10,8 +10,6 @@ use serde::{Deserialize, Serialize};
 pub struct MirBase {
     /// The id of the Module.
     pub id: ModuleId,
-    /// The version of the Module.
-    pub version: ModuleVersion,
 
     /// The target this is for.
     pub target: TargetId,
@@ -25,10 +23,9 @@ pub struct MirBase {
 
 impl MirBase {
     /// Create a new base MIR payload.
-    pub fn new(id: ModuleId, version: ModuleVersion, target: TargetId) -> Self {
+    pub fn new(id: ModuleId, target: TargetId) -> Self {
         Self {
             id,
-            version,
             target,
             tree: mir::NodeTree::new(),
             strings: StringPool::new(),
@@ -57,8 +54,6 @@ impl MirBase {
 pub struct MirOptimized {
     /// The id of the Module.
     pub id: ModuleId,
-    /// The version of the Module.
-    pub version: ModuleVersion,
 
     /// The target this is for.
     pub target: TargetId,
@@ -72,10 +67,9 @@ pub struct MirOptimized {
 
 impl MirOptimized {
     /// Create a new optimized MIR payload.
-    pub fn new(id: ModuleId, version: ModuleVersion, target: TargetId) -> Self {
+    pub fn new(id: ModuleId, target: TargetId) -> Self {
         Self {
             id,
-            version,
             target,
             tree: mir::NodeTree::new(),
             strings: StringPool::new(),

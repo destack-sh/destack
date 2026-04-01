@@ -6,6 +6,8 @@ use destack_source::ModuleId;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
+use crate::CanonicalStaticKey;
+
 use super::{LibrarySymbolKey, SymbolGroup, WellKnownIntrinsics, WellKnownKey, WellKnownSymbols};
 
 /// Language semantic environment for one profile.
@@ -51,14 +53,14 @@ pub struct LibraryEnvironment {
 
 impl LibraryEnvironment {
     /// Build one canonical name key for library symbol lookup.
-    fn library_name_key(name: &str) -> super::CanonicalStaticKey {
-        super::CanonicalStaticKey::Name(name.to_string())
+    fn library_name_key(name: &str) -> CanonicalStaticKey {
+        CanonicalStaticKey::Name(name.to_string())
     }
 
     /// Collect ordered candidates for one key and space order.
     fn collect_symbol_sources_for_space_order(
         &self,
-        key: &super::CanonicalStaticKey,
+        key: &CanonicalStaticKey,
         order: SymbolSpaceOrder,
         is_declared_only: bool,
     ) -> Vec<GlobalSymbolId> {
@@ -116,7 +118,7 @@ impl LibraryEnvironment {
     /// Return declared library symbol sources for one key and space.
     pub fn declared_symbol_sources(
         &self,
-        key: &super::CanonicalStaticKey,
+        key: &CanonicalStaticKey,
         space: SymbolSpace,
     ) -> Option<&[GlobalSymbolId]> {
         self.declared_library_symbol_sources
@@ -130,7 +132,7 @@ impl LibraryEnvironment {
     /// Return selected library symbol sources for one key and space.
     pub fn symbol_sources(
         &self,
-        key: &super::CanonicalStaticKey,
+        key: &CanonicalStaticKey,
         space: SymbolSpace,
     ) -> Option<&[GlobalSymbolId]> {
         self.library_symbol_sources
@@ -154,7 +156,7 @@ impl LibraryEnvironment {
     /// Return one declared symbol using semantic selection for a canonical key.
     pub fn declared_symbol_from_key(
         &self,
-        key: &super::CanonicalStaticKey,
+        key: &CanonicalStaticKey,
         order: SymbolSpaceOrder,
     ) -> Option<GlobalSymbolId> {
         let sources = self.collect_symbol_sources_for_space_order(key, order, true);
@@ -175,7 +177,7 @@ impl LibraryEnvironment {
     /// Return one declared symbol using concrete selection for a canonical key.
     pub fn declared_concrete_symbol_from_key(
         &self,
-        key: &super::CanonicalStaticKey,
+        key: &CanonicalStaticKey,
         order: SymbolSpaceOrder,
     ) -> Option<GlobalSymbolId> {
         let sources = self.collect_symbol_sources_for_space_order(key, order, true);
@@ -191,7 +193,7 @@ impl LibraryEnvironment {
     /// Return one selected symbol using semantic selection for a canonical key.
     pub fn symbol_from_key(
         &self,
-        key: &super::CanonicalStaticKey,
+        key: &CanonicalStaticKey,
         order: SymbolSpaceOrder,
     ) -> Option<GlobalSymbolId> {
         let sources = self.collect_symbol_sources_for_space_order(key, order, false);
@@ -202,7 +204,7 @@ impl LibraryEnvironment {
     /// Return selected symbol sources using a space order for a canonical key.
     pub fn symbol_sources_for_space_order(
         &self,
-        key: &super::CanonicalStaticKey,
+        key: &CanonicalStaticKey,
         order: SymbolSpaceOrder,
     ) -> Vec<GlobalSymbolId> {
         self.collect_symbol_sources_for_space_order(key, order, false)
@@ -225,9 +227,8 @@ impl LibraryEnvironment {
             }
         }
 
-        let mut keys = IndexMap::new();
-
         // derive well known Symbol.* keys from the resolved base symbols
+        let mut keys = IndexMap::new();
         for item in WellKnownSymbolKey::all() {
             let Some(base_symbol) = symbols
                 .get(&item.base_symbol())

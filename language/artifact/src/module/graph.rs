@@ -1,4 +1,4 @@
-use destack_source::{ModuleId, ModuleVersion, ProfileId};
+use destack_source::{ModuleId, ProfileId};
 use indexmap::map::Entry;
 use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
@@ -22,8 +22,6 @@ pub struct ModuleGraph {
     pub dependencies: IndexMap<ModuleId, IndexSet<ModuleId>>,
     /// Reverse dependencies keyed by module id.
     pub dependents: IndexMap<ModuleId, IndexSet<ModuleId>>,
-    /// Versions of modules included in the graph.
-    pub module_versions: IndexMap<ModuleId, ModuleVersion>,
 }
 
 impl ModuleGraph {
@@ -33,7 +31,6 @@ impl ModuleGraph {
             profile_id,
             dependencies: IndexMap::new(),
             dependents: IndexMap::new(),
-            module_versions: IndexMap::new(),
         }
     }
 
@@ -43,12 +40,7 @@ impl ModuleGraph {
     }
 
     /// Update the dependencies for a module.
-    pub fn update_module(
-        &mut self,
-        module_id: ModuleId,
-        module_version: ModuleVersion,
-        dependencies: Vec<ModuleId>,
-    ) {
+    pub fn update_module(&mut self, module_id: ModuleId, dependencies: Vec<ModuleId>) {
         // normalize and sort dependency list
         let mut sorted = dependencies;
         sorted.sort_unstable();
@@ -63,9 +55,6 @@ impl ModuleGraph {
             next_set.insert(dep);
         }
         self.dependencies.insert(module_id, next_set.clone());
-
-        // track module version
-        self.module_versions.insert(module_id, module_version);
 
         // remove stale reverse edges
         if let Some(previous) = previous {
@@ -138,8 +127,5 @@ impl ModuleGraph {
                 }
             }
         }
-
-        // drop module version tracking
-        self.module_versions.shift_remove(&module_id);
     }
 }

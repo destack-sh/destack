@@ -17,9 +17,9 @@ pub enum ModuleArtifact {
 #[derive(Debug, Clone)]
 pub enum BinaryArtifact {
     /// One generated native object artifact.
-    Object(ObjectArtifact),
+    Object(Box<ObjectArtifact>),
     /// One generated wasm artifact.
-    Wasm(WasmArtifact),
+    Wasm(Box<WasmArtifact>),
 }
 
 /// One generated native object artifact.

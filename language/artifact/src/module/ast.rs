@@ -1,6 +1,6 @@
 use destack_ast::{self as ast};
 use destack_core::StringPool;
-use destack_source::{FileId, ModuleId, ModuleVersion, Span};
+use destack_source::{FileId, ModuleId, Span};
 use serde::{Deserialize, Serialize};
 
 /// AST payload for one parsed module.
@@ -9,8 +9,6 @@ use serde::{Deserialize, Serialize};
 pub struct Ast {
     /// The id of the Module.
     pub id: ModuleId,
-    /// The version of the Module.
-    pub version: ModuleVersion,
 
     /// The AST of the Module (may be empty).
     pub tree: ast::NodeTree,
@@ -32,11 +30,10 @@ pub struct Ast {
 
 impl Ast {
     /// Create a new empty AST payload.
-    pub fn new(id: ModuleId, version: ModuleVersion) -> Self {
+    pub fn new(id: ModuleId) -> Self {
         // build empty module ast
         Self {
             id,
-            version,
             tree: ast::NodeTree::new(),
             parents: ast::NodeParentIndex::new(),
             roots: Vec::new(),
@@ -51,7 +48,6 @@ impl Ast {
     /// Create an AST payload from a tree.
     pub fn from_tree(
         id: ModuleId,
-        version: ModuleVersion,
         tree: ast::NodeTree,
         roots: Vec<ast::LocalNodeId<ast::Expression>>,
         strings: StringPool,
@@ -64,7 +60,6 @@ impl Ast {
         // build module ast from parts
         Self {
             id,
-            version,
             tree,
             parents,
             roots,

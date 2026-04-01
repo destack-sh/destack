@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_core::StringId;
 use destack_dir::{self as dir};
-use destack_source::{ModuleId, ModuleVersion, ProfileId};
+use destack_source::{ModuleId, ProfileId};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
@@ -21,12 +21,8 @@ pub type ExportedSymbolTable = IndexMap<(dir::SymbolSpace, dir::StaticKey), dir:
 /// The bound base DIR for one module.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DirBase {
-    /// The profile id this is targeting, if any.
-    pub profile_id: Option<ProfileId>,
     /// The id of the Module.
     pub id: ModuleId,
-    /// The version of the Module.
-    pub version: ModuleVersion,
     /// The main DIR node tree of the Module.
     pub tree: Arc<dir::NodeTree>,
     /// The symbol side table of the Module.
@@ -71,7 +67,6 @@ impl DirBase {
     /// Create one base artifact with the chosen default symbol kind.
     fn new_with_default_symbol(
         id: ModuleId,
-        version: ModuleVersion,
         anchor_source_id: u32,
         default_symbol_kind: dir::SymbolKind,
     ) -> Self {
@@ -117,9 +112,7 @@ impl DirBase {
         let anchor_node = Self::create_anchor_node(&mut tree, namespace_scope_id, anchor_source_id);
 
         Self {
-            profile_id: None,
             id,
-            version,
             tree: Arc::new(tree),
             symbols: Arc::new(symbols),
             types: Arc::new(dir::TypeTable::new(id)),
@@ -135,25 +128,23 @@ impl DirBase {
     }
 
     /// Create a new base DIR artifact.
-    pub fn new_base(id: ModuleId, version: ModuleVersion, anchor_source_id: u32) -> Self {
-        Self::new_with_default_symbol(id, version, anchor_source_id, dir::SymbolKind::Namespace)
+    pub fn new_base(id: ModuleId, anchor_source_id: u32) -> Self {
+        Self::new_with_default_symbol(id, anchor_source_id, dir::SymbolKind::Namespace)
     }
 
     /// Create a minimal base DIR artifact for data modules.
-    pub fn new_data_base(id: ModuleId, version: ModuleVersion, anchor_source_id: u32) -> Self {
-        Self::new_with_default_symbol(id, version, anchor_source_id, dir::SymbolKind::Item)
+    pub fn new_data_base(id: ModuleId, anchor_source_id: u32) -> Self {
+        Self::new_with_default_symbol(id, anchor_source_id, dir::SymbolKind::Item)
     }
 }
 
 /// The prepared DIR for one profile-scoped module.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DirPrepared {
-    /// The profile id this is targeting, if any.
-    pub profile_id: Option<ProfileId>,
+    /// The profile id this is targeting.
+    pub profile_id: ProfileId,
     /// The id of the Module.
     pub id: ModuleId,
-    /// The version of the Module.
-    pub version: ModuleVersion,
     /// The main DIR node tree of the Module.
     pub tree: Arc<dir::NodeTree>,
     /// The symbol side table of the Module.
@@ -200,9 +191,8 @@ impl DirPrepared {
         exported_symbols: ExportedSymbolTable,
     ) -> Self {
         Self {
-            profile_id: Some(profile_id),
+            profile_id,
             id: base.id,
-            version: base.version,
             tree: Arc::new(tree),
             symbols: Arc::new(symbols),
             types: base.types.clone(),
@@ -225,12 +215,10 @@ impl DirPrepared {
 /// The resolved DIR for one profile-scoped module.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DirResolved {
-    /// The profile id this is targeting, if any.
-    pub profile_id: Option<ProfileId>,
+    /// The profile id this is targeting.
+    pub profile_id: ProfileId,
     /// The id of the Module.
     pub id: ModuleId,
-    /// The version of the Module.
-    pub version: ModuleVersion,
     /// The main DIR node tree of the Module.
     pub tree: Arc<dir::NodeTree>,
     /// The symbol side table of the Module.
@@ -279,7 +267,6 @@ impl DirResolved {
         Self {
             profile_id: prepared.profile_id,
             id: prepared.id,
-            version: prepared.version,
             tree: Arc::new(tree),
             symbols: Arc::new(symbols),
             types: Arc::new(types),
@@ -302,12 +289,10 @@ impl DirResolved {
 /// The declared DIR for one profile-scoped module.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DirDeclared {
-    /// The profile id this is targeting, if any.
-    pub profile_id: Option<ProfileId>,
+    /// The profile id this is targeting.
+    pub profile_id: ProfileId,
     /// The id of the Module.
     pub id: ModuleId,
-    /// The version of the Module.
-    pub version: ModuleVersion,
     /// The main DIR node tree of the Module.
     pub tree: Arc<dir::NodeTree>,
     /// The symbol side table of the Module.
@@ -341,7 +326,6 @@ impl DirDeclared {
         Self {
             profile_id: resolved.profile_id,
             id: resolved.id,
-            version: resolved.version,
             tree: resolved.tree.clone(),
             symbols: Arc::new(symbols),
             types: Arc::new(types),
@@ -359,12 +343,10 @@ impl DirDeclared {
 /// The interface DIR for one profile-scoped module.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DirInterface {
-    /// The profile id this is targeting, if any.
-    pub profile_id: Option<ProfileId>,
+    /// The profile id this is targeting.
+    pub profile_id: ProfileId,
     /// The id of the Module.
     pub id: ModuleId,
-    /// The version of the Module.
-    pub version: ModuleVersion,
     /// The main DIR node tree of the Module.
     pub tree: Arc<dir::NodeTree>,
     /// The symbol side table of the Module.
@@ -391,7 +373,6 @@ impl DirInterface {
         Self {
             profile_id: declared.profile_id,
             id: declared.id,
-            version: declared.version,
             tree: declared.tree.clone(),
             symbols: declared.symbols.clone(),
             types: declared.types.clone(),
@@ -420,12 +401,10 @@ impl DirInterface {
 /// The analyzed DIR for one profile-scoped module.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DirAnalyzed {
-    /// The profile id this is targeting, if any.
-    pub profile_id: Option<ProfileId>,
+    /// The profile id this is targeting.
+    pub profile_id: ProfileId,
     /// The id of the Module.
     pub id: ModuleId,
-    /// The version of the Module.
-    pub version: ModuleVersion,
     /// The main DIR node tree of the Module.
     pub tree: Arc<dir::NodeTree>,
     /// The symbol side table of the Module.
@@ -459,7 +438,6 @@ impl DirAnalyzed {
         Self {
             profile_id: interface.profile_id,
             id: interface.id,
-            version: interface.version,
             tree: interface.tree.clone(),
             symbols: interface.symbols.clone(),
             types: Arc::new(types),
@@ -477,12 +455,10 @@ impl DirAnalyzed {
 /// The elaborated DIR for one profile-scoped module.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DirElaborated {
-    /// The profile id this is targeting, if any.
-    pub profile_id: Option<ProfileId>,
+    /// The profile id this is targeting.
+    pub profile_id: ProfileId,
     /// The id of the Module.
     pub id: ModuleId,
-    /// The version of the Module.
-    pub version: ModuleVersion,
     /// The main DIR node tree of the Module.
     pub tree: Arc<dir::NodeTree>,
     /// The symbol side table of the Module.
@@ -510,7 +486,6 @@ impl DirElaborated {
         Self {
             profile_id: analyzed.profile_id,
             id: analyzed.id,
-            version: analyzed.version,
             tree: Arc::new(tree),
             symbols: Arc::new(symbols),
             types: Arc::new(types),
@@ -525,12 +500,10 @@ impl DirElaborated {
 /// The patched DIR for one profile-scoped module.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DirPatched {
-    /// The profile id this is targeting, if any.
-    pub profile_id: Option<ProfileId>,
+    /// The profile id this is targeting.
+    pub profile_id: ProfileId,
     /// The id of the Module.
     pub id: ModuleId,
-    /// The version of the Module.
-    pub version: ModuleVersion,
     /// The main DIR node tree of the Module.
     pub tree: Arc<dir::NodeTree>,
     /// The symbol side table of the Module.
@@ -553,7 +526,6 @@ impl DirPatched {
         Self {
             profile_id: elaborated.profile_id,
             id: elaborated.id,
-            version: elaborated.version,
             tree: Arc::new(tree),
             symbols: elaborated.symbols.clone(),
             types: elaborated.types.clone(),
