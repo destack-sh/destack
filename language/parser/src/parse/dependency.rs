@@ -1204,7 +1204,7 @@ mod tests {
     };
     use destack_source::LanguageType;
 
-    use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
+    use crate::{TestParser, assert_expression_path, assert_node, assert_string};
 
     fn assert_import_target_string(parser: &crate::Parser, target: &ImportTarget, expected: &str) {
         assert_node!(target, ImportTarget::String(target) => {

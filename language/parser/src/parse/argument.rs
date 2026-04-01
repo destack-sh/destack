@@ -2224,14 +2224,14 @@ mod tests {
 
             // ConstructorParameters<typeof Response>
             let ty = ty.expect("expected variadic tuple type annotation");
-            assert_node!(parser.tree, ty, Expression::Path { path, static_arguments: Some(static_arguments) } => {
+            assert_node!(parser.tree, ty, Expression::QualifiedReference { path, static_arguments: Some(static_arguments) } => {
                 assert_path!(parser, *path, "ConstructorParameters");
                 assert_eq!(static_arguments.len(), 1);
 
                 assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
                     assert_node!(parser.tree, *value, Expression::TypeUnary { operator, right } => {
                         assert_eq!(*operator, TypeUnaryOperator::Typeof);
-                        assert_node!(parser.tree, *right, Expression::Path { path, static_arguments: None } => {
+                        assert_node!(parser.tree, *right, Expression::QualifiedReference { path, static_arguments: None } => {
                             assert_path!(parser, *path, "Response");
                         });
                     });
@@ -2284,7 +2284,7 @@ mod tests {
             });
 
             // SpawnArguments<TContext, TExpressionEvent, TEvent, TActor>
-            assert_node!(parser.tree, *ty, Expression::Path { path, static_arguments: Some(static_arguments) } => {
+            assert_node!(parser.tree, *ty, Expression::QualifiedReference { path, static_arguments: Some(static_arguments) } => {
                 assert_path!(parser, *path, "SpawnArguments");
                 assert_eq!(static_arguments.len(), 4);
             });
@@ -2359,16 +2359,16 @@ mod tests {
                 assert_eq!(*operator, BinaryOperator::ElementwiseOr);
 
                 // ReturnType<onRequestHookHandler<RawServer>>
-                assert_node!(parser.tree, *left, Expression::Path { path, static_arguments: Some(static_arguments) } => {
+                assert_node!(parser.tree, *left, Expression::QualifiedReference { path, static_arguments: Some(static_arguments) } => {
                     assert_path!(parser, *path, "ReturnType");
                     assert_eq!(static_arguments.len(), 1);
 
                     assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
-                        assert_node!(parser.tree, *value, Expression::Path { path, static_arguments: Some(static_arguments) } => {
+                        assert_node!(parser.tree, *value, Expression::QualifiedReference { path, static_arguments: Some(static_arguments) } => {
                             assert_path!(parser, *path, "onRequestHookHandler");
                             assert_eq!(static_arguments.len(), 1);
                             assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
-                                assert_node!(parser.tree, *value, Expression::Path { path, static_arguments: None } => {
+                                assert_node!(parser.tree, *value, Expression::QualifiedReference { path, static_arguments: None } => {
                                     assert_path!(parser, *path, "RawServer");
                                 });
                             });
@@ -2377,16 +2377,16 @@ mod tests {
                 });
 
                 // ReturnType<onRequestAsyncHookHandler<RawServer>>
-                assert_node!(parser.tree, *right, Expression::Path { path, static_arguments: Some(static_arguments) } => {
+                assert_node!(parser.tree, *right, Expression::QualifiedReference { path, static_arguments: Some(static_arguments) } => {
                     assert_path!(parser, *path, "ReturnType");
                     assert_eq!(static_arguments.len(), 1);
 
                     assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
-                        assert_node!(parser.tree, *value, Expression::Path { path, static_arguments: Some(static_arguments) } => {
+                        assert_node!(parser.tree, *value, Expression::QualifiedReference { path, static_arguments: Some(static_arguments) } => {
                             assert_path!(parser, *path, "onRequestAsyncHookHandler");
                             assert_eq!(static_arguments.len(), 1);
                             assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
-                                assert_node!(parser.tree, *value, Expression::Path { path, static_arguments: None } => {
+                                assert_node!(parser.tree, *value, Expression::QualifiedReference { path, static_arguments: None } => {
                                     assert_path!(parser, *path, "RawServer");
                                 });
                             });
@@ -2396,16 +2396,16 @@ mod tests {
             });
 
             // ReturnType<onRequestHookHandler<RawServer>>
-            assert_node!(parser.tree, *default, Expression::Path { path, static_arguments: Some(static_arguments) } => {
+            assert_node!(parser.tree, *default, Expression::QualifiedReference { path, static_arguments: Some(static_arguments) } => {
                 assert_path!(parser, *path, "ReturnType");
                 assert_eq!(static_arguments.len(), 1);
 
                 assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
-                    assert_node!(parser.tree, *value, Expression::Path { path, static_arguments: Some(static_arguments) } => {
+                    assert_node!(parser.tree, *value, Expression::QualifiedReference { path, static_arguments: Some(static_arguments) } => {
                         assert_path!(parser, *path, "onRequestHookHandler");
                         assert_eq!(static_arguments.len(), 1);
                         assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
-                            assert_node!(parser.tree, *value, Expression::Path { path, static_arguments: None } => {
+                            assert_node!(parser.tree, *value, Expression::QualifiedReference { path, static_arguments: None } => {
                                 assert_path!(parser, *path, "RawServer");
                             });
                         });
@@ -3160,8 +3160,8 @@ const value = 1;
         assert_node!(parser.tree, argument_id, Argument::Spread { modifiers: _, label, value } => {
             // ...args
             assert!(label.is_none());
-            assert_node!(parser.tree, *value, Expression::Path { path, .. } => {
-                assert_path!(parser, *path, "args");
+            assert_node!(parser.tree, *value, Expression::Identifier { name } => {
+                assert_string!(parser, *name, "args");
             });
         });
     }
@@ -3178,8 +3178,8 @@ const value = 1;
 
         assert_node!(parser.tree, argument_id, Argument::Spread { modifiers: _, label, value } => {
             assert!(label.is_none());
-            assert_node!(parser.tree, *value, Expression::Path { path, .. } => {
-                assert_path!(parser, *path, "args");
+            assert_node!(parser.tree, *value, Expression::Identifier { name } => {
+                assert_string!(parser, *name, "args");
             });
         });
     }

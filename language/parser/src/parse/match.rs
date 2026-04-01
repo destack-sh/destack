@@ -438,7 +438,7 @@ mod tests {
     };
     use destack_source::LanguageType;
 
-    use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
+    use crate::{TestParser, assert_expression_path, assert_node, assert_string};
 
     #[test]
     fn test_parse_match_simple_arms() {

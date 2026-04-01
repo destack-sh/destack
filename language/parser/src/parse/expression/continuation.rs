@@ -9,6 +9,27 @@ use destack_ast::{
 };
 
 impl Parser {
+    /// Return whether a value expression can start a tagged object literal postfix.
+    #[inline]
+    fn can_start_tagged_object_literal_postfix(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        match self.tree.get(expression_id) {
+            Expression::Identifier { .. } | Expression::QualifiedReference { .. } => true,
+            Expression::Member { left, name, .. } => {
+                name.is_some() && self.can_start_tagged_object_literal_postfix(*left)
+            }
+            Expression::Instantiation { left, .. } => {
+                self.can_start_tagged_object_literal_postfix(*left)
+            }
+            Expression::Parenthesized { expression } => {
+                self.can_start_tagged_object_literal_postfix(*expression)
+            }
+            _ => false,
+        }
+    }
+
     /// Return whether a newline direct call should terminate in statement position.
     #[inline]
     fn newline_direct_call_terminates_statement(
@@ -132,23 +153,25 @@ impl Parser {
                 self.options.is_in_ternary_condition() || self.options.is_in_match_case();
             let is_destack_language = self.language.is_destack();
 
-            // struct literal postfix with `{` (like `Vector2 { x: 0, y }`)
-            if let Expression::Path { .. } = self.tree.get(left_expression_id)
-                && self.peek_is(TokenType::OpenBrace)
-                && !self.options.is_in_before_block()
-                && is_destack_language
-            {
-                let properties = self.eat_object_literal()?;
-                left_expression_id = self.insert_node(
-                    Expression::ObjectExpression {
-                        ty: Some(left_expression_id),
-                        properties,
-                    },
-                    self.get_span_from(start),
-                );
-            }
             // eat all regular postfix operators
             loop {
+                // struct literal postfix with `{` (like `Vector2 { x: 0, y }`)
+                if self.can_start_tagged_object_literal_postfix(left_expression_id)
+                    && self.peek_is(TokenType::OpenBrace)
+                    && !self.options.is_in_before_block()
+                    && is_destack_language
+                {
+                    let properties = self.eat_object_literal()?;
+                    left_expression_id = self.insert_node(
+                        Expression::ObjectExpression {
+                            ty: Some(left_expression_id),
+                            properties,
+                        },
+                        self.get_span_from(start),
+                    );
+                    continue;
+                }
+
                 // load the raw token facts once and only normalize across newlines when needed
                 let mut cursor_index = self.pos_index();
                 let mut token_type = if let Some(token) = self.token_stream.active_split_token() {
@@ -1170,9 +1193,12 @@ impl Parser {
             PostfixPosition::Direct
         };
 
+        // tagged object literals can follow postfix instantiations on the same receiver shapes
+        let allow_object_literal = self.can_start_tagged_object_literal_postfix(left_expression_id);
+
         // parse `<...>` with regular speculative follow validation
         let static_arguments =
-            match self.eat_static_arguments_with_follow_maybe(false, false, false) {
+            match self.eat_static_arguments_with_follow_maybe(allow_object_literal, false, false) {
                 Some(static_arguments) => static_arguments,
                 None => {
                     self.restore(speculative_start, speculative_start_idx);

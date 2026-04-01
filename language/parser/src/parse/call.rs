@@ -111,7 +111,7 @@ impl Parser {
 
         // hoist static arguments parsed on the receiver
         let mut static_arguments = None;
-        if let Expression::Path {
+        if let Expression::QualifiedReference {
             static_arguments: path_arguments,
             ..
         } = self.tree.get_mut(left)
@@ -215,27 +215,17 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Argument, BinaryOperator, Declaration, Expression, LocalNodeId, NodeType, Path,
-        PostfixPosition, ScalarLiteral, TypeBinaryOperator,
+        Argument, BinaryOperator, Declaration, Expression, LocalNodeId, NodeType, PostfixPosition,
+        ScalarLiteral, TypeBinaryOperator,
     };
     use destack_source::LanguageType;
-    use smallvec::smallvec;
 
-    use crate::{Parser, TestParser, assert_expression_path, assert_node, assert_path};
+    use crate::{Parser, TestParser, assert_expression_path, assert_node};
 
     fn make_receiver(parser: &mut Parser) -> LocalNodeId<Expression> {
         let receiver_str = parser.strings.intern("receiver");
-        let receiver_path = Path {
-            segments: smallvec![receiver_str],
-        };
         let span = parser.peek().unwrap().span;
-        parser.insert_node(
-            Expression::Path {
-                path: receiver_path,
-                static_arguments: None,
-            },
-            span,
-        )
+        parser.insert_node(Expression::Identifier { name: receiver_str }, span)
     }
 
     #[test]

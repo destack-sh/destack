@@ -395,9 +395,7 @@ mod tests {
     };
     use destack_source::LanguageType;
 
-    use crate::{
-        TestParser, assert_expression_path, assert_name, assert_node, assert_path, assert_string,
-    };
+    use crate::{TestParser, assert_expression_path, assert_name, assert_node, assert_string};
 
     #[test]
     fn test_parse_loop() {
@@ -978,8 +976,8 @@ for (var x = 0; x < 10; x++) {
             // x++
             assert_node!(parser.tree, increment.unwrap(), Expression::Unary { operator, right } => {
                 assert_eq!(*operator, UnaryOperator::PostIncrement);
-                assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
-                    assert_path!(parser, path, "x");
+                assert_node!(parser.tree, *right, Expression::Identifier { name } => {
+                    assert_string!(parser, *name, "x");
                 });
             });
         });

@@ -196,7 +196,7 @@ mod tests {
 
             let supers = heritage.extends_types.as_ref().expect("expected extends types");
             assert_eq!(supers.len(), 1);
-            assert_node!(parser.tree, supers[0], Expression::Path { path, .. } => {
+            assert_node!(parser.tree, supers[0], Expression::QualifiedReference { path, .. } => {
                 assert_path!(parser, *path, "Bar");
             });
         });
@@ -396,7 +396,7 @@ interface Foo extends Baz {
             assert!(!heritage.is_empty());
             let supers = heritage.extends_types.as_ref().expect("expected extends types");
             assert_eq!(supers.len(), 1);
-            assert_node!(parser.tree, supers[0], Expression::Path { path, .. } => {
+            assert_node!(parser.tree, supers[0], Expression::QualifiedReference { path, .. } => {
                 assert_path!(parser, *path, "Baz");
             });
 
@@ -585,7 +585,7 @@ interface Baz<T> where Requirement: Interface {
             assert_eq!(where_items.len(), 1);
             assert_node!(parser.tree, where_items[0], WhereClause { left, right } => {
                 assert_string!(parser, *left, "Requirement");
-                assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
+                assert_node!(parser.tree, *right, Expression::QualifiedReference { path, .. } => {
                     assert_path!(parser, *path, "Interface");
                 });
             });

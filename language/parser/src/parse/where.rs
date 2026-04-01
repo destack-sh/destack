@@ -150,19 +150,19 @@ mod tests {
 
         assert_node!(parser.tree, clauses[0], WhereClause { left, right } => {
             assert_string!(parser, *left, "T");
-            assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
+            assert_node!(parser.tree, *right, Expression::QualifiedReference { path, .. } => {
                 assert_path!(parser, *path, "Numeric");
             });
         });
         assert_node!(parser.tree, clauses[1], WhereClause { left, right } => {
             assert_string!(parser, *left, "U");
-            assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
+            assert_node!(parser.tree, *right, Expression::QualifiedReference { path, .. } => {
                 assert_path!(parser, *path, "Copy");
             });
         });
         assert_node!(parser.tree, clauses[2], WhereClause { left, right } => {
             assert_string!(parser, *left, "V");
-            assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
+            assert_node!(parser.tree, *right, Expression::QualifiedReference { path, .. } => {
                 assert_path!(parser, *path, "Comparable");
             });
         });
@@ -183,19 +183,19 @@ mod tests {
 
         assert_node!(parser.tree, clauses[0], WhereClause { left, right } => {
             assert_string!(parser, *left, "T");
-            assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
+            assert_node!(parser.tree, *right, Expression::QualifiedReference { path, .. } => {
                 assert_path!(parser, *path, "Numeric");
             });
         });
         assert_node!(parser.tree, clauses[1], WhereClause { left, right } => {
             assert_string!(parser, *left, "U");
-            assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
+            assert_node!(parser.tree, *right, Expression::QualifiedReference { path, .. } => {
                 assert_path!(parser, *path, "Copy");
             });
         });
         assert_node!(parser.tree, clauses[2], WhereClause { left, right } => {
             assert_string!(parser, *left, "V");
-            assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
+            assert_node!(parser.tree, *right, Expression::QualifiedReference { path, .. } => {
                 assert_path!(parser, *path, "Comparable");
             });
         });

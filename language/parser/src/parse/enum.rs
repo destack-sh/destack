@@ -304,7 +304,7 @@ enum Foo extends Day {}
 
             let supers = heritage.extends_types.as_ref().expect("expected extends types");
             assert_eq!(supers.len(), 1);
-            assert_node!(parser.tree, supers[0], Expression::Path { path, .. } => {
+            assert_node!(parser.tree, supers[0], Expression::QualifiedReference { path, .. } => {
                 assert_path!(parser, *path, "Day");
             });
         });
@@ -373,7 +373,7 @@ enum Foo extends Day {
 
             let supers = heritage.extends_types.as_ref().expect("expected extends types");
             assert_eq!(supers.len(), 1);
-            assert_node!(parser.tree, supers[0], Expression::Path { path, .. } => {
+            assert_node!(parser.tree, supers[0], Expression::QualifiedReference { path, .. } => {
                 assert_path!(parser, *path, "Day");
             });
             assert!(heritage.implements_types.is_none());
@@ -496,7 +496,7 @@ enum Foo where Requirement: Interface {
             assert_eq!(where_clauses.len(), 1);
             assert_node!(parser.tree, where_clauses[0], WhereClause { left, right } => {
                 assert_string!(parser, *left, "Requirement");
-                assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
+                assert_node!(parser.tree, *right, Expression::QualifiedReference { path, .. } => {
                     assert_path!(parser, *path, "Interface");
                 });
             });
@@ -576,16 +576,16 @@ Entry
                 assert_node!(parser.tree, annotations[0], Annotation::Decorator { node, position } => {
                     assert_eq!(*position, AnnotationPosition::BlockPrefix);
                     assert_node!(parser.tree, *node, Decorator { expression } => {
-                        assert_node!(parser.tree, *expression, Expression::Path { path, .. } => {
-                            assert_path!(parser, *path, "first");
+                        assert_node!(parser.tree, *expression, Expression::Identifier { name } => {
+                            assert_string!(parser, *name, "first");
                         });
                     });
                 });
                 assert_node!(parser.tree, annotations[1], Annotation::Decorator { node, position } => {
                     assert_eq!(*position, AnnotationPosition::BlockPrefix);
                     assert_node!(parser.tree, *node, Decorator { expression } => {
-                        assert_node!(parser.tree, *expression, Expression::Path { path, .. } => {
-                            assert_path!(parser, *path, "second");
+                        assert_node!(parser.tree, *expression, Expression::Identifier { name } => {
+                            assert_string!(parser, *name, "second");
                         });
                     });
                 });

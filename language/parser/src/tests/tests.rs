@@ -173,19 +173,175 @@ macro_rules! assert_path {
     }};
 }
 
-/// Assert an "Expression::Path(path)" directly against an expected string.
+/// Collect one path-like string from an expression.
+pub(crate) fn expression_path_string(
+    parser: &Parser,
+    expression: &destack_ast::Expression,
+) -> Option<String> {
+    let mut segments = Vec::new();
+    collect_expression_path_segments(parser, expression, &mut segments)?;
+
+    Some(
+        segments
+            .into_iter()
+            .map(|segment| parser.strings.get(segment).to_string())
+            .collect::<Vec<_>>()
+            .join("."),
+    )
+}
+
+/// Collect one path-like expression as path segments.
+fn collect_expression_path_segments(
+    parser: &Parser,
+    expression: &destack_ast::Expression,
+    segments: &mut Vec<destack_ast::StringId>,
+) -> Option<()> {
+    match expression {
+        destack_ast::Expression::Parenthesized { expression } => {
+            let expression = parser.tree.get(*expression);
+            collect_expression_path_segments(parser, expression, segments)
+        }
+        destack_ast::Expression::Identifier { name } => {
+            segments.push(*name);
+            Some(())
+        }
+        destack_ast::Expression::QualifiedReference { path, .. } => {
+            segments.extend_from_slice(&path.segments);
+            Some(())
+        }
+        destack_ast::Expression::Member {
+            left,
+            name: Some(name),
+            ..
+        } => {
+            let left = parser.tree.get(*left);
+            collect_expression_path_segments(parser, left, segments)?;
+            segments.push(*name);
+            Some(())
+        }
+        _ => None,
+    }
+}
+
+/// Collect one value-space path string from an expression.
+pub(crate) fn value_expression_path_string(
+    parser: &Parser,
+    expression: &destack_ast::Expression,
+) -> Option<String> {
+    let mut segments = Vec::new();
+    collect_value_expression_path_segments(parser, expression, &mut segments)?;
+
+    Some(
+        segments
+            .into_iter()
+            .map(|segment| parser.strings.get(segment).to_string())
+            .collect::<Vec<_>>()
+            .join("."),
+    )
+}
+
+/// Collect one value-space path as path segments.
+fn collect_value_expression_path_segments(
+    parser: &Parser,
+    expression: &destack_ast::Expression,
+    segments: &mut Vec<destack_ast::StringId>,
+) -> Option<()> {
+    match expression {
+        destack_ast::Expression::Parenthesized { expression } => {
+            let expression = parser.tree.get(*expression);
+            collect_value_expression_path_segments(parser, expression, segments)
+        }
+        destack_ast::Expression::Identifier { name } => {
+            segments.push(*name);
+            Some(())
+        }
+        destack_ast::Expression::Member {
+            left,
+            name: Some(name),
+            ..
+        } => {
+            let left = parser.tree.get(*left);
+            collect_value_expression_path_segments(parser, left, segments)?;
+            segments.push(*name);
+            Some(())
+        }
+        _ => None,
+    }
+}
+
+/// Collect one qualified-reference path string from an expression.
+pub(crate) fn qualified_reference_path_string(
+    parser: &Parser,
+    expression: &destack_ast::Expression,
+) -> Option<String> {
+    let mut segments = Vec::new();
+    collect_qualified_reference_path_segments(parser, expression, &mut segments)?;
+
+    Some(
+        segments
+            .into_iter()
+            .map(|segment| parser.strings.get(segment).to_string())
+            .collect::<Vec<_>>()
+            .join("."),
+    )
+}
+
+/// Collect one qualified-reference path as path segments.
+fn collect_qualified_reference_path_segments(
+    parser: &Parser,
+    expression: &destack_ast::Expression,
+    segments: &mut Vec<destack_ast::StringId>,
+) -> Option<()> {
+    match expression {
+        destack_ast::Expression::Parenthesized { expression } => {
+            let expression = parser.tree.get(*expression);
+            collect_qualified_reference_path_segments(parser, expression, segments)
+        }
+        destack_ast::Expression::QualifiedReference { path, .. } => {
+            segments.extend_from_slice(&path.segments);
+            Some(())
+        }
+        _ => None,
+    }
+}
+
+/// Assert one path-like expression directly against an expected path string.
+///
+/// This is a convenience helper for tests that only care about the visible
+/// path spelling.
+/// Use the stricter helpers when the AST shape matters.
 #[macro_export]
 macro_rules! assert_expression_path {
     ($parser:expr, $expr:expr, $expected:expr) => {{
-        match $expr {
-            ::destack_ast::Expression::Path {
-                path,
-                static_arguments: _,
-            } => {
-                assert_path!($parser, *path, $expected);
-            }
-            other => panic!("expected Expression::Path, got {other:?}"),
-        }
+        let got = $crate::tests::expression_path_string(&$parser, $expr);
+        match got {
+            Some(got) => assert_eq!(got, $expected, "expected path"),
+            None => panic!("expected reference-like expression, got {:?}", $expr),
+        };
+    }};
+}
+
+/// Assert one value-space path expression directly against an expected path string.
+#[macro_export]
+macro_rules! assert_value_expression_path {
+    ($parser:expr, $expr:expr, $expected:expr) => {{
+        let got = $crate::tests::value_expression_path_string(&$parser, $expr);
+        match got {
+            Some(got) => assert_eq!(got, $expected, "expected value path"),
+            None => panic!("expected value path expression, got {:?}", $expr),
+        };
+    }};
+}
+
+/// Assert one qualified-reference expression directly against an expected path string.
+#[macro_export]
+macro_rules! assert_qualified_reference_path {
+    ($parser:expr, $expr:expr, $expected:expr) => {{
+        let got = $crate::tests::qualified_reference_path_string(&$parser, $expr);
+        match got {
+            Some(got) => assert_eq!(got, $expected, "expected qualified reference"),
+            None => panic!("expected qualified reference expression, got {:?}", $expr),
+        };
     }};
 }
 
