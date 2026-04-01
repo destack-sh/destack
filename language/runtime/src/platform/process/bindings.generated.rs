@@ -11741,14 +11741,15 @@ fn destack_process_args_list_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmSlice::<vm::StringHandle>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value = context
                             .string_handle(vm_result_item.as_str())
                             .map_err(Box::<RuntimeError>::from)?;
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -11920,18 +11921,18 @@ fn destack_process_cwd_get_vm_replay(
                             let vm_result_os_path_utf16_kind = context
                                 .string_handle(value.kind.as_str())
                                 .map_err(Box::<RuntimeError>::from)?;
-                            let mut vm_result_os_path_utf16_utf16_inner_values =
-                                Vec::with_capacity(value.utf16.len());
+                            let mut vm_result_os_path_utf16_utf16_inner_builder =
+                                VmArray::<u16>::builder(context, value.utf16.len())?;
                             for vm_result_os_path_utf16_utf16_inner_item in value.utf16 {
                                 let vm_result_os_path_utf16_utf16_inner_item_value =
                                     vm_result_os_path_utf16_utf16_inner_item;
-                                vm_result_os_path_utf16_utf16_inner_values
-                                    .push(vm_result_os_path_utf16_utf16_inner_item_value);
+                                vm_result_os_path_utf16_utf16_inner_builder.push(
+                                    context,
+                                    vm_result_os_path_utf16_utf16_inner_item_value,
+                                )?;
                             }
-                            let vm_result_os_path_utf16_utf16_inner = VmArray::from_values(
-                                context,
-                                &vm_result_os_path_utf16_utf16_inner_values,
-                            )?;
+                            let vm_result_os_path_utf16_utf16_inner =
+                                vm_result_os_path_utf16_utf16_inner_builder.finish()?;
                             let vm_result_os_path_utf16_utf16 =
                                 platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(
                                     vm_result_os_path_utf16_utf16_inner,
@@ -13858,12 +13859,12 @@ fn destack_process_ids_groups_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder = VmSlice::<GroupId>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value = vm_result_item;
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -14604,7 +14605,8 @@ fn destack_process_sched_get_affinity_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_cpus_values = Vec::with_capacity(value.cpus.len());
+                    let mut vm_result_cpus_builder =
+                        VmArray::<thread::ThreadCpuVm>::builder(context, value.cpus.len())?;
                     for vm_result_cpus_item in value.cpus {
                         let vm_result_cpus_item_value_group = vm_result_cpus_item.group;
                         let vm_result_cpus_item_value_cpu = vm_result_cpus_item.cpu;
@@ -14612,9 +14614,9 @@ fn destack_process_sched_get_affinity_vm_replay(
                             group: vm_result_cpus_item_value_group,
                             cpu: vm_result_cpus_item_value_cpu,
                         };
-                        vm_result_cpus_values.push(vm_result_cpus_item_value);
+                        vm_result_cpus_builder.push(context, vm_result_cpus_item_value)?;
                     }
-                    let vm_result_cpus = VmArray::from_values(context, &vm_result_cpus_values)?;
+                    let vm_result_cpus = vm_result_cpus_builder.finish()?;
                     let vm_result = thread::ThreadCpuSetVm {
                         cpus: vm_result_cpus,
                     };
@@ -15200,12 +15202,12 @@ fn destack_process_signals_signal_mask_read_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder = VmArray::<Signal>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value = vm_result_item;
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmArray::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),

@@ -14812,7 +14812,8 @@ fn destack_net_interface_list_interfaces_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmArray::<NetInterfaceVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value_name = context
                             .string_handle(vm_result_item.name.as_str())
@@ -14824,8 +14825,11 @@ fn destack_net_interface_list_interfaces_vm_replay(
                             context,
                             vm_result_item.mac_address.as_ref(),
                         )?;
-                        let mut vm_result_item_value_addresses_values =
-                            Vec::with_capacity(vm_result_item.addresses.len());
+                        let mut vm_result_item_value_addresses_builder =
+                            VmArray::<SocketAddressVm>::builder(
+                                context,
+                                vm_result_item.addresses.len(),
+                            )?;
                         for vm_result_item_value_addresses_item in vm_result_item.addresses {
                             let vm_result_item_value_addresses_item_value_family =
                                 vm_result_item_value_addresses_item.family;
@@ -14841,11 +14845,11 @@ fn destack_net_interface_list_interfaces_vm_replay(
                                 length: vm_result_item_value_addresses_item_value_length,
                                 bytes: vm_result_item_value_addresses_item_value_bytes,
                             };
-                            vm_result_item_value_addresses_values
-                                .push(vm_result_item_value_addresses_item_value);
+                            vm_result_item_value_addresses_builder
+                                .push(context, vm_result_item_value_addresses_item_value)?;
                         }
                         let vm_result_item_value_addresses =
-                            VmArray::from_values(context, &vm_result_item_value_addresses_values)?;
+                            vm_result_item_value_addresses_builder.finish()?;
                         let vm_result_item_value = NetInterfaceVm {
                             name: vm_result_item_value_name,
                             index: vm_result_item_value_index,
@@ -14854,9 +14858,9 @@ fn destack_net_interface_list_interfaces_vm_replay(
                             mac_address: vm_result_item_value_mac_address,
                             addresses: vm_result_item_value_addresses,
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmArray::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -16416,7 +16420,8 @@ fn destack_net_raw_packet_backend_list_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmSlice::<PacketBackendDescriptorVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value_backend = vm_result_item.backend;
                         let vm_result_item_value_name = context
@@ -16432,9 +16437,9 @@ fn destack_net_raw_packet_backend_list_vm_replay(
                             priority: vm_result_item_value_priority,
                             capability_flags: vm_result_item_value_capability_flags,
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -17281,7 +17286,8 @@ fn destack_net_resolve_lookup_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmArray::<SocketAddressVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value_family = vm_result_item.family;
                         let vm_result_item_value_length = vm_result_item.length;
@@ -17292,9 +17298,9 @@ fn destack_net_resolve_lookup_vm_replay(
                             length: vm_result_item_value_length,
                             bytes: vm_result_item_value_bytes,
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmArray::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -17378,7 +17384,8 @@ fn destack_net_resolve_reverse_lookup_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmArray::<ReverseLookupNameVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value_host = context
                             .string_handle(vm_result_item.host.as_str())
@@ -17390,9 +17397,9 @@ fn destack_net_resolve_reverse_lookup_vm_replay(
                             host: vm_result_item_value_host,
                             service: vm_result_item_value_service,
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmArray::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -17795,7 +17802,8 @@ fn destack_net_route_route_list_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmArray::<RouteEntryVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value_family = vm_result_item.family;
                         let vm_result_item_value_destination_family =
@@ -17835,9 +17843,9 @@ fn destack_net_route_route_list_vm_replay(
                             metric: vm_result_item_value_metric,
                             kind: vm_result_item_value_kind,
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmArray::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -18407,7 +18415,8 @@ fn destack_net_socket_recv_mmsg_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmArray::<SocketRecvMessageVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value_bytes = vm_result_item.bytes;
                         let vm_result_item_value_address =
@@ -18436,15 +18445,17 @@ fn destack_net_socket_recv_mmsg_vm_replay(
                             platform_net::SocketControlBufferAbi::<platform_abi::VmAbi>(
                                 vm_result_item_value_control_inner,
                             );
-                        let mut vm_result_item_value_fds_values =
-                            Vec::with_capacity(vm_result_item.fds.len());
+                        let mut vm_result_item_value_fds_builder =
+                            VmArray::<resource::TransferredHandle>::builder(
+                                context,
+                                vm_result_item.fds.len(),
+                            )?;
                         for vm_result_item_value_fds_item in vm_result_item.fds {
                             let vm_result_item_value_fds_item_value = vm_result_item_value_fds_item;
-                            vm_result_item_value_fds_values
-                                .push(vm_result_item_value_fds_item_value);
+                            vm_result_item_value_fds_builder
+                                .push(context, vm_result_item_value_fds_item_value)?;
                         }
-                        let vm_result_item_value_fds =
-                            VmArray::from_values(context, &vm_result_item_value_fds_values)?;
+                        let vm_result_item_value_fds = vm_result_item_value_fds_builder.finish()?;
                         let vm_result_item_value_credentials =
                             if let Some(value) = vm_result_item.credentials {
                                 let vm_result_item_value_credentials_inner_pid = value.pid;
@@ -18469,9 +18480,9 @@ fn destack_net_socket_recv_mmsg_vm_replay(
                             fds: vm_result_item_value_fds,
                             credentials: vm_result_item_value_credentials,
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmArray::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -18625,12 +18636,13 @@ fn destack_net_socket_recv_msg_vm_replay(
                     let vm_result_control = platform_net::SocketControlBufferAbi::<
                         platform_abi::VmAbi,
                     >(vm_result_control_inner);
-                    let mut vm_result_fds_values = Vec::with_capacity(value.fds.len());
+                    let mut vm_result_fds_builder =
+                        VmArray::<resource::TransferredHandle>::builder(context, value.fds.len())?;
                     for vm_result_fds_item in value.fds {
                         let vm_result_fds_item_value = vm_result_fds_item;
-                        vm_result_fds_values.push(vm_result_fds_item_value);
+                        vm_result_fds_builder.push(context, vm_result_fds_item_value)?;
                     }
-                    let vm_result_fds = VmArray::from_values(context, &vm_result_fds_values)?;
+                    let vm_result_fds = vm_result_fds_builder.finish()?;
                     let vm_result_credentials = if let Some(value) = value.credentials {
                         let vm_result_credentials_inner_pid = value.pid;
                         let vm_result_credentials_inner_uid = value.uid;

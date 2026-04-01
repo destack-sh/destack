@@ -12675,7 +12675,8 @@ fn destack_audio_backend_list_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmSlice::<AudioBackendDescriptorVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value_backend = vm_result_item.backend;
                         let vm_result_item_value_name = context
@@ -12714,9 +12715,9 @@ fn destack_audio_backend_list_vm_replay(
                             supported_stream_clock_domains:
                                 vm_result_item_value_supported_stream_clock_domains,
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -13431,7 +13432,8 @@ fn destack_audio_device_list_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmSlice::<AudioDeviceDescriptorVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value_id = context
                             .string_handle(vm_result_item.id.as_str())
@@ -13521,9 +13523,9 @@ fn destack_audio_device_list_vm_replay(
                             format_mask: vm_result_item_value_format_mask,
                             share_mode_mask: vm_result_item_value_share_mode_mask,
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -15278,7 +15280,7 @@ fn destack_audio_event_read_batch_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder = VmSlice::<AudioEventVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value = match vm_result_item {
                             AudioeventReplayRecord::AudioBackendDisconnectedEvent(value) => {
@@ -15710,9 +15712,9 @@ fn destack_audio_event_read_batch_vm_replay(
                                 AudioEventVm::AudioStreamXRunEvent(vm_result_item_value_audio_stream_x_run_event)
                             }
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -17256,7 +17258,7 @@ fn destack_audio_event_try_read_batch_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder = VmSlice::<AudioEventVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value = match vm_result_item {
                             AudioeventReplayRecord::AudioBackendDisconnectedEvent(value) => {
@@ -17688,9 +17690,9 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                 AudioEventVm::AudioStreamXRunEvent(vm_result_item_value_audio_stream_x_run_event)
                             }
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),

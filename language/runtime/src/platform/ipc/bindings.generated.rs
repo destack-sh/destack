@@ -4193,13 +4193,16 @@ fn destack_ipc_unix_receive_vm_replay(
             match payload.result {
                 Ok(value) => {
                     let vm_result_bytes = value.bytes;
-                    let mut vm_result_handles_values = Vec::with_capacity(value.handles.len());
+                    let mut vm_result_handles_builder =
+                        VmArray::<resource::TransferredHandle>::builder(
+                            context,
+                            value.handles.len(),
+                        )?;
                     for vm_result_handles_item in value.handles {
                         let vm_result_handles_item_value = vm_result_handles_item;
-                        vm_result_handles_values.push(vm_result_handles_item_value);
+                        vm_result_handles_builder.push(context, vm_result_handles_item_value)?;
                     }
-                    let vm_result_handles =
-                        VmArray::from_values(context, &vm_result_handles_values)?;
+                    let vm_result_handles = vm_result_handles_builder.finish()?;
                     let vm_result_credentials = if let Some(value) = value.credentials {
                         let vm_result_credentials_inner_pid = if let Some(value) = value.pid {
                             let vm_result_credentials_inner_pid_inner = value;

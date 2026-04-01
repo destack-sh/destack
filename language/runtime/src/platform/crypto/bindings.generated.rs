@@ -8254,12 +8254,13 @@ fn destack_crypto_probe_agreement_algorithms_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmSlice::<CryptoKeyAgreementAlgorithm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value = vm_result_item;
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -8338,12 +8339,13 @@ fn destack_crypto_probe_cipher_algorithms_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmSlice::<CryptoCipherAlgorithm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value = vm_result_item;
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -8428,12 +8430,13 @@ fn destack_crypto_probe_digest_algorithms_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmSlice::<CryptoDigestAlgorithm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value = vm_result_item;
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -8512,12 +8515,13 @@ fn destack_crypto_probe_kdf_algorithms_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmSlice::<CryptoKdfAlgorithm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value = vm_result_item;
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -8601,12 +8605,13 @@ fn destack_crypto_probe_key_algorithms_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmSlice::<CryptoKeyAlgorithm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value = vm_result_item;
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -8689,12 +8694,13 @@ fn destack_crypto_probe_key_formats_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmSlice::<CryptoKeyFormat>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value = vm_result_item;
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -8772,12 +8778,13 @@ fn destack_crypto_probe_key_residencies_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmSlice::<CryptoKeyResidency>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value = vm_result_item;
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -8855,12 +8862,13 @@ fn destack_crypto_probe_key_wrap_algorithms_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmSlice::<CryptoKeyWrapAlgorithm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value = vm_result_item;
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -8936,12 +8944,13 @@ fn destack_crypto_probe_mac_algorithms_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmSlice::<CryptoMacAlgorithm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value = vm_result_item;
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -9022,12 +9031,13 @@ fn destack_crypto_probe_named_curves_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmSlice::<CryptoNamedCurve>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value = vm_result_item;
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -9107,12 +9117,13 @@ fn destack_crypto_probe_signature_algorithms_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmSlice::<CryptoSignatureAlgorithm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value = vm_result_item;
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -9461,25 +9472,25 @@ fn destack_crypto_store_probe_capability_vm_replay(
                     let vm_result_supports_hardware_backed = value.supports_hardware_backed;
                     let vm_result_supports_persistent = value.supports_persistent;
                     let vm_result_supports_key_export = value.supports_key_export;
-                    let mut vm_result_supported_key_algorithms_values = Vec::with_capacity(value.supported_key_algorithms.len());
+                    let mut vm_result_supported_key_algorithms_builder = VmArray::<CryptoKeyAlgorithm>::builder(context, value.supported_key_algorithms.len())?;
                     for vm_result_supported_key_algorithms_item in value.supported_key_algorithms {
                         let vm_result_supported_key_algorithms_item_value = vm_result_supported_key_algorithms_item;
-                        vm_result_supported_key_algorithms_values.push(vm_result_supported_key_algorithms_item_value);
+                        vm_result_supported_key_algorithms_builder.push(context, vm_result_supported_key_algorithms_item_value)?;
                     }
-                    let vm_result_supported_key_algorithms = VmArray::from_values(context, &vm_result_supported_key_algorithms_values)?;
-                    let mut vm_result_supported_key_formats_values = Vec::with_capacity(value.supported_key_formats.len());
+                    let vm_result_supported_key_algorithms = vm_result_supported_key_algorithms_builder.finish()?;
+                    let mut vm_result_supported_key_formats_builder = VmArray::<CryptoKeyFormat>::builder(context, value.supported_key_formats.len())?;
                     for vm_result_supported_key_formats_item in value.supported_key_formats {
                         let vm_result_supported_key_formats_item_value = vm_result_supported_key_formats_item;
-                        vm_result_supported_key_formats_values.push(vm_result_supported_key_formats_item_value);
+                        vm_result_supported_key_formats_builder.push(context, vm_result_supported_key_formats_item_value)?;
                     }
-                    let vm_result_supported_key_formats = VmArray::from_values(context, &vm_result_supported_key_formats_values)?;
-                    let mut vm_result_supported_key_residencies_values = Vec::with_capacity(value.supported_key_residencies.len());
+                    let vm_result_supported_key_formats = vm_result_supported_key_formats_builder.finish()?;
+                    let mut vm_result_supported_key_residencies_builder = VmArray::<CryptoKeyResidency>::builder(context, value.supported_key_residencies.len())?;
                     for vm_result_supported_key_residencies_item in value.supported_key_residencies {
                         let vm_result_supported_key_residencies_item_value = vm_result_supported_key_residencies_item;
-                        vm_result_supported_key_residencies_values.push(vm_result_supported_key_residencies_item_value);
+                        vm_result_supported_key_residencies_builder.push(context, vm_result_supported_key_residencies_item_value)?;
                     }
-                    let vm_result_supported_key_residencies = VmArray::from_values(context, &vm_result_supported_key_residencies_values)?;
-                    let mut vm_result_key_capabilities_values = Vec::with_capacity(value.key_capabilities.len());
+                    let vm_result_supported_key_residencies = vm_result_supported_key_residencies_builder.finish()?;
+                    let mut vm_result_key_capabilities_builder = VmArray::<CryptoStoreKeyCapabilityVm>::builder(context, value.key_capabilities.len())?;
                     for vm_result_key_capabilities_item in value.key_capabilities {
                         let vm_result_key_capabilities_item_value_algorithm = vm_result_key_capabilities_item.algorithm;
                         let vm_result_key_capabilities_item_value_residency = vm_result_key_capabilities_item.residency;
@@ -9490,18 +9501,18 @@ fn destack_crypto_store_probe_capability_vm_replay(
                         let vm_result_key_capabilities_item_value_supports_export_private = vm_result_key_capabilities_item.supports_export_private;
                         let vm_result_key_capabilities_item_value_supports_export_secret = vm_result_key_capabilities_item.supports_export_secret;
                         let vm_result_key_capabilities_item_value_supported_usage_mask = vm_result_key_capabilities_item.supported_usage_mask;
-                        let mut vm_result_key_capabilities_item_value_supported_import_formats_values = Vec::with_capacity(vm_result_key_capabilities_item.supported_import_formats.len());
+                        let mut vm_result_key_capabilities_item_value_supported_import_formats_builder = VmSlice::<CryptoKeyFormat>::builder(context, vm_result_key_capabilities_item.supported_import_formats.len())?;
                         for vm_result_key_capabilities_item_value_supported_import_formats_item in vm_result_key_capabilities_item.supported_import_formats {
                             let vm_result_key_capabilities_item_value_supported_import_formats_item_value = vm_result_key_capabilities_item_value_supported_import_formats_item;
-                            vm_result_key_capabilities_item_value_supported_import_formats_values.push(vm_result_key_capabilities_item_value_supported_import_formats_item_value);
+                            vm_result_key_capabilities_item_value_supported_import_formats_builder.push(context, vm_result_key_capabilities_item_value_supported_import_formats_item_value)?;
                         }
-                        let vm_result_key_capabilities_item_value_supported_import_formats = VmSlice::from_values(context, &vm_result_key_capabilities_item_value_supported_import_formats_values)?;
-                        let mut vm_result_key_capabilities_item_value_supported_export_formats_values = Vec::with_capacity(vm_result_key_capabilities_item.supported_export_formats.len());
+                        let vm_result_key_capabilities_item_value_supported_import_formats = vm_result_key_capabilities_item_value_supported_import_formats_builder.finish()?;
+                        let mut vm_result_key_capabilities_item_value_supported_export_formats_builder = VmSlice::<CryptoKeyFormat>::builder(context, vm_result_key_capabilities_item.supported_export_formats.len())?;
                         for vm_result_key_capabilities_item_value_supported_export_formats_item in vm_result_key_capabilities_item.supported_export_formats {
                             let vm_result_key_capabilities_item_value_supported_export_formats_item_value = vm_result_key_capabilities_item_value_supported_export_formats_item;
-                            vm_result_key_capabilities_item_value_supported_export_formats_values.push(vm_result_key_capabilities_item_value_supported_export_formats_item_value);
+                            vm_result_key_capabilities_item_value_supported_export_formats_builder.push(context, vm_result_key_capabilities_item_value_supported_export_formats_item_value)?;
                         }
-                        let vm_result_key_capabilities_item_value_supported_export_formats = VmSlice::from_values(context, &vm_result_key_capabilities_item_value_supported_export_formats_values)?;
+                        let vm_result_key_capabilities_item_value_supported_export_formats = vm_result_key_capabilities_item_value_supported_export_formats_builder.finish()?;
                         let vm_result_key_capabilities_item_value = CryptoStoreKeyCapabilityVm {
                             algorithm: vm_result_key_capabilities_item_value_algorithm,
                             residency: vm_result_key_capabilities_item_value_residency,
@@ -9515,21 +9526,21 @@ fn destack_crypto_store_probe_capability_vm_replay(
                             supported_import_formats: vm_result_key_capabilities_item_value_supported_import_formats,
                             supported_export_formats: vm_result_key_capabilities_item_value_supported_export_formats,
                         };
-                        vm_result_key_capabilities_values.push(vm_result_key_capabilities_item_value);
+                        vm_result_key_capabilities_builder.push(context, vm_result_key_capabilities_item_value)?;
                     }
-                    let vm_result_key_capabilities = VmArray::from_values(context, &vm_result_key_capabilities_values)?;
-                    let mut vm_result_signature_capabilities_values = Vec::with_capacity(value.signature_capabilities.len());
+                    let vm_result_key_capabilities = vm_result_key_capabilities_builder.finish()?;
+                    let mut vm_result_signature_capabilities_builder = VmArray::<CryptoStoreSignatureCapabilityVm>::builder(context, value.signature_capabilities.len())?;
                     for vm_result_signature_capabilities_item in value.signature_capabilities {
                         let vm_result_signature_capabilities_item_value_key_algorithm = vm_result_signature_capabilities_item.key_algorithm;
                         let vm_result_signature_capabilities_item_value_signature_algorithm = vm_result_signature_capabilities_item.signature_algorithm;
                         let vm_result_signature_capabilities_item_value_supports_sign = vm_result_signature_capabilities_item.supports_sign;
                         let vm_result_signature_capabilities_item_value_supports_verify = vm_result_signature_capabilities_item.supports_verify;
-                        let mut vm_result_signature_capabilities_item_value_supported_digests_values = Vec::with_capacity(vm_result_signature_capabilities_item.supported_digests.len());
+                        let mut vm_result_signature_capabilities_item_value_supported_digests_builder = VmSlice::<CryptoDigestAlgorithm>::builder(context, vm_result_signature_capabilities_item.supported_digests.len())?;
                         for vm_result_signature_capabilities_item_value_supported_digests_item in vm_result_signature_capabilities_item.supported_digests {
                             let vm_result_signature_capabilities_item_value_supported_digests_item_value = vm_result_signature_capabilities_item_value_supported_digests_item;
-                            vm_result_signature_capabilities_item_value_supported_digests_values.push(vm_result_signature_capabilities_item_value_supported_digests_item_value);
+                            vm_result_signature_capabilities_item_value_supported_digests_builder.push(context, vm_result_signature_capabilities_item_value_supported_digests_item_value)?;
                         }
-                        let vm_result_signature_capabilities_item_value_supported_digests = VmSlice::from_values(context, &vm_result_signature_capabilities_item_value_supported_digests_values)?;
+                        let vm_result_signature_capabilities_item_value_supported_digests = vm_result_signature_capabilities_item_value_supported_digests_builder.finish()?;
                         let vm_result_signature_capabilities_item_value = CryptoStoreSignatureCapabilityVm {
                             key_algorithm: vm_result_signature_capabilities_item_value_key_algorithm,
                             signature_algorithm: vm_result_signature_capabilities_item_value_signature_algorithm,
@@ -9537,21 +9548,21 @@ fn destack_crypto_store_probe_capability_vm_replay(
                             supports_verify: vm_result_signature_capabilities_item_value_supports_verify,
                             supported_digests: vm_result_signature_capabilities_item_value_supported_digests,
                         };
-                        vm_result_signature_capabilities_values.push(vm_result_signature_capabilities_item_value);
+                        vm_result_signature_capabilities_builder.push(context, vm_result_signature_capabilities_item_value)?;
                     }
-                    let vm_result_signature_capabilities = VmArray::from_values(context, &vm_result_signature_capabilities_values)?;
-                    let mut vm_result_asymmetric_encryption_capabilities_values = Vec::with_capacity(value.asymmetric_encryption_capabilities.len());
+                    let vm_result_signature_capabilities = vm_result_signature_capabilities_builder.finish()?;
+                    let mut vm_result_asymmetric_encryption_capabilities_builder = VmArray::<CryptoStoreAsymmetricEncryptionCapabilityVm>::builder(context, value.asymmetric_encryption_capabilities.len())?;
                     for vm_result_asymmetric_encryption_capabilities_item in value.asymmetric_encryption_capabilities {
                         let vm_result_asymmetric_encryption_capabilities_item_value_key_algorithm = vm_result_asymmetric_encryption_capabilities_item.key_algorithm;
                         let vm_result_asymmetric_encryption_capabilities_item_value_algorithm = vm_result_asymmetric_encryption_capabilities_item.algorithm;
                         let vm_result_asymmetric_encryption_capabilities_item_value_supports_encrypt = vm_result_asymmetric_encryption_capabilities_item.supports_encrypt;
                         let vm_result_asymmetric_encryption_capabilities_item_value_supports_decrypt = vm_result_asymmetric_encryption_capabilities_item.supports_decrypt;
-                        let mut vm_result_asymmetric_encryption_capabilities_item_value_supported_digests_values = Vec::with_capacity(vm_result_asymmetric_encryption_capabilities_item.supported_digests.len());
+                        let mut vm_result_asymmetric_encryption_capabilities_item_value_supported_digests_builder = VmSlice::<CryptoDigestAlgorithm>::builder(context, vm_result_asymmetric_encryption_capabilities_item.supported_digests.len())?;
                         for vm_result_asymmetric_encryption_capabilities_item_value_supported_digests_item in vm_result_asymmetric_encryption_capabilities_item.supported_digests {
                             let vm_result_asymmetric_encryption_capabilities_item_value_supported_digests_item_value = vm_result_asymmetric_encryption_capabilities_item_value_supported_digests_item;
-                            vm_result_asymmetric_encryption_capabilities_item_value_supported_digests_values.push(vm_result_asymmetric_encryption_capabilities_item_value_supported_digests_item_value);
+                            vm_result_asymmetric_encryption_capabilities_item_value_supported_digests_builder.push(context, vm_result_asymmetric_encryption_capabilities_item_value_supported_digests_item_value)?;
                         }
-                        let vm_result_asymmetric_encryption_capabilities_item_value_supported_digests = VmSlice::from_values(context, &vm_result_asymmetric_encryption_capabilities_item_value_supported_digests_values)?;
+                        let vm_result_asymmetric_encryption_capabilities_item_value_supported_digests = vm_result_asymmetric_encryption_capabilities_item_value_supported_digests_builder.finish()?;
                         let vm_result_asymmetric_encryption_capabilities_item_value = CryptoStoreAsymmetricEncryptionCapabilityVm {
                             key_algorithm: vm_result_asymmetric_encryption_capabilities_item_value_key_algorithm,
                             algorithm: vm_result_asymmetric_encryption_capabilities_item_value_algorithm,
@@ -9559,21 +9570,21 @@ fn destack_crypto_store_probe_capability_vm_replay(
                             supports_decrypt: vm_result_asymmetric_encryption_capabilities_item_value_supports_decrypt,
                             supported_digests: vm_result_asymmetric_encryption_capabilities_item_value_supported_digests,
                         };
-                        vm_result_asymmetric_encryption_capabilities_values.push(vm_result_asymmetric_encryption_capabilities_item_value);
+                        vm_result_asymmetric_encryption_capabilities_builder.push(context, vm_result_asymmetric_encryption_capabilities_item_value)?;
                     }
-                    let vm_result_asymmetric_encryption_capabilities = VmArray::from_values(context, &vm_result_asymmetric_encryption_capabilities_values)?;
-                    let mut vm_result_key_wrap_capabilities_values = Vec::with_capacity(value.key_wrap_capabilities.len());
+                    let vm_result_asymmetric_encryption_capabilities = vm_result_asymmetric_encryption_capabilities_builder.finish()?;
+                    let mut vm_result_key_wrap_capabilities_builder = VmArray::<CryptoStoreKeyWrapCapabilityVm>::builder(context, value.key_wrap_capabilities.len())?;
                     for vm_result_key_wrap_capabilities_item in value.key_wrap_capabilities {
                         let vm_result_key_wrap_capabilities_item_value_wrapping_key_algorithm = vm_result_key_wrap_capabilities_item.wrapping_key_algorithm;
                         let vm_result_key_wrap_capabilities_item_value_algorithm = vm_result_key_wrap_capabilities_item.algorithm;
                         let vm_result_key_wrap_capabilities_item_value_supports_wrap = vm_result_key_wrap_capabilities_item.supports_wrap;
                         let vm_result_key_wrap_capabilities_item_value_supports_unwrap = vm_result_key_wrap_capabilities_item.supports_unwrap;
-                        let mut vm_result_key_wrap_capabilities_item_value_supported_digests_values = Vec::with_capacity(vm_result_key_wrap_capabilities_item.supported_digests.len());
+                        let mut vm_result_key_wrap_capabilities_item_value_supported_digests_builder = VmSlice::<CryptoDigestAlgorithm>::builder(context, vm_result_key_wrap_capabilities_item.supported_digests.len())?;
                         for vm_result_key_wrap_capabilities_item_value_supported_digests_item in vm_result_key_wrap_capabilities_item.supported_digests {
                             let vm_result_key_wrap_capabilities_item_value_supported_digests_item_value = vm_result_key_wrap_capabilities_item_value_supported_digests_item;
-                            vm_result_key_wrap_capabilities_item_value_supported_digests_values.push(vm_result_key_wrap_capabilities_item_value_supported_digests_item_value);
+                            vm_result_key_wrap_capabilities_item_value_supported_digests_builder.push(context, vm_result_key_wrap_capabilities_item_value_supported_digests_item_value)?;
                         }
-                        let vm_result_key_wrap_capabilities_item_value_supported_digests = VmSlice::from_values(context, &vm_result_key_wrap_capabilities_item_value_supported_digests_values)?;
+                        let vm_result_key_wrap_capabilities_item_value_supported_digests = vm_result_key_wrap_capabilities_item_value_supported_digests_builder.finish()?;
                         let vm_result_key_wrap_capabilities_item_value = CryptoStoreKeyWrapCapabilityVm {
                             wrapping_key_algorithm: vm_result_key_wrap_capabilities_item_value_wrapping_key_algorithm,
                             algorithm: vm_result_key_wrap_capabilities_item_value_algorithm,
@@ -9581,10 +9592,10 @@ fn destack_crypto_store_probe_capability_vm_replay(
                             supports_unwrap: vm_result_key_wrap_capabilities_item_value_supports_unwrap,
                             supported_digests: vm_result_key_wrap_capabilities_item_value_supported_digests,
                         };
-                        vm_result_key_wrap_capabilities_values.push(vm_result_key_wrap_capabilities_item_value);
+                        vm_result_key_wrap_capabilities_builder.push(context, vm_result_key_wrap_capabilities_item_value)?;
                     }
-                    let vm_result_key_wrap_capabilities = VmArray::from_values(context, &vm_result_key_wrap_capabilities_values)?;
-                    let mut vm_result_cipher_capabilities_values = Vec::with_capacity(value.cipher_capabilities.len());
+                    let vm_result_key_wrap_capabilities = vm_result_key_wrap_capabilities_builder.finish()?;
+                    let mut vm_result_cipher_capabilities_builder = VmArray::<CryptoStoreCipherCapabilityVm>::builder(context, value.cipher_capabilities.len())?;
                     for vm_result_cipher_capabilities_item in value.cipher_capabilities {
                         let vm_result_cipher_capabilities_item_value_key_algorithm = vm_result_cipher_capabilities_item.key_algorithm;
                         let vm_result_cipher_capabilities_item_value_algorithm = vm_result_cipher_capabilities_item.algorithm;
@@ -9604,21 +9615,21 @@ fn destack_crypto_store_probe_capability_vm_replay(
                             min_tag_length_bytes: vm_result_cipher_capabilities_item_value_min_tag_length_bytes,
                             max_tag_length_bytes: vm_result_cipher_capabilities_item_value_max_tag_length_bytes,
                         };
-                        vm_result_cipher_capabilities_values.push(vm_result_cipher_capabilities_item_value);
+                        vm_result_cipher_capabilities_builder.push(context, vm_result_cipher_capabilities_item_value)?;
                     }
-                    let vm_result_cipher_capabilities = VmArray::from_values(context, &vm_result_cipher_capabilities_values)?;
-                    let mut vm_result_mac_capabilities_values = Vec::with_capacity(value.mac_capabilities.len());
+                    let vm_result_cipher_capabilities = vm_result_cipher_capabilities_builder.finish()?;
+                    let mut vm_result_mac_capabilities_builder = VmArray::<CryptoStoreMacCapabilityVm>::builder(context, value.mac_capabilities.len())?;
                     for vm_result_mac_capabilities_item in value.mac_capabilities {
                         let vm_result_mac_capabilities_item_value_key_algorithm = vm_result_mac_capabilities_item.key_algorithm;
                         let vm_result_mac_capabilities_item_value_algorithm = vm_result_mac_capabilities_item.algorithm;
                         let vm_result_mac_capabilities_item_value_supports_one_shot = vm_result_mac_capabilities_item.supports_one_shot;
                         let vm_result_mac_capabilities_item_value_supports_streaming = vm_result_mac_capabilities_item.supports_streaming;
-                        let mut vm_result_mac_capabilities_item_value_supported_digests_values = Vec::with_capacity(vm_result_mac_capabilities_item.supported_digests.len());
+                        let mut vm_result_mac_capabilities_item_value_supported_digests_builder = VmSlice::<CryptoDigestAlgorithm>::builder(context, vm_result_mac_capabilities_item.supported_digests.len())?;
                         for vm_result_mac_capabilities_item_value_supported_digests_item in vm_result_mac_capabilities_item.supported_digests {
                             let vm_result_mac_capabilities_item_value_supported_digests_item_value = vm_result_mac_capabilities_item_value_supported_digests_item;
-                            vm_result_mac_capabilities_item_value_supported_digests_values.push(vm_result_mac_capabilities_item_value_supported_digests_item_value);
+                            vm_result_mac_capabilities_item_value_supported_digests_builder.push(context, vm_result_mac_capabilities_item_value_supported_digests_item_value)?;
                         }
-                        let vm_result_mac_capabilities_item_value_supported_digests = VmSlice::from_values(context, &vm_result_mac_capabilities_item_value_supported_digests_values)?;
+                        let vm_result_mac_capabilities_item_value_supported_digests = vm_result_mac_capabilities_item_value_supported_digests_builder.finish()?;
                         let vm_result_mac_capabilities_item_value_min_tag_length_bytes = vm_result_mac_capabilities_item.min_tag_length_bytes;
                         let vm_result_mac_capabilities_item_value_max_tag_length_bytes = vm_result_mac_capabilities_item.max_tag_length_bytes;
                         let vm_result_mac_capabilities_item_value = CryptoStoreMacCapabilityVm {
@@ -9630,10 +9641,10 @@ fn destack_crypto_store_probe_capability_vm_replay(
                             min_tag_length_bytes: vm_result_mac_capabilities_item_value_min_tag_length_bytes,
                             max_tag_length_bytes: vm_result_mac_capabilities_item_value_max_tag_length_bytes,
                         };
-                        vm_result_mac_capabilities_values.push(vm_result_mac_capabilities_item_value);
+                        vm_result_mac_capabilities_builder.push(context, vm_result_mac_capabilities_item_value)?;
                     }
-                    let vm_result_mac_capabilities = VmArray::from_values(context, &vm_result_mac_capabilities_values)?;
-                    let mut vm_result_agreement_capabilities_values = Vec::with_capacity(value.agreement_capabilities.len());
+                    let vm_result_mac_capabilities = vm_result_mac_capabilities_builder.finish()?;
+                    let mut vm_result_agreement_capabilities_builder = VmArray::<CryptoStoreAgreementCapabilityVm>::builder(context, value.agreement_capabilities.len())?;
                     for vm_result_agreement_capabilities_item in value.agreement_capabilities {
                         let vm_result_agreement_capabilities_item_value_private_key_algorithm = vm_result_agreement_capabilities_item.private_key_algorithm;
                         let vm_result_agreement_capabilities_item_value_peer_public_key_algorithm = vm_result_agreement_capabilities_item.peer_public_key_algorithm;
@@ -9647,9 +9658,9 @@ fn destack_crypto_store_probe_capability_vm_replay(
                             supports_derive_shared_secret: vm_result_agreement_capabilities_item_value_supports_derive_shared_secret,
                             supports_derive_key: vm_result_agreement_capabilities_item_value_supports_derive_key,
                         };
-                        vm_result_agreement_capabilities_values.push(vm_result_agreement_capabilities_item_value);
+                        vm_result_agreement_capabilities_builder.push(context, vm_result_agreement_capabilities_item_value)?;
                     }
-                    let vm_result_agreement_capabilities = VmArray::from_values(context, &vm_result_agreement_capabilities_values)?;
+                    let vm_result_agreement_capabilities = vm_result_agreement_capabilities_builder.finish()?;
                     let vm_result_certificate_capabilities_supports_import = value.certificate_capabilities.supports_import;
                     let vm_result_certificate_capabilities_supports_export = value.certificate_capabilities.supports_export;
                     let vm_result_certificate_capabilities_supports_descriptor = value.certificate_capabilities.supports_descriptor;
@@ -9758,12 +9769,13 @@ fn destack_crypto_store_probe_kinds_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmArray::<CryptoStoreKind>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value = vm_result_item;
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmArray::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),

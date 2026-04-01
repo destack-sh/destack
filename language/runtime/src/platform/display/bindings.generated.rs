@@ -33465,7 +33465,8 @@ fn destack_display_backend_list_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmSlice::<DisplayBackendDescriptorVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value_backend = vm_result_item.backend;
                         let vm_result_item_value_name = context
@@ -33481,9 +33482,9 @@ fn destack_display_backend_list_vm_replay(
                             priority: vm_result_item_value_priority,
                             capability_flags: vm_result_item_value_capability_flags,
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -33722,18 +33723,18 @@ fn destack_display_drag_session_read_path_vm_replay(
                             let vm_result_os_path_utf16_kind = context
                                 .string_handle(value.kind.as_str())
                                 .map_err(Box::<RuntimeError>::from)?;
-                            let mut vm_result_os_path_utf16_utf16_inner_values =
-                                Vec::with_capacity(value.utf16.len());
+                            let mut vm_result_os_path_utf16_utf16_inner_builder =
+                                VmArray::<u16>::builder(context, value.utf16.len())?;
                             for vm_result_os_path_utf16_utf16_inner_item in value.utf16 {
                                 let vm_result_os_path_utf16_utf16_inner_item_value =
                                     vm_result_os_path_utf16_utf16_inner_item;
-                                vm_result_os_path_utf16_utf16_inner_values
-                                    .push(vm_result_os_path_utf16_utf16_inner_item_value);
+                                vm_result_os_path_utf16_utf16_inner_builder.push(
+                                    context,
+                                    vm_result_os_path_utf16_utf16_inner_item_value,
+                                )?;
                             }
-                            let vm_result_os_path_utf16_utf16_inner = VmArray::from_values(
-                                context,
-                                &vm_result_os_path_utf16_utf16_inner_values,
-                            )?;
+                            let vm_result_os_path_utf16_utf16_inner =
+                                vm_result_os_path_utf16_utf16_inner_builder.finish()?;
                             let vm_result_os_path_utf16_utf16 =
                                 platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(
                                     vm_result_os_path_utf16_utf16_inner,
@@ -34168,7 +34169,7 @@ fn destack_display_frame_begin_read_batch_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder = VmArray::<DisplayBeginFrameEventVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value_backend = vm_result_item.backend;
                         let vm_result_item_value_window = vm_result_item.window;
@@ -34214,9 +34215,9 @@ fn destack_display_frame_begin_read_batch_vm_replay(
                             sequence: vm_result_item_value_sequence,
                             dropped_count: vm_result_item_value_dropped_count,
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmArray::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -34470,7 +34471,7 @@ fn destack_display_frame_begin_try_read_batch_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder = VmArray::<DisplayBeginFrameEventVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value_backend = vm_result_item.backend;
                         let vm_result_item_value_window = vm_result_item.window;
@@ -34516,9 +34517,9 @@ fn destack_display_frame_begin_try_read_batch_vm_replay(
                             sequence: vm_result_item_value_sequence,
                             dropped_count: vm_result_item_value_dropped_count,
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmArray::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -36746,7 +36747,7 @@ fn destack_display_monitor_event_read_batch_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder = VmArray::<DisplayMonitorEventVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value = match vm_result_item {
                             DisplaymonitoreventReplayRecord::DisplayAddedEvent(value) => {
@@ -37189,9 +37190,9 @@ fn destack_display_monitor_event_read_batch_vm_replay(
                                 DisplayMonitorEventVm::DisplayRemovedEvent(vm_result_item_value_display_removed_event)
                             }
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmArray::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -38756,7 +38757,7 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder = VmArray::<DisplayMonitorEventVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value = match vm_result_item {
                             DisplaymonitoreventReplayRecord::DisplayAddedEvent(value) => {
@@ -39199,9 +39200,9 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
                                 DisplayMonitorEventVm::DisplayRemovedEvent(vm_result_item_value_display_removed_event)
                             }
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmArray::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -39294,24 +39295,27 @@ fn destack_display_monitor_gamma_ramp_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_red_values = Vec::with_capacity(value.red.len());
+                    let mut vm_result_red_builder =
+                        VmSlice::<u16>::builder(context, value.red.len())?;
                     for vm_result_red_item in value.red {
                         let vm_result_red_item_value = vm_result_red_item;
-                        vm_result_red_values.push(vm_result_red_item_value);
+                        vm_result_red_builder.push(context, vm_result_red_item_value)?;
                     }
-                    let vm_result_red = VmSlice::from_values(context, &vm_result_red_values)?;
-                    let mut vm_result_green_values = Vec::with_capacity(value.green.len());
+                    let vm_result_red = vm_result_red_builder.finish()?;
+                    let mut vm_result_green_builder =
+                        VmSlice::<u16>::builder(context, value.green.len())?;
                     for vm_result_green_item in value.green {
                         let vm_result_green_item_value = vm_result_green_item;
-                        vm_result_green_values.push(vm_result_green_item_value);
+                        vm_result_green_builder.push(context, vm_result_green_item_value)?;
                     }
-                    let vm_result_green = VmSlice::from_values(context, &vm_result_green_values)?;
-                    let mut vm_result_blue_values = Vec::with_capacity(value.blue.len());
+                    let vm_result_green = vm_result_green_builder.finish()?;
+                    let mut vm_result_blue_builder =
+                        VmSlice::<u16>::builder(context, value.blue.len())?;
                     for vm_result_blue_item in value.blue {
                         let vm_result_blue_item_value = vm_result_blue_item;
-                        vm_result_blue_values.push(vm_result_blue_item_value);
+                        vm_result_blue_builder.push(context, vm_result_blue_item_value)?;
                     }
-                    let vm_result_blue = VmSlice::from_values(context, &vm_result_blue_values)?;
+                    let vm_result_blue = vm_result_blue_builder.finish()?;
                     let vm_result = DisplayGammaRampVm {
                         red: vm_result_red,
                         green: vm_result_green,
@@ -39496,7 +39500,7 @@ fn destack_display_monitor_list_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder = VmSlice::<DisplayDescriptorVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value_backend = vm_result_item.backend;
                         let vm_result_item_value_id = context.string_handle(vm_result_item.id.as_str()).map_err(Box::<RuntimeError>::from)?;
@@ -39557,9 +39561,9 @@ fn destack_display_monitor_list_vm_replay(
                             hdr_support: vm_result_item_value_hdr_support,
                             color_state: vm_result_item_value_color_state,
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -39637,7 +39641,8 @@ fn destack_display_monitor_modes_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmSlice::<DisplayModeVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value_width = vm_result_item.width;
                         let vm_result_item_value_height = vm_result_item.height;
@@ -39651,9 +39656,9 @@ fn destack_display_monitor_modes_vm_replay(
                             format: vm_result_item_value_format,
                             bit_depth: vm_result_item_value_bit_depth,
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -42068,7 +42073,7 @@ fn destack_display_window_event_read_vm_replay(
                             } else {
                                 None
                             };
-                            let mut vm_result_window_drag_entered_event_payload_items_values = Vec::with_capacity(value.payload.items.len());
+                            let mut vm_result_window_drag_entered_event_payload_items_builder = VmSlice::<DisplayDragItemDescriptorVm>::builder(context, value.payload.items.len())?;
                             for vm_result_window_drag_entered_event_payload_items_item in value.payload.items {
                                 let vm_result_window_drag_entered_event_payload_items_item_value_kind = vm_result_window_drag_entered_event_payload_items_item.kind;
                                 let vm_result_window_drag_entered_event_payload_items_item_value_item_type = if let Some(value) = vm_result_window_drag_entered_event_payload_items_item.item_type {
@@ -42097,9 +42102,9 @@ fn destack_display_window_event_read_vm_replay(
                                     is_directory: vm_result_window_drag_entered_event_payload_items_item_value_is_directory,
                                     byte_length: vm_result_window_drag_entered_event_payload_items_item_value_byte_length,
                                 };
-                                vm_result_window_drag_entered_event_payload_items_values.push(vm_result_window_drag_entered_event_payload_items_item_value);
+                                vm_result_window_drag_entered_event_payload_items_builder.push(context, vm_result_window_drag_entered_event_payload_items_item_value)?;
                             }
-                            let vm_result_window_drag_entered_event_payload_items = VmSlice::from_values(context, &vm_result_window_drag_entered_event_payload_items_values)?;
+                            let vm_result_window_drag_entered_event_payload_items = vm_result_window_drag_entered_event_payload_items_builder.finish()?;
                             let vm_result_window_drag_entered_event_payload = DisplayDragTransferVm {
                                 session: vm_result_window_drag_entered_event_payload_session,
                                 is_external: vm_result_window_drag_entered_event_payload_is_external,
@@ -42149,7 +42154,7 @@ fn destack_display_window_event_read_vm_replay(
                             } else {
                                 None
                             };
-                            let mut vm_result_window_drag_exited_event_payload_items_values = Vec::with_capacity(value.payload.items.len());
+                            let mut vm_result_window_drag_exited_event_payload_items_builder = VmSlice::<DisplayDragItemDescriptorVm>::builder(context, value.payload.items.len())?;
                             for vm_result_window_drag_exited_event_payload_items_item in value.payload.items {
                                 let vm_result_window_drag_exited_event_payload_items_item_value_kind = vm_result_window_drag_exited_event_payload_items_item.kind;
                                 let vm_result_window_drag_exited_event_payload_items_item_value_item_type = if let Some(value) = vm_result_window_drag_exited_event_payload_items_item.item_type {
@@ -42178,9 +42183,9 @@ fn destack_display_window_event_read_vm_replay(
                                     is_directory: vm_result_window_drag_exited_event_payload_items_item_value_is_directory,
                                     byte_length: vm_result_window_drag_exited_event_payload_items_item_value_byte_length,
                                 };
-                                vm_result_window_drag_exited_event_payload_items_values.push(vm_result_window_drag_exited_event_payload_items_item_value);
+                                vm_result_window_drag_exited_event_payload_items_builder.push(context, vm_result_window_drag_exited_event_payload_items_item_value)?;
                             }
-                            let vm_result_window_drag_exited_event_payload_items = VmSlice::from_values(context, &vm_result_window_drag_exited_event_payload_items_values)?;
+                            let vm_result_window_drag_exited_event_payload_items = vm_result_window_drag_exited_event_payload_items_builder.finish()?;
                             let vm_result_window_drag_exited_event_payload = DisplayDragTransferVm {
                                 session: vm_result_window_drag_exited_event_payload_session,
                                 is_external: vm_result_window_drag_exited_event_payload_is_external,
@@ -42230,7 +42235,7 @@ fn destack_display_window_event_read_vm_replay(
                             } else {
                                 None
                             };
-                            let mut vm_result_window_drag_updated_event_payload_items_values = Vec::with_capacity(value.payload.items.len());
+                            let mut vm_result_window_drag_updated_event_payload_items_builder = VmSlice::<DisplayDragItemDescriptorVm>::builder(context, value.payload.items.len())?;
                             for vm_result_window_drag_updated_event_payload_items_item in value.payload.items {
                                 let vm_result_window_drag_updated_event_payload_items_item_value_kind = vm_result_window_drag_updated_event_payload_items_item.kind;
                                 let vm_result_window_drag_updated_event_payload_items_item_value_item_type = if let Some(value) = vm_result_window_drag_updated_event_payload_items_item.item_type {
@@ -42259,9 +42264,9 @@ fn destack_display_window_event_read_vm_replay(
                                     is_directory: vm_result_window_drag_updated_event_payload_items_item_value_is_directory,
                                     byte_length: vm_result_window_drag_updated_event_payload_items_item_value_byte_length,
                                 };
-                                vm_result_window_drag_updated_event_payload_items_values.push(vm_result_window_drag_updated_event_payload_items_item_value);
+                                vm_result_window_drag_updated_event_payload_items_builder.push(context, vm_result_window_drag_updated_event_payload_items_item_value)?;
                             }
-                            let vm_result_window_drag_updated_event_payload_items = VmSlice::from_values(context, &vm_result_window_drag_updated_event_payload_items_values)?;
+                            let vm_result_window_drag_updated_event_payload_items = vm_result_window_drag_updated_event_payload_items_builder.finish()?;
                             let vm_result_window_drag_updated_event_payload = DisplayDragTransferVm {
                                 session: vm_result_window_drag_updated_event_payload_session,
                                 is_external: vm_result_window_drag_updated_event_payload_is_external,
@@ -42311,7 +42316,7 @@ fn destack_display_window_event_read_vm_replay(
                             } else {
                                 None
                             };
-                            let mut vm_result_window_dropped_event_payload_items_values = Vec::with_capacity(value.payload.items.len());
+                            let mut vm_result_window_dropped_event_payload_items_builder = VmSlice::<DisplayDragItemDescriptorVm>::builder(context, value.payload.items.len())?;
                             for vm_result_window_dropped_event_payload_items_item in value.payload.items {
                                 let vm_result_window_dropped_event_payload_items_item_value_kind = vm_result_window_dropped_event_payload_items_item.kind;
                                 let vm_result_window_dropped_event_payload_items_item_value_item_type = if let Some(value) = vm_result_window_dropped_event_payload_items_item.item_type {
@@ -42340,9 +42345,9 @@ fn destack_display_window_event_read_vm_replay(
                                     is_directory: vm_result_window_dropped_event_payload_items_item_value_is_directory,
                                     byte_length: vm_result_window_dropped_event_payload_items_item_value_byte_length,
                                 };
-                                vm_result_window_dropped_event_payload_items_values.push(vm_result_window_dropped_event_payload_items_item_value);
+                                vm_result_window_dropped_event_payload_items_builder.push(context, vm_result_window_dropped_event_payload_items_item_value)?;
                             }
-                            let vm_result_window_dropped_event_payload_items = VmSlice::from_values(context, &vm_result_window_dropped_event_payload_items_values)?;
+                            let vm_result_window_dropped_event_payload_items = vm_result_window_dropped_event_payload_items_builder.finish()?;
                             let vm_result_window_dropped_event_payload = DisplayDragTransferVm {
                                 session: vm_result_window_dropped_event_payload_session,
                                 is_external: vm_result_window_dropped_event_payload_is_external,
@@ -44391,7 +44396,7 @@ fn destack_display_window_event_read_batch_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder = VmArray::<WindowEventVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value = match vm_result_item {
                             WindoweventReplayRecord::WindowAspectRatioChangedEvent(value) => {
@@ -44644,7 +44649,7 @@ fn destack_display_window_event_read_batch_vm_replay(
                                 } else {
                                     None
                                 };
-                                let mut vm_result_item_value_window_drag_entered_event_payload_items_values = Vec::with_capacity(value.payload.items.len());
+                                let mut vm_result_item_value_window_drag_entered_event_payload_items_builder = VmSlice::<DisplayDragItemDescriptorVm>::builder(context, value.payload.items.len())?;
                                 for vm_result_item_value_window_drag_entered_event_payload_items_item in value.payload.items {
                                     let vm_result_item_value_window_drag_entered_event_payload_items_item_value_kind = vm_result_item_value_window_drag_entered_event_payload_items_item.kind;
                                     let vm_result_item_value_window_drag_entered_event_payload_items_item_value_item_type = if let Some(value) = vm_result_item_value_window_drag_entered_event_payload_items_item.item_type {
@@ -44673,9 +44678,9 @@ fn destack_display_window_event_read_batch_vm_replay(
                                         is_directory: vm_result_item_value_window_drag_entered_event_payload_items_item_value_is_directory,
                                         byte_length: vm_result_item_value_window_drag_entered_event_payload_items_item_value_byte_length,
                                     };
-                                    vm_result_item_value_window_drag_entered_event_payload_items_values.push(vm_result_item_value_window_drag_entered_event_payload_items_item_value);
+                                    vm_result_item_value_window_drag_entered_event_payload_items_builder.push(context, vm_result_item_value_window_drag_entered_event_payload_items_item_value)?;
                                 }
-                                let vm_result_item_value_window_drag_entered_event_payload_items = VmSlice::from_values(context, &vm_result_item_value_window_drag_entered_event_payload_items_values)?;
+                                let vm_result_item_value_window_drag_entered_event_payload_items = vm_result_item_value_window_drag_entered_event_payload_items_builder.finish()?;
                                 let vm_result_item_value_window_drag_entered_event_payload = DisplayDragTransferVm {
                                     session: vm_result_item_value_window_drag_entered_event_payload_session,
                                     is_external: vm_result_item_value_window_drag_entered_event_payload_is_external,
@@ -44725,7 +44730,7 @@ fn destack_display_window_event_read_batch_vm_replay(
                                 } else {
                                     None
                                 };
-                                let mut vm_result_item_value_window_drag_exited_event_payload_items_values = Vec::with_capacity(value.payload.items.len());
+                                let mut vm_result_item_value_window_drag_exited_event_payload_items_builder = VmSlice::<DisplayDragItemDescriptorVm>::builder(context, value.payload.items.len())?;
                                 for vm_result_item_value_window_drag_exited_event_payload_items_item in value.payload.items {
                                     let vm_result_item_value_window_drag_exited_event_payload_items_item_value_kind = vm_result_item_value_window_drag_exited_event_payload_items_item.kind;
                                     let vm_result_item_value_window_drag_exited_event_payload_items_item_value_item_type = if let Some(value) = vm_result_item_value_window_drag_exited_event_payload_items_item.item_type {
@@ -44754,9 +44759,9 @@ fn destack_display_window_event_read_batch_vm_replay(
                                         is_directory: vm_result_item_value_window_drag_exited_event_payload_items_item_value_is_directory,
                                         byte_length: vm_result_item_value_window_drag_exited_event_payload_items_item_value_byte_length,
                                     };
-                                    vm_result_item_value_window_drag_exited_event_payload_items_values.push(vm_result_item_value_window_drag_exited_event_payload_items_item_value);
+                                    vm_result_item_value_window_drag_exited_event_payload_items_builder.push(context, vm_result_item_value_window_drag_exited_event_payload_items_item_value)?;
                                 }
-                                let vm_result_item_value_window_drag_exited_event_payload_items = VmSlice::from_values(context, &vm_result_item_value_window_drag_exited_event_payload_items_values)?;
+                                let vm_result_item_value_window_drag_exited_event_payload_items = vm_result_item_value_window_drag_exited_event_payload_items_builder.finish()?;
                                 let vm_result_item_value_window_drag_exited_event_payload = DisplayDragTransferVm {
                                     session: vm_result_item_value_window_drag_exited_event_payload_session,
                                     is_external: vm_result_item_value_window_drag_exited_event_payload_is_external,
@@ -44806,7 +44811,7 @@ fn destack_display_window_event_read_batch_vm_replay(
                                 } else {
                                     None
                                 };
-                                let mut vm_result_item_value_window_drag_updated_event_payload_items_values = Vec::with_capacity(value.payload.items.len());
+                                let mut vm_result_item_value_window_drag_updated_event_payload_items_builder = VmSlice::<DisplayDragItemDescriptorVm>::builder(context, value.payload.items.len())?;
                                 for vm_result_item_value_window_drag_updated_event_payload_items_item in value.payload.items {
                                     let vm_result_item_value_window_drag_updated_event_payload_items_item_value_kind = vm_result_item_value_window_drag_updated_event_payload_items_item.kind;
                                     let vm_result_item_value_window_drag_updated_event_payload_items_item_value_item_type = if let Some(value) = vm_result_item_value_window_drag_updated_event_payload_items_item.item_type {
@@ -44835,9 +44840,9 @@ fn destack_display_window_event_read_batch_vm_replay(
                                         is_directory: vm_result_item_value_window_drag_updated_event_payload_items_item_value_is_directory,
                                         byte_length: vm_result_item_value_window_drag_updated_event_payload_items_item_value_byte_length,
                                     };
-                                    vm_result_item_value_window_drag_updated_event_payload_items_values.push(vm_result_item_value_window_drag_updated_event_payload_items_item_value);
+                                    vm_result_item_value_window_drag_updated_event_payload_items_builder.push(context, vm_result_item_value_window_drag_updated_event_payload_items_item_value)?;
                                 }
-                                let vm_result_item_value_window_drag_updated_event_payload_items = VmSlice::from_values(context, &vm_result_item_value_window_drag_updated_event_payload_items_values)?;
+                                let vm_result_item_value_window_drag_updated_event_payload_items = vm_result_item_value_window_drag_updated_event_payload_items_builder.finish()?;
                                 let vm_result_item_value_window_drag_updated_event_payload = DisplayDragTransferVm {
                                     session: vm_result_item_value_window_drag_updated_event_payload_session,
                                     is_external: vm_result_item_value_window_drag_updated_event_payload_is_external,
@@ -44887,7 +44892,7 @@ fn destack_display_window_event_read_batch_vm_replay(
                                 } else {
                                     None
                                 };
-                                let mut vm_result_item_value_window_dropped_event_payload_items_values = Vec::with_capacity(value.payload.items.len());
+                                let mut vm_result_item_value_window_dropped_event_payload_items_builder = VmSlice::<DisplayDragItemDescriptorVm>::builder(context, value.payload.items.len())?;
                                 for vm_result_item_value_window_dropped_event_payload_items_item in value.payload.items {
                                     let vm_result_item_value_window_dropped_event_payload_items_item_value_kind = vm_result_item_value_window_dropped_event_payload_items_item.kind;
                                     let vm_result_item_value_window_dropped_event_payload_items_item_value_item_type = if let Some(value) = vm_result_item_value_window_dropped_event_payload_items_item.item_type {
@@ -44916,9 +44921,9 @@ fn destack_display_window_event_read_batch_vm_replay(
                                         is_directory: vm_result_item_value_window_dropped_event_payload_items_item_value_is_directory,
                                         byte_length: vm_result_item_value_window_dropped_event_payload_items_item_value_byte_length,
                                     };
-                                    vm_result_item_value_window_dropped_event_payload_items_values.push(vm_result_item_value_window_dropped_event_payload_items_item_value);
+                                    vm_result_item_value_window_dropped_event_payload_items_builder.push(context, vm_result_item_value_window_dropped_event_payload_items_item_value)?;
                                 }
-                                let vm_result_item_value_window_dropped_event_payload_items = VmSlice::from_values(context, &vm_result_item_value_window_dropped_event_payload_items_values)?;
+                                let vm_result_item_value_window_dropped_event_payload_items = vm_result_item_value_window_dropped_event_payload_items_builder.finish()?;
                                 let vm_result_item_value_window_dropped_event_payload = DisplayDragTransferVm {
                                     session: vm_result_item_value_window_dropped_event_payload_session,
                                     is_external: vm_result_item_value_window_dropped_event_payload_is_external,
@@ -45584,9 +45589,9 @@ fn destack_display_window_event_read_batch_vm_replay(
                                 WindowEventVm::WindowVisibilityChangedEvent(vm_result_item_value_window_visibility_changed_event)
                             }
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmArray::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -47213,7 +47218,7 @@ fn destack_display_window_event_try_read_vm_replay(
                             } else {
                                 None
                             };
-                            let mut vm_result_window_drag_entered_event_payload_items_values = Vec::with_capacity(value.payload.items.len());
+                            let mut vm_result_window_drag_entered_event_payload_items_builder = VmSlice::<DisplayDragItemDescriptorVm>::builder(context, value.payload.items.len())?;
                             for vm_result_window_drag_entered_event_payload_items_item in value.payload.items {
                                 let vm_result_window_drag_entered_event_payload_items_item_value_kind = vm_result_window_drag_entered_event_payload_items_item.kind;
                                 let vm_result_window_drag_entered_event_payload_items_item_value_item_type = if let Some(value) = vm_result_window_drag_entered_event_payload_items_item.item_type {
@@ -47242,9 +47247,9 @@ fn destack_display_window_event_try_read_vm_replay(
                                     is_directory: vm_result_window_drag_entered_event_payload_items_item_value_is_directory,
                                     byte_length: vm_result_window_drag_entered_event_payload_items_item_value_byte_length,
                                 };
-                                vm_result_window_drag_entered_event_payload_items_values.push(vm_result_window_drag_entered_event_payload_items_item_value);
+                                vm_result_window_drag_entered_event_payload_items_builder.push(context, vm_result_window_drag_entered_event_payload_items_item_value)?;
                             }
-                            let vm_result_window_drag_entered_event_payload_items = VmSlice::from_values(context, &vm_result_window_drag_entered_event_payload_items_values)?;
+                            let vm_result_window_drag_entered_event_payload_items = vm_result_window_drag_entered_event_payload_items_builder.finish()?;
                             let vm_result_window_drag_entered_event_payload = DisplayDragTransferVm {
                                 session: vm_result_window_drag_entered_event_payload_session,
                                 is_external: vm_result_window_drag_entered_event_payload_is_external,
@@ -47294,7 +47299,7 @@ fn destack_display_window_event_try_read_vm_replay(
                             } else {
                                 None
                             };
-                            let mut vm_result_window_drag_exited_event_payload_items_values = Vec::with_capacity(value.payload.items.len());
+                            let mut vm_result_window_drag_exited_event_payload_items_builder = VmSlice::<DisplayDragItemDescriptorVm>::builder(context, value.payload.items.len())?;
                             for vm_result_window_drag_exited_event_payload_items_item in value.payload.items {
                                 let vm_result_window_drag_exited_event_payload_items_item_value_kind = vm_result_window_drag_exited_event_payload_items_item.kind;
                                 let vm_result_window_drag_exited_event_payload_items_item_value_item_type = if let Some(value) = vm_result_window_drag_exited_event_payload_items_item.item_type {
@@ -47323,9 +47328,9 @@ fn destack_display_window_event_try_read_vm_replay(
                                     is_directory: vm_result_window_drag_exited_event_payload_items_item_value_is_directory,
                                     byte_length: vm_result_window_drag_exited_event_payload_items_item_value_byte_length,
                                 };
-                                vm_result_window_drag_exited_event_payload_items_values.push(vm_result_window_drag_exited_event_payload_items_item_value);
+                                vm_result_window_drag_exited_event_payload_items_builder.push(context, vm_result_window_drag_exited_event_payload_items_item_value)?;
                             }
-                            let vm_result_window_drag_exited_event_payload_items = VmSlice::from_values(context, &vm_result_window_drag_exited_event_payload_items_values)?;
+                            let vm_result_window_drag_exited_event_payload_items = vm_result_window_drag_exited_event_payload_items_builder.finish()?;
                             let vm_result_window_drag_exited_event_payload = DisplayDragTransferVm {
                                 session: vm_result_window_drag_exited_event_payload_session,
                                 is_external: vm_result_window_drag_exited_event_payload_is_external,
@@ -47375,7 +47380,7 @@ fn destack_display_window_event_try_read_vm_replay(
                             } else {
                                 None
                             };
-                            let mut vm_result_window_drag_updated_event_payload_items_values = Vec::with_capacity(value.payload.items.len());
+                            let mut vm_result_window_drag_updated_event_payload_items_builder = VmSlice::<DisplayDragItemDescriptorVm>::builder(context, value.payload.items.len())?;
                             for vm_result_window_drag_updated_event_payload_items_item in value.payload.items {
                                 let vm_result_window_drag_updated_event_payload_items_item_value_kind = vm_result_window_drag_updated_event_payload_items_item.kind;
                                 let vm_result_window_drag_updated_event_payload_items_item_value_item_type = if let Some(value) = vm_result_window_drag_updated_event_payload_items_item.item_type {
@@ -47404,9 +47409,9 @@ fn destack_display_window_event_try_read_vm_replay(
                                     is_directory: vm_result_window_drag_updated_event_payload_items_item_value_is_directory,
                                     byte_length: vm_result_window_drag_updated_event_payload_items_item_value_byte_length,
                                 };
-                                vm_result_window_drag_updated_event_payload_items_values.push(vm_result_window_drag_updated_event_payload_items_item_value);
+                                vm_result_window_drag_updated_event_payload_items_builder.push(context, vm_result_window_drag_updated_event_payload_items_item_value)?;
                             }
-                            let vm_result_window_drag_updated_event_payload_items = VmSlice::from_values(context, &vm_result_window_drag_updated_event_payload_items_values)?;
+                            let vm_result_window_drag_updated_event_payload_items = vm_result_window_drag_updated_event_payload_items_builder.finish()?;
                             let vm_result_window_drag_updated_event_payload = DisplayDragTransferVm {
                                 session: vm_result_window_drag_updated_event_payload_session,
                                 is_external: vm_result_window_drag_updated_event_payload_is_external,
@@ -47456,7 +47461,7 @@ fn destack_display_window_event_try_read_vm_replay(
                             } else {
                                 None
                             };
-                            let mut vm_result_window_dropped_event_payload_items_values = Vec::with_capacity(value.payload.items.len());
+                            let mut vm_result_window_dropped_event_payload_items_builder = VmSlice::<DisplayDragItemDescriptorVm>::builder(context, value.payload.items.len())?;
                             for vm_result_window_dropped_event_payload_items_item in value.payload.items {
                                 let vm_result_window_dropped_event_payload_items_item_value_kind = vm_result_window_dropped_event_payload_items_item.kind;
                                 let vm_result_window_dropped_event_payload_items_item_value_item_type = if let Some(value) = vm_result_window_dropped_event_payload_items_item.item_type {
@@ -47485,9 +47490,9 @@ fn destack_display_window_event_try_read_vm_replay(
                                     is_directory: vm_result_window_dropped_event_payload_items_item_value_is_directory,
                                     byte_length: vm_result_window_dropped_event_payload_items_item_value_byte_length,
                                 };
-                                vm_result_window_dropped_event_payload_items_values.push(vm_result_window_dropped_event_payload_items_item_value);
+                                vm_result_window_dropped_event_payload_items_builder.push(context, vm_result_window_dropped_event_payload_items_item_value)?;
                             }
-                            let vm_result_window_dropped_event_payload_items = VmSlice::from_values(context, &vm_result_window_dropped_event_payload_items_values)?;
+                            let vm_result_window_dropped_event_payload_items = vm_result_window_dropped_event_payload_items_builder.finish()?;
                             let vm_result_window_dropped_event_payload = DisplayDragTransferVm {
                                 session: vm_result_window_dropped_event_payload_session,
                                 is_external: vm_result_window_dropped_event_payload_is_external,
@@ -49535,7 +49540,7 @@ fn destack_display_window_event_try_read_batch_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder = VmArray::<WindowEventVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value = match vm_result_item {
                             WindoweventReplayRecord::WindowAspectRatioChangedEvent(value) => {
@@ -49788,7 +49793,7 @@ fn destack_display_window_event_try_read_batch_vm_replay(
                                 } else {
                                     None
                                 };
-                                let mut vm_result_item_value_window_drag_entered_event_payload_items_values = Vec::with_capacity(value.payload.items.len());
+                                let mut vm_result_item_value_window_drag_entered_event_payload_items_builder = VmSlice::<DisplayDragItemDescriptorVm>::builder(context, value.payload.items.len())?;
                                 for vm_result_item_value_window_drag_entered_event_payload_items_item in value.payload.items {
                                     let vm_result_item_value_window_drag_entered_event_payload_items_item_value_kind = vm_result_item_value_window_drag_entered_event_payload_items_item.kind;
                                     let vm_result_item_value_window_drag_entered_event_payload_items_item_value_item_type = if let Some(value) = vm_result_item_value_window_drag_entered_event_payload_items_item.item_type {
@@ -49817,9 +49822,9 @@ fn destack_display_window_event_try_read_batch_vm_replay(
                                         is_directory: vm_result_item_value_window_drag_entered_event_payload_items_item_value_is_directory,
                                         byte_length: vm_result_item_value_window_drag_entered_event_payload_items_item_value_byte_length,
                                     };
-                                    vm_result_item_value_window_drag_entered_event_payload_items_values.push(vm_result_item_value_window_drag_entered_event_payload_items_item_value);
+                                    vm_result_item_value_window_drag_entered_event_payload_items_builder.push(context, vm_result_item_value_window_drag_entered_event_payload_items_item_value)?;
                                 }
-                                let vm_result_item_value_window_drag_entered_event_payload_items = VmSlice::from_values(context, &vm_result_item_value_window_drag_entered_event_payload_items_values)?;
+                                let vm_result_item_value_window_drag_entered_event_payload_items = vm_result_item_value_window_drag_entered_event_payload_items_builder.finish()?;
                                 let vm_result_item_value_window_drag_entered_event_payload = DisplayDragTransferVm {
                                     session: vm_result_item_value_window_drag_entered_event_payload_session,
                                     is_external: vm_result_item_value_window_drag_entered_event_payload_is_external,
@@ -49869,7 +49874,7 @@ fn destack_display_window_event_try_read_batch_vm_replay(
                                 } else {
                                     None
                                 };
-                                let mut vm_result_item_value_window_drag_exited_event_payload_items_values = Vec::with_capacity(value.payload.items.len());
+                                let mut vm_result_item_value_window_drag_exited_event_payload_items_builder = VmSlice::<DisplayDragItemDescriptorVm>::builder(context, value.payload.items.len())?;
                                 for vm_result_item_value_window_drag_exited_event_payload_items_item in value.payload.items {
                                     let vm_result_item_value_window_drag_exited_event_payload_items_item_value_kind = vm_result_item_value_window_drag_exited_event_payload_items_item.kind;
                                     let vm_result_item_value_window_drag_exited_event_payload_items_item_value_item_type = if let Some(value) = vm_result_item_value_window_drag_exited_event_payload_items_item.item_type {
@@ -49898,9 +49903,9 @@ fn destack_display_window_event_try_read_batch_vm_replay(
                                         is_directory: vm_result_item_value_window_drag_exited_event_payload_items_item_value_is_directory,
                                         byte_length: vm_result_item_value_window_drag_exited_event_payload_items_item_value_byte_length,
                                     };
-                                    vm_result_item_value_window_drag_exited_event_payload_items_values.push(vm_result_item_value_window_drag_exited_event_payload_items_item_value);
+                                    vm_result_item_value_window_drag_exited_event_payload_items_builder.push(context, vm_result_item_value_window_drag_exited_event_payload_items_item_value)?;
                                 }
-                                let vm_result_item_value_window_drag_exited_event_payload_items = VmSlice::from_values(context, &vm_result_item_value_window_drag_exited_event_payload_items_values)?;
+                                let vm_result_item_value_window_drag_exited_event_payload_items = vm_result_item_value_window_drag_exited_event_payload_items_builder.finish()?;
                                 let vm_result_item_value_window_drag_exited_event_payload = DisplayDragTransferVm {
                                     session: vm_result_item_value_window_drag_exited_event_payload_session,
                                     is_external: vm_result_item_value_window_drag_exited_event_payload_is_external,
@@ -49950,7 +49955,7 @@ fn destack_display_window_event_try_read_batch_vm_replay(
                                 } else {
                                     None
                                 };
-                                let mut vm_result_item_value_window_drag_updated_event_payload_items_values = Vec::with_capacity(value.payload.items.len());
+                                let mut vm_result_item_value_window_drag_updated_event_payload_items_builder = VmSlice::<DisplayDragItemDescriptorVm>::builder(context, value.payload.items.len())?;
                                 for vm_result_item_value_window_drag_updated_event_payload_items_item in value.payload.items {
                                     let vm_result_item_value_window_drag_updated_event_payload_items_item_value_kind = vm_result_item_value_window_drag_updated_event_payload_items_item.kind;
                                     let vm_result_item_value_window_drag_updated_event_payload_items_item_value_item_type = if let Some(value) = vm_result_item_value_window_drag_updated_event_payload_items_item.item_type {
@@ -49979,9 +49984,9 @@ fn destack_display_window_event_try_read_batch_vm_replay(
                                         is_directory: vm_result_item_value_window_drag_updated_event_payload_items_item_value_is_directory,
                                         byte_length: vm_result_item_value_window_drag_updated_event_payload_items_item_value_byte_length,
                                     };
-                                    vm_result_item_value_window_drag_updated_event_payload_items_values.push(vm_result_item_value_window_drag_updated_event_payload_items_item_value);
+                                    vm_result_item_value_window_drag_updated_event_payload_items_builder.push(context, vm_result_item_value_window_drag_updated_event_payload_items_item_value)?;
                                 }
-                                let vm_result_item_value_window_drag_updated_event_payload_items = VmSlice::from_values(context, &vm_result_item_value_window_drag_updated_event_payload_items_values)?;
+                                let vm_result_item_value_window_drag_updated_event_payload_items = vm_result_item_value_window_drag_updated_event_payload_items_builder.finish()?;
                                 let vm_result_item_value_window_drag_updated_event_payload = DisplayDragTransferVm {
                                     session: vm_result_item_value_window_drag_updated_event_payload_session,
                                     is_external: vm_result_item_value_window_drag_updated_event_payload_is_external,
@@ -50031,7 +50036,7 @@ fn destack_display_window_event_try_read_batch_vm_replay(
                                 } else {
                                     None
                                 };
-                                let mut vm_result_item_value_window_dropped_event_payload_items_values = Vec::with_capacity(value.payload.items.len());
+                                let mut vm_result_item_value_window_dropped_event_payload_items_builder = VmSlice::<DisplayDragItemDescriptorVm>::builder(context, value.payload.items.len())?;
                                 for vm_result_item_value_window_dropped_event_payload_items_item in value.payload.items {
                                     let vm_result_item_value_window_dropped_event_payload_items_item_value_kind = vm_result_item_value_window_dropped_event_payload_items_item.kind;
                                     let vm_result_item_value_window_dropped_event_payload_items_item_value_item_type = if let Some(value) = vm_result_item_value_window_dropped_event_payload_items_item.item_type {
@@ -50060,9 +50065,9 @@ fn destack_display_window_event_try_read_batch_vm_replay(
                                         is_directory: vm_result_item_value_window_dropped_event_payload_items_item_value_is_directory,
                                         byte_length: vm_result_item_value_window_dropped_event_payload_items_item_value_byte_length,
                                     };
-                                    vm_result_item_value_window_dropped_event_payload_items_values.push(vm_result_item_value_window_dropped_event_payload_items_item_value);
+                                    vm_result_item_value_window_dropped_event_payload_items_builder.push(context, vm_result_item_value_window_dropped_event_payload_items_item_value)?;
                                 }
-                                let vm_result_item_value_window_dropped_event_payload_items = VmSlice::from_values(context, &vm_result_item_value_window_dropped_event_payload_items_values)?;
+                                let vm_result_item_value_window_dropped_event_payload_items = vm_result_item_value_window_dropped_event_payload_items_builder.finish()?;
                                 let vm_result_item_value_window_dropped_event_payload = DisplayDragTransferVm {
                                     session: vm_result_item_value_window_dropped_event_payload_session,
                                     is_external: vm_result_item_value_window_dropped_event_payload_is_external,
@@ -50728,9 +50733,9 @@ fn destack_display_window_event_try_read_batch_vm_replay(
                                 WindowEventVm::WindowVisibilityChangedEvent(vm_result_item_value_window_visibility_changed_event)
                             }
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmArray::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),

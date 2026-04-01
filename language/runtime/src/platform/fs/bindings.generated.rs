@@ -18697,18 +18697,18 @@ fn destack_fs_dir_mkdtemp_vm_replay(
                             let vm_result_os_path_utf16_kind = context
                                 .string_handle(value.kind.as_str())
                                 .map_err(Box::<RuntimeError>::from)?;
-                            let mut vm_result_os_path_utf16_utf16_inner_values =
-                                Vec::with_capacity(value.utf16.len());
+                            let mut vm_result_os_path_utf16_utf16_inner_builder =
+                                VmArray::<u16>::builder(context, value.utf16.len())?;
                             for vm_result_os_path_utf16_utf16_inner_item in value.utf16 {
                                 let vm_result_os_path_utf16_utf16_inner_item_value =
                                     vm_result_os_path_utf16_utf16_inner_item;
-                                vm_result_os_path_utf16_utf16_inner_values
-                                    .push(vm_result_os_path_utf16_utf16_inner_item_value);
+                                vm_result_os_path_utf16_utf16_inner_builder.push(
+                                    context,
+                                    vm_result_os_path_utf16_utf16_inner_item_value,
+                                )?;
                             }
-                            let vm_result_os_path_utf16_utf16_inner = VmArray::from_values(
-                                context,
-                                &vm_result_os_path_utf16_utf16_inner_values,
-                            )?;
+                            let vm_result_os_path_utf16_utf16_inner =
+                                vm_result_os_path_utf16_utf16_inner_builder.finish()?;
                             let vm_result_os_path_utf16_utf16 =
                                 platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(
                                     vm_result_os_path_utf16_utf16_inner,
@@ -18871,7 +18871,7 @@ fn destack_fs_dir_readdir_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder = VmArray::<DirentVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value_name = match vm_result_item.name {
                             OspathReplayRecord::OsPathBytes(value) => {
@@ -18886,12 +18886,12 @@ fn destack_fs_dir_readdir_vm_replay(
                             }
                             OspathReplayRecord::OsPathUtf16(value) => {
                                 let vm_result_item_value_name_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                let mut vm_result_item_value_name_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
+                                let mut vm_result_item_value_name_os_path_utf16_utf16_inner_builder = VmArray::<u16>::builder(context, value.utf16.len())?;
                                 for vm_result_item_value_name_os_path_utf16_utf16_inner_item in value.utf16 {
                                     let vm_result_item_value_name_os_path_utf16_utf16_inner_item_value = vm_result_item_value_name_os_path_utf16_utf16_inner_item;
-                                    vm_result_item_value_name_os_path_utf16_utf16_inner_values.push(vm_result_item_value_name_os_path_utf16_utf16_inner_item_value);
+                                    vm_result_item_value_name_os_path_utf16_utf16_inner_builder.push(context, vm_result_item_value_name_os_path_utf16_utf16_inner_item_value)?;
                                 }
-                                let vm_result_item_value_name_os_path_utf16_utf16_inner = VmArray::from_values(context, &vm_result_item_value_name_os_path_utf16_utf16_inner_values)?;
+                                let vm_result_item_value_name_os_path_utf16_utf16_inner = vm_result_item_value_name_os_path_utf16_utf16_inner_builder.finish()?;
                                 let vm_result_item_value_name_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_item_value_name_os_path_utf16_utf16_inner);
                                 let vm_result_item_value_name_os_path_utf16 = OsPathUtf16Vm {
                                     kind: vm_result_item_value_name_os_path_utf16_kind,
@@ -18905,9 +18905,9 @@ fn destack_fs_dir_readdir_vm_replay(
                             name: vm_result_item_value_name,
                             kind: vm_result_item_value_kind,
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmArray::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -19047,12 +19047,12 @@ fn destack_fs_dir_readdir_next_vm_replay(
                                 }
                                 OspathReplayRecord::OsPathUtf16(value) => {
                                     let vm_result_dirent_next_entry_entry_name_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    let mut vm_result_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
+                                    let mut vm_result_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_builder = VmArray::<u16>::builder(context, value.utf16.len())?;
                                     for vm_result_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_item in value.utf16 {
                                         let vm_result_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_item_value = vm_result_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_item;
-                                        vm_result_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_values.push(vm_result_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_item_value);
+                                        vm_result_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_builder.push(context, vm_result_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_item_value)?;
                                     }
-                                    let vm_result_dirent_next_entry_entry_name_os_path_utf16_utf16_inner = VmArray::from_values(context, &vm_result_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_values)?;
+                                    let vm_result_dirent_next_entry_entry_name_os_path_utf16_utf16_inner = vm_result_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_builder.finish()?;
                                     let vm_result_dirent_next_entry_entry_name_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_dirent_next_entry_entry_name_os_path_utf16_utf16_inner);
                                     let vm_result_dirent_next_entry_entry_name_os_path_utf16 = OsPathUtf16Vm {
                                         kind: vm_result_dirent_next_entry_entry_name_os_path_utf16_kind,
@@ -21922,18 +21922,18 @@ fn destack_fs_path_readlink_vm_replay(
                             let vm_result_os_path_utf16_kind = context
                                 .string_handle(value.kind.as_str())
                                 .map_err(Box::<RuntimeError>::from)?;
-                            let mut vm_result_os_path_utf16_utf16_inner_values =
-                                Vec::with_capacity(value.utf16.len());
+                            let mut vm_result_os_path_utf16_utf16_inner_builder =
+                                VmArray::<u16>::builder(context, value.utf16.len())?;
                             for vm_result_os_path_utf16_utf16_inner_item in value.utf16 {
                                 let vm_result_os_path_utf16_utf16_inner_item_value =
                                     vm_result_os_path_utf16_utf16_inner_item;
-                                vm_result_os_path_utf16_utf16_inner_values
-                                    .push(vm_result_os_path_utf16_utf16_inner_item_value);
+                                vm_result_os_path_utf16_utf16_inner_builder.push(
+                                    context,
+                                    vm_result_os_path_utf16_utf16_inner_item_value,
+                                )?;
                             }
-                            let vm_result_os_path_utf16_utf16_inner = VmArray::from_values(
-                                context,
-                                &vm_result_os_path_utf16_utf16_inner_values,
-                            )?;
+                            let vm_result_os_path_utf16_utf16_inner =
+                                vm_result_os_path_utf16_utf16_inner_builder.finish()?;
                             let vm_result_os_path_utf16_utf16 =
                                 platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(
                                     vm_result_os_path_utf16_utf16_inner,
@@ -22070,18 +22070,18 @@ fn destack_fs_path_readlinkat_vm_replay(
                             let vm_result_os_path_utf16_kind = context
                                 .string_handle(value.kind.as_str())
                                 .map_err(Box::<RuntimeError>::from)?;
-                            let mut vm_result_os_path_utf16_utf16_inner_values =
-                                Vec::with_capacity(value.utf16.len());
+                            let mut vm_result_os_path_utf16_utf16_inner_builder =
+                                VmArray::<u16>::builder(context, value.utf16.len())?;
                             for vm_result_os_path_utf16_utf16_inner_item in value.utf16 {
                                 let vm_result_os_path_utf16_utf16_inner_item_value =
                                     vm_result_os_path_utf16_utf16_inner_item;
-                                vm_result_os_path_utf16_utf16_inner_values
-                                    .push(vm_result_os_path_utf16_utf16_inner_item_value);
+                                vm_result_os_path_utf16_utf16_inner_builder.push(
+                                    context,
+                                    vm_result_os_path_utf16_utf16_inner_item_value,
+                                )?;
                             }
-                            let vm_result_os_path_utf16_utf16_inner = VmArray::from_values(
-                                context,
-                                &vm_result_os_path_utf16_utf16_inner_values,
-                            )?;
+                            let vm_result_os_path_utf16_utf16_inner =
+                                vm_result_os_path_utf16_utf16_inner_builder.finish()?;
                             let vm_result_os_path_utf16_utf16 =
                                 platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(
                                     vm_result_os_path_utf16_utf16_inner,
@@ -22217,18 +22217,18 @@ fn destack_fs_path_realpath_vm_replay(
                             let vm_result_os_path_utf16_kind = context
                                 .string_handle(value.kind.as_str())
                                 .map_err(Box::<RuntimeError>::from)?;
-                            let mut vm_result_os_path_utf16_utf16_inner_values =
-                                Vec::with_capacity(value.utf16.len());
+                            let mut vm_result_os_path_utf16_utf16_inner_builder =
+                                VmArray::<u16>::builder(context, value.utf16.len())?;
                             for vm_result_os_path_utf16_utf16_inner_item in value.utf16 {
                                 let vm_result_os_path_utf16_utf16_inner_item_value =
                                     vm_result_os_path_utf16_utf16_inner_item;
-                                vm_result_os_path_utf16_utf16_inner_values
-                                    .push(vm_result_os_path_utf16_utf16_inner_item_value);
+                                vm_result_os_path_utf16_utf16_inner_builder.push(
+                                    context,
+                                    vm_result_os_path_utf16_utf16_inner_item_value,
+                                )?;
                             }
-                            let vm_result_os_path_utf16_utf16_inner = VmArray::from_values(
-                                context,
-                                &vm_result_os_path_utf16_utf16_inner_values,
-                            )?;
+                            let vm_result_os_path_utf16_utf16_inner =
+                                vm_result_os_path_utf16_utf16_inner_builder.finish()?;
                             let vm_result_os_path_utf16_utf16 =
                                 platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(
                                     vm_result_os_path_utf16_utf16_inner,
@@ -23832,7 +23832,7 @@ fn destack_fs_watch_open_read_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_events_values = Vec::with_capacity(value.events.len());
+                    let mut vm_result_events_builder = VmArray::<WatchEventVm>::builder(context, value.events.len())?;
                     for vm_result_events_item in value.events {
                         let vm_result_events_item_value = match vm_result_events_item {
                             WatcheventReplayRecord::WatchCreateEvent(value) => {
@@ -23854,12 +23854,12 @@ fn destack_fs_watch_open_read_vm_replay(
                                     }
                                     OspathReplayRecord::OsPathUtf16(value) => {
                                         let vm_result_events_item_value_watch_create_event_path_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                        let mut vm_result_events_item_value_watch_create_event_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
+                                        let mut vm_result_events_item_value_watch_create_event_path_os_path_utf16_utf16_inner_builder = VmArray::<u16>::builder(context, value.utf16.len())?;
                                         for vm_result_events_item_value_watch_create_event_path_os_path_utf16_utf16_inner_item in value.utf16 {
                                             let vm_result_events_item_value_watch_create_event_path_os_path_utf16_utf16_inner_item_value = vm_result_events_item_value_watch_create_event_path_os_path_utf16_utf16_inner_item;
-                                            vm_result_events_item_value_watch_create_event_path_os_path_utf16_utf16_inner_values.push(vm_result_events_item_value_watch_create_event_path_os_path_utf16_utf16_inner_item_value);
+                                            vm_result_events_item_value_watch_create_event_path_os_path_utf16_utf16_inner_builder.push(context, vm_result_events_item_value_watch_create_event_path_os_path_utf16_utf16_inner_item_value)?;
                                         }
-                                        let vm_result_events_item_value_watch_create_event_path_os_path_utf16_utf16_inner = VmArray::from_values(context, &vm_result_events_item_value_watch_create_event_path_os_path_utf16_utf16_inner_values)?;
+                                        let vm_result_events_item_value_watch_create_event_path_os_path_utf16_utf16_inner = vm_result_events_item_value_watch_create_event_path_os_path_utf16_utf16_inner_builder.finish()?;
                                         let vm_result_events_item_value_watch_create_event_path_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_events_item_value_watch_create_event_path_os_path_utf16_utf16_inner);
                                         let vm_result_events_item_value_watch_create_event_path_os_path_utf16 = OsPathUtf16Vm {
                                             kind: vm_result_events_item_value_watch_create_event_path_os_path_utf16_kind,
@@ -23894,12 +23894,12 @@ fn destack_fs_watch_open_read_vm_replay(
                                     }
                                     OspathReplayRecord::OsPathUtf16(value) => {
                                         let vm_result_events_item_value_watch_metadata_event_path_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                        let mut vm_result_events_item_value_watch_metadata_event_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
+                                        let mut vm_result_events_item_value_watch_metadata_event_path_os_path_utf16_utf16_inner_builder = VmArray::<u16>::builder(context, value.utf16.len())?;
                                         for vm_result_events_item_value_watch_metadata_event_path_os_path_utf16_utf16_inner_item in value.utf16 {
                                             let vm_result_events_item_value_watch_metadata_event_path_os_path_utf16_utf16_inner_item_value = vm_result_events_item_value_watch_metadata_event_path_os_path_utf16_utf16_inner_item;
-                                            vm_result_events_item_value_watch_metadata_event_path_os_path_utf16_utf16_inner_values.push(vm_result_events_item_value_watch_metadata_event_path_os_path_utf16_utf16_inner_item_value);
+                                            vm_result_events_item_value_watch_metadata_event_path_os_path_utf16_utf16_inner_builder.push(context, vm_result_events_item_value_watch_metadata_event_path_os_path_utf16_utf16_inner_item_value)?;
                                         }
-                                        let vm_result_events_item_value_watch_metadata_event_path_os_path_utf16_utf16_inner = VmArray::from_values(context, &vm_result_events_item_value_watch_metadata_event_path_os_path_utf16_utf16_inner_values)?;
+                                        let vm_result_events_item_value_watch_metadata_event_path_os_path_utf16_utf16_inner = vm_result_events_item_value_watch_metadata_event_path_os_path_utf16_utf16_inner_builder.finish()?;
                                         let vm_result_events_item_value_watch_metadata_event_path_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_events_item_value_watch_metadata_event_path_os_path_utf16_utf16_inner);
                                         let vm_result_events_item_value_watch_metadata_event_path_os_path_utf16 = OsPathUtf16Vm {
                                             kind: vm_result_events_item_value_watch_metadata_event_path_os_path_utf16_kind,
@@ -23934,12 +23934,12 @@ fn destack_fs_watch_open_read_vm_replay(
                                     }
                                     OspathReplayRecord::OsPathUtf16(value) => {
                                         let vm_result_events_item_value_watch_modify_event_path_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                        let mut vm_result_events_item_value_watch_modify_event_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
+                                        let mut vm_result_events_item_value_watch_modify_event_path_os_path_utf16_utf16_inner_builder = VmArray::<u16>::builder(context, value.utf16.len())?;
                                         for vm_result_events_item_value_watch_modify_event_path_os_path_utf16_utf16_inner_item in value.utf16 {
                                             let vm_result_events_item_value_watch_modify_event_path_os_path_utf16_utf16_inner_item_value = vm_result_events_item_value_watch_modify_event_path_os_path_utf16_utf16_inner_item;
-                                            vm_result_events_item_value_watch_modify_event_path_os_path_utf16_utf16_inner_values.push(vm_result_events_item_value_watch_modify_event_path_os_path_utf16_utf16_inner_item_value);
+                                            vm_result_events_item_value_watch_modify_event_path_os_path_utf16_utf16_inner_builder.push(context, vm_result_events_item_value_watch_modify_event_path_os_path_utf16_utf16_inner_item_value)?;
                                         }
-                                        let vm_result_events_item_value_watch_modify_event_path_os_path_utf16_utf16_inner = VmArray::from_values(context, &vm_result_events_item_value_watch_modify_event_path_os_path_utf16_utf16_inner_values)?;
+                                        let vm_result_events_item_value_watch_modify_event_path_os_path_utf16_utf16_inner = vm_result_events_item_value_watch_modify_event_path_os_path_utf16_utf16_inner_builder.finish()?;
                                         let vm_result_events_item_value_watch_modify_event_path_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_events_item_value_watch_modify_event_path_os_path_utf16_utf16_inner);
                                         let vm_result_events_item_value_watch_modify_event_path_os_path_utf16 = OsPathUtf16Vm {
                                             kind: vm_result_events_item_value_watch_modify_event_path_os_path_utf16_kind,
@@ -23986,12 +23986,12 @@ fn destack_fs_watch_open_read_vm_replay(
                                     }
                                     OspathReplayRecord::OsPathUtf16(value) => {
                                         let vm_result_events_item_value_watch_remove_event_path_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                        let mut vm_result_events_item_value_watch_remove_event_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
+                                        let mut vm_result_events_item_value_watch_remove_event_path_os_path_utf16_utf16_inner_builder = VmArray::<u16>::builder(context, value.utf16.len())?;
                                         for vm_result_events_item_value_watch_remove_event_path_os_path_utf16_utf16_inner_item in value.utf16 {
                                             let vm_result_events_item_value_watch_remove_event_path_os_path_utf16_utf16_inner_item_value = vm_result_events_item_value_watch_remove_event_path_os_path_utf16_utf16_inner_item;
-                                            vm_result_events_item_value_watch_remove_event_path_os_path_utf16_utf16_inner_values.push(vm_result_events_item_value_watch_remove_event_path_os_path_utf16_utf16_inner_item_value);
+                                            vm_result_events_item_value_watch_remove_event_path_os_path_utf16_utf16_inner_builder.push(context, vm_result_events_item_value_watch_remove_event_path_os_path_utf16_utf16_inner_item_value)?;
                                         }
-                                        let vm_result_events_item_value_watch_remove_event_path_os_path_utf16_utf16_inner = VmArray::from_values(context, &vm_result_events_item_value_watch_remove_event_path_os_path_utf16_utf16_inner_values)?;
+                                        let vm_result_events_item_value_watch_remove_event_path_os_path_utf16_utf16_inner = vm_result_events_item_value_watch_remove_event_path_os_path_utf16_utf16_inner_builder.finish()?;
                                         let vm_result_events_item_value_watch_remove_event_path_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_events_item_value_watch_remove_event_path_os_path_utf16_utf16_inner);
                                         let vm_result_events_item_value_watch_remove_event_path_os_path_utf16 = OsPathUtf16Vm {
                                             kind: vm_result_events_item_value_watch_remove_event_path_os_path_utf16_kind,
@@ -24026,12 +24026,12 @@ fn destack_fs_watch_open_read_vm_replay(
                                     }
                                     OspathReplayRecord::OsPathUtf16(value) => {
                                         let vm_result_events_item_value_watch_rename_event_path_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                        let mut vm_result_events_item_value_watch_rename_event_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
+                                        let mut vm_result_events_item_value_watch_rename_event_path_os_path_utf16_utf16_inner_builder = VmArray::<u16>::builder(context, value.utf16.len())?;
                                         for vm_result_events_item_value_watch_rename_event_path_os_path_utf16_utf16_inner_item in value.utf16 {
                                             let vm_result_events_item_value_watch_rename_event_path_os_path_utf16_utf16_inner_item_value = vm_result_events_item_value_watch_rename_event_path_os_path_utf16_utf16_inner_item;
-                                            vm_result_events_item_value_watch_rename_event_path_os_path_utf16_utf16_inner_values.push(vm_result_events_item_value_watch_rename_event_path_os_path_utf16_utf16_inner_item_value);
+                                            vm_result_events_item_value_watch_rename_event_path_os_path_utf16_utf16_inner_builder.push(context, vm_result_events_item_value_watch_rename_event_path_os_path_utf16_utf16_inner_item_value)?;
                                         }
-                                        let vm_result_events_item_value_watch_rename_event_path_os_path_utf16_utf16_inner = VmArray::from_values(context, &vm_result_events_item_value_watch_rename_event_path_os_path_utf16_utf16_inner_values)?;
+                                        let vm_result_events_item_value_watch_rename_event_path_os_path_utf16_utf16_inner = vm_result_events_item_value_watch_rename_event_path_os_path_utf16_utf16_inner_builder.finish()?;
                                         let vm_result_events_item_value_watch_rename_event_path_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_events_item_value_watch_rename_event_path_os_path_utf16_utf16_inner);
                                         let vm_result_events_item_value_watch_rename_event_path_os_path_utf16 = OsPathUtf16Vm {
                                             kind: vm_result_events_item_value_watch_rename_event_path_os_path_utf16_kind,
@@ -24053,12 +24053,12 @@ fn destack_fs_watch_open_read_vm_replay(
                                     }
                                     OspathReplayRecord::OsPathUtf16(value) => {
                                         let vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                        let mut vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
+                                        let mut vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16_utf16_inner_builder = VmArray::<u16>::builder(context, value.utf16.len())?;
                                         for vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16_utf16_inner_item in value.utf16 {
                                             let vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16_utf16_inner_item_value = vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16_utf16_inner_item;
-                                            vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16_utf16_inner_values.push(vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16_utf16_inner_item_value);
+                                            vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16_utf16_inner_builder.push(context, vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16_utf16_inner_item_value)?;
                                         }
-                                        let vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16_utf16_inner = VmArray::from_values(context, &vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16_utf16_inner_values)?;
+                                        let vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16_utf16_inner = vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16_utf16_inner_builder.finish()?;
                                         let vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16_utf16_inner);
                                         let vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16 = OsPathUtf16Vm {
                                             kind: vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16_kind,
@@ -24076,9 +24076,9 @@ fn destack_fs_watch_open_read_vm_replay(
                                 WatchEventVm::WatchRenameEvent(vm_result_events_item_value_watch_rename_event)
                             }
                         };
-                        vm_result_events_values.push(vm_result_events_item_value);
+                        vm_result_events_builder.push(context, vm_result_events_item_value)?;
                     }
-                    let vm_result_events = VmArray::from_values(context, &vm_result_events_values)?;
+                    let vm_result_events = vm_result_events_builder.finish()?;
                     let vm_result_overflowed = value.overflowed;
                     let vm_result = WatchBatchVm {
                         events: vm_result_events,
@@ -24321,14 +24321,15 @@ fn destack_fs_xattr_flistxattr_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmArray::<vm::StringHandle>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value = context
                             .string_handle(vm_result_item.as_str())
                             .map_err(Box::<RuntimeError>::from)?;
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmArray::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -24395,13 +24396,14 @@ fn destack_fs_xattr_flistxattr_bytes_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmArray::<VmArray<u8>>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value =
                             VmArray::<u8>::from_bytes(context, vm_result_item.as_ref())?;
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmArray::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -24923,14 +24925,15 @@ fn destack_fs_xattr_listxattr_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmArray::<vm::StringHandle>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value = context
                             .string_handle(vm_result_item.as_str())
                             .map_err(Box::<RuntimeError>::from)?;
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmArray::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -24995,13 +24998,14 @@ fn destack_fs_xattr_listxattr_bytes_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmArray::<VmArray<u8>>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value =
                             VmArray::<u8>::from_bytes(context, vm_result_item.as_ref())?;
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmArray::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -25071,14 +25075,15 @@ fn destack_fs_xattr_llistxattr_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmArray::<vm::StringHandle>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value = context
                             .string_handle(vm_result_item.as_str())
                             .map_err(Box::<RuntimeError>::from)?;
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmArray::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -25143,13 +25148,14 @@ fn destack_fs_xattr_llistxattr_bytes_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmArray::<VmArray<u8>>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value =
                             VmArray::<u8>::from_bytes(context, vm_result_item.as_ref())?;
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmArray::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),

@@ -21463,10 +21463,10 @@ fn destack_input_clipboard_list_items_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder = VmSlice::<ClipboardItemDescriptorVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value_presentation_style = vm_result_item.presentation_style;
-                        let mut vm_result_item_value_representations_values = Vec::with_capacity(vm_result_item.representations.len());
+                        let mut vm_result_item_value_representations_builder = VmSlice::<ClipboardItemRepresentationDescriptorVm>::builder(context, vm_result_item.representations.len())?;
                         for vm_result_item_value_representations_item in vm_result_item.representations {
                             let vm_result_item_value_representations_item_value_mime_type = context.string_handle(vm_result_item_value_representations_item.mime_type.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_item_value_representations_item_value_kind = vm_result_item_value_representations_item.kind;
@@ -21490,16 +21490,16 @@ fn destack_input_clipboard_list_items_vm_replay(
                                 is_directory: vm_result_item_value_representations_item_value_is_directory,
                                 byte_length: vm_result_item_value_representations_item_value_byte_length,
                             };
-                            vm_result_item_value_representations_values.push(vm_result_item_value_representations_item_value);
+                            vm_result_item_value_representations_builder.push(context, vm_result_item_value_representations_item_value)?;
                         }
-                        let vm_result_item_value_representations = VmSlice::from_values(context, &vm_result_item_value_representations_values)?;
+                        let vm_result_item_value_representations = vm_result_item_value_representations_builder.finish()?;
                         let vm_result_item_value = ClipboardItemDescriptorVm {
                             presentation_style: vm_result_item_value_presentation_style,
                             representations: vm_result_item_value_representations,
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -21700,18 +21700,18 @@ fn destack_input_clipboard_read_item_path_vm_replay(
                             let vm_result_os_path_utf16_kind = context
                                 .string_handle(value.kind.as_str())
                                 .map_err(Box::<RuntimeError>::from)?;
-                            let mut vm_result_os_path_utf16_utf16_inner_values =
-                                Vec::with_capacity(value.utf16.len());
+                            let mut vm_result_os_path_utf16_utf16_inner_builder =
+                                VmArray::<u16>::builder(context, value.utf16.len())?;
                             for vm_result_os_path_utf16_utf16_inner_item in value.utf16 {
                                 let vm_result_os_path_utf16_utf16_inner_item_value =
                                     vm_result_os_path_utf16_utf16_inner_item;
-                                vm_result_os_path_utf16_utf16_inner_values
-                                    .push(vm_result_os_path_utf16_utf16_inner_item_value);
+                                vm_result_os_path_utf16_utf16_inner_builder.push(
+                                    context,
+                                    vm_result_os_path_utf16_utf16_inner_item_value,
+                                )?;
                             }
-                            let vm_result_os_path_utf16_utf16_inner = VmArray::from_values(
-                                context,
-                                &vm_result_os_path_utf16_utf16_inner_values,
-                            )?;
+                            let vm_result_os_path_utf16_utf16_inner =
+                                vm_result_os_path_utf16_utf16_inner_builder.finish()?;
                             let vm_result_os_path_utf16_utf16 =
                                 platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(
                                     vm_result_os_path_utf16_utf16_inner,
@@ -22087,13 +22087,15 @@ fn destack_input_device_capabilities_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_kinds_values = Vec::with_capacity(value.kinds.len());
+                    let mut vm_result_kinds_builder =
+                        VmArray::<InputDeviceCapabilityKind>::builder(context, value.kinds.len())?;
                     for vm_result_kinds_item in value.kinds {
                         let vm_result_kinds_item_value = vm_result_kinds_item;
-                        vm_result_kinds_values.push(vm_result_kinds_item_value);
+                        vm_result_kinds_builder.push(context, vm_result_kinds_item_value)?;
                     }
-                    let vm_result_kinds = VmArray::from_values(context, &vm_result_kinds_values)?;
-                    let mut vm_result_axes_values = Vec::with_capacity(value.axes.len());
+                    let vm_result_kinds = vm_result_kinds_builder.finish()?;
+                    let mut vm_result_axes_builder =
+                        VmArray::<InputAxisMetadataVm>::builder(context, value.axes.len())?;
                     for vm_result_axes_item in value.axes {
                         let vm_result_axes_item_value_code = vm_result_axes_item.code;
                         let vm_result_axes_item_value_minimum = vm_result_axes_item.minimum;
@@ -22109,10 +22111,11 @@ fn destack_input_device_capabilities_vm_replay(
                             fuzz: vm_result_axes_item_value_fuzz,
                             resolution: vm_result_axes_item_value_resolution,
                         };
-                        vm_result_axes_values.push(vm_result_axes_item_value);
+                        vm_result_axes_builder.push(context, vm_result_axes_item_value)?;
                     }
-                    let vm_result_axes = VmArray::from_values(context, &vm_result_axes_values)?;
-                    let mut vm_result_buttons_values = Vec::with_capacity(value.buttons.len());
+                    let vm_result_axes = vm_result_axes_builder.finish()?;
+                    let mut vm_result_buttons_builder =
+                        VmArray::<InputButtonMetadataVm>::builder(context, value.buttons.len())?;
                     for vm_result_buttons_item in value.buttons {
                         let vm_result_buttons_item_value_code = vm_result_buttons_item.code;
                         let vm_result_buttons_item_value_analog = vm_result_buttons_item.analog;
@@ -22120,10 +22123,9 @@ fn destack_input_device_capabilities_vm_replay(
                             code: vm_result_buttons_item_value_code,
                             analog: vm_result_buttons_item_value_analog,
                         };
-                        vm_result_buttons_values.push(vm_result_buttons_item_value);
+                        vm_result_buttons_builder.push(context, vm_result_buttons_item_value)?;
                     }
-                    let vm_result_buttons =
-                        VmArray::from_values(context, &vm_result_buttons_values)?;
+                    let vm_result_buttons = vm_result_buttons_builder.finish()?;
                     let vm_result_metadata_origin = value.metadata_origin;
                     let vm_result_axis_metadata_fidelity = value.axis_metadata_fidelity;
                     let vm_result_button_metadata_fidelity = value.button_metadata_fidelity;
@@ -22410,7 +22412,8 @@ fn destack_input_device_list_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmSlice::<InputDeviceDescriptorVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value_id = context
                             .string_handle(vm_result_item.id.as_str())
@@ -22496,9 +22499,9 @@ fn destack_input_device_list_vm_replay(
                             is_virtual: vm_result_item_value_is_virtual,
                             is_system: vm_result_item_value_is_system,
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -24524,7 +24527,7 @@ fn destack_input_event_read_vm_replay(
                             } else {
                                 None
                             };
-                            let mut vm_result_input_pointer_motion_event_payload_coalesced_samples_values = Vec::with_capacity(value.payload.coalesced_samples.len());
+                            let mut vm_result_input_pointer_motion_event_payload_coalesced_samples_builder = VmSlice::<InputPointerMotionSampleVm>::builder(context, value.payload.coalesced_samples.len())?;
                             for vm_result_input_pointer_motion_event_payload_coalesced_samples_item in value.payload.coalesced_samples {
                                 let vm_result_input_pointer_motion_event_payload_coalesced_samples_item_value_coordinate_space = vm_result_input_pointer_motion_event_payload_coalesced_samples_item.coordinate_space;
                                 let vm_result_input_pointer_motion_event_payload_coalesced_samples_item_value_position_x = vm_result_input_pointer_motion_event_payload_coalesced_samples_item.position_x;
@@ -24597,10 +24600,10 @@ fn destack_input_event_read_vm_replay(
                                     pen: vm_result_input_pointer_motion_event_payload_coalesced_samples_item_value_pen,
                                     timestamp_ns: vm_result_input_pointer_motion_event_payload_coalesced_samples_item_value_timestamp_ns,
                                 };
-                                vm_result_input_pointer_motion_event_payload_coalesced_samples_values.push(vm_result_input_pointer_motion_event_payload_coalesced_samples_item_value);
+                                vm_result_input_pointer_motion_event_payload_coalesced_samples_builder.push(context, vm_result_input_pointer_motion_event_payload_coalesced_samples_item_value)?;
                             }
-                            let vm_result_input_pointer_motion_event_payload_coalesced_samples = VmSlice::from_values(context, &vm_result_input_pointer_motion_event_payload_coalesced_samples_values)?;
-                            let mut vm_result_input_pointer_motion_event_payload_predicted_samples_values = Vec::with_capacity(value.payload.predicted_samples.len());
+                            let vm_result_input_pointer_motion_event_payload_coalesced_samples = vm_result_input_pointer_motion_event_payload_coalesced_samples_builder.finish()?;
+                            let mut vm_result_input_pointer_motion_event_payload_predicted_samples_builder = VmSlice::<InputPointerMotionSampleVm>::builder(context, value.payload.predicted_samples.len())?;
                             for vm_result_input_pointer_motion_event_payload_predicted_samples_item in value.payload.predicted_samples {
                                 let vm_result_input_pointer_motion_event_payload_predicted_samples_item_value_coordinate_space = vm_result_input_pointer_motion_event_payload_predicted_samples_item.coordinate_space;
                                 let vm_result_input_pointer_motion_event_payload_predicted_samples_item_value_position_x = vm_result_input_pointer_motion_event_payload_predicted_samples_item.position_x;
@@ -24673,9 +24676,9 @@ fn destack_input_event_read_vm_replay(
                                     pen: vm_result_input_pointer_motion_event_payload_predicted_samples_item_value_pen,
                                     timestamp_ns: vm_result_input_pointer_motion_event_payload_predicted_samples_item_value_timestamp_ns,
                                 };
-                                vm_result_input_pointer_motion_event_payload_predicted_samples_values.push(vm_result_input_pointer_motion_event_payload_predicted_samples_item_value);
+                                vm_result_input_pointer_motion_event_payload_predicted_samples_builder.push(context, vm_result_input_pointer_motion_event_payload_predicted_samples_item_value)?;
                             }
-                            let vm_result_input_pointer_motion_event_payload_predicted_samples = VmSlice::from_values(context, &vm_result_input_pointer_motion_event_payload_predicted_samples_values)?;
+                            let vm_result_input_pointer_motion_event_payload_predicted_samples = vm_result_input_pointer_motion_event_payload_predicted_samples_builder.finish()?;
                             let vm_result_input_pointer_motion_event_payload = InputPointerMotionEventPayloadVm {
                                 pointer_id: vm_result_input_pointer_motion_event_payload_pointer_id,
                                 pointer_type: vm_result_input_pointer_motion_event_payload_pointer_type,
@@ -25863,7 +25866,7 @@ fn destack_input_event_read_batch_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder = VmArray::<InputEventVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value = match vm_result_item {
                             InputeventReplayRecord::InputCompositionEvent(value) => {
@@ -26297,7 +26300,7 @@ fn destack_input_event_read_batch_vm_replay(
                                 } else {
                                     None
                                 };
-                                let mut vm_result_item_value_input_pointer_motion_event_payload_coalesced_samples_values = Vec::with_capacity(value.payload.coalesced_samples.len());
+                                let mut vm_result_item_value_input_pointer_motion_event_payload_coalesced_samples_builder = VmSlice::<InputPointerMotionSampleVm>::builder(context, value.payload.coalesced_samples.len())?;
                                 for vm_result_item_value_input_pointer_motion_event_payload_coalesced_samples_item in value.payload.coalesced_samples {
                                     let vm_result_item_value_input_pointer_motion_event_payload_coalesced_samples_item_value_coordinate_space = vm_result_item_value_input_pointer_motion_event_payload_coalesced_samples_item.coordinate_space;
                                     let vm_result_item_value_input_pointer_motion_event_payload_coalesced_samples_item_value_position_x = vm_result_item_value_input_pointer_motion_event_payload_coalesced_samples_item.position_x;
@@ -26370,10 +26373,10 @@ fn destack_input_event_read_batch_vm_replay(
                                         pen: vm_result_item_value_input_pointer_motion_event_payload_coalesced_samples_item_value_pen,
                                         timestamp_ns: vm_result_item_value_input_pointer_motion_event_payload_coalesced_samples_item_value_timestamp_ns,
                                     };
-                                    vm_result_item_value_input_pointer_motion_event_payload_coalesced_samples_values.push(vm_result_item_value_input_pointer_motion_event_payload_coalesced_samples_item_value);
+                                    vm_result_item_value_input_pointer_motion_event_payload_coalesced_samples_builder.push(context, vm_result_item_value_input_pointer_motion_event_payload_coalesced_samples_item_value)?;
                                 }
-                                let vm_result_item_value_input_pointer_motion_event_payload_coalesced_samples = VmSlice::from_values(context, &vm_result_item_value_input_pointer_motion_event_payload_coalesced_samples_values)?;
-                                let mut vm_result_item_value_input_pointer_motion_event_payload_predicted_samples_values = Vec::with_capacity(value.payload.predicted_samples.len());
+                                let vm_result_item_value_input_pointer_motion_event_payload_coalesced_samples = vm_result_item_value_input_pointer_motion_event_payload_coalesced_samples_builder.finish()?;
+                                let mut vm_result_item_value_input_pointer_motion_event_payload_predicted_samples_builder = VmSlice::<InputPointerMotionSampleVm>::builder(context, value.payload.predicted_samples.len())?;
                                 for vm_result_item_value_input_pointer_motion_event_payload_predicted_samples_item in value.payload.predicted_samples {
                                     let vm_result_item_value_input_pointer_motion_event_payload_predicted_samples_item_value_coordinate_space = vm_result_item_value_input_pointer_motion_event_payload_predicted_samples_item.coordinate_space;
                                     let vm_result_item_value_input_pointer_motion_event_payload_predicted_samples_item_value_position_x = vm_result_item_value_input_pointer_motion_event_payload_predicted_samples_item.position_x;
@@ -26446,9 +26449,9 @@ fn destack_input_event_read_batch_vm_replay(
                                         pen: vm_result_item_value_input_pointer_motion_event_payload_predicted_samples_item_value_pen,
                                         timestamp_ns: vm_result_item_value_input_pointer_motion_event_payload_predicted_samples_item_value_timestamp_ns,
                                     };
-                                    vm_result_item_value_input_pointer_motion_event_payload_predicted_samples_values.push(vm_result_item_value_input_pointer_motion_event_payload_predicted_samples_item_value);
+                                    vm_result_item_value_input_pointer_motion_event_payload_predicted_samples_builder.push(context, vm_result_item_value_input_pointer_motion_event_payload_predicted_samples_item_value)?;
                                 }
-                                let vm_result_item_value_input_pointer_motion_event_payload_predicted_samples = VmSlice::from_values(context, &vm_result_item_value_input_pointer_motion_event_payload_predicted_samples_values)?;
+                                let vm_result_item_value_input_pointer_motion_event_payload_predicted_samples = vm_result_item_value_input_pointer_motion_event_payload_predicted_samples_builder.finish()?;
                                 let vm_result_item_value_input_pointer_motion_event_payload = InputPointerMotionEventPayloadVm {
                                     pointer_id: vm_result_item_value_input_pointer_motion_event_payload_pointer_id,
                                     pointer_type: vm_result_item_value_input_pointer_motion_event_payload_pointer_type,
@@ -26683,9 +26686,9 @@ fn destack_input_event_read_batch_vm_replay(
                                 InputEventVm::InputTouchEvent(vm_result_item_value_input_touch_event)
                             }
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmArray::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -28166,7 +28169,7 @@ fn destack_input_event_try_read_vm_replay(
                             } else {
                                 None
                             };
-                            let mut vm_result_input_pointer_motion_event_payload_coalesced_samples_values = Vec::with_capacity(value.payload.coalesced_samples.len());
+                            let mut vm_result_input_pointer_motion_event_payload_coalesced_samples_builder = VmSlice::<InputPointerMotionSampleVm>::builder(context, value.payload.coalesced_samples.len())?;
                             for vm_result_input_pointer_motion_event_payload_coalesced_samples_item in value.payload.coalesced_samples {
                                 let vm_result_input_pointer_motion_event_payload_coalesced_samples_item_value_coordinate_space = vm_result_input_pointer_motion_event_payload_coalesced_samples_item.coordinate_space;
                                 let vm_result_input_pointer_motion_event_payload_coalesced_samples_item_value_position_x = vm_result_input_pointer_motion_event_payload_coalesced_samples_item.position_x;
@@ -28239,10 +28242,10 @@ fn destack_input_event_try_read_vm_replay(
                                     pen: vm_result_input_pointer_motion_event_payload_coalesced_samples_item_value_pen,
                                     timestamp_ns: vm_result_input_pointer_motion_event_payload_coalesced_samples_item_value_timestamp_ns,
                                 };
-                                vm_result_input_pointer_motion_event_payload_coalesced_samples_values.push(vm_result_input_pointer_motion_event_payload_coalesced_samples_item_value);
+                                vm_result_input_pointer_motion_event_payload_coalesced_samples_builder.push(context, vm_result_input_pointer_motion_event_payload_coalesced_samples_item_value)?;
                             }
-                            let vm_result_input_pointer_motion_event_payload_coalesced_samples = VmSlice::from_values(context, &vm_result_input_pointer_motion_event_payload_coalesced_samples_values)?;
-                            let mut vm_result_input_pointer_motion_event_payload_predicted_samples_values = Vec::with_capacity(value.payload.predicted_samples.len());
+                            let vm_result_input_pointer_motion_event_payload_coalesced_samples = vm_result_input_pointer_motion_event_payload_coalesced_samples_builder.finish()?;
+                            let mut vm_result_input_pointer_motion_event_payload_predicted_samples_builder = VmSlice::<InputPointerMotionSampleVm>::builder(context, value.payload.predicted_samples.len())?;
                             for vm_result_input_pointer_motion_event_payload_predicted_samples_item in value.payload.predicted_samples {
                                 let vm_result_input_pointer_motion_event_payload_predicted_samples_item_value_coordinate_space = vm_result_input_pointer_motion_event_payload_predicted_samples_item.coordinate_space;
                                 let vm_result_input_pointer_motion_event_payload_predicted_samples_item_value_position_x = vm_result_input_pointer_motion_event_payload_predicted_samples_item.position_x;
@@ -28315,9 +28318,9 @@ fn destack_input_event_try_read_vm_replay(
                                     pen: vm_result_input_pointer_motion_event_payload_predicted_samples_item_value_pen,
                                     timestamp_ns: vm_result_input_pointer_motion_event_payload_predicted_samples_item_value_timestamp_ns,
                                 };
-                                vm_result_input_pointer_motion_event_payload_predicted_samples_values.push(vm_result_input_pointer_motion_event_payload_predicted_samples_item_value);
+                                vm_result_input_pointer_motion_event_payload_predicted_samples_builder.push(context, vm_result_input_pointer_motion_event_payload_predicted_samples_item_value)?;
                             }
-                            let vm_result_input_pointer_motion_event_payload_predicted_samples = VmSlice::from_values(context, &vm_result_input_pointer_motion_event_payload_predicted_samples_values)?;
+                            let vm_result_input_pointer_motion_event_payload_predicted_samples = vm_result_input_pointer_motion_event_payload_predicted_samples_builder.finish()?;
                             let vm_result_input_pointer_motion_event_payload = InputPointerMotionEventPayloadVm {
                                 pointer_id: vm_result_input_pointer_motion_event_payload_pointer_id,
                                 pointer_type: vm_result_input_pointer_motion_event_payload_pointer_type,
@@ -29097,13 +29100,18 @@ fn destack_input_gamepad_state_vm_replay(
                         } else {
                             None
                         };
-                    let mut vm_result_axes_values = Vec::with_capacity(value.axes.len());
+                    let mut vm_result_axes_builder =
+                        VmArray::<f64>::builder(context, value.axes.len())?;
                     for vm_result_axes_item in value.axes {
                         let vm_result_axes_item_value = vm_result_axes_item;
-                        vm_result_axes_values.push(vm_result_axes_item_value);
+                        vm_result_axes_builder.push(context, vm_result_axes_item_value)?;
                     }
-                    let vm_result_axes = VmArray::from_values(context, &vm_result_axes_values)?;
-                    let mut vm_result_buttons_values = Vec::with_capacity(value.buttons.len());
+                    let vm_result_axes = vm_result_axes_builder.finish()?;
+                    let mut vm_result_buttons_builder =
+                        VmArray::<InputGamepadButtonStateVm>::builder(
+                            context,
+                            value.buttons.len(),
+                        )?;
                     for vm_result_buttons_item in value.buttons {
                         let vm_result_buttons_item_value_pressed = vm_result_buttons_item.pressed;
                         let vm_result_buttons_item_value_touched = vm_result_buttons_item.touched;
@@ -29113,11 +29121,11 @@ fn destack_input_gamepad_state_vm_replay(
                             touched: vm_result_buttons_item_value_touched,
                             value: vm_result_buttons_item_value_value,
                         };
-                        vm_result_buttons_values.push(vm_result_buttons_item_value);
+                        vm_result_buttons_builder.push(context, vm_result_buttons_item_value)?;
                     }
-                    let vm_result_buttons =
-                        VmArray::from_values(context, &vm_result_buttons_values)?;
-                    let mut vm_result_touches_values = Vec::with_capacity(value.touches.len());
+                    let vm_result_buttons = vm_result_buttons_builder.finish()?;
+                    let mut vm_result_touches_builder =
+                        VmArray::<InputGamepadTouchStateVm>::builder(context, value.touches.len())?;
                     for vm_result_touches_item in value.touches {
                         let vm_result_touches_item_value_touch_id = vm_result_touches_item.touch_id;
                         let vm_result_touches_item_value_surface_id =
@@ -29132,10 +29140,9 @@ fn destack_input_gamepad_state_vm_replay(
                             y: vm_result_touches_item_value_y,
                             pressure: vm_result_touches_item_value_pressure,
                         };
-                        vm_result_touches_values.push(vm_result_touches_item_value);
+                        vm_result_touches_builder.push(context, vm_result_touches_item_value)?;
                     }
-                    let vm_result_touches =
-                        VmArray::from_values(context, &vm_result_touches_values)?;
+                    let vm_result_touches = vm_result_touches_builder.finish()?;
                     let vm_result_motion = if let Some(value) = value.motion {
                         let vm_result_motion_inner_timestamp_ns = value.timestamp_ns;
                         let vm_result_motion_inner_acceleration_x = value.acceleration_x;
@@ -29264,12 +29271,13 @@ fn destack_input_haptics_effects_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmArray::<InputHapticEffectType>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value = vm_result_item;
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmArray::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -29801,46 +29809,46 @@ fn destack_input_keyboard_state_vm_replay(
                         is_symbol: vm_result_modifier_state_is_symbol,
                         is_symbol_lock: vm_result_modifier_state_is_symbol_lock,
                     };
-                    let mut vm_result_pressed_codes_values =
-                        Vec::with_capacity(value.pressed_codes.len());
+                    let mut vm_result_pressed_codes_builder =
+                        VmArray::<vm::StringHandle>::builder(context, value.pressed_codes.len())?;
                     for vm_result_pressed_codes_item in value.pressed_codes {
                         let vm_result_pressed_codes_item_value = context
                             .string_handle(vm_result_pressed_codes_item.as_str())
                             .map_err(Box::<RuntimeError>::from)?;
-                        vm_result_pressed_codes_values.push(vm_result_pressed_codes_item_value);
+                        vm_result_pressed_codes_builder
+                            .push(context, vm_result_pressed_codes_item_value)?;
                     }
-                    let vm_result_pressed_codes =
-                        VmArray::from_values(context, &vm_result_pressed_codes_values)?;
-                    let mut vm_result_pressed_keys_values =
-                        Vec::with_capacity(value.pressed_keys.len());
+                    let vm_result_pressed_codes = vm_result_pressed_codes_builder.finish()?;
+                    let mut vm_result_pressed_keys_builder =
+                        VmArray::<vm::StringHandle>::builder(context, value.pressed_keys.len())?;
                     for vm_result_pressed_keys_item in value.pressed_keys {
                         let vm_result_pressed_keys_item_value = context
                             .string_handle(vm_result_pressed_keys_item.as_str())
                             .map_err(Box::<RuntimeError>::from)?;
-                        vm_result_pressed_keys_values.push(vm_result_pressed_keys_item_value);
+                        vm_result_pressed_keys_builder
+                            .push(context, vm_result_pressed_keys_item_value)?;
                     }
-                    let vm_result_pressed_keys =
-                        VmArray::from_values(context, &vm_result_pressed_keys_values)?;
-                    let mut vm_result_pressed_backend_codes_values =
-                        Vec::with_capacity(value.pressed_backend_codes.len());
+                    let vm_result_pressed_keys = vm_result_pressed_keys_builder.finish()?;
+                    let mut vm_result_pressed_backend_codes_builder =
+                        VmArray::<u32>::builder(context, value.pressed_backend_codes.len())?;
                     for vm_result_pressed_backend_codes_item in value.pressed_backend_codes {
                         let vm_result_pressed_backend_codes_item_value =
                             vm_result_pressed_backend_codes_item;
-                        vm_result_pressed_backend_codes_values
-                            .push(vm_result_pressed_backend_codes_item_value);
+                        vm_result_pressed_backend_codes_builder
+                            .push(context, vm_result_pressed_backend_codes_item_value)?;
                     }
                     let vm_result_pressed_backend_codes =
-                        VmArray::from_values(context, &vm_result_pressed_backend_codes_values)?;
-                    let mut vm_result_pressed_scan_codes_values =
-                        Vec::with_capacity(value.pressed_scan_codes.len());
+                        vm_result_pressed_backend_codes_builder.finish()?;
+                    let mut vm_result_pressed_scan_codes_builder =
+                        VmArray::<u32>::builder(context, value.pressed_scan_codes.len())?;
                     for vm_result_pressed_scan_codes_item in value.pressed_scan_codes {
                         let vm_result_pressed_scan_codes_item_value =
                             vm_result_pressed_scan_codes_item;
-                        vm_result_pressed_scan_codes_values
-                            .push(vm_result_pressed_scan_codes_item_value);
+                        vm_result_pressed_scan_codes_builder
+                            .push(context, vm_result_pressed_scan_codes_item_value)?;
                     }
                     let vm_result_pressed_scan_codes =
-                        VmArray::from_values(context, &vm_result_pressed_scan_codes_values)?;
+                        vm_result_pressed_scan_codes_builder.finish()?;
                     let vm_result_layout = if let Some(value) = value.layout {
                         let vm_result_layout_inner_layout_id = if let Some(value) = value.layout_id
                         {
@@ -31175,7 +31183,8 @@ fn destack_input_sensor_list_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmArray::<InputSensorDescriptorVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value_kind = vm_result_item.kind;
                         let vm_result_item_value_min_sample_rate_hz =
@@ -31191,9 +31200,9 @@ fn destack_input_sensor_list_vm_replay(
                             resolution: vm_result_item_value_resolution,
                             supports_wake: vm_result_item_value_supports_wake,
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmArray::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -32087,10 +32096,10 @@ fn destack_input_text_read_event_vm_replay(
                             };
                             let vm_result_input_clipboard_command_event_command = value.command;
                             let vm_result_input_clipboard_command_event_clipboard_items = if let Some(value) = value.clipboard_items {
-                                let mut vm_result_input_clipboard_command_event_clipboard_items_inner_values = Vec::with_capacity(value.len());
+                                let mut vm_result_input_clipboard_command_event_clipboard_items_inner_builder = VmSlice::<ClipboardItemDescriptorVm>::builder(context, value.len())?;
                                 for vm_result_input_clipboard_command_event_clipboard_items_inner_item in value {
                                     let vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_presentation_style = vm_result_input_clipboard_command_event_clipboard_items_inner_item.presentation_style;
-                                    let mut vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_values = Vec::with_capacity(vm_result_input_clipboard_command_event_clipboard_items_inner_item.representations.len());
+                                    let mut vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_builder = VmSlice::<ClipboardItemRepresentationDescriptorVm>::builder(context, vm_result_input_clipboard_command_event_clipboard_items_inner_item.representations.len())?;
                                     for vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item in vm_result_input_clipboard_command_event_clipboard_items_inner_item.representations {
                                         let vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value_mime_type = context.string_handle(vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item.mime_type.as_str()).map_err(Box::<RuntimeError>::from)?;
                                         let vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value_kind = vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item.kind;
@@ -32114,16 +32123,16 @@ fn destack_input_text_read_event_vm_replay(
                                             is_directory: vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value_is_directory,
                                             byte_length: vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value_byte_length,
                                         };
-                                        vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_values.push(vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value);
+                                        vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_builder.push(context, vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value)?;
                                     }
-                                    let vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations = VmSlice::from_values(context, &vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_values)?;
+                                    let vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations = vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_builder.finish()?;
                                     let vm_result_input_clipboard_command_event_clipboard_items_inner_item_value = ClipboardItemDescriptorVm {
                                         presentation_style: vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_presentation_style,
                                         representations: vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations,
                                     };
-                                    vm_result_input_clipboard_command_event_clipboard_items_inner_values.push(vm_result_input_clipboard_command_event_clipboard_items_inner_item_value);
+                                    vm_result_input_clipboard_command_event_clipboard_items_inner_builder.push(context, vm_result_input_clipboard_command_event_clipboard_items_inner_item_value)?;
                                 }
-                                let vm_result_input_clipboard_command_event_clipboard_items_inner = VmSlice::from_values(context, &vm_result_input_clipboard_command_event_clipboard_items_inner_values)?;
+                                let vm_result_input_clipboard_command_event_clipboard_items_inner = vm_result_input_clipboard_command_event_clipboard_items_inner_builder.finish()?;
                                 Some(vm_result_input_clipboard_command_event_clipboard_items_inner)
                             } else {
                                 None
@@ -32196,7 +32205,7 @@ fn destack_input_text_read_event_vm_replay(
                             } else {
                                 None
                             };
-                            let mut vm_result_input_edit_intent_event_target_ranges_values = Vec::with_capacity(value.target_ranges.len());
+                            let mut vm_result_input_edit_intent_event_target_ranges_builder = VmSlice::<InputTextRangeVm>::builder(context, value.target_ranges.len())?;
                             for vm_result_input_edit_intent_event_target_ranges_item in value.target_ranges {
                                 let vm_result_input_edit_intent_event_target_ranges_item_value_start_offset = vm_result_input_edit_intent_event_target_ranges_item.start_offset;
                                 let vm_result_input_edit_intent_event_target_ranges_item_value_end_offset = vm_result_input_edit_intent_event_target_ranges_item.end_offset;
@@ -32204,14 +32213,14 @@ fn destack_input_text_read_event_vm_replay(
                                     start_offset: vm_result_input_edit_intent_event_target_ranges_item_value_start_offset,
                                     end_offset: vm_result_input_edit_intent_event_target_ranges_item_value_end_offset,
                                 };
-                                vm_result_input_edit_intent_event_target_ranges_values.push(vm_result_input_edit_intent_event_target_ranges_item_value);
+                                vm_result_input_edit_intent_event_target_ranges_builder.push(context, vm_result_input_edit_intent_event_target_ranges_item_value)?;
                             }
-                            let vm_result_input_edit_intent_event_target_ranges = VmSlice::from_values(context, &vm_result_input_edit_intent_event_target_ranges_values)?;
+                            let vm_result_input_edit_intent_event_target_ranges = vm_result_input_edit_intent_event_target_ranges_builder.finish()?;
                             let vm_result_input_edit_intent_event_clipboard_items = if let Some(value) = value.clipboard_items {
-                                let mut vm_result_input_edit_intent_event_clipboard_items_inner_values = Vec::with_capacity(value.len());
+                                let mut vm_result_input_edit_intent_event_clipboard_items_inner_builder = VmSlice::<ClipboardItemDescriptorVm>::builder(context, value.len())?;
                                 for vm_result_input_edit_intent_event_clipboard_items_inner_item in value {
                                     let vm_result_input_edit_intent_event_clipboard_items_inner_item_value_presentation_style = vm_result_input_edit_intent_event_clipboard_items_inner_item.presentation_style;
-                                    let mut vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_values = Vec::with_capacity(vm_result_input_edit_intent_event_clipboard_items_inner_item.representations.len());
+                                    let mut vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_builder = VmSlice::<ClipboardItemRepresentationDescriptorVm>::builder(context, vm_result_input_edit_intent_event_clipboard_items_inner_item.representations.len())?;
                                     for vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item in vm_result_input_edit_intent_event_clipboard_items_inner_item.representations {
                                         let vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value_mime_type = context.string_handle(vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item.mime_type.as_str()).map_err(Box::<RuntimeError>::from)?;
                                         let vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value_kind = vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item.kind;
@@ -32235,16 +32244,16 @@ fn destack_input_text_read_event_vm_replay(
                                             is_directory: vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value_is_directory,
                                             byte_length: vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value_byte_length,
                                         };
-                                        vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_values.push(vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value);
+                                        vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_builder.push(context, vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value)?;
                                     }
-                                    let vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations = VmSlice::from_values(context, &vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_values)?;
+                                    let vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations = vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_builder.finish()?;
                                     let vm_result_input_edit_intent_event_clipboard_items_inner_item_value = ClipboardItemDescriptorVm {
                                         presentation_style: vm_result_input_edit_intent_event_clipboard_items_inner_item_value_presentation_style,
                                         representations: vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations,
                                     };
-                                    vm_result_input_edit_intent_event_clipboard_items_inner_values.push(vm_result_input_edit_intent_event_clipboard_items_inner_item_value);
+                                    vm_result_input_edit_intent_event_clipboard_items_inner_builder.push(context, vm_result_input_edit_intent_event_clipboard_items_inner_item_value)?;
                                 }
-                                let vm_result_input_edit_intent_event_clipboard_items_inner = VmSlice::from_values(context, &vm_result_input_edit_intent_event_clipboard_items_inner_values)?;
+                                let vm_result_input_edit_intent_event_clipboard_items_inner = vm_result_input_edit_intent_event_clipboard_items_inner_builder.finish()?;
                                 Some(vm_result_input_edit_intent_event_clipboard_items_inner)
                             } else {
                                 None
@@ -32270,7 +32279,7 @@ fn destack_input_text_read_event_vm_replay(
                                 } else {
                                     None
                                 };
-                                let mut vm_result_input_edit_intent_event_drag_inner_items_values = Vec::with_capacity(value.items.len());
+                                let mut vm_result_input_edit_intent_event_drag_inner_items_builder = VmSlice::<display::DisplayDragItemDescriptorVm>::builder(context, value.items.len())?;
                                 for vm_result_input_edit_intent_event_drag_inner_items_item in value.items {
                                     let vm_result_input_edit_intent_event_drag_inner_items_item_value_kind = vm_result_input_edit_intent_event_drag_inner_items_item.kind;
                                     let vm_result_input_edit_intent_event_drag_inner_items_item_value_item_type = if let Some(value) = vm_result_input_edit_intent_event_drag_inner_items_item.item_type {
@@ -32299,9 +32308,9 @@ fn destack_input_text_read_event_vm_replay(
                                         is_directory: vm_result_input_edit_intent_event_drag_inner_items_item_value_is_directory,
                                         byte_length: vm_result_input_edit_intent_event_drag_inner_items_item_value_byte_length,
                                     };
-                                    vm_result_input_edit_intent_event_drag_inner_items_values.push(vm_result_input_edit_intent_event_drag_inner_items_item_value);
+                                    vm_result_input_edit_intent_event_drag_inner_items_builder.push(context, vm_result_input_edit_intent_event_drag_inner_items_item_value)?;
                                 }
-                                let vm_result_input_edit_intent_event_drag_inner_items = VmSlice::from_values(context, &vm_result_input_edit_intent_event_drag_inner_items_values)?;
+                                let vm_result_input_edit_intent_event_drag_inner_items = vm_result_input_edit_intent_event_drag_inner_items_builder.finish()?;
                                 let vm_result_input_edit_intent_event_drag_inner = display::DisplayDragTransferVm {
                                     session: vm_result_input_edit_intent_event_drag_inner_session,
                                     is_external: vm_result_input_edit_intent_event_drag_inner_is_external,
@@ -32916,10 +32925,10 @@ fn destack_input_text_try_read_event_vm_replay(
                             };
                             let vm_result_input_clipboard_command_event_command = value.command;
                             let vm_result_input_clipboard_command_event_clipboard_items = if let Some(value) = value.clipboard_items {
-                                let mut vm_result_input_clipboard_command_event_clipboard_items_inner_values = Vec::with_capacity(value.len());
+                                let mut vm_result_input_clipboard_command_event_clipboard_items_inner_builder = VmSlice::<ClipboardItemDescriptorVm>::builder(context, value.len())?;
                                 for vm_result_input_clipboard_command_event_clipboard_items_inner_item in value {
                                     let vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_presentation_style = vm_result_input_clipboard_command_event_clipboard_items_inner_item.presentation_style;
-                                    let mut vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_values = Vec::with_capacity(vm_result_input_clipboard_command_event_clipboard_items_inner_item.representations.len());
+                                    let mut vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_builder = VmSlice::<ClipboardItemRepresentationDescriptorVm>::builder(context, vm_result_input_clipboard_command_event_clipboard_items_inner_item.representations.len())?;
                                     for vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item in vm_result_input_clipboard_command_event_clipboard_items_inner_item.representations {
                                         let vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value_mime_type = context.string_handle(vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item.mime_type.as_str()).map_err(Box::<RuntimeError>::from)?;
                                         let vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value_kind = vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item.kind;
@@ -32943,16 +32952,16 @@ fn destack_input_text_try_read_event_vm_replay(
                                             is_directory: vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value_is_directory,
                                             byte_length: vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value_byte_length,
                                         };
-                                        vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_values.push(vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value);
+                                        vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_builder.push(context, vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_item_value)?;
                                     }
-                                    let vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations = VmSlice::from_values(context, &vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_values)?;
+                                    let vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations = vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations_builder.finish()?;
                                     let vm_result_input_clipboard_command_event_clipboard_items_inner_item_value = ClipboardItemDescriptorVm {
                                         presentation_style: vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_presentation_style,
                                         representations: vm_result_input_clipboard_command_event_clipboard_items_inner_item_value_representations,
                                     };
-                                    vm_result_input_clipboard_command_event_clipboard_items_inner_values.push(vm_result_input_clipboard_command_event_clipboard_items_inner_item_value);
+                                    vm_result_input_clipboard_command_event_clipboard_items_inner_builder.push(context, vm_result_input_clipboard_command_event_clipboard_items_inner_item_value)?;
                                 }
-                                let vm_result_input_clipboard_command_event_clipboard_items_inner = VmSlice::from_values(context, &vm_result_input_clipboard_command_event_clipboard_items_inner_values)?;
+                                let vm_result_input_clipboard_command_event_clipboard_items_inner = vm_result_input_clipboard_command_event_clipboard_items_inner_builder.finish()?;
                                 Some(vm_result_input_clipboard_command_event_clipboard_items_inner)
                             } else {
                                 None
@@ -33025,7 +33034,7 @@ fn destack_input_text_try_read_event_vm_replay(
                             } else {
                                 None
                             };
-                            let mut vm_result_input_edit_intent_event_target_ranges_values = Vec::with_capacity(value.target_ranges.len());
+                            let mut vm_result_input_edit_intent_event_target_ranges_builder = VmSlice::<InputTextRangeVm>::builder(context, value.target_ranges.len())?;
                             for vm_result_input_edit_intent_event_target_ranges_item in value.target_ranges {
                                 let vm_result_input_edit_intent_event_target_ranges_item_value_start_offset = vm_result_input_edit_intent_event_target_ranges_item.start_offset;
                                 let vm_result_input_edit_intent_event_target_ranges_item_value_end_offset = vm_result_input_edit_intent_event_target_ranges_item.end_offset;
@@ -33033,14 +33042,14 @@ fn destack_input_text_try_read_event_vm_replay(
                                     start_offset: vm_result_input_edit_intent_event_target_ranges_item_value_start_offset,
                                     end_offset: vm_result_input_edit_intent_event_target_ranges_item_value_end_offset,
                                 };
-                                vm_result_input_edit_intent_event_target_ranges_values.push(vm_result_input_edit_intent_event_target_ranges_item_value);
+                                vm_result_input_edit_intent_event_target_ranges_builder.push(context, vm_result_input_edit_intent_event_target_ranges_item_value)?;
                             }
-                            let vm_result_input_edit_intent_event_target_ranges = VmSlice::from_values(context, &vm_result_input_edit_intent_event_target_ranges_values)?;
+                            let vm_result_input_edit_intent_event_target_ranges = vm_result_input_edit_intent_event_target_ranges_builder.finish()?;
                             let vm_result_input_edit_intent_event_clipboard_items = if let Some(value) = value.clipboard_items {
-                                let mut vm_result_input_edit_intent_event_clipboard_items_inner_values = Vec::with_capacity(value.len());
+                                let mut vm_result_input_edit_intent_event_clipboard_items_inner_builder = VmSlice::<ClipboardItemDescriptorVm>::builder(context, value.len())?;
                                 for vm_result_input_edit_intent_event_clipboard_items_inner_item in value {
                                     let vm_result_input_edit_intent_event_clipboard_items_inner_item_value_presentation_style = vm_result_input_edit_intent_event_clipboard_items_inner_item.presentation_style;
-                                    let mut vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_values = Vec::with_capacity(vm_result_input_edit_intent_event_clipboard_items_inner_item.representations.len());
+                                    let mut vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_builder = VmSlice::<ClipboardItemRepresentationDescriptorVm>::builder(context, vm_result_input_edit_intent_event_clipboard_items_inner_item.representations.len())?;
                                     for vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item in vm_result_input_edit_intent_event_clipboard_items_inner_item.representations {
                                         let vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value_mime_type = context.string_handle(vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item.mime_type.as_str()).map_err(Box::<RuntimeError>::from)?;
                                         let vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value_kind = vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item.kind;
@@ -33064,16 +33073,16 @@ fn destack_input_text_try_read_event_vm_replay(
                                             is_directory: vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value_is_directory,
                                             byte_length: vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value_byte_length,
                                         };
-                                        vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_values.push(vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value);
+                                        vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_builder.push(context, vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_item_value)?;
                                     }
-                                    let vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations = VmSlice::from_values(context, &vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_values)?;
+                                    let vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations = vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations_builder.finish()?;
                                     let vm_result_input_edit_intent_event_clipboard_items_inner_item_value = ClipboardItemDescriptorVm {
                                         presentation_style: vm_result_input_edit_intent_event_clipboard_items_inner_item_value_presentation_style,
                                         representations: vm_result_input_edit_intent_event_clipboard_items_inner_item_value_representations,
                                     };
-                                    vm_result_input_edit_intent_event_clipboard_items_inner_values.push(vm_result_input_edit_intent_event_clipboard_items_inner_item_value);
+                                    vm_result_input_edit_intent_event_clipboard_items_inner_builder.push(context, vm_result_input_edit_intent_event_clipboard_items_inner_item_value)?;
                                 }
-                                let vm_result_input_edit_intent_event_clipboard_items_inner = VmSlice::from_values(context, &vm_result_input_edit_intent_event_clipboard_items_inner_values)?;
+                                let vm_result_input_edit_intent_event_clipboard_items_inner = vm_result_input_edit_intent_event_clipboard_items_inner_builder.finish()?;
                                 Some(vm_result_input_edit_intent_event_clipboard_items_inner)
                             } else {
                                 None
@@ -33099,7 +33108,7 @@ fn destack_input_text_try_read_event_vm_replay(
                                 } else {
                                     None
                                 };
-                                let mut vm_result_input_edit_intent_event_drag_inner_items_values = Vec::with_capacity(value.items.len());
+                                let mut vm_result_input_edit_intent_event_drag_inner_items_builder = VmSlice::<display::DisplayDragItemDescriptorVm>::builder(context, value.items.len())?;
                                 for vm_result_input_edit_intent_event_drag_inner_items_item in value.items {
                                     let vm_result_input_edit_intent_event_drag_inner_items_item_value_kind = vm_result_input_edit_intent_event_drag_inner_items_item.kind;
                                     let vm_result_input_edit_intent_event_drag_inner_items_item_value_item_type = if let Some(value) = vm_result_input_edit_intent_event_drag_inner_items_item.item_type {
@@ -33128,9 +33137,9 @@ fn destack_input_text_try_read_event_vm_replay(
                                         is_directory: vm_result_input_edit_intent_event_drag_inner_items_item_value_is_directory,
                                         byte_length: vm_result_input_edit_intent_event_drag_inner_items_item_value_byte_length,
                                     };
-                                    vm_result_input_edit_intent_event_drag_inner_items_values.push(vm_result_input_edit_intent_event_drag_inner_items_item_value);
+                                    vm_result_input_edit_intent_event_drag_inner_items_builder.push(context, vm_result_input_edit_intent_event_drag_inner_items_item_value)?;
                                 }
-                                let vm_result_input_edit_intent_event_drag_inner_items = VmSlice::from_values(context, &vm_result_input_edit_intent_event_drag_inner_items_values)?;
+                                let vm_result_input_edit_intent_event_drag_inner_items = vm_result_input_edit_intent_event_drag_inner_items_builder.finish()?;
                                 let vm_result_input_edit_intent_event_drag_inner = display::DisplayDragTransferVm {
                                     session: vm_result_input_edit_intent_event_drag_inner_session,
                                     is_external: vm_result_input_edit_intent_event_drag_inner_is_external,
@@ -33313,7 +33322,11 @@ fn destack_input_touch_state_vm_replay(
                     let vm_result_device_id = context
                         .string_handle(value.device_id.as_str())
                         .map_err(Box::<RuntimeError>::from)?;
-                    let mut vm_result_contacts_values = Vec::with_capacity(value.contacts.len());
+                    let mut vm_result_contacts_builder =
+                        VmArray::<InputTouchContactStateVm>::builder(
+                            context,
+                            value.contacts.len(),
+                        )?;
                     for vm_result_contacts_item in value.contacts {
                         let vm_result_contacts_item_value_contact_id =
                             vm_result_contacts_item.contact_id;
@@ -33339,10 +33352,9 @@ fn destack_input_touch_state_vm_replay(
                             tilt_x: vm_result_contacts_item_value_tilt_x,
                             tilt_y: vm_result_contacts_item_value_tilt_y,
                         };
-                        vm_result_contacts_values.push(vm_result_contacts_item_value);
+                        vm_result_contacts_builder.push(context, vm_result_contacts_item_value)?;
                     }
-                    let vm_result_contacts =
-                        VmArray::from_values(context, &vm_result_contacts_values)?;
+                    let vm_result_contacts = vm_result_contacts_builder.finish()?;
                     let vm_result = InputTouchStateVm {
                         timestamp_ns: vm_result_timestamp_ns,
                         sequence: vm_result_sequence,

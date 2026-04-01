@@ -17215,7 +17215,7 @@ fn destack_os_background_list_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder = VmArray::<BackgroundTaskDescriptorVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value_identifier = context.string_handle(vm_result_item.identifier.as_str()).map_err(Box::<RuntimeError>::from)?;
                         let vm_result_item_value_trigger = vm_result_item.trigger;
@@ -17250,9 +17250,9 @@ fn destack_os_background_list_vm_replay(
                             requires_idle: vm_result_item_value_requires_idle,
                             conflict_policy: vm_result_item_value_conflict_policy,
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmArray::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -18215,7 +18215,7 @@ fn destack_os_intent_read_vm_replay(
                             } else {
                                 None
                             };
-                            let mut vm_result_intent_custom_action_event_payload_paths_values = Vec::with_capacity(value.payload.paths.len());
+                            let mut vm_result_intent_custom_action_event_payload_paths_builder = VmArray::<fs::OsPathVm>::builder(context, value.payload.paths.len())?;
                             for vm_result_intent_custom_action_event_payload_paths_item in value.payload.paths {
                                 let vm_result_intent_custom_action_event_payload_paths_item_value = match vm_result_intent_custom_action_event_payload_paths_item {
                                     fs::OspathReplayRecord::OsPathBytes(value) => {
@@ -18230,12 +18230,12 @@ fn destack_os_intent_read_vm_replay(
                                     }
                                     fs::OspathReplayRecord::OsPathUtf16(value) => {
                                         let vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                        let mut vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
+                                        let mut vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_builder = VmArray::<u16>::builder(context, value.utf16.len())?;
                                         for vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_item in value.utf16 {
                                             let vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_item_value = vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_item;
-                                            vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_values.push(vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_item_value);
+                                            vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_builder.push(context, vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_item_value)?;
                                         }
-                                        let vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner = VmArray::from_values(context, &vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_values)?;
+                                        let vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner = vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_builder.finish()?;
                                         let vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner);
                                         let vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16 = fs::OsPathUtf16Vm {
                                             kind: vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_kind,
@@ -18244,9 +18244,9 @@ fn destack_os_intent_read_vm_replay(
                                         fs::OsPathVm::OsPathUtf16(vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16)
                                     }
                                 };
-                                vm_result_intent_custom_action_event_payload_paths_values.push(vm_result_intent_custom_action_event_payload_paths_item_value);
+                                vm_result_intent_custom_action_event_payload_paths_builder.push(context, vm_result_intent_custom_action_event_payload_paths_item_value)?;
                             }
-                            let vm_result_intent_custom_action_event_payload_paths = VmArray::from_values(context, &vm_result_intent_custom_action_event_payload_paths_values)?;
+                            let vm_result_intent_custom_action_event_payload_paths = vm_result_intent_custom_action_event_payload_paths_builder.finish()?;
                             let vm_result_intent_custom_action_event_payload_text = if let Some(value) = value.payload.text {
                                 let vm_result_intent_custom_action_event_payload_text_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_intent_custom_action_event_payload_text_inner)
@@ -18301,12 +18301,12 @@ fn destack_os_intent_read_vm_replay(
                                 }
                                 fs::OspathReplayRecord::OsPathUtf16(value) => {
                                     let vm_result_intent_open_file_event_payload_path_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    let mut vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
+                                    let mut vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_builder = VmArray::<u16>::builder(context, value.utf16.len())?;
                                     for vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item in value.utf16 {
                                         let vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item_value = vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item;
-                                        vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_values.push(vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item_value);
+                                        vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_builder.push(context, vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item_value)?;
                                     }
-                                    let vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner = VmArray::from_values(context, &vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_values)?;
+                                    let vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner = vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_builder.finish()?;
                                     let vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner);
                                     let vm_result_intent_open_file_event_payload_path_os_path_utf16 = fs::OsPathUtf16Vm {
                                         kind: vm_result_intent_open_file_event_payload_path_os_path_utf16_kind,
@@ -18373,7 +18373,7 @@ fn destack_os_intent_read_vm_replay(
                                 sequence: vm_result_intent_share_files_event_metadata_sequence,
                                 source: vm_result_intent_share_files_event_metadata_source,
                             };
-                            let mut vm_result_intent_share_files_event_payload_paths_values = Vec::with_capacity(value.payload.paths.len());
+                            let mut vm_result_intent_share_files_event_payload_paths_builder = VmArray::<fs::OsPathVm>::builder(context, value.payload.paths.len())?;
                             for vm_result_intent_share_files_event_payload_paths_item in value.payload.paths {
                                 let vm_result_intent_share_files_event_payload_paths_item_value = match vm_result_intent_share_files_event_payload_paths_item {
                                     fs::OspathReplayRecord::OsPathBytes(value) => {
@@ -18388,12 +18388,12 @@ fn destack_os_intent_read_vm_replay(
                                     }
                                     fs::OspathReplayRecord::OsPathUtf16(value) => {
                                         let vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                        let mut vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
+                                        let mut vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_builder = VmArray::<u16>::builder(context, value.utf16.len())?;
                                         for vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_item in value.utf16 {
                                             let vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_item_value = vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_item;
-                                            vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_values.push(vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_item_value);
+                                            vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_builder.push(context, vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_item_value)?;
                                         }
-                                        let vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner = VmArray::from_values(context, &vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_values)?;
+                                        let vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner = vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_builder.finish()?;
                                         let vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner);
                                         let vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16 = fs::OsPathUtf16Vm {
                                             kind: vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_kind,
@@ -18402,9 +18402,9 @@ fn destack_os_intent_read_vm_replay(
                                         fs::OsPathVm::OsPathUtf16(vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16)
                                     }
                                 };
-                                vm_result_intent_share_files_event_payload_paths_values.push(vm_result_intent_share_files_event_payload_paths_item_value);
+                                vm_result_intent_share_files_event_payload_paths_builder.push(context, vm_result_intent_share_files_event_payload_paths_item_value)?;
                             }
-                            let vm_result_intent_share_files_event_payload_paths = VmArray::from_values(context, &vm_result_intent_share_files_event_payload_paths_values)?;
+                            let vm_result_intent_share_files_event_payload_paths = vm_result_intent_share_files_event_payload_paths_builder.finish()?;
                             let vm_result_intent_share_files_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
                                 let vm_result_intent_share_files_event_payload_mime_type_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_intent_share_files_event_payload_mime_type_inner)
@@ -18877,7 +18877,7 @@ fn destack_os_intent_try_read_vm_replay(
                             } else {
                                 None
                             };
-                            let mut vm_result_intent_custom_action_event_payload_paths_values = Vec::with_capacity(value.payload.paths.len());
+                            let mut vm_result_intent_custom_action_event_payload_paths_builder = VmArray::<fs::OsPathVm>::builder(context, value.payload.paths.len())?;
                             for vm_result_intent_custom_action_event_payload_paths_item in value.payload.paths {
                                 let vm_result_intent_custom_action_event_payload_paths_item_value = match vm_result_intent_custom_action_event_payload_paths_item {
                                     fs::OspathReplayRecord::OsPathBytes(value) => {
@@ -18892,12 +18892,12 @@ fn destack_os_intent_try_read_vm_replay(
                                     }
                                     fs::OspathReplayRecord::OsPathUtf16(value) => {
                                         let vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                        let mut vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
+                                        let mut vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_builder = VmArray::<u16>::builder(context, value.utf16.len())?;
                                         for vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_item in value.utf16 {
                                             let vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_item_value = vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_item;
-                                            vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_values.push(vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_item_value);
+                                            vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_builder.push(context, vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_item_value)?;
                                         }
-                                        let vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner = VmArray::from_values(context, &vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_values)?;
+                                        let vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner = vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_builder.finish()?;
                                         let vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner);
                                         let vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16 = fs::OsPathUtf16Vm {
                                             kind: vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_kind,
@@ -18906,9 +18906,9 @@ fn destack_os_intent_try_read_vm_replay(
                                         fs::OsPathVm::OsPathUtf16(vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16)
                                     }
                                 };
-                                vm_result_intent_custom_action_event_payload_paths_values.push(vm_result_intent_custom_action_event_payload_paths_item_value);
+                                vm_result_intent_custom_action_event_payload_paths_builder.push(context, vm_result_intent_custom_action_event_payload_paths_item_value)?;
                             }
-                            let vm_result_intent_custom_action_event_payload_paths = VmArray::from_values(context, &vm_result_intent_custom_action_event_payload_paths_values)?;
+                            let vm_result_intent_custom_action_event_payload_paths = vm_result_intent_custom_action_event_payload_paths_builder.finish()?;
                             let vm_result_intent_custom_action_event_payload_text = if let Some(value) = value.payload.text {
                                 let vm_result_intent_custom_action_event_payload_text_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_intent_custom_action_event_payload_text_inner)
@@ -18963,12 +18963,12 @@ fn destack_os_intent_try_read_vm_replay(
                                 }
                                 fs::OspathReplayRecord::OsPathUtf16(value) => {
                                     let vm_result_intent_open_file_event_payload_path_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    let mut vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
+                                    let mut vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_builder = VmArray::<u16>::builder(context, value.utf16.len())?;
                                     for vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item in value.utf16 {
                                         let vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item_value = vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item;
-                                        vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_values.push(vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item_value);
+                                        vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_builder.push(context, vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item_value)?;
                                     }
-                                    let vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner = VmArray::from_values(context, &vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_values)?;
+                                    let vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner = vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_builder.finish()?;
                                     let vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner);
                                     let vm_result_intent_open_file_event_payload_path_os_path_utf16 = fs::OsPathUtf16Vm {
                                         kind: vm_result_intent_open_file_event_payload_path_os_path_utf16_kind,
@@ -19035,7 +19035,7 @@ fn destack_os_intent_try_read_vm_replay(
                                 sequence: vm_result_intent_share_files_event_metadata_sequence,
                                 source: vm_result_intent_share_files_event_metadata_source,
                             };
-                            let mut vm_result_intent_share_files_event_payload_paths_values = Vec::with_capacity(value.payload.paths.len());
+                            let mut vm_result_intent_share_files_event_payload_paths_builder = VmArray::<fs::OsPathVm>::builder(context, value.payload.paths.len())?;
                             for vm_result_intent_share_files_event_payload_paths_item in value.payload.paths {
                                 let vm_result_intent_share_files_event_payload_paths_item_value = match vm_result_intent_share_files_event_payload_paths_item {
                                     fs::OspathReplayRecord::OsPathBytes(value) => {
@@ -19050,12 +19050,12 @@ fn destack_os_intent_try_read_vm_replay(
                                     }
                                     fs::OspathReplayRecord::OsPathUtf16(value) => {
                                         let vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                        let mut vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
+                                        let mut vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_builder = VmArray::<u16>::builder(context, value.utf16.len())?;
                                         for vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_item in value.utf16 {
                                             let vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_item_value = vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_item;
-                                            vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_values.push(vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_item_value);
+                                            vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_builder.push(context, vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_item_value)?;
                                         }
-                                        let vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner = VmArray::from_values(context, &vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_values)?;
+                                        let vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner = vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_builder.finish()?;
                                         let vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner);
                                         let vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16 = fs::OsPathUtf16Vm {
                                             kind: vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_kind,
@@ -19064,9 +19064,9 @@ fn destack_os_intent_try_read_vm_replay(
                                         fs::OsPathVm::OsPathUtf16(vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16)
                                     }
                                 };
-                                vm_result_intent_share_files_event_payload_paths_values.push(vm_result_intent_share_files_event_payload_paths_item_value);
+                                vm_result_intent_share_files_event_payload_paths_builder.push(context, vm_result_intent_share_files_event_payload_paths_item_value)?;
                             }
-                            let vm_result_intent_share_files_event_payload_paths = VmArray::from_values(context, &vm_result_intent_share_files_event_payload_paths_values)?;
+                            let vm_result_intent_share_files_event_payload_paths = vm_result_intent_share_files_event_payload_paths_builder.finish()?;
                             let vm_result_intent_share_files_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
                                 let vm_result_intent_share_files_event_payload_mime_type_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_intent_share_files_event_payload_mime_type_inner)
@@ -20469,7 +20469,7 @@ fn destack_os_mount_list_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder = VmArray::<MountEntryVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value_source = if let Some(value) = vm_result_item.source {
                             let vm_result_item_value_source_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
@@ -20490,12 +20490,12 @@ fn destack_os_mount_list_vm_replay(
                             }
                             fs::OspathReplayRecord::OsPathUtf16(value) => {
                                 let vm_result_item_value_target_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                let mut vm_result_item_value_target_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
+                                let mut vm_result_item_value_target_os_path_utf16_utf16_inner_builder = VmArray::<u16>::builder(context, value.utf16.len())?;
                                 for vm_result_item_value_target_os_path_utf16_utf16_inner_item in value.utf16 {
                                     let vm_result_item_value_target_os_path_utf16_utf16_inner_item_value = vm_result_item_value_target_os_path_utf16_utf16_inner_item;
-                                    vm_result_item_value_target_os_path_utf16_utf16_inner_values.push(vm_result_item_value_target_os_path_utf16_utf16_inner_item_value);
+                                    vm_result_item_value_target_os_path_utf16_utf16_inner_builder.push(context, vm_result_item_value_target_os_path_utf16_utf16_inner_item_value)?;
                                 }
-                                let vm_result_item_value_target_os_path_utf16_utf16_inner = VmArray::from_values(context, &vm_result_item_value_target_os_path_utf16_utf16_inner_values)?;
+                                let vm_result_item_value_target_os_path_utf16_utf16_inner = vm_result_item_value_target_os_path_utf16_utf16_inner_builder.finish()?;
                                 let vm_result_item_value_target_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_item_value_target_os_path_utf16_utf16_inner);
                                 let vm_result_item_value_target_os_path_utf16 = fs::OsPathUtf16Vm {
                                     kind: vm_result_item_value_target_os_path_utf16_kind,
@@ -20522,9 +20522,9 @@ fn destack_os_mount_list_vm_replay(
                             file_system: vm_result_item_value_file_system,
                             host_flags: vm_result_item_value_host_flags,
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmArray::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -21240,10 +21240,10 @@ fn destack_os_notification_category_list_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder = VmArray::<NotificationCategoryVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value_id = context.string_handle(vm_result_item.id.as_str()).map_err(Box::<RuntimeError>::from)?;
-                        let mut vm_result_item_value_actions_values = Vec::with_capacity(vm_result_item.actions.len());
+                        let mut vm_result_item_value_actions_builder = VmArray::<NotificationActionVm>::builder(context, vm_result_item.actions.len())?;
                         for vm_result_item_value_actions_item in vm_result_item.actions {
                             let vm_result_item_value_actions_item_value_id = context.string_handle(vm_result_item_value_actions_item.id.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_item_value_actions_item_value_title = context.string_handle(vm_result_item_value_actions_item.title.as_str()).map_err(Box::<RuntimeError>::from)?;
@@ -21271,16 +21271,16 @@ fn destack_os_notification_category_list_vm_replay(
                                 text_input_button_title: vm_result_item_value_actions_item_value_text_input_button_title,
                                 text_input_placeholder: vm_result_item_value_actions_item_value_text_input_placeholder,
                             };
-                            vm_result_item_value_actions_values.push(vm_result_item_value_actions_item_value);
+                            vm_result_item_value_actions_builder.push(context, vm_result_item_value_actions_item_value)?;
                         }
-                        let vm_result_item_value_actions = VmArray::from_values(context, &vm_result_item_value_actions_values)?;
+                        let vm_result_item_value_actions = vm_result_item_value_actions_builder.finish()?;
                         let vm_result_item_value = NotificationCategoryVm {
                             id: vm_result_item_value_id,
                             actions: vm_result_item_value_actions,
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmArray::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -21498,7 +21498,7 @@ fn destack_os_notification_pending_list_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder = VmArray::<NotificationScheduledDescriptorVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value_id = context.string_handle(vm_result_item.id.as_str()).map_err(Box::<RuntimeError>::from)?;
                         let vm_result_item_value_request_title = context.string_handle(vm_result_item.request.title.as_str()).map_err(Box::<RuntimeError>::from)?;
@@ -21616,9 +21616,9 @@ fn destack_os_notification_pending_list_vm_replay(
                             request: vm_result_item_value_request,
                             scheduled_unix_ns: vm_result_item_value_scheduled_unix_ns,
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmArray::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -21798,7 +21798,8 @@ fn destack_os_permission_state_many_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmArray::<PermissionEntryVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value_permission = vm_result_item.permission;
                         let vm_result_item_value_state = vm_result_item.state;
@@ -21806,9 +21807,9 @@ fn destack_os_permission_state_many_vm_replay(
                             permission: vm_result_item_value_permission,
                             state: vm_result_item_value_state,
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmArray::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
