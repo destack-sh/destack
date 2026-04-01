@@ -1,8 +1,5 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::{
-    NativeArray, PlatformError, VmAggregateCodec, VmArray, VmCollectionElement,
-    VmCollectionStorage, VmSlice,
-};
+use crate::platform::{NativeArray, VmAggregateCodec, VmArray, VmCollectionElement, VmSlice};
 use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef, NativeStringSlice};
 use destack_vm as vm;
 
@@ -239,43 +236,15 @@ where
         context: &mut vm::ExternalWriteContext<'_, '_>,
         value: Self::Value,
     ) -> RuntimeResult<Self> {
-        // byte-storage collections still use the general slice path
-        if T::STORAGE == VmCollectionStorage::Bytes {
-            let mut values = Vec::with_capacity(value.len());
+        let mut builder = VmSlice::<T>::builder(context, value.len())?;
 
-            for value in value {
-                values.push(T::from_value(context, value)?);
-            }
-
-            return VmSlice::from_values(context, &values);
-        }
-
-        let len = value.len();
-        let len_u32 = u32::try_from(len).map_err(|_| {
-            RuntimeError::from(PlatformError::invalid_argument_value(
-                "slice",
-                "slice length exceeds u32",
-            ))
-            .boxed()
-        })?;
-        let data = context
-            .allocate_raw_value_slots(len)
-            .map_err(Box::<RuntimeError>::from)?;
-
-        // encode each value directly into raw VM storage
-        for (index, value) in value.into_iter().enumerate() {
+        // decode each value directly into final VM storage
+        for value in value {
             let value = T::from_value(context, value)?;
-            let value = T::encode_with_context(value, context)?;
-            context
-                .write_raw_value(data, index, value)
-                .map_err(Box::<RuntimeError>::from)?;
+            builder.push(context, value)?;
         }
 
-        Ok(VmSlice {
-            data,
-            len: len_u32,
-            _marker: std::marker::PhantomData,
-        })
+        builder.finish()
     }
 }
 

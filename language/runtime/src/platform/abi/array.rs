@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 
 use destack_vm as vm;
 
+use super::slice::VmSliceBuilder;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::{PlatformError, VmAggregateCodec, VmCollectionElement, VmSlice};
 
@@ -77,6 +78,13 @@ pub struct VmArray<T> {
     pub capacity: u32,
     /// Marker for the element type.
     pub _marker: PhantomData<T>,
+}
+
+/// Builder for one VM array payload.
+#[derive(Debug)]
+pub(crate) struct VmArrayBuilder<T> {
+    /// The underlying slice builder.
+    slice: VmSliceBuilder<T>,
 }
 
 impl<T> VmArray<T> {
@@ -165,18 +173,54 @@ impl<T> VmArray<T> {
 }
 
 impl<T: VmCollectionElement> VmArray<T> {
+    /// Begin one exact-size VM array builder.
+    pub(crate) fn builder(
+        context: &mut vm::ExternalWriteContext<'_, '_>,
+        len: usize,
+    ) -> RuntimeResult<VmArrayBuilder<T>> {
+        let slice = VmSlice::builder(context, len)?;
+
+        Ok(VmArrayBuilder { slice })
+    }
+}
+
+impl<T: VmCollectionElement> VmArrayBuilder<T> {
+    /// Push one decoded element into the final VM array storage.
+    pub(crate) fn push(
+        &mut self,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
+        value: T,
+    ) -> RuntimeResult<()> {
+        self.slice.push(context, value)
+    }
+
+    /// Finish the array once all elements have been written.
+    pub(crate) fn finish(self) -> RuntimeResult<VmArray<T>> {
+        let slice = self.slice.finish()?;
+
+        Ok(VmArray {
+            data: slice.data,
+            len: slice.len,
+            capacity: slice.len,
+            _marker: slice._marker,
+        })
+    }
+}
+
+impl<T: VmCollectionElement> VmArray<T> {
     /// Allocate a VM array from decoded values.
     pub fn from_values(
         context: &mut vm::ExternalWriteContext<'_, '_>,
         values: &[T],
     ) -> RuntimeResult<Self> {
-        let slice = VmSlice::from_values(context, values)?;
-        Ok(Self {
-            data: slice.data,
-            len: slice.len,
-            capacity: slice.len,
-            _marker: PhantomData::<T>,
-        })
+        let mut builder = Self::builder(context, values.len())?;
+
+        // encode each element directly into the final raw storage
+        for value in values.iter().copied() {
+            builder.push(context, value)?;
+        }
+
+        builder.finish()
     }
 
     /// Read the VM array into a Vec of decoded values.

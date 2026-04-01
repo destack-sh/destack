@@ -1140,6 +1140,12 @@ impl<'ctx> ExternalCallContext<'ctx> {
         heap.allocate_raw_bytes(bytes).map_err(Error::from)
     }
 
+    /// Allocate one zeroed raw heap byte buffer and return its pointer.
+    pub fn allocate_zeroed_raw_bytes(&mut self, byte_len: usize) -> Result<RawPointer, Error> {
+        let heap = self.memory.heap();
+        heap.allocate_raw_zeroed(byte_len).map_err(Error::from)
+    }
+
     /// Allocate one raw packed-value buffer and return its pointer.
     pub fn allocate_raw_values(&mut self, values: Vec<Value>) -> Result<RawPointer, Error> {
         self.heap().allocate_raw_values(values).map_err(Error::from)
@@ -1301,6 +1307,20 @@ impl<'ctx> ExternalCallContext<'ctx> {
         Err(Error::InvalidManagedReference)
     }
 
+    /// Write one raw byte into one pointer slot.
+    pub fn write_raw_byte(
+        &mut self,
+        pointer: RawPointer,
+        index: usize,
+        byte: u8,
+    ) -> Result<(), Error> {
+        if self.heap().set_raw_byte(pointer, index, byte) {
+            return Ok(());
+        }
+
+        Err(Error::InvalidManagedReference)
+    }
+
     /// Write shared bytes into a pointer to one shared region.
     pub fn write_shared_bytes(
         &mut self,
@@ -1447,6 +1467,11 @@ impl<'call, 'ctx> ExternalWriteContext<'call, 'ctx> {
         self.context.allocate_raw_bytes(bytes)
     }
 
+    /// Allocate one zeroed raw byte buffer.
+    pub fn allocate_zeroed_raw_bytes(&mut self, byte_len: usize) -> Result<RawPointer, Error> {
+        self.context.allocate_zeroed_raw_bytes(byte_len)
+    }
+
     /// Allocate one raw packed-value buffer.
     pub fn allocate_raw_values(&mut self, values: Vec<Value>) -> Result<RawPointer, Error> {
         self.context.allocate_raw_values(values)
@@ -1480,6 +1505,16 @@ impl<'call, 'ctx> ExternalWriteContext<'call, 'ctx> {
         value: Value,
     ) -> Result<(), Error> {
         self.context.write_raw_value(pointer, index, value)
+    }
+
+    /// Write one raw byte into one pointer slot.
+    pub fn write_raw_byte(
+        &mut self,
+        pointer: RawPointer,
+        index: usize,
+        byte: u8,
+    ) -> Result<(), Error> {
+        self.context.write_raw_byte(pointer, index, byte)
     }
 
     /// Write one shared byte payload.

@@ -20,6 +20,19 @@ pub struct VmSlice<T> {
     pub _marker: PhantomData<T>,
 }
 
+/// Builder for one VM slice payload.
+#[derive(Debug)]
+pub(crate) struct VmSliceBuilder<T> {
+    /// Pointer to the final element storage.
+    data: vm::RawPointer,
+    /// Number of elements expected in the slice.
+    len: u32,
+    /// Number of elements written so far.
+    written: usize,
+    /// Marker for the element type.
+    _marker: PhantomData<T>,
+}
+
 /// Narrow one decoded VM collection length to `u32`.
 fn vm_len_u32(len: u64, name: &str, expected: &str) -> RuntimeResult<u32> {
     u32::try_from(len).map_err(|_| {
@@ -119,6 +132,97 @@ impl<T> VmSlice<T> {
         }
 
         Ok(values)
+    }
+}
+
+impl<T: VmCollectionElement> VmSlice<T> {
+    /// Begin one exact-size VM slice builder.
+    pub(crate) fn builder(
+        context: &mut vm::ExternalWriteContext<'_, '_>,
+        len: usize,
+    ) -> RuntimeResult<VmSliceBuilder<T>> {
+        let len_u32 = abi_len_u32(len, "slice")?;
+
+        // route byte payloads through raw byte storage
+        if is_byte_element_type::<T>() {
+            let data = context
+                .allocate_zeroed_raw_bytes(len)
+                .map_err(|error| RuntimeError::from(error).boxed())?;
+
+            return Ok(VmSliceBuilder {
+                data,
+                len: len_u32,
+                written: 0,
+                _marker: PhantomData,
+            });
+        }
+
+        let data = context
+            .allocate_raw_value_slots(len)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+
+        Ok(VmSliceBuilder {
+            data,
+            len: len_u32,
+            written: 0,
+            _marker: PhantomData,
+        })
+    }
+}
+
+impl<T: VmCollectionElement> VmSliceBuilder<T> {
+    /// Push one decoded element into the final VM slice storage.
+    pub(crate) fn push(
+        &mut self,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
+        value: T,
+    ) -> RuntimeResult<()> {
+        // enforce the declared element count exactly
+        if self.written >= self.len as usize {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "slice",
+                "slice builder overflow",
+            ))
+            .boxed());
+        }
+
+        // route byte payloads through raw byte storage
+        if is_byte_element_type::<T>() {
+            // safety: the type check above guarantees `T` is exactly `u8`
+            let byte = unsafe { std::mem::transmute_copy::<T, u8>(&value) };
+            context
+                .write_raw_byte(self.data, self.written, byte)
+                .map_err(|error| RuntimeError::from(error).boxed())?;
+            self.written += 1;
+
+            return Ok(());
+        }
+
+        let value = T::encode_with_context(value, context)?;
+        context
+            .write_raw_value(self.data, self.written, value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        self.written += 1;
+
+        Ok(())
+    }
+
+    /// Finish the slice once all elements have been written.
+    pub(crate) fn finish(self) -> RuntimeResult<VmSlice<T>> {
+        // require exact initialization before exposing the slice
+        if self.written != self.len as usize {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "slice",
+                "slice builder length mismatch",
+            ))
+            .boxed());
+        }
+
+        Ok(VmSlice {
+            data: self.data,
+            len: self.len,
+            _marker: self._marker,
+        })
     }
 }
 
@@ -233,24 +337,14 @@ impl<T: VmCollectionElement> VmSlice<T> {
             });
         }
 
-        // allocate packed element storage once
-        let data = context
-            .allocate_raw_value_slots(values.len())
-            .map_err(|error| RuntimeError::from(error).boxed())?;
+        let mut builder = Self::builder(context, values.len())?;
 
-        // encode each packed element directly into the final raw storage
-        for (index, value) in values.iter().copied().enumerate() {
-            let encoded = T::encode_with_context(value, context)?;
-            context
-                .write_raw_value(data, index, encoded)
-                .map_err(|error| RuntimeError::from(error).boxed())?;
+        // encode each element directly into the final raw storage
+        for value in values.iter().copied() {
+            builder.push(context, value)?;
         }
 
-        Ok(Self {
-            data,
-            len: abi_len_u32(values.len(), "slice")?,
-            _marker: PhantomData,
-        })
+        builder.finish()
     }
 
     /// Read the VM slice into a Vec of decoded values.

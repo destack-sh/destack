@@ -355,49 +355,19 @@ where
 {
     let values = unsafe { values.as_slice()? };
     let len = values.len();
-    let len_u32 = u32::try_from(len).map_err(|_| {
-        RuntimeError::from(PlatformError::invalid_argument_value(
-            "slice",
-            "slice length exceeds u32",
-        ))
-        .boxed()
-    })?;
-
-    // byte-storage collection mapping still uses the general slice path
-    if U::STORAGE == crate::platform::VmCollectionStorage::Bytes {
-        let mut mapped = Vec::with_capacity(len);
-
-        // semantic mapping
-        for value in values {
-            mapped.push(map(context, value)?);
-        }
-
-        let mut context = context.write();
-        return VmSlice::from_values(&mut context, &mapped);
-    }
-
-    let data = {
+    let mut builder = {
         let mut write = context.write();
-        write
-            .allocate_raw_value_slots(len)
-            .map_err(Box::<RuntimeError>::from)?
+        VmSlice::<U>::builder(&mut write, len)?
     };
 
-    // encode each element directly into raw VM storage
-    for (index, value) in values.iter().enumerate() {
+    // map each element directly into final VM storage
+    for value in values {
         let value = map(context, value)?;
         let mut write = context.write();
-        let encoded = U::encode_with_context(value, &mut write)?;
-        write
-            .write_raw_value(data, index, encoded)
-            .map_err(Box::<RuntimeError>::from)?;
+        builder.push(&mut write, value)?;
     }
 
-    Ok(VmSlice {
-        data,
-        len: len_u32,
-        _marker: std::marker::PhantomData,
-    })
+    builder.finish()
 }
 
 /// Map one native value array into one VM aggregate array.
