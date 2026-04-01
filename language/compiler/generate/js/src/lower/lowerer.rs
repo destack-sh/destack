@@ -5,14 +5,11 @@
 
 use destack_artifact::{Ast, DirPatched};
 use destack_core::StringPool;
-use destack_dir as dir;
 use destack_dir::{GlobalSymbolId, SymbolTable, TypeTable};
 use destack_workspace::{Module, Target};
+use {destack_dir as dir, destack_js as js};
 
-use crate::{
-    CodegenJsError, CodegenJsResult, CodegenJsWarning, LocalNodeId, LocalNodeIdAny, Node as JsNode,
-    NodeTree as JsTree, ScriptSymbolId,
-};
+use crate::{CodegenJsError, CodegenJsResult, CodegenJsWarning, ScriptSymbolId};
 
 /// Context for lowering a DIR module to JS AST.
 #[derive(Debug)]
@@ -37,9 +34,9 @@ pub struct ModuleLowerer<'a> {
     pub(crate) target: &'a Target,
 
     /// The output JS AST tree.
-    pub(crate) tree: JsTree,
+    pub(crate) tree: js::NodeTree,
     /// Root nodes in the output.
-    pub(crate) roots: Vec<LocalNodeIdAny>,
+    pub(crate) roots: Vec<js::LocalNodeIdAny>,
     /// String pool for the output.
     pub(crate) strings: StringPool,
     /// Collected warnings.
@@ -55,10 +52,13 @@ impl<'a> ModuleLowerer<'a> {
     }
 
     /// Store one lowered script symbol id on one JS AST node.
-    pub(crate) fn set_node_symbol<T>(&mut self, node_id: LocalNodeId<T>, symbol_id: ScriptSymbolId)
-    where
-        T: JsNode,
-        JsTree: crate::NodeTreeImpl<T>,
+    pub(crate) fn set_node_symbol<T>(
+        &mut self,
+        node_id: js::LocalNodeId<T>,
+        symbol_id: ScriptSymbolId,
+    ) where
+        T: js::Node,
+        js::NodeTree: js::NodeTreeImpl<T>,
     {
         self.tree.set_symbol(node_id, symbol_id);
     }
@@ -66,11 +66,11 @@ impl<'a> ModuleLowerer<'a> {
     /// Store one source-backed symbol id on one JS AST node.
     pub(crate) fn set_source_node_symbol<T>(
         &mut self,
-        node_id: LocalNodeId<T>,
+        node_id: js::LocalNodeId<T>,
         symbol_id: dir::LocalSymbolId,
     ) where
-        T: JsNode,
-        JsTree: crate::NodeTreeImpl<T>,
+        T: js::Node,
+        js::NodeTree: js::NodeTreeImpl<T>,
     {
         self.set_node_symbol(node_id, self.source_symbol_id(symbol_id));
     }
@@ -78,11 +78,11 @@ impl<'a> ModuleLowerer<'a> {
     /// Store one global source-backed symbol id on one JS AST node.
     pub(crate) fn set_global_node_symbol<T>(
         &mut self,
-        node_id: LocalNodeId<T>,
+        node_id: js::LocalNodeId<T>,
         symbol_id: GlobalSymbolId,
     ) where
-        T: JsNode,
-        JsTree: crate::NodeTreeImpl<T>,
+        T: js::Node,
+        js::NodeTree: js::NodeTreeImpl<T>,
     {
         self.set_node_symbol(node_id, ScriptSymbolId::Source(symbol_id));
     }
@@ -143,7 +143,7 @@ impl<'a> ModuleLowerer<'a> {
             symbols: dir.symbols.as_ref(),
             types: dir.types.as_ref(),
             target,
-            tree: JsTree::new(),
+            tree: js::NodeTree::new(),
             roots: Vec::new(),
             strings: StringPool::new(),
             warnings: Vec::new(),

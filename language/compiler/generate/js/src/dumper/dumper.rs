@@ -1,7 +1,7 @@
 #![allow(clippy::match_like_matches_macro)]
 
-use crate::*;
 use destack_core::{Color, ImmutableStringPool, StringId, impl_dump_display, rebuild_tree_output};
+use destack_js as js;
 use smallvec::{Array, SmallVec};
 use std::borrow::Cow;
 
@@ -37,12 +37,12 @@ pub struct Dumper<'a> {
     /// The string pool.
     pub strings: &'a ImmutableStringPool,
     /// The node tree.
-    pub tree: &'a NodeTree,
+    pub tree: &'a js::NodeTree,
     /// The dump options.
     pub options: DumperOptions,
 
     /// The visitor options.
-    visitor_options: NodeVisitorOptions,
+    visitor_options: js::NodeVisitorOptions,
     /// The buffer we're writing to.
     buffer: String,
     /// The current depth (see with_depth).
@@ -58,14 +58,14 @@ impl<'a> Dumper<'a> {
     /// Create a new Dumper.
     pub fn new(
         strings: &'a ImmutableStringPool,
-        tree: &'a NodeTree,
+        tree: &'a js::NodeTree,
         options: DumperOptions,
     ) -> Self {
         Self {
             strings,
             tree,
             options,
-            visitor_options: NodeVisitorOptions::default(),
+            visitor_options: js::NodeVisitorOptions::default(),
             buffer: String::new(),
             depth: 0,
             branch_stack: Vec::new(),
@@ -154,9 +154,9 @@ impl<'a> Dumper<'a> {
         self.write_char('"', Some(Color::White));
     }
 
-    /// Write the path represented by a Path.
+    /// Write the path represented by one JS path.
     #[inline]
-    pub fn write_path(&mut self, path: &Path) {
+    pub fn write_path(&mut self, path: &js::Path) {
         for (index, segment) in path.segments.iter().enumerate() {
             let segment_str = self.strings.get(*segment);
             self.write_str(segment_str, Some(Color::Green));
@@ -382,9 +382,9 @@ impl Dump for StringId {
 }
 
 /// Dump a NodeId<T> as the node it points to.
-impl<T: Node + Clone + Dump> Dump for LocalNodeId<T>
+impl<T: js::Node + Clone + Dump> Dump for js::LocalNodeId<T>
 where
-    NodeTree: NodeTreeImpl<T>,
+    js::NodeTree: js::NodeTreeImpl<T>,
 {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         let node = dumper.tree.get(*self);
@@ -392,21 +392,21 @@ where
     }
 }
 
-/// Dump a Path as a dotted string.
-impl Dump for Path {
+/// Dump one JS path as a dotted string.
+impl Dump for js::Path {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.write_path(self);
     }
 }
 
-/// Dump a Name as a string selector.
-impl Dump for Name {
+/// Dump one JS name as a string selector.
+impl Dump for js::Name {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
-            Name::Identifier(id) => {
+            js::Name::Identifier(id) => {
                 id.dump(dumper);
             }
-            Name::String(id) => {
+            js::Name::String(id) => {
                 dumper.write_char('[', Some(Color::White));
                 id.dump(dumper);
                 dumper.write_char(']', Some(Color::White));
@@ -415,22 +415,22 @@ impl Dump for Name {
     }
 }
 
-/// Dump a Key as a structured representation.
-impl Dump for Key {
+/// Dump one JS key as a structured representation.
+impl Dump for js::Key {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
-            Key::Name(name) => {
-                dumper.object("Key::Name").value(name).end();
+            js::Key::Name(name) => {
+                dumper.object("js::Key::Name").value(name).end();
             }
-            Key::Private(name) => {
-                dumper.object("Key::Private").value(name).end();
+            js::Key::Private(name) => {
+                dumper.object("js::Key::Private").value(name).end();
             }
-            Key::Expression(_) => {
-                dumper.object("Key::Expression").end();
+            js::Key::Expression(_) => {
+                dumper.object("js::Key::Expression").end();
             }
-            Key::NamedExpression { name, key: _ } => {
+            js::Key::NamedExpression { name, key: _ } => {
                 dumper
-                    .object("Key::NamedExpression")
+                    .object("js::Key::NamedExpression")
                     .field("name", name)
                     .end();
             }
@@ -438,25 +438,25 @@ impl Dump for Key {
     }
 }
 
-/// Dump a Generics as a structured object.
-impl Dump for Generics {
+/// Dump one JS generics object.
+impl Dump for js::Generics {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.object("Generics").end();
+        dumper.object("js::Generics").end();
     }
 }
 
-/// Dump a Heritage as a structured object.
-impl Dump for Heritage {
+/// Dump one JS heritage object.
+impl Dump for js::Heritage {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.object("Heritage").end();
+        dumper.object("js::Heritage").end();
     }
 }
 
-/// Dump a FunctionSignature as a structured object.
-impl Dump for FunctionSignature {
+/// Dump one JS function signature.
+impl Dump for js::FunctionSignature {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper
-            .object("FunctionSignature")
+            .object("js::FunctionSignature")
             .field("abstraction", &self.abstraction)
             .field("asynchrony", &self.asynchrony)
             .field("cardinality", &self.cardinality)
@@ -467,57 +467,69 @@ impl Dump for FunctionSignature {
 }
 
 impl_dump_display! {
-    AccessorKind,
-    AnnotationPosition,
-    AssignOperator,
-    Asynchrony,
-    BinaryOperator,
-    BindingKind,
-    BindingOperator,
-    BindingAnchor,
-    DeclarationAbstraction,
-    DeclarationKind,
-    DependencyKind,
-    DependencyMode,
-    FunctionAbstraction,
-    FunctionCardinality,
-    FunctionKind,
-    FunctionMode,
-    Mutability,
-    PostfixPosition,
-    PrimitiveType,
-    TypeBinaryOperator,
-    TypeUnaryOperator,
-    UnaryOperator,
-    VarianceModifier,
-    Visibility,
+    js::AccessorKind,
+    js::AnnotationPosition,
+    js::AssignOperator,
+    js::Asynchrony,
+    js::BinaryOperator,
+    js::BindingKind,
+    js::BindingOperator,
+    js::BindingAnchor,
+    js::DeclarationAbstraction,
+    js::DeclarationKind,
+    js::DependencyKind,
+    js::DependencyMode,
+    js::FunctionAbstraction,
+    js::FunctionCardinality,
+    js::FunctionKind,
+    js::FunctionMode,
+    js::Mutability,
+    js::PostfixPosition,
+    js::PrimitiveType,
+    js::TypeBinaryOperator,
+    js::TypeUnaryOperator,
+    js::UnaryOperator,
+    js::VarianceModifier,
+    js::Visibility,
 }
 
-/// Dump a ScalarLiteral.
-impl Dump for ScalarLiteral {
+/// Dump one JS scalar literal.
+impl Dump for js::ScalarLiteral {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
-            ScalarLiteral::Null => {
-                dumper.object("ScalarLiteral::Null").end();
+            js::ScalarLiteral::Null => {
+                dumper.object("js::ScalarLiteral::Null").end();
             }
-            ScalarLiteral::Undefined => {
-                dumper.object("ScalarLiteral::Undefined").end();
+            js::ScalarLiteral::Undefined => {
+                dumper.object("js::ScalarLiteral::Undefined").end();
             }
-            ScalarLiteral::Boolean(value) => {
-                dumper.object("ScalarLiteral::Boolean").value(value).end();
-            }
-            ScalarLiteral::Number(value) => {
-                dumper.object("ScalarLiteral::Number").value(value).end();
-            }
-            ScalarLiteral::Bigint(value) => {
-                dumper.object("ScalarLiteral::Bigint").value(value).end();
-            }
-            ScalarLiteral::String(value) => {
-                dumper.object("ScalarLiteral::String").value(value).end();
-            }
-            ScalarLiteral::RegexString { content, flags } => {
+            js::ScalarLiteral::Boolean(value) => {
                 dumper
-                    .object("ScalarLiteral::RegexString")
+                    .object("js::ScalarLiteral::Boolean")
+                    .value(value)
+                    .end();
+            }
+            js::ScalarLiteral::Number(value) => {
+                dumper
+                    .object("js::ScalarLiteral::Number")
+                    .value(value)
+                    .end();
+            }
+            js::ScalarLiteral::Bigint(value) => {
+                dumper
+                    .object("js::ScalarLiteral::Bigint")
+                    .value(value)
+                    .end();
+            }
+            js::ScalarLiteral::String(value) => {
+                dumper
+                    .object("js::ScalarLiteral::String")
+                    .value(value)
+                    .end();
+            }
+            js::ScalarLiteral::RegexString { content, flags } => {
+                dumper
+                    .object("js::ScalarLiteral::RegexString")
                     .field("content", content)
                     .field_optional("flags", flags)
                     .end();
@@ -526,36 +538,38 @@ impl Dump for ScalarLiteral {
     }
 }
 
-/// Dump a TemplateLiteral.
-impl Dump for TemplateLiteral {
+/// Dump one JS template literal.
+impl Dump for js::TemplateLiteral {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
-            TemplateLiteral::String { template } => {
+            js::TemplateLiteral::String { template } => {
                 dumper
-                    .object("TemplateLiteral::String")
+                    .object("js::TemplateLiteral::String")
                     .field("template", template)
                     .end();
             }
-            TemplateLiteral::TaggedString { tag, template } => {
+            js::TemplateLiteral::TaggedString { tag, template } => {
                 dumper
-                    .object("TemplateLiteral::TaggedString")
+                    .object("js::TemplateLiteral::TaggedString")
                     .field("tag", tag)
                     .field("template", template)
                     .end();
             }
-            TemplateLiteral::InterpolatedString {
+            js::TemplateLiteral::InterpolatedString {
                 template: _,
                 expressions: _,
             } => {
-                dumper.object("TemplateLiteral::InterpolatedString").end();
+                dumper
+                    .object("js::TemplateLiteral::InterpolatedString")
+                    .end();
             }
-            TemplateLiteral::TaggedInterpolatedString {
+            js::TemplateLiteral::TaggedInterpolatedString {
                 tag,
                 template: _,
                 expressions: _,
             } => {
                 dumper
-                    .object("TemplateLiteral::TaggedInterpolatedString")
+                    .object("js::TemplateLiteral::TaggedInterpolatedString")
                     .field("tag", tag)
                     .end();
             }
@@ -563,40 +577,40 @@ impl Dump for TemplateLiteral {
     }
 }
 
-/// Dump a TypeLiteral.
-impl Dump for TypeLiteral {
+/// Dump one JS type literal.
+impl Dump for js::TypeLiteral {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
-            TypeLiteral::Never => {
-                dumper.object("TypeLiteral::Never").end();
+            js::TypeLiteral::Never => {
+                dumper.object("js::TypeLiteral::Never").end();
             }
-            TypeLiteral::Any => {
-                dumper.object("TypeLiteral::Any").end();
+            js::TypeLiteral::Any => {
+                dumper.object("js::TypeLiteral::Any").end();
             }
-            TypeLiteral::Undefined => {
-                dumper.object("TypeLiteral::Undefined").end();
+            js::TypeLiteral::Undefined => {
+                dumper.object("js::TypeLiteral::Undefined").end();
             }
-            TypeLiteral::Unknown => {
-                dumper.object("TypeLiteral::Unknown").end();
+            js::TypeLiteral::Unknown => {
+                dumper.object("js::TypeLiteral::Unknown").end();
             }
-            TypeLiteral::Object => {
-                dumper.object("TypeLiteral::Object").end();
+            js::TypeLiteral::Object => {
+                dumper.object("js::TypeLiteral::Object").end();
             }
-            TypeLiteral::Void => {
-                dumper.object("TypeLiteral::Void").end();
+            js::TypeLiteral::Void => {
+                dumper.object("js::TypeLiteral::Void").end();
             }
-            TypeLiteral::Null => {
-                dumper.object("TypeLiteral::Null").end();
+            js::TypeLiteral::Null => {
+                dumper.object("js::TypeLiteral::Null").end();
             }
-            TypeLiteral::Primitive(primitive) => {
+            js::TypeLiteral::Primitive(primitive) => {
                 dumper
-                    .object("TypeLiteral::Primitive")
+                    .object("js::TypeLiteral::Primitive")
                     .value(primitive)
                     .end();
             }
-            TypeLiteral::ScalarLiteral(scalar_literal) => {
+            js::TypeLiteral::ScalarLiteral(scalar_literal) => {
                 dumper
-                    .object("TypeLiteral::ScalarLiteral")
+                    .object("js::TypeLiteral::ScalarLiteral")
                     .value(scalar_literal)
                     .end();
             }
@@ -604,11 +618,11 @@ impl Dump for TypeLiteral {
     }
 }
 
-/// Dump a BindingModifier.
-impl Dump for BindingModifier {
+/// Dump one JS binding modifier.
+impl Dump for js::BindingModifier {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper
-            .object("BindingModifier")
+            .object("js::BindingModifier")
             .field_optional("kind", &self.kind)
             .field_optional("variance", &self.variance)
             .field_optional("anchor", &self.anchor)
@@ -620,11 +634,11 @@ impl Dump for BindingModifier {
     }
 }
 
-/// Dump a DeclarationDescriptor.
-impl Dump for DeclarationDescriptor {
+/// Dump one JS declaration descriptor.
+impl Dump for js::DeclarationDescriptor {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper
-            .object("DeclarationDescriptor")
+            .object("js::DeclarationDescriptor")
             .field("kind", &self.kind)
             .field("abstraction", &self.abstraction)
             .field("anchor", &self.anchor)
@@ -634,13 +648,13 @@ impl Dump for DeclarationDescriptor {
     }
 }
 
-impl<'a> NodeVisitor for Dumper<'a> {
+impl<'a> js::NodeVisitor for Dumper<'a> {
     #[inline]
-    fn options(&self) -> &NodeVisitorOptions {
+    fn options(&self) -> &js::NodeVisitorOptions {
         &self.visitor_options
     }
 
-    fn visit_any(&mut self, tree: &NodeTree, _ty: NodeType, id: u32) {
+    fn visit_any(&mut self, tree: &js::NodeTree, _ty: js::NodeType, id: u32) {
         let annotations = tree.get_annotations(id);
         for annotation_id in annotations {
             let annotation = tree.get(annotation_id);
@@ -648,31 +662,36 @@ impl<'a> NodeVisitor for Dumper<'a> {
         }
     }
 
-    fn visit_block(&mut self, tree: &NodeTree, id: LocalNodeId<Block>, block: &Block) {
+    fn visit_block(
+        &mut self,
+        tree: &js::NodeTree,
+        id: js::LocalNodeId<js::Block>,
+        block: &js::Block,
+    ) {
         let statement_count = block.statements.len() as u32;
-        self.node("Block", id.id)
+        self.node("js::Block", id.id)
             .field("statement_count", &statement_count)
             .end();
         self.with_depth(|dumper| {
-            walk_block(dumper, tree, id, block);
+            js::walk_block(dumper, tree, id, block);
         });
     }
 
     fn visit_statement(
         &mut self,
-        tree: &NodeTree,
-        id: LocalNodeId<Statement>,
-        statement: &Statement,
+        tree: &js::NodeTree,
+        id: js::LocalNodeId<js::Statement>,
+        statement: &js::Statement,
     ) {
         match statement {
-            Statement::Import {
+            js::Statement::Import {
                 kind,
                 target,
                 target_module,
                 items: _,
                 attributes: _,
             } => {
-                self.node("Statement::Import", id.id)
+                self.node("js::Statement::Import", id.id)
                     .field("kind", kind)
                     .field("target", target)
                     .field_optional(
@@ -681,14 +700,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     )
                     .end();
             }
-            Statement::Export {
+            js::Statement::Export {
                 kind,
                 target,
                 target_module,
                 items: _,
                 attributes: _,
             } => {
-                self.node("Statement::Export", id.id)
+                self.node("js::Statement::Export", id.id)
                     .field("kind", kind)
                     .field_optional("target", target)
                     .field_optional(
@@ -697,396 +716,402 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     )
                     .end();
             }
-            Statement::ExportValue { value: _ } => {
-                self.node("Statement::ExportValue", id.id).end();
+            js::Statement::ExportValue { value: _ } => {
+                self.node("js::Statement::ExportValue", id.id).end();
             }
-            Statement::Declaration { declaration: _ } => {
-                self.node("Statement::Declaration", id.id).end();
+            js::Statement::Declaration { declaration: _ } => {
+                self.node("js::Statement::Declaration", id.id).end();
             }
-            Statement::Block { block: _ } => {
-                self.node("Statement::Block", id.id).end();
+            js::Statement::Block { block: _ } => {
+                self.node("js::Statement::Block", id.id).end();
             }
-            Statement::Labelled { label, body: _ } => {
-                self.node("Statement::Labelled", id.id)
+            js::Statement::Labelled { label, body: _ } => {
+                self.node("js::Statement::Labelled", id.id)
                     .field("label", label)
                     .end();
             }
-            Statement::Let {
+            js::Statement::Let {
                 descriptor,
                 mutability,
                 declarators: _,
             } => {
-                self.node("Statement::Let", id.id)
+                self.node("js::Statement::Let", id.id)
                     .field("descriptor", descriptor)
                     .field("mutability", mutability)
                     .end();
             }
-            Statement::Var {
+            js::Statement::Var {
                 descriptor,
                 declarators: _,
             } => {
-                self.node("Statement::Var", id.id)
+                self.node("js::Statement::Var", id.id)
                     .field("descriptor", descriptor)
                     .end();
             }
-            Statement::Using {
+            js::Statement::Using {
                 asynchrony,
                 descriptor,
                 declarators: _,
             } => {
-                self.node("Statement::Using", id.id)
+                self.node("js::Statement::Using", id.id)
                     .field("asynchrony", asynchrony)
                     .field("descriptor", descriptor)
                     .end();
             }
-            Statement::Assign {
+            js::Statement::Assign {
                 operator,
                 left: _,
                 right: _,
             } => {
-                self.node("Statement::Assign", id.id)
+                self.node("js::Statement::Assign", id.id)
                     .field("operator", operator)
                     .end();
             }
-            Statement::Expression { expression: _ } => {
-                self.node("Statement::Expression", id.id).end();
+            js::Statement::Expression { expression: _ } => {
+                self.node("js::Statement::Expression", id.id).end();
             }
-            Statement::If {
+            js::Statement::If {
                 condition: _,
                 then_block: _,
                 else_block: _,
             } => {
-                self.node("Statement::If", id.id).end();
+                self.node("js::Statement::If", id.id).end();
             }
-            Statement::While {
+            js::Statement::While {
                 condition: _,
                 body: _,
             } => {
-                self.node("Statement::While", id.id).end();
+                self.node("js::Statement::While", id.id).end();
             }
-            Statement::DoWhile {
+            js::Statement::DoWhile {
                 body: _,
                 condition: _,
             } => {
-                self.node("Statement::DoWhile", id.id).end();
+                self.node("js::Statement::DoWhile", id.id).end();
             }
-            Statement::For {
+            js::Statement::For {
                 initialization: _,
                 increment: _,
                 condition: _,
                 body: _,
             } => {
-                self.node("Statement::For", id.id).end();
+                self.node("js::Statement::For", id.id).end();
             }
-            Statement::ForIn { pattern: _, .. } => {
-                self.node("Statement::ForIn", id.id).end();
+            js::Statement::ForIn { pattern: _, .. } => {
+                self.node("js::Statement::ForIn", id.id).end();
             }
-            Statement::ForOf {
+            js::Statement::ForOf {
                 asynchrony,
                 pattern: _,
                 iterator: _,
                 body: _,
                 declaration_kind: _,
             } => {
-                self.node("Statement::ForOf", id.id)
+                self.node("js::Statement::ForOf", id.id)
                     .field("asynchrony", asynchrony)
                     .end();
             }
-            Statement::Switch { value: _, cases: _ } => {
-                self.node("Statement::Switch", id.id).end();
+            js::Statement::Switch { value: _, cases: _ } => {
+                self.node("js::Statement::Switch", id.id).end();
             }
-            Statement::Try {
+            js::Statement::Try {
                 try_block: _,
                 catch_clause: _,
                 finally_block: _,
             } => {
-                self.node("Statement::Try", id.id).end();
+                self.node("js::Statement::Try", id.id).end();
             }
-            Statement::Throw { value: _ } => {
-                self.node("Statement::Throw", id.id).end();
+            js::Statement::Throw { value: _ } => {
+                self.node("js::Statement::Throw", id.id).end();
             }
-            Statement::Continue { label } => {
-                self.node("Statement::Continue", id.id)
+            js::Statement::Continue { label } => {
+                self.node("js::Statement::Continue", id.id)
                     .field_optional("label", label)
                     .end();
             }
-            Statement::Break { label } => {
-                self.node("Statement::Break", id.id)
+            js::Statement::Break { label } => {
+                self.node("js::Statement::Break", id.id)
                     .field_optional("label", label)
                     .end();
             }
-            Statement::Return { value: _ } => {
-                self.node("Statement::Return", id.id).end();
+            js::Statement::Return { value: _ } => {
+                self.node("js::Statement::Return", id.id).end();
             }
-            Statement::Debugger => {
-                self.node("Statement::Debugger", id.id).end();
+            js::Statement::Debugger => {
+                self.node("js::Statement::Debugger", id.id).end();
             }
         }
         self.with_depth(|dumper| {
-            walk_statement(dumper, tree, id, statement);
+            js::walk_statement(dumper, tree, id, statement);
         });
     }
 
     fn visit_expression(
         &mut self,
-        tree: &NodeTree,
-        id: LocalNodeId<Expression>,
-        expression: &Expression,
+        tree: &js::NodeTree,
+        id: js::LocalNodeId<js::Expression>,
+        expression: &js::Expression,
     ) {
         match expression {
-            Expression::Declaration { declaration: _ } => {
-                self.node("Expression::Declaration", id.id).end();
+            js::Expression::Declaration { declaration: _ } => {
+                self.node("js::Expression::Declaration", id.id).end();
             }
-            Expression::ArrowFunction { signature, body: _ } => {
-                self.node("Expression::ArrowFunction", id.id)
+            js::Expression::ArrowFunction { signature, body: _ } => {
+                self.node("js::Expression::ArrowFunction", id.id)
                     .field("signature", signature)
                     .end();
             }
-            Expression::Path {
+            js::Expression::Path {
                 path,
                 static_arguments: _,
             } => {
-                self.node("Expression::Path", id.id)
+                self.node("js::Expression::Path", id.id)
                     .field("path", path)
                     .end();
             }
-            Expression::ImportMeta => {
-                self.node("Expression::ImportMeta", id.id).end();
+            js::Expression::ImportMeta => {
+                self.node("js::Expression::ImportMeta", id.id).end();
             }
-            Expression::NewTarget => {
-                self.node("Expression::NewTarget", id.id).end();
+            js::Expression::NewTarget => {
+                self.node("js::Expression::NewTarget", id.id).end();
             }
-            Expression::PrivateIdentifier { name } => {
-                self.node("Expression::PrivateIdentifier", id.id)
+            js::Expression::PrivateIdentifier { name } => {
+                self.node("js::Expression::PrivateIdentifier", id.id)
                     .field("name", name)
                     .end();
             }
-            Expression::ScalarLiteral { value } => {
-                self.node("Expression::ScalarLiteral", id.id)
+            js::Expression::ScalarLiteral { value } => {
+                self.node("js::Expression::ScalarLiteral", id.id)
                     .value(value)
                     .end();
             }
-            Expression::TemplateLiteral { value } => {
-                self.node("Expression::TemplateLiteral", id.id)
+            js::Expression::TemplateLiteral { value } => {
+                self.node("js::Expression::TemplateLiteral", id.id)
                     .value(value)
                     .end();
             }
-            Expression::ArrayLiteral { elements: _ } => {
-                self.node("Expression::ArrayLiteral", id.id).end();
+            js::Expression::ArrayLiteral { elements: _ } => {
+                self.node("js::Expression::ArrayLiteral", id.id).end();
             }
-            Expression::SequenceExpression { expressions } => {
-                self.node("Expression::SequenceExpression", id.id)
+            js::Expression::SequenceExpression { expressions } => {
+                self.node("js::Expression::SequenceExpression", id.id)
                     .field("count", &(expressions.len() as u32))
                     .end();
             }
-            Expression::ObjectLiteral { properties: _ } => {
-                self.node("Expression::ObjectLiteral", id.id).end();
+            js::Expression::ObjectLiteral { properties: _ } => {
+                self.node("js::Expression::ObjectLiteral", id.id).end();
             }
-            Expression::Parenthesized { .. } => {
-                self.node("Expression::Parenthesized", id.id).end();
+            js::Expression::Parenthesized { .. } => {
+                self.node("js::Expression::Parenthesized", id.id).end();
             }
-            Expression::TypeUnary { operator, right: _ } => {
-                self.node("Expression::TypeUnary", id.id)
+            js::Expression::TypeUnary { operator, right: _ } => {
+                self.node("js::Expression::TypeUnary", id.id)
                     .field("operator", operator)
                     .end();
             }
-            Expression::TypeBinary {
+            js::Expression::TypeBinary {
                 operator,
                 left: _,
                 right: _,
             } => {
-                self.node("Expression::TypeBinary", id.id)
+                self.node("js::Expression::TypeBinary", id.id)
                     .field("operator", operator)
                     .end();
             }
-            Expression::Await { value: _ } => {
-                self.node("Expression::Await", id.id).end();
+            js::Expression::Await { value: _ } => {
+                self.node("js::Expression::Await", id.id).end();
             }
-            Expression::Yield {
+            js::Expression::Yield {
                 is_delegate,
                 value: _,
             } => {
-                self.node("Expression::Yield", id.id)
+                self.node("js::Expression::Yield", id.id)
                     .field("is_delegate", is_delegate)
                     .end();
             }
-            Expression::Unary { operator, right: _ } => {
-                self.node("Expression::Unary", id.id)
+            js::Expression::Unary { operator, right: _ } => {
+                self.node("js::Expression::Unary", id.id)
                     .field("operator", operator)
                     .end();
             }
-            Expression::Binary {
+            js::Expression::Binary {
                 operator,
                 left: _,
                 right: _,
             } => {
-                self.node("Expression::Binary", id.id)
+                self.node("js::Expression::Binary", id.id)
                     .field("operator", operator)
                     .end();
             }
-            Expression::Assign { left: _, right: _ } => {
-                self.node("Expression::Assign", id.id).end();
+            js::Expression::Assign { left: _, right: _ } => {
+                self.node("js::Expression::Assign", id.id).end();
             }
-            Expression::AssignBinary {
+            js::Expression::AssignBinary {
                 operator,
                 left: _,
                 right: _,
             } => {
-                self.node("Expression::AssignBinary", id.id)
+                self.node("js::Expression::AssignBinary", id.id)
                     .field("operator", operator)
                     .end();
             }
-            Expression::Maybe { position, left: _ } => {
-                self.node("Expression::Maybe", id.id)
+            js::Expression::Maybe { position, left: _ } => {
+                self.node("js::Expression::Maybe", id.id)
                     .field("position", position)
                     .end();
             }
-            Expression::Must { position, left: _ } => {
-                self.node("Expression::Must", id.id)
+            js::Expression::Must { position, left: _ } => {
+                self.node("js::Expression::Must", id.id)
                     .field("position", position)
                     .end();
             }
-            Expression::Member {
+            js::Expression::Member {
                 left: _,
                 name,
                 static_arguments: _,
             } => {
-                self.node("Expression::Member", id.id)
+                self.node("js::Expression::Member", id.id)
                     .field("name", name)
                     .end();
             }
-            Expression::PrivateMember {
+            js::Expression::PrivateMember {
                 left: _,
                 name,
                 static_arguments: _,
             } => {
-                self.node("Expression::PrivateMember", id.id)
+                self.node("js::Expression::PrivateMember", id.id)
                     .field("name", name)
                     .end();
             }
-            Expression::Index {
+            js::Expression::Index {
                 position,
                 right: _,
                 left: _,
             } => {
-                self.node("Expression::Index", id.id)
+                self.node("js::Expression::Index", id.id)
                     .field("position", position)
                     .end();
             }
-            Expression::Call {
+            js::Expression::Instantiation {
+                left: _,
+                static_arguments: _,
+            } => {
+                self.node("js::Expression::Instantiation", id.id).end();
+            }
+            js::Expression::Call {
                 position,
                 left: _,
                 static_arguments: _,
                 dynamic_arguments: _,
             } => {
-                self.node("Expression::Call", id.id)
+                self.node("js::Expression::Call", id.id)
                     .field("position", position)
                     .end();
             }
-            Expression::ImportCall {
+            js::Expression::ImportCall {
                 target: _,
                 target_module,
                 arguments: _,
             } => {
-                self.node("Expression::ImportCall", id.id)
+                self.node("js::Expression::ImportCall", id.id)
                     .field(
                         "target_module",
                         &target_module.map(|module| format!("{module:?}")),
                     )
                     .end();
             }
-            Expression::New {
+            js::Expression::New {
                 left: _,
                 static_arguments: _,
                 dynamic_arguments: _,
             } => {
-                self.node("Expression::New", id.id).end();
+                self.node("js::Expression::New", id.id).end();
             }
-            Expression::IfTernary {
+            js::Expression::IfTernary {
                 condition: _,
                 then_expression: _,
                 else_expression: _,
             } => {
-                self.node("Expression::IfTernary", id.id).end();
+                self.node("js::Expression::IfTernary", id.id).end();
             }
-            Expression::Missing => {
-                self.node("Expression::Missing", id.id).end();
+            js::Expression::Missing => {
+                self.node("js::Expression::Missing", id.id).end();
             }
-            Expression::Stub => {
-                self.node("Expression::Stub", id.id).end();
+            js::Expression::Stub => {
+                self.node("js::Expression::Stub", id.id).end();
             }
-            Expression::Error => {
-                self.node("Expression::Error", id.id).end();
+            js::Expression::Error => {
+                self.node("js::Expression::Error", id.id).end();
             }
         }
         self.with_depth(|dumper| {
-            walk_expression(dumper, tree, id, expression);
+            js::walk_expression(dumper, tree, id, expression);
         });
     }
 
     fn visit_switch_case(
         &mut self,
-        tree: &NodeTree,
-        id: LocalNodeId<SwitchCase>,
-        switch_case: &SwitchCase,
+        tree: &js::NodeTree,
+        id: js::LocalNodeId<js::SwitchCase>,
+        switch_case: &js::SwitchCase,
     ) {
-        self.node("SwitchCase", id.id).end();
+        self.node("js::SwitchCase", id.id).end();
         self.with_depth(|dumper| {
-            walk_switch_case(dumper, tree, id, switch_case);
+            js::walk_switch_case(dumper, tree, id, switch_case);
         });
     }
 
     fn visit_catch_clause(
         &mut self,
-        tree: &NodeTree,
-        id: LocalNodeId<CatchClause>,
-        catch_clause: &CatchClause,
+        tree: &js::NodeTree,
+        id: js::LocalNodeId<js::CatchClause>,
+        catch_clause: &js::CatchClause,
     ) {
-        self.node("CatchClause", id.id).end();
+        self.node("js::CatchClause", id.id).end();
         self.with_depth(|dumper| {
-            walk_catch_clause(dumper, tree, id, catch_clause);
+            js::walk_catch_clause(dumper, tree, id, catch_clause);
         });
     }
 
     fn visit_declaration(
         &mut self,
-        tree: &NodeTree,
-        id: LocalNodeId<Declaration>,
-        declaration: &Declaration,
+        tree: &js::NodeTree,
+        id: js::LocalNodeId<js::Declaration>,
+        declaration: &js::Declaration,
     ) {
         match declaration {
-            Declaration::Global {
+            js::Declaration::Global {
                 descriptor,
                 statements: _,
             } => {
-                self.node("Declaration::Global", id.id)
+                self.node("js::Declaration::Global", id.id)
                     .field("descriptor", descriptor)
                     .end();
             }
-            Declaration::Namespace {
+            js::Declaration::Namespace {
                 descriptor,
                 statements: _,
             } => {
-                self.node("Declaration::Namespace", id.id)
+                self.node("js::Declaration::Namespace", id.id)
                     .field("descriptor", descriptor)
                     .end();
             }
-            Declaration::Type {
+            js::Declaration::Type {
                 descriptor,
                 static_parameters: _,
                 value: _,
             } => {
-                self.node("Declaration::Type", id.id)
+                self.node("js::Declaration::Type", id.id)
                     .field("descriptor", descriptor)
                     .end();
             }
-            Declaration::Class {
+            js::Declaration::Class {
                 descriptor,
                 generics,
                 heritage,
                 members: _,
             } => {
-                let mut node = self.node("Declaration::Class", id.id);
+                let mut node = self.node("js::Declaration::Class", id.id);
                 node.field("descriptor", descriptor);
                 if !generics.is_empty() {
                     node.field("generics", generics);
@@ -1096,13 +1121,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 }
                 node.end();
             }
-            Declaration::Interface {
+            js::Declaration::Interface {
                 descriptor,
                 generics,
                 heritage,
                 members: _,
             } => {
-                let mut node = self.node("Declaration::Interface", id.id);
+                let mut node = self.node("js::Declaration::Interface", id.id);
                 node.field("descriptor", descriptor);
                 if !generics.is_empty() {
                     node.field("generics", generics);
@@ -1112,386 +1137,462 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 }
                 node.end();
             }
-            Declaration::Enum {
+            js::Declaration::Enum {
                 descriptor,
                 fields: _,
             } => {
-                self.node("Declaration::Enum", id.id)
+                self.node("js::Declaration::Enum", id.id)
                     .field("descriptor", descriptor)
                     .end();
             }
-            Declaration::Function {
+            js::Declaration::Function {
                 descriptor,
                 signature,
                 body: _,
             } => {
-                self.node("Declaration::Function", id.id)
+                self.node("js::Declaration::Function", id.id)
                     .field("descriptor", descriptor)
                     .field("signature", signature)
                     .end();
             }
         }
         self.with_depth(|dumper| {
-            walk_declaration(dumper, tree, id, declaration);
+            js::walk_declaration(dumper, tree, id, declaration);
         });
     }
 
-    fn visit_property(&mut self, tree: &NodeTree, id: LocalNodeId<Property>, property: &Property) {
+    fn visit_property(
+        &mut self,
+        tree: &js::NodeTree,
+        id: js::LocalNodeId<js::Property>,
+        property: &js::Property,
+    ) {
         match property {
-            Property::Field {
+            js::Property::Field {
                 modifiers,
                 key,
                 value: _,
                 default: _,
             } => {
-                self.node("Property::Field", id.id)
+                self.node("js::Property::Field", id.id)
                     .field_optional("modifiers", modifiers)
                     .field_optional("key", key)
                     .end();
             }
-            Property::Method {
+            js::Property::Method {
                 modifiers,
                 key,
                 signature,
                 body: _,
             } => {
-                self.node("Property::Method", id.id)
+                self.node("js::Property::Method", id.id)
                     .field_optional("modifiers", modifiers)
                     .field_optional("key", key)
                     .field("signature", signature)
                     .end();
             }
-            Property::Spread {
+            js::Property::Spread {
                 modifiers,
                 value: _,
             } => {
-                self.node("Property::Spread", id.id)
+                self.node("js::Property::Spread", id.id)
                     .field_optional("modifiers", modifiers)
                     .end();
             }
         }
         self.with_depth(|dumper| {
-            walk_property(dumper, tree, id, property);
+            js::walk_property(dumper, tree, id, property);
         });
     }
 
-    fn visit_member(&mut self, tree: &NodeTree, id: LocalNodeId<Member>, member: &Member) {
+    fn visit_member(
+        &mut self,
+        tree: &js::NodeTree,
+        id: js::LocalNodeId<js::Member>,
+        member: &js::Member,
+    ) {
         match member {
-            Member::Field {
+            js::Member::Field {
                 modifiers,
                 key,
                 value: _,
                 default: _,
             } => {
-                self.node("Member::Field", id.id)
+                self.node("js::Member::Field", id.id)
                     .field_optional("modifiers", modifiers)
                     .field_optional("key", key)
                     .end();
             }
-            Member::Method {
+            js::Member::Method {
                 modifiers,
                 key,
                 signature,
                 body: _,
             } => {
-                self.node("Member::Method", id.id)
+                self.node("js::Member::Method", id.id)
                     .field_optional("modifiers", modifiers)
                     .field_optional("key", key)
                     .field("signature", signature)
                     .end();
             }
-            Member::StaticBlock { body: _ } => {
-                self.node("Member::StaticBlock", id.id).end();
+            js::Member::StaticBlock { body: _ } => {
+                self.node("js::Member::StaticBlock", id.id).end();
             }
         }
         self.with_depth(|dumper| {
-            walk_member(dumper, tree, id, member);
+            js::walk_member(dumper, tree, id, member);
         });
     }
 
-    fn visit_enum_field(&mut self, tree: &NodeTree, id: LocalNodeId<EnumField>, field: &EnumField) {
+    fn visit_enum_field(
+        &mut self,
+        tree: &js::NodeTree,
+        id: js::LocalNodeId<js::EnumField>,
+        field: &js::EnumField,
+    ) {
         let has_value = field.value.is_some();
-        self.node("EnumField", id.id)
+        self.node("js::EnumField", id.id)
             .field("name", &field.name)
             .field("has_value", &has_value)
             .end();
         self.with_depth(|dumper| {
-            walk_enum_field(dumper, tree, id, field);
+            js::walk_enum_field(dumper, tree, id, field);
         });
     }
 
     fn visit_dependency_item(
         &mut self,
-        tree: &NodeTree,
-        id: LocalNodeId<DependencyItem>,
-        dependency_item: &DependencyItem,
+        tree: &js::NodeTree,
+        id: js::LocalNodeId<js::DependencyItem>,
+        dependency_item: &js::DependencyItem,
     ) {
-        self.node("DependencyItem", id.id)
+        self.node("js::DependencyItem", id.id)
             .field("mode", &dependency_item.mode)
             .field_optional("kind", &dependency_item.kind)
             .field_optional("name", &dependency_item.name)
             .field_optional("alias", &dependency_item.alias)
             .end();
         self.with_depth(|dumper| {
-            walk_dependency_item(dumper, tree, id, dependency_item);
+            js::walk_dependency_item(dumper, tree, id, dependency_item);
         });
     }
 
     fn visit_parameter(
         &mut self,
-        tree: &NodeTree,
-        id: LocalNodeId<Parameter>,
-        parameter: &Parameter,
+        tree: &js::NodeTree,
+        id: js::LocalNodeId<js::Parameter>,
+        parameter: &js::Parameter,
     ) {
         match parameter {
-            Parameter::Named {
+            js::Parameter::Named {
                 modifiers,
                 name,
                 ty: _,
                 default: _,
             } => {
-                self.node("Parameter::Named", id.id)
+                self.node("js::Parameter::Named", id.id)
                     .field_optional("modifiers", modifiers)
                     .field("name", name)
                     .end();
             }
-            Parameter::Pattern {
+            js::Parameter::Pattern {
                 modifiers,
                 pattern: _,
                 ty: _,
                 default: _,
             } => {
-                self.node("Parameter::Pattern", id.id)
+                self.node("js::Parameter::Pattern", id.id)
                     .field_optional("modifiers", modifiers)
                     .end();
             }
-            Parameter::VariadicNamed {
+            js::Parameter::VariadicNamed {
                 modifiers,
                 name,
                 ty: _,
             } => {
-                self.node("Parameter::VariadicNamed", id.id)
+                self.node("js::Parameter::VariadicNamed", id.id)
                     .field_optional("modifiers", modifiers)
                     .field("name", name)
                     .end();
             }
-            Parameter::VariadicPattern {
+            js::Parameter::VariadicPattern {
                 modifiers,
                 pattern: _,
                 ty: _,
             } => {
-                self.node("Parameter::VariadicPattern", id.id)
+                self.node("js::Parameter::VariadicPattern", id.id)
                     .field_optional("modifiers", modifiers)
                     .end();
             }
         }
         self.with_depth(|dumper| {
-            walk_parameter(dumper, tree, id, parameter);
+            js::walk_parameter(dumper, tree, id, parameter);
         });
     }
 
-    fn visit_argument(&mut self, tree: &NodeTree, id: LocalNodeId<Argument>, argument: &Argument) {
+    fn visit_argument(
+        &mut self,
+        tree: &js::NodeTree,
+        id: js::LocalNodeId<js::Argument>,
+        argument: &js::Argument,
+    ) {
         match argument {
-            Argument::Positional { value: _ } => {
-                self.node("Argument::Positional", id.id).end();
+            js::Argument::Positional { value: _ } => {
+                self.node("js::Argument::Positional", id.id).end();
             }
-            Argument::Spread { value: _ } => {
-                self.node("Argument::Spread", id.id).end();
+            js::Argument::Spread { value: _ } => {
+                self.node("js::Argument::Spread", id.id).end();
             }
-            Argument::Dynamic { key: _, value: _ } => {
-                self.node("Argument::Dynamic", id.id).end();
+            js::Argument::Dynamic { key: _, value: _ } => {
+                self.node("js::Argument::Dynamic", id.id).end();
             }
         }
         self.with_depth(|dumper| {
-            walk_argument(dumper, tree, id, argument);
+            js::walk_argument(dumper, tree, id, argument);
         });
     }
 
     fn visit_array_element(
         &mut self,
-        tree: &NodeTree,
-        id: LocalNodeId<ArrayElement>,
-        array_element: &ArrayElement,
+        tree: &js::NodeTree,
+        id: js::LocalNodeId<js::ArrayElement>,
+        array_element: &js::ArrayElement,
     ) {
         match array_element {
-            ArrayElement::Expression { value: _ } => {
-                self.node("ArrayElement::Expression", id.id).end();
+            js::ArrayElement::Expression { value: _ } => {
+                self.node("js::ArrayElement::Expression", id.id).end();
             }
-            ArrayElement::Spread { value: _ } => {
-                self.node("ArrayElement::Spread", id.id).end();
+            js::ArrayElement::Spread { value: _ } => {
+                self.node("js::ArrayElement::Spread", id.id).end();
             }
-            ArrayElement::Elision => {
-                self.node("ArrayElement::Elision", id.id).end();
+            js::ArrayElement::Elision => {
+                self.node("js::ArrayElement::Elision", id.id).end();
             }
         }
         self.with_depth(|dumper| {
-            walk_array_element(dumper, tree, id, array_element);
+            js::walk_array_element(dumper, tree, id, array_element);
         });
     }
 
-    fn visit_pattern(&mut self, tree: &NodeTree, id: LocalNodeId<Pattern>, pattern: &Pattern) {
+    fn visit_pattern(
+        &mut self,
+        tree: &js::NodeTree,
+        id: js::LocalNodeId<js::Pattern>,
+        pattern: &js::Pattern,
+    ) {
         match pattern {
-            Pattern::Binding { mutability, name } => {
-                self.node("Pattern::Binding", id.id)
+            js::Pattern::Binding { mutability, name } => {
+                self.node("js::Pattern::Binding", id.id)
                     .field_optional("mutability", mutability)
                     .field("name", name)
                     .end();
             }
-            Pattern::Array { fields: _ } => {
-                self.node("Pattern::Array", id.id).end();
+            js::Pattern::Array { fields: _ } => {
+                self.node("js::Pattern::Array", id.id).end();
             }
-            Pattern::Object { fields: _ } => {
-                self.node("Pattern::Object", id.id).end();
+            js::Pattern::Object { fields: _ } => {
+                self.node("js::Pattern::Object", id.id).end();
             }
-            Pattern::Hole => {
-                self.node("Pattern::Hole", id.id).end();
+            js::Pattern::Hole => {
+                self.node("js::Pattern::Hole", id.id).end();
             }
         }
         self.with_depth(|dumper| {
-            walk_pattern(dumper, tree, id, pattern);
+            js::walk_pattern(dumper, tree, id, pattern);
         });
     }
 
     fn visit_pattern_field(
         &mut self,
-        tree: &NodeTree,
-        id: LocalNodeId<PatternField>,
-        field: &PatternField,
+        tree: &js::NodeTree,
+        id: js::LocalNodeId<js::PatternField>,
+        field: &js::PatternField,
     ) {
         match field {
-            PatternField::Named {
+            js::PatternField::Named {
                 mutability,
                 name,
                 pattern: _,
                 default: _,
             } => {
-                self.node("PatternField::Named", id.id)
+                self.node("js::PatternField::Named", id.id)
                     .field_optional("mutability", mutability)
                     .field("name", name)
                     .end();
             }
-            PatternField::Computed {
+            js::PatternField::Computed {
                 mutability,
                 key: _,
                 pattern: _,
                 default: _,
             } => {
-                self.node("PatternField::Computed", id.id)
+                self.node("js::PatternField::Computed", id.id)
                     .field_optional("mutability", mutability)
                     .end();
             }
-            PatternField::Alias {
+            js::PatternField::Alias {
                 mutability,
                 name,
                 alias,
                 default: _,
             } => {
-                self.node("PatternField::Alias", id.id)
+                self.node("js::PatternField::Alias", id.id)
                     .field("name", name)
                     .field("alias", alias)
                     .field_optional("mutability", mutability)
                     .end();
             }
-            PatternField::Positional {
+            js::PatternField::Positional {
                 pattern: _,
                 default: _,
             } => {
-                self.node("PatternField::Positional", id.id).end();
+                self.node("js::PatternField::Positional", id.id).end();
             }
-            PatternField::Spread {
+            js::PatternField::Spread {
                 mutability,
                 pattern: _,
             } => {
-                self.node("PatternField::Spread", id.id)
+                self.node("js::PatternField::Spread", id.id)
                     .field_optional("mutability", mutability)
                     .end();
             }
-            PatternField::Elision => {
-                self.node("PatternField::Elision", id.id).end();
+            js::PatternField::Elision => {
+                self.node("js::PatternField::Elision", id.id).end();
             }
         }
         self.with_depth(|dumper| {
-            walk_pattern_field(dumper, tree, id, field);
+            js::walk_pattern_field(dumper, tree, id, field);
         });
     }
 
-    fn visit_type(&mut self, tree: &NodeTree, id: LocalNodeId<Type>, ty: &Type) {
+    fn visit_type(&mut self, tree: &js::NodeTree, id: js::LocalNodeId<js::Type>, ty: &js::Type) {
         match ty {
-            Type::Scalar(literal) => {
-                self.node("Type::Scalar", id.id).value(literal).end();
+            js::Type::Scalar(literal) => {
+                self.node("js::Type::Scalar", id.id).value(literal).end();
             }
-            Type::Path {
+            js::Type::This => {
+                self.node("js::Type::This", id.id).end();
+            }
+            js::Type::Path {
                 path,
                 static_arguments: _,
             } => {
-                self.node("Type::Path", id.id).field("path", path).end();
+                self.node("js::Type::Path", id.id).field("path", path).end();
             }
-            Type::Expression(_) => {
-                self.node("Type::Expression", id.id).end();
+            js::Type::Expression(_) => {
+                self.node("js::Type::Expression", id.id).end();
+            }
+            js::Type::Conditional {
+                left: _,
+                right: _,
+                then_type: _,
+                else_type: _,
+            } => {
+                self.node("js::Type::Conditional", id.id).end();
+            }
+            js::Type::Mapped {
+                parameter: _,
+                modifiers: _,
+                value: _,
+            } => {
+                self.node("js::Type::Mapped", id.id).end();
+            }
+            js::Type::Index { left: _, index: _ } => {
+                self.node("js::Type::Index", id.id).end();
+            }
+            js::Type::TemplateLiteral(_) => {
+                self.node("js::Type::TemplateLiteral", id.id).end();
+            }
+            js::Type::Import {
+                target: _,
+                qualifier: _,
+                static_arguments: _,
+            } => {
+                self.node("js::Type::Import", id.id).end();
+            }
+            js::Type::Infer {
+                name: _,
+                constraint: _,
+            } => {
+                self.node("js::Type::Infer", id.id).end();
+            }
+            js::Type::Predicate {
+                asserts: _,
+                subject: _,
+                target: _,
+            } => {
+                self.node("js::Type::Predicate", id.id).end();
             }
 
-            Type::Unary { operator, right: _ } => {
-                self.node("Type::Unary", id.id)
+            js::Type::Unary { operator, right: _ } => {
+                self.node("js::Type::Unary", id.id)
                     .field("operator", operator)
                     .end();
             }
-            Type::Binary {
+            js::Type::Binary {
                 left: _,
                 operator,
                 right: _,
             } => {
-                self.node("Type::Binary", id.id)
+                self.node("js::Type::Binary", id.id)
                     .field("operator", operator)
                     .end();
             }
 
-            Type::Array { .. } => {
-                self.node("Type::Array", id.id).end();
+            js::Type::Array { .. } => {
+                self.node("js::Type::Array", id.id).end();
             }
-            Type::Tuple { elements: _ } => {
-                self.node("Type::Tuple", id.id).end();
+            js::Type::Tuple { elements: _ } => {
+                self.node("js::Type::Tuple", id.id).end();
             }
-            Type::Object { properties: _ } => {
-                self.node("Type::Object", id.id).end();
+            js::Type::Object { properties: _ } => {
+                self.node("js::Type::Object", id.id).end();
             }
-            Type::Union { elements: _ } => {
-                self.node("Type::Union", id.id).end();
+            js::Type::Union { elements: _ } => {
+                self.node("js::Type::Union", id.id).end();
             }
-            Type::Intersection { elements: _ } => {
-                self.node("Type::Intersection", id.id).end();
+            js::Type::Intersection { elements: _ } => {
+                self.node("js::Type::Intersection", id.id).end();
             }
-            Type::Function { signature } => {
-                self.node("Type::Function", id.id)
+            js::Type::Function { signature } => {
+                self.node("js::Type::Function", id.id)
                     .field("signature", signature)
                     .end();
             }
 
-            Type::Error => {
-                self.node("Type::Error", id.id).end();
+            js::Type::Error => {
+                self.node("js::Type::Error", id.id).end();
             }
         }
         self.with_depth(|dumper| {
-            walk_type(dumper, tree, id, ty);
+            js::walk_type(dumper, tree, id, ty);
         });
     }
 
     fn visit_annotation(
         &mut self,
-        tree: &NodeTree,
-        id: LocalNodeId<Annotation>,
-        annotation: &Annotation,
+        tree: &js::NodeTree,
+        id: js::LocalNodeId<js::Annotation>,
+        annotation: &js::Annotation,
     ) {
         match annotation {
-            Annotation::Comment { position, string } => {
+            js::Annotation::Doc { position, string } => {
                 let string = truncate_string(self.strings.get(*string), 40, " ");
-                self.node("Annotation::Comment", id.id)
+                self.node("js::Annotation::Doc", id.id)
+                    .field("position", position)
+                    .field("string", &string.as_ref())
+                    .end();
+            }
+            js::Annotation::Comment { position, string } => {
+                let string = truncate_string(self.strings.get(*string), 40, " ");
+                self.node("js::Annotation::Comment", id.id)
                     .field("position", position)
                     .field("string", &string.as_ref())
                     .end();
             }
         }
         self.with_depth(|dumper| {
-            walk_annotation(dumper, tree, id, annotation);
+            js::walk_annotation(dumper, tree, id, annotation);
         });
     }
 }

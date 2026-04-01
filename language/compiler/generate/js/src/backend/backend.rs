@@ -4,10 +4,7 @@ use destack_artifact::{
 };
 use destack_codegen_lib::CodegenBackend;
 use destack_core::{StringId, StringPool};
-use destack_js::{
-    self as js, DependencyKind, Expression, LocalNodeId, NodeTree, NodeVisitor, NodeVisitorOptions,
-    Path as ScriptPath, ScalarLiteral, Statement,
-};
+use destack_js as js;
 use destack_source::ModuleId;
 use destack_workspace::Target;
 
@@ -42,7 +39,7 @@ struct ScriptLinkageCollector {
     /// The shared string pool for the module.
     strings: StringPool,
     /// Visitor options.
-    options: NodeVisitorOptions,
+    options: js::NodeVisitorOptions,
 }
 
 impl ScriptLinkageCollector {
@@ -51,11 +48,11 @@ impl ScriptLinkageCollector {
         let mut collector = Self {
             linkage: ScriptLinkage::default(),
             strings: module.strings.clone(),
-            options: NodeVisitorOptions::default(),
+            options: js::NodeVisitorOptions::default(),
         };
 
         // walk each root through the visitor entry points
-        destack_js::walk_roots(&mut collector, &module.tree, &module.roots);
+        js::walk_roots(&mut collector, &module.tree, &module.roots);
 
         collector.into_linkage()
     }
@@ -66,10 +63,10 @@ impl ScriptLinkageCollector {
     }
 
     /// Lower one JS dependency kind into artifact linkage metadata.
-    fn dependency_kind(kind: DependencyKind) -> ScriptDependencyKind {
+    fn dependency_kind(kind: js::DependencyKind) -> ScriptDependencyKind {
         match kind {
-            DependencyKind::Type => ScriptDependencyKind::Type,
-            DependencyKind::Value => ScriptDependencyKind::Value,
+            js::DependencyKind::Type => ScriptDependencyKind::Type,
+            js::DependencyKind::Value => ScriptDependencyKind::Value,
         }
     }
 
@@ -101,28 +98,27 @@ impl ScriptLinkageCollector {
     }
 
     /// Return the resolved target module carried by one script statement.
-    fn statement_target_module(statement: &Statement) -> Option<ModuleId> {
+    fn statement_target_module(statement: &js::Statement) -> Option<ModuleId> {
         match statement {
-            Statement::Import { target_module, .. } | Statement::Export { target_module, .. } => {
-                *target_module
-            }
+            js::Statement::Import { target_module, .. }
+            | js::Statement::Export { target_module, .. } => *target_module,
             _ => None,
         }
     }
 
     /// Return the static target for one dynamic import expression when it is known.
     fn dynamic_import_target(
-        tree: &NodeTree,
+        tree: &js::NodeTree,
         strings: &StringPool,
-        expression: &Expression,
+        expression: &js::Expression,
     ) -> Option<(Option<String>, Option<ModuleId>)> {
         let (target_expression, target_module) = match expression {
-            Expression::ImportCall {
+            js::Expression::ImportCall {
                 target,
                 target_module,
                 ..
             } => (*target, *target_module),
-            Expression::Call {
+            js::Expression::Call {
                 left,
                 dynamic_arguments,
                 ..
@@ -144,8 +140,8 @@ impl ScriptLinkageCollector {
         };
 
         let value = tree.get(target_expression);
-        let Expression::ScalarLiteral {
-            value: ScalarLiteral::String(target),
+        let js::Expression::ScalarLiteral {
+            value: js::ScalarLiteral::String(target),
         } = value
         else {
             return Some((None, target_module));
@@ -155,9 +151,9 @@ impl ScriptLinkageCollector {
     }
 
     /// Return whether one expression is the bare `import` receiver.
-    fn is_import_receiver(strings: &StringPool, expression: &Expression) -> bool {
-        let Expression::Path {
-            path: ScriptPath { segments },
+    fn is_import_receiver(strings: &StringPool, expression: &js::Expression) -> bool {
+        let js::Expression::Path {
+            path: js::Path { segments },
             ..
         } = expression
         else {
@@ -177,20 +173,20 @@ impl ScriptLinkageCollector {
     }
 }
 
-impl NodeVisitor for ScriptLinkageCollector {
-    fn options(&self) -> &NodeVisitorOptions {
+impl js::NodeVisitor for ScriptLinkageCollector {
+    fn options(&self) -> &js::NodeVisitorOptions {
         &self.options
     }
 
     fn visit_statement(
         &mut self,
-        tree: &NodeTree,
-        id: LocalNodeId<Statement>,
-        statement: &Statement,
+        tree: &js::NodeTree,
+        id: js::LocalNodeId<js::Statement>,
+        statement: &js::Statement,
     ) {
         // collect top-level static linkage first
         match statement {
-            Statement::Import { kind, target, .. } => {
+            js::Statement::Import { kind, target, .. } => {
                 self.linkage
                     .static_dependencies
                     .push(StaticScriptDependency {
@@ -202,7 +198,7 @@ impl NodeVisitor for ScriptLinkageCollector {
                         ),
                     });
             }
-            Statement::Export {
+            js::Statement::Export {
                 kind,
                 target: Some(target),
                 ..
@@ -226,9 +222,9 @@ impl NodeVisitor for ScriptLinkageCollector {
 
     fn visit_expression(
         &mut self,
-        tree: &NodeTree,
-        id: LocalNodeId<Expression>,
-        expression: &Expression,
+        tree: &js::NodeTree,
+        id: js::LocalNodeId<js::Expression>,
+        expression: &js::Expression,
     ) {
         // collect dynamic import calls while the tree is still structured
         if let Some((target, target_module)) =

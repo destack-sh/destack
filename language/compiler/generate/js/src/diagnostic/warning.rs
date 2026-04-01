@@ -1,5 +1,4 @@
-use crate::NodeType;
-use destack_dir as dir;
+use {destack_dir as dir, destack_js as js};
 
 /// Warning during JS code generation.
 #[derive(Debug, Clone, PartialEq)]
@@ -9,7 +8,7 @@ pub enum CodegenJsWarning {
     /// Unexpected node.
     UnexpectedNode {
         node: dir::GlobalNodeIdAny,
-        wanted: NodeType,
+        wanted: js::NodeType,
         message: Option<String>,
     },
     /// Expected statement, got something else.

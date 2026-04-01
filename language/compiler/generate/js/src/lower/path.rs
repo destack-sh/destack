@@ -1,7 +1,8 @@
-use crate::{CodegenJsResult, ModuleLowerer, Path};
 use destack_ast::StringId;
-use destack_dir as dir;
 use smallvec::SmallVec;
+use {destack_dir as dir, destack_js as js};
+
+use crate::{CodegenJsResult, ModuleLowerer};
 
 impl ModuleLowerer<'_> {
     /// Lower a DIR path into a JS path.
@@ -9,18 +10,18 @@ impl ModuleLowerer<'_> {
         &mut self,
         _scope_id: dir::LocalNodeIdAny,
         path: &dir::Path,
-    ) -> CodegenJsResult<Path> {
+    ) -> CodegenJsResult<js::Path> {
         let segments: SmallVec<[StringId; 3]> = path
             .segments
             .iter()
             .map(|segment| self.strings.intern_from(self.source_strings, *segment))
             .collect();
-        let path = Path { segments };
+        let path = js::Path { segments };
         Ok(path)
     }
 
     /// Render a JS path to a single string.
-    pub fn render_path(&self, path: &Path) -> String {
+    pub fn render_path(&self, path: &js::Path) -> String {
         let mut path_str = String::new();
         for (i, segment) in path.segments.iter().enumerate() {
             let segment = self.strings.get(*segment);
