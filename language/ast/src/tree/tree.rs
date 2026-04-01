@@ -786,6 +786,12 @@ impl NodeTree {
         &self.comment_trivia
     }
 
+    /// Get mutable split comment trivia storage.
+    #[inline]
+    pub fn comment_trivia_mut(&mut self) -> &mut [CommentTrivia] {
+        &mut self.comment_trivia
+    }
+
     /// Get split blank trivia storage.
     #[inline]
     pub fn blank_trivia(&self) -> &[BlankTrivia] {

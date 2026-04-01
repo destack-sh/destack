@@ -1,7 +1,8 @@
 use crate::format::chain::transparent_inner_expression;
-use crate::format::collection::TrailingSeparator;
 use crate::format::declaration::declaration::format_declaration_export_modifier;
-use crate::format::declaration::signature::write_static_parameter_list;
+use crate::format::declaration::signature::{
+    default_static_parameter_trailing_separator, write_static_parameter_list,
+};
 use crate::format::expression::{
     expression_has_static_type_arguments, write_expression_without_prefix_annotations,
 };
@@ -223,7 +224,11 @@ impl<'a> TypeAliasAssignmentLike<'a> {
 
         // static parameters
         if let Some(static_parameters) = self.static_parameters {
-            write_static_parameter_list(f, static_parameters, TrailingSeparator::Disallowed)?;
+            write_static_parameter_list(
+                f,
+                static_parameters,
+                default_static_parameter_trailing_separator(f),
+            )?;
             write!(
                 f,
                 [crate::format::annotation::prefix_annotations(
@@ -351,10 +356,7 @@ impl<'a> TypeAliasAssignmentLike<'a> {
             return true;
         }
 
-        matches!(
-            context.tree.get(self.value_id),
-            Expression::TypeLiteral(_) | Expression::TypeTemplateLiteral { .. }
-        )
+        matches!(context.tree.get(self.value_id), Expression::TypeLiteral(_))
     }
 
     /// Return the layout for the current type alias shell.

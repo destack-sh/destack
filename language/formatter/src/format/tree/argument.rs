@@ -341,7 +341,7 @@ pub(crate) fn write_tree_expression_argument<'ast>(
             }
         }
         Argument::Spread { value, .. } => {
-            // keep spread-head annotations inside `{ ... }` like prettier and oxc
+            // keep spread-head annotations inside `{ ... }` like the standard formatters
             let argument_span = f.context().span(argument_id);
             let value_span = f.context().span(*value);
             let has_spread_comment = !f
