@@ -4,7 +4,7 @@ use std::sync::Arc;
 use destack_source::{File, FileId, FileSystem, FileType, Uri};
 use serde::Deserialize;
 
-use crate::{Destack, RepositoryError, WorkspacesField};
+use crate::{DestackDeclaration, RepositoryError, WorkspacesField};
 
 /// The workspace field extracted from one `package.json` file.
 #[derive(Debug, Deserialize)]
@@ -18,8 +18,17 @@ pub(crate) fn discover_workspace_root(
     fs: &Arc<dyn FileSystem>,
     path: &Path,
 ) -> Result<PathBuf, RepositoryError> {
+    // normalize file inputs to their containing directory
+    let input_directory = match fs.metadata(path) {
+        Ok(metadata) if metadata.is_file => path
+            .parent()
+            .map(Path::to_path_buf)
+            .unwrap_or_else(|| path.to_path_buf()),
+        _ => path.to_path_buf(),
+    };
+    let mut current = input_directory.clone();
+
     // walk up directories looking for a workspace root
-    let mut current = path.to_path_buf();
     loop {
         // check for a Destack workspace root
         if let Some(root) = check_destack_workspace(fs, &current)? {
@@ -52,7 +61,7 @@ pub(crate) fn discover_workspace_root(
         current = parent.to_path_buf();
     }
 
-    Ok(path.to_path_buf())
+    Ok(input_directory)
 }
 
 /// Check if one directory contains a Destack workspace root.
@@ -64,7 +73,7 @@ fn check_destack_workspace(
         return Ok(None);
     };
 
-    if config.options.workspace.members.is_empty() {
+    if config.workspace_options().membership.members.is_empty() {
         return Ok(None);
     }
 
@@ -143,7 +152,7 @@ fn check_pnpm_workspace(
 fn read_workspace_destack_config(
     fs: &Arc<dyn FileSystem>,
     root: &Path,
-) -> Result<Option<Destack>, RepositoryError> {
+) -> Result<Option<DestackDeclaration>, RepositoryError> {
     let path = root.join("destack.json");
     let content = match fs.read_to_string(&path) {
         Ok(content) => content,
@@ -167,12 +176,12 @@ fn read_workspace_destack_config(
     let path = path.clone();
     let file = Arc::new(file);
 
-    Destack::parse(&file)
-        .map(Some)
-        .map_err(|error| RepositoryError::WorkspaceDiscovery {
+    DestackDeclaration::parse(&file).map(Some).map_err(|error| {
+        RepositoryError::WorkspaceDiscovery {
             path,
             message: error.to_string(),
-        })
+        }
+    })
 }
 
 /// Parse the packages field from `pnpm-workspace.yaml` content.

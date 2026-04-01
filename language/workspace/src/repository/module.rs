@@ -9,7 +9,7 @@ use destack_source::{
 
 use crate::repository::{ContentId, Repository, RepositoryError};
 use crate::revision::{Revision, RevisionData};
-use crate::{Module, ModuleDetection, ModuleFormat, SourceType, TsConfig};
+use crate::{Module, ModuleDetection, ModuleFormat, SourceType, TsConfigDeclaration};
 
 impl Repository {
     /// Return the synthetic root module id.
@@ -104,9 +104,7 @@ impl Repository {
                 file_type,
                 content.clone(),
             )
-            .unwrap_or_else(|error| {
-                panic!("invalid stored json content for {:?}: {error}", file_id)
-            }),
+            .unwrap_or_else(|error| panic!("invalid stored json content for {file_id:?}: {error}")),
             FileContent::Binary { content } => File::from_binary(
                 file_id,
                 name.clone(),
@@ -238,15 +236,15 @@ impl Repository {
     }
 
     /// Return one tsconfig snapshot for one revision and tsconfig id.
-    pub fn tsconfig(
+    pub fn tsconfig_declaration(
         &self,
         revision: Revision,
         tsconfig_file_id: FileId,
-    ) -> Result<Option<Arc<TsConfig>>, RepositoryError> {
+    ) -> Result<Option<Arc<TsConfigDeclaration>>, RepositoryError> {
         let Some(file) = self.file(revision, tsconfig_file_id)? else {
             return Ok(None);
         };
-        let Ok(tsconfig) = TsConfig::parse(true, &file) else {
+        let Ok(tsconfig) = TsConfigDeclaration::parse(true, &file) else {
             return Ok(None);
         };
 
@@ -319,7 +317,10 @@ impl Repository {
         while let Some(directory) = current {
             let tsconfig_path = directory.join("tsconfig.json");
             let tsconfig_file_id = self.file_id_for_workspace_path(&tsconfig_path);
-            if self.tsconfig(revision, tsconfig_file_id)?.is_some() {
+            if self
+                .tsconfig_declaration(revision, tsconfig_file_id)?
+                .is_some()
+            {
                 return Ok(Some(tsconfig_file_id));
             }
 
@@ -360,14 +361,14 @@ impl Repository {
             return Ok(None);
         }
 
-        let Some(tsconfig) = self.tsconfig(revision, tsconfig_file_id)? else {
+        let Some(tsconfig) = self.tsconfig_declaration(revision, tsconfig_file_id)? else {
             return Ok(None);
         };
         if tsconfig.applies_to_path(path) {
             return Ok(Some(tsconfig_file_id));
         }
 
-        for reference in &tsconfig.content.references {
+        for reference in &tsconfig.json.references {
             let reference_path = tsconfig.directory.normalize_with(&reference.path);
             let Some(reference_tsconfig_file_id) =
                 self.tsconfig_file_id_from_reference_path(revision, &reference_path)?

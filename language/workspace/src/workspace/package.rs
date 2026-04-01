@@ -3,8 +3,7 @@ use std::path::PathBuf;
 use destack_source::{FileId, PackageId, TargetId, Uri};
 use indexmap::IndexMap;
 
-use crate::config::{Destack, Target};
-use crate::workspace::PackageManifest;
+use crate::config::Target;
 
 /// The discovery kind for a package.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -34,10 +33,10 @@ pub struct Package {
     pub name: Option<String>,
     /// The package version.
     pub version: Option<String>,
-    /// The package manifest when present.
-    pub manifest: Option<PackageManifest>,
-    /// The package destack config when present.
-    pub config: Option<Destack>,
+    /// The package.json declaration file id when present.
+    pub package_file_id: Option<FileId>,
+    /// The destack.json declaration file id when present.
+    pub destack_file_id: Option<FileId>,
     /// The root tsconfig file for the package when present.
     pub tsconfig_file_id: Option<FileId>,
     /// The package targets.

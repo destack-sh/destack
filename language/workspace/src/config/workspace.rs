@@ -1,16 +1,16 @@
 use indexmap::IndexMap;
 use serde::Deserialize;
 
-/// Workspace membership options.
+/// Workspace membership declarations.
 #[derive(Debug, Clone, Default)]
-pub struct WorkspaceOptions {
+pub struct WorkspaceMembershipDeclaration {
     /// Member root patterns within the repository.
     pub members: Vec<String>,
     /// Named member groups.
     pub groups: IndexMap<String, Vec<String>>,
 }
 
-impl WorkspaceOptions {
+impl WorkspaceMembershipDeclaration {
     /// Inherit unset workspace settings from one parent config.
     pub fn extend_from(&mut self, parent: &Self) {
         if self.members.is_empty() {
@@ -25,7 +25,7 @@ impl WorkspaceOptions {
     }
 }
 
-impl From<&WorkspaceJson> for WorkspaceOptions {
+impl From<&WorkspaceJson> for WorkspaceMembershipDeclaration {
     fn from(json: &WorkspaceJson) -> Self {
         Self {
             members: json.members.clone().unwrap_or_default(),

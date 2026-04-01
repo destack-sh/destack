@@ -88,7 +88,7 @@ impl TsConfigJson {
 
     /// Resolves the given `specifier` within the project configured by this tsconfig.
     // <https://github.com/parcel-bundler/parcel/blob/b6224fd519f95e68d8b93ba90376fd94c8b76e69/packages/utils/node-resolver-rs/src/tsconfig.rs#L93>
-    pub(super) fn resolve_path_alias(&self, specifier: &str, paths_base: &Path) -> Vec<PathBuf> {
+    pub(crate) fn resolve_path_alias(&self, specifier: &str, paths_base: &Path) -> Vec<PathBuf> {
         if specifier.starts_with('.') {
             return Vec::new();
         }

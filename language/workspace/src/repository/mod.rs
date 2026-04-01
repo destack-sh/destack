@@ -1,6 +1,7 @@
 mod builtin;
 mod change;
 mod content;
+mod discovery;
 mod error;
 mod image;
 mod module;
@@ -14,6 +15,7 @@ mod target;
 
 pub use builtin::*;
 pub use content::*;
+pub(crate) use discovery::*;
 pub use error::*;
 pub use image::*;
 pub use options::*;
