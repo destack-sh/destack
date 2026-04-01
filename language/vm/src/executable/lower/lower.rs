@@ -3,12 +3,13 @@ use std::ops::Deref;
 
 use destack_mir as mir;
 
-use super::super::layout::Layout;
-use super::super::{Block, Function};
+use crate::executable::layout::Layout;
+use crate::executable::{Block, CallTarget, Function};
+
 use super::block::{BlockOrder, FunctionContext};
 use super::decompose::DecompositionLowerer;
 use super::kind::{KindMapBuilder, ValueKindMap};
-use super::pool::Pool;
+use super::pool::{Pool, lookup_call_target};
 use super::tree::{BlockParameterMap, LoweredValueSlot};
 
 /// One whole-function lowering session.
@@ -33,7 +34,7 @@ impl<'a> FunctionLowerer<'a> {
             mir::LocalNodeId<mir::Block>,
             (destack_engine::ResumePointId, destack_engine::ResumePointId),
         >,
-        function_indices: &'a HashMap<mir::LocalNodeId<mir::Function>, u32>,
+        call_targets: &'a HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
         layouts: &'a HashMap<mir::LocalNodeId<mir::Type>, Layout>,
         value_slots: &'a [LoweredValueSlot],
         block_parameter_map: &'a BlockParameterMap,
@@ -59,7 +60,7 @@ impl<'a> FunctionLowerer<'a> {
             entry_block,
             yield_resume_points,
             exceptional_call_resume_points,
-            function_indices,
+            call_targets,
             value_kind_map,
             value_type,
             layouts,
@@ -173,7 +174,7 @@ pub(in crate::executable) fn lower_function(
         mir::LocalNodeId<mir::Block>,
         (destack_engine::ResumePointId, destack_engine::ResumePointId),
     >,
-    function_indices: &HashMap<mir::LocalNodeId<mir::Function>, u32>,
+    call_targets: &HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     value_slots: &[LoweredValueSlot],
     block_parameter_map: &BlockParameterMap,
@@ -184,7 +185,7 @@ pub(in crate::executable) fn lower_function(
         frame_layout,
         yield_resume_points,
         exceptional_call_resume_points,
-        function_indices,
+        call_targets,
         layouts,
         value_slots,
         block_parameter_map,
@@ -347,10 +348,10 @@ impl<'a> BlockLowerer<'a> {
             .unwrap_or_else(|| panic!("missing use count for value: {value:?}"))
     }
 
-    /// Return one lowered function index for one function id.
-    pub(super) fn function_index(&self, function: mir::LocalNodeId<mir::Function>) -> u32 {
-        super::pool::lookup_function_index(self.function_indices, function)
-            .unwrap_or_else(|| panic!("missing lowered function index for function: {function:?}"))
+    /// Return one call target for one function id.
+    pub(super) fn call_target(&self, function: mir::LocalNodeId<mir::Function>) -> CallTarget {
+        lookup_call_target(self.call_targets, function)
+            .unwrap_or_else(|| panic!("missing call target for function: {function:?}"))
     }
 
     /// Return one lowered local index for one local id.

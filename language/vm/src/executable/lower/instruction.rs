@@ -3,11 +3,12 @@ use std::cell::Cell;
 
 use destack_heap::{ManagedReference, RawPointer, SharedPointer, Value};
 
-use super::super::value::ValueKind;
-use super::super::{
+use crate::executable::value::ValueKind;
+use crate::executable::{
     ConstValue, Instruction, InstructionData, InstructionOperation, UNKNOWN_ARRAY_LENGTH,
     UNKNOWN_FIELD_COUNT, pack_optional_value,
 };
+
 use super::access::*;
 use super::kind::{
     managed_pointee_type_for_value, managed_pointee_type_for_value_kind,
@@ -455,14 +456,14 @@ impl<'a> BlockLowerer<'a> {
                 let args_range = pool.argument_range(args);
                 let callee = self.tree.get(*function);
                 let copies = pool.parameter_copy_range(&callee.parameters, args);
-                let callee_index = self.function_index(*function);
+                let target = self.call_target(*function);
 
                 Instruction {
                     operation: InstructionOperation::Call,
                     data: InstructionData::Call {
                         dest: pack_optional_value(*destination),
                         function: function.id,
-                        callee_index,
+                        target,
                         arguments: args_range,
                         copies,
                     },
@@ -535,7 +536,7 @@ impl<'a> BlockLowerer<'a> {
                         signature: *signature,
                         arguments: args,
                         cached_function: Cell::new(None),
-                        cached_index: Cell::new(None),
+                        cached_target: Cell::new(None),
                     },
                 }
             }

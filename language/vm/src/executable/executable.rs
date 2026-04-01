@@ -7,7 +7,7 @@ use {destack_engine as engine, destack_mir as mir};
 use super::layout::{Layout, build_layouts};
 use super::lower::{LoweredValueSlot, analyze_lowered_value_slots, lower_function};
 use super::value::frame_slot_value_class_from_type;
-use super::{Function, FunctionTable, FunctionTarget};
+use super::{CallTarget, Function, FunctionTable};
 
 /// Immutable runnable lowering and metadata shared across isolates.
 pub struct Executable {
@@ -279,7 +279,7 @@ impl ExecutableBuilder {
         &self,
     ) -> (
         Vec<mir::LocalNodeId<mir::Function>>,
-        HashMap<mir::LocalNodeId<mir::Function>, FunctionTarget>,
+        HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
     ) {
         let mut lowered_function_ids = Vec::new();
         let mut target_by_id = HashMap::new();
@@ -288,7 +288,7 @@ impl ExecutableBuilder {
         for (function_id, function) in self.tree.iter_nodes::<mir::Function>() {
             // imported functions stay as import targets
             if function.is_import() {
-                target_by_id.insert(function_id, FunctionTarget::Import);
+                target_by_id.insert(function_id, CallTarget::Import);
                 continue;
             }
 
@@ -302,7 +302,7 @@ impl ExecutableBuilder {
 
         // assign stable lowered indices in build order
         for (index, function_id) in lowered_function_ids.iter().enumerate() {
-            target_by_id.insert(*function_id, FunctionTarget::Lowered(index as u32));
+            target_by_id.insert(*function_id, CallTarget::Lowered(index as u32));
         }
 
         (lowered_function_ids, target_by_id)
@@ -312,24 +312,16 @@ impl ExecutableBuilder {
     fn build_functions(
         &mut self,
         lowered_function_ids: &[mir::LocalNodeId<mir::Function>],
-        target_by_id: &HashMap<mir::LocalNodeId<mir::Function>, FunctionTarget>,
+        target_by_id: &HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
         layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     ) -> Vec<Function> {
-        let mut function_indices = HashMap::with_capacity(lowered_function_ids.len());
-
-        // collect the dense lowered indices used by calls
-        for (function_id, target) in target_by_id {
-            let FunctionTarget::Lowered(index) = target else {
-                continue;
-            };
-            function_indices.insert(*function_id, *index);
-        }
+        let call_targets = target_by_id.clone();
 
         let mut functions = Vec::with_capacity(lowered_function_ids.len());
 
         // build one executable function at a time
         for function_id in lowered_function_ids {
-            let function = self.build_function(*function_id, &function_indices, layouts);
+            let function = self.build_function(*function_id, &call_targets, layouts);
             functions.push(function);
         }
 
@@ -340,7 +332,7 @@ impl ExecutableBuilder {
     fn build_function(
         &mut self,
         function_id: mir::LocalNodeId<mir::Function>,
-        function_indices: &HashMap<mir::LocalNodeId<mir::Function>, u32>,
+        call_targets: &HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
         layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     ) -> Function {
         let function = self.tree.get(function_id);
@@ -360,7 +352,7 @@ impl ExecutableBuilder {
             frame_layout.id,
             &yield_resume_points,
             &exceptional_call_resume_points,
-            function_indices,
+            call_targets,
             layouts,
             &value_slots,
             &deferred_block_params,

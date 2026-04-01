@@ -3,9 +3,6 @@ use destack_mir as mir;
 /// Sentinel value id used for optional destinations.
 pub(crate) const INVALID_VALUE_ID: u32 = u32::MAX;
 
-/// Sentinel function index used for missing lowered entries.
-pub(crate) const INVALID_FUNCTION_INDEX: u32 = u32::MAX;
-
 /// Sentinel field count for unknown composite layouts.
 pub(crate) const UNKNOWN_FIELD_COUNT: u32 = u32::MAX;
 
@@ -134,12 +131,12 @@ impl CopyRange {
     }
 }
 
-/// Pack an optional SSA value into a sentinel encoding.
+/// Pack an optional SSA value into the lowered executable encoding.
 pub(crate) fn pack_optional_value(value: Option<mir::Value>) -> mir::Value {
     value.unwrap_or(mir::Value(INVALID_VALUE_ID))
 }
 
-/// Check if a packed SSA value is the sentinel.
+/// Return whether one lowered SSA slot carries the packed absent-value marker.
 pub(crate) fn is_invalid_value(value: mir::Value) -> bool {
     value.0 == INVALID_VALUE_ID
 }

@@ -7,7 +7,7 @@ use {destack_engine as engine, destack_mir as mir};
 use crate::diagnostic::Error;
 use destack_heap::{LayoutId, ReferenceMeta, Value};
 
-use super::{ArgumentRange, CopyRange, Function, SwitchRange};
+use super::{ArgumentRange, CallTarget, CopyRange, Function, SwitchRange};
 
 /// Control transfer requested by one lowered instruction.
 #[derive(Debug)]
@@ -23,8 +23,8 @@ pub(crate) enum Transfer {
     Call {
         /// Function to call.
         function: u32,
-        /// Lowered function index when available.
-        callee_index: u32,
+        /// Lowered or imported call target.
+        target: CallTarget,
         /// Destination for return value.
         destination: mir::Value,
         /// Arguments to pass.
@@ -40,8 +40,8 @@ pub(crate) enum Transfer {
     CallBranch {
         /// Function to call.
         function: u32,
-        /// Lowered function index when available.
-        callee_index: u32,
+        /// Lowered or imported call target.
+        target: CallTarget,
         /// Arguments to pass.
         arguments: ArgumentRange,
         /// Optional function environment to pass.
@@ -55,8 +55,8 @@ pub(crate) enum Transfer {
     TailCall {
         /// Function to call.
         function: u32,
-        /// Lowered function index when available.
-        callee_index: u32,
+        /// Lowered or imported call target.
+        target: CallTarget,
         /// Arguments to pass.
         arguments: ArgumentRange,
         /// Optional function environment to pass.
@@ -659,7 +659,7 @@ pub(crate) enum InstructionData {
     Call {
         dest: mir::Value,
         function: u32,
-        callee_index: u32,
+        target: CallTarget,
         arguments: ArgumentRange,
         copies: CopyRange,
     },
@@ -667,7 +667,7 @@ pub(crate) enum InstructionData {
     /// Function call terminator with explicit normal and unwind continuations.
     CallBranch {
         function: u32,
-        callee_index: u32,
+        target: CallTarget,
         arguments: ArgumentRange,
         normal_resume_point: engine::ResumePointId,
         unwind_resume_point: engine::ResumePointId,
@@ -718,7 +718,7 @@ pub(crate) enum InstructionData {
         signature: mir::LocalNodeId<mir::Type>,
         arguments: ArgumentRange,
         cached_function: Cell<Option<u32>>,
-        cached_index: Cell<Option<u32>>,
+        cached_target: Cell<Option<CallTarget>>,
     },
 
     /// Indirect call terminator with explicit normal and unwind continuations.
@@ -729,7 +729,7 @@ pub(crate) enum InstructionData {
         normal_resume_point: engine::ResumePointId,
         unwind_resume_point: engine::ResumePointId,
         cached_function: Cell<Option<u32>>,
-        cached_index: Cell<Option<u32>>,
+        cached_target: Cell<Option<CallTarget>>,
     },
 
     /// Load local variable.
@@ -1330,7 +1330,7 @@ pub(crate) enum InstructionData {
     /// Tail call to a function.
     TailCall {
         function: u32,
-        callee_index: u32,
+        target: CallTarget,
         copies: CopyRange,
     },
 

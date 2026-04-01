@@ -284,20 +284,12 @@ pub(crate) fn step_function_environment(
 #[inline]
 fn resolve_direct_lowered_callee(
     state: &StepState<'_, '_>,
-    function_id: mir::LocalNodeId<mir::Function>,
-    callee_index: u32,
+    target: CallTarget,
 ) -> Option<NonNull<crate::executable::Function>> {
-    // resolve the target through the precomputed table when needed
-    let resolved_target = if callee_index == INVALID_FUNCTION_INDEX {
-        state.functions().resolve(function_id)
-    } else {
-        Some(FunctionTarget::Lowered(callee_index))
-    };
-
     // only lowered targets can use the direct fast path
-    match resolved_target {
-        Some(FunctionTarget::Lowered(index)) => state.functions().get_ptr_by_index(index),
-        Some(FunctionTarget::Import) | None => None,
+    match target {
+        CallTarget::Lowered(index) => state.functions().get_ptr_by_index(index),
+        CallTarget::Import => None,
     }
 }
 
@@ -307,7 +299,7 @@ fn resolve_direct_lowered_callee(
 fn try_step_direct_lowered_call(
     state: &mut StepState<'_, '_>,
     function_id: mir::LocalNodeId<mir::Function>,
-    callee_index: u32,
+    target: CallTarget,
     env: Option<Value>,
     copy_plan: Option<CopyRange>,
     resume_pc: usize,
@@ -316,7 +308,7 @@ fn try_step_direct_lowered_call(
     let copy_plan = copy_plan?;
 
     // require one lowered target before entering the fast path
-    let callee_ptr = resolve_direct_lowered_callee(state, function_id, callee_index)?;
+    let callee_ptr = resolve_direct_lowered_callee(state, target)?;
     let callee = unsafe { callee_ptr.as_ref() };
 
     // reject stack overflow before mutating any live state
@@ -407,7 +399,7 @@ fn call_with_target(
     state: &mut StepState<'_, '_>,
     dest: mir::Value,
     function_id: mir::LocalNodeId<mir::Function>,
-    callee_index: u32,
+    target: CallTarget,
     arguments: ArgumentRange,
     env: Option<Value>,
     copy_plan: Option<CopyRange>,
@@ -416,14 +408,8 @@ fn call_with_target(
 ) -> Transfer {
     // run the specialized lowered fast path when the caller allows it
     if allow_direct
-        && let Some(transfer) = try_step_direct_lowered_call(
-            state,
-            function_id,
-            callee_index,
-            env,
-            copy_plan,
-            resume_pc,
-        )
+        && let Some(transfer) =
+            try_step_direct_lowered_call(state, function_id, target, env, copy_plan, resume_pc)
     {
         return transfer;
     }
@@ -431,7 +417,7 @@ fn call_with_target(
     // otherwise bounce through the general transfer path
     Transfer::Call {
         function: function_id.id,
-        callee_index,
+        target,
         destination: dest,
         arguments,
         env,
@@ -444,7 +430,7 @@ fn call_with_target(
 #[allow(clippy::too_many_arguments)]
 fn call_branch_with_target(
     function_id: mir::LocalNodeId<mir::Function>,
-    callee_index: u32,
+    target: CallTarget,
     arguments: ArgumentRange,
     env: Option<Value>,
     normal_resume_point: engine::ResumePointId,
@@ -453,7 +439,7 @@ fn call_branch_with_target(
     // exceptional calls always go through the general transfer path
     Transfer::CallBranch {
         function: function_id.id,
-        callee_index,
+        target,
         arguments,
         env,
         normal_resume_point,
@@ -473,7 +459,7 @@ pub(crate) fn step_call(
     let InstructionData::Call {
         dest,
         function,
-        callee_index,
+        target,
         arguments,
         copies,
     } = &block[pc].data
@@ -492,7 +478,7 @@ pub(crate) fn step_call(
         state,
         *dest,
         function_id,
-        *callee_index,
+        *target,
         *arguments,
         None,
         copy_plan,
@@ -511,7 +497,7 @@ pub(crate) fn step_call_branch(
 
     let InstructionData::CallBranch {
         function,
-        callee_index,
+        target,
         arguments,
         normal_resume_point,
         unwind_resume_point,
@@ -524,7 +510,7 @@ pub(crate) fn step_call_branch(
 
     call_branch_with_target(
         function_id,
-        *callee_index,
+        *target,
         *arguments,
         None,
         *normal_resume_point,
@@ -559,6 +545,14 @@ pub(crate) fn step_call_virtual(
             Ok(function_id) => function_id,
             Err(error) => return Transfer::Error(error),
         };
+    let target = match state.functions().resolve(function_id) {
+        Some(target) => target,
+        None => {
+            return Transfer::Error(Error::UndefinedFunction {
+                function: function_id,
+            });
+        }
+    };
 
     // skip fast path when stats or step limits are active
     let allow_direct = !state.collect_stats && state.options().limits.max_instructions.is_none();
@@ -567,7 +561,7 @@ pub(crate) fn step_call_virtual(
         state,
         *dest,
         function_id,
-        INVALID_FUNCTION_INDEX,
+        target,
         *arguments,
         None,
         None,
@@ -602,10 +596,18 @@ pub(crate) fn step_call_virtual_branch(
             Ok(function_id) => function_id,
             Err(error) => return Transfer::Error(error),
         };
+    let target = match state.functions().resolve(function_id) {
+        Some(target) => target,
+        None => {
+            return Transfer::Error(Error::UndefinedFunction {
+                function: function_id,
+            });
+        }
+    };
 
     call_branch_with_target(
         function_id,
-        INVALID_FUNCTION_INDEX,
+        target,
         *arguments,
         None,
         *normal_resume_point,
@@ -644,6 +646,14 @@ pub(crate) fn step_call_interface(
         Ok(function_id) => function_id,
         Err(error) => return Transfer::Error(error),
     };
+    let target = match state.functions().resolve(function_id) {
+        Some(target) => target,
+        None => {
+            return Transfer::Error(Error::UndefinedFunction {
+                function: function_id,
+            });
+        }
+    };
 
     // skip fast path when stats or step limits are active
     let allow_direct = !state.collect_stats && state.options().limits.max_instructions.is_none();
@@ -652,7 +662,7 @@ pub(crate) fn step_call_interface(
         state,
         *dest,
         function_id,
-        INVALID_FUNCTION_INDEX,
+        target,
         *arguments,
         None,
         None,
@@ -691,10 +701,18 @@ pub(crate) fn step_call_interface_branch(
         Ok(function_id) => function_id,
         Err(error) => return Transfer::Error(error),
     };
+    let target = match state.functions().resolve(function_id) {
+        Some(target) => target,
+        None => {
+            return Transfer::Error(Error::UndefinedFunction {
+                function: function_id,
+            });
+        }
+    };
 
     call_branch_with_target(
         function_id,
-        INVALID_FUNCTION_INDEX,
+        target,
         *arguments,
         None,
         *normal_resume_point,
@@ -717,7 +735,7 @@ pub(crate) fn step_call_indirect(
         signature,
         arguments,
         cached_function,
-        cached_index,
+        cached_target,
     } = &block[pc].data
     else {
         unreachable!()
@@ -733,12 +751,13 @@ pub(crate) fn step_call_indirect(
     };
     let function = function_id.id;
 
-    // reuse cached callee index when possible
-    if cached_function.get() == Some(function) {
-        let cached_index = cached_index.get().unwrap_or(INVALID_FUNCTION_INDEX);
+    // reuse cached call target when possible
+    if cached_function.get() == Some(function)
+        && let Some(cached_target) = cached_target.get()
+    {
         return Transfer::Call {
             function,
-            callee_index: cached_index,
+            target: cached_target,
             destination: *dest,
             arguments: *arguments,
             env,
@@ -747,18 +766,22 @@ pub(crate) fn step_call_indirect(
         };
     }
 
-    // resolve callee index and update cache
-    let resolved_index = match state.functions().resolve(function_id) {
-        Some(FunctionTarget::Lowered(index)) => index,
-        Some(FunctionTarget::Import) | None => INVALID_FUNCTION_INDEX,
+    // resolve the semantic call target and update the cache
+    let resolved_target = match state.functions().resolve(function_id) {
+        Some(target) => target,
+        None => {
+            return Transfer::Error(Error::UndefinedFunction {
+                function: function_id,
+            });
+        }
     };
     cached_function.set(Some(function));
-    cached_index.set(Some(resolved_index));
+    cached_target.set(Some(resolved_target));
 
     // return control to trampoline
     Transfer::Call {
         function,
-        callee_index: resolved_index,
+        target: resolved_target,
         destination: *dest,
         arguments: *arguments,
         env,
@@ -782,7 +805,7 @@ pub(crate) fn step_call_indirect_branch(
         normal_resume_point,
         unwind_resume_point,
         cached_function,
-        cached_index,
+        cached_target,
     } = &block[pc].data
     else {
         unreachable!()
@@ -795,21 +818,32 @@ pub(crate) fn step_call_indirect_branch(
     };
     let function = function_id.id;
 
-    let resolved_index = if cached_function.get() == Some(function) {
-        cached_index.get().unwrap_or(INVALID_FUNCTION_INDEX)
+    let resolved_target = if cached_function.get() == Some(function) {
+        match cached_target.get() {
+            Some(target) => target,
+            None => {
+                return Transfer::Error(Error::UndefinedFunction {
+                    function: function_id,
+                });
+            }
+        }
     } else {
-        let resolved_index = match state.functions().resolve(function_id) {
-            Some(FunctionTarget::Lowered(index)) => index,
-            Some(FunctionTarget::Import) | None => INVALID_FUNCTION_INDEX,
+        let target = match state.functions().resolve(function_id) {
+            Some(target) => target,
+            None => {
+                return Transfer::Error(Error::UndefinedFunction {
+                    function: function_id,
+                });
+            }
         };
         cached_function.set(Some(function));
-        cached_index.set(Some(resolved_index));
-        resolved_index
+        cached_target.set(Some(target));
+        target
     };
 
     call_branch_with_target(
         function_id,
-        resolved_index,
+        resolved_target,
         *arguments,
         env,
         *normal_resume_point,
@@ -895,29 +929,25 @@ pub(crate) fn step_tail_call(
     // decode instruction data
     let InstructionData::TailCall {
         function,
-        callee_index,
+        target,
         copies,
     } = &block[pc].data
     else {
         unreachable!()
     };
 
-    // resolve callee index
+    // resolve the lowered fast path target
     let function_id = mir::LocalNodeId::<mir::Function>::new(*function);
-    let resolved_index = if *callee_index == INVALID_FUNCTION_INDEX {
-        match state.functions().resolve(function_id) {
-            Some(FunctionTarget::Lowered(index)) => Some(index),
-            Some(FunctionTarget::Import) | None => None,
-        }
-    } else {
-        Some(*callee_index)
+    let resolved_index = match *target {
+        CallTarget::Lowered(index) => Some(index),
+        CallTarget::Import => None,
     };
 
     // fall back to trampoline for unresolved targets
     let Some(resolved_index) = resolved_index else {
         return Transfer::TailCall {
             function: *function,
-            callee_index: *callee_index,
+            target: *target,
             arguments: ArgumentRange::empty(),
             env: None,
             copies: Some(*copies),
@@ -926,7 +956,7 @@ pub(crate) fn step_tail_call(
     let Some(callee_ptr) = state.functions().get_ptr_by_index(resolved_index) else {
         return Transfer::TailCall {
             function: *function,
-            callee_index: *callee_index,
+            target: *target,
             arguments: ArgumentRange::empty(),
             env: None,
             copies: Some(*copies),
@@ -1088,10 +1118,18 @@ pub(crate) fn step_tail_call_virtual(
             Ok(function_id) => function_id,
             Err(error) => return Transfer::Error(error),
         };
+    let target = match state.functions().resolve(function_id) {
+        Some(target) => target,
+        None => {
+            return Transfer::Error(Error::UndefinedFunction {
+                function: function_id,
+            });
+        }
+    };
 
     Transfer::TailCall {
         function: function_id.id,
-        callee_index: INVALID_FUNCTION_INDEX,
+        target,
         arguments: *arguments,
         env: None,
         copies: None,
@@ -1128,10 +1166,18 @@ pub(crate) fn step_tail_call_interface(
         Ok(function_id) => function_id,
         Err(error) => return Transfer::Error(error),
     };
+    let target = match state.functions().resolve(function_id) {
+        Some(target) => target,
+        None => {
+            return Transfer::Error(Error::UndefinedFunction {
+                function: function_id,
+            });
+        }
+    };
 
     Transfer::TailCall {
         function: function_id.id,
-        callee_index: INVALID_FUNCTION_INDEX,
+        target,
         arguments: *arguments,
         env: None,
         copies: None,
@@ -1199,28 +1245,45 @@ pub(crate) fn step_tail_call_indirect(
             become step_instruction(state, entry_instructions, 0)
         }
 
+        let target = match state.functions().resolve(function_id) {
+            Some(target) => target,
+            None => {
+                return Transfer::Error(Error::UndefinedFunction {
+                    function: function_id,
+                });
+            }
+        };
+
         return Transfer::TailCall {
             function,
-            callee_index: INVALID_FUNCTION_INDEX,
+            target,
             arguments: *arguments,
             env,
             copies: None,
         };
     }
 
-    // resolve callee index
-    let resolved_index = match state.functions().resolve(function_id) {
-        Some(FunctionTarget::Lowered(index)) => Some(index),
-        Some(FunctionTarget::Import) | None => None,
+    // resolve the semantic call target
+    let target = match state.functions().resolve(function_id) {
+        Some(target) => target,
+        None => {
+            return Transfer::Error(Error::UndefinedFunction {
+                function: function_id,
+            });
+        }
     };
 
-    // fall back to trampoline for unresolved targets
+    // fall back to trampoline for imported targets
+    let resolved_index = match target {
+        CallTarget::Lowered(index) => Some(index),
+        CallTarget::Import => None,
+    };
     let Some(resolved_index) = resolved_index else {
         cached_function.set(Some(function));
         cached_ptr.set(None);
         return Transfer::TailCall {
             function,
-            callee_index: INVALID_FUNCTION_INDEX,
+            target,
             arguments: *arguments,
             env,
             copies: None,
@@ -1231,7 +1294,7 @@ pub(crate) fn step_tail_call_indirect(
         cached_ptr.set(None);
         return Transfer::TailCall {
             function,
-            callee_index: INVALID_FUNCTION_INDEX,
+            target,
             arguments: *arguments,
             env,
             copies: None,

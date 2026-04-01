@@ -2,7 +2,9 @@ use std::collections::{HashMap, HashSet};
 
 use destack_mir as mir;
 
-use super::super::layout::Layout;
+use crate::executable::CallTarget;
+use crate::executable::layout::Layout;
+
 use super::kind::ValueKindMap;
 use super::tree::BlockParameterMap;
 
@@ -122,8 +124,8 @@ pub(super) struct FunctionContext<'a> {
         mir::LocalNodeId<mir::Block>,
         (destack_engine::ResumePointId, destack_engine::ResumePointId),
     >,
-    /// The lowered function index by MIR function id.
-    pub(super) function_indices: &'a HashMap<mir::LocalNodeId<mir::Function>, u32>,
+    /// The call target by MIR function id.
+    pub(super) call_targets: &'a HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
     /// The lowered value kind by SSA value id.
     pub(super) value_kind_map: ValueKindMap,
     /// The lowered value type by SSA value id.
