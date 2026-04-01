@@ -38,6 +38,11 @@ struct CompleteEngine {
 }
 
 impl Engine for CompleteEngine {
+    /// Return the managed-reference width required by this scheduler test engine.
+    fn heap_managed_reference_bytes(&self) -> u8 {
+        8
+    }
+
     /// Run one entrypoint without yielding.
     fn run(
         &mut self,

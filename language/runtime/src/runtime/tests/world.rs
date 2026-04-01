@@ -2,11 +2,13 @@
 
 use std::sync::Arc;
 
-use destack_heap as heap;
+use destack_core::LocalStringPool;
+use destack_mir::{DataLayout, ManagedReferenceLayout, ManagedReferenceRepresentation, NodeTree};
 use destack_workspace::{
     ExecutionMode, RandomMode, RuntimeAccess, RuntimeIdentitySelector, RuntimeOptions,
     RuntimeSelector, RuntimeWorld, TimeMode,
 };
+use {destack_heap as heap, destack_vm as vm};
 
 use super::tests::{AllocatingEngine, TestEngine, TestRuntime, TestWorld};
 use crate::host::HostSession;
@@ -69,6 +71,25 @@ fn test_runtime_heap_limits_fail_after_allocating_entrypoint() {
         error,
         crate::diagnostic::RuntimeError::HeapLimitExceeded { scope, .. } if scope == "managed"
     ));
+}
+
+/// Uses the engine data layout for heap managed-reference width.
+#[test]
+fn test_runtime_heap_follows_engine_managed_reference_width() {
+    let mut tree = NodeTree::new();
+    tree.data_layout = DataLayout {
+        native_pointer_bytes: 4,
+        managed_reference_layout: ManagedReferenceLayout {
+            bytes: 4,
+            alignment: 4,
+            representation: ManagedReferenceRepresentation::NativePointer,
+        },
+    };
+    let strings = LocalStringPool::new().into_immutable();
+    let engine = vm::Isolate::build(tree, strings).expect("vm engine should build");
+    let runtime = TestRuntime::with_options_and_engine(&RuntimeOptions::default(), engine);
+
+    assert_eq!(runtime.heap_managed_reference_bytes(), 4);
 }
 
 /// Ensures new worlds start on one real root branch.
@@ -515,16 +536,16 @@ fn test_world_fork_shares_heap_leaves_before_mutation() {
 
     assert!(
         parent_heap
-            .managed_run(0)
+            .managed_span(0)
             .unwrap()
-            .shares_storage_with(child_heap.managed_run(0).unwrap())
+            .shares_storage_with(child_heap.managed_span(0).unwrap())
     );
-    assert!(parent_heap.raw_run_shares_with(&child_heap, 0));
+    assert!(parent_heap.raw_span_shares_with(&child_heap, 0));
 }
 
-/// Ensures child heap mutation detaches the touched raw run after fork.
+/// Ensures child heap mutation detaches the touched raw span after fork.
 #[test]
-fn test_world_fork_detaches_touched_raw_run() {
+fn test_world_fork_detaches_touched_raw_span() {
     let options = RuntimeOptions::default();
     let test = TestWorld::new();
     let world = test.world();
@@ -545,11 +566,11 @@ fn test_world_fork_detaches_touched_raw_run() {
     let mutated = child_test.runtime_heap_image(runtime_id);
     let parent = test.runtime_heap_image(runtime_id);
 
-    // raw heap snapshots are run-granular: mutating one allocation detaches its containing run
-    assert!(!baseline.raw_run_shares_with(&mutated, 0));
+    // raw heap snapshots are span-granular: mutating one allocation detaches its containing span
+    assert!(!baseline.raw_span_shares_with(&mutated, 0));
 
-    // the fork baseline should still share the original raw run with the parent snapshot
-    assert!(baseline.raw_run_shares_with(&parent, 0));
+    // the fork baseline should still share the original raw span with the parent snapshot
+    assert!(baseline.raw_span_shares_with(&parent, 0));
 }
 
 /// Ensures rewind restores live heaps from the checkpoint image leaves.
@@ -591,11 +612,11 @@ fn test_world_rewind_restores_checkpoint_heap_leaves() {
 
     assert!(
         restored_heap
-            .managed_run(0)
+            .managed_span(0)
             .unwrap()
-            .shares_storage_with(stored_heap.managed_run(0).unwrap())
+            .shares_storage_with(stored_heap.managed_span(0).unwrap())
     );
-    assert!(restored_heap.raw_run_shares_with(stored_heap, 0));
+    assert!(restored_heap.raw_span_shares_with(stored_heap, 0));
 }
 
 /// Ensures one committed branch moment can restore intermediate state from trace.

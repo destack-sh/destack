@@ -36,13 +36,13 @@ pub(crate) fn destack_random_secure_bytes(
     binding.on_random_read();
 
     // resolve VM bytes into host memory
-    let mut bytes = buffer.read_bytes(context)?;
+    let mut bytes = buffer.read_bytes(&context.read())?;
 
     // fill secure bytes from the world-routed random service
     binding.world().fill_secure_bytes(&mut bytes)?;
 
     // write secure bytes back into VM memory
-    buffer.write_bytes(context, &bytes)
+    buffer.write_bytes(&mut context.write(), &bytes)
 }
 
 /// Fill a slice with secure random bytes without blocking.
@@ -70,13 +70,13 @@ pub(crate) fn destack_random_secure_bytes_try(
     binding.on_random_read();
 
     // resolve VM bytes into host memory
-    let mut bytes = buffer.read_bytes(context)?;
+    let mut bytes = buffer.read_bytes(&context.read())?;
 
     // fill secure bytes in nonblocking mode when supported
     binding.world().try_fill_secure_bytes(&mut bytes)?;
 
     // write secure bytes back into VM memory
-    buffer.write_bytes(context, &bytes)
+    buffer.write_bytes(&mut context.write(), &bytes)
 }
 
 /// Query secure randomness source metadata.
@@ -147,7 +147,7 @@ pub(crate) fn destack_random_stream_export(
         .export_stream_state_bytes(RandomStreamId::new(stream.0));
     let state = RandomStreamStateVm {
         version: STREAM_STATE_VERSION,
-        bytes: VmArray::from_bytes(context, &bytes)?,
+        bytes: VmArray::from_bytes(&mut context.write(), &bytes)?,
     };
 
     Ok(state)
@@ -178,14 +178,14 @@ pub(crate) fn destack_random_fill_bytes(
     binding.on_random_read();
 
     // read the VM buffer into host memory
-    let mut bytes = buffer.read_bytes(context)?;
+    let mut bytes = buffer.read_bytes(&context.read())?;
 
     // fill bytes from the binding stream for this call context
     let stream_id = binding.random_stream_id();
     binding.world().fill_stream_bytes(stream_id, &mut bytes)?;
 
     // write the filled bytes back into the VM buffer
-    buffer.write_bytes(context, &bytes)
+    buffer.write_bytes(&mut context.write(), &bytes)
 }
 
 /// Fill a slice with deterministic random bytes from a specific stream.
@@ -214,7 +214,7 @@ pub(crate) fn destack_random_fill_bytes_from(
     binding.on_random_read();
 
     // read the VM buffer into host memory
-    let mut bytes = buffer.read_bytes(context)?;
+    let mut bytes = buffer.read_bytes(&context.read())?;
 
     // fill bytes from the requested binding stream
     binding
@@ -222,7 +222,7 @@ pub(crate) fn destack_random_fill_bytes_from(
         .fill_stream_bytes(RandomStreamId::new(stream.0), &mut bytes)?;
 
     // write the filled bytes back into the VM buffer
-    buffer.write_bytes(context, &bytes)
+    buffer.write_bytes(&mut context.write(), &bytes)
 }
 
 /// Import deterministic stream state.
@@ -261,7 +261,7 @@ pub(crate) fn destack_random_stream_import(
     }
 
     // decode bytes from the VM payload
-    let bytes = state.bytes.read_bytes(context)?;
+    let bytes = state.bytes.read_bytes(&context.read())?;
 
     // import the serialized stream state into the runtime random service
     binding

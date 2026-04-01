@@ -212,9 +212,11 @@ impl Agent {
         bindings.apply_runtime_defaults(options);
         Self::apply_capability_profile(&mut bindings, options)?;
 
+        // heap layout follows the engine data layout
         let mut gc = Gc::default();
         gc.configure(options.heap.clone());
-        let heap_options = resolve_heap_options(&options.heap)?;
+        let managed_reference_bytes = engine.heap_managed_reference_bytes();
+        let heap_options = resolve_heap_options(&options.heap, managed_reference_bytes)?;
         let heap = heap::Heap::with_limits_and_layout(heap_options.limits, heap_options.layout);
 
         let mut event_loop = Box::new(EventLoop::default());
@@ -552,12 +554,21 @@ impl Agent {
 
     /// Run garbage collection using the current root set.
     pub fn collect(&mut self) -> heap::GcStats {
-        // gather managed references from root visitors
+        // gather managed handles from root visitors
         let roots = self.collect_roots();
-        let handles = roots.managed_references();
+        let handles = roots.handles();
 
-        // run collection
-        let stats = self.heap.collect_managed_handles(handles.iter().copied());
+        // run young collection first under ordinary heap pressure
+        let stats = self
+            .heap
+            .collect_young_managed_handles(handles.iter().copied());
+
+        // escalate to one full cycle if mature pressure is still high
+        let stats = if self.gc.should_collect(self.heap.managed_retained_bytes()) {
+            self.heap.collect_managed_handles(handles.iter().copied())
+        } else {
+            stats
+        };
 
         // update runtime gc pacing from cycle results
         self.gc.on_cycle_complete(stats);

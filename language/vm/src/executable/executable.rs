@@ -4,8 +4,8 @@ use std::fmt;
 use destack_core::ImmutableStringPool;
 use {destack_engine as engine, destack_mir as mir};
 
+use super::layout::{Layout, build_layouts};
 use super::lower::{LoweredValueSlot, analyze_lowered_value_slots, lower_function};
-use super::storage::{StorageLayout, build_storage_layouts};
 use super::value::frame_slot_value_class_from_type;
 use super::{Function, FunctionTable, FunctionTarget};
 
@@ -34,8 +34,8 @@ pub struct Executable {
     pub(crate) safepoint_id_by_resume_point: HashMap<engine::ResumePointId, engine::SafepointId>,
     /// Materialization maps by dense map id.
     pub(crate) materialization_maps: Vec<engine::MaterializationMap>,
-    /// Compiled storage layouts keyed by MIR type id.
-    pub(crate) storage_layouts: HashMap<mir::LocalNodeId<mir::Type>, StorageLayout>,
+    /// Compiled layouts keyed by MIR type id.
+    pub(crate) layouts: HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     /// Generic resume point ids keyed by function, block, and instruction offset.
     pub(crate) resume_point_id_by_position: HashMap<
         (
@@ -112,9 +112,9 @@ impl Executable {
             .get(materialization_map.0 as usize)
     }
 
-    /// Return the compiled storage layout for one MIR type.
-    pub(crate) fn storage_layout(&self, ty: mir::LocalNodeId<mir::Type>) -> Option<&StorageLayout> {
-        self.storage_layouts.get(&ty)
+    /// Return the compiled layout for one MIR type.
+    pub(crate) fn layout(&self, ty: mir::LocalNodeId<mir::Type>) -> Option<&Layout> {
+        self.layouts.get(&ty)
     }
 
     /// Return one generic resume point id for one execution position.
@@ -228,9 +228,8 @@ impl ExecutableBuilder {
         let function_id_by_name = self.build_function_id_by_name();
         let vtable_id_by_global = self.build_vtable_id_by_global();
         let (lowered_function_ids, target_by_id) = self.build_function_targets();
-        let storage_layouts = build_storage_layouts(&self.tree);
-        let functions =
-            self.build_functions(&lowered_function_ids, &target_by_id, &storage_layouts);
+        let layouts = build_layouts(&self.tree);
+        let functions = self.build_functions(&lowered_function_ids, &target_by_id, &layouts);
         let functions = FunctionTable::new(functions, target_by_id);
 
         Executable {
@@ -245,7 +244,7 @@ impl ExecutableBuilder {
             safepoints: self.safepoints,
             safepoint_id_by_resume_point: self.safepoint_id_by_resume_point,
             materialization_maps: self.materialization_maps,
-            storage_layouts,
+            layouts,
             resume_point_id_by_position: self.resume_point_id_by_position,
             functions,
         }
@@ -314,7 +313,7 @@ impl ExecutableBuilder {
         &mut self,
         lowered_function_ids: &[mir::LocalNodeId<mir::Function>],
         target_by_id: &HashMap<mir::LocalNodeId<mir::Function>, FunctionTarget>,
-        storage_layouts: &HashMap<mir::LocalNodeId<mir::Type>, StorageLayout>,
+        layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     ) -> Vec<Function> {
         let mut function_indices = HashMap::with_capacity(lowered_function_ids.len());
 
@@ -330,7 +329,7 @@ impl ExecutableBuilder {
 
         // build one executable function at a time
         for function_id in lowered_function_ids {
-            let function = self.build_function(*function_id, &function_indices, storage_layouts);
+            let function = self.build_function(*function_id, &function_indices, layouts);
             functions.push(function);
         }
 
@@ -342,7 +341,7 @@ impl ExecutableBuilder {
         &mut self,
         function_id: mir::LocalNodeId<mir::Function>,
         function_indices: &HashMap<mir::LocalNodeId<mir::Function>, u32>,
-        storage_layouts: &HashMap<mir::LocalNodeId<mir::Type>, StorageLayout>,
+        layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     ) -> Function {
         let function = self.tree.get(function_id);
         let (value_slots, deferred_block_params) =
@@ -362,7 +361,7 @@ impl ExecutableBuilder {
             &yield_resume_points,
             &exceptional_call_resume_points,
             function_indices,
-            storage_layouts,
+            layouts,
             &value_slots,
             &deferred_block_params,
         )

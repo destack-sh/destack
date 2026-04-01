@@ -12,7 +12,10 @@ pub struct ResolvedHeapOptions {
 }
 
 /// Resolve runtime heap options into heap-construction settings.
-pub fn resolve_heap_options(options: &HeapOptions) -> RuntimeResult<ResolvedHeapOptions> {
+pub fn resolve_heap_options(
+    options: &HeapOptions,
+    managed_reference_bytes: u8,
+) -> RuntimeResult<ResolvedHeapOptions> {
     let size_classes = match &options.size_classes {
         HeapSizeClasses::Default => SizeClassTable::default(),
         HeapSizeClasses::Named(name) => {
@@ -46,9 +49,11 @@ pub fn resolve_heap_options(options: &HeapOptions) -> RuntimeResult<ResolvedHeap
         },
         layout: HeapLayoutOptions {
             size_classes,
-            managed_run_bytes: options.managed_run_bytes,
-            raw_run_bytes: options.raw_run_bytes,
-            chunk_bytes: options.chunk_bytes,
+            managed_reference_bytes,
+            managed_young_bytes: options.managed_young_bytes,
+            managed_small_bytes: options.managed_small_bytes,
+            raw_small_bytes: options.raw_small_bytes,
+            page_bytes: options.page_bytes,
         },
     })
 }

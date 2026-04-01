@@ -23,12 +23,14 @@ pub struct HeapOptions {
     pub initial_bytes: Option<u64>,
     /// The configured size-class table for small allocations.
     pub size_classes: HeapSizeClasses,
-    /// The byte width for managed runs.
-    pub managed_run_bytes: usize,
-    /// The byte width for raw runs.
-    pub raw_run_bytes: usize,
-    /// The byte width for chunk-backed extent and shared leaves.
-    pub chunk_bytes: usize,
+    /// The byte width for managed young space.
+    pub managed_young_bytes: usize,
+    /// The byte width for managed small-object spans.
+    pub managed_small_bytes: usize,
+    /// The byte width for raw small-object spans.
+    pub raw_small_bytes: usize,
+    /// The byte width for local heap pages and page-sized chunks.
+    pub page_bytes: usize,
     /// Hard limit for total retained heap bytes.
     pub max_bytes: Option<u64>,
     /// Hard limit for retained managed heap bytes.
@@ -46,9 +48,10 @@ impl Default for HeapOptions {
             soft_limit_bytes: None,
             initial_bytes: None,
             size_classes: HeapSizeClasses::Default,
-            managed_run_bytes: 16 * 1024,
-            raw_run_bytes: 16 * 1024,
-            chunk_bytes: 4 * 1024,
+            managed_young_bytes: 64 * 1024,
+            managed_small_bytes: 16 * 1024,
+            raw_small_bytes: 16 * 1024,
+            page_bytes: 4 * 1024,
             max_bytes: None,
             max_managed_bytes: None,
             max_raw_bytes: None,
@@ -92,12 +95,14 @@ pub struct HeapOptionsJson {
     pub initial_bytes: Option<u64>,
     /// The configured size-class table for small allocations.
     pub size_classes: Option<HeapSizeClassesJson>,
-    /// The byte width for managed runs.
-    pub managed_run_bytes: Option<usize>,
-    /// The byte width for raw runs.
-    pub raw_run_bytes: Option<usize>,
-    /// The byte width for chunk-backed extent and shared leaves.
-    pub chunk_bytes: Option<usize>,
+    /// The byte width for managed young space.
+    pub managed_young_bytes: Option<usize>,
+    /// The byte width for managed small-object spans.
+    pub managed_small_bytes: Option<usize>,
+    /// The byte width for raw small-object spans.
+    pub raw_small_bytes: Option<usize>,
+    /// The byte width for local heap pages and page-sized chunks.
+    pub page_bytes: Option<usize>,
     /// Hard limit for total retained heap bytes.
     pub max_bytes: Option<u64>,
     /// Hard limit for retained managed heap bytes.
@@ -123,14 +128,17 @@ impl HeapOptionsJson {
         if self.size_classes.is_none() {
             self.size_classes = parent.size_classes.clone();
         }
-        if self.managed_run_bytes.is_none() {
-            self.managed_run_bytes = parent.managed_run_bytes;
+        if self.managed_young_bytes.is_none() {
+            self.managed_young_bytes = parent.managed_young_bytes;
         }
-        if self.raw_run_bytes.is_none() {
-            self.raw_run_bytes = parent.raw_run_bytes;
+        if self.managed_small_bytes.is_none() {
+            self.managed_small_bytes = parent.managed_small_bytes;
         }
-        if self.chunk_bytes.is_none() {
-            self.chunk_bytes = parent.chunk_bytes;
+        if self.raw_small_bytes.is_none() {
+            self.raw_small_bytes = parent.raw_small_bytes;
+        }
+        if self.page_bytes.is_none() {
+            self.page_bytes = parent.page_bytes;
         }
         if self.max_bytes.is_none() {
             self.max_bytes = parent.max_bytes;
@@ -163,14 +171,17 @@ impl HeapOptionsJson {
         if let Some(size_classes) = &self.size_classes {
             options.size_classes = size_classes.to_options();
         }
-        if let Some(managed_run_bytes) = self.managed_run_bytes {
-            options.managed_run_bytes = managed_run_bytes;
+        if let Some(managed_young_bytes) = self.managed_young_bytes {
+            options.managed_young_bytes = managed_young_bytes;
         }
-        if let Some(raw_run_bytes) = self.raw_run_bytes {
-            options.raw_run_bytes = raw_run_bytes;
+        if let Some(managed_small_bytes) = self.managed_small_bytes {
+            options.managed_small_bytes = managed_small_bytes;
         }
-        if let Some(chunk_bytes) = self.chunk_bytes {
-            options.chunk_bytes = chunk_bytes;
+        if let Some(raw_small_bytes) = self.raw_small_bytes {
+            options.raw_small_bytes = raw_small_bytes;
+        }
+        if let Some(page_bytes) = self.page_bytes {
+            options.page_bytes = page_bytes;
         }
 
         // apply hard limit overrides

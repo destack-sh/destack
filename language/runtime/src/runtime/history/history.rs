@@ -559,8 +559,8 @@ impl World {
             }),
             topology: RefCell::new(Default::default()),
             resources: RefCell::new(Default::default()),
-            shared: RefCell::new(heap::SharedSpace::with_chunk_bytes(
-                self.shared.borrow().chunk_bytes(),
+            shared: RefCell::new(heap::SharedSpace::with_page_bytes(
+                self.shared.borrow().page_bytes(),
             )),
             shared_limits: self.shared_limits,
         })

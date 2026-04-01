@@ -8,7 +8,7 @@ use destack_mir as mir;
 pub(crate) struct StackAllocation {
     /// The raw byte storage for this allocation.
     bytes: Vec<u8>,
-    /// The stored raw storage type.
+    /// The stored raw type.
     storage_type: mir::LocalNodeId<mir::Type>,
 }
 
@@ -44,7 +44,7 @@ impl StackAllocation {
         self.bytes.len()
     }
 
-    /// Return the compiled storage type for this allocation.
+    /// Return the compiled type for this allocation.
     pub(crate) fn storage_type(&self) -> mir::LocalNodeId<mir::Type> {
         self.storage_type
     }

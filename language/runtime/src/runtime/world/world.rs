@@ -140,7 +140,7 @@ impl World {
         let policy = Policy::from_workspace_rules(&options.rules);
         let trace = Trace::new(options.execution, trace_header);
         let topology = Topology::new();
-        let mut shared = heap::SharedSpace::with_chunk_bytes(options.heap.chunk_bytes);
+        let mut shared = heap::SharedSpace::with_page_bytes(options.heap.page_bytes);
         let shared_limits = heap::SharedLimits {
             max_bytes: options.heap.max_shared_bytes,
         };

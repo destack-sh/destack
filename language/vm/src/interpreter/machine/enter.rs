@@ -14,8 +14,7 @@ use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::executable::{
     ArgumentRange, CopyRange, Executable, FunctionTarget, INVALID_FUNCTION_INDEX, is_invalid_value,
 };
-use crate::execute::ExecutionOutcome;
-use crate::interpreter::Interpreter;
+use crate::interpreter::{ExecutionOutcome, Interpreter};
 use crate::isolate::{
     ExternalCallContext, ExternalFn, ExternalFnPtr, SchemaRegistry, StringInterner,
 };

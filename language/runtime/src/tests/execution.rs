@@ -26,6 +26,9 @@ const EXECUTION_CHILD_ENV: &str = "DESTACK_RUNTIME_EXECUTION_CHILD";
 /// Environment key for one explicit execution helper path.
 #[cfg(target_os = "macos")]
 const EXECUTION_HELPER_ENV: &str = "DESTACK_RUNTIME_EXECUTION_HELPER";
+/// Environment key for the helper bootstrap target directory.
+#[cfg(target_os = "macos")]
+const EXECUTION_HELPER_TARGET_DIR_ENV: &str = "DESTACK_RUNTIME_EXECUTION_HELPER_TARGET_DIR";
 
 /// Process-wide gate that serializes helper child processes.
 #[cfg(target_os = "macos")]
@@ -143,6 +146,7 @@ fn resolve_execution_helper_executable() -> PathBuf {
 fn build_execution_helper_with_cargo() -> Option<PathBuf> {
     let cargo = std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into());
     let manifest_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");
+    let target_directory = execution_helper_target_directory(&manifest_path);
     let mut command = Command::new(cargo);
     command
         .arg("test")
@@ -155,7 +159,11 @@ fn build_execution_helper_with_cargo() -> Option<PathBuf> {
         .arg("--no-run")
         .arg("--message-format=json")
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
+        .stderr(Stdio::piped())
+        .env("CARGO_INCREMENTAL", "0")
+        .env("CARGO_BUILD_JOBS", "1")
+        .env(EXECUTION_HELPER_TARGET_DIR_ENV, &target_directory)
+        .env("CARGO_TARGET_DIR", &target_directory);
 
     let mut child = command.spawn().unwrap_or_else(|error| {
         panic!("failed to spawn cargo for runtime execution helper bootstrap: {error}")
@@ -214,6 +222,22 @@ fn build_execution_helper_with_cargo() -> Option<PathBuf> {
     }
 
     None
+}
+
+/// Return the dedicated target directory for helper bootstrap builds.
+#[cfg(target_os = "macos")]
+fn execution_helper_target_directory(manifest_path: &Path) -> PathBuf {
+    // allow the outer runner to pin a stable helper target directory
+    if let Some(path) = std::env::var_os(EXECUTION_HELPER_TARGET_DIR_ENV) {
+        return PathBuf::from(path);
+    }
+
+    // keep helper bootstrap artifacts away from the outer test build
+    let runtime_directory = manifest_path
+        .parent()
+        .unwrap_or_else(|| panic!("missing runtime manifest parent directory"));
+
+    runtime_directory.join("target/runtime_execution_helper")
 }
 
 /// Discover the helper executable beside the current test binary.

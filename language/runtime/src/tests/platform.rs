@@ -225,7 +225,7 @@ pub(crate) fn vm_test_byte_array(
     context: &mut vm::ExternalCallContext<'_>,
     bytes: &[u8],
 ) -> VmArray<u8> {
-    VmArray::from_bytes(context, bytes).expect("vm test byte array should allocate")
+    VmArray::from_bytes(&mut context.write(), bytes).expect("vm test byte array should allocate")
 }
 
 #[cfg(test)]
@@ -234,7 +234,7 @@ pub(crate) fn vm_test_byte_slice(
     context: &mut vm::ExternalCallContext<'_>,
     bytes: &[u8],
 ) -> VmSlice<u8> {
-    VmSlice::from_bytes(context, bytes).expect("vm test byte slice should allocate")
+    VmSlice::from_bytes(&mut context.write(), bytes).expect("vm test byte slice should allocate")
 }
 
 #[cfg(test)]

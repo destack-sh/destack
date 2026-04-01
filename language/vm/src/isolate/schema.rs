@@ -9,7 +9,7 @@ const BUILTIN_SLICE_NAME: &str = "Slice";
 /// The builtin array metadata name used by external ABI helpers.
 const BUILTIN_ARRAY_NAME: &str = "Array";
 
-/// The schema for one runtime ABI storage type.
+/// The schema for one runtime ABI type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct StorageSchema {
     /// The number of semantic component values stored in this payload.
@@ -33,13 +33,13 @@ impl StorageSchema {
 pub(crate) struct SchemaRegistry {
     /// The next synthetic type id to assign.
     next_type_id: u32,
-    /// Registered storage type ids keyed by runtime metadata name.
+    /// Registered type ids keyed by runtime metadata name.
     type_id_by_name: HashMap<String, u32>,
     /// Registered schemas keyed by synthetic type id.
     schema_by_type_id: HashMap<u32, StorageSchema>,
-    /// The builtin slice storage type id.
+    /// The builtin slice type id.
     builtin_slice_type_id: u32,
-    /// The builtin array storage type id.
+    /// The builtin array type id.
     builtin_array_type_id: u32,
 }
 
@@ -69,12 +69,12 @@ impl SchemaRegistry {
         registry
     }
 
-    /// Register one runtime named storage type.
+    /// Register one runtime named type.
     pub(crate) fn register_named_storage_type(&mut self, name: &str, component_count: usize) {
         self.register_storage_type(name, component_count);
     }
 
-    /// Resolve one runtime named storage type id.
+    /// Resolve one runtime named type id.
     pub(crate) fn type_id(&self, name: &str) -> Option<u32> {
         self.type_id_by_name.get(name).copied()
     }
@@ -84,7 +84,7 @@ impl SchemaRegistry {
         self.schema_by_type_id.get(&type_id).copied()
     }
 
-    /// Resolve one builtin collection storage type by short name and component count.
+    /// Resolve one builtin collection type by short name and component count.
     pub(crate) fn builtin_collection_type(
         &self,
         short_name: &str,

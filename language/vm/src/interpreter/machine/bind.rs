@@ -50,9 +50,7 @@ pub(crate) fn capture_transferred_value(
     ty: mir::LocalNodeId<mir::Type>,
     value: Value,
 ) -> Result<TransferredValue, Error> {
-    let layout = executable
-        .storage_layout(ty)
-        .ok_or(Error::InvalidInstruction)?;
+    let layout = executable.layout(ty).ok_or(Error::InvalidInstruction)?;
 
     // keep scalar and pointer-like values as plain payloads
     if layout.is_scalar() || value == Value::VOID {
@@ -128,7 +126,7 @@ pub(crate) fn bind_transferred_value(
 ) -> Result<(), Error> {
     let destination_type = frame_value_type(executable, dest_frame, destination)?;
     let layout = executable
-        .storage_layout(destination_type)
+        .layout(destination_type)
         .ok_or(Error::InvalidInstruction)?;
 
     // scalar destinations keep plain runtime values
@@ -183,9 +181,7 @@ pub(crate) fn materialize_transferred_value_for_escape(
     match transferred {
         TransferredValue::Plain(value) => Ok(value),
         TransferredValue::TypedStorage { ty, bytes } => {
-            let layout = executable
-                .storage_layout(ty)
-                .ok_or(Error::InvalidInstruction)?;
+            let layout = executable.layout(ty).ok_or(Error::InvalidInstruction)?;
             let layout_id = executable.tree.type_layout_id(ty);
             let handle = heap
                 .allocate_managed_bytes_borrowed_typed(

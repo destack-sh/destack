@@ -16,8 +16,9 @@ use crate::runtime::world::World;
 use crate::simulation::Simulation;
 
 use super::{
-    Agent, EventLoopScope, ExecutionContext, ExecutionContextId, binding_affinity_name,
-    current_agent_context, current_event_loop_scope, with_binding_call_arena,
+    Agent, BindingCallBuilder, EventLoopScope, ExecutionContext, ExecutionContextId,
+    binding_affinity_name, current_agent_context, current_event_loop_scope,
+    with_binding_call_arena,
 };
 use crate::runtime::{Hooks, NativeSlice, NativeStringRef, NativeStringSlice, PolicyCallId};
 use destack_workspace::{RuntimeAccess, RuntimeDiagnosticLevel, TimeMode};
@@ -403,6 +404,11 @@ impl BindingCallContext {
         with_binding_call_arena(|arena| arena.store_string(value))
     }
 
+    /// Store one owned string for the duration of the current call.
+    pub fn store_string_owned(&self, value: String) -> NativeStringRef {
+        with_binding_call_arena(|arena| arena.store_string_owned(value))
+    }
+
     /// Store an optional string for the duration of the current call.
     pub fn store_string_option(&self, value: Option<&String>) -> NativeStringRef {
         with_binding_call_arena(|arena| arena.store_string_option(value))
@@ -413,14 +419,61 @@ impl BindingCallContext {
         with_binding_call_arena(|arena| arena.store_slice(values))
     }
 
+    /// Build and store one slice for the duration of the current call.
+    pub fn store_slice_with<T: 'static>(
+        &self,
+        capacity: usize,
+        fill: impl FnOnce(&mut BindingCallBuilder<T>) -> RuntimeResult<()>,
+    ) -> RuntimeResult<NativeSlice<T>> {
+        with_binding_call_arena(|arena| arena.store_slice_with(capacity, fill))
+    }
+
+    /// Copy a slice for the duration of the current call.
+    pub fn store_slice_copy<T: Copy + 'static>(&self, values: &[T]) -> NativeSlice<T> {
+        with_binding_call_arena(|arena| arena.store_slice_copy(values))
+    }
+
+    /// Store one zeroed byte slice for the duration of the current call.
+    pub fn store_zeroed_byte_slice(&self, len: usize) -> NativeSlice<u8> {
+        with_binding_call_arena(|arena| arena.store_zeroed_byte_slice(len))
+    }
+
     /// Store an array for the duration of the current call.
     pub fn store_array<T: 'static>(&self, values: Vec<T>) -> NativeArray<T> {
         with_binding_call_arena(|arena| arena.store_array(values))
     }
 
+    /// Build and store one array for the duration of the current call.
+    pub fn store_array_with<T: 'static>(
+        &self,
+        capacity: usize,
+        fill: impl FnOnce(&mut BindingCallBuilder<T>) -> RuntimeResult<()>,
+    ) -> RuntimeResult<NativeArray<T>> {
+        with_binding_call_arena(|arena| arena.store_array_with(capacity, fill))
+    }
+
+    /// Copy an array for the duration of the current call.
+    pub fn store_array_copy<T: Copy + 'static>(&self, values: &[T]) -> NativeArray<T> {
+        with_binding_call_arena(|arena| arena.store_array_copy(values))
+    }
+
+    /// Store one zeroed byte array for the duration of the current call.
+    pub fn store_zeroed_byte_array(&self, len: usize) -> NativeArray<u8> {
+        with_binding_call_arena(|arena| arena.store_zeroed_byte_array(len))
+    }
+
     /// Store a string slice for the duration of the current call.
     pub fn store_string_slice(&self, values: Vec<NativeStringRef>) -> NativeStringSlice {
         with_binding_call_arena(|arena| arena.store_string_slice(values))
+    }
+
+    /// Build and store one string slice for the duration of the current call.
+    pub fn store_string_slice_with(
+        &self,
+        capacity: usize,
+        fill: impl FnOnce(&mut BindingCallBuilder<NativeStringRef>) -> RuntimeResult<()>,
+    ) -> RuntimeResult<NativeStringSlice> {
+        with_binding_call_arena(|arena| arena.store_string_slice_with(capacity, fill))
     }
 
     /// Return one policy-violation error for one binding descriptor.

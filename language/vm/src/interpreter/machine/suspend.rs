@@ -1,7 +1,6 @@
 use crate::diagnostic::Error;
 use crate::executable::Executable;
-use crate::execute::{Continuation, YieldState};
-use crate::interpreter::Interpreter;
+use crate::interpreter::{Continuation, Interpreter, YieldState};
 
 impl Interpreter {
     /// Return an error when one captured frame still owns unsuspendable state.

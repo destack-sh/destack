@@ -2,7 +2,7 @@ use super::prelude::*;
 
 // TODO #Performance: improve VM tensor performance
 
-/// The flattened storage layout for one tensor.
+/// The flattened layout for one tensor.
 #[derive(Debug, Clone)]
 pub(crate) struct TensorLayoutInfo {
     /// The static tensor shape.

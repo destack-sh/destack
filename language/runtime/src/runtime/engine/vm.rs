@@ -9,6 +9,11 @@ use crate::runtime::engine::{Engine, EngineImage, EngineSnapshot, Entry, LiveCon
 
 /// VM engine implementation for one agent.
 impl Engine for Isolate {
+    /// Return the encoded managed-reference width required by this VM isolate.
+    fn heap_managed_reference_bytes(&self) -> u8 {
+        Isolate::heap_managed_reference_bytes(self)
+    }
+
     /// Run a VM entrypoint by name.
     fn run(
         &mut self,

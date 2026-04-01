@@ -1,7 +1,6 @@
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::executable::{Executable, Transfer};
-use crate::execute::{ExecutionOutcome, ExecutionYield, YieldState};
-use crate::interpreter::Interpreter;
+use crate::interpreter::{ExecutionOutcome, ExecutionYield, Interpreter, YieldState};
 use crate::isolate::{ExternalFn, ExternalFnPtr, SchemaRegistry, StringInterner};
 use crate::options::IsolateOptions;
 use destack_engine as engine;

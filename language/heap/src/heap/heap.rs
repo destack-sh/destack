@@ -369,6 +369,11 @@ impl Heap {
         self.managed.type_id(handle)
     }
 
+    /// Return the layout id for this managed allocation.
+    pub fn managed_layout_id(&self, handle: ManagedReference) -> Option<LayoutId> {
+        self.managed.layout_id(handle)
+    }
+
     /// Set one managed byte.
     pub fn set_managed_byte(&mut self, handle: ManagedReference, index: usize, byte: u8) -> bool {
         self.cached_image = None;

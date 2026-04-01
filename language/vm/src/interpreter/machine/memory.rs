@@ -918,9 +918,9 @@ pub(crate) fn step_managed_alloc(
     // resolve borrowed trace metadata before taking the heap borrow
     let trace = {
         let executable = state.executable;
-        let Some(storage_layout) = executable.storage_layout(*storage_type) else {
+        let Some(storage_layout) = executable.layout(*storage_type) else {
             return Transfer::Error(Error::TypeMismatch {
-                expected: "compiled storage layout".to_string(),
+                expected: "compiled layout".to_string(),
                 actual: format!("{storage_type:?}"),
             });
         };
@@ -993,9 +993,9 @@ pub(crate) fn step_managed_alloc_array(
         };
         let trace = {
             let executable = state.executable;
-            let Some(storage_layout) = executable.storage_layout(*element_type) else {
+            let Some(storage_layout) = executable.layout(*element_type) else {
                 return Transfer::Error(Error::TypeMismatch {
-                    expected: "compiled storage layout".to_string(),
+                    expected: "compiled layout".to_string(),
                     actual: format!("{element_type:?}"),
                 });
             };
