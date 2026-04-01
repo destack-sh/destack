@@ -5371,7 +5371,8 @@ fn destack_io_completion_wait_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmArray::<CompletionEventVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value_key = vm_result_item.key;
                         let vm_result_item_value_result = vm_result_item.result;
@@ -5381,9 +5382,9 @@ fn destack_io_completion_wait_vm_replay(
                             result: vm_result_item_value_result,
                             flags: vm_result_item_value_flags,
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmArray::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -6328,7 +6329,8 @@ fn destack_io_poll_wait_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmArray::<PollEventVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value_key = vm_result_item.key;
                         let vm_result_item_value_ready = vm_result_item.ready;
@@ -6338,9 +6340,9 @@ fn destack_io_poll_wait_vm_replay(
                             ready: vm_result_item_value_ready,
                             data: vm_result_item_value_data,
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmArray::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),

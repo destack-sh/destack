@@ -10853,7 +10853,7 @@ fn destack_accessibility_action_read_vm_replay(
                                 sequence: vm_result_accessibility_set_selected_text_ranges_action_metadata_sequence,
                                 dropped_count: vm_result_accessibility_set_selected_text_ranges_action_metadata_dropped_count,
                             };
-                            let mut vm_result_accessibility_set_selected_text_ranges_action_selections_values = Vec::with_capacity(value.selections.len());
+                            let mut vm_result_accessibility_set_selected_text_ranges_action_selections_builder = VmSlice::<AccessibilityTextSelectionVm>::builder(context, value.selections.len())?;
                             for vm_result_accessibility_set_selected_text_ranges_action_selections_item in value.selections {
                                 let vm_result_accessibility_set_selected_text_ranges_action_selections_item_value_anchor_offset = vm_result_accessibility_set_selected_text_ranges_action_selections_item.anchor_offset;
                                 let vm_result_accessibility_set_selected_text_ranges_action_selections_item_value_focus_offset = vm_result_accessibility_set_selected_text_ranges_action_selections_item.focus_offset;
@@ -10861,9 +10861,9 @@ fn destack_accessibility_action_read_vm_replay(
                                     anchor_offset: vm_result_accessibility_set_selected_text_ranges_action_selections_item_value_anchor_offset,
                                     focus_offset: vm_result_accessibility_set_selected_text_ranges_action_selections_item_value_focus_offset,
                                 };
-                                vm_result_accessibility_set_selected_text_ranges_action_selections_values.push(vm_result_accessibility_set_selected_text_ranges_action_selections_item_value);
+                                vm_result_accessibility_set_selected_text_ranges_action_selections_builder.push(context, vm_result_accessibility_set_selected_text_ranges_action_selections_item_value)?;
                             }
-                            let vm_result_accessibility_set_selected_text_ranges_action_selections = VmSlice::from_values(context, &vm_result_accessibility_set_selected_text_ranges_action_selections_values)?;
+                            let vm_result_accessibility_set_selected_text_ranges_action_selections = vm_result_accessibility_set_selected_text_ranges_action_selections_builder.finish()?;
                             let vm_result_accessibility_set_selected_text_ranges_action = AccessibilitySetSelectedTextRangesActionVm {
                                 kind: vm_result_accessibility_set_selected_text_ranges_action_kind,
                                 metadata: vm_result_accessibility_set_selected_text_ranges_action_metadata,
@@ -11992,7 +11992,7 @@ fn destack_accessibility_action_try_read_vm_replay(
                                 sequence: vm_result_accessibility_set_selected_text_ranges_action_metadata_sequence,
                                 dropped_count: vm_result_accessibility_set_selected_text_ranges_action_metadata_dropped_count,
                             };
-                            let mut vm_result_accessibility_set_selected_text_ranges_action_selections_values = Vec::with_capacity(value.selections.len());
+                            let mut vm_result_accessibility_set_selected_text_ranges_action_selections_builder = VmSlice::<AccessibilityTextSelectionVm>::builder(context, value.selections.len())?;
                             for vm_result_accessibility_set_selected_text_ranges_action_selections_item in value.selections {
                                 let vm_result_accessibility_set_selected_text_ranges_action_selections_item_value_anchor_offset = vm_result_accessibility_set_selected_text_ranges_action_selections_item.anchor_offset;
                                 let vm_result_accessibility_set_selected_text_ranges_action_selections_item_value_focus_offset = vm_result_accessibility_set_selected_text_ranges_action_selections_item.focus_offset;
@@ -12000,9 +12000,9 @@ fn destack_accessibility_action_try_read_vm_replay(
                                     anchor_offset: vm_result_accessibility_set_selected_text_ranges_action_selections_item_value_anchor_offset,
                                     focus_offset: vm_result_accessibility_set_selected_text_ranges_action_selections_item_value_focus_offset,
                                 };
-                                vm_result_accessibility_set_selected_text_ranges_action_selections_values.push(vm_result_accessibility_set_selected_text_ranges_action_selections_item_value);
+                                vm_result_accessibility_set_selected_text_ranges_action_selections_builder.push(context, vm_result_accessibility_set_selected_text_ranges_action_selections_item_value)?;
                             }
-                            let vm_result_accessibility_set_selected_text_ranges_action_selections = VmSlice::from_values(context, &vm_result_accessibility_set_selected_text_ranges_action_selections_values)?;
+                            let vm_result_accessibility_set_selected_text_ranges_action_selections = vm_result_accessibility_set_selected_text_ranges_action_selections_builder.finish()?;
                             let vm_result_accessibility_set_selected_text_ranges_action = AccessibilitySetSelectedTextRangesActionVm {
                                 kind: vm_result_accessibility_set_selected_text_ranges_action_kind,
                                 metadata: vm_result_accessibility_set_selected_text_ranges_action_metadata,

@@ -35672,7 +35672,8 @@ fn destack_device_bluetooth_adapter_list_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmSlice::<BluetoothAdapterDescriptorVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value_id = context
                             .string_handle(vm_result_item.id.as_str())
@@ -35702,9 +35703,9 @@ fn destack_device_bluetooth_adapter_list_vm_replay(
                             discovering: vm_result_item_value_discovering,
                             extended_advertising: vm_result_item_value_extended_advertising,
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -36526,7 +36527,7 @@ fn destack_device_bluetooth_gatt_characteristic_list_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder = VmSlice::<BluetoothGattCharacteristicVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value_id = context.string_handle(vm_result_item.id.as_str()).map_err(Box::<RuntimeError>::from)?;
                         let vm_result_item_value_service_id = context.string_handle(vm_result_item.service_id.as_str()).map_err(Box::<RuntimeError>::from)?;
@@ -36557,9 +36558,9 @@ fn destack_device_bluetooth_gatt_characteristic_list_vm_replay(
                             uuid: vm_result_item_value_uuid,
                             properties: vm_result_item_value_properties,
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -36667,7 +36668,8 @@ fn destack_device_bluetooth_gatt_descriptor_list_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmSlice::<BluetoothGattDescriptorVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value_id = context
                             .string_handle(vm_result_item.id.as_str())
@@ -36687,9 +36689,9 @@ fn destack_device_bluetooth_gatt_descriptor_list_vm_replay(
                             characteristic_id: vm_result_item_value_characteristic_id,
                             uuid: vm_result_item_value_uuid,
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -37076,26 +37078,26 @@ fn destack_device_bluetooth_gatt_service_list_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder = VmSlice::<BluetoothGattServiceVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value_id = context.string_handle(vm_result_item.id.as_str()).map_err(Box::<RuntimeError>::from)?;
                         let vm_result_item_value_uuid = context.string_handle(vm_result_item.uuid.as_str()).map_err(Box::<RuntimeError>::from)?;
                         let vm_result_item_value_primary = vm_result_item.primary;
-                        let mut vm_result_item_value_included_service_ids_values = Vec::with_capacity(vm_result_item.included_service_ids.len());
+                        let mut vm_result_item_value_included_service_ids_builder = VmArray::<vm::StringHandle>::builder(context, vm_result_item.included_service_ids.len())?;
                         for vm_result_item_value_included_service_ids_item in vm_result_item.included_service_ids {
                             let vm_result_item_value_included_service_ids_item_value = context.string_handle(vm_result_item_value_included_service_ids_item.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            vm_result_item_value_included_service_ids_values.push(vm_result_item_value_included_service_ids_item_value);
+                            vm_result_item_value_included_service_ids_builder.push(context, vm_result_item_value_included_service_ids_item_value)?;
                         }
-                        let vm_result_item_value_included_service_ids = VmArray::from_values(context, &vm_result_item_value_included_service_ids_values)?;
+                        let vm_result_item_value_included_service_ids = vm_result_item_value_included_service_ids_builder.finish()?;
                         let vm_result_item_value = BluetoothGattServiceVm {
                             id: vm_result_item_value_id,
                             uuid: vm_result_item_value_uuid,
                             primary: vm_result_item_value_primary,
                             included_service_ids: vm_result_item_value_included_service_ids,
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -38080,13 +38082,13 @@ fn destack_device_bluetooth_scan_read_event_vm_replay(
                             } else {
                                 None
                             };
-                            let mut vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids_values = Vec::with_capacity(value.metadata.device.advertisement.service_uuids.len());
+                            let mut vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids_builder = VmArray::<vm::StringHandle>::builder(context, value.metadata.device.advertisement.service_uuids.len())?;
                             for vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids_item in value.metadata.device.advertisement.service_uuids {
                                 let vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids_item_value = context.string_handle(vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids_item.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids_values.push(vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids_item_value);
+                                vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids_builder.push(context, vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids_item_value)?;
                             }
-                            let vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids = VmArray::from_values(context, &vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids_values)?;
-                            let mut vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_values = Vec::with_capacity(value.metadata.device.advertisement.manufacturer_data.len());
+                            let vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids = vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids_builder.finish()?;
+                            let mut vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_builder = VmArray::<BluetoothAdvertisementManufacturerDataVm>::builder(context, value.metadata.device.advertisement.manufacturer_data.len())?;
                             for vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_item in value.metadata.device.advertisement.manufacturer_data {
                                 let vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_item_value_company_id = vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_item.company_id;
                                 let vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_item_value_data = VmSlice::<u8>::from_bytes(context, vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_item.data.as_ref())?;
@@ -38094,10 +38096,10 @@ fn destack_device_bluetooth_scan_read_event_vm_replay(
                                     company_id: vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_item_value_company_id,
                                     data: vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_item_value_data,
                                 };
-                                vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_values.push(vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_item_value);
+                                vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_builder.push(context, vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_item_value)?;
                             }
-                            let vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data = VmArray::from_values(context, &vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_values)?;
-                            let mut vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_values = Vec::with_capacity(value.metadata.device.advertisement.service_data.len());
+                            let vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data = vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_builder.finish()?;
+                            let mut vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_builder = VmArray::<BluetoothAdvertisementServiceDataVm>::builder(context, value.metadata.device.advertisement.service_data.len())?;
                             for vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_item in value.metadata.device.advertisement.service_data {
                                 let vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_item_value_service_uuid = context.string_handle(vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_item.service_uuid.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 let vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_item_value_data = VmSlice::<u8>::from_bytes(context, vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_item.data.as_ref())?;
@@ -38105,9 +38107,9 @@ fn destack_device_bluetooth_scan_read_event_vm_replay(
                                     service_uuid: vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_item_value_service_uuid,
                                     data: vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_item_value_data,
                                 };
-                                vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_values.push(vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_item_value);
+                                vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_builder.push(context, vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_item_value)?;
                             }
-                            let vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data = VmArray::from_values(context, &vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_values)?;
+                            let vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data = vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_builder.finish()?;
                             let vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement = BluetoothAdvertisementDataVm {
                                 local_name: vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_local_name,
                                 tx_power: vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_tx_power,
@@ -38191,13 +38193,13 @@ fn destack_device_bluetooth_scan_read_event_vm_replay(
                             } else {
                                 None
                             };
-                            let mut vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids_values = Vec::with_capacity(value.metadata.device.advertisement.service_uuids.len());
+                            let mut vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids_builder = VmArray::<vm::StringHandle>::builder(context, value.metadata.device.advertisement.service_uuids.len())?;
                             for vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids_item in value.metadata.device.advertisement.service_uuids {
                                 let vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids_item_value = context.string_handle(vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids_item.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids_values.push(vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids_item_value);
+                                vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids_builder.push(context, vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids_item_value)?;
                             }
-                            let vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids = VmArray::from_values(context, &vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids_values)?;
-                            let mut vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_values = Vec::with_capacity(value.metadata.device.advertisement.manufacturer_data.len());
+                            let vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids = vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids_builder.finish()?;
+                            let mut vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_builder = VmArray::<BluetoothAdvertisementManufacturerDataVm>::builder(context, value.metadata.device.advertisement.manufacturer_data.len())?;
                             for vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_item in value.metadata.device.advertisement.manufacturer_data {
                                 let vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_item_value_company_id = vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_item.company_id;
                                 let vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_item_value_data = VmSlice::<u8>::from_bytes(context, vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_item.data.as_ref())?;
@@ -38205,10 +38207,10 @@ fn destack_device_bluetooth_scan_read_event_vm_replay(
                                     company_id: vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_item_value_company_id,
                                     data: vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_item_value_data,
                                 };
-                                vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_values.push(vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_item_value);
+                                vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_builder.push(context, vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_item_value)?;
                             }
-                            let vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data = VmArray::from_values(context, &vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_values)?;
-                            let mut vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_values = Vec::with_capacity(value.metadata.device.advertisement.service_data.len());
+                            let vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data = vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_builder.finish()?;
+                            let mut vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_builder = VmArray::<BluetoothAdvertisementServiceDataVm>::builder(context, value.metadata.device.advertisement.service_data.len())?;
                             for vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_item in value.metadata.device.advertisement.service_data {
                                 let vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_item_value_service_uuid = context.string_handle(vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_item.service_uuid.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 let vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_item_value_data = VmSlice::<u8>::from_bytes(context, vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_item.data.as_ref())?;
@@ -38216,9 +38218,9 @@ fn destack_device_bluetooth_scan_read_event_vm_replay(
                                     service_uuid: vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_item_value_service_uuid,
                                     data: vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_item_value_data,
                                 };
-                                vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_values.push(vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_item_value);
+                                vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_builder.push(context, vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_item_value)?;
                             }
-                            let vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_data = VmArray::from_values(context, &vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_values)?;
+                            let vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_data = vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_builder.finish()?;
                             let vm_result_bluetooth_scan_lost_event_metadata_device_advertisement = BluetoothAdvertisementDataVm {
                                 local_name: vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_local_name,
                                 tx_power: vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_tx_power,
@@ -38302,13 +38304,13 @@ fn destack_device_bluetooth_scan_read_event_vm_replay(
                             } else {
                                 None
                             };
-                            let mut vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids_values = Vec::with_capacity(value.metadata.device.advertisement.service_uuids.len());
+                            let mut vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids_builder = VmArray::<vm::StringHandle>::builder(context, value.metadata.device.advertisement.service_uuids.len())?;
                             for vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids_item in value.metadata.device.advertisement.service_uuids {
                                 let vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids_item_value = context.string_handle(vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids_item.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids_values.push(vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids_item_value);
+                                vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids_builder.push(context, vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids_item_value)?;
                             }
-                            let vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids = VmArray::from_values(context, &vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids_values)?;
-                            let mut vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_values = Vec::with_capacity(value.metadata.device.advertisement.manufacturer_data.len());
+                            let vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids = vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids_builder.finish()?;
+                            let mut vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_builder = VmArray::<BluetoothAdvertisementManufacturerDataVm>::builder(context, value.metadata.device.advertisement.manufacturer_data.len())?;
                             for vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_item in value.metadata.device.advertisement.manufacturer_data {
                                 let vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_item_value_company_id = vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_item.company_id;
                                 let vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_item_value_data = VmSlice::<u8>::from_bytes(context, vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_item.data.as_ref())?;
@@ -38316,10 +38318,10 @@ fn destack_device_bluetooth_scan_read_event_vm_replay(
                                     company_id: vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_item_value_company_id,
                                     data: vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_item_value_data,
                                 };
-                                vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_values.push(vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_item_value);
+                                vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_builder.push(context, vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_item_value)?;
                             }
-                            let vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data = VmArray::from_values(context, &vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_values)?;
-                            let mut vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_values = Vec::with_capacity(value.metadata.device.advertisement.service_data.len());
+                            let vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data = vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_builder.finish()?;
+                            let mut vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_builder = VmArray::<BluetoothAdvertisementServiceDataVm>::builder(context, value.metadata.device.advertisement.service_data.len())?;
                             for vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_item in value.metadata.device.advertisement.service_data {
                                 let vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_item_value_service_uuid = context.string_handle(vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_item.service_uuid.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 let vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_item_value_data = VmSlice::<u8>::from_bytes(context, vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_item.data.as_ref())?;
@@ -38327,9 +38329,9 @@ fn destack_device_bluetooth_scan_read_event_vm_replay(
                                     service_uuid: vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_item_value_service_uuid,
                                     data: vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_item_value_data,
                                 };
-                                vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_values.push(vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_item_value);
+                                vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_builder.push(context, vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_item_value)?;
                             }
-                            let vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_data = VmArray::from_values(context, &vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_values)?;
+                            let vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_data = vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_builder.finish()?;
                             let vm_result_bluetooth_scan_updated_event_metadata_device_advertisement = BluetoothAdvertisementDataVm {
                                 local_name: vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_local_name,
                                 tx_power: vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_tx_power,
@@ -38876,13 +38878,13 @@ fn destack_device_bluetooth_scan_try_read_event_vm_replay(
                             } else {
                                 None
                             };
-                            let mut vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids_values = Vec::with_capacity(value.metadata.device.advertisement.service_uuids.len());
+                            let mut vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids_builder = VmArray::<vm::StringHandle>::builder(context, value.metadata.device.advertisement.service_uuids.len())?;
                             for vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids_item in value.metadata.device.advertisement.service_uuids {
                                 let vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids_item_value = context.string_handle(vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids_item.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids_values.push(vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids_item_value);
+                                vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids_builder.push(context, vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids_item_value)?;
                             }
-                            let vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids = VmArray::from_values(context, &vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids_values)?;
-                            let mut vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_values = Vec::with_capacity(value.metadata.device.advertisement.manufacturer_data.len());
+                            let vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids = vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids_builder.finish()?;
+                            let mut vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_builder = VmArray::<BluetoothAdvertisementManufacturerDataVm>::builder(context, value.metadata.device.advertisement.manufacturer_data.len())?;
                             for vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_item in value.metadata.device.advertisement.manufacturer_data {
                                 let vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_item_value_company_id = vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_item.company_id;
                                 let vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_item_value_data = VmSlice::<u8>::from_bytes(context, vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_item.data.as_ref())?;
@@ -38890,10 +38892,10 @@ fn destack_device_bluetooth_scan_try_read_event_vm_replay(
                                     company_id: vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_item_value_company_id,
                                     data: vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_item_value_data,
                                 };
-                                vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_values.push(vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_item_value);
+                                vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_builder.push(context, vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_item_value)?;
                             }
-                            let vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data = VmArray::from_values(context, &vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_values)?;
-                            let mut vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_values = Vec::with_capacity(value.metadata.device.advertisement.service_data.len());
+                            let vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data = vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_builder.finish()?;
+                            let mut vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_builder = VmArray::<BluetoothAdvertisementServiceDataVm>::builder(context, value.metadata.device.advertisement.service_data.len())?;
                             for vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_item in value.metadata.device.advertisement.service_data {
                                 let vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_item_value_service_uuid = context.string_handle(vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_item.service_uuid.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 let vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_item_value_data = VmSlice::<u8>::from_bytes(context, vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_item.data.as_ref())?;
@@ -38901,9 +38903,9 @@ fn destack_device_bluetooth_scan_try_read_event_vm_replay(
                                     service_uuid: vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_item_value_service_uuid,
                                     data: vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_item_value_data,
                                 };
-                                vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_values.push(vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_item_value);
+                                vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_builder.push(context, vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_item_value)?;
                             }
-                            let vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data = VmArray::from_values(context, &vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_values)?;
+                            let vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data = vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_builder.finish()?;
                             let vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement = BluetoothAdvertisementDataVm {
                                 local_name: vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_local_name,
                                 tx_power: vm_result_bluetooth_scan_discovered_event_metadata_device_advertisement_tx_power,
@@ -38987,13 +38989,13 @@ fn destack_device_bluetooth_scan_try_read_event_vm_replay(
                             } else {
                                 None
                             };
-                            let mut vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids_values = Vec::with_capacity(value.metadata.device.advertisement.service_uuids.len());
+                            let mut vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids_builder = VmArray::<vm::StringHandle>::builder(context, value.metadata.device.advertisement.service_uuids.len())?;
                             for vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids_item in value.metadata.device.advertisement.service_uuids {
                                 let vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids_item_value = context.string_handle(vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids_item.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids_values.push(vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids_item_value);
+                                vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids_builder.push(context, vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids_item_value)?;
                             }
-                            let vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids = VmArray::from_values(context, &vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids_values)?;
-                            let mut vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_values = Vec::with_capacity(value.metadata.device.advertisement.manufacturer_data.len());
+                            let vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids = vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids_builder.finish()?;
+                            let mut vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_builder = VmArray::<BluetoothAdvertisementManufacturerDataVm>::builder(context, value.metadata.device.advertisement.manufacturer_data.len())?;
                             for vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_item in value.metadata.device.advertisement.manufacturer_data {
                                 let vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_item_value_company_id = vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_item.company_id;
                                 let vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_item_value_data = VmSlice::<u8>::from_bytes(context, vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_item.data.as_ref())?;
@@ -39001,10 +39003,10 @@ fn destack_device_bluetooth_scan_try_read_event_vm_replay(
                                     company_id: vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_item_value_company_id,
                                     data: vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_item_value_data,
                                 };
-                                vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_values.push(vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_item_value);
+                                vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_builder.push(context, vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_item_value)?;
                             }
-                            let vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data = VmArray::from_values(context, &vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_values)?;
-                            let mut vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_values = Vec::with_capacity(value.metadata.device.advertisement.service_data.len());
+                            let vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data = vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_builder.finish()?;
+                            let mut vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_builder = VmArray::<BluetoothAdvertisementServiceDataVm>::builder(context, value.metadata.device.advertisement.service_data.len())?;
                             for vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_item in value.metadata.device.advertisement.service_data {
                                 let vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_item_value_service_uuid = context.string_handle(vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_item.service_uuid.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 let vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_item_value_data = VmSlice::<u8>::from_bytes(context, vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_item.data.as_ref())?;
@@ -39012,9 +39014,9 @@ fn destack_device_bluetooth_scan_try_read_event_vm_replay(
                                     service_uuid: vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_item_value_service_uuid,
                                     data: vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_item_value_data,
                                 };
-                                vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_values.push(vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_item_value);
+                                vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_builder.push(context, vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_item_value)?;
                             }
-                            let vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_data = VmArray::from_values(context, &vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_values)?;
+                            let vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_data = vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_builder.finish()?;
                             let vm_result_bluetooth_scan_lost_event_metadata_device_advertisement = BluetoothAdvertisementDataVm {
                                 local_name: vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_local_name,
                                 tx_power: vm_result_bluetooth_scan_lost_event_metadata_device_advertisement_tx_power,
@@ -39098,13 +39100,13 @@ fn destack_device_bluetooth_scan_try_read_event_vm_replay(
                             } else {
                                 None
                             };
-                            let mut vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids_values = Vec::with_capacity(value.metadata.device.advertisement.service_uuids.len());
+                            let mut vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids_builder = VmArray::<vm::StringHandle>::builder(context, value.metadata.device.advertisement.service_uuids.len())?;
                             for vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids_item in value.metadata.device.advertisement.service_uuids {
                                 let vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids_item_value = context.string_handle(vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids_item.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids_values.push(vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids_item_value);
+                                vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids_builder.push(context, vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids_item_value)?;
                             }
-                            let vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids = VmArray::from_values(context, &vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids_values)?;
-                            let mut vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_values = Vec::with_capacity(value.metadata.device.advertisement.manufacturer_data.len());
+                            let vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids = vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids_builder.finish()?;
+                            let mut vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_builder = VmArray::<BluetoothAdvertisementManufacturerDataVm>::builder(context, value.metadata.device.advertisement.manufacturer_data.len())?;
                             for vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_item in value.metadata.device.advertisement.manufacturer_data {
                                 let vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_item_value_company_id = vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_item.company_id;
                                 let vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_item_value_data = VmSlice::<u8>::from_bytes(context, vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_item.data.as_ref())?;
@@ -39112,10 +39114,10 @@ fn destack_device_bluetooth_scan_try_read_event_vm_replay(
                                     company_id: vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_item_value_company_id,
                                     data: vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_item_value_data,
                                 };
-                                vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_values.push(vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_item_value);
+                                vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_builder.push(context, vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_item_value)?;
                             }
-                            let vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data = VmArray::from_values(context, &vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_values)?;
-                            let mut vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_values = Vec::with_capacity(value.metadata.device.advertisement.service_data.len());
+                            let vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data = vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_builder.finish()?;
+                            let mut vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_builder = VmArray::<BluetoothAdvertisementServiceDataVm>::builder(context, value.metadata.device.advertisement.service_data.len())?;
                             for vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_item in value.metadata.device.advertisement.service_data {
                                 let vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_item_value_service_uuid = context.string_handle(vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_item.service_uuid.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 let vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_item_value_data = VmSlice::<u8>::from_bytes(context, vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_item.data.as_ref())?;
@@ -39123,9 +39125,9 @@ fn destack_device_bluetooth_scan_try_read_event_vm_replay(
                                     service_uuid: vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_item_value_service_uuid,
                                     data: vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_item_value_data,
                                 };
-                                vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_values.push(vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_item_value);
+                                vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_builder.push(context, vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_item_value)?;
                             }
-                            let vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_data = VmArray::from_values(context, &vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_values)?;
+                            let vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_data = vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_builder.finish()?;
                             let vm_result_bluetooth_scan_updated_event_metadata_device_advertisement = BluetoothAdvertisementDataVm {
                                 local_name: vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_local_name,
                                 tx_power: vm_result_bluetooth_scan_updated_event_metadata_device_advertisement_tx_power,
@@ -39427,13 +39429,13 @@ fn destack_device_bluetooth_session_descriptor_vm_replay(
                     } else {
                         None
                     };
-                    let mut vm_result_advertisement_service_uuids_values = Vec::with_capacity(value.advertisement.service_uuids.len());
+                    let mut vm_result_advertisement_service_uuids_builder = VmArray::<vm::StringHandle>::builder(context, value.advertisement.service_uuids.len())?;
                     for vm_result_advertisement_service_uuids_item in value.advertisement.service_uuids {
                         let vm_result_advertisement_service_uuids_item_value = context.string_handle(vm_result_advertisement_service_uuids_item.as_str()).map_err(Box::<RuntimeError>::from)?;
-                        vm_result_advertisement_service_uuids_values.push(vm_result_advertisement_service_uuids_item_value);
+                        vm_result_advertisement_service_uuids_builder.push(context, vm_result_advertisement_service_uuids_item_value)?;
                     }
-                    let vm_result_advertisement_service_uuids = VmArray::from_values(context, &vm_result_advertisement_service_uuids_values)?;
-                    let mut vm_result_advertisement_manufacturer_data_values = Vec::with_capacity(value.advertisement.manufacturer_data.len());
+                    let vm_result_advertisement_service_uuids = vm_result_advertisement_service_uuids_builder.finish()?;
+                    let mut vm_result_advertisement_manufacturer_data_builder = VmArray::<BluetoothAdvertisementManufacturerDataVm>::builder(context, value.advertisement.manufacturer_data.len())?;
                     for vm_result_advertisement_manufacturer_data_item in value.advertisement.manufacturer_data {
                         let vm_result_advertisement_manufacturer_data_item_value_company_id = vm_result_advertisement_manufacturer_data_item.company_id;
                         let vm_result_advertisement_manufacturer_data_item_value_data = VmSlice::<u8>::from_bytes(context, vm_result_advertisement_manufacturer_data_item.data.as_ref())?;
@@ -39441,10 +39443,10 @@ fn destack_device_bluetooth_session_descriptor_vm_replay(
                             company_id: vm_result_advertisement_manufacturer_data_item_value_company_id,
                             data: vm_result_advertisement_manufacturer_data_item_value_data,
                         };
-                        vm_result_advertisement_manufacturer_data_values.push(vm_result_advertisement_manufacturer_data_item_value);
+                        vm_result_advertisement_manufacturer_data_builder.push(context, vm_result_advertisement_manufacturer_data_item_value)?;
                     }
-                    let vm_result_advertisement_manufacturer_data = VmArray::from_values(context, &vm_result_advertisement_manufacturer_data_values)?;
-                    let mut vm_result_advertisement_service_data_values = Vec::with_capacity(value.advertisement.service_data.len());
+                    let vm_result_advertisement_manufacturer_data = vm_result_advertisement_manufacturer_data_builder.finish()?;
+                    let mut vm_result_advertisement_service_data_builder = VmArray::<BluetoothAdvertisementServiceDataVm>::builder(context, value.advertisement.service_data.len())?;
                     for vm_result_advertisement_service_data_item in value.advertisement.service_data {
                         let vm_result_advertisement_service_data_item_value_service_uuid = context.string_handle(vm_result_advertisement_service_data_item.service_uuid.as_str()).map_err(Box::<RuntimeError>::from)?;
                         let vm_result_advertisement_service_data_item_value_data = VmSlice::<u8>::from_bytes(context, vm_result_advertisement_service_data_item.data.as_ref())?;
@@ -39452,9 +39454,9 @@ fn destack_device_bluetooth_session_descriptor_vm_replay(
                             service_uuid: vm_result_advertisement_service_data_item_value_service_uuid,
                             data: vm_result_advertisement_service_data_item_value_data,
                         };
-                        vm_result_advertisement_service_data_values.push(vm_result_advertisement_service_data_item_value);
+                        vm_result_advertisement_service_data_builder.push(context, vm_result_advertisement_service_data_item_value)?;
                     }
-                    let vm_result_advertisement_service_data = VmArray::from_values(context, &vm_result_advertisement_service_data_values)?;
+                    let vm_result_advertisement_service_data = vm_result_advertisement_service_data_builder.finish()?;
                     let vm_result_advertisement = BluetoothAdvertisementDataVm {
                         local_name: vm_result_advertisement_local_name,
                         tx_power: vm_result_advertisement_tx_power,
@@ -40057,7 +40059,8 @@ fn destack_device_camera_device_list_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmSlice::<CameraDeviceDescriptorVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value_id = context
                             .string_handle(vm_result_item.id.as_str())
@@ -40093,9 +40096,9 @@ fn destack_device_camera_device_list_vm_replay(
                             facing_mode: vm_result_item_value_facing_mode,
                             depth_capable: vm_result_item_value_depth_capable,
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -40541,7 +40544,7 @@ fn destack_device_camera_device_stream_capability_list_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder = VmSlice::<CameraStreamCapabilityVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value_config_width = vm_result_item.config.width;
                         let vm_result_item_value_config_height = vm_result_item.config.height;
@@ -40576,69 +40579,69 @@ fn destack_device_camera_device_stream_capability_list_vm_replay(
                         };
                         let vm_result_item_value_minimum_frame_rate_milli_hz = vm_result_item.minimum_frame_rate_milli_hz;
                         let vm_result_item_value_maximum_frame_rate_milli_hz = vm_result_item.maximum_frame_rate_milli_hz;
-                        let mut vm_result_item_value_color_spaces_values = Vec::with_capacity(vm_result_item.color_spaces.len());
+                        let mut vm_result_item_value_color_spaces_builder = VmSlice::<CameraColorSpace>::builder(context, vm_result_item.color_spaces.len())?;
                         for vm_result_item_value_color_spaces_item in vm_result_item.color_spaces {
                             let vm_result_item_value_color_spaces_item_value = vm_result_item_value_color_spaces_item;
-                            vm_result_item_value_color_spaces_values.push(vm_result_item_value_color_spaces_item_value);
+                            vm_result_item_value_color_spaces_builder.push(context, vm_result_item_value_color_spaces_item_value)?;
                         }
-                        let vm_result_item_value_color_spaces = VmSlice::from_values(context, &vm_result_item_value_color_spaces_values)?;
-                        let mut vm_result_item_value_dynamic_ranges_values = Vec::with_capacity(vm_result_item.dynamic_ranges.len());
+                        let vm_result_item_value_color_spaces = vm_result_item_value_color_spaces_builder.finish()?;
+                        let mut vm_result_item_value_dynamic_ranges_builder = VmSlice::<CameraDynamicRange>::builder(context, vm_result_item.dynamic_ranges.len())?;
                         for vm_result_item_value_dynamic_ranges_item in vm_result_item.dynamic_ranges {
                             let vm_result_item_value_dynamic_ranges_item_value = vm_result_item_value_dynamic_ranges_item;
-                            vm_result_item_value_dynamic_ranges_values.push(vm_result_item_value_dynamic_ranges_item_value);
+                            vm_result_item_value_dynamic_ranges_builder.push(context, vm_result_item_value_dynamic_ranges_item_value)?;
                         }
-                        let vm_result_item_value_dynamic_ranges = VmSlice::from_values(context, &vm_result_item_value_dynamic_ranges_values)?;
+                        let vm_result_item_value_dynamic_ranges = vm_result_item_value_dynamic_ranges_builder.finish()?;
                         let vm_result_item_value_controls_exposure_modes = if let Some(value) = vm_result_item.controls.exposure_modes {
-                            let mut vm_result_item_value_controls_exposure_modes_inner_values = Vec::with_capacity(value.len());
+                            let mut vm_result_item_value_controls_exposure_modes_inner_builder = VmSlice::<CameraExposureMode>::builder(context, value.len())?;
                             for vm_result_item_value_controls_exposure_modes_inner_item in value {
                                 let vm_result_item_value_controls_exposure_modes_inner_item_value = vm_result_item_value_controls_exposure_modes_inner_item;
-                                vm_result_item_value_controls_exposure_modes_inner_values.push(vm_result_item_value_controls_exposure_modes_inner_item_value);
+                                vm_result_item_value_controls_exposure_modes_inner_builder.push(context, vm_result_item_value_controls_exposure_modes_inner_item_value)?;
                             }
-                            let vm_result_item_value_controls_exposure_modes_inner = VmSlice::from_values(context, &vm_result_item_value_controls_exposure_modes_inner_values)?;
+                            let vm_result_item_value_controls_exposure_modes_inner = vm_result_item_value_controls_exposure_modes_inner_builder.finish()?;
                             Some(vm_result_item_value_controls_exposure_modes_inner)
                         } else {
                             None
                         };
                         let vm_result_item_value_controls_white_balance_modes = if let Some(value) = vm_result_item.controls.white_balance_modes {
-                            let mut vm_result_item_value_controls_white_balance_modes_inner_values = Vec::with_capacity(value.len());
+                            let mut vm_result_item_value_controls_white_balance_modes_inner_builder = VmSlice::<CameraWhiteBalanceMode>::builder(context, value.len())?;
                             for vm_result_item_value_controls_white_balance_modes_inner_item in value {
                                 let vm_result_item_value_controls_white_balance_modes_inner_item_value = vm_result_item_value_controls_white_balance_modes_inner_item;
-                                vm_result_item_value_controls_white_balance_modes_inner_values.push(vm_result_item_value_controls_white_balance_modes_inner_item_value);
+                                vm_result_item_value_controls_white_balance_modes_inner_builder.push(context, vm_result_item_value_controls_white_balance_modes_inner_item_value)?;
                             }
-                            let vm_result_item_value_controls_white_balance_modes_inner = VmSlice::from_values(context, &vm_result_item_value_controls_white_balance_modes_inner_values)?;
+                            let vm_result_item_value_controls_white_balance_modes_inner = vm_result_item_value_controls_white_balance_modes_inner_builder.finish()?;
                             Some(vm_result_item_value_controls_white_balance_modes_inner)
                         } else {
                             None
                         };
                         let vm_result_item_value_controls_focus_modes = if let Some(value) = vm_result_item.controls.focus_modes {
-                            let mut vm_result_item_value_controls_focus_modes_inner_values = Vec::with_capacity(value.len());
+                            let mut vm_result_item_value_controls_focus_modes_inner_builder = VmSlice::<CameraFocusMode>::builder(context, value.len())?;
                             for vm_result_item_value_controls_focus_modes_inner_item in value {
                                 let vm_result_item_value_controls_focus_modes_inner_item_value = vm_result_item_value_controls_focus_modes_inner_item;
-                                vm_result_item_value_controls_focus_modes_inner_values.push(vm_result_item_value_controls_focus_modes_inner_item_value);
+                                vm_result_item_value_controls_focus_modes_inner_builder.push(context, vm_result_item_value_controls_focus_modes_inner_item_value)?;
                             }
-                            let vm_result_item_value_controls_focus_modes_inner = VmSlice::from_values(context, &vm_result_item_value_controls_focus_modes_inner_values)?;
+                            let vm_result_item_value_controls_focus_modes_inner = vm_result_item_value_controls_focus_modes_inner_builder.finish()?;
                             Some(vm_result_item_value_controls_focus_modes_inner)
                         } else {
                             None
                         };
                         let vm_result_item_value_controls_stabilization_modes = if let Some(value) = vm_result_item.controls.stabilization_modes {
-                            let mut vm_result_item_value_controls_stabilization_modes_inner_values = Vec::with_capacity(value.len());
+                            let mut vm_result_item_value_controls_stabilization_modes_inner_builder = VmSlice::<CameraStabilizationMode>::builder(context, value.len())?;
                             for vm_result_item_value_controls_stabilization_modes_inner_item in value {
                                 let vm_result_item_value_controls_stabilization_modes_inner_item_value = vm_result_item_value_controls_stabilization_modes_inner_item;
-                                vm_result_item_value_controls_stabilization_modes_inner_values.push(vm_result_item_value_controls_stabilization_modes_inner_item_value);
+                                vm_result_item_value_controls_stabilization_modes_inner_builder.push(context, vm_result_item_value_controls_stabilization_modes_inner_item_value)?;
                             }
-                            let vm_result_item_value_controls_stabilization_modes_inner = VmSlice::from_values(context, &vm_result_item_value_controls_stabilization_modes_inner_values)?;
+                            let vm_result_item_value_controls_stabilization_modes_inner = vm_result_item_value_controls_stabilization_modes_inner_builder.finish()?;
                             Some(vm_result_item_value_controls_stabilization_modes_inner)
                         } else {
                             None
                         };
                         let vm_result_item_value_controls_torch_modes = if let Some(value) = vm_result_item.controls.torch_modes {
-                            let mut vm_result_item_value_controls_torch_modes_inner_values = Vec::with_capacity(value.len());
+                            let mut vm_result_item_value_controls_torch_modes_inner_builder = VmSlice::<CameraTorchMode>::builder(context, value.len())?;
                             for vm_result_item_value_controls_torch_modes_inner_item in value {
                                 let vm_result_item_value_controls_torch_modes_inner_item_value = vm_result_item_value_controls_torch_modes_inner_item;
-                                vm_result_item_value_controls_torch_modes_inner_values.push(vm_result_item_value_controls_torch_modes_inner_item_value);
+                                vm_result_item_value_controls_torch_modes_inner_builder.push(context, vm_result_item_value_controls_torch_modes_inner_item_value)?;
                             }
-                            let vm_result_item_value_controls_torch_modes_inner = VmSlice::from_values(context, &vm_result_item_value_controls_torch_modes_inner_values)?;
+                            let vm_result_item_value_controls_torch_modes_inner = vm_result_item_value_controls_torch_modes_inner_builder.finish()?;
                             Some(vm_result_item_value_controls_torch_modes_inner)
                         } else {
                             None
@@ -40860,9 +40863,9 @@ fn destack_device_camera_device_stream_capability_list_vm_replay(
                             dynamic_ranges: vm_result_item_value_dynamic_ranges,
                             controls: vm_result_item_value_controls,
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -42167,82 +42170,80 @@ fn destack_device_camera_stream_control_capabilities_vm_replay(
             match payload.result {
                 Ok(value) => {
                     let vm_result_exposure_modes = if let Some(value) = value.exposure_modes {
-                        let mut vm_result_exposure_modes_inner_values =
-                            Vec::with_capacity(value.len());
+                        let mut vm_result_exposure_modes_inner_builder =
+                            VmSlice::<CameraExposureMode>::builder(context, value.len())?;
                         for vm_result_exposure_modes_inner_item in value {
                             let vm_result_exposure_modes_inner_item_value =
                                 vm_result_exposure_modes_inner_item;
-                            vm_result_exposure_modes_inner_values
-                                .push(vm_result_exposure_modes_inner_item_value);
+                            vm_result_exposure_modes_inner_builder
+                                .push(context, vm_result_exposure_modes_inner_item_value)?;
                         }
                         let vm_result_exposure_modes_inner =
-                            VmSlice::from_values(context, &vm_result_exposure_modes_inner_values)?;
+                            vm_result_exposure_modes_inner_builder.finish()?;
                         Some(vm_result_exposure_modes_inner)
                     } else {
                         None
                     };
-                    let vm_result_white_balance_modes =
-                        if let Some(value) = value.white_balance_modes {
-                            let mut vm_result_white_balance_modes_inner_values =
-                                Vec::with_capacity(value.len());
-                            for vm_result_white_balance_modes_inner_item in value {
-                                let vm_result_white_balance_modes_inner_item_value =
-                                    vm_result_white_balance_modes_inner_item;
-                                vm_result_white_balance_modes_inner_values
-                                    .push(vm_result_white_balance_modes_inner_item_value);
-                            }
-                            let vm_result_white_balance_modes_inner = VmSlice::from_values(
-                                context,
-                                &vm_result_white_balance_modes_inner_values,
-                            )?;
-                            Some(vm_result_white_balance_modes_inner)
-                        } else {
-                            None
-                        };
+                    let vm_result_white_balance_modes = if let Some(value) =
+                        value.white_balance_modes
+                    {
+                        let mut vm_result_white_balance_modes_inner_builder =
+                            VmSlice::<CameraWhiteBalanceMode>::builder(context, value.len())?;
+                        for vm_result_white_balance_modes_inner_item in value {
+                            let vm_result_white_balance_modes_inner_item_value =
+                                vm_result_white_balance_modes_inner_item;
+                            vm_result_white_balance_modes_inner_builder
+                                .push(context, vm_result_white_balance_modes_inner_item_value)?;
+                        }
+                        let vm_result_white_balance_modes_inner =
+                            vm_result_white_balance_modes_inner_builder.finish()?;
+                        Some(vm_result_white_balance_modes_inner)
+                    } else {
+                        None
+                    };
                     let vm_result_focus_modes = if let Some(value) = value.focus_modes {
-                        let mut vm_result_focus_modes_inner_values =
-                            Vec::with_capacity(value.len());
+                        let mut vm_result_focus_modes_inner_builder =
+                            VmSlice::<CameraFocusMode>::builder(context, value.len())?;
                         for vm_result_focus_modes_inner_item in value {
                             let vm_result_focus_modes_inner_item_value =
                                 vm_result_focus_modes_inner_item;
-                            vm_result_focus_modes_inner_values
-                                .push(vm_result_focus_modes_inner_item_value);
+                            vm_result_focus_modes_inner_builder
+                                .push(context, vm_result_focus_modes_inner_item_value)?;
                         }
                         let vm_result_focus_modes_inner =
-                            VmSlice::from_values(context, &vm_result_focus_modes_inner_values)?;
+                            vm_result_focus_modes_inner_builder.finish()?;
                         Some(vm_result_focus_modes_inner)
                     } else {
                         None
                     };
-                    let vm_result_stabilization_modes =
-                        if let Some(value) = value.stabilization_modes {
-                            let mut vm_result_stabilization_modes_inner_values =
-                                Vec::with_capacity(value.len());
-                            for vm_result_stabilization_modes_inner_item in value {
-                                let vm_result_stabilization_modes_inner_item_value =
-                                    vm_result_stabilization_modes_inner_item;
-                                vm_result_stabilization_modes_inner_values
-                                    .push(vm_result_stabilization_modes_inner_item_value);
-                            }
-                            let vm_result_stabilization_modes_inner = VmSlice::from_values(
-                                context,
-                                &vm_result_stabilization_modes_inner_values,
-                            )?;
-                            Some(vm_result_stabilization_modes_inner)
-                        } else {
-                            None
-                        };
+                    let vm_result_stabilization_modes = if let Some(value) =
+                        value.stabilization_modes
+                    {
+                        let mut vm_result_stabilization_modes_inner_builder =
+                            VmSlice::<CameraStabilizationMode>::builder(context, value.len())?;
+                        for vm_result_stabilization_modes_inner_item in value {
+                            let vm_result_stabilization_modes_inner_item_value =
+                                vm_result_stabilization_modes_inner_item;
+                            vm_result_stabilization_modes_inner_builder
+                                .push(context, vm_result_stabilization_modes_inner_item_value)?;
+                        }
+                        let vm_result_stabilization_modes_inner =
+                            vm_result_stabilization_modes_inner_builder.finish()?;
+                        Some(vm_result_stabilization_modes_inner)
+                    } else {
+                        None
+                    };
                     let vm_result_torch_modes = if let Some(value) = value.torch_modes {
-                        let mut vm_result_torch_modes_inner_values =
-                            Vec::with_capacity(value.len());
+                        let mut vm_result_torch_modes_inner_builder =
+                            VmSlice::<CameraTorchMode>::builder(context, value.len())?;
                         for vm_result_torch_modes_inner_item in value {
                             let vm_result_torch_modes_inner_item_value =
                                 vm_result_torch_modes_inner_item;
-                            vm_result_torch_modes_inner_values
-                                .push(vm_result_torch_modes_inner_item_value);
+                            vm_result_torch_modes_inner_builder
+                                .push(context, vm_result_torch_modes_inner_item_value)?;
                         }
                         let vm_result_torch_modes_inner =
-                            VmSlice::from_values(context, &vm_result_torch_modes_inner_values)?;
+                            vm_result_torch_modes_inner_builder.finish()?;
                         Some(vm_result_torch_modes_inner)
                     } else {
                         None
@@ -43011,7 +43012,8 @@ fn destack_device_camera_stream_photo_capabilities_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_options_values = Vec::with_capacity(value.options.len());
+                    let mut vm_result_options_builder =
+                        VmSlice::<CameraPhotoOptionsVm>::builder(context, value.options.len())?;
                     for vm_result_options_item in value.options {
                         let vm_result_options_item_value_width = vm_result_options_item.width;
                         let vm_result_options_item_value_height = vm_result_options_item.height;
@@ -43048,10 +43050,9 @@ fn destack_device_camera_stream_photo_capabilities_vm_replay(
                             color_space: vm_result_options_item_value_color_space,
                             dynamic_range: vm_result_options_item_value_dynamic_range,
                         };
-                        vm_result_options_values.push(vm_result_options_item_value);
+                        vm_result_options_builder.push(context, vm_result_options_item_value)?;
                     }
-                    let vm_result_options =
-                        VmSlice::from_values(context, &vm_result_options_values)?;
+                    let vm_result_options = vm_result_options_builder.finish()?;
                     let vm_result_quality_range = if let Some(value) = value.quality_range {
                         let vm_result_quality_range_inner_minimum = value.minimum;
                         let vm_result_quality_range_inner_maximum = value.maximum;
@@ -43068,16 +43069,16 @@ fn destack_device_camera_stream_photo_capabilities_vm_replay(
                         None
                     };
                     let vm_result_flash_modes = if let Some(value) = value.flash_modes {
-                        let mut vm_result_flash_modes_inner_values =
-                            Vec::with_capacity(value.len());
+                        let mut vm_result_flash_modes_inner_builder =
+                            VmSlice::<CameraPhotoFlashMode>::builder(context, value.len())?;
                         for vm_result_flash_modes_inner_item in value {
                             let vm_result_flash_modes_inner_item_value =
                                 vm_result_flash_modes_inner_item;
-                            vm_result_flash_modes_inner_values
-                                .push(vm_result_flash_modes_inner_item_value);
+                            vm_result_flash_modes_inner_builder
+                                .push(context, vm_result_flash_modes_inner_item_value)?;
                         }
                         let vm_result_flash_modes_inner =
-                            VmSlice::from_values(context, &vm_result_flash_modes_inner_values)?;
+                            vm_result_flash_modes_inner_builder.finish()?;
                         Some(vm_result_flash_modes_inner)
                     } else {
                         None
@@ -43437,7 +43438,8 @@ fn destack_device_camera_stream_read_vm_replay(
                     };
                     let vm_result_color_space = value.color_space;
                     let vm_result_dynamic_range = value.dynamic_range;
-                    let mut vm_result_planes_values = Vec::with_capacity(value.planes.len());
+                    let mut vm_result_planes_builder =
+                        VmSlice::<CameraPlaneLayoutVm>::builder(context, value.planes.len())?;
                     for vm_result_planes_item in value.planes {
                         let vm_result_planes_item_value_offset_bytes =
                             vm_result_planes_item.offset_bytes;
@@ -43453,9 +43455,9 @@ fn destack_device_camera_stream_read_vm_replay(
                             row_stride_bytes: vm_result_planes_item_value_row_stride_bytes,
                             pixel_stride_bytes: vm_result_planes_item_value_pixel_stride_bytes,
                         };
-                        vm_result_planes_values.push(vm_result_planes_item_value);
+                        vm_result_planes_builder.push(context, vm_result_planes_item_value)?;
                     }
-                    let vm_result_planes = VmSlice::from_values(context, &vm_result_planes_values)?;
+                    let vm_result_planes = vm_result_planes_builder.finish()?;
                     let vm_result_metadata_exposure_time_ns =
                         if let Some(value) = value.metadata.exposure_time_ns {
                             let vm_result_metadata_exposure_time_ns_inner = value;
@@ -43687,34 +43689,37 @@ fn destack_device_camera_stream_recording_capabilities_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_containers_values =
-                        Vec::with_capacity(value.containers.len());
+                    let mut vm_result_containers_builder =
+                        VmSlice::<CameraRecordingContainer>::builder(
+                            context,
+                            value.containers.len(),
+                        )?;
                     for vm_result_containers_item in value.containers {
                         let vm_result_containers_item_value = vm_result_containers_item;
-                        vm_result_containers_values.push(vm_result_containers_item_value);
+                        vm_result_containers_builder
+                            .push(context, vm_result_containers_item_value)?;
                     }
-                    let vm_result_containers =
-                        VmSlice::from_values(context, &vm_result_containers_values)?;
-                    let mut vm_result_video_codecs_values =
-                        Vec::with_capacity(value.video_codecs.len());
+                    let vm_result_containers = vm_result_containers_builder.finish()?;
+                    let mut vm_result_video_codecs_builder =
+                        VmSlice::<CameraVideoCodec>::builder(context, value.video_codecs.len())?;
                     for vm_result_video_codecs_item in value.video_codecs {
                         let vm_result_video_codecs_item_value = vm_result_video_codecs_item;
-                        vm_result_video_codecs_values.push(vm_result_video_codecs_item_value);
+                        vm_result_video_codecs_builder
+                            .push(context, vm_result_video_codecs_item_value)?;
                     }
-                    let vm_result_video_codecs =
-                        VmSlice::from_values(context, &vm_result_video_codecs_values)?;
+                    let vm_result_video_codecs = vm_result_video_codecs_builder.finish()?;
                     let vm_result_audio_supported = value.audio_supported;
                     let vm_result_audio_codecs = if let Some(value) = value.audio_codecs {
-                        let mut vm_result_audio_codecs_inner_values =
-                            Vec::with_capacity(value.len());
+                        let mut vm_result_audio_codecs_inner_builder =
+                            VmSlice::<CameraAudioCodec>::builder(context, value.len())?;
                         for vm_result_audio_codecs_inner_item in value {
                             let vm_result_audio_codecs_inner_item_value =
                                 vm_result_audio_codecs_inner_item;
-                            vm_result_audio_codecs_inner_values
-                                .push(vm_result_audio_codecs_inner_item_value);
+                            vm_result_audio_codecs_inner_builder
+                                .push(context, vm_result_audio_codecs_inner_item_value)?;
                         }
                         let vm_result_audio_codecs_inner =
-                            VmSlice::from_values(context, &vm_result_audio_codecs_inner_values)?;
+                            vm_result_audio_codecs_inner_builder.finish()?;
                         Some(vm_result_audio_codecs_inner)
                     } else {
                         None
@@ -43939,12 +43944,12 @@ fn destack_device_camera_stream_recording_state_vm_replay(
                                 }
                                 fs::OspathReplayRecord::OsPathUtf16(value) => {
                                     let vm_result_options_inner_output_path_inner_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    let mut vm_result_options_inner_output_path_inner_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
+                                    let mut vm_result_options_inner_output_path_inner_os_path_utf16_utf16_inner_builder = VmArray::<u16>::builder(context, value.utf16.len())?;
                                     for vm_result_options_inner_output_path_inner_os_path_utf16_utf16_inner_item in value.utf16 {
                                         let vm_result_options_inner_output_path_inner_os_path_utf16_utf16_inner_item_value = vm_result_options_inner_output_path_inner_os_path_utf16_utf16_inner_item;
-                                        vm_result_options_inner_output_path_inner_os_path_utf16_utf16_inner_values.push(vm_result_options_inner_output_path_inner_os_path_utf16_utf16_inner_item_value);
+                                        vm_result_options_inner_output_path_inner_os_path_utf16_utf16_inner_builder.push(context, vm_result_options_inner_output_path_inner_os_path_utf16_utf16_inner_item_value)?;
                                     }
-                                    let vm_result_options_inner_output_path_inner_os_path_utf16_utf16_inner = VmArray::from_values(context, &vm_result_options_inner_output_path_inner_os_path_utf16_utf16_inner_values)?;
+                                    let vm_result_options_inner_output_path_inner_os_path_utf16_utf16_inner = vm_result_options_inner_output_path_inner_os_path_utf16_utf16_inner_builder.finish()?;
                                     let vm_result_options_inner_output_path_inner_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_options_inner_output_path_inner_os_path_utf16_utf16_inner);
                                     let vm_result_options_inner_output_path_inner_os_path_utf16 = fs::OsPathUtf16Vm {
                                         kind: vm_result_options_inner_output_path_inner_os_path_utf16_kind,
@@ -44302,7 +44307,8 @@ fn destack_device_camera_stream_take_photo_vm_replay(
                     };
                     let vm_result_color_space = value.color_space;
                     let vm_result_dynamic_range = value.dynamic_range;
-                    let mut vm_result_planes_values = Vec::with_capacity(value.planes.len());
+                    let mut vm_result_planes_builder =
+                        VmSlice::<CameraPlaneLayoutVm>::builder(context, value.planes.len())?;
                     for vm_result_planes_item in value.planes {
                         let vm_result_planes_item_value_offset_bytes =
                             vm_result_planes_item.offset_bytes;
@@ -44318,9 +44324,9 @@ fn destack_device_camera_stream_take_photo_vm_replay(
                             row_stride_bytes: vm_result_planes_item_value_row_stride_bytes,
                             pixel_stride_bytes: vm_result_planes_item_value_pixel_stride_bytes,
                         };
-                        vm_result_planes_values.push(vm_result_planes_item_value);
+                        vm_result_planes_builder.push(context, vm_result_planes_item_value)?;
                     }
-                    let vm_result_planes = VmSlice::from_values(context, &vm_result_planes_values)?;
+                    let vm_result_planes = vm_result_planes_builder.finish()?;
                     let vm_result_metadata_exposure_time_ns =
                         if let Some(value) = value.metadata.exposure_time_ns {
                             let vm_result_metadata_exposure_time_ns_inner = value;
@@ -44539,7 +44545,8 @@ fn destack_device_camera_stream_try_read_vm_replay(
                     };
                     let vm_result_color_space = value.color_space;
                     let vm_result_dynamic_range = value.dynamic_range;
-                    let mut vm_result_planes_values = Vec::with_capacity(value.planes.len());
+                    let mut vm_result_planes_builder =
+                        VmSlice::<CameraPlaneLayoutVm>::builder(context, value.planes.len())?;
                     for vm_result_planes_item in value.planes {
                         let vm_result_planes_item_value_offset_bytes =
                             vm_result_planes_item.offset_bytes;
@@ -44555,9 +44562,9 @@ fn destack_device_camera_stream_try_read_vm_replay(
                             row_stride_bytes: vm_result_planes_item_value_row_stride_bytes,
                             pixel_stride_bytes: vm_result_planes_item_value_pixel_stride_bytes,
                         };
-                        vm_result_planes_values.push(vm_result_planes_item_value);
+                        vm_result_planes_builder.push(context, vm_result_planes_item_value)?;
                     }
-                    let vm_result_planes = VmSlice::from_values(context, &vm_result_planes_values)?;
+                    let vm_result_planes = vm_result_planes_builder.finish()?;
                     let vm_result_metadata_exposure_time_ns =
                         if let Some(value) = value.metadata.exposure_time_ns {
                             let vm_result_metadata_exposure_time_ns_inner = value;
@@ -44699,7 +44706,8 @@ fn destack_device_midi_backend_list_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmSlice::<MidiBackendDescriptorVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value_backend = vm_result_item.backend;
                         let vm_result_item_value_name = context
@@ -44721,9 +44729,9 @@ fn destack_device_midi_backend_list_vm_replay(
                             supported_data_formats: vm_result_item_value_supported_data_formats,
                             supported_protocols: vm_result_item_value_supported_protocols,
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -45812,7 +45820,7 @@ fn destack_device_midi_event_read_batch_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder = VmSlice::<MidiEventVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value = match vm_result_item {
                             MidieventReplayRecord::MidiBackendDisconnectedEvent(value) => {
@@ -46059,9 +46067,9 @@ fn destack_device_midi_event_read_batch_vm_replay(
                                 MidiEventVm::MidiPortRemovedEvent(vm_result_item_value_midi_port_removed_event)
                             }
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -47044,7 +47052,7 @@ fn destack_device_midi_event_try_read_batch_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder = VmSlice::<MidiEventVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value = match vm_result_item {
                             MidieventReplayRecord::MidiBackendDisconnectedEvent(value) => {
@@ -47291,9 +47299,9 @@ fn destack_device_midi_event_try_read_batch_vm_replay(
                                 MidiEventVm::MidiPortRemovedEvent(vm_result_item_value_midi_port_removed_event)
                             }
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -47807,7 +47815,8 @@ fn destack_device_midi_input_port_list_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmSlice::<MidiPortDescriptorVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value_backend = vm_result_item.backend;
                         let vm_result_item_value_id = context
@@ -47906,9 +47915,9 @@ fn destack_device_midi_input_port_list_vm_replay(
                             is_virtual: vm_result_item_value_is_virtual,
                             is_connected: vm_result_item_value_is_connected,
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -48180,7 +48189,8 @@ fn destack_device_midi_input_read_batch_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmArray::<MidiInputRecordVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value_received_at_ns = vm_result_item.received_at_ns;
                         let vm_result_item_value_source_id =
@@ -48211,9 +48221,9 @@ fn destack_device_midi_input_read_batch_vm_replay(
                             framing: vm_result_item_value_framing,
                             data: vm_result_item_value_data,
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmArray::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -48426,7 +48436,8 @@ fn destack_device_midi_input_try_read_batch_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmArray::<MidiInputRecordVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value_received_at_ns = vm_result_item.received_at_ns;
                         let vm_result_item_value_source_id =
@@ -48457,9 +48468,9 @@ fn destack_device_midi_input_try_read_batch_vm_replay(
                             framing: vm_result_item_value_framing,
                             data: vm_result_item_value_data,
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmArray::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -49029,7 +49040,8 @@ fn destack_device_midi_output_port_list_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmSlice::<MidiPortDescriptorVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value_backend = vm_result_item.backend;
                         let vm_result_item_value_id = context
@@ -49128,9 +49140,9 @@ fn destack_device_midi_output_port_list_vm_replay(
                             is_virtual: vm_result_item_value_is_virtual,
                             is_connected: vm_result_item_value_is_connected,
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -49755,18 +49767,18 @@ fn destack_device_serial_descriptor_vm_replay(
                             let vm_result_path_os_path_utf16_kind = context
                                 .string_handle(value.kind.as_str())
                                 .map_err(Box::<RuntimeError>::from)?;
-                            let mut vm_result_path_os_path_utf16_utf16_inner_values =
-                                Vec::with_capacity(value.utf16.len());
+                            let mut vm_result_path_os_path_utf16_utf16_inner_builder =
+                                VmArray::<u16>::builder(context, value.utf16.len())?;
                             for vm_result_path_os_path_utf16_utf16_inner_item in value.utf16 {
                                 let vm_result_path_os_path_utf16_utf16_inner_item_value =
                                     vm_result_path_os_path_utf16_utf16_inner_item;
-                                vm_result_path_os_path_utf16_utf16_inner_values
-                                    .push(vm_result_path_os_path_utf16_utf16_inner_item_value);
+                                vm_result_path_os_path_utf16_utf16_inner_builder.push(
+                                    context,
+                                    vm_result_path_os_path_utf16_utf16_inner_item_value,
+                                )?;
                             }
-                            let vm_result_path_os_path_utf16_utf16_inner = VmArray::from_values(
-                                context,
-                                &vm_result_path_os_path_utf16_utf16_inner_values,
-                            )?;
+                            let vm_result_path_os_path_utf16_utf16_inner =
+                                vm_result_path_os_path_utf16_utf16_inner_builder.finish()?;
                             let vm_result_path_os_path_utf16_utf16 =
                                 platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(
                                     vm_result_path_os_path_utf16_utf16_inner,
@@ -50199,7 +50211,7 @@ fn destack_device_serial_list_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder = VmSlice::<SerialPortDescriptorVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value_id = context.string_handle(vm_result_item.id.as_str()).map_err(Box::<RuntimeError>::from)?;
                         let vm_result_item_value_transport = vm_result_item.transport;
@@ -50235,12 +50247,12 @@ fn destack_device_serial_list_vm_replay(
                             }
                             fs::OspathReplayRecord::OsPathUtf16(value) => {
                                 let vm_result_item_value_path_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                let mut vm_result_item_value_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
+                                let mut vm_result_item_value_path_os_path_utf16_utf16_inner_builder = VmArray::<u16>::builder(context, value.utf16.len())?;
                                 for vm_result_item_value_path_os_path_utf16_utf16_inner_item in value.utf16 {
                                     let vm_result_item_value_path_os_path_utf16_utf16_inner_item_value = vm_result_item_value_path_os_path_utf16_utf16_inner_item;
-                                    vm_result_item_value_path_os_path_utf16_utf16_inner_values.push(vm_result_item_value_path_os_path_utf16_utf16_inner_item_value);
+                                    vm_result_item_value_path_os_path_utf16_utf16_inner_builder.push(context, vm_result_item_value_path_os_path_utf16_utf16_inner_item_value)?;
                                 }
-                                let vm_result_item_value_path_os_path_utf16_utf16_inner = VmArray::from_values(context, &vm_result_item_value_path_os_path_utf16_utf16_inner_values)?;
+                                let vm_result_item_value_path_os_path_utf16_utf16_inner = vm_result_item_value_path_os_path_utf16_utf16_inner_builder.finish()?;
                                 let vm_result_item_value_path_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_item_value_path_os_path_utf16_utf16_inner);
                                 let vm_result_item_value_path_os_path_utf16 = fs::OsPathUtf16Vm {
                                     kind: vm_result_item_value_path_os_path_utf16_kind,
@@ -50279,9 +50291,9 @@ fn destack_device_serial_list_vm_replay(
                             usb_product_id: vm_result_item_value_usb_product_id,
                             bluetooth_service_class_id: vm_result_item_value_bluetooth_service_class_id,
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -51530,12 +51542,12 @@ fn destack_device_serial_watch_read_vm_replay(
                                 }
                                 fs::OspathReplayRecord::OsPathUtf16(value) => {
                                     let vm_result_serial_attached_event_metadata_port_path_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    let mut vm_result_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
+                                    let mut vm_result_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner_builder = VmArray::<u16>::builder(context, value.utf16.len())?;
                                     for vm_result_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner_item in value.utf16 {
                                         let vm_result_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner_item_value = vm_result_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner_item;
-                                        vm_result_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner_values.push(vm_result_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner_item_value);
+                                        vm_result_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner_builder.push(context, vm_result_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner_item_value)?;
                                     }
-                                    let vm_result_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner = VmArray::from_values(context, &vm_result_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner_values)?;
+                                    let vm_result_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner = vm_result_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner_builder.finish()?;
                                     let vm_result_serial_attached_event_metadata_port_path_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner);
                                     let vm_result_serial_attached_event_metadata_port_path_os_path_utf16 = fs::OsPathUtf16Vm {
                                         kind: vm_result_serial_attached_event_metadata_port_path_os_path_utf16_kind,
@@ -51623,12 +51635,12 @@ fn destack_device_serial_watch_read_vm_replay(
                                 }
                                 fs::OspathReplayRecord::OsPathUtf16(value) => {
                                     let vm_result_serial_detached_event_metadata_port_path_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    let mut vm_result_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
+                                    let mut vm_result_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner_builder = VmArray::<u16>::builder(context, value.utf16.len())?;
                                     for vm_result_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner_item in value.utf16 {
                                         let vm_result_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner_item_value = vm_result_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner_item;
-                                        vm_result_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner_values.push(vm_result_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner_item_value);
+                                        vm_result_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner_builder.push(context, vm_result_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner_item_value)?;
                                     }
-                                    let vm_result_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner = VmArray::from_values(context, &vm_result_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner_values)?;
+                                    let vm_result_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner = vm_result_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner_builder.finish()?;
                                     let vm_result_serial_detached_event_metadata_port_path_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner);
                                     let vm_result_serial_detached_event_metadata_port_path_os_path_utf16 = fs::OsPathUtf16Vm {
                                         kind: vm_result_serial_detached_event_metadata_port_path_os_path_utf16_kind,
@@ -52051,12 +52063,12 @@ fn destack_device_serial_watch_try_read_vm_replay(
                                 }
                                 fs::OspathReplayRecord::OsPathUtf16(value) => {
                                     let vm_result_serial_attached_event_metadata_port_path_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    let mut vm_result_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
+                                    let mut vm_result_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner_builder = VmArray::<u16>::builder(context, value.utf16.len())?;
                                     for vm_result_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner_item in value.utf16 {
                                         let vm_result_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner_item_value = vm_result_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner_item;
-                                        vm_result_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner_values.push(vm_result_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner_item_value);
+                                        vm_result_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner_builder.push(context, vm_result_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner_item_value)?;
                                     }
-                                    let vm_result_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner = VmArray::from_values(context, &vm_result_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner_values)?;
+                                    let vm_result_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner = vm_result_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner_builder.finish()?;
                                     let vm_result_serial_attached_event_metadata_port_path_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner);
                                     let vm_result_serial_attached_event_metadata_port_path_os_path_utf16 = fs::OsPathUtf16Vm {
                                         kind: vm_result_serial_attached_event_metadata_port_path_os_path_utf16_kind,
@@ -52144,12 +52156,12 @@ fn destack_device_serial_watch_try_read_vm_replay(
                                 }
                                 fs::OspathReplayRecord::OsPathUtf16(value) => {
                                     let vm_result_serial_detached_event_metadata_port_path_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    let mut vm_result_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
+                                    let mut vm_result_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner_builder = VmArray::<u16>::builder(context, value.utf16.len())?;
                                     for vm_result_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner_item in value.utf16 {
                                         let vm_result_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner_item_value = vm_result_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner_item;
-                                        vm_result_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner_values.push(vm_result_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner_item_value);
+                                        vm_result_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner_builder.push(context, vm_result_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner_item_value)?;
                                     }
-                                    let vm_result_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner = VmArray::from_values(context, &vm_result_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner_values)?;
+                                    let vm_result_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner = vm_result_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner_builder.finish()?;
                                     let vm_result_serial_detached_event_metadata_port_path_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner);
                                     let vm_result_serial_detached_event_metadata_port_path_os_path_utf16 = fs::OsPathUtf16Vm {
                                         kind: vm_result_serial_detached_event_metadata_port_path_os_path_utf16_kind,
@@ -52363,7 +52375,8 @@ fn destack_device_usb_bos_capability_list_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmSlice::<UsbBosCapabilityDescriptorVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value_kind = vm_result_item.kind;
                         let vm_result_item_value_capability_type = vm_result_item.capability_type;
@@ -52384,9 +52397,9 @@ fn destack_device_usb_bos_capability_list_vm_replay(
                             platform_uuid: vm_result_item_value_platform_uuid,
                             bytes: vm_result_item_value_bytes,
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -52873,7 +52886,7 @@ fn destack_device_usb_configuration_list_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder = VmSlice::<UsbConfigurationDescriptorVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value_value = vm_result_item.value;
                         let vm_result_item_value_name = if let Some(value) = vm_result_item.name {
@@ -52885,7 +52898,7 @@ fn destack_device_usb_configuration_list_vm_replay(
                         let vm_result_item_value_self_powered = vm_result_item.self_powered;
                         let vm_result_item_value_remote_wakeup = vm_result_item.remote_wakeup;
                         let vm_result_item_value_max_power_milli_amps = vm_result_item.max_power_milli_amps;
-                        let mut vm_result_item_value_interfaces_values = Vec::with_capacity(vm_result_item.interfaces.len());
+                        let mut vm_result_item_value_interfaces_builder = VmSlice::<UsbInterfaceDescriptorVm>::builder(context, vm_result_item.interfaces.len())?;
                         for vm_result_item_value_interfaces_item in vm_result_item.interfaces {
                             let vm_result_item_value_interfaces_item_value_number = vm_result_item_value_interfaces_item.number;
                             let vm_result_item_value_interfaces_item_value_alternate_setting = vm_result_item_value_interfaces_item.alternate_setting;
@@ -52898,7 +52911,7 @@ fn destack_device_usb_configuration_list_vm_replay(
                             } else {
                                 None
                             };
-                            let mut vm_result_item_value_interfaces_item_value_endpoints_values = Vec::with_capacity(vm_result_item_value_interfaces_item.endpoints.len());
+                            let mut vm_result_item_value_interfaces_item_value_endpoints_builder = VmSlice::<UsbEndpointDescriptorVm>::builder(context, vm_result_item_value_interfaces_item.endpoints.len())?;
                             for vm_result_item_value_interfaces_item_value_endpoints_item in vm_result_item_value_interfaces_item.endpoints {
                                 let vm_result_item_value_interfaces_item_value_endpoints_item_value_endpoint_number = vm_result_item_value_interfaces_item_value_endpoints_item.endpoint_number;
                                 let vm_result_item_value_interfaces_item_value_endpoints_item_value_direction = vm_result_item_value_interfaces_item_value_endpoints_item.direction;
@@ -52912,9 +52925,9 @@ fn destack_device_usb_configuration_list_vm_replay(
                                     max_packet_size: vm_result_item_value_interfaces_item_value_endpoints_item_value_max_packet_size,
                                     interval: vm_result_item_value_interfaces_item_value_endpoints_item_value_interval,
                                 };
-                                vm_result_item_value_interfaces_item_value_endpoints_values.push(vm_result_item_value_interfaces_item_value_endpoints_item_value);
+                                vm_result_item_value_interfaces_item_value_endpoints_builder.push(context, vm_result_item_value_interfaces_item_value_endpoints_item_value)?;
                             }
-                            let vm_result_item_value_interfaces_item_value_endpoints = VmSlice::from_values(context, &vm_result_item_value_interfaces_item_value_endpoints_values)?;
+                            let vm_result_item_value_interfaces_item_value_endpoints = vm_result_item_value_interfaces_item_value_endpoints_builder.finish()?;
                             let vm_result_item_value_interfaces_item_value = UsbInterfaceDescriptorVm {
                                 number: vm_result_item_value_interfaces_item_value_number,
                                 alternate_setting: vm_result_item_value_interfaces_item_value_alternate_setting,
@@ -52924,9 +52937,9 @@ fn destack_device_usb_configuration_list_vm_replay(
                                 name: vm_result_item_value_interfaces_item_value_name,
                                 endpoints: vm_result_item_value_interfaces_item_value_endpoints,
                             };
-                            vm_result_item_value_interfaces_values.push(vm_result_item_value_interfaces_item_value);
+                            vm_result_item_value_interfaces_builder.push(context, vm_result_item_value_interfaces_item_value)?;
                         }
-                        let vm_result_item_value_interfaces = VmSlice::from_values(context, &vm_result_item_value_interfaces_values)?;
+                        let vm_result_item_value_interfaces = vm_result_item_value_interfaces_builder.finish()?;
                         let vm_result_item_value = UsbConfigurationDescriptorVm {
                             value: vm_result_item_value_value,
                             name: vm_result_item_value_name,
@@ -52935,9 +52948,9 @@ fn destack_device_usb_configuration_list_vm_replay(
                             max_power_milli_amps: vm_result_item_value_max_power_milli_amps,
                             interfaces: vm_result_item_value_interfaces,
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -53609,7 +53622,11 @@ fn destack_device_usb_isochronous_read_vm_replay(
             match payload.result {
                 Ok(value) => {
                     let vm_result_bytes = VmSlice::<u8>::from_bytes(context, value.bytes.as_ref())?;
-                    let mut vm_result_packets_values = Vec::with_capacity(value.packets.len());
+                    let mut vm_result_packets_builder =
+                        VmSlice::<UsbIsochronousPacketResultVm>::builder(
+                            context,
+                            value.packets.len(),
+                        )?;
                     for vm_result_packets_item in value.packets {
                         let vm_result_packets_item_value_status = vm_result_packets_item.status;
                         let vm_result_packets_item_value_actual_length =
@@ -53618,10 +53635,9 @@ fn destack_device_usb_isochronous_read_vm_replay(
                             status: vm_result_packets_item_value_status,
                             actual_length: vm_result_packets_item_value_actual_length,
                         };
-                        vm_result_packets_values.push(vm_result_packets_item_value);
+                        vm_result_packets_builder.push(context, vm_result_packets_item_value)?;
                     }
-                    let vm_result_packets =
-                        VmSlice::from_values(context, &vm_result_packets_values)?;
+                    let vm_result_packets = vm_result_packets_builder.finish()?;
                     let vm_result = UsbIsochronousTransferResultVm {
                         bytes: vm_result_bytes,
                         packets: vm_result_packets,
@@ -53723,7 +53739,11 @@ fn destack_device_usb_isochronous_write_vm_replay(
             match payload.result {
                 Ok(value) => {
                     let vm_result_bytes = VmSlice::<u8>::from_bytes(context, value.bytes.as_ref())?;
-                    let mut vm_result_packets_values = Vec::with_capacity(value.packets.len());
+                    let mut vm_result_packets_builder =
+                        VmSlice::<UsbIsochronousPacketResultVm>::builder(
+                            context,
+                            value.packets.len(),
+                        )?;
                     for vm_result_packets_item in value.packets {
                         let vm_result_packets_item_value_status = vm_result_packets_item.status;
                         let vm_result_packets_item_value_actual_length =
@@ -53732,10 +53752,9 @@ fn destack_device_usb_isochronous_write_vm_replay(
                             status: vm_result_packets_item_value_status,
                             actual_length: vm_result_packets_item_value_actual_length,
                         };
-                        vm_result_packets_values.push(vm_result_packets_item_value);
+                        vm_result_packets_builder.push(context, vm_result_packets_item_value)?;
                     }
-                    let vm_result_packets =
-                        VmSlice::from_values(context, &vm_result_packets_values)?;
+                    let vm_result_packets = vm_result_packets_builder.finish()?;
                     let vm_result = UsbIsochronousTransferResultVm {
                         bytes: vm_result_bytes,
                         packets: vm_result_packets,
@@ -53908,7 +53927,8 @@ fn destack_device_usb_list_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmSlice::<UsbDeviceDescriptorVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value_id = context
                             .string_handle(vm_result_item.id.as_str())
@@ -53996,9 +54016,9 @@ fn destack_device_usb_list_vm_replay(
                             bus_number: vm_result_item_value_bus_number,
                             port_path: vm_result_item_value_port_path,
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -54365,12 +54385,12 @@ fn destack_device_usb_string_language_list_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder = VmSlice::<u16>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value = vm_result_item;
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),

@@ -22790,12 +22790,13 @@ fn destack_gpu_adapter_features_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmSlice::<GpuFeatureId>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value = vm_result_item;
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -23365,13 +23366,13 @@ fn destack_gpu_adapter_info_vm_replay(
                     let vm_result_subgroup_max_size = value.subgroup_max_size;
                     let vm_result_transient_saves_memory = value.transient_saves_memory;
                     let vm_result_is_fallback = value.is_fallback;
-                    let mut vm_result_features_values = Vec::with_capacity(value.features.len());
+                    let mut vm_result_features_builder =
+                        VmSlice::<GpuFeatureId>::builder(context, value.features.len())?;
                     for vm_result_features_item in value.features {
                         let vm_result_features_item_value = vm_result_features_item;
-                        vm_result_features_values.push(vm_result_features_item_value);
+                        vm_result_features_builder.push(context, vm_result_features_item_value)?;
                     }
-                    let vm_result_features =
-                        VmSlice::from_values(context, &vm_result_features_values)?;
+                    let vm_result_features = vm_result_features_builder.finish()?;
                     let vm_result_limits_max_bind_groups = value.limits.max_bind_groups;
                     let vm_result_limits_max_bindings_per_bind_group =
                         value.limits.max_bindings_per_bind_group;
@@ -24180,7 +24181,7 @@ fn destack_gpu_adapter_list_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder = VmArray::<GpuAdapterInfoVm>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value_id = context.string_handle(vm_result_item.id.as_str()).map_err(Box::<RuntimeError>::from)?;
                         let vm_result_item_value_name = context.string_handle(vm_result_item.name.as_str()).map_err(Box::<RuntimeError>::from)?;
@@ -24197,12 +24198,12 @@ fn destack_gpu_adapter_list_vm_replay(
                         let vm_result_item_value_subgroup_max_size = vm_result_item.subgroup_max_size;
                         let vm_result_item_value_transient_saves_memory = vm_result_item.transient_saves_memory;
                         let vm_result_item_value_is_fallback = vm_result_item.is_fallback;
-                        let mut vm_result_item_value_features_values = Vec::with_capacity(vm_result_item.features.len());
+                        let mut vm_result_item_value_features_builder = VmSlice::<GpuFeatureId>::builder(context, vm_result_item.features.len())?;
                         for vm_result_item_value_features_item in vm_result_item.features {
                             let vm_result_item_value_features_item_value = vm_result_item_value_features_item;
-                            vm_result_item_value_features_values.push(vm_result_item_value_features_item_value);
+                            vm_result_item_value_features_builder.push(context, vm_result_item_value_features_item_value)?;
                         }
-                        let vm_result_item_value_features = VmSlice::from_values(context, &vm_result_item_value_features_values)?;
+                        let vm_result_item_value_features = vm_result_item_value_features_builder.finish()?;
                         let vm_result_item_value_limits_max_bind_groups = vm_result_item.limits.max_bind_groups;
                         let vm_result_item_value_limits_max_bindings_per_bind_group = vm_result_item.limits.max_bindings_per_bind_group;
                         let vm_result_item_value_limits_max_push_constant_bytes = vm_result_item.limits.max_push_constant_bytes;
@@ -24328,9 +24329,9 @@ fn destack_gpu_adapter_list_vm_replay(
                             features: vm_result_item_value_features,
                             limits: vm_result_item_value_limits,
                         };
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmArray::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -28569,12 +28570,13 @@ fn destack_gpu_device_features_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    let mut vm_result_builder =
+                        VmSlice::<GpuFeatureId>::builder(context, value.len())?;
                     for vm_result_item in value {
                         let vm_result_item_value = vm_result_item;
-                        vm_result_values.push(vm_result_item_value);
+                        vm_result_builder.push(context, vm_result_item_value)?;
                     }
-                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    let vm_result = vm_result_builder.finish()?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -28813,12 +28815,12 @@ fn destack_gpu_device_info_vm_replay(
             match payload.result {
                 Ok(value) => {
                     let vm_result_backend = value.backend;
-                    let mut vm_result_enabled_features_values = Vec::with_capacity(value.enabled_features.len());
+                    let mut vm_result_enabled_features_builder = VmSlice::<GpuFeatureId>::builder(context, value.enabled_features.len())?;
                     for vm_result_enabled_features_item in value.enabled_features {
                         let vm_result_enabled_features_item_value = vm_result_enabled_features_item;
-                        vm_result_enabled_features_values.push(vm_result_enabled_features_item_value);
+                        vm_result_enabled_features_builder.push(context, vm_result_enabled_features_item_value)?;
                     }
-                    let vm_result_enabled_features = VmSlice::from_values(context, &vm_result_enabled_features_values)?;
+                    let vm_result_enabled_features = vm_result_enabled_features_builder.finish()?;
                     let vm_result_effective_limits_max_bind_groups = value.effective_limits.max_bind_groups;
                     let vm_result_effective_limits_max_bindings_per_bind_group = value.effective_limits.max_bindings_per_bind_group;
                     let vm_result_effective_limits_max_push_constant_bytes = value.effective_limits.max_push_constant_bytes;
@@ -30053,7 +30055,8 @@ fn destack_gpu_pipeline_shader_compilation_info_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut vm_result_messages_values = Vec::with_capacity(value.messages.len());
+                    let mut vm_result_messages_builder =
+                        VmSlice::<GpuCompilationMessageVm>::builder(context, value.messages.len())?;
                     for vm_result_messages_item in value.messages {
                         let vm_result_messages_item_value_kind = vm_result_messages_item.kind;
                         let vm_result_messages_item_value_message = context
@@ -30071,10 +30074,9 @@ fn destack_gpu_pipeline_shader_compilation_info_vm_replay(
                             offset: vm_result_messages_item_value_offset,
                             length: vm_result_messages_item_value_length,
                         };
-                        vm_result_messages_values.push(vm_result_messages_item_value);
+                        vm_result_messages_builder.push(context, vm_result_messages_item_value)?;
                     }
-                    let vm_result_messages =
-                        VmSlice::from_values(context, &vm_result_messages_values)?;
+                    let vm_result_messages = vm_result_messages_builder.finish()?;
                     let vm_result = GpuCompilationInfoVm {
                         messages: vm_result_messages,
                     };
