@@ -1,7 +1,7 @@
 use criterion::profiler::Profiler;
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use destack_test_mirbench as program;
-use destack_vm::memory::Value;
+use destack_vm::{Heap, SharedSpace, Value};
 use pprof::ProfilerGuard;
 use pprof::flamegraph::Options as FlamegraphOptions;
 use program::Program;
@@ -85,6 +85,8 @@ fn benchmark_sizes(program: &Program) -> Vec<i64> {
 fn bench_program(c: &mut Criterion, group_name: &str, program: &Program) {
     let mut group = c.benchmark_group(group_name);
     let mut isolate = program.isolate();
+    let mut heap = Heap::default();
+    let mut shared = SharedSpace::default();
     let entry_id = program.entry_id(&isolate);
     let base_args = program.args_for_profile(&isolate, program::BenchProfileKind::Quick);
     let sizes = benchmark_sizes(program);
@@ -110,7 +112,8 @@ fn bench_program(c: &mut Criterion, group_name: &str, program: &Program) {
         // run the benchmark
         group.bench_with_input(BenchmarkId::new(program.name, n), &n, |b, _| {
             b.iter(|| {
-                let result = program.run_or_panic(&mut isolate, entry_id, &args);
+                let result =
+                    program.run_or_panic(&mut isolate, &mut heap, &mut shared, entry_id, &args);
                 black_box(result)
             });
         });
@@ -144,6 +147,8 @@ fn bench_calls(c: &mut Criterion) {
 fn bench_memory(c: &mut Criterion) {
     for program in program::memory::ALL {
         let mut isolate = program.isolate();
+        let mut heap = Heap::default();
+        let mut shared = SharedSpace::default();
         let entry_id = program.entry_id(&isolate);
         let base_args = program.args_for_profile(&isolate, program::BenchProfileKind::Quick);
         let sizes = benchmark_sizes(program);
@@ -169,8 +174,9 @@ fn bench_memory(c: &mut Criterion) {
             // benchmark with gc before each run
             group.bench_with_input(BenchmarkId::new(program.name, n), &n, |b, _| {
                 b.iter(|| {
-                    let _ = isolate.collect_garbage();
-                    let result = program.run_or_panic(&mut isolate, entry_id, &args);
+                    let _ = isolate.collect_garbage(&mut heap, &mut shared);
+                    let result =
+                        program.run_or_panic(&mut isolate, &mut heap, &mut shared, entry_id, &args);
                     black_box(result)
                 });
             });

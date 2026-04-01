@@ -9,7 +9,41 @@ use super::codegen::ModuleCodegen;
 use super::{binding_type_requires_abi, *};
 
 impl<'a> ModuleCodegen<'a> {
-    /// Report whether one replay collection can iterate borrowed items directly.
+    /// Report whether replay encoding one binding value needs runtime context.
+    fn replay_encode_requires_context(binding_type: &BindingType) -> bool {
+        match binding_type {
+            BindingType::String => true,
+            BindingType::StringSlice | BindingType::Slice(_) | BindingType::Array(_) => true,
+            BindingType::Optional(inner) => Self::replay_encode_requires_context(inner),
+            BindingType::Newtype { inner, .. } => Self::replay_encode_requires_context(inner),
+            BindingType::Struct { fields, .. } => fields
+                .iter()
+                .any(|field| Self::replay_encode_requires_context(&field.binding_type)),
+            BindingType::TaggedUnion { variants, .. } => variants
+                .iter()
+                .any(|variant| Self::replay_encode_requires_context(&variant.binding_type)),
+            _ => false,
+        }
+    }
+
+    /// Report whether replay decoding into one VM binding value needs runtime context.
+    fn replay_to_vm_requires_context(binding_type: &BindingType) -> bool {
+        match binding_type {
+            BindingType::String => true,
+            BindingType::StringSlice | BindingType::Slice(_) | BindingType::Array(_) => true,
+            BindingType::Optional(inner) => Self::replay_to_vm_requires_context(inner),
+            BindingType::Newtype { inner, .. } => Self::replay_to_vm_requires_context(inner),
+            BindingType::Struct { fields, .. } => fields
+                .iter()
+                .any(|field| Self::replay_to_vm_requires_context(&field.binding_type)),
+            BindingType::TaggedUnion { variants, .. } => variants
+                .iter()
+                .any(|variant| Self::replay_to_vm_requires_context(&variant.binding_type)),
+            _ => false,
+        }
+    }
+
+    /// Report whether one replay collection should iterate borrowed items directly.
     fn replay_collection_items_can_be_borrowed(binding_type: &BindingType) -> bool {
         match binding_type {
             BindingType::String | BindingType::StringSlice => true,
@@ -685,17 +719,11 @@ impl<'a> ModuleCodegen<'a> {
         let values_var = format!("{name}_values");
         let item_var = format!("{name}_item");
         let item_value_var = format!("{name}_item_value");
-        let borrow_items = Self::replay_collection_items_can_be_borrowed(inner);
-
         // replay payloads are owned, so rebuild VM collections from owned items
         lines.push(format!(
             "let mut {values_var} = Vec::with_capacity({value_expr}.len());"
         ));
-        if borrow_items {
-            lines.push(format!("for {item_var} in {value_expr}.iter() {{"));
-        } else {
-            lines.push(format!("for {item_var} in {value_expr}.iter().cloned() {{"));
-        }
+        lines.push(format!("for {item_var} in {value_expr} {{"));
         lines.extend(
             self.render_replay_to_vm_binding_lines(inner, &item_value_var, &item_var)
                 .into_iter()
@@ -865,10 +893,13 @@ impl<'a> ModuleCodegen<'a> {
         let item_recorded_var = format!("{name}_item_recorded");
         let mut lines = Vec::new();
 
-        lines.push(format!("let mut {name} = Vec::new();"));
         lines.push(format!(
-            "for {item_var} in unsafe {{ {value_expr}.as_slice()? }}.iter() {{"
+            "let {name}_slice = unsafe {{ {value_expr}.as_slice()? }};"
         ));
+        lines.push(format!(
+            "let mut {name} = Vec::with_capacity({name}_slice.len());"
+        ));
+        lines.push(format!("for {item_var} in {name}_slice.iter() {{"));
         lines.push(format!(
             "    let {item_recorded_var} = unsafe {{ {item_var}.as_str()? }}.to_string();"
         ));
@@ -890,15 +921,16 @@ impl<'a> ModuleCodegen<'a> {
         let borrow_items = Self::replay_collection_items_can_be_borrowed(inner);
         let mut lines = Vec::new();
 
-        lines.push(format!("let mut {name} = Vec::new();"));
+        lines.push(format!(
+            "let {name}_slice = unsafe {{ {value_expr}.as_slice()? }};"
+        ));
+        lines.push(format!(
+            "let mut {name} = Vec::with_capacity({name}_slice.len());"
+        ));
         if borrow_items {
-            lines.push(format!(
-                "for {item_var} in unsafe {{ {value_expr}.as_slice()? }}.iter() {{"
-            ));
+            lines.push(format!("for {item_var} in {name}_slice.iter() {{"));
         } else {
-            lines.push(format!(
-                "for {item_var} in unsafe {{ {value_expr}.as_slice()? }}.iter().cloned() {{"
-            ));
+            lines.push(format!("for {item_var} in {name}_slice.iter().cloned() {{"));
         }
         lines.extend(
             self.render_native_replay_encode_lines(inner, &item_recorded_var, item_var.as_str())
@@ -965,21 +997,22 @@ impl<'a> ModuleCodegen<'a> {
             | BindingType::UInt(_)
             | BindingType::Float(_)
             | BindingType::Enum { .. } => vec![format!("let {name} = {value_expr};")],
-            BindingType::String => vec![format!(
-                "let {name} = binding.store_string({value_expr}.as_str());"
-            )],
+            BindingType::String => {
+                vec![format!(
+                    "let {name} = binding.store_string_owned({value_expr});"
+                )]
+            }
             BindingType::StringSlice => {
                 let mut lines = Vec::new();
-                lines.push(format!("let mut {name}_values = Vec::new();"));
-                lines.push(format!("for value in {value_expr}.iter() {{"));
                 lines.push(format!(
-                    "    let value = binding.store_string(value.as_str());"
+                    "let {name} = binding.store_string_slice_with({value_expr}.len(), |{name}_values| {{"
                 ));
-                lines.push(format!("    {name}_values.push(value);"));
-                lines.push("}".to_string());
-                lines.push(format!(
-                    "let {name} = binding.store_string_slice({name}_values);"
-                ));
+                lines.push(format!("    for value in {value_expr} {{"));
+                lines.push("        let value = binding.store_string_owned(value);".to_string());
+                lines.push(format!("        {name}_values.push(value);"));
+                lines.push("    }".to_string());
+                lines.push("    Ok(())".to_string());
+                lines.push("})?;".to_string());
                 lines
             }
             BindingType::Slice(inner) => {
@@ -1111,28 +1144,27 @@ impl<'a> ModuleCodegen<'a> {
     ) -> Vec<String> {
         let item_var = format!("{name}_item");
         let item_decoded_var = format!("{name}_decoded");
-        let borrow_items = Self::replay_collection_items_can_be_borrowed(inner);
         let mut lines = Vec::new();
 
-        lines.push(format!("let mut {name}_values = Vec::new();"));
-        if borrow_items {
-            lines.push(format!("for {item_var} in {value_expr}.iter() {{"));
+        if is_array {
+            lines.push(format!(
+                "let {name} = binding.store_array_with({value_expr}.len(), |{name}_values| {{"
+            ));
         } else {
-            lines.push(format!("for {item_var} in {value_expr}.iter().cloned() {{"));
+            lines.push(format!(
+                "let {name} = binding.store_slice_with({value_expr}.len(), |{name}_values| {{"
+            ));
         }
+        lines.push(format!("    for {item_var} in {value_expr} {{"));
         lines.extend(
             self.render_native_replay_decode_lines(inner, &item_decoded_var, item_var.as_str())
                 .into_iter()
-                .map(|line| format!("    {line}")),
+                .map(|line| format!("        {line}")),
         );
-        lines.push(format!("    {name}_values.push({item_decoded_var});"));
-        lines.push("}".to_string());
-
-        if is_array {
-            lines.push(format!("let {name} = binding.store_array({name}_values);"));
-        } else {
-            lines.push(format!("let {name} = binding.store_slice({name}_values);"));
-        }
+        lines.push(format!("        {name}_values.push({item_decoded_var});"));
+        lines.push("    }".to_string());
+        lines.push("    Ok(())".to_string());
+        lines.push("})?;".to_string());
 
         lines
     }
@@ -1255,6 +1287,26 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
                 entry.replay_payload,
                 CatalogReplayPayload::ArgumentsAndResults
             );
+            let replay_args_use_context = supports_args
+                && entry.parameters.iter().any(|param| {
+                    ModuleCodegen::replay_encode_requires_context(&param.binding_type)
+                });
+            let replay_result_use_context = !matches!(entry.return_binding, BindingType::Void)
+                && ModuleCodegen::replay_encode_requires_context(&entry.return_binding);
+            let replay_record_uses_context = replay_args_use_context || replay_result_use_context;
+            let replay_restore_uses_context = supports_args && replay_args_use_context
+                || !matches!(entry.return_binding, BindingType::Void)
+                    && ModuleCodegen::replay_to_vm_requires_context(&entry.return_binding);
+            let replay_record_context_name = if replay_record_uses_context {
+                "context"
+            } else {
+                "_context"
+            };
+            let replay_restore_context_name = if replay_restore_uses_context {
+                "context"
+            } else {
+                "_context"
+            };
             let replay_struct = codegen.replay_struct_name(&binding.const_name);
             let replay_args_struct = format!("{replay_struct}Args");
             let invoke_args = codegen.render_invoke_args_with_prefix(entry);
@@ -1315,8 +1367,12 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
                 output.push_str("            }\n");
                 output.push_str("        },\n");
             }
-            output.push_str("        |context, result| {\n");
-            output.push_str("            let _ = &context;\n");
+            output.push_str(&format!(
+                "        |{replay_record_context_name}, result| {{\n"
+            ));
+            if replay_record_uses_context {
+                output.push_str("            let context = &context.read();\n");
+            }
             if supports_args {
                 output.push_str("            let record_args = matches!(\n");
                 output.push_str(&format!(
@@ -1395,8 +1451,12 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
 
             output.push_str("            Ok(None)\n");
             output.push_str("        },\n");
-            output.push_str("        |context, payload| {\n");
-            output.push_str("            let _ = &context;\n");
+            output.push_str(&format!(
+                "        |{replay_restore_context_name}, payload| {{\n"
+            ));
+            if replay_restore_uses_context {
+                output.push_str("            let context = &mut context.write();\n");
+            }
             if supports_args {
                 output.push_str("            if let Some(args) = payload.args.as_ref() {\n");
                 output.push_str("                // replay arg verification\n");

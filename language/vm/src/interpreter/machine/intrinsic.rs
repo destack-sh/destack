@@ -27,7 +27,7 @@ pub(crate) fn step_intrinsic(
     let args = collect_values(state, *arguments);
 
     // execute intrinsic
-    match state.execute_intrinsic(*intrinsic, args.as_slice()) {
+    match state.execute_intrinsic(*dest, *intrinsic, args.as_slice()) {
         Ok(result) => {
             if !is_invalid_value(*dest) {
                 state.set(*dest, result);
@@ -41,10 +41,29 @@ pub(crate) fn step_intrinsic(
 
 #[allow(clippy::too_many_arguments)]
 impl StepState<'_, '_> {
+    /// Materialize one 2-field result in semantic component order.
+    fn materialize_pair(
+        &mut self,
+        destination: mir::Value,
+        first: Value,
+        second: Value,
+    ) -> RuntimeResult<Value> {
+        Ok(super::value::materialize_composite_by_index(
+            self,
+            destination,
+            |_state, index, _ty| match index {
+                0 => Ok(first),
+                1 => Ok(second),
+                _ => Err(Error::InvalidInstruction),
+            },
+        )?)
+    }
+
     /// Execute an intrinsic with already-resolved argument values.
     /// Used by the interpreter where values are pre-resolved.
     pub(crate) fn execute_intrinsic_resolved(
         &mut self,
+        destination: mir::Value,
         intrinsic: mir::Intrinsic,
         args: &[Value],
     ) -> RuntimeResult<Value> {
@@ -59,9 +78,9 @@ impl StepState<'_, '_> {
             mir::Intrinsic::RotateRight => self.execute_rotate_right(args),
 
             // checked arithmetic
-            mir::Intrinsic::AddOverflow => self.execute_add_overflow(args),
-            mir::Intrinsic::SubOverflow => self.execute_sub_overflow(args),
-            mir::Intrinsic::MulOverflow => self.execute_mul_overflow(args),
+            mir::Intrinsic::AddOverflow => self.execute_add_overflow(destination, args),
+            mir::Intrinsic::SubOverflow => self.execute_sub_overflow(destination, args),
+            mir::Intrinsic::MulOverflow => self.execute_mul_overflow(destination, args),
 
             // unchecked arithmetic
             mir::Intrinsic::AddUnchecked => self.execute_add_unchecked(args),
@@ -433,7 +452,11 @@ impl StepState<'_, '_> {
 
     /// Add with overflow detection.
     #[inline]
-    fn execute_add_overflow(&mut self, args: &[Value]) -> RuntimeResult<Value> {
+    fn execute_add_overflow(
+        &mut self,
+        destination: mir::Value,
+        args: &[Value],
+    ) -> RuntimeResult<Value> {
         if args.len() < 2 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
                 intrinsic: "add.overflow".to_string(),
@@ -461,7 +484,11 @@ impl StepState<'_, '_> {
                     }
                     _ => a.overflowing_add(b),
                 };
-                Ok(self.allocate_pair(Value::int(result, width), Value::bool(overflow)))
+                self.materialize_pair(
+                    destination,
+                    Value::int(result, width),
+                    Value::bool(overflow),
+                )
             }
             (ValueTag::UInt, ValueTag::UInt) => {
                 let a = args[0].raw_data();
@@ -482,7 +509,11 @@ impl StepState<'_, '_> {
                     }
                     _ => a.overflowing_add(b),
                 };
-                Ok(self.allocate_pair(Value::uint(result, width), Value::bool(overflow)))
+                self.materialize_pair(
+                    destination,
+                    Value::uint(result, width),
+                    Value::bool(overflow),
+                )
             }
             _ => Err(self.make_error(Error::TypeMismatch {
                 expected: "matching integer types".to_string(),
@@ -493,7 +524,11 @@ impl StepState<'_, '_> {
 
     /// Subtract with overflow detection.
     #[inline]
-    fn execute_sub_overflow(&mut self, args: &[Value]) -> RuntimeResult<Value> {
+    fn execute_sub_overflow(
+        &mut self,
+        destination: mir::Value,
+        args: &[Value],
+    ) -> RuntimeResult<Value> {
         if args.len() < 2 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
                 intrinsic: "sub.overflow".to_string(),
@@ -521,7 +556,11 @@ impl StepState<'_, '_> {
                     }
                     _ => a.overflowing_sub(b),
                 };
-                Ok(self.allocate_pair(Value::int(result, width), Value::bool(overflow)))
+                self.materialize_pair(
+                    destination,
+                    Value::int(result, width),
+                    Value::bool(overflow),
+                )
             }
             (ValueTag::UInt, ValueTag::UInt) => {
                 let a = args[0].raw_data();
@@ -542,7 +581,11 @@ impl StepState<'_, '_> {
                     }
                     _ => a.overflowing_sub(b),
                 };
-                Ok(self.allocate_pair(Value::uint(result, width), Value::bool(overflow)))
+                self.materialize_pair(
+                    destination,
+                    Value::uint(result, width),
+                    Value::bool(overflow),
+                )
             }
             _ => Err(self.make_error(Error::TypeMismatch {
                 expected: "matching integer types".to_string(),
@@ -553,7 +596,11 @@ impl StepState<'_, '_> {
 
     /// Multiply with overflow detection.
     #[inline]
-    fn execute_mul_overflow(&mut self, args: &[Value]) -> RuntimeResult<Value> {
+    fn execute_mul_overflow(
+        &mut self,
+        destination: mir::Value,
+        args: &[Value],
+    ) -> RuntimeResult<Value> {
         if args.len() < 2 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
                 intrinsic: "mul.overflow".to_string(),
@@ -581,7 +628,11 @@ impl StepState<'_, '_> {
                     }
                     _ => a.overflowing_mul(b),
                 };
-                Ok(self.allocate_pair(Value::int(result, width), Value::bool(overflow)))
+                self.materialize_pair(
+                    destination,
+                    Value::int(result, width),
+                    Value::bool(overflow),
+                )
             }
             (ValueTag::UInt, ValueTag::UInt) => {
                 let a = args[0].raw_data();
@@ -602,7 +653,11 @@ impl StepState<'_, '_> {
                     }
                     _ => a.overflowing_mul(b),
                 };
-                Ok(self.allocate_pair(Value::uint(result, width), Value::bool(overflow)))
+                self.materialize_pair(
+                    destination,
+                    Value::uint(result, width),
+                    Value::bool(overflow),
+                )
             }
             _ => Err(self.make_error(Error::TypeMismatch {
                 expected: "matching integer types".to_string(),
@@ -1269,17 +1324,9 @@ impl StepState<'_, '_> {
     fn read_memory_slot(&self, ptr: &Value, offset: usize) -> RuntimeResult<Value> {
         // resolve pointer and slot offset
         match ptr.tag() {
-            ValueTag::ManagedReference | ValueTag::Aggregate | ValueTag::String => {
-                let handle = ptr.as_managed_reference().unwrap();
-                if handle.is_null() {
-                    return Err(self.make_error(Error::NullPointerDereference));
-                }
-                let slot_index = access::managed_packed_slot_index(handle, offset)
-                    .map_err(|error| self.make_error(error))?;
-                self.heap_ref()
-                    .packed_value_at(handle, slot_index)
-                    .ok_or_else(|| self.make_error(Error::InvalidManagedReference))
-            }
+            ValueTag::ManagedReference => Err(self.make_error(Error::InvalidPointerType {
+                actual: "managed reference without typed byte semantics".to_string(),
+            })),
             ValueTag::RawPointer => {
                 let raw_ptr = ptr.as_raw_pointer().unwrap();
                 if raw_ptr.is_null() {
@@ -1318,25 +1365,26 @@ impl StepState<'_, '_> {
                     .call_stack
                     .get(sp.frame_idx)
                     .ok_or_else(|| self.make_error(Error::InvalidManagedReference))?;
-                let cell = frame
-                    .stack_buffer(sp.slot)
+                let allocation = frame
+                    .stack_allocation(sp.slot)
                     .ok_or_else(|| self.make_error(Error::InvalidManagedReference))?;
                 let slot_index = sp.slot_offset.checked_add(offset).ok_or_else(|| {
                     self.make_error(Error::InvalidFieldAccess {
                         index: offset as u32,
-                        field_count: cell.len(),
+                        field_count: allocation.len(),
                     })
                 })?;
-                if let Some(value) = cell.get(slot_index).copied() {
-                    return Ok(value);
+
+                if slot_index >= allocation.len() {
+                    return Err(self.make_error(Error::InvalidFieldAccess {
+                        index: offset as u32,
+                        field_count: allocation.len(),
+                    }));
                 }
-                if cell.is_empty() && offset == 0 {
-                    return Ok(Value::VOID);
-                }
-                Err(self.make_error(Error::InvalidFieldAccess {
-                    index: offset as u32,
-                    field_count: cell.len(),
-                }))
+
+                let byte = allocation.bytes()[slot_index];
+
+                Ok(Value::uint(byte as u64, 8))
             }
             ValueTag::LocalPointer => {
                 let lp = ptr.as_local_pointer().unwrap();
@@ -1366,38 +1414,11 @@ impl StepState<'_, '_> {
     fn write_memory_slot(&mut self, ptr: &Value, offset: usize, value: Value) -> RuntimeResult<()> {
         // resolve pointer and slot offset
         match ptr.tag() {
-            ValueTag::ManagedReference | ValueTag::Aggregate | ValueTag::String => {
-                let handle = ptr.as_managed_reference().unwrap();
-                if handle.is_null() {
-                    return Err(self.make_error(Error::NullPointerDereference));
-                }
-                let slot_index = access::managed_packed_slot_index(handle, offset)
-                    .map_err(|error| self.make_error(error))?;
-                // resolve the managed cell
-                let error = match self.heap_ref().packed_value_count(handle) {
-                    Some(cell_len) => {
-                        // ensure the slot exists
-                        let required_len = slot_index + 1;
-                        if cell_len < required_len {
-                            self.heap()
-                                .resize_packed_values(handle, required_len)
-                                .map_err(|error| self.make_error(Error::from(error)))?;
-                        }
-
-                        // write the slot value
-                        if self.heap().set_packed_value(handle, slot_index, value) {
-                            return Ok(());
-                        }
-
-                        Error::InvalidFieldAccess {
-                            index: offset as u32,
-                            field_count: required_len,
-                        }
-                    }
-                    None => return Err(self.make_error(Error::InvalidManagedReference)),
-                };
-
-                Err(self.make_error(error))
+            ValueTag::ManagedReference => {
+                let _ = value;
+                Err(self.make_error(Error::InvalidPointerType {
+                    actual: "managed reference without typed byte semantics".to_string(),
+                }))
             }
             ValueTag::RawPointer => {
                 let raw_ptr = ptr.as_raw_pointer().unwrap();
@@ -1449,26 +1470,28 @@ impl StepState<'_, '_> {
                 })?;
                 let error = match self.engine.call_stack.get_mut(sp.frame_idx) {
                     Some(frame) => {
-                        let cell = match frame.stack_buffer_mut(sp.slot) {
-                            Some(cell) => cell,
+                        let allocation = match frame.stack_allocation_mut(sp.slot) {
+                            Some(allocation) => allocation,
                             None => return Err(self.make_error(Error::InvalidManagedReference)),
                         };
-
-                        // ensure the slot exists
-                        let required_len = slot_index + 1;
-                        if cell.len() < required_len {
-                            cell.resize(required_len, Value::VOID);
-                        }
+                        let byte = if matches!(value.tag(), ValueTag::UInt) {
+                            value.as_uint().unwrap() as u8
+                        } else {
+                            return Err(self.make_error(Error::TypeMismatch {
+                                expected: "integer".to_string(),
+                                actual: format!("{value:?}"),
+                            }));
+                        };
 
                         // write the slot value
-                        if let Some(slot) = cell.get_mut(slot_index) {
-                            *slot = value;
+                        if let Some(slot) = allocation.bytes_mut().get_mut(slot_index) {
+                            *slot = byte;
                             return Ok(());
                         }
 
                         Error::InvalidFieldAccess {
                             index: offset as u32,
-                            field_count: cell.len(),
+                            field_count: allocation.len(),
                         }
                     }
                     None => return Err(self.make_error(Error::InvalidManagedReference)),
@@ -1531,6 +1554,7 @@ impl StepState<'_, '_> {
     /// Execute an atomic compare exchange.
     pub(crate) fn execute_atomic_compare_exchange_value(
         &mut self,
+        destination: mir::Value,
         pointer: Value,
         expected: Value,
         new_value: Value,
@@ -1543,10 +1567,16 @@ impl StepState<'_, '_> {
     ) -> RuntimeResult<Value> {
         // the interpreter uses strong semantics for the weak variant
         if is_weak {
-            return self.execute_atomic_cas_weak(pointer, raw_pointee, expected, new_value);
+            return self.execute_atomic_cas_weak(
+                destination,
+                pointer,
+                raw_pointee,
+                expected,
+                new_value,
+            );
         }
 
-        self.execute_atomic_cas(pointer, raw_pointee, expected, new_value)
+        self.execute_atomic_cas(destination, pointer, raw_pointee, expected, new_value)
     }
 
     /// Execute an atomic read modify write.
@@ -1645,6 +1675,7 @@ impl StepState<'_, '_> {
     /// Atomic compare-and-swap.
     fn execute_atomic_cas(
         &mut self,
+        destination: mir::Value,
         pointer: Value,
         raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
         expected: Value,
@@ -1657,7 +1688,7 @@ impl StepState<'_, '_> {
             self.write_atomic_value(pointer, raw_pointee, desired)?;
         }
 
-        Ok(self.allocate_pair(current, Value::bool(success)))
+        self.materialize_pair(destination, current, Value::bool(success))
     }
 
     /// Atomic compare-and-swap (weak).
@@ -1665,12 +1696,13 @@ impl StepState<'_, '_> {
     /// The interpreter uses strong semantics for the weak variant.
     fn execute_atomic_cas_weak(
         &mut self,
+        destination: mir::Value,
         pointer: Value,
         raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
         expected: Value,
         desired: Value,
     ) -> RuntimeResult<Value> {
-        self.execute_atomic_cas(pointer, raw_pointee, expected, desired)
+        self.execute_atomic_cas(destination, pointer, raw_pointee, expected, desired)
     }
 
     /// Atomic exchange.

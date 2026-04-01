@@ -8,12 +8,13 @@ use destack_mir as mir;
 use crate::diagnostic::{Error, FrameInfo, RuntimeError, RuntimeResult};
 use crate::executable::{Executable, FunctionTable};
 use crate::execute::Continuation;
-use crate::isolate::{ExternalFn, ExternalFnPtr, GlobalStorage, StringInterner};
+use crate::isolate::{
+    ExternalCallContext, ExternalFn, ExternalFnPtr, GlobalStorage, SchemaRegistry, StringInterner,
+};
 use crate::snapshot::InterpreterImage;
 use crate::telemetry::Statistics;
 use destack_heap::{
     GcStats, ManagedReference, MemoryContext, RawPointer, ReferenceMeta, SharedPointer, Value,
-    string_layout_matches,
 };
 
 use super::Frame;
@@ -241,7 +242,9 @@ impl Interpreter {
     ) -> RuntimeResult<Value> {
         // select conversion strategy
         match init {
-            mir::GlobalInitializer::Zero => self.zero_value(executable, memory.reborrow(), ty),
+            mir::GlobalInitializer::Zero => {
+                self.zero_value(executable, string_interner, memory.reborrow(), ty)
+            }
             mir::GlobalInitializer::Scalar(constant) => Ok(self.constant_to_value(constant)),
             mir::GlobalInitializer::String(value) => {
                 // validate the declared string layout
@@ -256,38 +259,119 @@ impl Interpreter {
                 // convert bytes to u8 values
                 let values: Vec<Value> = bytes.iter().map(|&b| Value::uint(b as u64, 8)).collect();
 
-                // allocate managed aggregate for bytes
-                let handle = memory
-                    .heap()
-                    .allocate_packed_values(values)
-                    .map_err(|error| self.make_error(executable, Error::from(error)))?;
-
-                Ok(Value::aggregate(handle))
+                // materialize typed storage for the declared global type
+                self.materialize_storage_value(
+                    executable,
+                    string_interner,
+                    memory.reborrow(),
+                    ty,
+                    values,
+                )
             }
             mir::GlobalInitializer::Aggregate(elements) => {
-                // convert each element recursively
-                let values: Vec<Value> = elements
+                // resolve the declared component types
+                let component_types = self.storage_component_types(executable, ty)?;
+                if elements.len() != component_types.len() {
+                    return Err(self.make_error(
+                        executable,
+                        Error::TypeMismatch {
+                            expected: format!(
+                                "initializer with {} composite components",
+                                component_types.len()
+                            ),
+                            actual: format!(
+                                "initializer with {} composite components",
+                                elements.len()
+                            ),
+                        },
+                    ));
+                }
+
+                // convert each element recursively using the declared component type
+                let values = elements
                     .iter()
-                    .map(|e| {
+                    .zip(component_types.into_iter())
+                    .map(|(element, component_type)| {
                         self.convert_initializer(
                             executable,
                             string_interner,
                             memory.reborrow(),
-                            e,
-                            ty,
+                            element,
+                            component_type,
                         )
                     })
-                    .collect::<RuntimeResult<_>>()?;
+                    .collect::<RuntimeResult<Vec<_>>>()?;
 
-                // allocate managed aggregate for elements
-                let handle = memory
-                    .heap()
-                    .allocate_packed_values(values)
-                    .map_err(|error| self.make_error(executable, Error::from(error)))?;
-
-                Ok(Value::aggregate(handle))
+                // materialize typed storage for the declared global type
+                self.materialize_storage_value(
+                    executable,
+                    string_interner,
+                    memory.reborrow(),
+                    ty,
+                    values,
+                )
             }
         }
+    }
+
+    /// Resolve the declared storage component types for one layout-backed type.
+    fn storage_component_types(
+        &self,
+        executable: &Executable,
+        ty: mir::LocalNodeId<mir::Type>,
+    ) -> RuntimeResult<Vec<mir::LocalNodeId<mir::Type>>> {
+        let layout = executable.storage_layout(ty).ok_or_else(|| {
+            self.make_error(
+                executable,
+                Error::TypeMismatch {
+                    expected: "layout-backed composite type".to_string(),
+                    actual: format!("{ty:?}"),
+                },
+            )
+        })?;
+        let component_count = layout.component_count().ok_or_else(|| {
+            self.make_error(
+                executable,
+                Error::TypeMismatch {
+                    expected: "composite storage layout".to_string(),
+                    actual: format!("{ty:?}"),
+                },
+            )
+        })?;
+        let mut component_types = Vec::with_capacity(component_count);
+
+        // collect component types in semantic order
+        for index in 0..component_count {
+            let component = layout.component(index as u32).ok_or_else(|| {
+                self.make_error(
+                    executable,
+                    Error::TypeMismatch {
+                        expected: "storage component".to_string(),
+                        actual: format!("{ty:?}"),
+                    },
+                )
+            })?;
+            component_types.push(component.ty);
+        }
+
+        Ok(component_types)
+    }
+
+    /// Materialize one layout-backed value through the shared typed allocator.
+    fn materialize_storage_value(
+        &mut self,
+        executable: &Executable,
+        string_interner: &mut StringInterner,
+        mut memory: MemoryContext<'_>,
+        ty: mir::LocalNodeId<mir::Type>,
+        values: Vec<Value>,
+    ) -> RuntimeResult<Value> {
+        let schema = SchemaRegistry::default();
+        let mut context =
+            ExternalCallContext::new(executable, &schema, string_interner, memory.reborrow());
+        context
+            .materialize_storage_value_for_type(ty, values)
+            .map_err(|error| self.make_error(executable, error))
     }
 
     /// Validate that a string initializer matches the expected layout.
@@ -318,8 +402,22 @@ impl Interpreter {
             ));
         }
 
-        // validate the struct layout matches the runtime definition
-        if !string_layout_matches(&executable.tree, *pointee) {
+        // validate the reference points at the canonical well known String layout
+        let Some(string_type) = executable.tree.string_type() else {
+            return Err(self.make_error(
+                executable,
+                Error::TypeMismatch {
+                    expected: "canonical well known String".to_string(),
+                    actual: "missing".to_string(),
+                },
+            ));
+        };
+        let expected_pointee = match executable.tree.get(string_type) {
+            mir::Type::Reference { pointee, .. } => *pointee,
+            _ => string_type,
+        };
+
+        if *pointee != expected_pointee {
             return Err(self.make_error(
                 executable,
                 Error::TypeMismatch {
@@ -341,9 +439,37 @@ impl Interpreter {
     fn zero_value(
         &mut self,
         executable: &Executable,
+        string_interner: &mut StringInterner,
         mut memory: MemoryContext<'_>,
         ty: mir::LocalNodeId<mir::Type>,
     ) -> RuntimeResult<Value> {
+        // materialize one zeroed composite through the typed storage path
+        if executable
+            .storage_layout(ty)
+            .is_some_and(|layout| !layout.is_scalar())
+        {
+            let component_types = self.storage_component_types(executable, ty)?;
+            let values = component_types
+                .into_iter()
+                .map(|component_type| {
+                    self.zero_value(
+                        executable,
+                        string_interner,
+                        memory.reborrow(),
+                        component_type,
+                    )
+                })
+                .collect::<RuntimeResult<Vec<_>>>()?;
+
+            return self.materialize_storage_value(
+                executable,
+                string_interner,
+                memory.reborrow(),
+                ty,
+                values,
+            );
+        }
+
         // resolve the type node
         let ty_node = executable.tree.get(ty).clone();
 
@@ -414,41 +540,6 @@ impl Interpreter {
                     }
                 }
             }
-            mir::Type::Tuple {
-                elements,
-                copyability: _,
-            } => {
-                // recursively initialize tuple elements
-                let values: Vec<Value> = elements
-                    .into_iter()
-                    .map(|e| self.zero_value(executable, memory.reborrow(), e))
-                    .collect::<RuntimeResult<_>>()?;
-
-                // allocate managed aggregate for tuple
-                let handle = memory
-                    .heap()
-                    .allocate_packed_values(values)
-                    .map_err(|error| self.make_error(executable, Error::from(error)))?;
-
-                Ok(Value::aggregate(handle))
-            }
-            mir::Type::Array {
-                element,
-                length,
-                copyability: _,
-            } => {
-                // build an array of repeated element zeros
-                let elem_zero = self.zero_value(executable, memory.reborrow(), element)?;
-                let values: Vec<Value> = (0..length).map(|_| elem_zero).collect();
-
-                // allocate managed aggregate for array
-                let handle = memory
-                    .heap()
-                    .allocate_packed_values(values)
-                    .map_err(|error| self.make_error(executable, Error::from(error)))?;
-
-                Ok(Value::aggregate(handle))
-            }
             _ => Err(self.make_error(
                 executable,
                 Error::UnsupportedZeroValue {
@@ -515,8 +606,8 @@ impl Interpreter {
         // collect roots from interned string literals
         string_interner.collect_roots(&mut roots);
 
-        // run collection
-        let stats = memory.heap().collect_managed_handles(roots);
+        // perform staged collection
+        let stats = memory.heap().collect_managed_handles_staged(roots);
 
         // sweep raw payload buffers for freed strings
         string_interner.sweep_buffers(memory.heap());

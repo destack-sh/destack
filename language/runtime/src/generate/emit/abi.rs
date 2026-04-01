@@ -58,6 +58,8 @@ impl AbiRenderer<'_> {
         let newtypes = &self.types.newtypes;
         let enums = &self.types.enums;
         let tagged_unions = &self.types.tagged_unions;
+        let storage_type_registrations =
+            collect_named_storage_registrations(domain, structs, newtypes, tagged_unions);
         let has_named_types = !newtypes.is_empty()
             || !enums.is_empty()
             || !structs.is_empty()
@@ -130,9 +132,7 @@ impl AbiRenderer<'_> {
             output.push_str("use crate::platform::VmAggregateCodec;\n");
             output.push_str("use crate::platform::{VmArray, VmSlice};\n");
         }
-        if needs_vm_value_codec || needs_vm_aggregate_codec {
-            output.push_str("use destack_vm as vm;\n");
-        }
+        output.push_str("use destack_vm as vm;\n");
         if !newtypes.is_empty()
             || !enums.is_empty()
             || !structs.is_empty()
@@ -187,14 +187,14 @@ impl AbiRenderer<'_> {
                 let inner_vm_type = codegen.vm_type_for_binding(inner);
                 output.push_str(&format!("impl VmAggregateCodec for {name}Abi<VmAbi> {{\n"));
                 output.push_str(
-                "    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {\n",
+                "    fn decode_with_context(context: &vm::ExternalReadContext<'_, '_>, value: vm::Value) -> RuntimeResult<Self> {\n",
             );
                 output.push_str(&format!(
                 "        Ok(Self(<{inner_vm_type} as VmAggregateCodec>::decode_with_context(context, value)?))\n"
             ));
                 output.push_str("    }\n\n");
                 output.push_str(
-                "    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {\n",
+                "    fn encode_with_context(self, context: &mut vm::ExternalWriteContext<'_, '_>) -> RuntimeResult<vm::Value> {\n",
             );
                 output.push_str(&format!(
                 "        <{inner_vm_type} as VmAggregateCodec>::encode_with_context(self.0, context)\n"
@@ -240,7 +240,7 @@ impl AbiRenderer<'_> {
                 output.push_str(&format!("impl VmAbiCodec for {name}Abi<VmAbi> {{\n"));
                 output.push_str(&format!("    type Value = {value_name};\n\n"));
                 output.push_str(
-                "    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {\n",
+                "    fn into_value(self, context: &vm::ExternalReadContext<'_, '_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {\n",
             );
                 output.push_str(&format!(
                     "        Ok({value_name}({}))\n",
@@ -248,7 +248,7 @@ impl AbiRenderer<'_> {
                 ));
                 output.push_str("    }\n\n");
                 output.push_str(
-                "    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {\n",
+                "    fn from_value(context: &mut vm::ExternalWriteContext<'_, '_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {\n",
             );
                 output.push_str(&format!(
                     "        Ok(Self({}))\n",
@@ -304,12 +304,12 @@ impl AbiRenderer<'_> {
             output.push_str(&format!("impl VmAbiCodec for {name} {{\n"));
             output.push_str(&format!("    type Value = {value_name};\n\n"));
             output.push_str(
-            "    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {\n",
+            "    fn into_value(self, _context: &vm::ExternalReadContext<'_, '_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {\n",
         );
             output.push_str("        Ok(self)\n");
             output.push_str("    }\n\n");
             output.push_str(
-            "    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {\n",
+            "    fn from_value(_context: &mut vm::ExternalWriteContext<'_, '_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {\n",
         );
             output.push_str("        Ok(value)\n");
             output.push_str("    }\n");
@@ -398,12 +398,12 @@ impl AbiRenderer<'_> {
                 codegen.value_type_name(name)
             ));
             output.push_str(
-            "    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {\n",
+            "    fn into_value(self, _context: &vm::ExternalReadContext<'_, '_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {\n",
         );
             output.push_str("        Ok(self)\n");
             output.push_str("    }\n\n");
             output.push_str(
-            "    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {\n",
+            "    fn from_value(_context: &mut vm::ExternalWriteContext<'_, '_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {\n",
         );
             output.push_str("        Ok(value)\n");
             output.push_str("    }\n");
@@ -469,31 +469,36 @@ impl AbiRenderer<'_> {
             } else {
                 union_name.clone()
             };
+            let union_metadata_name =
+                codegen.named_type_metadata_name(codegen.module(), union_name);
             output.push_str(&format!("impl VmAggregateCodec for {vm_union_type} {{\n"));
             output.push_str(
-            "    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {\n",
+            "    fn decode_with_context(context: &vm::ExternalReadContext<'_, '_>, value: vm::Value) -> RuntimeResult<Self> {\n",
         );
-            output.push_str("        if value.tag() != vm::ValueTag::Aggregate {\n");
-            output.push_str(&format!(
-            "            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(\"value\", \"{union_name}\")).boxed());\n"
-        ));
-            output.push_str("        }\n");
             output.push_str(
-            "        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;\n",
+            "        let value_ref = context.value_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;\n",
         );
-            output.push_str("        if slots.len() != 2 {\n");
+            output.push_str(
+            "        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)\n",
+        );
+            output.push_str("    }\n\n");
+            output.push_str(
+            "    fn decode_value_ref_with_context(context: &vm::ExternalReadContext<'_, '_>, value_ref: &vm::VmValueRef<'_, '_>) -> RuntimeResult<Self> {\n",
+        );
+            output.push_str("        let component_count = value_ref.component_count();\n");
+            output.push_str("        if component_count != 2 {\n");
             output.push_str(
             "            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(\"value\", \"expected 2 fields\")).boxed());\n",
         );
             output.push_str("        }\n");
             output.push_str(
-            "        let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;\n",
+            "        let tag = <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;\n",
         );
             output.push_str("        let decoded = match tag {\n");
             for (variant, tag) in variants.iter().zip(variant_tags.iter().copied()) {
                 let variant_type = codegen.vm_type_for_binding(&variant.binding_type);
                 output.push_str(&format!(
-                "            {tag}u32 => Self::{}(<{variant_type} as VmAggregateCodec>::decode_with_context(context, slots[1])?),\n",
+                "            {tag}u32 => Self::{}(<{variant_type} as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),\n",
                 variant.name
             ));
             }
@@ -504,9 +509,9 @@ impl AbiRenderer<'_> {
             output.push_str("        Ok(decoded)\n");
             output.push_str("    }\n\n");
             output.push_str(
-            "    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {\n",
+            "    fn encode_with_context(self, context: &mut vm::ExternalWriteContext<'_, '_>) -> RuntimeResult<vm::Value> {\n",
         );
-            output.push_str("        let slots = match self {\n");
+            output.push_str("        match self {\n");
             for (variant, tag) in variants.iter().zip(variant_tags.iter().copied()) {
                 let variant_type = codegen.vm_type_for_binding(&variant.binding_type);
                 output.push_str(&format!(
@@ -519,13 +524,18 @@ impl AbiRenderer<'_> {
                 output.push_str(&format!(
                 "                let payload_value = <{variant_type} as VmAggregateCodec>::encode_with_context(value, context)?;\n"
             ));
-                output.push_str("                vec![tag_value, payload_value]\n");
+                output.push_str(&format!(
+                    "                let mut value_builder = context.begin_named_storage_value_builder(\"{}\").map_err(Box::<RuntimeError>::from)?;\n",
+                    codegen.escape_rust_string(&union_metadata_name)
+                ));
+                output.push_str("                value_builder.write_component(0, tag_value).map_err(Box::<RuntimeError>::from)?;\n");
+                output.push_str("                value_builder.write_component(1, payload_value).map_err(Box::<RuntimeError>::from)?;\n");
+                output.push_str(
+                    "                value_builder.finish().map_err(Box::<RuntimeError>::from)\n",
+                );
                 output.push_str("            }\n");
             }
-            output.push_str("        };\n");
-            output.push_str(
-                "        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)\n",
-            );
+            output.push_str("        }\n");
             output.push_str("    }\n");
             output.push_str("}\n\n");
             output.push_str(&format!(
@@ -581,7 +591,7 @@ impl AbiRenderer<'_> {
                 output.push_str(&format!("impl VmAbiCodec for {union_name}Abi<VmAbi> {{\n"));
                 output.push_str(&format!("    type Value = {value_name};\n\n"));
                 output.push_str(
-                "    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {\n",
+                "    fn into_value(self, context: &vm::ExternalReadContext<'_, '_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {\n",
             );
                 output.push_str("        let owned = match self {\n");
                 for variant in variants {
@@ -596,7 +606,7 @@ impl AbiRenderer<'_> {
                 output.push_str("        Ok(owned)\n");
                 output.push_str("    }\n\n");
                 output.push_str(
-                "    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {\n",
+                "    fn from_value(context: &mut vm::ExternalWriteContext<'_, '_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {\n",
             );
                 output.push_str("        match value {\n");
                 for variant in variants {
@@ -631,12 +641,12 @@ impl AbiRenderer<'_> {
                 output.push_str(&format!("impl VmAbiCodec for {union_name} {{\n"));
                 output.push_str(&format!("    type Value = {value_name};\n\n"));
                 output.push_str(
-                "    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {\n",
+                "    fn into_value(self, _context: &vm::ExternalReadContext<'_, '_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {\n",
             );
                 output.push_str("        Ok(self)\n");
                 output.push_str("    }\n\n");
                 output.push_str(
-                "    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {\n",
+                "    fn from_value(_context: &mut vm::ExternalWriteContext<'_, '_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {\n",
             );
                 output.push_str("        Ok(value)\n");
                 output.push_str("    }\n");
@@ -650,6 +660,8 @@ impl AbiRenderer<'_> {
             };
             let requires_abi = binding_type_requires_abi(binding_type);
             let value_name = codegen.value_type_name(struct_name);
+            let struct_metadata_name =
+                codegen.named_type_metadata_name(codegen.module(), struct_name);
             output.push_str(&format!("/// ABI struct for {struct_name}.\n"));
             output.push_str("#[repr(C)]\n");
             if requires_abi {
@@ -695,20 +707,26 @@ impl AbiRenderer<'_> {
                     "impl VmAggregateCodec for {struct_name}Abi<VmAbi> {{\n"
                 ));
                 output.push_str(
-                "    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {\n",
+                "    fn decode_with_context(context: &vm::ExternalReadContext<'_, '_>, value: vm::Value) -> RuntimeResult<Self> {\n",
             );
-                output.push_str("        if value.tag() != vm::ValueTag::Aggregate {\n");
-                output.push_str(&format!(
-                "            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(\"value\", \"{struct_name}\")).boxed());\n"
-            ));
-                output.push_str("        }\n");
                 output.push_str(
-                "        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;\n",
+                "        let value_ref = context.value_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;\n",
             );
+                output.push_str(
+                "        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)\n",
+            );
+                output.push_str("    }\n\n");
+                output.push_str(
+                "    fn decode_value_ref_with_context(context: &vm::ExternalReadContext<'_, '_>, value_ref: &vm::VmValueRef<'_, '_>) -> RuntimeResult<Self> {\n",
+            );
+                output.push_str("        let component_count = value_ref.component_count();\n");
                 if fields.is_empty() {
-                    output.push_str("        if !slots.is_empty() {\n");
+                    output.push_str("        if component_count != 0 {\n");
                 } else {
-                    output.push_str(&format!("        if slots.len() != {} {{\n", fields.len()));
+                    output.push_str(&format!(
+                        "        if component_count != {} {{\n",
+                        fields.len()
+                    ));
                 }
                 output.push_str(&format!(
                 "            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(\"value\", \"expected {} fields\")).boxed());\n",
@@ -720,7 +738,7 @@ impl AbiRenderer<'_> {
                     let field_type = codegen.vm_type_for_binding(&field.binding_type);
                     let local_name = format!("field_{field_name}");
                     output.push_str(&format!(
-                    "        let {local_name} = <{field_type} as VmAggregateCodec>::decode_with_context(context, slots[{index}])?;\n"
+                    "        let {local_name} = <{field_type} as VmAggregateCodec>::decode_component_with_context(context, value_ref, {index})?;\n"
                 ));
                 }
                 output.push_str("        Ok(Self {\n");
@@ -732,19 +750,24 @@ impl AbiRenderer<'_> {
                 output.push_str("        })\n");
                 output.push_str("    }\n\n");
                 output.push_str(
-                "    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {\n",
+                "    fn encode_with_context(self, context: &mut vm::ExternalWriteContext<'_, '_>) -> RuntimeResult<vm::Value> {\n",
             );
-                output.push_str("        let slots = vec![\n");
-                for field in fields {
+                output.push_str(&format!(
+                    "        let mut value_builder = context.begin_named_storage_value_builder(\"{}\").map_err(Box::<RuntimeError>::from)?;\n",
+                    codegen.escape_rust_string(&struct_metadata_name)
+                ));
+                for (index, field) in fields.iter().enumerate() {
                     let field_name = codegen.to_snake_case(&field.name);
                     let field_type = codegen.vm_type_for_binding(&field.binding_type);
                     output.push_str(&format!(
-                    "            <{field_type} as VmAggregateCodec>::encode_with_context(self.{field_name}, context)?,\n"
+                    "        let component_value = <{field_type} as VmAggregateCodec>::encode_with_context(self.{field_name}, context)?;\n"
+                ));
+                    output.push_str(&format!(
+                    "        value_builder.write_component({index}, component_value).map_err(Box::<RuntimeError>::from)?;\n"
                 ));
                 }
-                output.push_str("        ];\n");
                 output.push_str(
-                    "        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)\n",
+                    "        value_builder.finish().map_err(Box::<RuntimeError>::from)\n",
                 );
                 output.push_str("    }\n");
                 output.push_str("}\n\n");
@@ -804,7 +827,7 @@ impl AbiRenderer<'_> {
                 output.push_str(&format!("impl VmAbiCodec for {struct_name}Abi<VmAbi> {{\n"));
                 output.push_str(&format!("    type Value = {value_name};\n\n"));
                 output.push_str(
-                "    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {\n",
+                "    fn into_value(self, context: &vm::ExternalReadContext<'_, '_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {\n",
             );
                 output.push_str(&format!("        Ok({value_name} {{\n"));
                 for field in fields {
@@ -820,7 +843,7 @@ impl AbiRenderer<'_> {
                 output.push_str("        })\n");
                 output.push_str("    }\n\n");
                 output.push_str(
-                "    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {\n",
+                "    fn from_value(context: &mut vm::ExternalWriteContext<'_, '_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {\n",
             );
                 output.push_str("        Ok(Self {\n");
                 for field in fields {
@@ -841,20 +864,26 @@ impl AbiRenderer<'_> {
 
                 output.push_str(&format!("impl VmAggregateCodec for {struct_name} {{\n"));
                 output.push_str(
-                "    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {\n",
+                "    fn decode_with_context(context: &vm::ExternalReadContext<'_, '_>, value: vm::Value) -> RuntimeResult<Self> {\n",
             );
-                output.push_str("        if value.tag() != vm::ValueTag::Aggregate {\n");
-                output.push_str(&format!(
-                "            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(\"value\", \"{struct_name}\")).boxed());\n"
-            ));
-                output.push_str("        }\n");
                 output.push_str(
-                "        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;\n",
+                "        let value_ref = context.value_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;\n",
             );
+                output.push_str(
+                "        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)\n",
+            );
+                output.push_str("    }\n\n");
+                output.push_str(
+                "    fn decode_value_ref_with_context(context: &vm::ExternalReadContext<'_, '_>, value_ref: &vm::VmValueRef<'_, '_>) -> RuntimeResult<Self> {\n",
+            );
+                output.push_str("        let component_count = value_ref.component_count();\n");
                 if fields.is_empty() {
-                    output.push_str("        if !slots.is_empty() {\n");
+                    output.push_str("        if component_count != 0 {\n");
                 } else {
-                    output.push_str(&format!("        if slots.len() != {} {{\n", fields.len()));
+                    output.push_str(&format!(
+                        "        if component_count != {} {{\n",
+                        fields.len()
+                    ));
                 }
                 output.push_str(&format!(
                 "            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(\"value\", \"expected {} fields\")).boxed());\n",
@@ -866,7 +895,7 @@ impl AbiRenderer<'_> {
                     let field_type = codegen.vm_type_for_binding(&field.binding_type);
                     let local_name = format!("field_{field_name}");
                     output.push_str(&format!(
-                    "        let {local_name} = <{field_type} as VmAggregateCodec>::decode_with_context(context, slots[{index}])?;\n"
+                    "        let {local_name} = <{field_type} as VmAggregateCodec>::decode_component_with_context(context, value_ref, {index})?;\n"
                 ));
                 }
                 output.push_str("        Ok(Self {\n");
@@ -878,19 +907,24 @@ impl AbiRenderer<'_> {
                 output.push_str("        })\n");
                 output.push_str("    }\n\n");
                 output.push_str(
-                "    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {\n",
+                "    fn encode_with_context(self, context: &mut vm::ExternalWriteContext<'_, '_>) -> RuntimeResult<vm::Value> {\n",
             );
-                output.push_str("        let slots = vec![\n");
-                for field in fields {
+                output.push_str(&format!(
+                    "        let mut value_builder = context.begin_named_storage_value_builder(\"{}\").map_err(Box::<RuntimeError>::from)?;\n",
+                    codegen.escape_rust_string(&struct_metadata_name)
+                ));
+                for (index, field) in fields.iter().enumerate() {
                     let field_name = codegen.to_snake_case(&field.name);
                     let field_type = codegen.vm_type_for_binding(&field.binding_type);
                     output.push_str(&format!(
-                    "            <{field_type} as VmAggregateCodec>::encode_with_context(self.{field_name}, context)?,\n"
+                    "        let component_value = <{field_type} as VmAggregateCodec>::encode_with_context(self.{field_name}, context)?;\n"
+                ));
+                    output.push_str(&format!(
+                    "        value_builder.write_component({index}, component_value).map_err(Box::<RuntimeError>::from)?;\n"
                 ));
                 }
-                output.push_str("        ];\n");
                 output.push_str(
-                    "        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)\n",
+                    "        value_builder.finish().map_err(Box::<RuntimeError>::from)\n",
                 );
                 output.push_str("    }\n");
                 output.push_str("}\n\n");
@@ -915,12 +949,12 @@ impl AbiRenderer<'_> {
                 output.push_str(&format!("impl VmAbiCodec for {struct_name} {{\n"));
                 output.push_str(&format!("    type Value = {value_name};\n\n"));
                 output.push_str(
-                "    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {\n",
+                "    fn into_value(self, _context: &vm::ExternalReadContext<'_, '_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {\n",
             );
                 output.push_str("        Ok(self)\n");
                 output.push_str("    }\n\n");
                 output.push_str(
-                "    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {\n",
+                "    fn from_value(_context: &mut vm::ExternalWriteContext<'_, '_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {\n",
             );
                 output.push_str("        Ok(value)\n");
                 output.push_str("    }\n");
@@ -979,6 +1013,25 @@ impl AbiRenderer<'_> {
                 Self::write_constant(&codegen, constant, output);
             }
         }
+
+        let register_storage_types_fn = codegen.register_storage_types_fn_name();
+        let isolate_name = if storage_type_registrations.is_empty() {
+            "_isolate"
+        } else {
+            "isolate"
+        };
+        output.push_str(&format!("/// Register VM storage schemas for {domain}.\n"));
+        output.push_str(&format!(
+            "pub(crate) fn {register_storage_types_fn}({isolate_name}: &mut vm::Isolate) {{\n"
+        ));
+        for (metadata_name, component_count) in storage_type_registrations {
+            output.push_str(&format!(
+                "    isolate.register_named_storage_type(\"{}\", {});\n",
+                codegen.escape_rust_string(&metadata_name),
+                component_count
+            ));
+        }
+        output.push_str("}\n");
 
         self.output
     }
@@ -1084,6 +1137,56 @@ impl AbiRenderer<'_> {
             }
             _ => panic!("unsupported unsigned integer width for constant rendering: {bits}"),
         }
+    }
+}
+
+/// Collect named storage registrations for one ABI module.
+fn collect_named_storage_registrations(
+    module: &str,
+    structs: &BTreeMap<String, BindingType>,
+    newtypes: &BTreeMap<String, BindingType>,
+    tagged_unions: &BTreeMap<String, BindingType>,
+) -> Vec<(String, usize)> {
+    let codegen = ModuleCodegen::new(module);
+    let mut registrations = Vec::new();
+
+    // aggregate newtypes
+    for (name, binding_type) in newtypes {
+        let Some(component_count) = named_storage_component_count(binding_type) else {
+            continue;
+        };
+        let metadata_name = codegen.named_type_metadata_name(module, name);
+        registrations.push((metadata_name, component_count));
+    }
+
+    // aggregate structs
+    for (name, binding_type) in structs {
+        let Some(component_count) = named_storage_component_count(binding_type) else {
+            continue;
+        };
+        let metadata_name = codegen.named_type_metadata_name(module, name);
+        registrations.push((metadata_name, component_count));
+    }
+
+    // tagged unions
+    for (name, binding_type) in tagged_unions {
+        let Some(component_count) = named_storage_component_count(binding_type) else {
+            continue;
+        };
+        let metadata_name = codegen.named_type_metadata_name(module, name);
+        registrations.push((metadata_name, component_count));
+    }
+
+    registrations
+}
+
+/// Return the semantic component count for one named storage binding type.
+fn named_storage_component_count(binding_type: &BindingType) -> Option<usize> {
+    match binding_type {
+        BindingType::Newtype { inner, .. } => binding_type_requires_abi(inner).then_some(1),
+        BindingType::Struct { fields, .. } => Some(fields.len()),
+        BindingType::TaggedUnion { .. } => Some(2),
+        _ => None,
     }
 }
 

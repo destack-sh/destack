@@ -12,7 +12,7 @@ pub(crate) fn step_instruction(
         InstructionOperation::AddConstUint => super::step_add_const_uint(state, block, pc),
         InstructionOperation::AddInt => super::step_add_int(state, block, pc),
         InstructionOperation::AddUint => super::step_add_uint(state, block, pc),
-        InstructionOperation::Aggregate => super::step_aggregate(state, block, pc),
+        InstructionOperation::Composite => super::step_composite(state, block, pc),
         InstructionOperation::AndInt => super::step_and_int(state, block, pc),
         InstructionOperation::AndUint => super::step_and_uint(state, block, pc),
         InstructionOperation::Assume => super::step_assume(state, block, pc),
@@ -72,9 +72,12 @@ pub(crate) fn step_instruction(
             super::step_compare_and_branch_uint(state, block, pc)
         }
         InstructionOperation::Const => super::step_const(state, block, pc),
+        InstructionOperation::Copy => super::step_copy(state, block, pc),
+        InstructionOperation::IndexSelect => super::step_index_select(state, block, pc),
+        InstructionOperation::SelectByIndex => super::step_select_by_index(state, block, pc),
         InstructionOperation::ElementAddr => super::step_element_addr(state, block, pc),
-        InstructionOperation::ElementAddrAggregate => {
-            super::step_element_addr_aggregate(state, block, pc)
+        InstructionOperation::ElementAddrComposite => {
+            super::step_element_addr_composite(state, block, pc)
         }
         InstructionOperation::ElementAddrGlobal => {
             super::step_element_addr_global(state, block, pc)
@@ -86,8 +89,8 @@ pub(crate) fn step_instruction(
         InstructionOperation::ElementAddrStack => super::step_element_addr_stack(state, block, pc),
         InstructionOperation::ElementGet => super::step_element_get(state, block, pc),
         InstructionOperation::ElementLoad => super::step_element_load(state, block, pc),
-        InstructionOperation::ElementLoadAggregate => {
-            super::step_element_load_aggregate(state, block, pc)
+        InstructionOperation::ElementLoadComposite => {
+            super::step_element_load_composite(state, block, pc)
         }
         InstructionOperation::ElementLoadGlobal => {
             super::step_element_load_global(state, block, pc)
@@ -99,8 +102,8 @@ pub(crate) fn step_instruction(
         InstructionOperation::ElementLoadStack => super::step_element_load_stack(state, block, pc),
         InstructionOperation::ElementSet => super::step_element_set(state, block, pc),
         InstructionOperation::ElementStore => super::step_element_store(state, block, pc),
-        InstructionOperation::ElementStoreAggregate => {
-            super::step_element_store_aggregate(state, block, pc)
+        InstructionOperation::ElementStoreComposite => {
+            super::step_element_store_composite(state, block, pc)
         }
         InstructionOperation::ElementStoreGlobal => {
             super::step_element_store_global(state, block, pc)
@@ -115,8 +118,8 @@ pub(crate) fn step_instruction(
         InstructionOperation::EqConstInt => super::step_eq_const_int(state, block, pc),
         InstructionOperation::EqInt => super::step_eq_int(state, block, pc),
         InstructionOperation::FieldAddr => super::step_field_addr(state, block, pc),
-        InstructionOperation::FieldAddrAggregate => {
-            super::step_field_addr_aggregate(state, block, pc)
+        InstructionOperation::FieldAddrComposite => {
+            super::step_field_addr_composite(state, block, pc)
         }
         InstructionOperation::FieldAddrGlobal => super::step_field_addr_global(state, block, pc),
         InstructionOperation::FieldAddrManaged => super::step_field_addr_managed(state, block, pc),
@@ -125,8 +128,8 @@ pub(crate) fn step_instruction(
         InstructionOperation::FieldGet => super::step_field_get(state, block, pc),
         InstructionOperation::FieldGetInline => super::step_field_get_inline(state, block, pc),
         InstructionOperation::FieldLoad => super::step_field_load(state, block, pc),
-        InstructionOperation::FieldLoadAggregate => {
-            super::step_field_load_aggregate(state, block, pc)
+        InstructionOperation::FieldLoadComposite => {
+            super::step_field_load_composite(state, block, pc)
         }
         InstructionOperation::FieldLoadGlobal => super::step_field_load_global(state, block, pc),
         InstructionOperation::FieldLoadManaged => super::step_field_load_managed(state, block, pc),
@@ -134,8 +137,8 @@ pub(crate) fn step_instruction(
         InstructionOperation::FieldLoadStack => super::step_field_load_stack(state, block, pc),
         InstructionOperation::FieldSet => super::step_field_set(state, block, pc),
         InstructionOperation::FieldStore => super::step_field_store(state, block, pc),
-        InstructionOperation::FieldStoreAggregate => {
-            super::step_field_store_aggregate(state, block, pc)
+        InstructionOperation::FieldStoreComposite => {
+            super::step_field_store_composite(state, block, pc)
         }
         InstructionOperation::FieldStoreGlobal => super::step_field_store_global(state, block, pc),
         InstructionOperation::FieldStoreInline => super::step_field_store_inline(state, block, pc),

@@ -4,7 +4,8 @@ use std::fmt;
 use destack_core::ImmutableStringPool;
 use {destack_engine as engine, destack_mir as mir};
 
-use super::lower::lower_function;
+use super::lower::{LoweredValueSlot, analyze_lowered_value_slots, lower_function};
+use super::storage::{StorageLayout, build_storage_layouts};
 use super::value::frame_slot_value_class_from_type;
 use super::{Function, FunctionTable, FunctionTarget};
 
@@ -33,6 +34,8 @@ pub struct Executable {
     pub(crate) safepoint_id_by_resume_point: HashMap<engine::ResumePointId, engine::SafepointId>,
     /// Materialization maps by dense map id.
     pub(crate) materialization_maps: Vec<engine::MaterializationMap>,
+    /// Compiled storage layouts keyed by MIR type id.
+    pub(crate) storage_layouts: HashMap<mir::LocalNodeId<mir::Type>, StorageLayout>,
     /// Generic resume point ids keyed by function, block, and instruction offset.
     pub(crate) resume_point_id_by_position: HashMap<
         (
@@ -107,6 +110,11 @@ impl Executable {
     ) -> Option<&engine::MaterializationMap> {
         self.materialization_maps
             .get(materialization_map.0 as usize)
+    }
+
+    /// Return the compiled storage layout for one MIR type.
+    pub(crate) fn storage_layout(&self, ty: mir::LocalNodeId<mir::Type>) -> Option<&StorageLayout> {
+        self.storage_layouts.get(&ty)
     }
 
     /// Return one generic resume point id for one execution position.
@@ -220,7 +228,9 @@ impl ExecutableBuilder {
         let function_id_by_name = self.build_function_id_by_name();
         let vtable_id_by_global = self.build_vtable_id_by_global();
         let (lowered_function_ids, target_by_id) = self.build_function_targets();
-        let functions = self.build_functions(&lowered_function_ids, &target_by_id);
+        let storage_layouts = build_storage_layouts(&self.tree);
+        let functions =
+            self.build_functions(&lowered_function_ids, &target_by_id, &storage_layouts);
         let functions = FunctionTable::new(functions, target_by_id);
 
         Executable {
@@ -235,6 +245,7 @@ impl ExecutableBuilder {
             safepoints: self.safepoints,
             safepoint_id_by_resume_point: self.safepoint_id_by_resume_point,
             materialization_maps: self.materialization_maps,
+            storage_layouts,
             resume_point_id_by_position: self.resume_point_id_by_position,
             functions,
         }
@@ -303,6 +314,7 @@ impl ExecutableBuilder {
         &mut self,
         lowered_function_ids: &[mir::LocalNodeId<mir::Function>],
         target_by_id: &HashMap<mir::LocalNodeId<mir::Function>, FunctionTarget>,
+        storage_layouts: &HashMap<mir::LocalNodeId<mir::Type>, StorageLayout>,
     ) -> Vec<Function> {
         let mut function_indices = HashMap::with_capacity(lowered_function_ids.len());
 
@@ -318,7 +330,7 @@ impl ExecutableBuilder {
 
         // build one executable function at a time
         for function_id in lowered_function_ids {
-            let function = self.build_function(*function_id, &function_indices);
+            let function = self.build_function(*function_id, &function_indices, storage_layouts);
             functions.push(function);
         }
 
@@ -330,16 +342,15 @@ impl ExecutableBuilder {
         &mut self,
         function_id: mir::LocalNodeId<mir::Function>,
         function_indices: &HashMap<mir::LocalNodeId<mir::Function>, u32>,
+        storage_layouts: &HashMap<mir::LocalNodeId<mir::Type>, StorageLayout>,
     ) -> Function {
+        let function = self.tree.get(function_id);
+        let (value_slots, deferred_block_params) =
+            analyze_lowered_value_slots(&self.tree, function);
+
         // derive the logical frame shape before lowering
-        let frame_layout = {
-            let function = self.tree.get(function_id);
-            self.build_frame_layout(function_id, function)
-        };
-        let liveness = {
-            let function = self.tree.get(function_id);
-            mir::FunctionLiveness::build(function, &self.tree)
-        };
+        let frame_layout = self.build_frame_layout(function_id, function, &value_slots);
+        let liveness = { mir::FunctionLiveness::build(function, &self.tree) };
         let (yield_resume_points, exceptional_call_resume_points) =
             self.build_resume_points(function_id, &frame_layout, &liveness);
 
@@ -351,6 +362,9 @@ impl ExecutableBuilder {
             &yield_resume_points,
             &exceptional_call_resume_points,
             function_indices,
+            storage_layouts,
+            &value_slots,
+            &deferred_block_params,
         )
         .unwrap_or_else(|| panic!("failed to lower executable function: {function_id:?}"));
 
@@ -391,17 +405,18 @@ impl ExecutableBuilder {
         &self,
         function_id: mir::LocalNodeId<mir::Function>,
         function: &mir::Function,
+        value_slots: &[LoweredValueSlot],
     ) -> engine::FrameLayout {
         let mut slots = Vec::new();
 
         // value slots
         let value_start = slots.len() as u32;
-        for (index, ty) in function.value_types.iter().enumerate() {
+        for slot in value_slots {
             slots.push(engine::FrameSlot {
                 kind: engine::FrameSlotKind::Value,
-                source: engine::FrameSlotSource::Value(mir::Value::new(index as u32)),
-                ty: *ty,
-                value_class: frame_slot_value_class_from_type(&self.tree, *ty),
+                source: slot.source,
+                ty: slot.ty,
+                value_class: frame_slot_value_class_from_type(&self.tree, slot.ty),
             });
         }
         let value_slots = value_start..slots.len() as u32;
@@ -602,8 +617,8 @@ impl ExecutableBuilder {
             .iter()
             .zip(arguments.iter())
             .map(|(parameter, argument)| engine::ResumeCopy {
-                source: *argument,
-                destination: parameter.value,
+                source: argument.0,
+                destination: parameter.value.0,
             })
             .collect();
 
@@ -611,7 +626,7 @@ impl ExecutableBuilder {
         self.resume_transfers.push(engine::ResumeTransfer {
             id: transfer_id,
             copies,
-            resume_value,
+            resume_value: resume_value.map(|value| value.0),
         });
 
         let resume_point_id = engine::ResumePointId(self.resume_points.len() as u32);
@@ -713,8 +728,11 @@ impl ExecutableBuilder {
             live_in.difference(&parameter_values).copied().collect();
 
         for copy in &resume_transfer.copies {
-            if live_in.contains(&copy.destination) {
-                values.insert(copy.source);
+            let destination = mir::Value::new(copy.destination);
+            let source = mir::Value::new(copy.source);
+
+            if live_in.contains(&destination) {
+                values.insert(source);
             }
         }
 
@@ -740,8 +758,17 @@ impl ExecutableBuilder {
     ) -> bool {
         // value slots
         if layout.value_slots.contains(&slot) {
-            let value = mir::Value(slot - layout.value_slots.start);
-            return materialized_values.contains(&value);
+            let Some(value_slot) = layout.slot(slot) else {
+                return false;
+            };
+
+            return match value_slot.source {
+                engine::FrameSlotSource::Value(value)
+                | engine::FrameSlotSource::DisaggregatedValue(value) => {
+                    materialized_values.contains(&value)
+                }
+                _ => false,
+            };
         }
 
         // local slots

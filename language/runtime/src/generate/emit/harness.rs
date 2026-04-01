@@ -196,6 +196,8 @@ impl<'spec, 'output> HarnessWriter<'spec, 'output> {
             .push_str("        match self.generated_vm_context_mut() {\n");
         self.output.push_str("            Some(context) => {\n");
         self.output
+            .push_str("                let context = &mut context.write();\n");
+        self.output
             .push_str("                let value = Vm::from_value(context, value)?;\n");
         self.output
             .push_str("                Ok(HarnessValue::Vm(value))\n");
@@ -244,6 +246,8 @@ impl<'spec, 'output> HarnessWriter<'spec, 'output> {
         self.output.push_str("                    ))\n");
         self.output.push_str("                    .boxed()\n");
         self.output.push_str("                })?;\n");
+        self.output
+            .push_str("                let context = &context.read();\n");
         self.output
             .push_str("                value.into_value(context)\n");
         self.output.push_str("            }\n");

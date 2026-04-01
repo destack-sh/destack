@@ -18,7 +18,7 @@ pub(super) enum PointerStorage {
     Unknown,
 }
 
-/// Scalar and aggregate kinds used for typed dispatch selection.
+/// Scalar and composite kinds used for typed dispatch selection.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum ValueKind {
     /// Void value.
@@ -39,8 +39,8 @@ pub(super) enum ValueKind {
     },
     /// Function pointer value with result type.
     FunctionPointer { result: mir::LocalNodeId<mir::Type> },
-    /// Heap aggregate value with concrete type.
-    Aggregate { ty: mir::LocalNodeId<mir::Type> },
+    /// Composite value with concrete type.
+    Composite { ty: mir::LocalNodeId<mir::Type> },
     /// Managed array value with element type.
     Array {
         element: mir::LocalNodeId<mir::Type>,
@@ -96,11 +96,11 @@ pub(super) fn kind_from_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Typ
             length: *length,
         },
         mir::Type::Newtype { inner, .. } => kind_from_type(tree, *inner),
-        mir::Type::FunctionValue { .. }
-        | mir::Type::Tuple { .. }
+        mir::Type::FunctionValue { .. } => ValueKind::Composite { ty },
+        mir::Type::Tuple { .. }
         | mir::Type::Struct { .. }
         | mir::Type::Vector { .. }
-        | mir::Type::Tensor { .. } => ValueKind::Aggregate { ty },
+        | mir::Type::Tensor { .. } => ValueKind::Composite { ty },
         mir::Type::TensorReference {
             kind,
             address_space,
@@ -147,9 +147,15 @@ pub(super) fn frame_slot_value_class_from_type(
             ..
         } => engine::FrameSlotValueClass::UnknownPointer,
         ValueKind::FunctionPointer { .. } => engine::FrameSlotValueClass::Function,
-        ValueKind::Aggregate { .. } | ValueKind::Array { .. } => {
-            engine::FrameSlotValueClass::ManagedObject
-        }
+        ValueKind::Composite { ty } => match tree.get(ty) {
+            mir::Type::FunctionValue { .. } => engine::FrameSlotValueClass::ManagedReference,
+            mir::Type::Tuple { .. }
+            | mir::Type::Struct { .. }
+            | mir::Type::Vector { .. }
+            | mir::Type::Tensor { .. } => engine::FrameSlotValueClass::StackPointer,
+            _ => engine::FrameSlotValueClass::Plain,
+        },
+        ValueKind::Array { .. } => engine::FrameSlotValueClass::StackPointer,
         _ => engine::FrameSlotValueClass::Plain,
     }
 }

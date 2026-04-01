@@ -249,16 +249,23 @@ fn capture_continuation_frame(
         local_slice,
     );
 
-    debug_assert!(
-        !frame.has_live_stack_allocations(),
-        "stack-local allocations should not cross suspension"
-    );
-
     engine::FrameImage {
         frame_layout: frame.frame_layout,
         resume_point,
         transfer: frame.transfer.clone(),
         slots,
+        stack_allocations: frame
+            .stack_allocations
+            .iter()
+            .map(|allocation| {
+                allocation
+                    .as_ref()
+                    .map(|allocation| engine::FrameStackAllocation {
+                        bytes: allocation.clone_bytes(),
+                        storage_type: allocation.storage_type(),
+                    })
+            })
+            .collect(),
     }
 }
 
@@ -360,7 +367,18 @@ fn restore_frame_image(
     frame.block_ptr = std::ptr::NonNull::from(block);
     frame.resume_pc = resume_point.instruction_offset as usize;
     frame.transfer = image.transfer.clone();
-    frame.stack_values = Vec::new();
+    frame.stack_allocations = image
+        .stack_allocations
+        .iter()
+        .map(|allocation| {
+            allocation.as_ref().map(|allocation| {
+                crate::interpreter::StackAllocation::from_bytes(
+                    allocation.bytes.clone(),
+                    allocation.storage_type,
+                )
+            })
+        })
+        .collect();
 
     Ok(frame)
 }
@@ -397,9 +415,14 @@ fn capture_slot_value(value: Value) -> engine::FrameValue {
             pointer: value.as_shared_pointer().unwrap(),
             meta: value.reference_meta(),
         },
-        ValueTag::StackPointer | ValueTag::LocalPointer => {
-            panic!("frame-local pointers must not cross durable suspension")
-        }
+        ValueTag::StackPointer => engine::FrameValue::StackPointer {
+            pointer: value.as_stack_pointer().unwrap(),
+            meta: value.reference_meta(),
+        },
+        ValueTag::LocalPointer => engine::FrameValue::LocalPointer {
+            pointer: value.as_local_pointer().unwrap(),
+            meta: value.reference_meta(),
+        },
         ValueTag::GlobalPointer => {
             let pointer = value.as_global_pointer().unwrap();
             let slot_offset = u32::try_from(pointer.slot_offset)
@@ -416,8 +439,6 @@ fn capture_slot_value(value: Value) -> engine::FrameValue {
         ValueTag::FunctionPointer => {
             engine::FrameValue::Function(value.as_function_pointer().unwrap())
         }
-        ValueTag::Aggregate => engine::FrameValue::Aggregate(value.as_managed_reference().unwrap()),
-        ValueTag::String => engine::FrameValue::String(value.as_managed_reference().unwrap()),
     }
 }
 
@@ -441,6 +462,12 @@ fn restore_slot_value(value: &engine::FrameValue) -> Value {
         engine::FrameValue::SharedPointer { pointer, meta } => {
             Value::shared_pointer(*pointer).with_reference_meta(*meta)
         }
+        engine::FrameValue::StackPointer { pointer, meta } => {
+            Value::stack_pointer_with_meta(*pointer, *meta)
+        }
+        engine::FrameValue::LocalPointer { pointer, meta } => {
+            Value::local_pointer_with_meta(*pointer, *meta)
+        }
         engine::FrameValue::GlobalPointer { pointer, meta } => {
             let slot_offset = usize::try_from(pointer.slot_offset)
                 .unwrap_or_else(|_| panic!("global pointer offset exceeds usize"));
@@ -448,8 +475,6 @@ fn restore_slot_value(value: &engine::FrameValue) -> Value {
                 .with_reference_meta(*meta)
         }
         engine::FrameValue::Function(function) => Value::function_pointer(*function),
-        engine::FrameValue::Aggregate(handle) => Value::aggregate(*handle),
-        engine::FrameValue::String(handle) => Value::string(*handle),
     }
 }
 

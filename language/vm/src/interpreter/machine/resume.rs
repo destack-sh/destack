@@ -4,9 +4,11 @@ use destack_engine as engine;
 use destack_heap::Value;
 
 use super::super::state::Frame;
+use super::bind::{TransferredValue, bind_transferred_value};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::executable::Executable;
 use crate::interpreter::Interpreter;
+use destack_mir as mir;
 
 /// Copy resume values within one frame using one semantic resume point.
 fn copy_resume_values(
@@ -17,12 +19,12 @@ fn copy_resume_values(
     // gather source values before rewriting any destination slots
     let copied_values = copies
         .iter()
-        .map(|copy| frame.get_value(values, copy.source))
+        .map(|copy| frame.get_value(values, mir::Value::new(copy.source)))
         .collect::<RuntimeResult<Vec<_>>>()?;
 
     // write the copied values back into their destination slots
     for (copy, value) in copies.iter().zip(copied_values) {
-        frame.set_value(values, copy.destination, value);
+        frame.set_value(values, mir::Value::new(copy.destination), value);
     }
 
     Ok(())
@@ -35,7 +37,7 @@ impl Interpreter {
         executable: &Executable,
         frame_index: usize,
         resume_point_id: engine::ResumePointId,
-        resume_value: Option<Value>,
+        resume_value: Option<TransferredValue>,
     ) -> RuntimeResult<()> {
         // resolve the semantic resume metadata first
         let resume_point = executable
@@ -87,7 +89,15 @@ impl Interpreter {
             let Some(resume_value) = resume_value else {
                 return Err(RuntimeError::new(Error::InvalidInstruction));
             };
-            frame.set_value(&mut self.value_stack, resume_value_slot, resume_value);
+            bind_transferred_value(
+                executable,
+                &mut self.value_stack,
+                frame,
+                frame_index,
+                mir::Value::new(resume_value_slot),
+                resume_value,
+            )
+            .map_err(RuntimeError::new)?;
         }
 
         // advance the frame to the resumed position
@@ -114,6 +124,27 @@ impl Interpreter {
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
 
         // bind the resumed value through the semantic resume point
+        self.apply_resume_point_to_frame(
+            executable,
+            frame_index,
+            resume_point_id,
+            Some(TransferredValue::Plain(value)),
+        )
+    }
+
+    /// Apply one semantic resume point on the resumed caller frame from one owned payload.
+    pub(crate) fn apply_resume_point_transfer_typed(
+        &mut self,
+        executable: &Executable,
+        resume_point_id: engine::ResumePointId,
+        value: TransferredValue,
+    ) -> RuntimeResult<()> {
+        let frame_index = self
+            .call_stack
+            .len()
+            .checked_sub(1)
+            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+
         self.apply_resume_point_to_frame(executable, frame_index, resume_point_id, Some(value))
     }
 }

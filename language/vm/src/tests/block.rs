@@ -402,6 +402,50 @@ block1(v3: i32):
     );
 }
 
+/// Array block parameters stay correct across ordinary CFG jumps.
+#[test]
+fn test_block_parameters_jump_array() {
+    let mir = r#"
+function @array_params() -> i32 {
+block0:
+    v0: i32 = iconst 10i32
+    v1: i32 = iconst 20i32
+    v2: i32 = iconst 30i32
+    v3: [i32; 3] = array [i32; 3] (v0, v1, v2)
+    jump block1(v3)
+block1(v4: [i32; 3]):
+    v5: i64 = iconst 2i64
+    v6: i32 = element.get v4, v5
+    return v6
+}"#;
+    run_mir_expect(mir, "array_params", &[], Value::int32(30));
+}
+
+/// Updated local arrays stay decomposed across ordinary CFG jumps.
+#[test]
+fn test_block_parameters_jump_updated_array() {
+    let mir = r#"
+function @updated_array_params(v0: i64, v1: i32) -> i32 {
+block0(v0: i64, v1: i32):
+    v2: i32 = iconst 10i32
+    v3: i32 = iconst 20i32
+    v4: i32 = iconst 30i32
+    v5: [i32; 3] = array [i32; 3] (v2, v3, v4)
+    v6: [i32; 3] = element.set v5, v0, v1
+    jump block1(v6, v0)
+block1(v7: [i32; 3], v8: i64):
+    v9: i32 = element.get v7, v8
+    return v9
+}"#;
+
+    run_mir_expect(
+        mir,
+        "updated_array_params",
+        &[Value::uint64(2), Value::int32(99)],
+        Value::int32(99),
+    );
+}
+
 /// Unreachable terminator produces an error.
 #[test]
 fn test_unreachable() {

@@ -1,5 +1,7 @@
+use destack_core::ImmutableStringPool;
 use destack_heap::{GcStats, Heap, MemoryContext, SharedSpace, Value};
 use destack_mir::parse::{ParseOptions, Parser};
+use destack_mir::{NodeTree, TypeAlias};
 use destack_source::FileId;
 
 use crate::diagnostic::{Error, RuntimeResult};
@@ -20,8 +22,11 @@ pub(crate) struct TestIsolate {
 impl TestIsolate {
     /// Build one test isolate from MIR text.
     pub(crate) fn new(mir_text: &str) -> Self {
-        let (tree, strings) = Parser::parse(FileId::new(0), mir_text, ParseOptions::default())
+        let (mut tree, strings) = Parser::parse(FileId::new(0), mir_text, ParseOptions::default())
             .expect("failed to parse MIR");
+
+        // keep raw MIR tests explicit about the well known String contract
+        stamp_well_known_string_type_for_tests(&mut tree, &strings);
         let mut isolate = Isolate::build_with_options(tree, strings, IsolateOptions::test())
             .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
         let mut heap = Heap::new();
@@ -40,9 +45,39 @@ impl TestIsolate {
         }
     }
 
-    /// Create one aggregate value on the isolate heap.
-    pub(crate) fn allocate_aggregate(&mut self, values: Vec<Value>) -> Value {
-        self.isolate.allocate_aggregate(&mut self.heap, values)
+    /// Resolve one function parameter type by name and position.
+    pub(crate) fn parameter_type(
+        &self,
+        function: &str,
+        argument_index: usize,
+    ) -> destack_mir::LocalNodeId<destack_mir::Type> {
+        let function_id = self
+            .isolate
+            .lookup_function_id(function)
+            .unwrap_or_else(|| panic!("missing function '{function}'"));
+        let function_node = self.isolate.tree().get(function_id);
+        function_node
+            .parameters
+            .get(argument_index)
+            .unwrap_or_else(|| panic!("missing argument {argument_index} for '{function}'"))
+            .ty
+    }
+
+    /// Materialize one typed value for the given MIR type.
+    pub(crate) fn materialize_value_for_type(
+        &mut self,
+        ty: destack_mir::LocalNodeId<destack_mir::Type>,
+        values: Vec<Value>,
+    ) -> Value {
+        self.with_memory(|vm, memory| {
+            vm.with_runtime_context(memory, |context| {
+                context
+                    .materialize_storage_value_for_type(ty, values)
+                    .unwrap_or_else(|error| {
+                        panic!("failed to materialize typed composite: {error}")
+                    })
+            })
+        })
     }
 
     /// Run one callback with the isolate execution memory.
@@ -105,14 +140,28 @@ impl TestIsolate {
     }
 }
 
+/// Stamp the canonical well known string type for raw MIR test modules when present.
+pub(crate) fn stamp_well_known_string_type_for_tests(
+    tree: &mut NodeTree,
+    strings: &ImmutableStringPool,
+) {
+    // find the explicit @String alias used by VM test MIR fixtures
+    let string_type = tree.iter_nodes::<TypeAlias>().find_map(|(_, type_alias)| {
+        if strings.get(type_alias.name) == "String" {
+            Some(type_alias.ty)
+        } else {
+            None
+        }
+    });
+
+    if let Some(string_type) = string_type {
+        tree.type_table.set_string_type(string_type);
+    }
+}
+
 /// Parse MIR text and create one test isolate.
 pub(crate) fn create_isolate(mir_text: &str) -> TestIsolate {
     TestIsolate::new(mir_text)
-}
-
-/// Create one aggregate value on the isolate heap.
-pub(crate) fn create_aggregate(isolate: &mut TestIsolate, values: Vec<Value>) -> Value {
-    isolate.allocate_aggregate(values)
 }
 
 /// Run one MIR function by name with the given arguments.

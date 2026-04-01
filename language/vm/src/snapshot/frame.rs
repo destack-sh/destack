@@ -1,6 +1,8 @@
-use destack_heap::{Value, ValueBuffer};
+use destack_heap::Value;
 use serde::{Deserialize, Serialize};
 use {destack_engine as engine, destack_mir as mir};
+
+use crate::interpreter::StackAllocation;
 
 /// Durable call frame state.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -27,8 +29,8 @@ pub struct InterpreterFrameImage {
     pub local_base: usize,
     /// The number of locals in this frame.
     pub local_count: usize,
-    /// The captured stack allocated value buffers.
-    pub stack_values: Vec<Option<ValueBuffer>>,
+    /// The captured stack allocations.
+    pub(crate) stack_allocations: Vec<Option<StackAllocation>>,
     /// The captured function environment.
     pub environment: Value,
 }

@@ -1,4 +1,4 @@
-use destack_heap::{Heap, ManagedReference, Value};
+use destack_heap::{Heap, ManagedReference, ReferenceMap, Value};
 
 /// Allocate one empty managed cell for tests.
 fn allocate(heap: &mut Heap) -> ManagedReference {
@@ -8,7 +8,25 @@ fn allocate(heap: &mut Heap) -> ManagedReference {
 
 /// Allocate one managed cell with values for tests.
 fn allocate_with_values(heap: &mut Heap, values: Vec<Value>) -> ManagedReference {
-    heap.allocate_packed_values(values)
+    let mut bytes = Vec::with_capacity(values.len() * Value::BYTE_LEN);
+    let mut offsets = Vec::new();
+
+    // encode one explicit value-backed payload
+    for (index, value) in values.into_iter().enumerate() {
+        if value.as_managed_reference().is_some() {
+            offsets.push((index * Value::BYTE_LEN) as u32);
+        }
+
+        bytes.extend_from_slice(&value.to_byte_array());
+    }
+
+    let reference_map = if offsets.is_empty() {
+        ReferenceMap::empty()
+    } else {
+        ReferenceMap::ValueOffsets { offsets }
+    };
+
+    heap.allocate_managed_bytes(&bytes, reference_map, None)
         .expect("managed allocation should succeed")
 }
 
@@ -81,14 +99,22 @@ fn test_gc_handles_cycles() {
     let mut heap = Heap::new();
 
     let a = heap
-        .allocate_zeroed_packed_values(1)
+        .allocate_managed_zeroed(
+            Value::BYTE_LEN,
+            ReferenceMap::ValueOffsets { offsets: vec![0] },
+            None,
+        )
         .expect("managed allocation should succeed");
     let b = heap
-        .allocate_zeroed_packed_values(1)
+        .allocate_managed_zeroed(
+            Value::BYTE_LEN,
+            ReferenceMap::ValueOffsets { offsets: vec![0] },
+            None,
+        )
         .expect("managed allocation should succeed");
 
-    assert!(heap.set_packed_value(a, 0, Value::managed_reference(b)));
-    assert!(heap.set_packed_value(b, 0, Value::managed_reference(a)));
+    assert!(heap.set_managed_bytes(a, 0, &Value::managed_reference(b).to_byte_array()));
+    assert!(heap.set_managed_bytes(b, 0, &Value::managed_reference(a).to_byte_array()));
 
     let _unreachable1 = allocate(&mut heap);
     let _unreachable2 = allocate(&mut heap);
@@ -147,7 +173,7 @@ fn test_gc_handles_aggregates() {
         &mut heap,
         vec![Value::int32(42), Value::managed_reference(child)],
     );
-    let parent = allocate_with_values(&mut heap, vec![Value::aggregate(inner_agg)]);
+    let parent = allocate_with_values(&mut heap, vec![Value::managed_reference(inner_agg)]);
 
     let _unreachable = allocate(&mut heap);
 

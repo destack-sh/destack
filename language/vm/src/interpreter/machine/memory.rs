@@ -1,5 +1,6 @@
 use super::prelude::*;
 use crate::telemetry::stat_inc;
+use destack_heap::ReferenceMap;
 
 /// Record one load in the VM statistics.
 #[inline(always)]
@@ -239,8 +240,7 @@ pub(crate) fn step_load(
     let InstructionData::Load {
         dest,
         pointer,
-        raw_pointee,
-        ..
+        access,
     } = &block[pc].data
     else {
         unreachable!()
@@ -250,7 +250,7 @@ pub(crate) fn step_load(
     let ptr = state.get(*pointer);
 
     // load from pointer
-    let value = match access::load_from_pointer_with_raw_pointee(state, ptr, *raw_pointee) {
+    let value = match access::load_from_pointer_with_access(state, ptr, *access) {
         Ok(v) => v,
         Err(e) => return Transfer::Error(e),
     };
@@ -273,8 +273,7 @@ pub(crate) fn step_store(
         pointer,
         value,
         reference,
-        raw_pointee,
-        ..
+        access,
     } = &block[pc].data
     else {
         unreachable!()
@@ -290,7 +289,7 @@ pub(crate) fn step_store(
     }
 
     // write through pointer
-    if let Err(e) = access::store_to_pointer_with_raw_pointee(state, ptr, *raw_pointee, val) {
+    if let Err(e) = access::store_to_pointer_with_access(state, ptr, *access, val) {
         return Transfer::Error(e);
     }
 
@@ -402,6 +401,7 @@ pub(crate) fn step_atomic_compare_exchange(
 
     // execute the compare exchange
     let result = match state.execute_atomic_compare_exchange_value(
+        *dest,
         pointer,
         expected,
         new_value,
@@ -528,9 +528,7 @@ pub(crate) fn step_load_managed(
     let InstructionData::Load {
         dest,
         pointer,
-        managed_pointee,
-        raw_pointee: _,
-        ..
+        access,
     } = &block[pc].data
     else {
         unreachable!()
@@ -540,10 +538,10 @@ pub(crate) fn step_load_managed(
     let ptr = state.get(*pointer);
 
     // load from managed reference
-    let Some(managed_pointee) = *managed_pointee else {
+    let Some(access) = *access else {
         return Transfer::Error(Error::InvalidManagedReference);
     };
-    let value = match access::load_from_managed_reference_typed(state, ptr, managed_pointee) {
+    let value = match access::load_from_managed_reference_typed(state, ptr, access) {
         Ok(v) => v,
         Err(error) => return Transfer::Error(error),
     };
@@ -566,8 +564,7 @@ pub(crate) fn step_load_raw(
     let InstructionData::Load {
         dest,
         pointer,
-        raw_pointee,
-        ..
+        access,
     } = &block[pc].data
     else {
         unreachable!()
@@ -577,10 +574,10 @@ pub(crate) fn step_load_raw(
     let ptr = state.get(*pointer);
 
     // load from raw pointer
-    let Some(raw_pointee) = *raw_pointee else {
+    let Some(access) = *access else {
         return Transfer::Error(Error::InvalidManagedReference);
     };
-    let value = match access::load_from_raw_pointer_typed(state, ptr, raw_pointee) {
+    let value = match access::load_from_raw_pointer_typed(state, ptr, access) {
         Ok(v) => v,
         Err(e) => return Transfer::Error(e),
     };
@@ -603,8 +600,7 @@ pub(crate) fn step_load_stack(
     let InstructionData::Load {
         dest,
         pointer,
-        raw_pointee: _,
-        ..
+        access,
     } = &block[pc].data
     else {
         unreachable!()
@@ -614,7 +610,18 @@ pub(crate) fn step_load_stack(
     let ptr = state.get(*pointer);
 
     // load from stack pointer
-    let value = match access::load_from_stack_pointer(state, ptr) {
+    let Some(access) = *access else {
+        return Transfer::Error(Error::InvalidManagedReference);
+    };
+    let pointer = match ptr.as_stack_pointer() {
+        Some(pointer) => pointer,
+        None => {
+            return Transfer::Error(Error::InvalidPointerType {
+                actual: format!("{ptr:?}"),
+            });
+        }
+    };
+    let value = match access::load_from_stack_pointer_typed(state, pointer, access) {
         Ok(v) => v,
         Err(e) => return Transfer::Error(e),
     };
@@ -637,8 +644,7 @@ pub(crate) fn step_load_local(
     let InstructionData::Load {
         dest,
         pointer,
-        raw_pointee: _,
-        ..
+        access: _,
     } = &block[pc].data
     else {
         unreachable!()
@@ -671,8 +677,7 @@ pub(crate) fn step_load_global(
     let InstructionData::Load {
         dest,
         pointer,
-        raw_pointee: _,
-        ..
+        access: _,
     } = &block[pc].data
     else {
         unreachable!()
@@ -706,9 +711,7 @@ pub(crate) fn step_store_managed(
         pointer,
         value,
         reference,
-        managed_pointee,
-        raw_pointee: _,
-        ..
+        access,
     } = &block[pc].data
     else {
         unreachable!()
@@ -724,10 +727,10 @@ pub(crate) fn step_store_managed(
     }
 
     // write through managed reference
-    let Some(managed_pointee) = *managed_pointee else {
+    let Some(access) = *access else {
         return Transfer::Error(Error::InvalidManagedReference);
     };
-    if let Err(e) = access::store_to_managed_reference_typed(state, ptr, managed_pointee, val) {
+    if let Err(e) = access::store_to_managed_reference_typed(state, ptr, access, val) {
         return Transfer::Error(e);
     }
 
@@ -747,8 +750,7 @@ pub(crate) fn step_store_raw(
         pointer,
         value,
         reference,
-        raw_pointee,
-        ..
+        access,
     } = &block[pc].data
     else {
         unreachable!()
@@ -764,10 +766,10 @@ pub(crate) fn step_store_raw(
     }
 
     // write through raw pointer
-    let Some(raw_pointee) = *raw_pointee else {
+    let Some(access) = *access else {
         return Transfer::Error(Error::InvalidManagedReference);
     };
-    if let Err(e) = access::store_to_raw_pointer_typed(state, ptr, raw_pointee, val) {
+    if let Err(e) = access::store_to_raw_pointer_typed(state, ptr, access, val) {
         return Transfer::Error(e);
     }
 
@@ -787,8 +789,7 @@ pub(crate) fn step_store_stack(
         pointer,
         value,
         reference,
-        raw_pointee: _,
-        ..
+        access,
     } = &block[pc].data
     else {
         unreachable!()
@@ -804,7 +805,18 @@ pub(crate) fn step_store_stack(
     }
 
     // write through stack pointer
-    if let Err(e) = access::store_to_stack_pointer(state, ptr, val) {
+    let Some(access) = *access else {
+        return Transfer::Error(Error::InvalidManagedReference);
+    };
+    let pointer = match ptr.as_stack_pointer() {
+        Some(pointer) => pointer,
+        None => {
+            return Transfer::Error(Error::InvalidPointerType {
+                actual: format!("{ptr:?}"),
+            });
+        }
+    };
+    if let Err(e) = access::store_to_stack_pointer_typed(state, pointer, access, val) {
         return Transfer::Error(e);
     }
 
@@ -824,8 +836,7 @@ pub(crate) fn step_store_local(
         pointer,
         value,
         reference,
-        raw_pointee: _,
-        ..
+        access: _,
     } = &block[pc].data
     else {
         unreachable!()
@@ -861,8 +872,7 @@ pub(crate) fn step_store_global(
         pointer,
         value,
         reference,
-        raw_pointee: _,
-        ..
+        access: _,
     } = &block[pc].data
     else {
         unreachable!()
@@ -897,12 +907,25 @@ pub(crate) fn step_managed_alloc(
     let InstructionData::ManagedAlloc {
         dest,
         reference,
+        storage_type,
         layout_id,
         byte_len,
-        trace,
     } = &block[pc].data
     else {
         unreachable!()
+    };
+
+    // resolve borrowed trace metadata before taking the heap borrow
+    let trace = {
+        let executable = state.executable;
+        let Some(storage_layout) = executable.storage_layout(*storage_type) else {
+            return Transfer::Error(Error::TypeMismatch {
+                expected: "compiled storage layout".to_string(),
+                actual: format!("{storage_type:?}"),
+            });
+        };
+
+        &storage_layout.reference_map
     };
 
     // allocate managed storage
@@ -912,12 +935,13 @@ pub(crate) fn step_managed_alloc(
             return Transfer::Error(Error::AllocationFailed);
         }
 
-        heap.allocate_managed_zeroed(*byte_len as usize, trace.clone(), *layout_id)
+        heap.allocate_managed_zeroed_borrowed_typed(*byte_len, trace, *layout_id, storage_type.id)
     };
     let handle = match handle {
         Ok(handle) => handle,
         Err(error) => return Transfer::Error(Error::from(error)),
     };
+
     if state.collect_stats {
         state.engine.statistics.heap_allocations += 1;
     }
@@ -957,24 +981,65 @@ pub(crate) fn step_managed_alloc_array(
     let len_val = state.get(*length);
     let length = len_val.as_uint().unwrap_or(0) as usize;
 
-    // allocate managed array storage
+    // resolve managed array layout facts before taking the heap borrow
     let handle = {
-        let tree = state.tree();
-        let element_byte_len = match access::managed_type_size(tree, *element_type) {
-            Ok(byte_len) => byte_len,
+        let element_stride = match state.storage_stride(*element_type) {
+            Ok(stride) => stride,
             Err(error) => return Transfer::Error(error),
         };
-        let byte_len = match length.checked_mul(element_byte_len) {
+        let byte_len = match length.checked_mul(element_stride) {
             Some(byte_len) => byte_len,
             None => return Transfer::Error(Error::AllocationFailed),
         };
-        let trace = access::managed_array_reference_map(tree, *element_type, length);
+        let trace = {
+            let executable = state.executable;
+            let Some(storage_layout) = executable.storage_layout(*element_type) else {
+                return Transfer::Error(Error::TypeMismatch {
+                    expected: "compiled storage layout".to_string(),
+                    actual: format!("{element_type:?}"),
+                });
+            };
+
+            &storage_layout.reference_map
+        };
+
+        let repeated_count = match u32::try_from(length) {
+            Ok(count) => count,
+            Err(_) => return Transfer::Error(Error::AllocationFailed),
+        };
+
+        let repeated_stride = match u32::try_from(element_stride) {
+            Ok(stride) => stride,
+            Err(_) => return Transfer::Error(Error::AllocationFailed),
+        };
 
         let heap = state.heap();
         if heap.managed_allocation_count() >= max_managed_allocations {
             return Transfer::Error(Error::AllocationFailed);
         }
-        heap.allocate_managed_zeroed(byte_len, trace, None)
+
+        match trace {
+            ReferenceMap::ReferenceOffsets { offsets } if offsets.is_empty() => {
+                heap.allocate_managed_zeroed_borrowed(byte_len, &ReferenceMap::None, None)
+            }
+            ReferenceMap::ReferenceOffsets { offsets } => heap
+                .allocate_managed_zeroed_repeated_reference_offsets(
+                    byte_len,
+                    repeated_count,
+                    repeated_stride,
+                    offsets,
+                    None,
+                ),
+            ReferenceMap::RepeatedReferenceOffsets { .. } => {
+                return Transfer::Error(Error::AllocationFailed);
+            }
+            ReferenceMap::ValueOffsets { .. } => {
+                return Transfer::Error(Error::AllocationFailed);
+            }
+            ReferenceMap::None => {
+                heap.allocate_managed_zeroed_borrowed(byte_len, &ReferenceMap::None, None)
+            }
+        }
     };
     let handle = match handle {
         Ok(handle) => handle,
@@ -1021,8 +1086,7 @@ pub(crate) fn step_raw_alloc(
             return Transfer::Error(Error::AllocationFailed);
         }
 
-        let bytes = vec![0; *byte_len as usize];
-        heap.allocate_raw_bytes(&bytes)
+        heap.allocate_raw_zeroed(*byte_len)
     };
     let ptr = match ptr {
         Ok(ptr) => ptr,
@@ -1123,21 +1187,22 @@ pub(crate) fn step_stack_alloc(
     let InstructionData::StackAlloc {
         dest,
         reference,
-        slot_count,
+        storage_type,
     } = &block[pc].data
     else {
         unreachable!()
     };
 
-    // NOTE #Broken: stack allocation requires proper layout sizing
-    let frame_index = state.frame_index;
-    let slot = if *slot_count == UNKNOWN_SLOT_COUNT {
-        state.current_frame_mut().allocate_stack_buffer()
-    } else {
-        state
-            .current_frame_mut()
-            .allocate_stack_buffer_with_values(*slot_count as usize)
+    // allocate raw stack storage from the compiled type layout
+    let byte_len = match state.storage_byte_len(*storage_type) {
+        Ok(byte_len) => byte_len,
+        Err(error) => return Transfer::Error(error),
     };
+    let frame_index = state.frame_index;
+    let allocation = super::super::state::StackAllocation::new(byte_len, *storage_type);
+    let slot = state
+        .current_frame_mut()
+        .allocate_stack_allocation(allocation);
     let sp = destack_heap::StackPointer::new(frame_index, slot);
     let value = Value::stack_pointer_with_meta(sp, *reference);
 
@@ -1181,8 +1246,11 @@ pub(crate) fn step_stack_drop(
         });
     }
 
-    // retire the stack buffer
-    if !state.current_frame_mut().retire_stack_buffer(pointer.slot) {
+    // retire the stack allocation
+    if !state
+        .current_frame_mut()
+        .retire_stack_allocation(pointer.slot)
+    {
         return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{pointer:?}"),
         });

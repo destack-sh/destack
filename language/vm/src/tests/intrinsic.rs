@@ -1,6 +1,6 @@
 //! Tests for intrinsic execution.
 
-use crate::tests::{create_aggregate, run_mir, run_mir_expect, run_mir_ok, run_mir_with_ok};
+use crate::tests::{run_mir, run_mir_expect, run_mir_ok, run_mir_with_ok};
 use destack_heap::{STRING_TYPE_ALIAS, Value};
 
 // bit manipulation
@@ -746,8 +746,9 @@ block0(v0: vector<i32, 4>):
     return v1
 }"#;
     let output = run_mir_with_ok(mir, "test", |interp| {
-        let input = create_aggregate(
-            interp,
+        let ty = interp.parameter_type("test", 0);
+        let input = interp.materialize_value_for_type(
+            ty,
             vec![
                 Value::int32(1),
                 Value::int32(2),
@@ -769,8 +770,9 @@ block0(v0: vector<i32, 4>):
     return v1
 }"#;
     let output = run_mir_with_ok(mir, "test", |interp| {
-        let input = create_aggregate(
-            interp,
+        let ty = interp.parameter_type("test", 0);
+        let input = interp.materialize_value_for_type(
+            ty,
             vec![
                 Value::int32(2),
                 Value::int32(3),
@@ -792,8 +794,9 @@ block0(v0: vector<i32, 4>):
     return v1
 }"#;
     let output = run_mir_with_ok(mir, "test", |interp| {
-        let input = create_aggregate(
-            interp,
+        let ty = interp.parameter_type("test", 0);
+        let input = interp.materialize_value_for_type(
+            ty,
             vec![
                 Value::int32(5),
                 Value::int32(2),
@@ -815,8 +818,9 @@ block0(v0: vector<i32, 4>):
     return v1
 }"#;
     let output = run_mir_with_ok(mir, "test", |interp| {
-        let input = create_aggregate(
-            interp,
+        let ty = interp.parameter_type("test", 0);
+        let input = interp.materialize_value_for_type(
+            ty,
             vec![
                 Value::int32(5),
                 Value::int32(2),
@@ -838,8 +842,9 @@ block0(v0: vector<u32, 4>):
     return v1
 }"#;
     let output = run_mir_with_ok(mir, "test", |interp| {
-        let input = create_aggregate(
-            interp,
+        let ty = interp.parameter_type("test", 0);
+        let input = interp.materialize_value_for_type(
+            ty,
             vec![
                 Value::uint32(0b1111),
                 Value::uint32(0b1110),
@@ -861,8 +866,9 @@ block0(v0: vector<u32, 4>):
     return v1
 }"#;
     let output = run_mir_with_ok(mir, "test", |interp| {
-        let input = create_aggregate(
-            interp,
+        let ty = interp.parameter_type("test", 0);
+        let input = interp.materialize_value_for_type(
+            ty,
             vec![
                 Value::uint32(0b0001),
                 Value::uint32(0b0010),
@@ -885,8 +891,9 @@ block0(v0: vector<u32, 4>):
 }"#;
     // 1 ^ 2 ^ 3 ^ 4 = 4
     let output = run_mir_with_ok(mir, "test", |interp| {
-        let input = create_aggregate(
-            interp,
+        let ty = interp.parameter_type("test", 0);
+        let input = interp.materialize_value_for_type(
+            ty,
             vec![
                 Value::uint32(1),
                 Value::uint32(2),
