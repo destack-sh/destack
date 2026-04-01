@@ -1,4 +1,6 @@
-use super::r#type::write_expression_with_inline_prefix_annotations;
+use super::r#type::{
+    leading_raw_type_position_comment_nodes, write_expression_with_inline_prefix_annotations,
+};
 use crate::format::chain::{is_chain_root, is_expression_chain, transparent_inner_expression};
 use crate::format::expression::expression_has_leading_prefix_comment;
 use crate::{DestackFormatContext, DestackFormatter};
@@ -187,11 +189,20 @@ pub(crate) fn format_type_binary_expression<'ast>(
     };
 
     if cast_uses_angle_assertion {
-        if f.context().has_prefix_annotation(right) {
+        let right_has_type_position_leading_comments =
+            !leading_raw_type_position_comment_nodes(f.context(), right).is_empty();
+
+        if f.context().has_prefix_annotation(right) || right_has_type_position_leading_comments {
             let format_cast = format_with(|f: &mut DestackFormatter<'ast, '_>| {
                 write!(
                     f,
-                    [token("<"), group(&soft_block_indent(&right)), token(">")]
+                    [
+                        token("<"),
+                        group(&soft_block_indent(&format_with(|f| {
+                            write_expression_with_inline_prefix_annotations(f, right)
+                        }))),
+                        token(">")
+                    ]
                 )
             });
             write!(f, [format_cast, format_with(format_left)])?;

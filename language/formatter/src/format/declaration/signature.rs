@@ -188,7 +188,7 @@ pub(crate) fn write_static_parameter_list<'ast>(
         match trailing_separator {
             TrailingSeparator::Allowed => write!(f, [if_group_breaks(&token(","))])?,
             TrailingSeparator::Mandatory => write!(f, [token(",")])?,
-            TrailingSeparator::Disallowed | TrailingSeparator::Omit => {}
+            TrailingSeparator::Omit => {}
         }
 
         Ok(())
@@ -208,6 +208,16 @@ pub(crate) fn write_static_parameter_list<'ast>(
         }))
         .with_id(Some(group_id))]
     )
+}
+
+/// Return the default trailing separator for one type-parameter list.
+pub(crate) fn default_static_parameter_trailing_separator(
+    f: &DestackFormatter<'_, '_>,
+) -> TrailingSeparator {
+    match f.context().options.trailing_comma {
+        TrailingComma::None => TrailingSeparator::Omit,
+        TrailingComma::Es5 | TrailingComma::All => TrailingSeparator::Allowed,
+    }
 }
 
 /// Write one parameter type with local infix spacing.
@@ -242,6 +252,63 @@ fn write_parameter_type_with_infix<'ast>(
     }
 
     Ok(true)
+}
+
+/// Write raw comment seams between one parameter binding and its type annotation.
+fn write_parameter_name_type_gap_comments<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    gap_start: u32,
+    ty: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    let type_span = f.context().span(ty);
+    let comment_ids = f
+        .context()
+        .comment_nodes_in_range(gap_start, type_span.start);
+    if comment_ids.is_empty() {
+        return Ok(());
+    }
+
+    for (index, comment_id) in comment_ids.iter().copied().enumerate() {
+        write!(f, [space(), comment_id])?;
+
+        if let Some(next_comment_id) = comment_ids.get(index + 1).copied() {
+            let current_span = f.context().span(comment_id);
+            let next_span = f.context().span(next_comment_id);
+            let gap_span =
+                destack_source::Span::new(current_span.file, current_span.end, next_span.start);
+
+            if f.context().tree.get(comment_id).style == CommentStyle::Slash
+                || f.context().has_newline(gap_span)
+            {
+                write!(f, [hard_line_break()])?;
+            }
+        }
+    }
+
+    let last_comment_id = *comment_ids.last().expect("comment_ids is not empty");
+    if f.context().tree.get(last_comment_id).style == CommentStyle::Slash {
+        write!(f, [hard_line_break()])?;
+    } else {
+        write!(f, [space()])?;
+    }
+
+    Ok(())
+}
+
+/// Return the raw seam start between one parameter binding and its type annotation.
+fn parameter_name_type_gap_start(
+    context: &DestackFormatContext<'_>,
+    ty: LocalNodeId<Expression>,
+) -> Option<u32> {
+    let type_span = context.span(ty);
+    let separator_token = context.previous_non_trivia_token_before_span(type_span)?;
+
+    if separator_token.token.ty == TokenType::Colon {
+        let binding_token = context.previous_non_trivia_token_before_span(separator_token.span)?;
+        return Some(binding_token.span.end);
+    }
+
+    Some(separator_token.span.end)
 }
 
 /// Write one static parameter trailer sequence after its name.
@@ -338,6 +405,13 @@ fn format_parameter_node<'ast>(
             // modifiers
             format_binding_modifiers_postfix_maybe(f, *modifiers)?;
 
+            // name to type seam comments
+            if !is_static_parameter && let Some(ty) = ty {
+                if let Some(gap_start) = parameter_name_type_gap_start(f.context(), *ty) {
+                    write_parameter_name_type_gap_comments(f, gap_start, *ty)?;
+                }
+            }
+
             // type and default
             let wrote_type_infix = if is_static_parameter {
                 write_static_parameter_trailers(f, node_id, *ty, *default)?
@@ -368,6 +442,13 @@ fn format_parameter_node<'ast>(
 
             // modifiers
             format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+
+            // pattern to type seam comments
+            if !is_static_parameter && let Some(ty) = ty {
+                if let Some(gap_start) = parameter_name_type_gap_start(f.context(), *ty) {
+                    write_parameter_name_type_gap_comments(f, gap_start, *ty)?;
+                }
+            }
 
             // type and default
             let wrote_type_infix = if is_static_parameter {
@@ -410,6 +491,13 @@ fn format_parameter_node<'ast>(
             // name
             write!(f, [name])?;
 
+            // name to type seam comments
+            if !is_static_parameter && let Some(ty) = ty {
+                if let Some(gap_start) = parameter_name_type_gap_start(f.context(), *ty) {
+                    write_parameter_name_type_gap_comments(f, gap_start, *ty)?;
+                }
+            }
+
             // type
             write_parameter_type_with_infix(f, node_id, is_static_parameter, *ty)?
         }
@@ -437,6 +525,13 @@ fn format_parameter_node<'ast>(
 
             // pattern
             write!(f, [pattern])?;
+
+            // pattern to type seam comments
+            if !is_static_parameter && let Some(ty) = ty {
+                if let Some(gap_start) = parameter_name_type_gap_start(f.context(), *ty) {
+                    write_parameter_name_type_gap_comments(f, gap_start, *ty)?;
+                }
+            }
 
             // type
             write_parameter_type_with_infix(f, node_id, is_static_parameter, *ty)?

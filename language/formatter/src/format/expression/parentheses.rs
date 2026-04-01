@@ -1,7 +1,8 @@
 use super::object::parenthesized_assignment_target_prefers_expanded_layout;
 use super::{
     argument_drops_parenthesized_value_wrapper, declarator_drops_parenthesized_value_wrapper,
-    format_expression, postfix_continuation_requires_parenthesized_object_wrapper,
+    format_expression, format_inline_ternary_expression,
+    postfix_continuation_requires_parenthesized_object_wrapper,
     should_hoist_parenthesized_inner_cast_prefix_comments,
     statement_drops_parenthesized_expression_wrapper,
 };
@@ -19,11 +20,11 @@ use destack_ast::{
     AnnotationPosition, BinaryOperator, Comment, CommentStyle, Expression, IfKind, LocalNodeId,
     NodeType, TokenType,
 };
-use destack_fir::format::{Buffer, FormatResult};
+use destack_fir::format::{BestFittingMode, Buffer, FormatResult};
 use destack_fir::prelude::{
     block_indent, format_with, group, hard_line_break, soft_block_indent, space, token,
 };
-use destack_fir::{format_args, write};
+use destack_fir::{best_fitting, format_args, write};
 use destack_source::Span;
 
 /// Collect postfix star comments from an inner expression that should render after `)`.
@@ -674,6 +675,8 @@ pub(crate) fn format_primary_parenthesized_expression<'ast>(
             expression_id,
             &trailing_inner_line_comments,
         )?;
+        let preserve_newline_only_wrapper =
+            has_parenthesized_leading_inner_newline && !has_parenthesized_leading_inner_comments;
 
         // type-cast wrappers
         if formatted_type_cast_comment_node {
@@ -750,7 +753,7 @@ pub(crate) fn format_primary_parenthesized_expression<'ast>(
         }
         // decorator or assignment trivia
         else if has_inner_decorator_prefix_annotation
-            || (is_in_assignment_value_context && has_parenthesized_leading_inner_trivia)
+            || (is_in_assignment_value_context && has_parenthesized_leading_inner_comments)
         {
             write!(
                 f,
@@ -772,8 +775,38 @@ pub(crate) fn format_primary_parenthesized_expression<'ast>(
         ) {
             write!(f, [token("("), soft_block_indent(&expression), token(")")])?;
         }
-        // leading trivia
-        else if has_parenthesized_leading_inner_trivia && !prefers_inline_scalar_comment_wrapper {
+        // preserved newline-only wrappers
+        else if preserve_newline_only_wrapper && !prefers_inline_scalar_comment_wrapper {
+            let format_inline_expression = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                if matches!(
+                    f.context().tree.get(expression_id),
+                    Expression::If {
+                        kind: IfKind::Ternary,
+                        ..
+                    }
+                ) {
+                    format_inline_ternary_expression(f, expression_id)
+                } else {
+                    write!(f, [group(expression)])
+                }
+            });
+            write!(
+                f,
+                [best_fitting![
+                    format_args![token("("), format_inline_expression, token(")")],
+                    format_args![
+                        token("("),
+                        block_indent(&group(expression)),
+                        hard_line_break(),
+                        token(")")
+                    ]
+                ]
+                .with_mode(BestFittingMode::AllLines)]
+            )?;
+        }
+        // leading comments
+        else if has_parenthesized_leading_inner_comments && !prefers_inline_scalar_comment_wrapper
+        {
             let leading_inner_comments =
                 parenthesized_leading_inner_comments(f.context(), node_id, expression_id);
             let format_inner = format_with(move |f: &mut DestackFormatter<'ast, '_>| {

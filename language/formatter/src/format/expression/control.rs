@@ -2,7 +2,8 @@ use super::declarator::format_declarator;
 use super::dispatch::format_expression;
 use super::parentheses::parenthesized_leading_inner_comments;
 use super::{
-    parenthesized_has_leading_inner_comments, write_expression_without_prefix_annotations,
+    format_expanded_ternary_expression, parenthesized_has_leading_inner_comments,
+    write_expression_without_prefix_annotations,
 };
 use crate::format::chain::expression_trivia_anchor_end;
 use crate::format::declaration::sequence::block_statement_sequence;
@@ -446,6 +447,24 @@ pub(crate) fn format_adjacent_statement_argument<'ast>(
     let value_has_leading_comment =
         adjacent_statement_argument_has_leading_comments(f.context(), value_id);
 
+    let write_expanded_wrapped_value =
+        |f: &mut DestackFormatter<'ast, '_>, expression_id: LocalNodeId<Expression>| {
+            if matches!(
+                f.context().tree.get(expression_id),
+                Expression::If {
+                    kind: IfKind::Ternary,
+                    ..
+                }
+            ) {
+                return format_expanded_ternary_expression(f, expression_id);
+            }
+
+            write!(
+                f,
+                [expand_parent(), group(&expression_id).should_expand(true)]
+            )
+        };
+
     if let Some(parenthesized_inner_id) = parenthesized_inner_id
         && value_has_leading_comment
     {
@@ -458,10 +477,9 @@ pub(crate) fn format_adjacent_statement_argument<'ast>(
 
             write!(
                 f,
-                [
-                    expand_parent(),
-                    group(&parenthesized_inner_id).should_expand(true)
-                ]
+                [format_with(|f| {
+                    write_expanded_wrapped_value(f, parenthesized_inner_id)
+                })]
             )
         });
 
@@ -545,7 +563,9 @@ pub(crate) fn format_adjacent_statement_argument<'ast>(
                     .push_suppressed_parenthesized_leading_comment_node(hoisted_parenthesized_id);
                 let format_result = write!(
                     f,
-                    [expand_parent(), group(&value_check_id).should_expand(true)]
+                    [format_with(|f| {
+                        write_expanded_wrapped_value(f, value_check_id)
+                    })]
                 );
                 f.context()
                     .pop_suppressed_parenthesized_leading_comment_node();
@@ -574,7 +594,9 @@ pub(crate) fn format_adjacent_statement_argument<'ast>(
                 block_indent(&format_with(|f| {
                     write!(
                         f,
-                        [expand_parent(), group(&value_check_id).should_expand(true)]
+                        [format_with(|f| {
+                            write_expanded_wrapped_value(f, value_check_id)
+                        })]
                     )
                 })),
                 hard_line_break(),

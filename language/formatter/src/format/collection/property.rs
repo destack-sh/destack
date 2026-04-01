@@ -1,9 +1,9 @@
 use crate::format::chain::transparent_inner_expression;
-use crate::format::collection::TrailingSeparator;
 use crate::format::declaration::signature::{
-    expression_body_requires_head_space, format_binding_modifiers_postfix_maybe,
-    format_binding_modifiers_prefix_maybe, format_where_clause_with_break, parameter_is_variadic,
-    signature_parameters_should_expand, signature_return_type_has_line_postfix_boundary_annotation,
+    default_static_parameter_trailing_separator, expression_body_requires_head_space,
+    format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
+    format_where_clause_with_break, parameter_is_variadic, signature_parameters_should_expand,
+    signature_return_type_has_line_postfix_boundary_annotation,
     signature_should_elide_space_before_body, single_parameter_should_hug,
     write_empty_parameter_list_with_interior_comments, write_function_header_prefix,
     write_signature_dynamic_parameter_list, write_static_parameter_list,
@@ -13,7 +13,9 @@ use crate::format::directive::{node_has_ignore_directive, write_ignored_node};
 use crate::format::expression::{
     is_complex_expression, is_expression_breakable, is_trivial_expression,
 };
-use crate::format::operator::write_expression_with_inline_prefix_annotations;
+use crate::format::operator::{
+    write_colon_prefixed_type_annotation, write_expression_with_inline_prefix_annotations,
+};
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
     AccessorKind, AnnotationPosition, Argument, BinaryOperator, BindingModifier, Comment,
@@ -353,8 +355,7 @@ fn write_field_type_annotation<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     value: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    write!(f, [token(":"), space()])?;
-    write_expression_with_inline_prefix_annotations(f, value)
+    write_colon_prefixed_type_annotation(f, value)
 }
 
 /// Return whether one expression carries any static generic arguments.
@@ -573,7 +574,7 @@ fn field_default_should_break_after_operator(
             Expression::Call { .. } | Expression::New { .. }
         )
     {
-        return value_has_dynamic_arguments;
+        return value_has_dynamic_arguments && line_width <= 80;
     }
 
     if value_has_block_static_arguments && !value_has_dynamic_arguments {
@@ -676,7 +677,11 @@ where
         generics.and_then(|generics| generics.static_parameters.as_ref())
         && !static_parameters.is_empty()
     {
-        write_static_parameter_list(f, static_parameters, TrailingSeparator::Disallowed)?;
+        write_static_parameter_list(
+            f,
+            static_parameters,
+            default_static_parameter_trailing_separator(f),
+        )?;
     }
 
     // optional marker to parameter list seam
@@ -896,7 +901,11 @@ where
     let is_ignored = node_has_ignore_directive(f.context(), node_id);
     write!(
         f,
-        [crate::format::annotation::prefix_annotations(
+        [crate::format::annotation::prefix_annotations_without_decorators(f.context(), node_id)]
+    )?;
+    write!(
+        f,
+        [crate::format::annotation::decorator_prefix_annotations(
             f.context(),
             node_id
         )]

@@ -364,6 +364,7 @@ fn format_standard_ternary<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     keep_inline_template_ternary: bool,
+    force_expand: bool,
 ) -> FormatResult<()> {
     let Some((condition, then_expression, else_expression)) =
         ternary_parts(f.context().tree, node_id)
@@ -402,9 +403,10 @@ fn format_standard_ternary<'ast>(
     });
 
     let is_nested_alternate = ternary_is_nested_alternate(f.context(), node_id);
-    let should_expand = ternary_chain_has_line_comment(f.context(), node_id)
-        || f.context().node_has_newline(node_id)
-        || adjacent_statement_argument_has_leading_comments(f.context(), node_id);
+    let should_expand = force_expand
+        || ternary_chain_has_line_comment(f.context(), node_id)
+        || adjacent_statement_argument_has_leading_comments(f.context(), node_id)
+        || adjacent_statement_argument_has_leading_comments(f.context(), condition);
 
     let format_inner = format_with(|f| {
         write!(f, [condition])?;
@@ -437,6 +439,22 @@ fn format_standard_ternary<'ast>(
     )?;
 
     Ok(())
+}
+
+/// Format one ternary expression in its inline single-line form.
+pub(crate) fn format_inline_ternary_expression<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    format_standard_ternary(f, node_id, true, false)
+}
+
+/// Format one ternary expression in its expanded multiline form.
+pub(crate) fn format_expanded_ternary_expression<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    format_standard_ternary(f, node_id, false, true)
 }
 
 /// Format one jsx ternary chain expression.
@@ -513,7 +531,7 @@ pub(crate) fn format_ternary(
     if ternary_chain_has_tree_branch(f.context(), node_id) && !keep_inline_template_ternary {
         format_jsx_chain_ternary(f, node_id)?;
     } else {
-        format_standard_ternary(f, node_id, keep_inline_template_ternary)?;
+        format_standard_ternary(f, node_id, keep_inline_template_ternary, false)?;
     }
 
     // statement-position ternaries keep explicit terminators

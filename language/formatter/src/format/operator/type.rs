@@ -1,10 +1,12 @@
-use super::union::flatten_type_binary_expression;
+use super::union::{
+    binary_like_is_type_union, flatten_binary_like_operands, flatten_type_binary_expression,
+    format_inline_type_union_layout, transparent_type_binary_root_expression,
+};
 use crate::format::annotation::write_inline_prefix_annotations as write_annotation_prefix_sequence;
 use crate::format::chain::{
     should_expand_static_argument_list, static_argument_list_is_hug_safe,
     transparent_inner_expression,
 };
-use crate::format::collection::{TrailingSeparator, separated_entries};
 use crate::format::declaration::{
     parenthesized_wraps_decorated_class_extends_head,
     parenthesized_wraps_prefix_annotated_class_extends_head,
@@ -15,11 +17,13 @@ use crate::format::expression::{
 use crate::format::operator::types::is_simple_type_binary_left_expression;
 use crate::{Annotation, DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    AnnotationPosition, Argument, BinaryOperator, Doc, DocStyle, Expression, LocalNodeId, Member,
-    NodeType, Property, TokenType, TypeBinaryOperator, TypeUnaryOperator,
+    AnnotationPosition, Argument, BinaryOperator, Comment, CommentStyle, Doc, DocStyle, Expression,
+    LocalNodeId, Member, NodeType, Property, TokenType, TypeBinaryOperator, TypeUnaryOperator,
 };
-use destack_fir::format::{Buffer, FormatResult};
-use destack_fir::prelude::{group, soft_block_indent, space, token};
+use destack_fir::format::{Buffer, FormatResult, RemoveSoftLinesBuffer};
+use destack_fir::prelude::{
+    format_with, group, hard_line_break, soft_block_indent, soft_line_break_or_space, space, token,
+};
 use destack_fir::{format_args, write};
 
 /// Return whether annotations are only type grouping prefix trivia for this expression.
@@ -87,6 +91,147 @@ pub(crate) fn is_associative_type_binary_operator(operator: BinaryOperator) -> b
     )
 }
 
+/// Collect raw source comments that sit directly before one type-position expression.
+pub(crate) fn leading_raw_type_position_comment_nodes(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> Vec<LocalNodeId<Comment>> {
+    if !expression_is_type_position(context, expression_id) {
+        return Vec::new();
+    }
+
+    let expression_span = context.span(expression_id);
+    let first_token_type = context
+        .first_non_trivia_token_in_span(expression_span)
+        .map(|token| token.token.ty);
+    if matches!(
+        first_token_type,
+        Some(TokenType::ElementwiseOr | TokenType::ElementwiseAnd)
+    ) {
+        return Vec::new();
+    }
+
+    let Some(previous_token) = context.previous_non_trivia_token_before_span(expression_span)
+    else {
+        return Vec::new();
+    };
+    let previous_owner_start = match previous_token.token.ty {
+        TokenType::LineComment
+        | TokenType::BlockComment
+        | TokenType::DocLineComment
+        | TokenType::DocBlockComment => previous_token.span.start,
+        _ => previous_token.span.end,
+    };
+    if previous_token.span.file != expression_span.file
+        || previous_owner_start >= expression_span.start
+    {
+        return Vec::new();
+    }
+
+    context.comment_nodes_in_range(previous_owner_start, expression_span.start)
+}
+
+/// Write raw source comments that precede one type-position expression.
+pub(crate) fn write_leading_raw_type_position_comment_nodes<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    comment_ids: &[LocalNodeId<Comment>],
+) -> FormatResult<()> {
+    for (index, comment_id) in comment_ids.iter().copied().enumerate() {
+        write!(f, [comment_id])?;
+
+        if let Some(next_comment_id) = comment_ids.get(index + 1).copied() {
+            let current_span = f.context().span(comment_id);
+            let next_span = f.context().span(next_comment_id);
+            let gap_span =
+                destack_source::Span::new(current_span.file, current_span.end, next_span.start);
+
+            if f.context().tree.get(comment_id).style == CommentStyle::Slash
+                || f.context().has_newline(gap_span)
+            {
+                write!(f, [hard_line_break()])?;
+            } else {
+                write!(f, [space()])?;
+            }
+        }
+    }
+
+    if let Some(last_comment_id) = comment_ids.last().copied() {
+        let last_comment_span = f.context().span(last_comment_id);
+        let comment_token_type = f
+            .context()
+            .first_non_trivia_token_in_span(last_comment_span)
+            .map(|token| token.token.ty);
+        let comment_requires_break = matches!(
+            comment_token_type,
+            Some(TokenType::LineComment | TokenType::DocLineComment | TokenType::DocBlockComment)
+        );
+
+        if f.context().tree.get(last_comment_id).style == CommentStyle::Slash
+            || comment_requires_break
+        {
+            write!(f, [hard_line_break()])?;
+        } else {
+            write!(f, [space()])?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Return whether one raw type-position comment must force a following break.
+fn type_position_comment_requires_break_after(
+    context: &DestackFormatContext<'_>,
+    comment_id: LocalNodeId<Comment>,
+) -> bool {
+    if context.tree.get(comment_id).style == CommentStyle::Slash {
+        return true;
+    }
+
+    let comment_span = context.span(comment_id);
+    let comment_token_type = context
+        .first_non_trivia_token_in_span(comment_span)
+        .map(|token| token.token.ty);
+
+    matches!(
+        comment_token_type,
+        Some(TokenType::LineComment | TokenType::DocLineComment | TokenType::DocBlockComment)
+    )
+}
+
+/// Write one colon-prefixed type annotation with group-aware seam layout.
+pub(crate) fn write_colon_prefixed_type_annotation<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    expression_id: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    write!(f, [token(":"), space()])?;
+
+    write_expression_with_inline_prefix_annotations(f, expression_id)
+}
+
+/// Write one static type argument, preserving type-position seam ownership.
+fn write_static_argument<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    argument_id: LocalNodeId<Argument>,
+) -> FormatResult<()> {
+    match f.context().tree.get(argument_id) {
+        Argument::Positional { value, .. } => {
+            let argument_span = f.context().span(argument_id);
+            let value_span = f.context().span(*value);
+            if argument_span.file == value_span.file && argument_span.start < value_span.start {
+                let comment_ids = f
+                    .context()
+                    .comment_nodes_in_range(argument_span.start, value_span.start);
+                if !comment_ids.is_empty() {
+                    write_leading_raw_type_position_comment_nodes(f, &comment_ids)?;
+                }
+            }
+
+            write_expression_with_inline_prefix_annotations(f, *value)
+        }
+        _ => write!(f, [argument_id]),
+    }
+}
+
 /// Write one rhs expression while preserving inline prefix annotation ownership.
 pub(crate) fn write_expression_with_inline_prefix_annotations<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -128,6 +273,12 @@ pub(crate) fn write_expression_with_inline_prefix_annotations<'ast>(
     } else {
         expression_id
     };
+    let leading_raw_comment_ids =
+        if expression_has_type_grouping_semantics(f.context(), expression_id) {
+            Vec::new()
+        } else {
+            leading_raw_type_position_comment_nodes(f.context(), expression_id)
+        };
 
     // leading separator
     let leading_separator_token_type =
@@ -185,49 +336,195 @@ pub(crate) fn write_expression_with_inline_prefix_annotations<'ast>(
 
     let has_inline_non_slash_prefix_annotations =
         saw_inline_non_slash_prefix_annotation && !saw_disqualifying_prefix_annotation;
+    let expression_is_type_union_root =
+        binary_like_is_type_union(f.context(), expression_id, BinaryOperator::ElementwiseOr);
+    let suppress_leading_raw_comment_owner = !expression_is_type_union_root
+        && !leading_raw_comment_ids.is_empty()
+        && leading_raw_comment_ids
+            .iter()
+            .copied()
+            .all(|comment_id| !type_position_comment_requires_break_after(f.context(), comment_id));
 
-    if let Some(leading_separator_token_type) = leading_separator_token_type {
-        // inline prefix comments stay with the separator
-        if has_inline_non_slash_prefix_annotations {
-            write_annotation_prefix_sequence(f, &prefix_annotation_ids)?;
-            write!(f, [space()])?;
-        } else if !prefix_annotation_ids.is_empty() {
+    let write_expression_body = |f: &mut DestackFormatter<'ast, '_>| -> FormatResult<()> {
+        // leading separator
+        if let Some(leading_separator_token_type) = leading_separator_token_type {
+            // inline prefix comments stay with the separator
+            if has_inline_non_slash_prefix_annotations {
+                write_annotation_prefix_sequence(f, &prefix_annotation_ids)?;
+                write!(f, [space()])?;
+            } else if !prefix_annotation_ids.is_empty() {
+                write!(
+                    f,
+                    [crate::format::annotation::prefix_annotations(
+                        f.context(),
+                        expression_id
+                    )]
+                )?;
+
+                let last_prefix_annotation_id = *prefix_annotation_ids
+                    .last()
+                    .expect("non-empty prefix annotation list");
+                if f.context()
+                    .annotation_next_token_is_on_same_line(last_prefix_annotation_id)
+                {
+                    write!(f, [space()])?;
+                }
+            }
+
+            match leading_separator_token_type {
+                TokenType::ElementwiseOr => write!(f, [token("|"), space()])?,
+                TokenType::ElementwiseAnd => write!(f, [token("&")])?,
+                _ => unreachable!("unexpected leading separator token"),
+            }
+
+            if suppress_leading_raw_comment_owner {
+                f.context()
+                    .push_suppressed_type_position_leading_comment_node(expression_id);
+            }
+
+            write_expression_without_prefix_annotations(f, expression_id)?;
+
+            if suppress_leading_raw_comment_owner {
+                f.context()
+                    .pop_suppressed_type_position_leading_comment_node();
+            }
+
+            return Ok(());
+        }
+
+        // default type-position owner
+        if !has_inline_non_slash_prefix_annotations {
+            if suppress_leading_raw_comment_owner {
+                f.context()
+                    .push_suppressed_type_position_leading_comment_node(expression_id);
+            }
+
+            write!(f, [expression_id])?;
+
+            if suppress_leading_raw_comment_owner {
+                f.context()
+                    .pop_suppressed_type_position_leading_comment_node();
+            }
+
+            return Ok(());
+        }
+
+        // inline prefix annotations
+        write_annotation_prefix_sequence(f, &prefix_annotation_ids)?;
+        write!(f, [space()])?;
+        if suppress_leading_raw_comment_owner {
+            f.context()
+                .push_suppressed_type_position_leading_comment_node(expression_id);
+        }
+
+        let result = write_expression_without_prefix_annotations(f, expression_id);
+
+        if suppress_leading_raw_comment_owner {
+            f.context()
+                .pop_suppressed_type_position_leading_comment_node();
+        }
+
+        result
+    };
+
+    // inline union with inline prefix annotations
+    if !suppress_leading_raw_comment_owner
+        && has_inline_non_slash_prefix_annotations
+        && leading_separator_token_type.is_none()
+    {
+        let union_root_id = transparent_type_binary_root_expression(
+            f.context(),
+            expression_id,
+            BinaryOperator::ElementwiseOr,
+        );
+
+        if binary_like_is_type_union(f.context(), union_root_id, BinaryOperator::ElementwiseOr) {
+            let operands = flatten_binary_like_operands(
+                f.context(),
+                union_root_id,
+                BinaryOperator::ElementwiseOr,
+            );
+            let write_inline_union = format_with(|f| {
+                write_annotation_prefix_sequence(f, &prefix_annotation_ids)?;
+                write!(f, [space()])?;
+                format_inline_type_union_layout(f, &operands)
+            });
+            let write_body = format_with(write_expression_body);
+
             write!(
                 f,
-                [crate::format::annotation::prefix_annotations(
-                    f.context(),
-                    expression_id
-                )]
+                [destack_fir::best_fitting![write_inline_union, write_body]
+                    .with_mode(destack_fir::format::BestFittingMode::AllLines)]
             )?;
+            return Ok(());
+        }
+    }
 
-            let last_prefix_annotation_id = *prefix_annotation_ids
-                .last()
-                .expect("non-empty prefix annotation list");
-            if f.context()
-                .annotation_next_token_is_on_same_line(last_prefix_annotation_id)
-            {
-                write!(f, [space()])?;
+    // inline raw type-position comments
+    if suppress_leading_raw_comment_owner {
+        let write_raw_comments = format_with(|f| {
+            write_leading_raw_type_position_comment_nodes(f, &leading_raw_comment_ids)
+        });
+        let union_root_id = transparent_type_binary_root_expression(
+            f.context(),
+            expression_id,
+            BinaryOperator::ElementwiseOr,
+        );
+
+        if prefix_annotation_ids.is_empty()
+            && leading_separator_token_type.is_none()
+            && binary_like_is_type_union(f.context(), union_root_id, BinaryOperator::ElementwiseOr)
+        {
+            let operands = flatten_binary_like_operands(
+                f.context(),
+                union_root_id,
+                BinaryOperator::ElementwiseOr,
+            );
+            let write_inline_union = format_with(|f| {
+                write!(f, [write_raw_comments])?;
+                format_inline_type_union_layout(f, &operands)
+            });
+            let write_body = format_with(write_expression_body);
+
+            write!(
+                f,
+                [destack_fir::best_fitting![
+                    write_inline_union,
+                    format_args![write_raw_comments, write_body]
+                ]
+                .with_mode(destack_fir::format::BestFittingMode::AllLines)]
+            )?;
+            return Ok(());
+        }
+
+        let write_body = format_with(write_expression_body);
+        let interned_body = f.intern(&write_body)?;
+        let write_flat_body = format_with(move |f| {
+            if let Some(interned_body) = &interned_body {
+                let mut buffer = RemoveSoftLinesBuffer::new(f);
+                buffer.write_node(interned_body.clone());
             }
-        }
 
-        match leading_separator_token_type {
-            TokenType::ElementwiseOr => write!(f, [token("|"), space()])?,
-            TokenType::ElementwiseAnd => write!(f, [token("&")])?,
-            _ => unreachable!("unexpected leading separator token"),
-        }
+            Ok(())
+        });
 
-        write_expression_without_prefix_annotations(f, expression_id)?;
+        write!(
+            f,
+            [destack_fir::best_fitting![
+                format_args![write_raw_comments, write_flat_body],
+                format_args![write_raw_comments, write_body]
+            ]
+            .with_mode(destack_fir::format::BestFittingMode::AllLines)]
+        )?;
         return Ok(());
     }
 
-    if !has_inline_non_slash_prefix_annotations {
-        write!(f, [expression_id])?;
-        return Ok(());
+    // breaking raw type-position comments
+    if !leading_raw_comment_ids.is_empty() {
+        write_leading_raw_type_position_comment_nodes(f, &leading_raw_comment_ids)?;
     }
 
-    write_annotation_prefix_sequence(f, &prefix_annotation_ids)?;
-    write!(f, [space()])?;
-    write_expression_without_prefix_annotations(f, expression_id)
+    write_expression_body(f)
 }
 
 /// Format static type arguments without multiline trailing commas.
@@ -241,36 +538,10 @@ pub(crate) fn format_static_argument_list<'ast>(
             if index > 0 {
                 write!(f, [token(","), space()])?;
             }
-            write!(f, [*argument_id])?;
+            write_static_argument(f, *argument_id)?;
         }
         write!(f, [token(">")])?;
         return Ok(());
-    }
-
-    if static_arguments.len() == 1 {
-        let argument_id = static_arguments[0];
-        let value_id = match f.context().tree.get(argument_id) {
-            Argument::Named { value, .. }
-            | Argument::Labeled { value, .. }
-            | Argument::Positional { value, .. }
-            | Argument::Spread { value, .. } => Some(*value),
-            Argument::Error => None,
-        };
-        if let Some(value_id) = value_id {
-            let value_id = transparent_inner_expression(f.context(), value_id);
-            let value_is_union_or_intersection = matches!(
-                f.context().tree.get(value_id),
-                Expression::Binary {
-                    operator: BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd,
-                    ..
-                }
-            );
-
-            if value_is_union_or_intersection && !f.context().has_annotation(argument_id) {
-                write!(f, [token("<"), argument_id, token(">")])?;
-                return Ok(());
-            }
-        }
     }
 
     let should_expand = should_expand_static_argument_list(f.context(), static_arguments);
@@ -289,16 +560,22 @@ pub(crate) fn format_static_argument_list<'ast>(
                 )
             })
     });
+    let format_arguments = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        for (index, argument_id) in static_arguments.iter().copied().enumerate() {
+            if index > 0 {
+                write!(f, [token(","), soft_line_break_or_space()])?;
+            }
+
+            write_static_argument(f, argument_id)?;
+        }
+
+        Ok(())
+    });
     write!(
         f,
         [group(&format_args![
             token("<"),
-            soft_block_indent(&separated_entries(
-                ",",
-                static_arguments,
-                TrailingSeparator::Omit,
-                None,
-            )),
+            soft_block_indent(&format_arguments),
             token(">")
         ])
         .should_expand(should_expand || has_line_postfix_boundary)]
@@ -387,7 +664,6 @@ pub(crate) fn parenthesized_type_expression_prefers_soft_block_layout(
             || has_parenthesized_leading_inner_comments
             || inner_expression_has_comments))
         || union_or_intersection_member_count > 2
-        || matches!(inner_expression, Expression::TypeConditional { .. })
 }
 
 /// Decide whether a parenthesized type expression can drop wrappers.
@@ -419,6 +695,27 @@ pub(crate) fn should_drop_parenthesized_type_expression(
         return false;
     }
 
+    let normalized_inner_id = transparent_inner_expression(
+        context,
+        normalize_parenthesized_type_grouping_inner_expression(context, inner_id),
+    );
+    let inner_is_single_operand_type_binary = matches!(
+        context.tree.get(normalized_inner_id),
+        Expression::Binary {
+            operator: BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd,
+            ..
+        }
+    ) && flatten_type_binary_expression(
+        context,
+        normalized_inner_id,
+        match context.tree.get(normalized_inner_id) {
+            Expression::Binary { operator, .. } => *operator,
+            _ => unreachable!("checked above"),
+        },
+    )
+    .len()
+        == 1;
+
     let can_drop_array_element_wrapper =
         context
             .parent(node_id)
@@ -433,8 +730,11 @@ pub(crate) fn should_drop_parenthesized_type_expression(
                 {
                     *left == node_id
                         && index.is_none()
-                        && !context.has_annotation(inner_id)
-                        && is_simple_type_binary_left_expression(context.tree, inner_id)
+                        && !context.has_annotation(normalized_inner_id)
+                        && (is_simple_type_binary_left_expression(
+                            context.tree,
+                            normalized_inner_id,
+                        ) || inner_is_single_operand_type_binary)
                 } else {
                     false
                 }
@@ -472,7 +772,7 @@ pub(crate) fn should_drop_parenthesized_type_expression(
         }
     };
     let can_drop_conditional_type_grouping = matches!(
-        context.tree.get(inner_id),
+        context.tree.get(normalized_inner_id),
         Expression::TypeConditional { .. }
     ) && context.parent(node_id).is_some_and(
         |(parent_id, parent_type)| {
@@ -528,6 +828,7 @@ pub(crate) fn should_drop_parenthesized_type_expression(
         || can_drop_associative_type_binary_wrapper
         || can_drop_conditional_type_grouping
         || can_drop_single_operand_grouping
+        || inner_is_single_operand_type_binary
     {
         return true;
     }
@@ -574,10 +875,6 @@ pub(crate) fn should_drop_parenthesized_type_expression(
         return false;
     }
 
-    let normalized_inner_id = transparent_inner_expression(
-        context,
-        normalize_parenthesized_type_grouping_inner_expression(context, inner_id),
-    );
     let parenthesized_root_associative_type_binary_can_drop = {
         matches!(
             context.tree.get(normalized_inner_id),
@@ -653,7 +950,7 @@ pub(crate) fn should_drop_parenthesized_type_expression(
             )
     );
     let inner_is_type_conditional = matches!(
-        context.tree.get(inner_id),
+        context.tree.get(normalized_inner_id),
         Expression::TypeConditional { .. }
     );
     let inner_is_simple_type_binary_left =
@@ -894,6 +1191,14 @@ pub(crate) fn expression_is_type_position(
                 if let Expression::TypeUnary { operator, right } = parent_expression
                     && *operator == TypeUnaryOperator::AsConst
                     && right.id == current_id
+                {
+                    current_id = parent_id;
+                    continue;
+                }
+
+                if let Expression::Index { left, index, .. } = parent_expression
+                    && *left == current_expression_id
+                    && index.is_none()
                 {
                     current_id = parent_id;
                     continue;

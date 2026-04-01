@@ -1,6 +1,7 @@
 use super::binary::format_binary_operand_with_grouping_parentheses;
 use super::r#type::{
-    expression_has_type_grouping_semantics, normalize_parenthesized_type_grouping_inner_expression,
+    expression_has_type_grouping_semantics, expression_is_type_position,
+    normalize_parenthesized_type_grouping_inner_expression,
 };
 use super::types::{is_in_type_template_literal_interpolation, is_object_like_type_expression};
 use crate::format::chain::transparent_inner_expression;
@@ -17,12 +18,12 @@ use destack_ast::{
     AnnotationPosition, BinaryOperator, Comment, CommentStyle, Declaration, Expression,
     LocalNodeId, NodeType, TokenType, TypeBinaryOperator, TypeLiteral,
 };
-use destack_fir::format::{Buffer, FormatResult};
+use destack_fir::format::{BestFittingMode, Buffer, FormatResult};
 use destack_fir::prelude::{
     align, format_with, group, hard_line_break, if_group_breaks, indent, soft_line_break_or_space,
     space, text, token,
 };
-use destack_fir::{format_args, write};
+use destack_fir::{best_fitting, format_args, write};
 use smallvec::SmallVec;
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -401,6 +402,10 @@ fn type_union_leading_comment_nodes(
     node_id: LocalNodeId<Expression>,
     operands: &SmallVec<[(Option<BinaryOperator>, LocalNodeId<Expression>); 8]>,
 ) -> Vec<LocalNodeId<Comment>> {
+    if context.is_type_position_leading_comment_node_suppressed(node_id) {
+        return Vec::new();
+    }
+
     let Some(first_operand) = operands.first() else {
         return Vec::new();
     };
@@ -408,12 +413,62 @@ fn type_union_leading_comment_nodes(
     let owner_id =
         transparent_type_binary_chain_owner(context, node_id, BinaryOperator::ElementwiseOr);
     let owner_span = context.span(owner_id);
-    let Some(separator_span) = type_union_operand_separator_token_span(context, first_operand.1)
+    let separator_span = type_union_operand_separator_token_span(context, first_operand.1);
+
+    // leading comments before an explicit leading `|`
+    if let Some(separator_span) = separator_span {
+        if owner_span.file == separator_span.file && owner_span.start < separator_span.start {
+            let comment_nodes =
+                context.comment_nodes_in_range(owner_span.start, separator_span.start);
+            if !comment_nodes.is_empty() {
+                return comment_nodes;
+            }
+        }
+    }
+
+    // leading comments before a normal union head
+    if separator_span.is_none() {
+        let Some(previous_token) = context.previous_non_whitespace_token_before_span(owner_span)
+        else {
+            return Vec::new();
+        };
+
+        let previous_owner_start = match previous_token.token.ty {
+            TokenType::LineComment
+            | TokenType::BlockComment
+            | TokenType::DocLineComment
+            | TokenType::DocBlockComment => previous_token.span.start,
+            _ => previous_token.span.end,
+        };
+
+        if previous_token.span.file == owner_span.file && previous_owner_start < owner_span.start {
+            let comment_nodes =
+                context.comment_nodes_in_range(previous_owner_start, owner_span.start);
+            if !comment_nodes.is_empty() {
+                return comment_nodes;
+            }
+        }
+
+        return Vec::new();
+    }
+
+    let separator_span = separator_span.expect("checked above");
+
+    let Some(previous_owner_token) = context.previous_non_whitespace_token_before_span(owner_span)
     else {
         return Vec::new();
     };
-    if owner_span.file == separator_span.file && owner_span.start < separator_span.start {
-        let comment_nodes = context.comment_nodes_in_range(owner_span.start, separator_span.start);
+    let previous_owner_start = match previous_owner_token.token.ty {
+        TokenType::LineComment
+        | TokenType::BlockComment
+        | TokenType::DocLineComment
+        | TokenType::DocBlockComment => previous_owner_token.span.start,
+        _ => previous_owner_token.span.end,
+    };
+    if previous_owner_token.span.file == separator_span.file
+        && previous_owner_start < separator_span.start
+    {
+        let comment_nodes = context.comment_nodes_before_character(previous_owner_start, b'|');
         if !comment_nodes.is_empty() {
             return comment_nodes;
         }
@@ -522,6 +577,10 @@ fn type_union_leading_shell_prefix_annotations(
         owner_ids.push(operand_expression_id);
     }
 
+    let first_operand_token_type = context
+        .first_non_trivia_token_in_span(context.span(operand_expression_id))
+        .map(|token| token.token.ty);
+
     owner_ids
         .into_iter()
         .flat_map(|owner_id| context.annotation_ids(owner_id).iter().copied())
@@ -533,8 +592,12 @@ fn type_union_leading_shell_prefix_annotations(
             matches!(
                 context.annotation(*annotation_id).position(),
                 AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
-            ) && context.annotation_next_non_whitespace_token_type(*annotation_id)
+            ) && (context.annotation_next_non_whitespace_token_type(*annotation_id)
                 == Some(TokenType::ElementwiseOr)
+                || first_operand_token_type.is_some_and(|token_type| {
+                    context.annotation_next_non_whitespace_token_type(*annotation_id)
+                        == Some(token_type)
+                }))
                 && previous_token_type != Some(TokenType::ElementwiseOr)
                 && context
                     .span_str(context.annotation_span(*annotation_id))
@@ -721,7 +784,7 @@ pub(crate) fn union_owns_prefix_annotations(
         return false;
     }
 
-    let owns_prefix_in_parent_context = union_is_type_declaration_value(context, node_id)
+    let owns_prefix_in_parent_context = expression_is_type_position(context, node_id)
         || is_in_type_template_literal_interpolation(context, node_id);
     if !owns_prefix_in_parent_context {
         return false;
@@ -824,15 +887,37 @@ pub(crate) fn type_union_should_indent(
 ) -> bool {
     let union_top_id =
         transparent_type_binary_chain_owner(context, node_id, BinaryOperator::ElementwiseOr);
+
     if is_in_type_template_literal_interpolation(context, union_top_id) {
         return true;
     }
 
-    if !union_is_type_declaration_value(context, union_top_id) {
+    if union_is_type_declaration_value(context, union_top_id) {
+        return !union_has_trailing_own_line_doc_prefix_annotation(context, node_id);
+    }
+
+    let Some((parent_id, parent_type)) = context.parent(union_top_id) else {
+        return true;
+    };
+
+    if parent_type == NodeType::Argument {
         return false;
     }
 
-    !union_has_trailing_own_line_doc_prefix_annotation(context, node_id)
+    if parent_type == NodeType::Expression {
+        let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
+        if matches!(
+            context.tree.get(parent_expression_id),
+            Expression::TypeBinary {
+                operator: TypeBinaryOperator::Cast | TypeBinaryOperator::Satisfies,
+                ..
+            }
+        ) {
+            return false;
+        }
+    }
+
+    true
 }
 
 /// Return whether one union should preserve inline layout for terminal line-postfix comments.
@@ -989,7 +1074,7 @@ fn write_type_union_operand_after_separator<'ast>(
 }
 
 /// Render one type union in inline `A | B` form.
-fn format_inline_type_union_layout<'ast>(
+pub(crate) fn format_inline_type_union_layout<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     operands: &SmallVec<[(Option<BinaryOperator>, LocalNodeId<Expression>); 8]>,
 ) -> FormatResult<()> {
@@ -1113,8 +1198,8 @@ fn format_destack_intersection_trailing_layout<'ast>(
     )
 }
 
-/// Render non-destack intersections with oxc-style object-like chain layout.
-fn format_oxc_intersection_layout<'ast>(
+/// Render non-destack intersections with the standard object-like chain layout.
+fn format_standard_intersection_layout<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     operands: &SmallVec<[(Option<BinaryOperator>, LocalNodeId<Expression>); 8]>,
 ) -> FormatResult<()> {
@@ -1205,7 +1290,7 @@ fn format_oxc_intersection_layout<'ast>(
     )
 }
 
-/// Format one type-intersection binary in Destack or oxc style.
+/// Format one type-intersection binary in Destack or standard style.
 pub(crate) fn format_type_intersection_binary_layout<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
@@ -1214,13 +1299,13 @@ pub(crate) fn format_type_intersection_binary_layout<'ast>(
 ) -> FormatResult<()> {
     if is_destack {
         if intersection_is_nested_under_type_union(f.context(), node_id) {
-            return format_oxc_intersection_layout(f, operands);
+            return format_standard_intersection_layout(f, operands);
         }
 
         return format_destack_intersection_trailing_layout(f, operands);
     }
 
-    format_oxc_intersection_layout(f, operands)
+    format_standard_intersection_layout(f, operands)
 }
 
 /// Build the type-union layout flags derived from operands and annotations.
@@ -1232,8 +1317,21 @@ fn type_union_layout_flags(
     has_node_annotation: bool,
     has_operand_annotations: bool,
     has_operand_prefix_comments: bool,
-) -> (bool, bool, bool) {
+) -> (bool, bool, bool, bool) {
     let root_owns_prefix_annotation = union_owns_prefix_annotations(context, node_id);
+    let leading_gap_comment_nodes = type_union_leading_comment_nodes(context, node_id, operands);
+    let has_shell_owned_leading_comments = !leading_gap_comment_nodes.is_empty();
+    let (leading_shell_comment_nodes, first_separator_comment_nodes) =
+        split_type_union_leading_gap_comment_nodes(context, &leading_gap_comment_nodes);
+    let leading_comment_info =
+        LeadingCommentsInfo::from_comment_nodes(context, &leading_gap_comment_nodes);
+    let has_inline_fit_safe_leading_comments = !leading_shell_comment_nodes.is_empty()
+        && first_separator_comment_nodes.is_empty()
+        && !leading_comment_info.has_own_line_comment
+        && !leading_comment_info.has_trailing_own_line_doc_comment;
+    let has_shell_owned_leading_prefix_annotations = operands.first().is_some_and(|operand| {
+        !type_union_leading_shell_prefix_annotations(context, node_id, operand.1).is_empty()
+    });
     let has_separator_comments = operands
         .iter()
         .any(|operand| type_union_operand_has_separator_comments(context, operand.1));
@@ -1248,16 +1346,17 @@ fn type_union_layout_flags(
             let is_last_operand = index + 1 == operands.len();
             expression_has_leading_prefix_comment(context, operand.1) && !is_last_operand
         });
-    let has_own_line_doc_prefix_annotation =
-        union_has_trailing_own_line_doc_prefix_annotation(context, node_id);
-    let is_template_interpolation_multiline =
-        in_type_template_literal_interpolation && context.node_has_newline(node_id);
     let should_hug_layout = should_hug_type_union_operands(context, operands);
+    let has_explicit_leading_separator = operands.first().is_some_and(|operand| {
+        type_union_operand_separator_token_span(context, operand.1).is_some()
+    });
+    let prefers_template_interpolation_multiline = in_type_template_literal_interpolation
+        && has_explicit_leading_separator
+        && context.options.line_width <= 80;
     let prefers_multiline_layout = has_breaking_operand_prefix_comments
         || has_breaking_postfix_comments
         || has_separator_comments
-        || has_own_line_doc_prefix_annotation
-        || is_template_interpolation_multiline;
+        || prefers_template_interpolation_multiline;
     let is_parenthesized_cast_or_satisfies_rhs =
         union_is_parenthesized_cast_or_satisfies_rhs(context, node_id);
     let should_keep_parenthesized_cast_rhs_inline = is_parenthesized_cast_or_satisfies_rhs
@@ -1266,20 +1365,25 @@ fn type_union_layout_flags(
         && !has_node_annotation
         && !has_operand_annotations
         && !has_operand_prefix_comments;
-    let should_inline_union = !has_separator_comments
-        && (should_hug_layout
-            || should_keep_parenthesized_cast_rhs_inline
-            || should_inline_union_with_terminal_line_postfix_comment(
-                context,
-                node_id,
-                operands,
-                prefers_multiline_layout,
-            ));
+    let should_inline_union = should_hug_layout
+        || should_keep_parenthesized_cast_rhs_inline
+        || should_inline_union_with_terminal_line_postfix_comment(
+            context,
+            node_id,
+            operands,
+            prefers_multiline_layout,
+        );
+    let should_try_best_fitting_inline = !should_inline_union
+        && !has_separator_comments
+        && (!has_shell_owned_leading_comments || has_inline_fit_safe_leading_comments)
+        && !has_shell_owned_leading_prefix_annotations
+        && !prefers_multiline_layout;
 
     (
         root_owns_prefix_annotation,
         prefers_multiline_layout,
         should_inline_union,
+        should_try_best_fitting_inline,
     )
 }
 
@@ -1313,6 +1417,8 @@ fn format_leading_pipe_union<'ast>(
     let union_body = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         for (index, operand) in operands.iter().enumerate() {
             let is_first_operand = index == 0;
+            let operand_has_explicit_separator =
+                type_union_operand_separator_token_span(f.context(), operand.1).is_some();
 
             // first operand
             if is_first_operand {
@@ -1329,15 +1435,17 @@ fn format_leading_pipe_union<'ast>(
                     continue;
                 }
 
-                write!(
-                    f,
-                    [if_group_breaks(&format_args![
-                        soft_line_break_or_space(),
-                        token("|"),
-                        space()
-                    ])
-                    .with_group_id(Some(union_group_id))]
-                )?;
+                if operand_has_explicit_separator {
+                    write!(
+                        f,
+                        [if_group_breaks(&format_args![
+                            soft_line_break_or_space(),
+                            token("|"),
+                            space()
+                        ])
+                        .with_group_id(Some(union_group_id))]
+                    )?;
+                }
 
                 write_type_union_operand_after_separator(
                     f,
@@ -1410,6 +1518,20 @@ fn format_leading_pipe_union<'ast>(
 
             if !first_separator_comment_nodes.is_empty() {
                 write!(f, [hard_line_break()])?;
+            } else if let Some(last_comment_id) = leading_shell_comment_nodes.last().copied() {
+                let last_comment_span = f.context().span(last_comment_id);
+                if f.context().tree.get(last_comment_id).style == CommentStyle::Slash
+                    || leading_comment_info.has_trailing_own_line_doc_comment
+                {
+                    write!(f, [hard_line_break()])?;
+                } else if f
+                    .context()
+                    .span_has_newline_before_next_non_whitespace_token(last_comment_span)
+                {
+                    write!(f, [soft_line_break_or_space()])?;
+                } else {
+                    write!(f, [space()])?;
+                }
             }
         }
 
@@ -1433,16 +1555,17 @@ fn format_leading_pipe_union<'ast>(
             )?;
         }
 
-        write!(f, [union_body])
+        let format_union_group = group(&union_body)
+            .with_id(Some(union_group_id))
+            .should_expand(should_force_expand);
+
+        write!(f, [format_union_group])
     });
-    let format_union_group = group(&format_union_content)
-        .with_id(Some(union_group_id))
-        .should_expand(should_force_expand);
 
     if should_indent_union {
-        write!(f, [indent(&format_union_group)])
+        write!(f, [indent(&format_union_content)])
     } else {
-        write!(f, [format_union_group])
+        write!(f, [format_union_content])
     }
 }
 
@@ -1473,6 +1596,24 @@ fn type_union_operand_separator_token_span(
     }
 
     None
+}
+
+/// Return whether one type union has an explicit leading `|` before its first operand.
+pub(crate) fn type_union_has_explicit_leading_separator(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    let union_root_id =
+        transparent_type_binary_root_expression(context, node_id, BinaryOperator::ElementwiseOr);
+    if !binary_like_is_type_union(context, union_root_id, BinaryOperator::ElementwiseOr) {
+        return false;
+    }
+
+    let operands =
+        flatten_type_binary_expression(context, union_root_id, BinaryOperator::ElementwiseOr);
+    operands.first().is_some_and(|operand| {
+        type_union_operand_separator_token_span(context, operand.1).is_some()
+    })
 }
 
 /// Collect comments between `|` and one type-union operand.
@@ -1563,16 +1704,30 @@ pub(crate) fn format_type_union_binary_layout<'ast>(
     has_operand_annotations: bool,
     has_operand_prefix_comments: bool,
 ) -> FormatResult<()> {
-    let (root_owns_prefix_annotation, prefers_multiline_layout, should_inline_union) =
-        type_union_layout_flags(
-            f.context(),
-            node_id,
-            operands,
-            in_type_template_literal_interpolation,
-            has_node_annotation,
-            has_operand_annotations,
-            has_operand_prefix_comments,
-        );
+    let (
+        root_owns_prefix_annotation,
+        prefers_multiline_layout,
+        should_inline_union,
+        should_try_best_fitting_inline,
+    ) = type_union_layout_flags(
+        f.context(),
+        node_id,
+        operands,
+        in_type_template_literal_interpolation,
+        has_node_annotation,
+        has_operand_annotations,
+        has_operand_prefix_comments,
+    );
+    let leading_gap_comment_nodes =
+        type_union_leading_comment_nodes(f.context(), node_id, operands);
+    let (leading_shell_comment_nodes, first_separator_comment_nodes) =
+        split_type_union_leading_gap_comment_nodes(f.context(), &leading_gap_comment_nodes);
+    let leading_comment_info =
+        LeadingCommentsInfo::from_comment_nodes(f.context(), &leading_gap_comment_nodes);
+    let inline_fit_safe_leading_comments = !leading_shell_comment_nodes.is_empty()
+        && first_separator_comment_nodes.is_empty()
+        && !leading_comment_info.has_own_line_comment
+        && !leading_comment_info.has_trailing_own_line_doc_comment;
 
     // inline vs leading-pipe shell
     if should_inline_union {
@@ -1586,6 +1741,32 @@ pub(crate) fn format_type_union_binary_layout<'ast>(
             )?;
         }
         format_inline_type_union_layout(f, operands)?;
+    } else if should_try_best_fitting_inline {
+        let format_inline = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            if inline_fit_safe_leading_comments {
+                write_union_leading_comment_nodes(f, &leading_shell_comment_nodes)?;
+                write!(f, [space()])?;
+            }
+
+            if root_owns_prefix_annotation {
+                write!(
+                    f,
+                    [crate::format::annotation::prefix_annotations(
+                        f.context(),
+                        node_id
+                    )]
+                )?;
+            }
+
+            format_inline_type_union_layout(f, operands)
+        });
+        let format_multiline = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            format_leading_pipe_union(f, node_id, operands, prefers_multiline_layout)
+        });
+        write!(
+            f,
+            [best_fitting![format_inline, format_multiline].with_mode(BestFittingMode::AllLines)]
+        )?;
     } else {
         format_leading_pipe_union(f, node_id, operands, prefers_multiline_layout)?;
     }

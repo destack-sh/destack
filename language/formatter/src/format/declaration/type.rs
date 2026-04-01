@@ -1,12 +1,12 @@
 use crate::format::annotation::write_annotation_sequence;
-use crate::format::collection::TrailingSeparator;
 use crate::format::collection::member::format_block_of_members;
 use crate::format::declaration::declaration::{
     format_declaration_export_modifier, format_super_type_clause,
     format_super_type_clause_with_expand,
 };
 use crate::format::declaration::signature::{
-    format_where_clause_with_break, write_static_parameter_list,
+    default_static_parameter_trailing_separator, format_where_clause_with_break,
+    write_static_parameter_list,
 };
 use crate::format::expression::{
     expression_has_prefix_comment_or_doc_annotation_in_left_spine,
@@ -15,8 +15,8 @@ use crate::format::expression::{
 use crate::{Annotation, DestackFormatter, FormatNode, empty_block_with_infix_annotations};
 use destack_ast::{
     AnnotationPosition, Declaration, DeclarationAbstraction, DeclarationDescriptor,
-    DeclarationKind, EnumField, EnumKind, Expression, FunctionKind, Generics, Heritage, Keyword,
-    LocalNodeId, Member, NodeType, TypeKind, WhereClause,
+    DeclarationKind, Declarator, EnumField, EnumKind, Expression, FunctionKind, Generics, Heritage,
+    Keyword, LocalNodeId, Member, NodeType, TypeKind, WhereClause,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -274,7 +274,11 @@ fn format_declaration_static_parameters<'ast>(
     if let Some(static_parameters) = generics.static_parameters.as_ref()
         && !static_parameters.is_empty()
     {
-        write_static_parameter_list(f, static_parameters, TrailingSeparator::Disallowed)?;
+        write_static_parameter_list(
+            f,
+            static_parameters,
+            default_static_parameter_trailing_separator(f),
+        )?;
     }
 
     Ok(())
@@ -413,21 +417,26 @@ fn format_anonymous_class_heritage<'ast>(
             .copied()
             .any(|type_id| expression_has_static_type_arguments(f.context(), type_id));
         if has_generic_extends {
-            write!(f, [space(), Keyword::Extends, space(), token("(")])?;
+            let content = format_with(|f| {
+                f.join_with(&format_args![&token(","), soft_line_break_or_space()])
+                    .entries(extends_types.iter().copied().map(|type_id| {
+                        format_with(move |f| format_class_extends_expression(f, type_id))
+                    }))
+                    .finish()
+            });
+            let group_id = f.group_id("anonymous_class_extends");
+            let broken_content =
+                format_with(|f| write!(f, [token("("), soft_block_indent(&content), token(")")]));
+
+            write!(f, [space(), Keyword::Extends, space()])?;
             write!(
                 f,
-                [group(&indent(&format_args![
-                    soft_line_break_or_space(),
-                    format_with(|f| {
-                        f.join_with(&format_args![&token(","), soft_line_break_or_space()])
-                            .entries(extends_types.iter().copied().map(|type_id| {
-                                format_with(move |f| format_class_extends_expression(f, type_id))
-                            }))
-                            .finish()
-                    })
-                ]))]
+                [group(&format_args![
+                    if_group_breaks(&broken_content).with_group_id(Some(group_id)),
+                    if_group_fits_on_line(&content).with_group_id(Some(group_id))
+                ])
+                .with_id(Some(group_id))]
             )?;
-            write!(f, [soft_line_break_or_space(), token(")")])?;
         } else {
             write!(f, [space(), Keyword::Extends, space()])?;
             write!(
@@ -502,15 +511,24 @@ pub(crate) fn format_struct_or_class_declaration<'ast>(
             let Some((parent_id, parent_type)) = f.context().parent(expression_id) else {
                 return false;
             };
-            if parent_type != NodeType::Expression {
-                return false;
-            }
 
-            let parent_expression = LocalNodeId::<Expression>::new(parent_id);
-            matches!(
-                f.context().tree.get(parent_expression),
-                Expression::Assign { right, .. } if *right == expression_id
-            )
+            match parent_type {
+                NodeType::Expression => {
+                    let parent_expression = LocalNodeId::<Expression>::new(parent_id);
+                    matches!(
+                        f.context().tree.get(parent_expression),
+                        Expression::Assign { right, .. } if *right == expression_id
+                    )
+                }
+                NodeType::Declarator => {
+                    let parent_declarator = LocalNodeId::<Declarator>::new(parent_id);
+                    matches!(
+                        f.context().tree.get(parent_declarator),
+                        Declarator { value, .. } if *value == Some(expression_id)
+                    )
+                }
+                _ => false,
+            }
         });
     let has_generic_head_comment = declaration_has_non_decorator_prefix_annotation(f, node_id);
     let has_body_head_comment = false;

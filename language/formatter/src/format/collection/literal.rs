@@ -1,23 +1,21 @@
 use std::borrow::Cow;
 
-use crate::format::expression::{is_expression_breakable, is_trivial_expression};
 use crate::format::tree::is_jsx_whitespace_char;
 use crate::{DestackFormatContext, DestackFormatter};
 
 use destack_ast::{
-    Argument, Expression, FloatType, IfKind, IntType, LiteralType, LocalNodeId, Path,
-    ScalarLiteral, TemplateLiteral, TypeLiteral,
+    Argument, Expression, FloatType, IntType, LiteralType, LocalNodeId, Path, ScalarLiteral,
+    TemplateLiteral, TypeLiteral,
 };
 use destack_core::StringId;
-use destack_fir::format::{Format, FormatResult, text, token};
+use destack_fir::format::{
+    Buffer, Format, FormatNode, FormatResult, LineMode, RemoveSoftLinesBuffer, TextWidth, text,
+    token,
+};
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
 use destack_source::Span;
 use destack_workspace::QuoteStyle;
-
-// template interpolation complexity thresholds
-const TEMPLATE_COMPLEX_ARGUMENT_COUNT_THRESHOLD: usize = 2;
-const TEMPLATE_COMPLEX_OBJECT_PROPERTY_THRESHOLD: usize = 2;
 
 /// Format a path with dot separated segments.
 impl<'ast> Format<DestackFormatContext<'ast>> for Path {
@@ -230,60 +228,140 @@ fn format_interpolated_template_literal<'ast>(
     let template_has_newline = f.context().has_newline(template_span);
 
     for (argument, segment) in arguments.iter().zip(string_segments) {
-        let should_force_inline_ternary = template_argument_should_force_inline_ternary(
+        let format_argument = format_with(|f| write!(f, [*argument]));
+        let interned_argument = f.intern(&format_argument)?;
+        let layout = template_argument_layout(
             f.context(),
             *argument,
             template_has_newline,
+            &interned_argument,
         );
-        let should_expand =
-            template_argument_should_expand(f.context(), *argument, template_has_newline);
+        let format_inner = format_with(|f| {
+            match layout {
+                // single-line layout
+                TemplateElementLayout::SingleLine => {
+                    if let Some(interned_argument) = &interned_argument {
+                        let mut buffer = RemoveSoftLinesBuffer::new(f);
+                        buffer.write_node(interned_argument.clone());
+                    }
+                }
+                // fit layout
+                TemplateElementLayout::Fit => {
+                    let should_indent =
+                        template_argument_should_indent_fit_layout(f.context(), *argument);
 
-        if should_force_inline_ternary {
-            write!(
-                f,
-                [
-                    group(&format_args![
-                        token("${"),
-                        *argument,
-                        line_postfix_boundary(),
-                        token("}")
-                    ]),
-                    *segment,
-                ]
-            )?;
-        } else if should_expand {
-            write!(
-                f,
-                [
-                    group(&format_args![
-                        token("${"),
-                        indent(&format_args![hard_line_break(), argument]),
-                        line_postfix_boundary(),
-                        hard_line_break(),
-                        token("}")
-                    ])
-                    .should_expand(true),
-                    *segment,
-                ]
-            )?;
-        } else {
-            write!(
-                f,
-                [
-                    group(&format_args![
-                        token("${"),
-                        indent(&format_args![soft_line_break(), argument]),
-                        line_postfix_boundary(),
-                        soft_line_break(),
-                        token("}")
-                    ]),
-                    *segment,
-                ]
-            )?;
-        }
+                    match &interned_argument {
+                        Some(interned_argument) if should_indent => {
+                            write!(
+                                f,
+                                [soft_block_indent(&format_with(|f| {
+                                    f.write_node(interned_argument.clone());
+                                    Ok(())
+                                }))]
+                            )?;
+                        }
+                        Some(interned_argument) => {
+                            f.write_node(interned_argument.clone());
+                        }
+                        None => {}
+                    }
+                }
+            }
+
+            Ok(())
+        });
+        write!(
+            f,
+            [
+                group(&format_args![
+                    token("${"),
+                    format_inner,
+                    line_postfix_boundary(),
+                    token("}")
+                ]),
+                *segment,
+            ]
+        )?;
     }
 
     write!(f, [token("`")])
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum TemplateElementLayout {
+    SingleLine,
+    Fit,
+}
+
+/// Return the layout for one template interpolation argument.
+fn template_argument_layout(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+    _template_has_newline: bool,
+    interned_argument: &Option<destack_fir::format::FormatNode>,
+) -> TemplateElementLayout {
+    if context.node_has_newline(argument_id) {
+        return TemplateElementLayout::Fit;
+    }
+
+    if let Some(expression_id) = template_argument_expression_id(context, argument_id)
+        && context.node_has_newline(expression_id)
+    {
+        return TemplateElementLayout::Fit;
+    }
+
+    if interned_argument
+        .as_ref()
+        .is_some_and(template_argument_format_node_will_break)
+    {
+        return TemplateElementLayout::Fit;
+    }
+
+    TemplateElementLayout::SingleLine
+}
+
+/// Return whether one interned template interpolation format node must break.
+fn template_argument_format_node_will_break(node: &FormatNode) -> bool {
+    match node {
+        FormatNode::Line(LineMode::Hard | LineMode::Empty) => true,
+        FormatNode::Token { text } => text.contains('\n'),
+        FormatNode::Text { width, .. } | FormatNode::FileSlice { width, .. } => {
+            matches!(width, TextWidth::Multiline)
+        }
+        FormatNode::Interned(interned) => interned
+            .iter()
+            .any(template_argument_format_node_will_break),
+        FormatNode::BestFitting { variants, .. } => variants
+            .most_flat()
+            .iter()
+            .any(template_argument_format_node_will_break),
+        _ => false,
+    }
+}
+
+/// Return whether one fit-layout interpolation should indent its body.
+fn template_argument_should_indent_fit_layout(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let Some(expression_id) = template_argument_expression_id(context, argument_id) else {
+        return false;
+    };
+
+    if context.has_annotation(argument_id) || context.has_annotation(expression_id) {
+        return true;
+    }
+
+    matches!(
+        context.tree.get(expression_id),
+        Expression::Member { .. }
+            | Expression::PrivateMember { .. }
+            | Expression::Index { .. }
+            | Expression::If { .. }
+            | Expression::TypeBinary { .. }
+            | Expression::Binary { .. }
+            | Expression::Path { .. }
+    )
 }
 
 /// Return the unwrapped expression id for a template interpolation argument.
@@ -299,168 +377,6 @@ fn template_argument_expression_id(
         Argument::Error => return None,
     };
     Some(unwrap_template_expression(context, value))
-}
-
-/// Decide whether one template interpolation ternary should stay fully inline.
-fn template_argument_should_force_inline_ternary(
-    context: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-    template_has_newline: bool,
-) -> bool {
-    let Some(expression_id) = template_argument_expression_id(context, argument_id) else {
-        return false;
-    };
-
-    if context.node_has_newline(expression_id) || context.node_has_newline(argument_id) {
-        return false;
-    }
-
-    if context.has_annotation(expression_id) || context.has_annotation(argument_id) {
-        return false;
-    }
-
-    matches!(
-        context.tree.get(expression_id),
-        Expression::If {
-            kind: IfKind::Ternary,
-            ..
-        }
-    ) && !template_has_newline
-}
-
-/// Decide whether a template literal interpolation should break across lines.
-fn template_argument_should_expand(
-    context: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-    template_has_newline: bool,
-) -> bool {
-    let Some(expression_id) = template_argument_expression_id(context, argument_id) else {
-        return false;
-    };
-    let expression = context.tree.get(expression_id);
-    if is_trivial_expression(context.tree, expression) {
-        return false;
-    }
-
-    // preserve multiline template literals with conditional interpolation
-    if template_has_newline
-        && matches!(
-            expression,
-            Expression::If {
-                kind: IfKind::Ternary,
-                ..
-            }
-        )
-    {
-        return true;
-    }
-
-    // prefer inline conditional interpolations unless source already spans lines
-    if matches!(
-        expression,
-        Expression::If {
-            kind: IfKind::Ternary,
-            ..
-        }
-    ) && !context.node_has_newline(expression_id)
-        && !context.node_has_newline(argument_id)
-    {
-        return false;
-    }
-
-    if template_expression_is_complex(context, expression_id) {
-        return true;
-    }
-
-    if !is_expression_breakable(context.tree, expression) {
-        return false;
-    }
-
-    match expression {
-        Expression::Call {
-            dynamic_arguments, ..
-        }
-        | Expression::New {
-            dynamic_arguments, ..
-        } => {
-            if dynamic_arguments.len() > TEMPLATE_COMPLEX_ARGUMENT_COUNT_THRESHOLD {
-                return true;
-            }
-        }
-        _ => {}
-    }
-
-    let span = context.span(expression_id);
-    let has_expression_newline = context.has_newline(span) || context.node_has_newline(argument_id);
-    if !has_expression_newline {
-        return false;
-    }
-
-    true
-}
-
-/// Check whether a template literal interpolation is complex enough to force expansion.
-fn template_expression_is_complex(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    let expression = context.tree.get(expression_id);
-    match expression {
-        Expression::TypeBinary { .. }
-        | Expression::TypeConditional { .. }
-        | Expression::TypeMapped { .. }
-        | Expression::TypeTemplateLiteral { .. } => true,
-        Expression::Maybe { .. } | Expression::Must { .. } => true,
-        Expression::TreeExpression { .. } => true,
-        Expression::ObjectExpression { properties, .. } => {
-            properties.len() > TEMPLATE_COMPLEX_OBJECT_PROPERTY_THRESHOLD
-        }
-        Expression::Call {
-            dynamic_arguments, ..
-        }
-        | Expression::New {
-            dynamic_arguments, ..
-        } => {
-            dynamic_arguments.len() > TEMPLATE_COMPLEX_ARGUMENT_COUNT_THRESHOLD
-                || dynamic_arguments.iter().any(|argument_id| {
-                    let argument = context.tree.get(*argument_id);
-                    let Some(argument_value_expression) =
-                        argument_value_expression(context, argument)
-                    else {
-                        return true;
-                    };
-
-                    !is_trivial_expression(context.tree, argument_value_expression)
-                })
-        }
-        Expression::Index { left, index, .. } => {
-            index.is_some_and(|index_id| {
-                let index_expression = context.tree.get(index_id);
-                !is_trivial_expression(context.tree, index_expression)
-            }) || template_expression_is_complex(context, *left)
-        }
-        Expression::Member { left, .. } => template_expression_is_complex(context, *left),
-        Expression::Statement(inner_id) => template_expression_is_complex(context, *inner_id),
-        Expression::Parenthesized { expression } => {
-            template_expression_is_complex(context, *expression)
-        }
-        _ => false,
-    }
-}
-
-/// Extract the expression value from an argument node.
-fn argument_value_expression<'ast>(
-    context: &DestackFormatContext<'ast>,
-    argument: &Argument,
-) -> Option<&'ast Expression> {
-    let value_id = match argument {
-        Argument::Named { value, .. }
-        | Argument::Labeled { value, .. }
-        | Argument::Positional { value, .. }
-        | Argument::Spread { value, .. } => *value,
-        Argument::Error => return None,
-    };
-    Some(context.tree.get(value_id))
 }
 
 /// Unwrap a template interpolation argument into its underlying expression.

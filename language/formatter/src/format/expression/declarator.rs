@@ -377,6 +377,8 @@ pub(crate) fn declarator_drops_parenthesized_value_wrapper(
     parenthesized_id: LocalNodeId<Expression>,
     inner_expression_id: LocalNodeId<Expression>,
 ) -> bool {
+    let normalized_inner_expression_id = transparent_inner_expression(context, inner_expression_id);
+
     if context.has_annotation(parenthesized_id) {
         return false;
     }
@@ -431,8 +433,15 @@ pub(crate) fn declarator_drops_parenthesized_value_wrapper(
     // keep left-spine prefix ownership intact when the declarator already owns the seam
     let drops_prefix_wrapper =
         expression_has_prefix_comment_or_doc_annotation_in_left_spine(context, inner_expression_id);
+    let drops_ternary_wrapper = matches!(
+        context.tree.get(normalized_inner_expression_id),
+        Expression::If {
+            kind: IfKind::Ternary,
+            ..
+        }
+    );
 
-    drops_tree_wrapper || drops_prefix_wrapper
+    drops_tree_wrapper || drops_prefix_wrapper || drops_ternary_wrapper
 }
 
 /// Return whether a value expression wraps a class declaration with generic heritage.

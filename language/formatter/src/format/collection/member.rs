@@ -6,11 +6,12 @@ use crate::format::collection::{
     TrailingSeparator, format_block_nodes_with_ignore_ranges, separated_entries,
 };
 use crate::format::declaration::signature::{
-    format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix,
-    format_binding_modifiers_prefix_maybe, write_static_parameter_list,
+    default_static_parameter_trailing_separator, format_binding_modifiers_postfix_maybe,
+    format_binding_modifiers_prefix, format_binding_modifiers_prefix_maybe,
+    write_static_parameter_list,
 };
 use crate::format::directive::{node_has_ignore_directive, write_ignored_node};
-use crate::format::operator::write_expression_with_inline_prefix_annotations;
+use crate::format::operator::write_colon_prefixed_type_annotation;
 use crate::{DestackFormatter, FormatNode};
 use destack_ast::{Comment, Declaration, Expression, Keyword, LocalNodeId, Member};
 use destack_fir::format::{Buffer, FormatResult};
@@ -111,7 +112,16 @@ impl<'ast> FormatNode<'ast, Member> for Member {
         if is_ignored {
             write!(
                 f,
-                [crate::format::annotation::prefix_annotations(
+                [
+                    crate::format::annotation::prefix_annotations_without_decorators(
+                        f.context(),
+                        node_id
+                    )
+                ]
+            )?;
+            write!(
+                f,
+                [crate::format::annotation::decorator_prefix_annotations(
                     f.context(),
                     node_id
                 )]
@@ -159,7 +169,7 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                         write_static_parameter_list(
                             f,
                             static_parameters,
-                            TrailingSeparator::Disallowed,
+                            default_static_parameter_trailing_separator(f),
                         )?;
                     }
 
@@ -181,8 +191,7 @@ impl<'ast> FormatNode<'ast, Member> for Member {
 
                     // type bound
                     if let Some(ty) = ty {
-                        write!(f, [token(":"), space()])?;
-                        write_expression_with_inline_prefix_annotations(f, *ty)?;
+                        write_colon_prefixed_type_annotation(f, *ty)?;
                     }
 
                     // value
@@ -211,8 +220,7 @@ impl<'ast> FormatNode<'ast, Member> for Member {
 
                     // optional type annotation
                     if let Some(ty) = ty {
-                        write!(f, [token(":"), space()])?;
-                        write_expression_with_inline_prefix_annotations(f, *ty)?;
+                        write_colon_prefixed_type_annotation(f, *ty)?;
                     }
 
                     // optional initializer
