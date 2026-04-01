@@ -8,6 +8,7 @@ use destack_fir::prelude::*;
 use destack_fir::write;
 
 use crate::format::argument::list_like;
+use crate::format::function::format_function_signature_parameters;
 use crate::{FormatNode, JsFormatter};
 
 #[inline]
@@ -160,8 +161,8 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                 {
                     write!(f, [list_like("<", ">", ",", static_parameters)])?;
                 }
-                // dynamic parameters
-                write!(f, [list_like("(", ")", ",", &signature.dynamic_parameters)])?;
+                // parameters
+                format_function_signature_parameters(signature, f)?;
                 // modifiers
                 format_binding_modifiers_postfix_maybe(f, *modifiers)?;
                 // return type
@@ -265,8 +266,8 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                 {
                     write!(f, [list_like("<", ">", ",", static_parameters)])?;
                 }
-                // dynamic parameters
-                write!(f, [list_like("(", ")", ",", &signature.dynamic_parameters)])?;
+                // parameters
+                format_function_signature_parameters(signature, f)?;
                 // modifiers
                 format_binding_modifiers_postfix_maybe(f, *modifiers)?;
                 // return type

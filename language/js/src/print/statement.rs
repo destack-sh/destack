@@ -77,6 +77,11 @@ impl<'a> Printer<'a> {
                 self.print_expression_id(*value)?;
             }
             Statement::Declaration { declaration } => {
+                let declaration_value = self.tree.get(*declaration);
+                if self.declaration_is_elided(declaration_value) {
+                    return Ok(());
+                }
+
                 self.print_declaration_id(*declaration)?;
             }
             Statement::Block { block } => {

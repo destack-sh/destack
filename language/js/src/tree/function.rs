@@ -75,6 +75,8 @@ pub struct FunctionSignature {
     pub kind: FunctionKind,
     /// The generics of the function.
     pub generics: Option<Generics>,
+    /// The optional `this` parameter of the function.
+    pub this_parameter: Option<LocalNodeId<Parameter>>,
     /// The dynamic parameters of the function.
     pub dynamic_parameters: Vec<LocalNodeId<Parameter>>,
     /// The return type of the function.

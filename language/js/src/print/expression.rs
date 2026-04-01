@@ -22,6 +22,10 @@ impl<'a> Printer<'a> {
             self.write_punct("(");
         }
 
+        if !self.include_types && expression.is_type_only(self.tree) {
+            return Ok(());
+        }
+
         match expression {
             Expression::Declaration { declaration } => {
                 self.print_declaration_id(*declaration)?;
@@ -43,11 +47,11 @@ impl<'a> Printer<'a> {
                     && !static_parameters.is_empty()
                 {
                     self.write_punct("<");
-                    self.print_parameter_list(static_parameters)?;
+                    self.print_type_parameter_list(static_parameters)?;
                     self.write_punct(">");
                 }
 
-                if self.can_print_bare_arrow_parameter(signature.dynamic_parameters.as_slice()) {
+                if self.can_print_bare_arrow_parameter(signature) {
                     let parameter = self.tree.get(signature.dynamic_parameters[0]);
                     let Parameter::Named { name, .. } = parameter else {
                         unreachable!("bare arrow parameters must be simple named parameters");
@@ -56,7 +60,7 @@ impl<'a> Printer<'a> {
                     self.write_string_id(*name);
                 } else {
                     self.write_punct("(");
-                    self.print_parameter_list(&signature.dynamic_parameters)?;
+                    self.print_function_signature_parameters(signature)?;
                     self.write_punct(")");
                 }
 
@@ -68,7 +72,15 @@ impl<'a> Printer<'a> {
                 }
 
                 self.write_punct("=>");
-                self.print_expression_id_with_precedence(*body, Precedence::Assignment)?;
+
+                match body {
+                    crate::ArrowFunctionBody::Expression(body) => {
+                        self.print_expression_id_with_precedence(*body, Precedence::Assignment)?;
+                    }
+                    crate::ArrowFunctionBody::Block(body) => {
+                        self.print_block_id(*body)?;
+                    }
+                }
             }
             Expression::Path {
                 path,
@@ -255,6 +267,16 @@ impl<'a> Printer<'a> {
                 self.print_expression_id_with_precedence(*right, Precedence::Lowest)?;
                 self.write_punct("]");
             }
+            Expression::Instantiation {
+                left,
+                static_arguments,
+            } => {
+                self.print_expression_id_with_precedence(*left, Precedence::Postfix)?;
+
+                if self.include_types {
+                    self.print_type_arguments(static_arguments)?;
+                }
+            }
             Expression::Call {
                 position,
                 left,
@@ -378,9 +400,11 @@ impl<'a> Printer<'a> {
     /// Return whether one arrow function may omit parameter parentheses.
     pub(crate) fn can_print_bare_arrow_parameter(
         &self,
-        parameters: &[LocalNodeId<Parameter>],
+        signature: &crate::FunctionSignature,
     ) -> bool {
-        if self.include_types || parameters.len() != 1 {
+        let parameters = signature.dynamic_parameters.as_slice();
+
+        if self.include_types || signature.this_parameter.is_some() || parameters.len() != 1 {
             return false;
         }
 

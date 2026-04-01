@@ -1,14 +1,43 @@
 use crate::format::argument::list_like;
 use crate::format::dependency::{format_export_binding, format_import_binding};
 use crate::{
-    Asynchrony, CatchClause, DeclarationKind, DependencyKind, ForEachDeclarationKind,
-    ForInitialization, FormatNode, JsFormatContext, JsFormatter, Keyword, LocalNodeId,
-    LocalNodeIdAny, Mutability, NodeType, Statement,
+    Asynchrony, CatchClause, Declaration, DeclarationKind, DependencyKind, Expression,
+    ForEachDeclarationKind, ForInitialization, FormatNode, JsFormatContext, JsFormatter, Keyword,
+    LocalNodeId, LocalNodeIdAny, Mutability, NodeType, Statement,
 };
 use destack_fir::format::{FormatResult, Formatter};
 use destack_fir::prelude::*;
 use destack_fir::write;
 use destack_source::NodeSpanType;
+
+fn statement_is_elided(context: &JsFormatContext<'_>, statement: &Statement) -> bool {
+    !context.include_types() && statement.is_type_only(context.tree)
+}
+
+fn root_is_elided(context: &JsFormatContext<'_>, root: LocalNodeIdAny) -> bool {
+    if context.include_types() {
+        return false;
+    }
+
+    match root.ty {
+        NodeType::Declaration => {
+            let declaration_id = LocalNodeId::<Declaration>::new(root.id);
+            let declaration = context.tree.get(declaration_id);
+            declaration.is_type_only()
+        }
+        NodeType::Statement => {
+            let statement_id = LocalNodeId::<Statement>::new(root.id);
+            let statement = context.tree.get(statement_id);
+            statement.is_type_only(context.tree)
+        }
+        NodeType::Expression => {
+            let expression_id = LocalNodeId::<Expression>::new(root.id);
+            let expression = context.tree.get(expression_id);
+            expression.is_type_only(context.tree)
+        }
+        _ => false,
+    }
+}
 
 /// Format root-level statements with semicolons and trailing newline.
 pub fn format_roots(
@@ -16,26 +45,32 @@ pub fn format_roots(
     roots: &[LocalNodeIdAny],
 ) -> FormatResult<()> {
     // emit each root with the pretty statement separator
-    for (i, root) in roots.iter().enumerate() {
-        if i > 0 {
+    let mut printed_any = false;
+    for root in roots.iter().copied() {
+        if root_is_elided(f.context(), root) {
+            continue;
+        }
+
+        if printed_any {
             write!(f, [hard_line_break()])?;
         }
 
         write!(f, [root])?;
+        printed_any = true;
 
         // terminate statements that require semicolons
         if root.ty == NodeType::Statement {
             let statement_id = LocalNodeId::<Statement>::new(root.id);
             let statement = f.context().tree.get(statement_id);
 
-            if statement.needs_semicolon() {
+            if !statement_is_elided(f.context(), statement) && statement.needs_semicolon() {
                 write!(f, [token(";")])?;
             }
         }
     }
 
     // keep text outputs newline terminated
-    if !roots.is_empty() {
+    if printed_any {
         write!(f, [hard_line_break()])?;
     }
 
@@ -141,7 +176,12 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
                 write!(f, [value])?;
             }
             Statement::Declaration { declaration } => {
-                declaration.format(f)?;
+                let declaration_value = f.context().tree.get(*declaration);
+                if !f.context().include_types() && declaration_value.is_type_only() {
+                    return Ok(());
+                }
+
+                write!(f, [declaration])?;
             }
             Statement::Block { block } => {
                 block.format(f)?;

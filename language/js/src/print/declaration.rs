@@ -12,6 +12,10 @@ impl<'a> Printer<'a> {
         declaration: &Declaration,
         declaration_id: LocalNodeId<Declaration>,
     ) -> JsPrintResult<()> {
+        if self.declaration_is_elided(declaration) {
+            return Ok(());
+        }
+
         match declaration {
             Declaration::Global {
                 descriptor,
@@ -47,7 +51,7 @@ impl<'a> Printer<'a> {
 
                 if let Some(static_parameters) = static_parameters {
                     self.write_punct("<");
-                    self.print_parameter_list(static_parameters)?;
+                    self.print_type_parameter_list(static_parameters)?;
                     self.write_punct(">");
                 }
 
@@ -67,7 +71,7 @@ impl<'a> Printer<'a> {
                     && !static_parameters.is_empty()
                 {
                     self.write_punct("<");
-                    self.print_parameter_list(static_parameters)?;
+                    self.print_type_parameter_list(static_parameters)?;
                     self.write_punct(">");
                 }
 
@@ -102,7 +106,7 @@ impl<'a> Printer<'a> {
                     && !static_parameters.is_empty()
                 {
                     self.write_punct("<");
-                    self.print_parameter_list(static_parameters)?;
+                    self.print_type_parameter_list(static_parameters)?;
                     self.write_punct(">");
                 }
 
@@ -206,12 +210,12 @@ impl<'a> Printer<'a> {
             && !static_parameters.is_empty()
         {
             self.write_punct("<");
-            self.print_parameter_list(static_parameters)?;
+            self.print_type_parameter_list(static_parameters)?;
             self.write_punct(">");
         }
 
         self.write_punct("(");
-        self.print_parameter_list(&signature.dynamic_parameters)?;
+        self.print_function_signature_parameters(signature)?;
         self.write_punct(")");
 
         if self.include_types
@@ -220,6 +224,26 @@ impl<'a> Printer<'a> {
             self.write_punct(":");
             self.print_type_id(return_type)?;
         }
+
+        Ok(())
+    }
+
+    /// Print one function signature parameter sequence.
+    pub(crate) fn print_function_signature_parameters(
+        &mut self,
+        signature: &FunctionSignature,
+    ) -> JsPrintResult<()> {
+        if self.include_types
+            && let Some(this_parameter) = signature.this_parameter
+        {
+            self.print_parameter_id(this_parameter)?;
+
+            if !signature.dynamic_parameters.is_empty() {
+                self.write_punct(",");
+            }
+        }
+
+        self.print_parameter_list(&signature.dynamic_parameters)?;
 
         Ok(())
     }
@@ -378,7 +402,7 @@ impl<'a> Printer<'a> {
             && !static_parameters.is_empty()
         {
             self.write_punct("<");
-            self.print_parameter_list(static_parameters)?;
+            self.print_type_parameter_list(static_parameters)?;
             self.write_punct(">");
         }
 

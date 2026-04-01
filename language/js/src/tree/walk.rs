@@ -503,6 +503,12 @@ fn walk_function_signature<V: NodeVisitor + ?Sized>(
     if let Some(generics) = signature.generics.as_ref() {
         walk_generics(visitor, tree, generics);
     }
+
+    if let Some(this_parameter_id) = signature.this_parameter {
+        let this_parameter = tree.get(this_parameter_id);
+        visitor.visit_parameter(tree, this_parameter_id, this_parameter);
+    }
+
     for parameter_id in signature.dynamic_parameters.iter() {
         let parameter = tree.get(*parameter_id);
         visitor.visit_parameter(tree, *parameter_id, parameter);
@@ -529,17 +535,26 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
         Expression::ArrowFunction { signature, body } => {
             walk_function_signature(visitor, tree, signature);
-            let body_expr = tree.get(*body);
-            visitor.visit_expression(tree, *body, body_expr);
+
+            match body {
+                crate::ArrowFunctionBody::Expression(body) => {
+                    let body_expr = tree.get(*body);
+                    visitor.visit_expression(tree, *body, body_expr);
+                }
+                crate::ArrowFunctionBody::Block(body) => {
+                    let body_block = tree.get(*body);
+                    visitor.visit_block(tree, *body, body_block);
+                }
+            }
         }
         Expression::Path {
             path: _,
             static_arguments,
         } => {
-            if let Some(arguments) = static_arguments {
-                for argument_id in arguments {
-                    let argument = tree.get(*argument_id);
-                    visitor.visit_argument(tree, *argument_id, argument);
+            if let Some(types) = static_arguments {
+                for type_id in types {
+                    let ty = tree.get(*type_id);
+                    visitor.visit_type(tree, *type_id, ty);
                 }
             }
         }
@@ -667,10 +682,10 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         } => {
             let left_expr = tree.get(*left);
             visitor.visit_expression(tree, *left, left_expr);
-            if let Some(arguments) = static_arguments {
-                for argument_id in arguments {
-                    let argument = tree.get(*argument_id);
-                    visitor.visit_argument(tree, *argument_id, argument);
+            if let Some(types) = static_arguments {
+                for type_id in types {
+                    let ty = tree.get(*type_id);
+                    visitor.visit_type(tree, *type_id, ty);
                 }
             }
         }
@@ -681,10 +696,10 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         } => {
             let left_expr = tree.get(*left);
             visitor.visit_expression(tree, *left, left_expr);
-            if let Some(arguments) = static_arguments {
-                for argument_id in arguments {
-                    let argument = tree.get(*argument_id);
-                    visitor.visit_argument(tree, *argument_id, argument);
+            if let Some(types) = static_arguments {
+                for type_id in types {
+                    let ty = tree.get(*type_id);
+                    visitor.visit_type(tree, *type_id, ty);
                 }
             }
         }
@@ -698,6 +713,18 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             let right_expr = tree.get(*right);
             visitor.visit_expression(tree, *right, right_expr);
         }
+        Expression::Instantiation {
+            left,
+            static_arguments,
+        } => {
+            let left_expr = tree.get(*left);
+            visitor.visit_expression(tree, *left, left_expr);
+
+            for type_id in static_arguments {
+                let ty = tree.get(*type_id);
+                visitor.visit_type(tree, *type_id, ty);
+            }
+        }
         Expression::Call {
             position: _,
             left,
@@ -706,10 +733,10 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         } => {
             let left_expr = tree.get(*left);
             visitor.visit_expression(tree, *left, left_expr);
-            if let Some(arguments) = static_arguments {
-                for argument_id in arguments {
-                    let argument = tree.get(*argument_id);
-                    visitor.visit_argument(tree, *argument_id, argument);
+            if let Some(types) = static_arguments {
+                for type_id in types {
+                    let ty = tree.get(*type_id);
+                    visitor.visit_type(tree, *type_id, ty);
                 }
             }
             for argument_id in dynamic_arguments {
@@ -736,10 +763,10 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         } => {
             let left_expr = tree.get(*left);
             visitor.visit_expression(tree, *left, left_expr);
-            if let Some(arguments) = static_arguments {
-                for argument_id in arguments {
-                    let argument = tree.get(*argument_id);
-                    visitor.visit_argument(tree, *argument_id, argument);
+            if let Some(types) = static_arguments {
+                for type_id in types {
+                    let ty = tree.get(*type_id);
+                    visitor.visit_type(tree, *type_id, ty);
                 }
             }
             for argument_id in dynamic_arguments {
@@ -1328,6 +1355,7 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::Type, id.id);
     match ty {
         Type::Scalar(_) => {}
+        Type::This => {}
         Type::Expression(expression) => {
             let expression_expr = tree.get(*expression);
             visitor.visit_expression(tree, *expression, expression_expr);
@@ -1337,10 +1365,88 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
             static_arguments,
         } => {
             if let Some(static_arguments) = static_arguments {
-                for argument_id in static_arguments {
-                    let argument = tree.get(*argument_id);
-                    visitor.visit_argument(tree, *argument_id, argument);
+                for type_id in static_arguments {
+                    let ty = tree.get(*type_id);
+                    visitor.visit_type(tree, *type_id, ty);
                 }
+            }
+        }
+        Type::Conditional {
+            left,
+            right,
+            then_type,
+            else_type,
+        } => {
+            let left_ty = tree.get(*left);
+            visitor.visit_type(tree, *left, left_ty);
+
+            let right_ty = tree.get(*right);
+            visitor.visit_type(tree, *right, right_ty);
+
+            let then_ty = tree.get(*then_type);
+            visitor.visit_type(tree, *then_type, then_ty);
+
+            let else_ty = tree.get(*else_type);
+            visitor.visit_type(tree, *else_type, else_ty);
+        }
+        Type::Mapped {
+            parameter,
+            modifiers: _,
+            value,
+        } => {
+            let constraint = tree.get(parameter.constraint);
+            visitor.visit_type(tree, parameter.constraint, constraint);
+
+            if let Some(key_remap) = parameter.key_remap {
+                let key_remap_ty = tree.get(key_remap);
+                visitor.visit_type(tree, key_remap, key_remap_ty);
+            }
+
+            let value_ty = tree.get(*value);
+            visitor.visit_type(tree, *value, value_ty);
+        }
+        Type::Index { left, index } => {
+            let left_ty = tree.get(*left);
+            visitor.visit_type(tree, *left, left_ty);
+
+            let index_ty = tree.get(*index);
+            visitor.visit_type(tree, *index, index_ty);
+        }
+        Type::TemplateLiteral(template) => {
+            for span_id in &template.spans {
+                let span_ty = tree.get(*span_id);
+                visitor.visit_type(tree, *span_id, span_ty);
+            }
+        }
+        Type::Import {
+            target: _,
+            qualifier: _,
+            static_arguments,
+        } => {
+            if let Some(static_arguments) = static_arguments {
+                for type_id in static_arguments {
+                    let ty = tree.get(*type_id);
+                    visitor.visit_type(tree, *type_id, ty);
+                }
+            }
+        }
+        Type::Infer {
+            name: _,
+            constraint,
+        } => {
+            if let Some(constraint) = constraint {
+                let constraint_ty = tree.get(*constraint);
+                visitor.visit_type(tree, *constraint, constraint_ty);
+            }
+        }
+        Type::Predicate {
+            asserts: _,
+            subject: _,
+            target,
+        } => {
+            if let Some(target) = target {
+                let target_ty = tree.get(*target);
+                visitor.visit_type(tree, *target, target_ty);
             }
         }
 
@@ -1426,6 +1532,18 @@ pub fn walk_type_field<V: NodeVisitor + ?Sized>(
                 walk_key(visitor, tree, key);
             }
             walk_function_signature(visitor, tree, signature);
+        }
+        TypeField::IndexSignature {
+            modifiers: _,
+            name: _,
+            key_type,
+            value_type,
+        } => {
+            let key_type_node = tree.get(*key_type);
+            visitor.visit_type(tree, *key_type, key_type_node);
+
+            let value_type_node = tree.get(*value_type);
+            visitor.visit_type(tree, *value_type, value_type_node);
         }
     }
 }
